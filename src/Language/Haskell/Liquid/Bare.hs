@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Bare (
 import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
-import Name                     (getSrcSpan)
+import Name                     (getSrcSpan, isInternalName)
 import NameSet
 import Id                       (isConLikeId)
 import PrelNames
@@ -694,7 +694,7 @@ plugHoles f t st = mkArrow αs ps cs' $ go rt' st''
     (_, st'')    = bkClass st'
     cs'          = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
-    go t                (RHole r)          = fmap (const $ f r) t
+    go t                (RHole r)          = t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
     go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
@@ -1457,12 +1457,13 @@ freshSymbol
        return $ S $ "ex#" ++ show n
 
 maybeTrue x target exports r
-  | not (isHole r) || inTarget && notExported
+  | not (isHole r) || isInternalName name || inTarget && notExported
   = r
   | otherwise
   = uTop $ Reft (S "VV", [])
   where
-    inTarget    = moduleName (nameModule (getName x)) == getModName target
+    inTarget    = moduleName (nameModule name) == getModName target
+    name        = getName x
     notExported = not $ getName x `elemNameSet` exports
 
 -------------------------------------------------------------------------------------

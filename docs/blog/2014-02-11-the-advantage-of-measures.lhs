@@ -16,9 +16,9 @@ solution required rewriting `OrdList` as a `GADT` indexed by a proof of
 the new Closed Type Families extension in GHC 7.8 to define a type-level 
 join of the Emptiness index.
 
-Today, lets a somewhat more direct way of tackling this problem in 
+Today, let's see a somewhat more direct way of tackling this problem in 
 LiquidHaskell, in which we need not change a single line of code 
-(well.. maybe one), need not perform any dynamic checks. 
+(well.. maybe one), and need not perform any dynamic checks. 
 
 <!-- more -->
 
@@ -63,7 +63,7 @@ data OrdList a
 
 As indicated by the comments the key invariants are that:
 
-* `Many`  should take a *non-empty* list,
+* `Many` should take a *non-empty* list,
 * `Two` takes two non-empty `OrdList`s. 
 
 What is a Non-Empty OrdList?
@@ -73,50 +73,48 @@ To proceed, we must tell LiquidHaskell what non-empty means. We do this
 with a [measure][] that describes the *number of elements* in a structure.
 When this number is strictly positive, the structure is non-empty.
 
-\begin{code} We've previously seen how to measure the size of a list
+\begin{code} We've previously seen how to measure the size of a list.
 measure len :: [a] -> Int
 len ([])   = 0
 len (x:xs) = 1 + (len xs)
 \end{code}
 
-We can use the same technique to measure the size of an `OrdList`
+We can use the same technique to measure the size of an `OrdList`.
 
 \begin{code}
 {-@ measure olen :: OrdList a -> Int
-olen (None)      = 0
-olen (One x)     = 1
-olen (Many xs)   = (len xs)
-olen (Cons x xs) = 1 + (olen xs)
-olen (Snoc xs x) = 1 + (olen xs)
-olen (Two x y)   = (olen x) + (olen y)
-@-}
+    olen (None)      = 0
+    olen (One x)     = 1
+    olen (Many xs)   = (len xs)
+    olen (Cons x xs) = 1 + (olen xs)
+    olen (Snoc xs x) = 1 + (olen xs)
+    olen (Two x y)   = (olen x) + (olen y)
+  @-}
 
 {-@ invariant {v:OrdList a | (olen v) >= 0} @-}
 \end{code}
 
-We can now use the measures to define aliases for  **non-empty** lists and `OrdList`s
+Now, we can use the measures to define aliases for **non-empty** lists and `OrdList`s.
 
 \begin{code}
-{-@ type ListNE    a   = {v:[a]       | (len v)  > 0} @-}
-{-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
+{-@ type ListNE    a = {v:[a]       | (len v)  > 0} @-}
+{-@ type OrdListNE a = {v:OrdList a | (olen v) > 0} @-}
 \end{code}
 
 Capturing the Invariants In a Refined Type
 ------------------------------------------
 
-We can now return to the original type, and refine it with the above non-empty
+Let's return to the original type, and refine it with the above non-empty
 variants to specify the invariants as
-
 \begin{code} part of the data declaration
-{-@
-data OrdList [olen] a
-  = None
-  | One  (x  :: a)
-  | Many (xs :: ListNE a)
-  | Cons (x  :: a)           (xs :: OrdList a)
-  | Snoc (xs :: OrdList a)   (x  :: a)
-  | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
-@-}
+{-@ data OrdList [olen] a
+      = None
+      | One  (x  :: a)
+      | Many (xs :: ListNE a)
+      | Cons (x  :: a)           (xs :: OrdList a)
+      | Snoc (xs :: OrdList a)   (x  :: a)
+      | Two  (x  :: OrdListNE a) (y  :: OrdListNE a)
+  @-}
 \end{code}
 
 Notice immediately that LiquidHaskell can use the refined definition to warn us 
@@ -138,7 +136,7 @@ Basic Functions
 
 Now let's look at some of the functions!
 
-First, lets define a handy aliases for `OrdList` of a given size:
+First, we'll define a handy alias for `OrdList`s of a given size:
 
 \begin{code}
 {-@ type OrdListN a N = {v:OrdList a | (olen v) = N} @-}
@@ -147,21 +145,21 @@ First, lets define a handy aliases for `OrdList` of a given size:
 Now, the `nilOL` constructor returns an empty `OrdList`:
 
 \begin{code}
-{-@ nilOL   :: OrdListN a {0} @-}
-nilOL            = None
+{-@ nilOL :: OrdListN a {0} @-}
+nilOL = None
 \end{code}
 
 the `unitOL` constructor returns an `OrdList` with one element:
 
 \begin{code}
 {-@ unitOL :: a -> OrdListN a {1} @-}
-unitOL as        = One as
+unitOL as = One as
 \end{code}
 
 and `snocOL` and `consOL` return outputs with precisely one more element:
 
 \begin{code}
-{-@ snocOL  :: xs:OrdList a -> a -> OrdListN a {1 + (olen xs)} @-}
+{-@ snocOL :: xs:OrdList a -> a -> OrdListN a {1 + (olen xs)} @-}
 snocOL as b = Snoc as b
 
 {-@ consOL :: a -> xs:OrdList a -> OrdListN a {1 + (olen xs)} @-}
@@ -181,7 +179,7 @@ isNilOL _    = False
 </div>
 
 Appending `OrdList`s
-------------------
+--------------------
 
 The above functions really aren't terribly interesting, however, since their 
 types fall right out of the definition of `olen`. 
@@ -189,8 +187,8 @@ types fall right out of the definition of `olen`.
 So how about something that takes a little thinking?
 
 \begin{code}
-{-@ appOL  :: xs:OrdList a -> ys:OrdList a
-           -> OrdListN a {(olen xs) + (olen ys)}
+{-@ appOL :: xs:OrdList a -> ys:OrdList a
+          -> OrdListN a {(olen xs) + (olen ys)}
   @-}
 None  `appOL` b     = b
 a     `appOL` None  = a
@@ -227,7 +225,7 @@ mapOL f (Two x y)   = Two (mapOL f x) (mapOL f y)
 mapOL f (Many xs)   = Many (map f xs)
 \end{code}
 
-as does converting a Haskell list to an `OrdList`
+as does converting a Haskell list to an `OrdList`.
 
 \begin{code}
 {-@ type ListN a N = {v:[a] | (len v) = N} @-}
@@ -235,7 +233,9 @@ as does converting a Haskell list to an `OrdList`
 {-@ fromOL :: xs:OrdList a -> ListN a {(olen xs)} @-}
 fromOL a = go a []
   where
-    {-@ go :: xs:_ -> ys:_ -> {v:_ | (len v) = (olen xs) + (len ys)} @-}
+    {-@ go :: xs:_ -> ys:_
+           -> {v:_ | (len v) = (olen xs) + (len ys)}
+      @-}
     go None       acc = acc
     go (One a)    acc = a : acc
     go (Cons a b) acc = a : go b acc
@@ -244,7 +244,7 @@ fromOL a = go a []
     go (Many xs)  acc = xs ++ acc
 \end{code}
 
-<!-- 
+<div class="hidden">
 though for this last one we actually need to provide an explicit
 qualifier, which we haven't really seen so far. Can anyone guess why?
 
@@ -259,8 +259,7 @@ of the `OrdList` that it's folding over *as well as* the length of
 the accumulator `acc`! We haven't written a refinement like that in
 any of our type signatures in this module, so LiquidHaskell doesn't
 know to guess that type.
-
--->
+</div>
 
 There's nothing super interesting to say about the `foldOL`s but I'll
 include them here for completeness' sake.
@@ -296,7 +295,7 @@ states that the size of the output list equals the *sum-of-the-sizes*
 of the input `OrdLists`.
 
 \begin{code}
-{-@ concatOL      :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
+{-@ concatOL :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
 concatOL []       = None
 concatOL (ol:ols) = ol `appOL` concatOL ols
 \end{code}
@@ -305,9 +304,9 @@ The notion of *sum-of-the-sizes* of the input lists is specifed by the measure
 
 \begin{code}
 {-@ measure olens :: [OrdList a] -> Int
-    olens ([])        = 0
-    olens (ol:ols)    = (olen ol) + (olens ols)
-@-}
+    olens ([])     = 0
+    olens (ol:ols) = (olen ol) + (olens ols)
+  @-}
 
 {-@ invariant {v:[OrdList a] | (olens v) >= 0} @-}
 \end{code}
@@ -318,14 +317,14 @@ requiring any explict proofs.
 Conclusion
 ----------
 
-The above illustrates the flexibility provided by LiquidHaskell *measures*
+The above illustrates the flexibility provided by LiquidHaskell *measures*.
 
 Instead of having to bake particular invariants into a datatype using indices
 or phantom types (as in the [GADT][] approach), we are able to split our 
 properties out into independent *views* of the datatype, yielding an approach
 that is more modular as 
 
-* we didn't have to go back and change the definition of `[]` to talk about `OrdList`s, 
+* we didn't have to go back and change the definition of `[]` to talk about `OrdList`s,
 * we didn't have to provide explict non-emptiness witnesses,
 * we obtained extra information about the behavior of API functions like `concatOL`.
 
@@ -361,7 +360,7 @@ LiquidHaskell can use this signature, instantiating `p` with `\xs
 definition of `concatOL`!
 
 \begin{code}
-{-@ concatOL' :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
+{- concatOL' :: xs:[OrdList a] -> OrdListN a {(olens xs)} @-}
 concatOL' aas = foldr' (const appOL) None aas
 \end{code}
 
@@ -373,4 +372,4 @@ type-signature.
 [GADT]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/cfbrinr
 [Reddit]: http://www.reddit.com/r/haskell/comments/1xiurm/how_to_define_append_for_ordlist_defined_as_gadt/
 [OrdList]: http://www.haskell.org/platform/doc/2013.2.0.0/ghc-api/OrdList.html
-[Measures]: http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
+[measure]: http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
