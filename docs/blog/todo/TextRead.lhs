@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Text Read"
-date:
+date: 2014-02-16
 comments: true
 external-url:
 author: Eric Seidel
@@ -10,25 +10,172 @@ categories: benchmarks, text
 demo: TextRead.hs
 ---
 
-Welcome back, today we're going to show how to consume
-`Text` values. The key complication we'll find when reasoning about
-`Text`s is the use of UTF-16 as the internal encoding.
+Welcome back! Last time we left off on a bit of a cliffhanger with the
+`unstream` example. Remember, the issue we found was that some `Char`s
+can't fit into a single `Word16`, so the safety of a write depends not
+only on the *index*, but also on the *value* being written! Before we
+can resolve this issue with `unstream` we'll have to learn about
+UTF-16, so let's take a short detour and look at how one *consumes* a
+`Text`.
 
 <!-- more -->
 
+<div class="hidden">
+
 \begin{code}
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
+    RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
 module TextRead where
 
-import Data.Word (Word16)
-
-import qualified TextInternal as I
-import TextInternal (Text(..), Array(..), MArray(..))
-import TextAux
+import GHC.Base hiding (unsafeChr)
+import GHC.ST
+import GHC.Word (Word16(..))
+import Data.Bits hiding (shiftL)
+import Data.Word
 
 import Language.Haskell.Liquid.Prelude
+
+
+--------------------------------------------------------------------------------
+--- From TextInternal
+--------------------------------------------------------------------------------
+
+{-@ shiftL :: i:Nat -> n:Nat -> {v:Nat | ((n = 1) => (v = (i * 2)))} @-}
+shiftL :: Int -> Int -> Int
+shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
+
+{-@ data Array = Array { aBA  :: ByteArray#
+                       , aLen :: Nat 
+                       } 
+  @-}
+
+data Array = Array {
+    aBA  :: ByteArray#
+  , aLen :: !Int
+  }
+
+{-@ measure alen     :: Array -> Int
+    alen (Array a n) = n
+  @-}
+
+{-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
+
+{-@ type ArrayN  N   = {v:Array | (alen v) = N} @-}
+
+{-@ type AValidI A   = {v:Nat | v     <  (alen A)} @-}
+{-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
+{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
+
+{-@ data MArray s = MArray { maBA  :: MutableByteArray# s
+                           , maLen :: Nat } @-}
+
+data MArray s = MArray {
+    maBA  :: MutableByteArray# s
+  , maLen :: !Int
+  }
+
+{-@ measure malen :: MArray s -> Int
+    malen (MArray a n) = n
+  @-}
+
+{-@ maLen :: a:MArray s -> {v:Nat | v = (malen a)}  @-}
+
+{-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
+
+{-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
+
+{-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
+new          :: forall s. Int -> ST s (MArray s)
+new n
+  | n < 0 || n .&. highBit /= 0 = error $ "new: size overflow"
+  | otherwise = ST $ \s1# ->
+       case newByteArray# len# s1# of
+         (# s2#, marr# #) -> (# s2#, MArray marr# n #)
+  where !(I# len#) = bytesInArray n
+        highBit    = maxBound `xor` (maxBound `shiftR` 1)
+        bytesInArray n = n `shiftL` 1
+
+{-@ unsafeFreeze :: ma:MArray s -> ST s (ArrayN (malen ma)) @-}
+unsafeFreeze :: MArray s -> ST s Array
+unsafeFreeze MArray{..} = ST $ \s# ->
+                          (# s#, Array (unsafeCoerce# maBA) maLen #)
+
+{-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
+unsafeIndex  :: Array -> Int -> Word16
+unsafeIndex Array{..} i@(I# i#)
+  | i < 0 || i >= aLen = liquidError "out of bounds"
+  | otherwise = case indexWord16Array# aBA i# of
+                  r# -> (W16# r#)
+
+data Text = Text Array Int Int
+{-@ data Text [tlen] = Text (arr :: Array)
+                            (off :: TValidO arr)
+                            (len :: TValidL off arr)
+  @-}
+
+{-@ measure tarr :: Text -> Array
+    tarr (Text a o l) = a
+  @-}
+
+{-@ measure toff :: Text -> Int
+    toff (Text a o l) = o
+  @-}
+
+{-@ measure tlen :: Text -> Int
+    tlen (Text a o l) = l
+  @-}
+
+{-@ type TValidI T   = {v:Nat | v     <  (tlen T)} @-}
+{-@ type TValidO A   = {v:Nat | v     <= (alen A)} @-}
+{-@ type TValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
+
+
+--------------------------------------------------------------------------------
+--- Helpers
+--------------------------------------------------------------------------------
+
+{-@ invariant {v:Text | (tlength v) = (numchars (tarr v) (toff v) (tlen v))} @-}
+
+{-@ axiom_lead_surr :: x:Word16 -> a:Array -> o:Nat -> l:Nat -> i:Nat
+                  -> {v:Bool | ((Prop v) <=> (if (55296 <= x && x <= 56319)
+                                              then (SpanChar 2 a o l i)
+                                              else (SpanChar 1 a o l i)))}
+  @-}
+axiom_lead_surr :: Word16 -> Array -> Int -> Int -> Int -> Bool
+axiom_lead_surr = undefined
+
+{-@ empty :: {v:Text | (tlen v) = 0} @-}
+empty :: Text
+empty = Text arrEmpty 0 0
+  where
+    {-@ arrEmpty :: (ArrayN {0}) @-}
+    arrEmpty = runST $ new 0 >>= unsafeFreeze
+
+unsafeChr :: Word16 -> Char
+unsafeChr (W16# w#) = C# (chr# (word2Int# w#))
+
+chr2 :: Word16 -> Word16 -> Char
+chr2 (W16# a#) (W16# b#) = C# (chr# (upper# +# lower# +# 0x10000#))
+    where
+      !x# = word2Int# a#
+      !y# = word2Int# b#
+      !upper# = uncheckedIShiftL# (x# -# 0xD800#) 10#
+      !lower# = y# -# 0xDC00#
+
+{-@ qualif Min(v:int, t:Text, i:int):
+      (if ((tlength t) < i)
+       then ((numchars (tarr t) (toff t) v) = (tlength t))
+       else ((numchars (tarr t) (toff t) v) = i))
+  @-}
+
+{-@ qualif NumChars(v:int, t:Text, i:int): v = (numchars (tarr t) (toff t) i) @-}
+
+{-@ qualif TLengthLE(v:int, t:Text): v <= (tlength t) @-}
+
 \end{code}
+
+</div>
 
 Let's begin with a simple example, `unsafeHead`.
 
@@ -40,15 +187,15 @@ unsafeHead :: Text -> Char
 unsafeHead (Text arr off _len)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
     | otherwise                = chr2 m n
-    where m = I.unsafeIndex arr off
-          n = I.unsafeIndex arr (off+1)
+    where m = unsafeIndex arr off
+          n = unsafeIndex arr (off+1)
 \end{code}
 
-LiquidHaskell can prove the first `I.unsafeIndex` is safe because the
+LiquidHaskell can prove the first `unsafeIndex` is safe because the
 precondition states that the `Text` must not be empty, i.e. `_len > 0`
 must hold. Combine this with the core `Text` invariant that
 `off + _len <= alen arr` and we get that `off < alen arr`, which satisfies
-the precondition for `I.unsafeIndex`.
+the precondition for `unsafeIndex`.
 
 However, the same calculation *fails* for the second index because we
 can't prove that `off + 1 < alen arr`. The solution is going to
@@ -74,7 +221,7 @@ version of `unsafeIndex` that encodes this domain knowledge.
                                  else (SpanChar 1 a o l i))}
   @-}
 unsafeIndexF :: Array -> Int -> Int -> Int -> Word16
-unsafeIndexF a o l i = let x = I.unsafeIndex a i
+unsafeIndexF a o l i = let x = unsafeIndex a i
                        in liquidAssume (axiom_lead_surr x a o l i) x
 \end{code}
 
@@ -95,7 +242,9 @@ one slot." Intuitively, we know what it means for a character to span
 2 and 3 encode the well-formedness of a `Text` value, i.e. `i+1`
 *must* be a valid index if a lead surrogate is at index `i`.
 
-\begin{code} We can encode these properties in the refinement logic as follows.
+We can encode these properties in the refinement logic as follows.
+
+\begin{code}
 {-@ measure numchars :: Array -> Int -> Int -> Int @-}
 {-@ predicate SpanChar N A O L I =
       (((numchars (A) (O) ((I-O)+N)) = (1 + (numchars (A) (O) (I-O))))
@@ -134,7 +283,7 @@ unsafeHead' (Text arr off _len)
     | otherwise                = chr2 m n
     where m = unsafeIndexF arr off _len off
           {-@ LAZYVAR n @-}
-          n = I.unsafeIndex arr (off+1)
+          n = unsafeIndex arr (off+1)
 \end{code}
 
 The `LAZYVAR` annotation is currently required because LiquidHaskell
@@ -162,7 +311,10 @@ take n t@(Text arr off len)
 `take` gets a `Nat` and a `Text`, and returns a `Text` that contains
 the first `n` characters of `t`. That is, unless `n >= tlength t`, in
 which case it just returns `t`.
-\begin{code} `tlength` is a simple wrapper around `numchars`.
+
+`tlength` is a simple wrapper around `numchars`.
+
+\begin{code}
 {-@ measure tlength :: Text -> Int
     tlength (Text a o l) = (numchars a o l)
   @-}

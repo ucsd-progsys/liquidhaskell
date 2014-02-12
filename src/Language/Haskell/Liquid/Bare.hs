@@ -22,7 +22,7 @@ import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe, eqType)
 import DataCon                  (dataConImplicitIds, dataConWorkId, dataConStupidTheta)
-import TyCon                    (tyConArity)
+import TyCon                    (tyConArity, tcExpandTyCon_maybe)
 import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
@@ -1086,15 +1086,23 @@ ofRef (RMono ss r)
 ofSyms (x, t)
   = liftM ((,) x) (ofBareType t)
 
--- TODO: move back to RefType
-bareTCApp _ r c rs ts | length ts == tyConArity c
-  = if isTrivial t0 then t' else t
-    where t0 = rApp c ts rs mempty
-          t  = rApp c ts rs r
-          t' = (expandRTypeSynonyms t0) `strengthen` r
--- otherwise create an error
--- create the error later to get better message
-bareTCApp _ _ c rs ts = rApp c ts rs mempty
+tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
+tyApp t                []  []  r  = t `strengthen` r
+
+bareTCApp _ r c rs ts | (not (isFamilyTyCon c)) && isSynTyCon c
+   = tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r 
+   where tvs = tyConTyVars  c
+         rhs = synTyConType c  -- this is not defined for FamilyTyCon
+         su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
+         nts = length tvs
+
+-- TODO expandTypeSynonyms here to
+bareTCApp _ r c rs ts | isFamilyTyCon c && isTrivial t
+  = expandRTypeSynonyms $ t `strengthen` r 
+  where t = rApp c ts rs mempty
+
+bareTCApp _ r c rs ts 
+  = rApp c ts rs r
 
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
 
@@ -1335,10 +1343,14 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
 -------------------------------------------------------------------------------------
 
-checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f (\p g -> insertSEnv (pname p) (rTypeSortedReft emb (toPredType p :: RSort)) g) env Nothing t 
+checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
     cb c ts                  = classBinds (RCls c ts)
     f env me r err           = err <|> checkReft env emb me r
+    insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p) 
+    pbinds p                 = (pname p, toPredType p :: RSort) 
+                              : [(x, t) | (t, x, _) <- pargs p]
+
 
 checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
 checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  

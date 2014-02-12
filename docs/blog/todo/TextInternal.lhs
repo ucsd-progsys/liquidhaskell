@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Text Internals"
-date:
+date: 2014-02-09
 comments: true
 external-url:
 author: Eric Seidel
@@ -106,8 +106,6 @@ writeChar marr i c
     getSize (Exact n) = n
     getSize (Max   n) = n
   @-}
-{-@ qualif IsUnknown(v:Size) : (isUnknown v) @-}
-{-@ qualif IsKnown(v:Size) : not (isUnknown v) @-}
 
 {-@ invariant {v:Size | (getSize v) >= 0} @-}
 
@@ -136,60 +134,9 @@ data Stream a =
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 
-{-@ runText :: (forall s. (m:MArray s -> MAValidO m -> ST s Text) -> ST s Text)
-            -> Text
-  @-}
-runText :: (forall s. (MArray s -> Int -> ST s Text) -> ST s Text) -> Text
-runText act = runST (act $ \ !marr !len -> do
-                             arr <- unsafeFreeze marr
-                             return $! Text arr 0 len)
-
-{-@ qualif MALen(v:int, a:MArray s): v = malen(a) @-}
-{-@ qualif MALen(v:MArray s, i:int): i = malen(v) @-}
-
-{-@ qualif MALenLE(v:int, a:MArray s): v <= (malen a) @-}
-{-@ qualif ALenLE(v:int, a:Array): v <= (alen a) @-}
-
-{-@ qualif LTEPlus(v:int, a:int, b:int) : (v + a) <= b @-}
-
-{- measure ord :: Char -> Int @-}
-{- GHC.Base.ord :: c:Char -> {v:Int | v = (ord c)} @-}
-
-{- qualif Ord(v:int, i:int, x:Char)
-        : ((((ord x) <  65536) => (v = i))
-        && (((ord x) >= 65536) => (v = (i + 1))))
-  @-}
-
-{-@ qualif FreezeMArr(v:Array, ma:MArray s): (alen v) = (malen ma) @-}
-
-{- predicate Room C MA I = (((One C) => (RoomN 1 MA I))
-                          && ((Two C) => (RoomN 2 MA I)))
-  @-}
-{- predicate RoomN N MA I = (I+N <= (malen MA)) @-}
-
-
-
-{-
-  MArray --> Array --> Text
-    (w)       (r)       
-
-+ MArray (writing)
-  + new
-  + unsafeWrite
-  + copyM
-
-+ Array  (reading)
-  ? unsafeIndex 
-
-+ Text   (Array + offset trickery)
-  + pic with offsets
-
-+ clientCopyM 
-  + new-MArray ~> stuff ~> Array ~> Text 
-  + why is copyM "safe"
-  + but look, here's this other stuff that is NOT safe...(unicode, next time...)
-
--}
+{-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
+memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
+memcpyM = undefined
 
 \end{code}
 
@@ -199,8 +146,7 @@ runText act = runST (act $ \ !marr !len -> do
 types of arrays, immutable `Array`s and mutable `MArray`s. This leads to
 the following general lifecycle:
 
-![The lifecycle of a `Text`](text-lifecycle.png)
-
+![The lifecycle of a `Text`](/images/text-lifecycle.png)
 
 
 \begin{code}
@@ -241,7 +187,7 @@ But first, let's see how one creates an `MArray`.
 
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new n
-  | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
+  | n < 0 || n .&. highBit /= 0 = error $ "new: size overflow"
   | otherwise = ST $ \s1# ->
        case newByteArray# len# s1# of
          (# s2#, marr# #) -> (# s2#, MArray marr# n #)
@@ -279,6 +225,41 @@ unsafeWrite MArray{..} i@(I# i#) (W16# e#)
         s2# -> (# s2#, () #)
 \end{code}
 
+So now we can write individual `Word16`s into an array, but maybe we
+have a whole bunch of text we want to dump into the array. Remember,
+`text` is supposed to be fast!
+C has `memcpy` for cases like this but it's notoriously unsafe; with
+the right type however, we can regain safety. `text` provides a wrapper around
+`memcpy` to copy `n` elements from one `MArray` to another.
+
+\begin{code}
+{-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
+{-@ copyM :: dest:MArray s
+          -> didx:MAValidO dest
+          -> src:MArray s 
+          -> sidx:MAValidO src
+          -> {v:Nat | (((didx + v) <= (malen dest))
+                    && ((sidx + v) <= (malen src)))}
+          -> ST s ()
+  @-}
+copyM dest didx src sidx count
+    | count <= 0 = return ()
+    | otherwise =
+    liquidAssert (sidx + count <= maLen src) .
+    liquidAssert (didx + count <= maLen dest) .
+    unsafeIOToST $ memcpyM (maBA dest) (fromIntegral didx)
+                           (maBA src) (fromIntegral sidx)
+                           (fromIntegral count)
+\end{code}
+
+`copyM` requires two `MArray`s and valid offsets into each -- note 
+that a valid offset is **not** necessarily a valid *index*, it may 
+be one element out-of-bounds -- and a `count` of elements to copy.
+The `count` must represent a valid region in each `MArray`, in 
+other words `offset + count <= length` must hold for each array. 
+`memcpyM` is an FFI function writen in C, which we don't currently
+support, so we simply leave it `undefined`.
+
 Before we can package up our `MArray` into a `Text`, we need to
 *freeze* it, preventing any further mutation. The key property here is
 of course that the frozen `Array` should have the same length as the
@@ -310,45 +291,6 @@ unsafeIndex Array{..} i@(I# i#)
 As before, LiquidHaskell can easily prove that the run-time assertions
 will never fail.
 
-But what if we want to copy a region of one array into another? Well, we could
-repeatedly `unsafeWrite` the result of `unsafeIndex`ing, but `text` is designed
-to be fast. C has `memcpy` for cases like this but it's notoriously unsafe; with
-the right type however, we can regain safety. `text` provides a wrapper around
-`memcpy` to copy `n` elements from one `MArray` to another.
-
-\begin{code}
-{-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
-{-@ copyM :: dest:MArray s 
-          -> didx:MAValidO dest
-          -> src:MArray s 
-          -> sidx:MAValidO src
-          -> {v:Nat | (((didx + v) <= (malen dest))
-                    && ((sidx + v) <= (malen src)))}
-          -> ST s ()
-  @-}
-copyM dest didx src sidx count
-    | count <= 0 = return ()
-    | otherwise =
-    liquidAssert (sidx + count <= maLen src) .
-    liquidAssert (didx + count <= maLen dest) .
-    unsafeIOToST $ memcpyM (maBA dest) (fromIntegral didx)
-                           (maBA src) (fromIntegral sidx)
-                           (fromIntegral count)
-\end{code}
-
-`copyM` requires two `MArray`s and valid offsets into each -- note 
-that a valid offset is **not** necessarily a valid *index*, it may 
-be one elementout-of-bounds -- and a `count` of elements to copy. 
-The `count` must represent a valid region in each `MArray`, in 
-other words `offset + count <= length` must hold for each array. 
-`memcpyM` is an FFI function writen in C, which we don't currently
-support, so we simply leave it `undefined`.
-
-\begin{code}
-{-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
-memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
-memcpyM = undefined
-\end{code}
 
 Now we can finally define the core datatype of the `text` package! 
 A `Text` value consists of an *array*, an *offset*, and a *length*. 
@@ -357,8 +299,11 @@ The offset and length are `Nat`s satisfying two properties:
 1. `off <= alen arr`, and 
 2. `off + len <= alen arr`
 
-These invariants ensure that any *index* we pick between `off` and 
-`off + len` will be a valid index into `arr`.
+These invariants ensure that any *index* we pick between `off` and
+`off + len` will be a valid index into `arr`. If you're not quite
+convinced, consider the following `Text`s.
+
+![Multiple valid `Text` configurations, all using an `Array` with 10 slots. The valid slots are shaded. Note that the key invariant is that `off + len <= alen`.](/images/text-layout.png)
 
 \begin{code}
 data Text = Text Array Int Int
@@ -388,16 +333,24 @@ express the core invariant.
 {-@ type TValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 \end{code}
 
+Before we go, let's take a quick look at a function that combines
+`MArray`s, `Array`s, and `Text`s. `unstream` is a major workhorse of
+the `text` library. It transforms a `Stream` of `Char`s into a `Text`,
+and enables GHC use a technique called *stream fusion* to combine
+multiple loops over a sequence into a single loop.
+
 \begin{code}
 unstream :: Stream Char -> Text
-unstream (Stream next0 s0 len) = runText $ \done -> do
+unstream (Stream next0 s0 len) = runST $ do
   let mlen = upperBound 4 len
   arr0 <- new mlen
   let outer arr top = loop
        where
         loop !s !i =
             case next0 s of
-              Done          -> done arr i
+              Done          -> do
+                arr' <- unsafeFreeze arr
+                return $! Text arr' 0 i
               Skip s'       -> loop s' i
               Yield x s'
                 | j >= top  -> do
@@ -413,6 +366,19 @@ unstream (Stream next0 s0 len) = runText $ \done -> do
   outer arr0 mlen s0 0
 \end{code}
 
-Stay tuned, next time we'll show how we can use these low-level
-operations to verify the safety of the API that `text` actually
-exposes to the user.
+`unstream` repeatedly writes the characters coming out of the `Stream`
+into the `arr`, until it runs out of room. Then it has to allocate a
+new, larger `MArray` and copy everything into the new array before
+continuing. Note that LiquidHaskell has successfully inferred that
+`arr'` is longer than `arr` and that `top` is a valid offset into
+both, thus proving that the call to `copyM` is safe! Unfortunately for
+us, however, the `writeChar` call is flagged as *unsafe*.. Astute
+readers will notice that `writeChar` (whose implementation we haven't
+yet seen) has a slightly odd type, it requires that the index `i` be
+less than `malen arr - 1`. This is indeed odd and, I should add, not
+the final type, but it is a safe approximation because not all `Char`s
+are created equal. Depending on your encoding, some won't fit into a
+single `Word16`, so we may need extra room to write!
+
+Stay tuned, next time we'll dig into how `text` uses Unicode to
+represent `Char`s internally.

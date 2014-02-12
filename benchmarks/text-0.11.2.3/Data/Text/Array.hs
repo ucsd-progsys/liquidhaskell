@@ -158,7 +158,7 @@ data MArray s = MArray {
 {-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
 {-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
 
-{-@ invariant {v:MArray | (malen v) >= 0} @-}
+{-@ invariant {v:MArray s | (malen v) >= 0} @-}
 
 {-@ qualif FreezeMArr(v:Array, ma:MArray s):
         alen(v) = malen(ma)
