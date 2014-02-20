@@ -114,7 +114,7 @@ initEnv info penv
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        mapM_ (addW . WfC γ0) (catMaybes ks)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
+       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     refreshArgs' = mapM (mapSndM refreshArgs)
     refreshKs    = mapM (mapSndM refreshK)
@@ -1020,11 +1020,14 @@ consCB tflag γ (Rec xes) | tflag
 consCB _ γ (Rec xes) 
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
-       let xts = [(x, to) | (x, _, to) <- xets, not (isGrty x)]
+       let xts = [(x, {-topBaseRef <$>-} to) | (x, _, to) <- xets] -- , not (isGrty x)]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
     where isGrty x = (F.symbol x) `memberREnv` (grtys γ)
+          topBaseRef (RVar v r)       = RVar v (F.top r)
+          topBaseRef (RApp c ts rs r) = RApp c ts rs (F.top r)
+          topBaseRef  t               = t
 
 consCB _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
@@ -1036,7 +1039,7 @@ consBind isRec γ (x, e, Just spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
        addIdA x (defAnn isRec spect)
-       return Nothing
+       return $ Just spect -- Nothing
   where πs   = snd3 $ bkUniv spect
 
 consBind isRec γ (x, e, Nothing)
