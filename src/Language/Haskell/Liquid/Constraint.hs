@@ -114,7 +114,7 @@ initEnv info penv
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        mapM_ (addW . WfC γ0) (catMaybes ks)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat bs]
+       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     refreshArgs' = mapM (mapSndM refreshArgs)
     refreshKs    = mapM (mapSndM refreshK)
@@ -1036,7 +1036,7 @@ consBind isRec γ (x, e, Just spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
        addIdA x (defAnn isRec spect)
-       return Nothing
+       return $ Just spect -- Nothing
   where πs   = snd3 $ bkUniv spect
 
 consBind isRec γ (x, e, Nothing)
