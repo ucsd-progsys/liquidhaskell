@@ -694,7 +694,7 @@ plugHoles f t st = mkArrow αs ps cs' $ go rt' st''
     (_, st'')    = bkClass st'
     cs'          = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
-    go t                (RHole r)          = t { rt_reft = f r }
+    go t                (RHole r)          = fmap f t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
     go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
