@@ -1,5 +1,12 @@
 module HOSubtype where
 
+{-@ foo :: f:(x:{v:Int | false} -> {v:Int | v = x}) -> () @-}
+foo    :: (Int -> Int) -> ()
+foo pf = ()
+
+test0 :: ()
+test0  = foo useless_proof
+
 {-@ generic_accept_stable ::
                     f:(x:a -> {v:a | (v = x)}) ->
                     ()
