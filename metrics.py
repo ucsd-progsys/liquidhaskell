@@ -145,7 +145,7 @@ def main():
     with open('metrics.tex', 'w') as out:
         out.write('\\begin{tabular}{|l|rrrr|rrrrrr|r|}\n')
         out.write('\\hline\n')
-        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif', 'Fun', 'Rec', 'RecFun', 'NonTerm', 'Hint', 'Wit', 'Time (s)']
+        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif', 'Fun', 'Rec', 'RecFun', 'Serious', 'Hint', 'Wit', 'Time (s)']
         out.write(' & '.join('\\textbf{%s}' % h for h in headers) + '\\\\\n')
         out.write('\\hline\\hline\n')
         totals = defaultdict(int)
