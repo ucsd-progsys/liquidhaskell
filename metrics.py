@@ -57,9 +57,15 @@ benchmarks = {
 
 def time(fn):
     start = datetime.now()
-    with open('/dev/null', 'w') as out:
-        subprocess.check_call(['liquid', '-s', 'z3mem', fn], stdout=out, stderr=out)
+    with open(fn+'.log', 'w') as out:
+        subprocess.call(['liquid', '--smtsolver', 'z3mem', fn], stdout=out, stderr=out)
     return (datetime.now() - start).total_seconds()
+
+def errors(fn):
+    with open(fn+'.log') as fd:
+        log = fd.readlines()
+    unsafes = [l for l in log if l.startswith('**** UNSAFE:')]
+    return unsafes
 
 def sloc(fn):
     return int(subprocess.check_output('sloccount --details %s | grep -E "haskell\stop_dir" | cut -f1' % fn, shell=True))
@@ -68,8 +74,8 @@ def lines(anns):
     return sum(map(lambda x:(1+x.count('\n')), anns))
 
 def recs(fn):
-    with open(fn+'.cgi', 'r') as f:
-        return int(re.search('Recursive binders: (\d+)', f.read()).group(1))
+    out = subprocess.check_output('liquid-count-binders %s 2>/dev/null' % fn, shell=True)
+    return [int(n) for n in re.findall('(\d+)', out)]
 
 def find(rx, str):
     return [(str[a.start():(3+string.find(str,"@-}", a.start()))])
@@ -88,12 +94,12 @@ def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
 
 def texify(fn, metrics):
-    return '\\texttt{%s} & %d & %d / %d & %d / %d & %d / %d & %d & %d & %d & %d & %d \\\\\n' % (
+    return '\\texttt{%s} & %d & %d / %d & %d / %d & %d / %d & %d & %d & %d & %d & %d & %d & %d \\\\\n' % (
         fn, metrics['sloc'], metrics['specs'], metrics['specs_lines'],
         metrics['others'], metrics['others_lines'],
         metrics['qualifs'], metrics['qualifs_lines'],
-        metrics['recs'], metrics['terms'], metrics['decs'],
-        metrics['wits'], metrics['time'])
+        metrics['funs'], metrics['recs'], metrics['recfuns'], metrics['terms'],
+        metrics['decs'], metrics['wits'], metrics['time'])
 
 def main():
     results = {}
@@ -106,7 +112,13 @@ def main():
             f_res = {}
             f_res['time'] = time(fn)
             f_res['sloc'] = sloc(fn)
-            f_res['recs'] = recs(fn)
+            [fs,rs,rfs] = recs(fn)
+            f_res['funs'] = fs
+            f_res['recs'] = rs
+            f_res['recfuns'] = rfs
+
+            import pprint
+            pprint.pprint(errors(fn))
 
             str = (open(fn, 'r')).read()
             mod = re.search(mod_re, str, re.M).group(1)
@@ -131,9 +143,9 @@ def main():
         os.chdir(pwd)
 
     with open('metrics.tex', 'w') as out:
-        out.write('\\begin{tabular}{|l|rrrr|rrrr|r|}\n')
+        out.write('\\begin{tabular}{|l|rrrr|rrrrrr|r|}\n')
         out.write('\\hline\n')
-        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif', 'Rec', 'NonTerm', 'Hint', 'Wit', 'Time (s)']
+        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif', 'Fun', 'Rec', 'RecFun', 'NonTerm', 'Hint', 'Wit', 'Time (s)']
         out.write(' & '.join('\\textbf{%s}' % h for h in headers) + '\\\\\n')
         out.write('\\hline\\hline\n')
         totals = defaultdict(int)
