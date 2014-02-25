@@ -3,7 +3,9 @@
 #!/usr/bin/env runhaskell
 module Main where
 
+
 import           Control.Applicative
+import           Data.Function
 import           Data.Generics
 import           Data.List
 import           System.Environment
@@ -16,6 +18,7 @@ import           GHC
 import           GHC.Paths
 import           HscTypes
 import qualified Outputable as Out
+import           Type
 import           Var
 
 import           Language.Haskell.Liquid.GhcMisc
@@ -56,14 +59,28 @@ allBinders cbs = cbs ++ map bind (concatMap (listify isBinder) cbs)
     isBinder _         = False
 
 
+recsAndFuns :: [CoreBind] -> ([Var],[Var],[Var])
+recsAndFuns binds = (recs,recfuns,funs)
+  where
+    recs    = [v | Rec bs <- binds, (v,_)  <- bs]
+    recfuns = filter isFun recs
+    -- GHC does transforms recursive functions (at least with tyvars)
+    -- into a let binding that quantifies over the tyvar followed by a
+    -- letrec that defines the function, e.g.
+    --     let foo = \ @a -> { letrec foo = ... in foo }
+    -- but we don't want to count foo as rec and nonrec
+    funs    = nubBy ((==) `on` getOccName)
+            $ [v | NonRec v _ <- binds, isFun v]
+           ++ recfuns
+    isFun   = isFunTy . snd . splitForAllTys . varType
+
+
 main :: IO ()
 main = do
   target <- head <$> getArgs
   binds  <- allBinders <$> getCoreBinds target
 
-  let recs    = concat [bs | Rec bs <- binds]
-      recfuns = [v | (v,Lam _ _) <- recs]
-      funs    = [v | NonRec v (Lam _ _) <- binds] ++ recfuns
+  let (recs,recfuns,funs) = recsAndFuns binds
 
   printf "funs:     %d\n" (length funs)
   printf "recs:     %d\n" (length recs)
