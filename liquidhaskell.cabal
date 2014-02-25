@@ -78,6 +78,40 @@ Executable liquid
   --ghc-options: -O -W
   Extensions: PatternGuards
 
+Executable liquid-count-binders
+  Build-Depends: base >= 4 && < 5
+               , ghc==7.6.3
+               , ansi-terminal
+               , bifunctors
+               , cmdargs
+               , containers
+               , cpphs
+               , deepseq
+               , directory
+               , Diff
+               , filemanip
+               , filepath
+               , ghc-paths
+               , hscolour
+               , mtl
+               , parsec
+               , pretty
+               , process
+               , syb
+               , text
+               , vector
+               , liquid-fixpoint
+               , hashable<1.2
+               , unordered-containers
+               , aeson
+               , bytestring
+               , liquidhaskell
+               
+  Main-is: CountBinders.hs
+  --ghc-options: -O -W
+  Extensions: PatternGuards
+
+
 Library
    Build-Depends: base
                 , ghc==7.6.3
