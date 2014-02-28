@@ -1178,7 +1178,7 @@ consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- traceShow "consE.tx" <$> freshTy_type LamE (Var x) τx 
+  = do tx     <- freshTy_type LamE (Var x) τx 
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 
