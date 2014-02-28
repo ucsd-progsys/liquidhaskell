@@ -467,6 +467,13 @@ data Ref t s m
   = RMono [(Symbol, t)] s
   | RPoly [(Symbol, t)] m
 
+instance (PPrint s, PPrint t, PPrint m) => PPrint (Ref t s m) where
+  pprint (RMono rs s) = text "RMono" <+> pprint rs <+> pprint s
+  pprint (RPoly rs s) = text "RPoly" <+> pprint rs <+> pprint s
+
+instance (PPrint s, PPrint t, PPrint m) => Show (Ref t s m) where
+  show = showpp
+
 -- MOVE TO TYPES
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate }

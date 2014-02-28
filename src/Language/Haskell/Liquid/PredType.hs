@@ -246,8 +246,8 @@ substPred _   (π, RPoly ss (RVar a1 r1)) t@(RVar a2 r2)
 
 substPred msg su@(π, _ ) (RApp c ts rs r)
   | null πs                   = t' 
-  | otherwise                 = substRCon msg su t' πs r2'
-  where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+  | otherwise                 = substRCon msg (traceShow "substPred.su" su) t' πs r2'
+  where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> traceShow "substPred.rs" rs) r
         (r2', πs) = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)

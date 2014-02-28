@@ -87,9 +87,6 @@ main = do
   printf "recsFuns: %d\n" (length recfuns)
 
 
-instance Show Var where
-  show = showPpr
-
 instance Show CoreBind where
   show = showPpr
 
