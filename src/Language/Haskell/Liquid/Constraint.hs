@@ -128,8 +128,6 @@ initEnv info penv
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
-instance Show Var where
-  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -765,7 +763,7 @@ freshTy_type k e τ  = do t <- freshTy_reftype k $ ofType τ
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
                          return t -- $ traceShow ("freshTy_expr: " ++ showPpr e) t
-                
+
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
 freshTy_reftype k τ = do t <- fmap uRType $ refresh τ 
@@ -1180,7 +1178,7 @@ consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- freshTy_type LamE (Var x) τx 
+  = do tx     <- traceShow "consE.tx" <$> freshTy_type LamE (Var x) τx 
        γ'     <- ((γ, "consE") += (F.symbol x, tx))
        t1     <- consE γ' e1
        addIdA x (Def tx) 

@@ -64,12 +64,12 @@ instance Freshable m Integer => Freshable m RReft where
   true (U r _)      = liftM uTop (true r)  
   refresh (U r _)   = liftM uTop (refresh r) 
 
-instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable m (RRType r) where
+instance (PPrint r, Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable m (RRType r) where
   fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType 
 
-trueRefType :: (Freshable m Integer, Freshable m r,TCInfo m,  Reftable r) => RRType r -> m (RRType r)
+-- trueRefType :: (Freshable m Integer, Freshable m r,TCInfo m,  Reftable r) => RRType r -> m (RRType r)
 trueRefType (RAllT α t)       
   = liftM (RAllT α) (true t)
 trueRefType (RAllP π t)       
@@ -85,36 +85,39 @@ trueRefType t
   = return t
 
 
-refreshRefType :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
-               => RRType r
-               -> m (RRType r)
-refreshRefType (RAllT α t)       
-  = liftM (RAllT α) (refresh t)
-refreshRefType (RAllP π t)       
-  = liftM (RAllP π) (refresh t)
-refreshRefType (RFun b t t' _)
+-- refreshRefType :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
+--                => RRType r
+--                -> m (RRType r)
+refreshRefType t = refreshRefType' 2 t
+
+refreshRefType' n (RAllT α t)       
+  = liftM (RAllT α) (refreshRefType' n t)
+refreshRefType' n (RAllP π t)       
+  = liftM (RAllP π) (refreshRefType' n t)
+refreshRefType' n (RFun b t t' _)
   | b == dummySymbol
-  = liftM3 rFun fresh (refresh t) (refresh t')
+  = liftM3 rFun fresh (refreshRefType' n t) (refreshRefType' n t')
   | otherwise
-  = liftM2 (rFun b) (refresh t) (refresh t')
-refreshRefType (RApp rc ts _ r)  
+  = liftM2 (rFun b) (refreshRefType' n t) (refreshRefType' n t')
+refreshRefType' n (RApp rc ts _ r)  
   = do tyi                 <- getTyConInfo
        tce                 <- getTyConEmbed
-       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
-       let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
-       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
-refreshRefType (RVar a r)  
+       let RApp rc' _ rs _  = traceShow "expandRApp" $ expandRApp tce tyi (RApp rc ts [] r)
+       let rπs              = safeZip "refreshRef" (traceShow "refreshRefType'.rs" rs) (traceShow "refreshRefType'.rps" $ rTyConPs rc')
+       liftM3 (RApp rc') (mapM (refreshRefType' n) ts) (mapM (refreshRef n) rπs) (refresh r)
+refreshRefType' n (RVar a r)  
   = liftM (RVar a) (refresh r)
-refreshRefType (RAppTy t t' r)  
-  = liftM3 RAppTy (refresh t) (refresh t') (refresh r)
-refreshRefType t                
+refreshRefType' n (RAppTy t t' r)  
+  = liftM3 RAppTy (refreshRefType' n t) (refreshRefType' n t') (refresh r)
+refreshRefType' n t
   = return t
 
-refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
-           => (Ref RSort r (RRType r), PVar RSort)
-           -> m (Ref RSort r (RRType r))
+-- refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
+--            => (Ref RSort r (RRType r), PVar RSort)
+--            -> m (Ref RSort r (RRType r))
 
-refreshRef (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType t)
-refreshRef (RMono _ _, _) = errorstar "refreshRef: unexpected"
+refreshRef 0 (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (trueRefType t)
+refreshRef n (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType' (n-1) t)
+refreshRef n (RMono _ _, _) = errorstar "refreshRef: unexpected"
 
 freshSym s                = liftM (, fst3 s) fresh

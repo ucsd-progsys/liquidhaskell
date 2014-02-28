@@ -382,12 +382,12 @@ strengthenRefType t1 t2
         msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
                 (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
-unifyShape :: ( RefTypable p c tv r
-              , FreeVar c tv
-              , RefTypable p c tv () 
-              , SubsTy tv (RType p c tv ()) (RType p c tv ())
-              , SubsTy tv (RType p c tv ()) c)
-              => RType p c tv r -> RType p c tv r -> Maybe (RType p c tv r)
+-- unifyShape :: ( RefTypable p c tv r
+--               , FreeVar c tv
+--               , RefTypable p c tv () 
+--               , SubsTy tv (RType p c tv ()) (RType p c tv ())
+--               , SubsTy tv (RType p c tv ()) c)
+--               => RType p c tv r -> RType p c tv r -> Maybe (RType p c tv r)
 
 unifyShape (RAllT a1 t1) (RAllT a2 t2) 
   | a1 == a2      = RAllT a1 <$> unifyShape t1 t2
