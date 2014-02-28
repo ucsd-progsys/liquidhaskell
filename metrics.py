@@ -86,7 +86,7 @@ other = 'import|include|invariant|embed|Decrease|LAZYVAR|Strict|Lazy'
 other_re = '{-@ (%s)' % other
 spec_re = '{-@ (?!(%s|qualif|LIQUID))' % other
 dec_re = '{-@ Decrease'
-term_re = '{-@ (Strict|Lazy)'
+div_re = '{-@ (Strict|Lazy)'
 wit_re = '{- LIQUID WITNESS'
 mod_re = '^module ([\w\.]+)'
 
@@ -94,14 +94,30 @@ def combine(x, y):
     return {k:x[k] + y[k] for k in y.keys()}
 
 def texify(fn, metrics):
-    return '\\texttt{%s} & %d & %d / %d & %d / %d & %d / %d & %d & %d & %d & %d & %d & %d & %d \\\\\n' % (
+    return '\\texttt{%s} & %d & %d / %d & %d / %d & %d / %d & %d & %d & %d & %d & %d \\\\\n' % (
         fn, metrics['sloc'], metrics['specs'], metrics['specs_lines'],
         metrics['others'], metrics['others_lines'],
         metrics['qualifs'], metrics['qualifs_lines'],
-        metrics['funs'], metrics['recs'], metrics['recfuns'], metrics['terms'],
-        metrics['decs'], metrics['wits'], metrics['time'])
+        metrics['funs'], metrics['recfuns'], metrics['divs'],
+        metrics['hints'], metrics['time'])
+
+def texify_term(fn, metrics):
+    return '\\texttt{%s} & %d & %d & %d & %d & %d & %d \\\\\n' % (
+        fn, metrics['sloc'],
+        metrics['funs'], metrics['recfuns'], metrics['divs'],
+        metrics['hints'], metrics['time'])
 
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == '--only-term':
+        print 'ONLY COLLECTING TERMINATION DATA!'
+        colformat = '|l|rrrrr|r|'
+        headers = ['Module', 'LOC', 'Fun', 'Rec', 'Div', 'Hint', 'Time']
+        pptex = texify_term
+    else:
+        colformat = '|l|rrrr|rrrr|r|'
+        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif',
+                   'Fun', 'Rec', 'Div', 'Hint', 'Time']
+        pptex = texify
     results = {}
     pwd = os.getcwd()
     for d, fs in benchmarks.iteritems():
@@ -135,29 +151,27 @@ def main():
             f_res['others'] = len(others)
             f_res['others_lines'] = lines(others)
 
-            f_res['decs'] = len(re.findall(dec_re, str))
-            f_res['terms'] = len(re.findall(term_re, str))
-            f_res['wits'] = len(re.findall(wit_re, str))
+            f_res['divs'] = len(re.findall(div_re, str))
+            f_res['hints'] = len(re.findall(wit_re, str)) + len(re.findall(dec_re, str))
             results[d][mod] = f_res
 
         os.chdir(pwd)
 
     with open('metrics.tex', 'w') as out:
-        out.write('\\begin{tabular}{|l|rrrr|rrrrrr|r|}\n')
+        out.write('\\begin{tabular}{%s}\n' % colformat)
         out.write('\\hline\n')
-        headers = ['Module', 'LOC', 'Specs', 'Annot', 'Qualif', 'Fun', 'Rec', 'RecFun', 'Serious', 'Hint', 'Wit', 'Time (s)']
         out.write(' & '.join('\\textbf{%s}' % h for h in headers) + '\\\\\n')
         out.write('\\hline\\hline\n')
         totals = defaultdict(int)
         for d, fs in results.iteritems():
             dirtotals = defaultdict(int)
             for fn, metrics in sorted(fs.iteritems()):
-                out.write(texify(fn, metrics))
+                out.write(pptex(fn, metrics))
                 dirtotals = combine(dirtotals, metrics)
-            out.write(texify(d, dirtotals))
+            out.write(pptex(d, dirtotals))
             out.write('\\hline\n\n')
             totals = combine(totals, dirtotals)
-        out.write(texify('Total', totals))
+        out.write(pptex('Total', totals))
         out.write('\\hline\n\\end{tabular}\n')
 
 if __name__ == '__main__':

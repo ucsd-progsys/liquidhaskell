@@ -191,8 +191,6 @@ filterFB c p x r | p x       = x `c` r
 foldl        :: (a -> b -> a) -> a -> [b] -> a
 foldl f z0 xs0 = lgo z0 xs0
              where
-                --LIQUID FIXME: lgo takes 5 parameters once compiled to core
-                {-@ Decrease lgo 5 @-}
                 lgo z []     = z
                 lgo z (x:xs) = lgo (f z x) xs
 
