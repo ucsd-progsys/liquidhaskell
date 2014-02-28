@@ -299,3 +299,6 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
 
 instance Show Var where
   show = showPpr
+
+instance Show DataCon where
+  show = showPpr
