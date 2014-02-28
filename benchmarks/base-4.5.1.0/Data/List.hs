@@ -344,7 +344,6 @@ nubBy eq (x:xs)         =  x : nubBy eq (filter (\ y -> not (eq x y)) xs)
 #else
 nubBy eq l              = nubBy' l []
   where
-    {-@ Decrease nubBy' 3 @-}
     nubBy' [] _          = []
     nubBy' (y:ys) xs
        | elem_by eq y xs = nubBy' ys xs
@@ -605,6 +604,7 @@ genericLength (_:l)     =  1 + genericLength l
   "genericLengthInteger" genericLength = (strictGenericLength :: [a] -> Integer);
  #-}
 
+{-@ strictGenericLength :: (Num i) => [b] -> i @-}
 strictGenericLength     :: (Num i) => [b] -> i
 strictGenericLength l   =  gl l 0
                         where
@@ -849,21 +849,21 @@ Fixes ticket http://hackage.haskell.org/trac/ghc/ticket/2143
 
 sort = sortBy compare
 sortBy cmp xs = mergeAll cmp $ sequences xs 0
-  where    
-    {-@ Decrease sequences  3 4 @-}
+  where
+    {-@ Decrease sequences  1 2 @-}
     {- LIQUID WITNESS -}
     sequences (a:b:xs) (_::Int)
       | a `cmp` b == GT = descending b [a]  xs 1
       | otherwise       = ascending  b (a:) xs 1
     sequences xs _      = [xs]
 
-    {-@ Decrease descending 5 6 @-}
+    {-@ Decrease descending 3 4 @-}
     {- LIQUID WITNESS -}
     descending a as (b:bs) (_::Int)
       | a `cmp` b == GT  = descending b (a:as) bs 1 
     descending a as bs _ = (a:as): sequences bs 0
 
-    {-@ Decrease ascending  5 6 @-}
+    {-@ Decrease ascending  3 4 @-}
     {- LIQUID WITNESS -}
     ascending a as (b:bs) (_::Int)
       | a `cmp` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
@@ -1034,7 +1034,6 @@ unfoldr f b  =
    Nothing        -> []
 
 -- -----------------------------------------------------------------------------
-{-@ Decrease lgo 5 @-}
 -- | A strict version of 'foldl'.
 foldl'           :: (a -> b -> a) -> a -> [b] -> a
 #ifdef __GLASGOW_HASKELL__
@@ -1046,15 +1045,18 @@ foldl' f a []     = a
 foldl' f a (x:xs) = let a' = f a x in a' `seq` foldl' f a' xs
 #endif
 
+
 #ifdef __GLASGOW_HASKELL__
 -- | 'foldl1' is a variant of 'foldl' that has no starting value argument,
 -- and thus must be applied to non-empty lists.
+{-@ foldl1 :: (a -> a -> a) -> {v:[a] | (len v) > 0} -> a @-}
 foldl1                  :: (a -> a -> a) -> [a] -> a
 foldl1 f (x:xs)         =  foldl f x xs
 foldl1 _ []             =  errorEmptyList "foldl1"
 #endif /* __GLASGOW_HASKELL__ */
 
 -- | A strict version of 'foldl1'
+{-@ foldl1' :: (a -> a -> a) -> {v:[a] | (len v) > 0} -> a @-}
 foldl1'                  :: (a -> a -> a) -> [a] -> a
 foldl1' f (x:xs)         =  foldl' f x xs
 foldl1' _ []             =  errorEmptyList "foldl1'"
