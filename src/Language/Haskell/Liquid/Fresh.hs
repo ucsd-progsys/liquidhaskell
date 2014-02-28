@@ -76,14 +76,20 @@ trueRefType (RAllP π t)
   = liftM (RAllP π) (true t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
-trueRefType (RApp c ts _ _)  
-  = liftM (\ts -> RApp c ts truerefs mempty) (mapM true ts)
-		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
+trueRefType (RApp rc ts _ r)  
+  = do tyi                 <- getTyConInfo
+       tce                 <- getTyConEmbed
+       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
+       let rπs              = safeZip "trueRefType" rs (rTyConPs rc')
+       liftM3 (RApp rc') (mapM trueRefType ts) (mapM trueRef rπs) (true r)
+  -- = liftM (\ts -> RApp c ts truerefs mempty) (mapM true ts)
+  --       	where truerefs = traceShow "truerefs" $ (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM3 RAppTy (true t) (true t') (return mempty)
 trueRefType t                
   = return t
 
+trueRef rπ = refreshRef 0 rπ
 
 -- refreshRefType :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
 --                => RRType r
@@ -102,8 +108,8 @@ refreshRefType' n (RFun b t t' _)
 refreshRefType' n (RApp rc ts _ r)  
   = do tyi                 <- getTyConInfo
        tce                 <- getTyConEmbed
-       let RApp rc' _ rs _  = traceShow "expandRApp" $ expandRApp tce tyi (RApp rc ts [] r)
-       let rπs              = safeZip "refreshRef" (traceShow "refreshRefType'.rs" rs) (traceShow "refreshRefType'.rps" $ rTyConPs rc')
+       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
+       let rπs              = safeZip "refreshRef" rs (rTyConPs rc')
        liftM3 (RApp rc') (mapM (refreshRefType' n) ts) (mapM (refreshRef n) rπs) (refresh r)
 refreshRefType' n (RVar a r)  
   = liftM (RVar a) (refresh r)
@@ -116,7 +122,7 @@ refreshRefType' n t
 --            => (Ref RSort r (RRType r), PVar RSort)
 --            -> m (Ref RSort r (RRType r))
 
-refreshRef 0 (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (trueRefType t)
+refreshRef 0 (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (return t)
 refreshRef n (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType' (n-1) t)
 refreshRef n (RMono _ _, _) = errorstar "refreshRef: unexpected"
 
