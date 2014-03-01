@@ -102,16 +102,16 @@ def texify(fn, metrics):
         metrics['hints'], metrics['time'])
 
 def texify_term(fn, metrics):
-    return '\\texttt{%s} & %d & %d & %d & %d & %d & %d \\\\\n' % (
-        fn, metrics['sloc'],
+    return '\\texttt{%s} & %d & %d & %d & %d & %d & %d & %d \\\\\n' % (
+        fn, metrics['sloc'], metrics['errs'],
         metrics['funs'], metrics['recfuns'], metrics['divs'],
         metrics['hints'], metrics['time'])
 
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == '--only-term':
         print 'ONLY COLLECTING TERMINATION DATA!'
-        colformat = '|l|rrrrr|r|'
-        headers = ['Module', 'LOC', 'Fun', 'Rec', 'Div', 'Hint', 'Time']
+        colformat = '|l|rr|rrrr|r|'
+        headers = ['Module', 'LOC', 'Err', 'Fun', 'Rec', 'Div', 'Hint', 'Time']
         pptex = texify_term
     else:
         colformat = '|l|rrrr|rrrr|r|'
@@ -133,8 +133,10 @@ def main():
             f_res['recs'] = rs
             f_res['recfuns'] = rfs
 
+            errs = set(errors(fn))
             import pprint
-            pprint.pprint(errors(fn))
+            pprint.pprint(errs)
+            f_res['errs'] = len(errs)
 
             str = (open(fn, 'r')).read()
             mod = re.search(mod_re, str, re.M).group(1)
