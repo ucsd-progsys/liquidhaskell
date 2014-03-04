@@ -4,12 +4,15 @@
 module Foo where
 
 data RBTree a = Leaf 
-              | Node Color !BlackHeight !(RBTree a) a !(RBTree a)
+              | Node Col !BlackHeight !(RBTree a) a !(RBTree a)
               deriving (Show)
 
-data Color = B -- ^ Black
-           | R -- ^ Red
-           deriving (Eq,Show)
+type Col = Int
+
+-- data Color = B -- ^ Black
+--            | R -- ^ Red
+--            deriving (Eq,Show)
+
 
 type BlackHeight = Int
 
@@ -20,57 +23,56 @@ insert kx t = turnB (insert' kx t)
 {-@ turnB :: ARBT a -> RBT a @-}
 turnB :: RBTree a -> RBTree a
 turnB Leaf           = error "turnB"
-turnB (Node _ h l x r) = Node B h l x r
+turnB (Node _ h l x r) = Node 1 h l x r
 
-{-@ insert' :: (Ord a) => a -> RBT a -> ARBT a @-}
+{-@ insert' :: (Ord a) => a -> t:(RBT a) -> {v:ARBT a | (isRB v)} @-}
+
+-- {v: ARBT a | (((col t) /= 0) => (isRB v))} @-}
 insert' :: Ord a => a -> RBTree a -> RBTree a
-insert' kx Leaf = Node R 1 Leaf kx Leaf
-insert' kx s@(Node B h l x r) = case compare kx x of
-    LT -> balanceL' h (insert' kx l) x r
-    GT -> balanceR' h l x (insert' kx r)
-    EQ -> s
-insert' kx s@(Node R h l x r) = case compare kx x of
-    LT -> Node R h (insert' kx l) x r
-    GT -> Node R h l x (insert' kx r)
-    EQ -> s
+insert' kx Leaf = Node 0 1 Leaf kx Leaf
+insert' kx s@(Node 1 h l x r) = case compare kx x of
+    LT -> l -- balanceL' h (insert' kx l) x r
+    -- GT -> balanceR' h l x (insert' kx r)
+--    EQ -> s
+-- insert' kx s@(Node 0 h l x r) = case compare kx x of
+--    LT -> Node 0 h (insert' kx l) x r
+--    GT -> Node 0 h l x (insert' kx r)
+--     EQ -> s
 
 {-@ balanceL' :: Int -> ARBT a -> a -> RBT a -> RBT a @-}
 balanceL' :: BlackHeight -> RBTree a -> a -> RBTree a -> RBTree a
-balanceL' h (Node R _ (Node R _ a x b) y c) z d =
-   Node R (h+1) (Node B h a x b) y (Node B h c z d)
-balanceL' h (Node R _ a x (Node R _ b y c)) z d =
-   Node R (h+1) (Node B h a x b) y (Node B h c z d)
-balanceL' h l x r =  Node B h l x r
+balanceL' h (Node 0 _ (Node 0 _ a x b) y c) z d =
+   Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
+balanceL' h (Node 0 _ a x (Node 0 _ b y c)) z d =
+   Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
+balanceL' h l x r =  Node 1 h l x r
 
 {-@ balanceR' :: Int -> RBT a -> a -> ARBT a -> RBT a @-}
 balanceR' :: BlackHeight -> RBTree a -> a -> RBTree a -> RBTree a
-balanceR' h a x (Node R _ b y (Node R _ c z d)) =
-    Node R (h+1) (Node B h a x b) y (Node B h c z d)
-balanceR' h a x (Node R _ (Node R _ b y c) z d) =
-    Node R (h+1) (Node B h a x b) y (Node B h c z d)
-balanceR' h l x r = Node B h l x r
+balanceR' h a x (Node 0 _ b y (Node 0 _ c z d)) =
+    Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
+balanceR' h a x (Node 0 _ (Node 0 _ b y c) z d) =
+    Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
+balanceR' h l x r = Node 1 h l x r
 
 {-@ type RBT a  = {v: (RBTree a) | (isRB v)}  @-}
 
-{-@ type ARBT a = {v: (RBTree a) | ((isARB v) && (((col v) = B) => (isRB v)))} @-}
+{-@ type ARBT a = {v: (RBTree a) | ((isARB v) && (((col v) = 1) => (isRB v)))} @-}
 
 {-@ measure isRB           :: RBTree a -> Prop
     isRB (Leaf)            = true
-    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && ((c == R) => ((col l) == B) && ((col r) == B)))
+    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && ((c == 0) => ((col l) /= 0) && ((col r) /= 0)))
   @-}
 
-{-@ invariant {v: RBTree | (((col v) = R) || ((col v) = B))} @-}
+{-@ invariant {v: RBTree a | (((col v) = 0) || ((col v) = 1))} @-}
 
 -- isARB v => (c = R => (col l = R || col r = R))
-
-red   = R
-black = B
-
 {-@ measure isARB          :: (RBTree a) -> Prop
     isARB (Leaf)           = false 
     isARB (Node c h l x r) = ((isRB l) && (isRB r))
   @-}
 
-{-@ measure col :: RBTree a -> Color
+{-@ measure col :: RBTree a -> Col
     col (Node c h l x r) = c
+    col (Leaf)           = 2
   @-}
