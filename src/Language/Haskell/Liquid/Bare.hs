@@ -134,6 +134,7 @@ makeGhcSpec' cfg vars defVars exports specs
        syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms'
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
+       let txi          = subsFreeSymbolsInv su
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
@@ -159,7 +160,7 @@ makeGhcSpec' cfg vars defVars exports specs
        return           $ (SP { tySigs     = pluggedSigs
                               , ctors      = tx cs'
                               , meas       = tx (ms' ++ varMeasures vars ++ cms')
-                              , invariants = invs
+                              , invariants = txi invs
                               , dconsP     = datacons
                               , tconsP     = tycons 
                               , freeSyms   = syms'
@@ -515,6 +516,11 @@ mkVarExpr v
 subsFreeSymbols su  = tx
   where 
     tx              = fmap $ mapSnd $ subst su 
+
+subsFreeSymbolsInv su  = tx
+  where 
+    tx                 = fmap $ subst su 
+
 
 subsFreeSymbolsQual su = tx
   where
