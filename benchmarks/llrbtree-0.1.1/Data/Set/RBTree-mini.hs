@@ -13,10 +13,7 @@ type Col = Int
 --            | R -- ^ Red
 --            deriving (Eq,Show)
 
-
 type BlackHeight = Int
-
-
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -95,7 +92,7 @@ balanceR' h l x r = Node 1 h l x r
 
 {-@ measure isRB           :: RBTree a -> Prop
     isRB (Leaf)            = true
-    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && (ColorInv c l r))
+    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && ((Red c) => ((IsB l) && (IsB r))))
   @-}
 
 {-@ measure isARB          :: (RBTree a) -> Prop
@@ -108,7 +105,8 @@ balanceR' h l x r = Node 1 h l x r
     col (Leaf)           = 2
   @-}
 
-{-@ predicate ColorInv C L R =  ((C == 0) => ((col L) /= 0) && ((col R) /= 0)) @-}
+{-@ predicate IsB T = (col T) /= 0 @-}
+{-@ predicate Red C = C == 0       @-}
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
