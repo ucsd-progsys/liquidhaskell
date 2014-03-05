@@ -131,7 +131,7 @@ makeGhcSpec' cfg vars defVars exports specs
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
-       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms'
+       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' invs
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txi          = subsFreeSymbolsInv su
@@ -742,12 +742,13 @@ mkSpecType l t = mkSpecType' l (snd3 $ bkUniv t)  t
 mkSpecType' :: Show p => p -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
 
-makeSymbols vs xs' xts yts = mkxvs
+makeSymbols vs xs' xts yts ivs = mkxvs
   where
     xs''  = val <$> xs'
-    zs    = (concatMap freeSymbols ((snd <$> xts))) `sortDiff` xs''
-    zs'   = (concatMap freeSymbols ((snd <$> yts))) `sortDiff` xs''
-    xs    = sortNub $ zs ++ zs'
+    zs    = concatMap freeSymbols (snd <$> xts) `sortDiff` xs''
+    zs'   = concatMap freeSymbols (snd <$> yts) `sortDiff` xs''
+    zs''  = concatMap freeSymbols ivs `sortDiff` xs''
+    xs    = sortNub $ zs ++ zs' ++ zs''
     mkxvs = do
       svs <- gets varEnv
       return [(x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)]
