@@ -101,7 +101,7 @@ consAct info penv
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
   = do let tce   = tcEmbeds $ spec info
-       defaults <- forM (impVars info) $ \x -> liftM (x,) (trueTy $ varType x)
+       defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
        (ks,f0)  <- extract <$> refreshKs (grty info)-- asserted refinements     (for defined vars)
        f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec)
@@ -116,6 +116,8 @@ initEnv info penv
        mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
+    freeVars     = impVars info
+                 ++ filter isConLikeId (snd <$> freeSyms (spec info))
     refreshArgs' = mapM (mapSndM refreshArgs)
     refreshKs    = mapM (mapSndM refreshK)
     refreshK t   = do
