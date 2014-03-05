@@ -57,21 +57,14 @@ balanceR' h l x r = Node 1 h l x r
 
 {-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
 
-
-{-@ invariant {v: RBTree a | ((isRB v) => (isARB v))} @-}
-
-{-@ inv              :: RBTree a -> {v:RBTree a | ((isRB v) => (isARB v)) } @-}
-inv Leaf             = Leaf
-inv (Node c h l x r) = Node c h (inv l) x (inv r)
+{-@ measure isRB           :: RBTree a -> Prop
+    isRB (Leaf)            = true
+    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && (ColorInv c l r))
+  @-}
 
 {-@ measure isARB          :: (RBTree a) -> Prop
     isARB (Leaf)           = true 
     isARB (Node c h l x r) = ((isRB l) && (isRB r))
-  @-}
-
-{-@ measure isRB           :: RBTree a -> Prop
-    isRB (Leaf)            = true
-    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && (ColorInv c l r))
   @-}
 
 {-@ measure col :: RBTree a -> Col
@@ -79,4 +72,16 @@ inv (Node c h l x r) = Node c h (inv l) x (inv r)
     col (Leaf)           = 2
   @-}
 
-{-@ predicate ColorInv C L R =  ((C == 0) => ((col L) /= 0) && ((col R) /= 0))   @-}
+{-@ predicate ColorInv C L R =  ((C == 0) => ((col L) /= 0) && ((col R) /= 0)) @-}
+
+-------------------------------------------------------------------------------
+-- Auxiliary Invariants -------------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ invariant {v: RBTree a | ((isRB v) => (isARB v))} @-}
+
+{-@ inv              :: RBTree a -> {v:RBTree a | ((isRB v) => (isARB v)) } @-}
+inv Leaf             = Leaf
+inv (Node c h l x r) = Node c h (inv l) x (inv r)
+
+
