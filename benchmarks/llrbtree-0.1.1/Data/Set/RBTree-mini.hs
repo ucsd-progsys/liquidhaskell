@@ -9,11 +9,13 @@ data RBTree a = Leaf
 
 type Col = Int
 
--- data Color = B -- ^ Black
---            | R -- ^ Red
---            deriving (Eq,Show)
+data Color = B -- ^ Black
+           | R -- ^ Red
+           deriving (Eq,Show)
 
 type BlackHeight = Int
+
+{-@ invariant {v:Color | (v = B || v = R) } @-}
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -54,7 +56,7 @@ turnB :: RBTree a -> RBTree a
 turnB Leaf           = error "turnB"
 turnB (Node _ h l x r) = Node 1 h l x r
 
-{-@ insert' :: (Ord a) => a -> t:RBT a -> {v: ARBT a | (((col t) /= 0) => (isRB v))} @-}
+{-@ insert' :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
 insert' :: Ord a => a -> RBTree a -> RBTree a
 insert' kx Leaf = Node 0 1 Leaf kx Leaf
 insert' kx s@(Node 1 h l x r) = case compare kx x of
@@ -102,7 +104,7 @@ balanceR' h l x r = Node 1 h l x r
 
 {-@ measure col :: RBTree a -> Col
     col (Node c h l x r) = c
-    col (Leaf)           = 2
+    col (Leaf)           = 1
   @-}
 
 {-@ predicate IsB T = (col T) /= 0 @-}
