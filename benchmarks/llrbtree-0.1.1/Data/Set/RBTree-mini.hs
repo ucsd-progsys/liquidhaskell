@@ -29,8 +29,8 @@ turnB (Node _ h l x r) = Node 1 h l x r
 insert' :: Ord a => a -> RBTree a -> RBTree a
 insert' kx Leaf = Node 0 1 Leaf kx Leaf
 insert' kx s@(Node 1 h l x r) = case compare kx x of
-    LT -> balanceL' h (insert' kx l) x r
-    GT -> balanceR' h l x (insert' kx r)
+    LT -> let zoo = balanceL' h (insert' kx l) x r in zoo
+    GT -> let zoo = balanceR' h l x (insert' kx r) in zoo
     EQ -> s
 insert' kx s@(Node 0 h l x r) = case compare kx x of
     LT -> Node 0 h (insert' kx l) x r
@@ -53,27 +53,30 @@ balanceR' h a x (Node 0 _ (Node 0 _ b y c) z d) =
     Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
 balanceR' h l x r = Node 1 h l x r
 
-{-@ type RBT a  = {v: (RBTree a) | ((isRB v) && (isARB v))}  @-}
+{-@ type RBT a  = {v: (RBTree a) | ((isRB v))} @-}
 
-{-@ type ARBT a = {v: (RBTree a) | ((isARB v) && (((col v) = 1) => (isRB v)))} @-}
+{-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
 
-{-@ measure isRB           :: RBTree a -> Prop
-    isRB (Leaf)            = true
-    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && ((c == 0) => ((col l) /= 0) && ((col r) /= 0)))
-  @-}
-
-{-@ thm              :: RBTree a -> {v:RBTree a | ((isRB v) => (isARB v)) } @-}
-thm Leaf             = Leaf
-thm (Node c h l x r) = Node c h (thm l) x (thm r)
 
 {-@ invariant {v: RBTree a | ((isRB v) => (isARB v))} @-}
 
+{-@ inv              :: RBTree a -> {v:RBTree a | ((isRB v) => (isARB v)) } @-}
+inv Leaf             = Leaf
+inv (Node c h l x r) = Node c h (inv l) x (inv r)
+
 {-@ measure isARB          :: (RBTree a) -> Prop
-    isARB (Leaf)           = false 
+    isARB (Leaf)           = true 
     isARB (Node c h l x r) = ((isRB l) && (isRB r))
+  @-}
+
+{-@ measure isRB           :: RBTree a -> Prop
+    isRB (Leaf)            = true
+    isRB (Node c h l x r)  = ((isRB l) && (isRB r) && (ColorInv c l r))
   @-}
 
 {-@ measure col :: RBTree a -> Col
     col (Node c h l x r) = c
     col (Leaf)           = 2
   @-}
+
+{-@ predicate ColorInv C L R =  ((C == 0) => ((col L) /= 0) && ((col R) /= 0))   @-}
