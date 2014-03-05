@@ -16,6 +16,38 @@ type Col = Int
 
 type BlackHeight = Int
 
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+
+-- delete :: Ord a => a -> RBTree a -> RBTree a
+-- delete x t = turnB' s
+--   where
+--     (s,_) = delete' x t
+-- 
+-- delete' :: Ord a => a -> RBTree a -> RBTreeBDel a
+-- delete' _ Leaf = (Leaf, False)
+-- delete' x (Node c h l y r) = case compare x y of
+--     LT -> let (l',d) = delete' x l
+--               t = Node c h l' y r
+--           in if d then unbalancedR c (h-1) l' y r else (t, False)
+--     GT -> let (r',d) = delete' x r
+--               t = Node c h l y r'
+--           in if d then unbalancedL c (h-1) l y r' else (t, False)
+--     EQ -> case r of
+--         Leaf -> if c == B then blackify l else (l, False)
+--         _ -> let ((r',d),m) = deleteMin' r
+--                  t = Node c h l m r'
+--              in if d then unbalancedL c (h-1) l m r' else (t, False)
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
 {-@ insert :: (Ord a) => a -> RBT a -> RBT a @-}
 insert :: Ord a => a -> RBTree a -> RBTree a
 insert kx t = turnB (insert' kx t)
@@ -54,6 +86,10 @@ balanceR' h a x (Node 0 _ b y (Node 0 _ c z d)) =
 balanceR' h a x (Node 0 _ (Node 0 _ b y c) z d) =
     Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
 balanceR' h l x r = Node 1 h l x r
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 {-@ type RBT a  = {v: (RBTree a) | (isRB v)}  @-}
 
