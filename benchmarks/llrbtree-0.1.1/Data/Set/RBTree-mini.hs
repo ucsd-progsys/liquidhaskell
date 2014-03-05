@@ -25,7 +25,7 @@ turnB :: RBTree a -> RBTree a
 turnB Leaf           = error "turnB"
 turnB (Node _ h l x r) = Node 1 h l x r
 
-{-@ insert' :: (Ord a) => a -> t:(RBT a) -> {v: ARBT a | (((col t) /= 0) => (isRB v))} @-}
+{-@ insert' :: (Ord a) => a -> t:RBT a -> {v: ARBT a | (((col t) /= 0) => (isRB v))} @-}
 insert' :: Ord a => a -> RBTree a -> RBTree a
 insert' kx Leaf = Node 0 1 Leaf kx Leaf
 insert' kx s@(Node 1 h l x r) = case compare kx x of
@@ -53,7 +53,7 @@ balanceR' h a x (Node 0 _ (Node 0 _ b y c) z d) =
     Node 0 (h+1) (Node 1 h a x b) y (Node 1 h c z d)
 balanceR' h l x r = Node 1 h l x r
 
-{-@ type RBT a  = {v: (RBTree a) | ((isRB v))} @-}
+{-@ type RBT a  = {v: (RBTree a) | (isRB v)} @-}
 
 {-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
 
