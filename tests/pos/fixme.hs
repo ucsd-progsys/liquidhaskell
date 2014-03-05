@@ -1,11 +1,20 @@
-module Fixme (foo) where
+module Blank where
 
--- isEven 0 = True
--- isEven n = isEven $ n - 1
+-- This is a blank file.
 
-incr x = (x, x+1)
+data P = P Int
 
-{-@ foo :: x:Int -> {v:Int | v > x } @-}
-foo :: Int -> Int
-foo x = y
-  where (w, y) = incr x
+{-@ measure moo :: P -> Prop @-}
+{-@ measure poo :: P -> Prop @-}
+
+{-@ alice :: Int -> {v:P | (poo v)} @-}
+alice :: Int -> P
+alice x = bob x      -- FAILS
+-- alice = bob          -- FAILS
+-- alice x = let zoo = bob x in zoo
+
+{-@ bob :: Int -> {v:P | (moo v)} @-}
+bob :: Int -> P
+bob = undefined
+
+{-@ invariant {v:P | ((moo v) => (poo v))} @-}
