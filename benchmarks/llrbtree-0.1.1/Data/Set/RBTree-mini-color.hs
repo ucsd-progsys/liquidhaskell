@@ -56,12 +56,14 @@ deleteMin' (Node B _ Leaf x r@(Node R _ _ _ _)) = ((turnB r, False), x)
 deleteMin' (Node R _ Leaf x r)            = ((r, False), x)
 deleteMin' (Node c h l x r)               = if d then (tD, m) else (tD', m)
  where
-   ((l',d),m) = deleteMin' l
+   ((l',d),m) = deleteMin' l                -- GUESS: black l --> red l' iff d is TRUE
    tD  = unbalancedR c (h-1) l' x r
    tD' = (Node c h l' x r, False)
 
+-- GUESS: black l --> red l' iff d is TRUE
 
-{-@ unbalancedL :: Color -> BlackHeight -> RBT a -> a -> RBT a -> RBTB a @-}
+
+{-@ unbalancedL :: Color -> BlackHeight -> RBT a -> a -> ARBT a -> RBTB a @-}
 unbalancedL :: Color -> BlackHeight -> RBTree a -> a -> RBTree a -> RBTreeBDel a
 unbalancedL c h l@(Node B _ _ _ _) x r
   = (balanceL B h (turnR l) x r, c == B)
@@ -71,7 +73,7 @@ unbalancedL _ _ _ _ _ = error "unbalancedL"
 
 
 -- The left tree lacks one Black node
-{-@ unbalancedR :: Color -> BlackHeight -> RBT a -> a -> RBT a -> RBTB a @-}
+{-@ unbalancedR :: Color -> BlackHeight -> ARBT a -> a -> RBT a -> RBTB a @-}
 unbalancedR :: Color -> BlackHeight -> RBTree a -> a -> RBTree a -> RBTreeBDel a
 -- Decreasing one Black node in the right
 unbalancedR c h l x r@(Node B _ _ _ _)
