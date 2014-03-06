@@ -29,8 +29,8 @@ turnB (Node _ h l x r) = Node 1 h l x r
 insert' :: Ord a => a -> RBTree a -> RBTree a
 insert' kx Leaf = Node 0 1 Leaf kx Leaf
 insert' kx s@(Node 1 h l x r) = case compare kx x of
-    LT -> let zoo = balanceL' h (insert' kx l) x r in zoo
-    GT -> let zoo = balanceR' h l x (insert' kx r) in zoo
+    LT -> let zoo = balanceL' h (insert' kx l) x r in zoo   -- TODO: cf. issue #182
+    GT -> let zoo = balanceR' h l x (insert' kx r) in zoo   -- TODO: cf. issue #182
     EQ -> s
 insert' kx s@(Node 0 h l x r) = case compare kx x of
     LT -> Node 0 h (insert' kx l) x r
