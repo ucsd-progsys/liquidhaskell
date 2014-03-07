@@ -122,7 +122,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Red-Black Trees
 
-{-@ type RBT a  = {v: (RBTree a) | (isRB v) } @-}
+{-@ type RBT a  = {v: (RBTree a) | ((isRB v) && (isBH v)) } @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -131,7 +131,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Almost Red-Black Trees
 
-{-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
+{-@ type ARBT a = {v: (RBTree a) | ((isARB v) && (isBH v))} @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
@@ -152,6 +152,19 @@ makeBlack (Node _ l x r) = Node B l x r
 
 {-@ predicate IsB T = not (Red (col T)) @-}
 {-@ predicate Red C = C == R            @-}
+
+-- | Black Height
+
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH Leaf           = true
+    isBH (Node c l x r) = (bh l) = (bh r)
+  @-}
+
+{-@ measure bh :: RBTree -> Int
+    bh (Leaf) = 0
+    bh (Node c l x r) = (bh l) + if (Red c) then 0 else 1 
+  @-}
+
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
