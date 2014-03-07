@@ -7,110 +7,70 @@ data RBTree a = Leaf
               | Node Color !(RBTree a) a !(RBTree a)
               deriving (Show)
 
-
 data Color = B -- ^ Black
            | R -- ^ Red
            deriving (Eq,Show)
 
-
-type RBTreeBDel a = (RBTree a, Bool)
-
-
 ---------------------------------------------------------------------------
----------------------------------------------------------------------------
+-- | Add an element -------------------------------------------------------
 ---------------------------------------------------------------------------
 
--- Definition isblack t :=
---  match t with Bk _ _ _ => True | _ => False end.
---
--- Lemma append_arb_rb n l r : rbt n l -> rbt n r ->
---  (arbt n (append l r)) /\
---  (notred l -> notred r -> rbt n (append l r)).
--- 
--- A third approach : Lemma ... with ...
--- 
--- Lemma del_arb s x n : rbt (S n) s -> isblack s -> arbt n (del x s)
--- with del_rb s x n : rbt n s -> notblack s -> rbt n (del x s).
--- Instance remove_rb s x : Rbt s -> Rbt (remove x s).
+{-@ add :: (Ord a) => a -> RBT a -> RBT a @-}
+add x s = makeBlack (ins x s)
 
+{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
 
-{-@ del              :: a -> RBT a -> ARBT a @-}
+ins kx Leaf             = Node R Leaf kx Leaf
+ins kx s@(Node B l x r) = case compare kx x of
+                            LT -> let zoo = lbal (ins kx l) x r in zoo
+                            GT -> let zoo = rbal l x (ins kx r) in zoo
+                            EQ -> s
+ins kx s@(Node R l x r) = case compare kx x of
+                            LT -> Node R (ins kx l) x r
+                            GT -> Node R l x (ins kx r)
+                            EQ -> s
+
+---------------------------------------------------------------------------
+-- | Delete an element ----------------------------------------------------
+---------------------------------------------------------------------------
+
+{- del              :: (Ord a) => a -> RBT a -> ARBT a 
 del x Leaf           = Leaf
 del x (Node _ a y b) = case compare x y of
    EQ -> append a b 
    LT -> case a of
+           Leaf         -> Node R Leaf y b
            Node B _ _ _ -> lbalS (del x a) y b
            _            -> Node R (del x a) y b
    GT -> case b of
+           Leaf         -> Node R a y Leaf 
            Node B _ _ _ -> rbalS a y (del x b)
            _            -> Node R a y (del x b)
 
-{-@ append :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
-append :: RBTree a -> RBTree a -> RBTree a
-
-append Leaf r 
-  = r
-
-append l Leaf 
-  = l
-
-append (Node R ll lx lr) (Node R rl rx rr) 
-  = case append lr rl of 
-      Node R lr' x rl' -> Node R (Node R ll lx lr') x (Node R rl' rx rr)
-      lrl              -> Node R ll lx (Node R lrl rx rr)
-
-append (Node B ll lx lr) (Node B rl rx rr) 
-  = case append lr rl of 
-      Node R lr' x rl' -> Node R (Node B ll lx lr') x (Node B rl' rx rr)
-      lrl              -> lbalS ll lx (Node B lrl rx rr)
-
-append l@(Node B _ _ _) (Node R rl rx rr) 
-  = Node R (append l rl) rx rr
-     
-append l@(Node R ll lx lr) r@(Node B _ _ _) 
-  = Node R ll lx (append lr r)
-
-{- 
-Fixpoint append (l:tree) : tree -> tree :=
- match l with
- | Leaf => fun r => r
- | Node lc ll lx lr =>
-   fix append_l (r:tree) : tree :=
-   match r with
-   | Leaf => l
-   | Node rc rl rx rr =>
-     match lc, rc with
-     | Red, Red =>
-       let lrl := append lr rl in
-       match lrl with
-       | Rd lr' x rl' => Rd (Rd ll lx lr') x (Rd rl' rx rr)
-       | _ => Rd ll lx (Rd lrl rx rr)
-       end
-     | Black, Black =>
-       let lrl := append lr rl in
-       match lrl with
-       | Rd lr' x rl' => Rd (Bk ll lx lr') x (Bk rl' rx rr)
-       | _ => lbalS ll lx (Bk lrl rx rr)
-       end
-     | Black, Red => Rd (append_l rl) rx rr
-     | Red, Black => Rd ll lx (append lr r)
-     end
-   end
- end.
 -}
 
+{-@ append                                  :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
+append Leaf r                               = r
+append l Leaf                               = l
+append (Node R ll lx lr) (Node R rl rx rr)  = case append lr rl of 
+                                                Node R lr' x rl' -> Node R (Node R ll lx lr') x (Node R rl' rx rr)
+                                                lrl              -> Node R ll lx (Node R lrl rx rr)
+append (Node B ll lx lr) (Node B rl rx rr)  = case append lr rl of 
+                                                Node R lr' x rl' -> Node R (Node B ll lx lr') x (Node B rl' rx rr)
+                                                lrl              -> lbalS ll lx (Node B lrl rx rr)
+append l@(Node B _ _ _) (Node R rl rx rr)   = Node R (append l rl) rx rr
+append l@(Node R ll lx lr) r@(Node B _ _ _) = Node R ll lx (append lr r)
 
 ---------------------------------------------------------------------------
----------------------------------------------------------------------------
+-- | Delete Minimum Element -----------------------------------------------
 ---------------------------------------------------------------------------
 
 {-@ deleteMin            :: RBT a -> RBT a @-}
 deleteMin (Leaf)         = Leaf
-deleteMin (Node _ l x r) = turnB' t
+deleteMin (Node _ l x r) = makeBlack t
   where 
     (_, t)               = deleteMin' l x r
 
-{-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
 
 {-@ deleteMin'                   :: l:RBT a -> a -> r:RBT a -> (a, ARBT2 a l r) @-}
 deleteMin'                       :: RBTree a -> a -> RBTree a -> (a, RBTree a)
@@ -118,21 +78,20 @@ deleteMin' Leaf k r              = (k, r)
 deleteMin' (Node R ll lx lr) x r = (k, Node R l' x r)   where (k, l') = deleteMin' ll lx lr 
 deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMin' ll lx lr 
 
+---------------------------------------------------------------------------
+-- | Rotations ------------------------------------------------------------
+---------------------------------------------------------------------------
+
 {-@ lbalS                             :: ARBT a -> a -> r:RBT a -> {v: ARBT a | ((IsB r) => (isRB v))} @-}
 lbalS (Node R a x b) k r              = Node R (Node B a x b) k r
-lbalS l k (Node B a y b)              = let zoo = rbal' l k (Node R a y b) in zoo 
-lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal' b z (turnR' c))
+lbalS l k (Node B a y b)              = let zoo = rbal l k (Node R a y b) in zoo 
+lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal b z (makeRed c))
 lbalS l k r                           = Node R l k r
-
-{-@ rbal' :: RBT a -> a -> ARBT a -> RBT a @-}
-rbal' l k (Node R b y (Node R c z d)) = Node R (Node B l k b) y (Node B c z d)
-rbal' l k (Node R (Node R b y c) z d) = Node R (Node B l k b) y (Node B c z d)
-rbal' l k r                           = Node B l k r
 
 {-@ rbalS                             :: l:RBT a -> a -> ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
 rbalS l k (Node R b y c)              = Node R l k (Node B b y c)
 rbalS (Node B a x b) k r              = let zoo = lbal (Node R a x b) k r in zoo
-rbalS (Node R a x (Node B b y c)) k r = Node R (lbal (turnR' a) x b) y (Node B c k r)
+rbalS (Node R a x (Node B b y c)) k r = Node R (lbal (makeRed a) x b) y (Node B c k r)
 rbalS l k r                           = Node R l k r
 
 {-@ lbal                              :: ARBT a -> a -> RBT a -> RBT a @-}
@@ -140,55 +99,69 @@ lbal (Node R (Node R a x b) y c) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal (Node R a x (Node R b y c)) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal l k r                            = Node B l k r
 
----------------------------------------------------------------------------
----------------------------------------------------------------------------
----------------------------------------------------------------------------
-
-{-@ turnB :: ARBT a -> RBT a @-}
-turnB Leaf           = error "turnB"
-turnB (Node _ l x r) = Node B l x r
-
-{-@ turnR :: RBT a -> ARBT a @-}
-turnR Leaf           = error "turnR"
-turnR (Node _ l x r) = Node R l x r
-
-
-{-@ turnR' :: RBT a -> ARBT a @-}
-turnR' Leaf           = Leaf
-turnR' (Node _ l x r) = Node R l x r
-
-
-{-@ turnB' :: ARBT a -> RBT a @-}
-turnB' Leaf           = Leaf
-turnB' (Node _ l x r) = Node B l x r
+{-@ rbal                              :: RBT a -> a -> ARBT a -> RBT a @-}
+rbal a x (Node R b y (Node R c z d))  = Node R (Node B a x b) y (Node B c z d)
+rbal a x (Node R (Node R b y c) z d)  = Node R (Node B a x b) y (Node B c z d)
+rbal l x r                            = Node B l x r
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ type ARBTB a = (RBT a, Bool) @-}
-{-@ type RBTB a = (RBT a, Bool)  @-}
+{-@ makeRed :: RBT a -> ARBT a @-}
+makeRed Leaf           = Leaf
+makeRed (Node _ l x r) = Node R l x r
+
+{-@ makeBlack :: ARBT a -> RBT a @-}
+makeBlack Leaf           = Leaf
+makeBlack (Node _ l x r) = Node B l x r
+
+-- DEAD -- {- turnB :: ARBT a -> RBT a -}
+-- DEAD -- turnB Leaf           = error "turnB"
+-- DEAD -- turnB (Node _ l x r) = Node B l x r
+-- DEAD -- 
+-- DEAD -- {- turnR :: RBT a -> ARBT a -}
+-- DEAD -- turnR Leaf           = error "turnR"
+-- DEAD -- turnR (Node _ l x r) = Node R l x r
+-- DEAD -- {- rbal' :: RBT a -> a -> ARBT a -> RBT a -}
+-- DEAD -- rbal' l k (Node R b y (Node R c z d)) = Node R (Node B l k b) y (Node B c z d)
+-- DEAD -- rbal' l k (Node R (Node R b y c) z d) = Node R (Node B l k b) y (Node B c z d)
+-- DEAD -- rbal' l k r                           = Node B l k r
+
+
+---------------------------------------------------------------------------
+-- | Specifications -------------------------------------------------------
+---------------------------------------------------------------------------
+
+-- | Red-Black Trees
 
 {-@ type RBT a  = {v: (RBTree a) | (isRB v)} @-}
-{- type ARBT a = {v: (RBTree a) | ((isARB v) && ((IsB v) => (isRB v)))} -}
-
-
-{-@ type ARBT a = {v: (RBTree a) | (isARB v) } @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
     isRB (Node c l x r) = ((isRB l) && (isRB r) && ((Red c) => ((IsB l) && (IsB r))))
   @-}
 
+-- | Almost Red-Black Trees
+
+{-@ type ARBT a = {v: (RBTree a) | (isARB v) } @-}
+
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
     isARB (Node c l x r) = ((isRB l) && (isRB r))
   @-}
 
+-- | Conditionally Red-Black Tree
+
+{-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
+
+-- | Color of a tree
+
 {-@ measure col         :: RBTree a -> Color
     col (Node c l x r)  = c
     col (Leaf)          = B
   @-}
+
 
 {-@ predicate IsB T = not (Red (col T)) @-}
 {-@ predicate Red C = C == R            @-}
