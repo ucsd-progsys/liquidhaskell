@@ -45,9 +45,30 @@ del x (Node _ a y b) = case compare x y of
            Node B _ _ _ -> rbalS a y (del x b)
            _            -> Node R a y (del x b)
 
-{-@ append :: RBT a -> RBT a -> ARBT a @-}
+{-@ append :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
 append :: RBTree a -> RBTree a -> RBTree a
-append = undefined
+
+append Leaf r 
+  = r
+
+append l Leaf 
+  = l
+
+append (Node R ll lx lr) (Node R rl rx rr) 
+  = case append lr rl of 
+      Node R lr' x rl' -> Node R (Node R ll lx lr') x (Node R rl' rx rr)
+      lrl              -> Node R ll lx (Node R lrl rx rr)
+
+append (Node B ll lx lr) (Node B rl rx rr) 
+  = case append lr rl of 
+      Node R lr' x rl' -> Node R (Node B ll lx lr') x (Node B rl' rx rr)
+      lrl              -> lbalS ll lx (Node B lrl rx rr)
+
+append l@(Node B _ _ _) (Node R rl rx rr) 
+  = Node R (append l rl) rx rr
+     
+append l@(Node R ll lx lr) r@(Node B _ _ _) 
+  = Node R ll lx (append lr r)
 
 {- 
 Fixpoint append (l:tree) : tree -> tree :=
@@ -77,28 +98,6 @@ Fixpoint append (l:tree) : tree -> tree :=
    end
  end.
 -}
-
-
-
--- Fixpoint del x t :=
---  match t with
---  | Leaf => Leaf
---  | Node _ a y b =>
---    match X.compare x y with
---    | Eq => append a b
---    | Lt =>
---      match a with
---      | Bk _ _ _ => lbalS (del x a) y b
---      | _ => Rd (del x a) y b
---      end
---    | Gt =>
---      match b with
---      | Bk _ _ _ => rbalS a y (del x b)
---      | _ => Rd a y (del x b)
---      end
---    end
---  end.
-
 
 
 ---------------------------------------------------------------------------
@@ -140,22 +139,6 @@ rbalS l k r                           = Node R l k r
 lbal (Node R (Node R a x b) y c) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal (Node R a x (Node R b y c)) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal l k r                            = Node B l k r
-
-
-
-
--- Definition rbalS l k r :=
---  match r with
---  | Rd b y c => Rd l k (Bk b y c)
---  | _ =>
---    match l with
---    | Bk a x b => lbal (Rd a x b) k r
---    | Rd a x (Bk b y c) => Rd (lbal (makeRed a) x b) y (Bk c k r)
---    | _ => Rd l k r 
---    end
---  end.
-
-
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
