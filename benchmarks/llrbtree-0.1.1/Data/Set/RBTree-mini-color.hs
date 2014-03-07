@@ -62,7 +62,6 @@ deleteMin' (Node c h l x r)               = if d then (tD, m) else (tD', m)
 
 -- GUESS: black l --> red l' iff d is TRUE
 
-
 {-@ unbalancedL :: Color -> BlackHeight -> RBT a -> a -> ARBT a -> RBTB a @-}
 unbalancedL :: Color -> BlackHeight -> RBTree a -> a -> RBTree a -> RBTreeBDel a
 unbalancedL c h l@(Node B _ _ _ _) x r

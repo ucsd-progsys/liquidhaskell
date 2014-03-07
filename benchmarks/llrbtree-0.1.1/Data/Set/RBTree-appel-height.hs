@@ -3,8 +3,6 @@
 
 module Foo where
 
-import Language.Haskell.Liquid.Prelude
-
 data RBTree a = Leaf 
               | Node Color !(RBTree a) a !(RBTree a)
               deriving (Show)
@@ -36,21 +34,20 @@ ins kx s@(Node R l x r) = case compare kx x of
 -- | Delete an element ----------------------------------------------------
 ---------------------------------------------------------------------------
 
-
-{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
+{- del              :: (Ord a) => a -> RBT a -> ARBT a 
 del x Leaf           = Leaf
 del x (Node _ a y b) = case compare x y of
    EQ -> append a b 
    LT -> case a of
            Leaf         -> Node R Leaf y b
            Node B _ _ _ -> lbalS (del x a) y b
-           Leaf         -> Node R Leaf y b
-           _            -> let zoo = Node R (del x a) y b in zoo 
+           _            -> Node R (del x a) y b
    GT -> case b of
            Leaf         -> Node R a y Leaf 
            Node B _ _ _ -> rbalS a y (del x b)
-           Leaf         -> Node R a y Leaf 
            _            -> Node R a y (del x b)
+
+-}
 
 {-@ append                                  :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
 append Leaf r                               = r
@@ -76,6 +73,7 @@ deleteMin (Node _ l x r) = makeBlack t
 
 
 {-@ deleteMin'                   :: l:RBT a -> a -> r:RBT a -> (a, ARBT2 a l r) @-}
+deleteMin'                       :: RBTree a -> a -> RBTree a -> (a, RBTree a)
 deleteMin' Leaf k r              = (k, r)
 deleteMin' (Node R ll lx lr) x r = (k, Node R l' x r)   where (k, l') = deleteMin' ll lx lr 
 deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMin' ll lx lr 
@@ -124,7 +122,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Red-Black Trees
 
-{-@ type RBT a  = {v: (RBTree a) | (isRB v) } @-}
+{-@ type RBT a  = {v: (RBTree a) | ((isRB v) && (isBH v)) } @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -133,7 +131,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Almost Red-Black Trees
 
-{-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
+{-@ type ARBT a = {v: (RBTree a) | ((isARB v) && (isBH v))} @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
@@ -151,13 +149,22 @@ makeBlack (Node _ l x r) = Node B l x r
     col (Leaf)          = B
   @-}
 
-{-@ measure isB        :: RBTree a -> Prop
-    isB (Leaf)         = false
-    isB (Node c l x r) = c == B 
-  @-}
 
 {-@ predicate IsB T = not (Red (col T)) @-}
 {-@ predicate Red C = C == R            @-}
+
+-- | Black Height
+
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH Leaf           = true
+    isBH (Node c l x r) = (bh l) = (bh r)
+  @-}
+
+{-@ measure bh :: RBTree -> Int
+    bh (Leaf) = 0
+    bh (Node c l x r) = (bh l) + if (Red c) then 0 else 1 
+  @-}
+
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
@@ -167,10 +174,8 @@ makeBlack (Node _ l x r) = Node B l x r
 {-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
 {-@ predicate Inv2 V = ((isRB v) => (isARB v))              @-}
 
-{-@ invariant {v: Color | (v = R || v = B)}                 @-}
+{-@ invariant {v: RBTree a | (Invs v)} @-}
 
-{-@ invariant {v: RBTree a | (Invs v)}                      @-}
-
-{-@ inv            :: RBTree a -> {v:RBTree a | (Invs v)}   @-}
+{-@ inv              :: RBTree a -> {v:RBTree a | (Invs v)} @-}
 inv Leaf           = Leaf
 inv (Node c l x r) = Node c (inv l) x (inv r)
