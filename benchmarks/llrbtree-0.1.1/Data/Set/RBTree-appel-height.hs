@@ -79,7 +79,7 @@ deleteMin (Node _ l x r) = makeBlack t
     (_, t)               = deleteMin' l x r
 
 
-{-@ deleteMin'                   :: l:RBT a -> a -> r:RBT a -> (a, ARBT2 a l r) @-}
+{-@ deleteMin'                   :: l:RBT a -> a -> r:RBTN a {(bh l)} -> (a, ARBT2 a l r) @-}
 deleteMin' Leaf k r              = (k, r)
 deleteMin' (Node R ll lx lr) x r = (k, Node R l' x r)   where (k, l') = deleteMin' ll lx lr 
 deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMin' ll lx lr 
@@ -88,6 +88,12 @@ deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
+{- Foo T V = (bh V) = (bh T) + (if (IsB T) then 1 else 0)  -}
+
+L 
+L, L -> RL
+L, RL -> RL
+B, R L
 {-@ lbalS                             :: l:ARBT a -> a -> r:RBTN a {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
 lbalS (Node R a x b) k r              = Node R (Node B a x b) k r
 lbalS l k (Node B a y b)              = let zoo = rbal l k (Node R a y b) in zoo 
