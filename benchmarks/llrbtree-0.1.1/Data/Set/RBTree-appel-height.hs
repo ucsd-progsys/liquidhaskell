@@ -1,5 +1,8 @@
 
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-termination"   @-}
+{-@ LIQUID "--binders=lbalS"      @-}
+{-@ LIQUID "--binders=makeRed"  @-}
+
 
 module Foo where
 
@@ -20,7 +23,7 @@ data Color = B -- ^ Black
 {-@ add :: (Ord a) => a -> RBT a -> RBT a @-}
 add x s = makeBlack (ins x s)
 
-{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
+{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBTN a {(bh t)} | ((IsB t) => (isRB v))} @-}
 ins kx Leaf             = Node R Leaf kx Leaf
 ins kx s@(Node B l x r) = case compare kx x of
                             LT -> let zoo = lbal (ins kx l) x r in zoo
@@ -85,11 +88,11 @@ deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ lbalS                             :: ARBT a -> a -> r:RBT a -> {v: ARBT a | ((IsB r) => (isRB v))} @-}
+{-@ lbalS                             :: l:ARBT a -> a -> r:RBTN a {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
 lbalS (Node R a x b) k r              = Node R (Node B a x b) k r
 lbalS l k (Node B a y b)              = let zoo = rbal l k (Node R a y b) in zoo 
 lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal b z (makeRed c))
-lbalS l k r                           = Node R l k r
+-- lbalS l k r                           = Node R l k r
 
 {-@ rbalS                             :: l:RBT a -> a -> ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
 rbalS l k (Node R b y c)              = Node R l k (Node B b y c)
@@ -97,12 +100,12 @@ rbalS (Node B a x b) k r              = let zoo = lbal (Node R a x b) k r in zoo
 rbalS (Node R a x (Node B b y c)) k r = Node R (lbal (makeRed a) x b) y (Node B c k r)
 rbalS l k r                           = Node R l k r
 
-{-@ lbal                              :: ARBT a -> a -> RBT a -> RBT a @-}
+{-@ lbal                              :: l:ARBT a -> a -> RBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 lbal (Node R (Node R a x b) y c) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal (Node R a x (Node R b y c)) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal l k r                            = Node B l k r
 
-{-@ rbal                              :: RBT a -> a -> ARBT a -> RBT a @-}
+{-@ rbal                              :: l:RBT a -> a -> ARBTN a {(bh l)} -> RBTN a {1 + (bh l)}@-}
 rbal a x (Node R b y (Node R c z d))  = Node R (Node B a x b) y (Node B c z d)
 rbal a x (Node R (Node R b y c) z d)  = Node R (Node B a x b) y (Node B c z d)
 rbal l x r                            = Node B l x r
@@ -111,9 +114,11 @@ rbal l x r                            = Node B l x r
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ makeRed :: RBT a -> ARBT a @-}
-makeRed Leaf           = Leaf
+{-@ type BlackRBT a = {v: RBT a | ((IsB v) && (bh v) > 0)} @-}
+
+{-@ makeRed :: l:BlackRBT a -> ARBTN a {(bh l) - 1} @-}
 makeRed (Node _ l x r) = Node R l x r
+makeRed Leaf           = liquidError "nein" 
 
 {-@ makeBlack :: ARBT a -> RBT a @-}
 makeBlack Leaf           = Leaf
@@ -125,7 +130,8 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Red-Black Trees
 
-{-@ type RBT a  = {v: (RBTree a) | (isRB v) } @-}
+{-@ type RBT a    = {v: (RBTree a) | ((isRB v) && (isBH v)) } @-}
+{-@ type RBTN a N = {v: (RBT a) | (bh v) = N }                @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -134,7 +140,8 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Almost Red-Black Trees
 
-{-@ type ARBT a = {v: (RBTree a) | (isARB v)} @-}
+{-@ type ARBT a    = {v: (RBTree a) | ((isARB v) && (isBH v))} @-}
+{-@ type ARBTN a N = {v: (ARBT a)   | (bh v) = N }             @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
@@ -160,13 +167,35 @@ makeBlack (Node _ l x r) = Node B l x r
 {-@ predicate IsB T = not (Red (col T)) @-}
 {-@ predicate Red C = C == R            @-}
 
+-- | Black Height
+
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH (Leaf)         = true
+    isBH (Node c l x r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
+  @-}
+
+{- data RBTree a 
+      = Leaf 
+      | Node (c :: Color) 
+             (l :: RBTree a) 
+             (k :: a) 
+             (r :: {v: RBTree a | (bh v) = (bh l)})
+  -}
+
+
+{-@ measure bh        :: RBTree a -> Int
+    bh (Leaf)         = 0
+    bh (Node c l x r) = (bh l) + (if (c == R) then 0 else 1) 
+  @-}
+
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ predicate Invs V = ((Inv1 V) && (Inv2 V))               @-}
+{-@ predicate Invs V = ((Inv1 V) && (Inv2 V) && (Inv3 V))   @-}
 {-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
 {-@ predicate Inv2 V = ((isRB v) => (isARB v))              @-}
+{-@ predicate Inv3 V = 0 <= (bh v)                          @-}
 
 {-@ invariant {v: Color | (v = R || v = B)}                 @-}
 
