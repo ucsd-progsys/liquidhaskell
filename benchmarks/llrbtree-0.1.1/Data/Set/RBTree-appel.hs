@@ -33,9 +33,11 @@ ins kx s@(Node R l x r) = case compare kx x of
                             EQ -> s
 
 ---------------------------------------------------------------------------
--- | Delete an element ----------------------------------------------------
+-- | Remove an element ----------------------------------------------------
 ---------------------------------------------------------------------------
 
+{-@ remove :: (Ord a) => a -> RBT a -> RBT a @-}
+remove x t = makeBlack (del x t)
 
 {-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
 del x Leaf           = Leaf
