@@ -3,6 +3,8 @@
 
 module Foo where
 
+import Language.Haskell.Liquid.Prelude
+
 data RBTree a = Leaf 
               | Node Color !(RBTree a) a !(RBTree a)
               deriving (Show)
@@ -33,19 +35,28 @@ type RBTreeBDel a = (RBTree a, Bool)
 -- with del_rb s x n : rbt n s -> notblack s -> rbt n (del x s).
 -- Instance remove_rb s x : Rbt s -> Rbt (remove x s).
 
+{-@ isBlack :: t:RBT a -> {v:Bool | ((Prop v) <=> (isB t))} @-} 
+isBlack (Node B _ _ _) = True
+isBlack _              = False
 
-{-@ del              :: a -> RBT a -> ARBT a @-}
+{- del :: (Ord a) => a -> t:RBT a -> {v:ARBT a | (((isB t) || (isRB v)) && ((IsB t) => (IsB v)))} @-}
+
+{-@ invariant {v: Color | (v = R || v = B)} @-}
+
+{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
 del x Leaf           = Leaf
 del x (Node _ a y b) = case compare x y of
    EQ -> append a b 
    LT -> case a of
            Node B _ _ _ -> lbalS (del x a) y b
-           _            -> Node R (del x a) y b
+           Leaf         -> Node R Leaf y b
+           _            -> let zoo = Node R (del x a) y b in zoo 
    GT -> case b of
            Node B _ _ _ -> rbalS a y (del x b)
+           Leaf         -> Node R a y Leaf 
            _            -> Node R a y (del x b)
 
-{-@ append :: RBT a -> RBT a -> ARBT a @-}
+{-@ append :: l:RBT a -> r:RBT a -> ARBT2 a l r @-}
 append :: RBTree a -> RBTree a -> RBTree a
 append = undefined
 
@@ -114,16 +125,16 @@ deleteMin (Node _ l x r) = turnB' t
 {-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
 
 {-@ deleteMin'                   :: l:RBT a -> a -> r:RBT a -> (a, ARBT2 a l r) @-}
-deleteMin'                       :: RBTree a -> a -> RBTree a -> (a, RBTree a)
 deleteMin' Leaf k r              = (k, r)
 deleteMin' (Node R ll lx lr) x r = (k, Node R l' x r)   where (k, l') = deleteMin' ll lx lr 
 deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMin' ll lx lr 
 
+
 {-@ lbalS                             :: ARBT a -> a -> r:RBT a -> {v: ARBT a | ((IsB r) => (isRB v))} @-}
 lbalS (Node R a x b) k r              = Node R (Node B a x b) k r
-lbalS l k (Node B a y b)              = let zoo = rbal' l k (Node R a y b) in zoo 
-lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal' b z (turnR' c))
-lbalS l k r                           = Node R l k r
+-- lbalS l k (Node B a y b)              = let zoo = rbal' l k (Node R a y b) in zoo 
+-- lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal' b z (turnR' c))
+-- lbalS l k r                           = Node R l k r
 
 {-@ rbal' :: RBT a -> a -> ARBT a -> RBT a @-}
 rbal' l k (Node R b y (Node R c z d)) = Node R (Node B l k b) y (Node B c z d)
@@ -207,6 +218,11 @@ turnB' (Node _ l x r) = Node B l x r
     col (Leaf)          = B
   @-}
 
+{-@ measure isB        :: RBTree a -> Prop
+    isB (Leaf)         = false
+    isB (Node c l x r) = c == B 
+  @-}
+
 {-@ predicate IsB T = not (Red (col T)) @-}
 {-@ predicate Red C = C == R            @-}
 
@@ -220,6 +236,6 @@ turnB' (Node _ l x r) = Node B l x r
 
 {-@ invariant {v: RBTree a | (Invs v)} @-}
 
-{-@ inv              :: RBTree a -> {v:RBTree a | (Invs v)} @-}
+{-@ inv            :: RBTree a -> {v:RBTree a | (Invs v)} @-}
 inv Leaf           = Leaf
 inv (Node c l x r) = Node c (inv l) x (inv r)
