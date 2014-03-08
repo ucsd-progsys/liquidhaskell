@@ -1,6 +1,6 @@
 
 {-@ LIQUID "--no-termination"   @-}
-{-@ LIQUID "--binders=lbalS"      @-}
+{-@ LIQUID "--binders=rbalS"      @-}
 {-@ LIQUID "--binders=makeRed"  @-}
 
 
@@ -41,6 +41,12 @@ ins kx s@(Node R l x r) = case compare kx x of
 {-@ remove :: (Ord a) => a -> RBT a -> RBT a @-}
 remove x t = makeBlack (del x t)
 
+
+
+-- Lemma del_arb s x n : rbt (S n) s -> isblack s -> arbt n (del x s)
+-- with del_rb s x n : rbt n s -> notblack s -> rbt n (del x s).
+
+
 {-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
 del x Leaf           = Leaf
 del x (Node _ a y b) = case compare x y of
@@ -48,12 +54,10 @@ del x (Node _ a y b) = case compare x y of
    LT -> case a of
            Leaf         -> Node R Leaf y b
            Node B _ _ _ -> lbalS (del x a) y b
-           Leaf         -> Node R Leaf y b
            _            -> let zoo = Node R (del x a) y b in zoo 
    GT -> case b of
            Leaf         -> Node R a y Leaf 
            Node B _ _ _ -> rbalS a y (del x b)
-           Leaf         -> Node R a y Leaf 
            _            -> Node R a y (del x b)
 
 {-@ append                                  :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
@@ -88,30 +92,24 @@ deleteMin' (Node B ll lx lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{- Foo T V = (bh V) = (bh T) + (if (IsB T) then 1 else 0)  -}
-
-L 
-L, L -> RL
-L, RL -> RL
-B, R L
 {-@ lbalS                             :: l:ARBT a -> a -> r:RBTN a {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
 lbalS (Node R a x b) k r              = Node R (Node B a x b) k r
 lbalS l k (Node B a y b)              = let zoo = rbal l k (Node R a y b) in zoo 
 lbalS l k (Node R (Node B a y b) z c) = Node R (Node B l k a) y (rbal b z (makeRed c))
--- lbalS l k r                           = Node R l k r
+lbalS l k r                           = liquidError "nein" -- Node R l k r
 
-{-@ rbalS                             :: l:RBT a -> a -> ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
+{-@ rbalS                             :: l:RBT a -> a -> r:ARBTN a {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
 rbalS l k (Node R b y c)              = Node R l k (Node B b y c)
 rbalS (Node B a x b) k r              = let zoo = lbal (Node R a x b) k r in zoo
 rbalS (Node R a x (Node B b y c)) k r = Node R (lbal (makeRed a) x b) y (Node B c k r)
-rbalS l k r                           = Node R l k r
+rbalS l k r                           = liquidError "nein" -- Node R l k r
 
 {-@ lbal                              :: l:ARBT a -> a -> RBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 lbal (Node R (Node R a x b) y c) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal (Node R a x (Node R b y c)) k r  = Node R (Node B a x b) y (Node B c k r)
 lbal l k r                            = Node B l k r
 
-{-@ rbal                              :: l:RBT a -> a -> ARBTN a {(bh l)} -> RBTN a {1 + (bh l)}@-}
+{-@ rbal                              :: l:RBT a -> a -> ARBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 rbal a x (Node R b y (Node R c z d))  = Node R (Node B a x b) y (Node B c z d)
 rbal a x (Node R (Node R b y c) z d)  = Node R (Node B a x b) y (Node B c z d)
 rbal l x r                            = Node B l x r
