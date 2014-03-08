@@ -1,7 +1,5 @@
 
 {-@ LIQUID "--no-termination"   @-}
-{-@ LIQUID "--binders=deleteMin" @-}
-
 
 module Foo where
 
@@ -40,13 +38,9 @@ ins kx s@(Node R l x r) = case compare kx x of
 {-@ remove :: (Ord a) => a -> RBT a -> RBT a @-}
 remove x t = makeBlack (del x t)
 
+{-@ predicate HDel T V = (bh V) = (if (isB T) then (bh T) - 1 else (bh T)) @-}
 
-
--- Lemma del_arb s x n : rbt (S n) s -> isblack s -> arbt n (del x s)
--- with del_rb s x n : rbt n s -> notblack s -> rbt n (del x s).
-
-
-{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
+{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((HDel t v) && ((isB t) || (isRB v)))} @-}
 del x Leaf           = Leaf
 del x (Node _ a y b) = case compare x y of
    EQ -> append a b 
@@ -59,7 +53,7 @@ del x (Node _ a y b) = case compare x y of
            Node B _ _ _ -> rbalS a y (del x b)
            _            -> Node R a y (del x b)
 
-{-@ append                                  :: l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
+{-@ append                                  :: l:RBT a -> r:RBTN a {(bh l)} -> (ARBT2 a l r) @-}
 append Leaf r                               = r
 append l Leaf                               = l
 append (Node R ll lx lr) (Node R rl rx rr)  = case append lr rl of 
@@ -153,7 +147,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 -- | Conditionally Red-Black Tree
 
-{-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
+{-@ type ARBT2 a L R = {v:ARBTN a {(bh L)} | (((IsB L) && (IsB R)) => (isRB v))} @-}
 
 -- | Color of a tree
 
@@ -176,15 +170,6 @@ makeBlack (Node _ l x r) = Node B l x r
     isBH (Leaf)         = true
     isBH (Node c l x r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
   @-}
-
-{- data RBTree a 
-      = Leaf 
-      | Node (c :: Color) 
-             (l :: RBTree a) 
-             (k :: a) 
-             (r :: {v: RBTree a | (bh v) = (bh l)})
-  -}
-
 
 {-@ measure bh        :: RBTree a -> Int
     bh (Leaf)         = 0
