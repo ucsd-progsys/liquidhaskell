@@ -1,7 +1,6 @@
 
 {-@ LIQUID "--no-termination"   @-}
-{-@ LIQUID "--binders=rbalS"      @-}
-{-@ LIQUID "--binders=makeRed"  @-}
+{-@ LIQUID "--binders=deleteMin" @-}
 
 
 module Foo where
