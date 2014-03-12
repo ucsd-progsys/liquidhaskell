@@ -23,8 +23,8 @@ add x s = makeBlack (ins x s)
 {-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBTN a {(bh t)} | ((IsB t) => (isRB v))} @-}
 ins kx Leaf             = Node R kx Leaf Leaf
 ins kx s@(Node B x l r) = case compare kx x of
-                            LT -> let zoo = lbal (ins kx l) x r in zoo
-                            GT -> let zoo = rbal l x (ins kx r) in zoo
+                            LT -> let zoo = lbal x (ins kx l) r in zoo
+                            GT -> let zoo = rbal x l (ins kx r) in zoo
                             EQ -> s
 ins kx s@(Node R x l r) = case compare kx x of
                             LT -> Node R x (ins kx l) r
@@ -43,27 +43,28 @@ remove x t = makeBlack (del x t)
 {-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((HDel t v) && ((isB t) || (isRB v)))} @-}
 del x Leaf           = Leaf
 del x (Node _ y a b) = case compare x y of
-   EQ -> append a b 
+   EQ -> append y a b 
    LT -> case a of
            Leaf         -> Node R y Leaf b
-           Node B _ _ _ -> lbalS (del x a) y b
+           Node B _ _ _ -> lbalS y (del x a) b
            _            -> let zoo = Node R y (del x a) b in zoo 
    GT -> case b of
            Leaf         -> Node R y a Leaf 
-           Node B _ _ _ -> rbalS a y (del x b)
+           Node B _ _ _ -> rbalS y a (del x b)
            _            -> Node R y a (del x b)
 
-{-@ append                                  :: l:RBT a -> r:RBTN a {(bh l)} -> (ARBT2 a l r) @-}
-append Leaf r                               = r
-append l Leaf                               = l
-append (Node R lx ll lr) (Node R rx rl rr)  = case append lr rl of 
-                                                Node R x lr' rl' -> Node R x (Node R lx ll lr') (Node R rx rl' rr)
-                                                lrl              -> Node R lx ll (Node R rx lrl rr)
-append (Node B lx ll lr) (Node B rx rl rr)  = case append lr rl of 
-                                                Node R x lr' rl' -> Node R x (Node B lx ll lr') (Node B rx rl' rr)
-                                                lrl              -> lbalS ll lx (Node B rx lrl rr)
-append l@(Node B _ _ _) (Node R rx rl rr)   = Node R rx (append l rl) rr
-append l@(Node R lx ll lr) r@(Node B _ _ _) = Node R lx ll (append lr r)
+{-@ append                                  :: y:a -> l:RBT {v:a | v < y} -> r:RBTN {v:a | y < v} {(bh l)} -> (ARBT2 a l r) @-}
+append :: a -> RBTree a -> RBTree a -> RBTree a
+append _ Leaf r                               = r
+append _ l Leaf                               = l
+append piv (Node R lx ll lr) (Node R rx rl rr)  = case append piv lr rl of 
+                                                    Node R x lr' rl' -> Node R x (Node R lx ll lr') (Node R rx rl' rr)
+                                                    lrl              -> Node R lx ll (Node R rx lrl rr)
+append piv (Node B lx ll lr) (Node B rx rl rr)  = case append piv lr rl of 
+                                                    Node R x lr' rl' -> Node R x (Node B lx ll lr') (Node B rx rl' rr)
+                                                    lrl              -> lbalS lx ll (Node B rx lrl rr)
+append piv l@(Node B _ _ _) (Node R rx rl rr)   = Node R rx (append piv l rl) rr
+append piv l@(Node R lx ll lr) r@(Node B _ _ _) = Node R lx ll (append piv lr r)
 
 ---------------------------------------------------------------------------
 -- | Delete Minimum Element -----------------------------------------------
@@ -73,39 +74,39 @@ append l@(Node R lx ll lr) r@(Node B _ _ _) = Node R lx ll (append lr r)
 deleteMin (Leaf)         = Leaf
 deleteMin (Node _ x l r) = makeBlack t
   where 
-    (_, t)               = deleteMin' l x r
+    (_, t)               = deleteMin' x l r
 
 
-{-@ deleteMin'                   :: l:RBT a -> a -> r:RBTN a {(bh l)} -> (a, ARBT2 a l r) @-}
-deleteMin' Leaf k r              = (k, r)
-deleteMin' (Node R lx ll lr) x r = (k, Node R x l' r)   where (k, l') = deleteMin' ll lx lr 
-deleteMin' (Node B lx ll lr) x r = (k, lbalS l' x r )   where (k, l') = deleteMin' ll lx lr 
+{-@ deleteMin'                   :: k:a -> l:RBT {v:a | v < k} -> r:RBTN {v:a | k < v} {(bh l)} -> (a, ARBT2 a l r) @-}
+deleteMin' k Leaf r              = (k, r)
+deleteMin' x (Node R lx ll lr) r = (k, Node R x l' r)   where (k, l') = deleteMin' lx ll lr 
+deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMin' lx ll lr 
 
 ---------------------------------------------------------------------------
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ lbalS                             :: l:ARBT a -> a -> r:RBTN a {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
-lbalS (Node R x a b) k r              = Node R k (Node B x a b) r
-lbalS l k (Node B y a b)              = let zoo = rbal l k (Node R y a b) in zoo 
-lbalS l k (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal b z (makeRed c))
-lbalS l k r                           = liquidError "nein" -- Node R l k r
+{-@ lbalS                             :: k:a -> l:ARBT {v:a | v < k} -> r:RBTN {v:a | k < v} {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
+lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
+lbalS k l (Node B y a b)              = let zoo = rbal k l (Node R y a b) in zoo 
+lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
+lbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ rbalS                             :: l:RBT a -> a -> r:ARBTN a {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
-rbalS l k (Node R y b c)              = Node R k l (Node B y b c)
-rbalS (Node B x a b) k r              = let zoo = lbal (Node R x a b) k r in zoo
-rbalS (Node R x a (Node B y b c)) k r = Node R y (lbal (makeRed a) x b) (Node B k c r)
-rbalS l k r                           = liquidError "nein" -- Node R l k r
+{-@ rbalS                             :: k:a -> l:RBT {v:a | v < k} -> r:ARBTN {v:a | k < v} {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
+rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
+rbalS k (Node B x a b) r              = let zoo = lbal k (Node R x a b) r in zoo
+rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
+rbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ lbal                              :: l:ARBT a -> a -> RBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
-lbal (Node R y (Node R x a b) c) k r  = Node R y (Node B x a b) (Node B k c r)
-lbal (Node R x a (Node R y b c)) k r  = Node R y (Node B x a b) (Node B k c r)
-lbal l k r                            = Node B k l r
+{-@ lbal                              :: k:a -> l:ARBT {v:a | v < k} -> RBTN {v:a | k < v} {(bh l)} -> RBTN a {1 + (bh l)} @-}
+lbal k (Node R y (Node R x a b) c) r  = Node R y (Node B x a b) (Node B k c r)
+lbal k (Node R x a (Node R y b c)) r  = Node R y (Node B x a b) (Node B k c r)
+lbal k l r                            = Node B k l r
 
-{-@ rbal                              :: l:RBT a -> a -> ARBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
-rbal a x (Node R y b (Node R z c d))  = Node R y (Node B x a b) (Node B z c d)
-rbal a x (Node R z (Node R y b c) d)  = Node R y (Node B x a b) (Node B z c d)
-rbal l x r                            = Node B x l r
+{-@ rbal                              :: k:a -> l:RBT {v:a | v < k} -> ARBTN {v:a | k < v} {(bh l)} -> RBTN a {1 + (bh l)} @-}
+rbal x a (Node R y b (Node R z c d))  = Node R y (Node B x a b) (Node B z c d)
+rbal x a (Node R z (Node R y b c) d)  = Node R y (Node B x a b) (Node B z c d)
+rbal x l r                            = Node B x l r
 
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -125,10 +126,17 @@ makeBlack (Node _ x l r) = Node B x l r
 -- | Specifications -------------------------------------------------------
 ---------------------------------------------------------------------------
 
+-- | Ordered Red-Black Trees
+
+{-@ type ORBT a = RBTree <{\root v -> v < root }, {\root v -> v > root}> a @-}
+
 -- | Red-Black Trees
 
-{-@ type RBT a    = {v: (RBTree a) | ((isRB v) && (isBH v)) } @-}
-{-@ type RBTN a N = {v: (RBT a) | (bh v) = N }                @-}
+{-@ type RBT a    = {v: (ORBT a) | ((isRB v) && (isBH v)) } @-}
+{-@ type RBTN a N = {v: (RBT a) | (bh v) = N }              @-}
+
+{-@ type ORBTL a X = RBT {v:a | v < X} @-}
+{-@ type ORBTG a X = RBT {v:a | X < v} @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -137,7 +145,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Almost Red-Black Trees
 
-{-@ type ARBT a    = {v: (RBTree a) | ((isARB v) && (isBH v))} @-}
+{-@ type ARBT a    = {v: (ORBT a) | ((isARB v) && (isBH v))} @-}
 {-@ type ARBTN a N = {v: (ARBT a)   | (bh v) = N }             @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
@@ -173,6 +181,16 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ measure bh        :: RBTree a -> Int
     bh (Leaf)         = 0
     bh (Node c x l r) = (bh l) + (if (c == R) then 0 else 1) 
+  @-}
+
+-- | Binary Search Ordering
+
+{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
+            = Leaf
+            | Node (c    :: Color)
+                   (key  :: a)
+                   (left :: RBTree <l, r> (a <l key>))
+                   (left :: RBTree <l, r> (a <r key>))
   @-}
 
 -------------------------------------------------------------------------------
