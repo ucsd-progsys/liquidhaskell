@@ -112,7 +112,7 @@ module Language.Haskell.Liquid.Types (
 
   , insertsSEnv
 
-  , Stratum(..), Strata
+  , Stratum(..), Strata, getStrata
   )
   where
 
@@ -931,6 +931,8 @@ stripRTypeBase (RAppTy _ _ x)
   = Just x
 stripRTypeBase _                
   = Nothing
+
+getStrata = maybe [] ur_strata . stripRTypeBase
 
 -----------------------------------------------------------------------------
 -- | PPrint -----------------------------------------------------------------

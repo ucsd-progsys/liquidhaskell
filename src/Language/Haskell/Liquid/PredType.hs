@@ -111,6 +111,14 @@ unify _         t   = t
 unifyS :: SpecType -> PrType -> State (S.HashSet UsedPVar) SpecType 
 ---------------------------------------------------------------------------
 
+unifyS (RAllS s t) pt
+  = do t' <- unifyS t pt 
+       return $ RAllS s t'
+
+unifyS t (RAllS s pt) 
+  = do t' <- unifyS t pt 
+       return $ RAllS s t'
+
 unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
        s  <- get
