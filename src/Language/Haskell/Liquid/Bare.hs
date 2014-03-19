@@ -454,9 +454,9 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] ls t')
+renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
   where
-    t'                     = subts su (mkUnivs [] ps ls tbody)
+    t'                     = subts su $ mkUnivs [] ps ls tbody
     su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap               = initMapSt err
