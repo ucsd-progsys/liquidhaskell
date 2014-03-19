@@ -109,7 +109,7 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "INITENV" [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -130,8 +130,6 @@ initEnv info penv
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
-instance Show Var where
-  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -770,7 +768,7 @@ freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
                 
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
-freshTy_reftype k τ = do t <- fmap uRType $ refresh τ 
+freshTy_reftype k τ = do t <- refresh $ uRType τ 
                          addKVars k t
                          return t
 

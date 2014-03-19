@@ -626,7 +626,7 @@ safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
 safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
 safeBkArrow t           = bkArrow t
 
-mkUnivs αs πs ls t = foldr RAllT (foldr RAllP t πs) αs 
+mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs 
 
 bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], [Symbol], RType t t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t') 

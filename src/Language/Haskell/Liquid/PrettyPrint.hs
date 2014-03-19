@@ -187,7 +187,7 @@ ppr_forall bb p t
   = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep) , ppr_clss cls, ppr_rtype bb TopPrec t' ]
   where
     trep                   = toRTypeRep t
-    (cls, t')              = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
+    (cls, t')              = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = [], ty_labels = []}
   
     ppr_foralls False _ _  _= empty
     ppr_foralls _    [] [] [] = empty
@@ -201,8 +201,9 @@ ppr_forall bb p t
     dπs False _            = empty 
     dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
     dss _ []               = empty 
-    dss False _            = empty 
-    dss True ss            = angleBrackets $ intersperse comma $ pprint <$> ss
+--    dss False _            = empty 
+    dss _ ss            = angleBrackets $ intersperse comma $ pprint <$> ss
+
 
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
