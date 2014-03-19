@@ -109,7 +109,7 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "INITENV" [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -129,6 +129,9 @@ initEnv info penv
             | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
+
+instance Show Var where
+  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -700,7 +703,7 @@ addClassBind = mapM (uncurry addBind) . classBinds
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC _ t1 t2) _msg 
-  = -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+  = trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
      modify $ \s -> s { hsCs  = c : (hsCs s) }
 addC !c _msg 
   = modify $ \s -> s { hsCs  = c : (hsCs s) }

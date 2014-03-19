@@ -110,7 +110,7 @@ uReft           ::  (Symbol, [Refa]) -> UReft Reft
 uReft           = uTop . Reft  
 
 uTop            ::  r -> UReft r
-uTop r          = U r mempty
+uTop r          = U r mempty mempty
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -138,8 +138,8 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
   mempty                              = RMono [] mempty
   mappend (RMono s1 r1) (RMono s2 r2) = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty)
-  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty)
+  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
+  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
   mappend (RPoly s1 t1) (RPoly s2 t2) = RPoly (s1 ++ s2) $ t1 `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r
@@ -262,6 +262,8 @@ instance (RefTypable p c tv ()) => Eq (RType p c tv ()) where
 
 eqRSort m (RAllP _ t) (RAllP _ t') 
   = eqRSort m t t'
+eqRSort m (RAllS _ t) (RAllS _ t') 
+  = eqRSort m t t'
 eqRSort m (RAllP _ t) t' 
   = eqRSort m t t'
 eqRSort m (RAllT a t) (RAllT a' t')
@@ -350,6 +352,8 @@ nlzP ps (RAllT v t )
   where (t', ps') = nlzP [] t
 nlzP ps t@(RApp _ _ _ _)
  = (t, ps)
+nlzP ps (RAllS _ t)
+ = (t, ps)
 nlzP ps t@(RCls _ _)
  = (t, ps)
 nlzP ps (RAllP p t)
@@ -405,6 +409,9 @@ strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
 
 strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ t1 t2
+
+strengthenRefType_ (RAllS s t1) (RAllS _ t2)
+  = RAllS s $ strengthenRefType_ t1 t2
 
 strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
   = RAppTy t t' (r1 `meet` r2)
@@ -478,6 +485,7 @@ generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t 
          
 freeTyVars (RAllP _ t)     = freeTyVars t
+freeTyVars (RAllS _ t)     = freeTyVars t
 freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t' 
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
@@ -495,6 +503,7 @@ freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ sh
 --        f _                         = []
 
 tyClasses (RAllP _ t)     = tyClasses t
+tyClasses (RAllS _ t)     = tyClasses t
 tyClasses (RAllT α t)     = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
@@ -527,6 +536,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RVar α r)       = rnf α `seq` rnf r 
   rnf (RAllT α t)      = rnf α `seq` rnf t
   rnf (RAllP π t)      = rnf π `seq` rnf t
+  rnf (RAllS s t)      = rnf s `seq` rnf t
   rnf (RFun x t t' r)  = rnf x `seq` rnf t `seq` rnf t' `seq` rnf r
   rnf (RApp _ ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RCls c ts)      = c `seq` rnf ts
@@ -588,7 +598,8 @@ subsTyVar meet        = subsFree meet S.empty
 --            -> (tv, ty, RType p c tv r) 
 --            -> RType p c tv r 
 --            -> RType p c tv r
-
+subsFree m s z@(α, τ,_) (RAllS l t)         
+  = RAllS l (subsFree m s z t)
 subsFree m s z@(α, τ,_) (RAllP π t)         
   = RAllP (subt (α, τ) π) (subsFree m s z t)
 subsFree m s z (RAllT α t)         
@@ -697,7 +708,7 @@ instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType p c tv ())) => SubsTy tv t
   subt m (RPoly ss t) = RPoly ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
  
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
-subvUReft f (U r p) = U r (subvPredicate f p)
+subvUReft f (U r p s) = U r (subvPredicate f p) s
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate 
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
@@ -805,6 +816,8 @@ toType (RFun _ t t' _)
 toType (RAllT (RTV α) t)      
   = ForAllTy α (toType t)
 toType (RAllP _ t)
+  = toType t
+toType (RAllS _ t)
   = toType t
 toType (RVar (RTV α) _)        
   = TyVarTy α

@@ -162,10 +162,10 @@ unifyS (REx x tx t) (REx x' tx' t') | x == x'
   = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
 
 unifyS t (REx x' tx' t')
-  = liftM (REx x' (U mempty <$> tx')) (unifyS t t')
+  = liftM (REx x' ((\p -> U mempty p mempty) <$> tx')) (unifyS t t')
 
 unifyS t@(RVar v a) (RAllE x' tx' t')
-  = liftM (RAllE x' (U mempty <$> tx')) (unifyS t t')
+  = liftM (RAllE x' ((\p -> U mempty p mempty)<$> tx')) (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
@@ -181,14 +181,14 @@ zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
 zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
  
 -- pToReft p = Reft (vv, [RPvar p]) 
-pToReft = U mempty . pdVar 
+pToReft = (\p -> U mempty p mempty) . pdVar 
 
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps)) 
-  = U (Reft (v, rs ++ rs')) (Pr ps2)
+replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s) 
+  = U (Reft (v, rs ++ rs')) (Pr ps2) s
   where rs'              = r . (v,) . pargs <$> ps1
         (ps1, ps2)       = partition (==p) ps
         freeSymbols      = snd3 <$> filter (\(_, x, y) -> EVar x == y) pargs1
@@ -290,7 +290,7 @@ substPredP su@(p, RPoly ss tt) (RPoly s t)
 substPredP _  (RMono _ _)       
   = error $ "RMono found in substPredP"
 
-splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
+splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
   where (epvs, pvs') = partition (uPVar pv ==) pvs
 
 
@@ -315,7 +315,7 @@ isPredInType _ (RExprArg _)
 isPredInType _ (ROth _)
   = False
 
-isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
+isPredInURef p (U _ (Pr ps) _) = any (uPVar p ==) ps
 
 freeArgsPs p (RVar _ r) 
   = freeArgsPsRef p r
@@ -339,7 +339,7 @@ freeArgsPs _ (RExprArg _)
 freeArgsPs _ (ROth _)
   = []
 
-freeArgsPsRef p (U _ (Pr ps)) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
+freeArgsPsRef p (U _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
   where 
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}

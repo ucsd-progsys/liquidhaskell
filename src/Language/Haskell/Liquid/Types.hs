@@ -111,6 +111,8 @@ module Language.Haskell.Liquid.Types (
   , pappSym, pToRef, pApp
 
   , insertsSEnv
+
+  , Stratum(..), Strata
   )
   where
 
@@ -202,12 +204,13 @@ instance (PPrint a, PPrint b) => PPrint (a,b) where
 data PPEnv 
   = PP { ppPs    :: Bool
        , ppTyVar :: Bool
+       , ppSs    :: Bool
        , ppShort :: Bool
        }
 
 ppEnv           = ppEnvPrintPreds
-ppEnvCurrent    = PP False False False
-ppEnvPrintPreds = PP True False False
+ppEnvCurrent    = PP False False False False
+ppEnvPrintPreds = PP True True False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
@@ -325,8 +328,8 @@ instance Monoid Predicate where
   mappend p p' = pdAnd [p, p']
 
 instance (Monoid a) => Monoid (UReft a) where
-  mempty                    = U mempty mempty
-  mappend (U x y) (U x' y') = U (mappend x x') (mappend y y')
+  mempty                         = U mempty mempty mempty
+  mappend (U x y z) (U x' y' z') = U (mappend x x') (mappend y y') (mappend z z')
 
 
 pdTrue         = Pr []
@@ -351,7 +354,10 @@ instance Subable Predicate where
 
 
 instance NFData r => NFData (UReft r) where
-  rnf (U r p) = rnf r `seq` rnf p
+  rnf (U r p s) = rnf r `seq` rnf p `seq` rnf s
+
+instance NFData Strata where
+  rnf _ = ()
 
 instance NFData PrType where
   rnf _ = ()
@@ -425,6 +431,11 @@ data RType p c tv r
     , rt_ty     :: !(RType p c tv r)
     }
 
+  | RAllS {
+      rt_sbind  :: !(Symbol)
+    , rt_ty     :: !(RType p c tv r)
+    }
+
   | RApp  { 
       rt_tycon  :: !c
     , rt_args   :: ![(RType p c tv r)]     
@@ -474,7 +485,7 @@ data Ref t s m
 
 -- MOVE TO TYPES
 data UReft r
-  = U { ur_reft :: !r, ur_pred :: !Predicate }
+  = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
 
 -- MOVE TO TYPES
 type BRType     = RType LocString LocString String
@@ -493,9 +504,16 @@ type SpecType   = RRType    RReft
 type RefType    = RRType    Reft
 
 
+data Stratum = SVar Symbol | SDiv | SWhnf | SFin 
+  deriving (Eq, Show)
+type Strata = [Stratum]  -- deriving (Monoid)
+
+instance Monoid Strata where
+  mempty        = []
+  mappend s1 s2 = nub $ s1 ++ s2
+
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
-
 
 -- MOVE TO TYPES
 class (Eq c) => TyConable c where
@@ -596,6 +614,7 @@ mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts
 
 bkArrowDeep (RAllT _ t)     = bkArrowDeep t
 bkArrowDeep (RAllP _ t)     = bkArrowDeep t
+bkArrowDeep (RAllS _ t)     = bkArrowDeep t
 bkArrowDeep (RFun x t t' _) = let (xs, ts, t'') = bkArrowDeep t'  in (x:xs, t:ts, t'')
 bkArrowDeep t               = ([], [], t)
 
@@ -603,7 +622,8 @@ bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
 bkArrow t               = ([], [], t)
 
 safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
-safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllT"
+safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
+safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
 safeBkArrow t           = bkArrow t
 
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP t πs) αs 
@@ -611,6 +631,7 @@ mkUnivs αs πs ls t = foldr RAllT (foldr RAllP t πs) αs
 bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], [Symbol], RType t t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t') 
 bkUniv (RAllP π t)      = let (αs, πs, ls, t') = bkUniv t in  (αs, π:πs, ls, t') 
+bkUniv (RAllS s t)      = let (αs, πs, ss, t') = bkUniv t in  (αs, πs, s:ss, t') 
 bkUniv t                = ([], [], [], t)
 
 bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
@@ -625,31 +646,57 @@ addTermCond t r = mkArrow αs πs ls xts $ RRTy r t2
 
 --------------------------------------------
 
+instance Subable Stratum where
+  syms (SVar s) = [s]
+  syms _        = []
+  subst su (SVar s) = SVar $ subst su s
+  subst su s        = s
+  substf f (SVar s) = SVar $ substf f s
+  substf f s        = s
+  substa f (SVar s) = SVar $ substa f s
+  substa f s        = s
+
+instance Subable Strata where
+  syms s     = concatMap syms s
+  subst su   = (subst su <$>)
+  substf f   = (substf f <$>)
+  substa f   = (substa f <$>)
+
+instance Reftable Strata where
+  isTauto [SFin]     = True
+  isTauto _          = False
+
+  ppTy s             = error "ppTy on Strata" 
+  toReft s           = mempty
+  params s           = [l | SVar l <- s]
+  bot s              = []
+  top s              = []
+
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
   -- ppTy (U r p) d     = ppTy r (ppTy p d) 
   ppTy               = ppTy_ureft
-  toReft (U r ps)    = toReft r `meet` toReft ps
-  params (U r _)     = params r
-  bot (U r _)        = U (bot r) (Pr [])
-  top (U r p)        = U (top r) (top p)
+  toReft (U r ps _)  = toReft r `meet` toReft ps
+  params (U r _ _)   = params r
+  bot (U r _ s)      = U (bot r) (Pr []) (bot s)
+  top (U r p s)      = U (top r) (top p) (top s)
 
-isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u)
+isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) && (isTauto $ ur_strata u)
 
-ppTy_ureft u@(U r p) d 
+ppTy_ureft u@(U r p s) d 
   | isTauto_ureft u  = d
-  | otherwise        = ppr_reft r (ppTy p d)
+  | otherwise        = ppr_reft r (ppTy p d) s
 
-ppr_reft r d         = braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
+ppr_reft r d s       = text "^" <> pprint s <+> braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
   where 
     r'@(Reft (v, _)) = toReft r
 
 
 instance Subable r => Subable (UReft r) where
-  syms (U r p)     = syms r ++ syms p 
-  subst s (U r z)  = U (subst s r) (subst s z)
-  substf f (U r z) = U (substf f r) (substf f z) 
-  substa f (U r z) = U (substa f r) (substa f z) 
+  syms (U r p s)     = syms r ++ syms p 
+  subst s (U r z l)  = U (subst s r) (subst s z) l
+  substf f (U r z l) = U (substf f r) (substf f z) l 
+  substa f (U r z l) = U (substa f r) (substa f z) l
  
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
@@ -701,7 +748,7 @@ pappSym n  = S $ "papp" ++ show n
 isTrivial t = foldReft (\r b -> isTauto r && b) True t
 
 instance Functor UReft where
-  fmap f (U r p) = U (f r) p
+  fmap f (U r p s) = U (f r) p s
 
 instance Functor (RType a b c) where
   fmap  = mapReft 
@@ -717,6 +764,7 @@ emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType p c tv r1 -> RType p c 
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
 emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
+emapReft f γ (RAllS p t)         = RAllS p (emapReft f γ t)
 emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f γ r)
 emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
 emapReft f γ (RCls c ts)         = RCls  c (emapReft f γ <$> ts) 
@@ -739,6 +787,7 @@ mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
 mapReftM f (RVar α r)         = liftM   (RVar  α)   (f r)
 mapReftM f (RAllT α t)        = liftM   (RAllT α)   (mapReftM f t)
 mapReftM f (RAllP π t)        = liftM   (RAllP π)   (mapReftM f t)
+mapReftM f (RAllS s t)        = liftM   (RAllS s)   (mapReftM f t)
 mapReftM f (RFun x t t' r)    = liftM3  (RFun x)    (mapReftM f t)          (mapReftM f t')       (f r)
 mapReftM f (RApp c ts rs r)   = liftM3  (RApp  c)   (mapM (mapReftM f) ts)  (mapM (mapRefM f) rs) (f r)
 mapReftM f (RCls c ts)        = liftM   (RCls  c)   (mapM (mapReftM f) ts) 
@@ -763,6 +812,7 @@ efoldReft cb g f fp = go
     go γ z me@(RVar _ r)                = f γ (Just me) r z 
     go γ z (RAllT _ t)                  = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
+    go γ z (RAllS s t)                  = go γ z t
     go γ z me@(RFun _ (RCls c ts) t' r) = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t') 
     go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
@@ -812,6 +862,7 @@ efoldReft cb g f fp = go
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
+mapBot f (RAllS s t)       = RAllS s (mapBot f t)
 mapBot f (RFun x t t' r)   = RFun x (mapBot f t) (mapBot f t') r
 mapBot f (RAppTy t t' r)   = RAppTy (mapBot f t) (mapBot f t') r
 mapBot f (RApp c ts rs r)  = f $ RApp c (mapBot f <$> ts) (mapBotRef f <$> rs) r
@@ -824,6 +875,7 @@ mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
+mapBind f (RAllS s t)      = RAllS s (mapBind f t)
 mapBind f (RFun b t1 t2 r) = RFun (f b)  (mapBind f t1) (mapBind f t2) r
 mapBind f (RApp c ts rs r) = RApp c (mapBind f <$> ts) (mapBindRef f <$> rs) r
 mapBind f (RCls c ts)      = RCls c (mapBind f <$> ts)
@@ -849,6 +901,7 @@ toRSort = stripQuantifiers . mapBind (const dummySymbol) . fmap (const ())
 
 stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
 stripQuantifiers (RAllP _ t)      = stripQuantifiers t
+stripQuantifiers (RAllS _ t)      = stripQuantifiers t
 stripQuantifiers (RAllE _ _ t)    = stripQuantifiers t
 stripQuantifiers (REx _ _ t)      = stripQuantifiers t
 stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
@@ -882,6 +935,9 @@ stripRTypeBase _
 -----------------------------------------------------------------------------
 -- | PPrint -----------------------------------------------------------------
 -----------------------------------------------------------------------------
+
+instance PPrint Stratum where
+  pprint = text . show
 
 instance PPrint SourcePos where
   pprint = text . show 

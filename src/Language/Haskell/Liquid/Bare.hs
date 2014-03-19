@@ -226,7 +226,7 @@ expandRTAlias l bt = expType =<< expReft bt
     expPred      = expandPAlias l []
 
 txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
-txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
+txPredReft f (U r p l) = (\r -> U r p l) <$> txPredReft' f r
   where 
     txPredReft' f (Reft (v, ras)) = Reft . (v,) <$> mapM (txPredRefa f) ras
     txPredRefa  f (RConc p)       = RConc <$> f p
@@ -250,6 +250,7 @@ expandAlias l = go
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
     go s (RAllP a t)      = RAllP <$> ofBPVar a <*> go s t
+    go s (RAllS l t)      = RAllS l <$> go s t
     go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> mapM (go s) ts
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
@@ -431,7 +432,7 @@ addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
 addSymSortRef (p, RPoly s t) 
   = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
 
-addSymSortRef (p, RMono s r@(U _ (Pr [up]))) 
+addSymSortRef (p, RMono s r@(U _ (Pr [up]) _)) 
   = RMono (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
 addSymSortRef (p, RMono s t)
   = RMono s t
@@ -482,6 +483,8 @@ mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
 mapTyVars (TyVarTy α) (RVar a _)      
    = modify $ \s -> mapTyRVar α a s
 mapTyVars τ (RAllP _ t)   
+  = mapTyVars τ t 
+mapTyVars τ (RAllS _ t)   
   = mapTyVars τ t 
 mapTyVars τ (RCls _ ts)     
   = return ()
@@ -946,7 +949,7 @@ instance Resolvable Sort where
         ss'              = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
-  resolve (U r p) = U <$> resolve r <*> resolve p
+  resolve (U r p s) = U <$> resolve r <*> resolve p <*> return s
 
 instance Resolvable Reft where
   resolve (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
@@ -971,7 +974,7 @@ isCon []     = False
 --------------------------------------------------------------------
 
 maxArity :: Arity 
-maxArity = 7
+maxArity = 0
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 wiredTyDataCons = (concat tcs, concat dcs)
@@ -1019,7 +1022,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
         mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
 
-pdVarReft = U mempty . pdVar 
+pdVarReft = (\p -> U mempty p mempty) . pdVar 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
 mkps _  _      _           = error "Bare : mkps"
@@ -1065,6 +1068,8 @@ ofBareType (RAllT a t)
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
   = liftM2 RAllP (ofBPVar π) (ofBareType t)
+ofBareType (RAllS s t) 
+  = liftM  (RAllS s) (ofBareType t)
 ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
   = do tyi <- tcEnv <$> get
@@ -1188,7 +1193,7 @@ getPsSig m pos (RFun _ t1 t2 r)
 getPsSigPs m pos (RMono _ r) = addps m pos r
 getPsSigPs m pos (RPoly _ t) = getPsSig m pos t
 
-addps m pos (U _ ps) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 -- ofBPreds = fmap (fmap stringTyVarTy)
 dataDeclTyConP d 
@@ -1410,6 +1415,8 @@ expToBindT (RAllT a t)
   = liftM (RAllT a) (expToBindT t)
 expToBindT (RAllP p t)
   = liftM (RAllP p) (expToBindT t)
+expToBindT (RAllS s t)
+  = liftM (RAllS s) (expToBindT t)
 expToBindT (RApp c ts rs r) 
   = do ts' <- mapM expToBindT ts
        rs' <- mapM expToBindReft rs
@@ -1440,8 +1447,8 @@ addExist t x (tx, e) = RAllE x t' t
         r  = Reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (U r (Pr p))
-  = mapM expToBind p >>= return . U r . Pr
+expToBindRef (U r (Pr p) l)
+  = mapM expToBind p >>= return . (\p -> U r p l). Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p
