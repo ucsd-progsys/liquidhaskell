@@ -82,6 +82,8 @@ ppr_rtype bb p t@(RAllT _ _)
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)       
   = ppr_forall bb p t
+ppr_rtype bb p t@(RAllS _ _)       
+  = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)         
   = ppTy r $ pprint a
 ppr_rtype bb p (RFun x t t' _)  
@@ -182,14 +184,14 @@ ppr_fun_tail bb t
 
 -- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) , ppr_clss cls, ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep) , ppr_clss cls, ppr_rtype bb TopPrec t' ]
   where
     trep                   = toRTypeRep t
     (cls, t')              = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
   
-    ppr_foralls False _ _  = empty
-    ppr_foralls _    [] [] = empty
-    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <> dot
+    ppr_foralls False _ _  _= empty
+    ppr_foralls _    [] [] [] = empty
+    ppr_foralls True αs πs ss = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <+> dss (ppSs bb) ss <> dot
     ppr_clss []            = empty
     ppr_clss cs            = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
@@ -198,6 +200,9 @@ ppr_forall bb p t
     dπs _ []               = empty 
     dπs False _            = empty 
     dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
+    dss _ []               = empty 
+    dss False _            = empty 
+    dss True ss            = angleBrackets $ intersperse comma $ pprint <$> ss
 
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
@@ -231,7 +236,7 @@ ppRefSym (S "") = text "_"
 ppRefSym s      = pprint s
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (U r p)
+  pprint (U r p s)
     | isTauto r  = pprint p
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r

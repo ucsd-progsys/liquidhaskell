@@ -33,7 +33,7 @@ tidySymbols t = substa dropSuffix $ mapBind dropBind t
 tidyLocalRefas :: SpecType -> SpecType
 tidyLocalRefas = mapReft (txReft)
   where 
-    txReft (U (Reft (v,ras)) p) = U (Reft (v, dropLocals ras)) p
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l
     dropLocals = filter (not . any isTmp . syms) . flattenRefas
     isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
 
