@@ -65,9 +65,11 @@ instance Freshable m Integer => Freshable m RReft where
   refresh (U r _ s) = liftM3 U (refresh r) (return mempty) (refresh s)
 
 instance Freshable m Integer => Freshable m Strata where
-  fresh     = liftM ((:[]) . SVar) fresh           
-  true _    = fresh
-  refresh _ = fresh
+  fresh      = liftM ((:[]) . SVar) fresh           
+  true []    = fresh
+  true s     = return s
+  refresh [] = fresh
+  refresh s  = return s
 
 instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable m (RRType r) where
   fresh   = errorstar "fresh RefType"

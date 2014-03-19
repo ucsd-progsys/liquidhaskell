@@ -109,7 +109,7 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "INITENV" [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -130,6 +130,8 @@ initEnv info penv
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
+instance Show Var where
+  show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
@@ -458,7 +460,9 @@ rsplitCIndexed γ t1s t2s indexes
         t2s' = catMaybes $ (!?) t2s <$> indexes
 
 
-bsplitC γ t1 t2 = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+bsplitC γ t1 t2 
+  = unifyStrata t1 t2 
+    >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -476,7 +480,13 @@ bsplitC' γ t1 t2 pflag
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
 
-     
+unifyStrata t1 t2
+  = modify $ \s -> s { sMapUp = inserts (sMapUp s) ((, s2) <$> s1')
+                     , sMapDown = inserts (sMapDown s) ((,s1) <$> s2')}
+  where [s1, s2]   = traceShow "STRATA" $ getStrata <$> [t1, t2]
+        inserts    = foldr (uncurry M.insert)
+        s1' = [l | SVar l <- s1]
+        s2' = [l | SVar l <- s2]
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
@@ -510,6 +520,8 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
                      , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
                      , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
+                     , sMapUp       :: !(M.HashMap F.Symbol [Stratum])    -- ^ Unification of Strata
+                     , sMapDown       :: !(M.HashMap F.Symbol [Stratum])    -- ^ Unification of Strata
                      , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
                      , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
@@ -561,6 +573,8 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , termExprs  = M.fromList $ texprs spc
+  , sMapDown   = M.empty
+  , sMapUp     = M.empty
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
