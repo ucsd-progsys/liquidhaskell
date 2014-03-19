@@ -805,10 +805,10 @@ specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
 
 trueTy  :: Type -> CG SpecType
 trueTy t 
-  = do t     <- true $ ofType t
+  = do t     <- true $ uRType $ ofType t
        tyi   <- liftM tyConInfo get
        tce   <- tyConEmbed <$> get
-       return $ addTyConInfo tce tyi (uRType t)
+       return $ addTyConInfo tce tyi t -- (uRType t)
 
 refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
