@@ -238,9 +238,9 @@ bPVar p _ xts  = PV p τ dummySymbol τxs
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
-                  let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
-                  if isPropBareType t' 
-                    then return $ zip xs (toRSort <$> ts) 
+                  let trep = toRTypeRep t
+                  if isPropBareType $ ty_res trep
+                    then return $ zip (ty_binds trep) (toRSort <$> (ty_args trep)) 
                     else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
 
 
@@ -664,7 +664,7 @@ dataDeclSizeP
        x   <- locUpperIdP
        spaces
        fsize <- dataSizeP
-       return $ D x [] [] [] pos fsize
+       return $ D x [] [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
@@ -677,7 +677,8 @@ dataDeclFullP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
-       return $ D x ts ps dcs pos fsize
+       return $ D x ts ps [] dcs pos fsize
+
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------

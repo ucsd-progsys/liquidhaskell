@@ -130,9 +130,6 @@ initEnv info penv
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
-instance Show Var where
-  show = showPpr
-
 ctor' = map (mapSnd val) . ctors
 
 unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
@@ -816,10 +813,12 @@ refreshArgs t
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
-       let t'  = mkArrow αs πs (zip xs' ts') (F.subst su tbd)
+       let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = F.subst su tbd}
        return t'
-  where (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+  where trep = toRTypeRep t
+        xs   = ty_binds trep
+        ts   = ty_args  trep
+        tbd  = ty_res   trep
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -843,7 +842,7 @@ makeDecrIndex (x, t)
        case dindex of
         Nothing -> addWarning msg >> return []
         Just i  -> return $ fromMaybe [i] hint
-  where ts            = snd3 $ bkArrow $ thd3 $ bkUniv t
+  where ts            = ty_args $ toRTypeRep t
         checkHint'    = checkHint x ts isDecreasing
         dindex        = L.findIndex isDecreasing ts
         msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
@@ -856,8 +855,8 @@ recType ((vs, indexc), (x, index, t))
   where v    = (vs !!)  <$> indexc
         dxt  = (xts !!) <$> index
         loc  = showPpr (getSrcSpan x)
-        xts' = bkArrow $ thd3 $ bkUniv t
-        xts  = zip (fst3 xts') (snd3 xts')
+        xts  = zip (ty_binds trep) (ty_args trep) 
+        trep = toRTypeRep t
         msg' = printf "%s: No decreasing argument on %s with %s" 
         msg  = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
@@ -866,7 +865,7 @@ checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg' vs)  index
        mapM  (safeLogIndex msg  ts) index
   where loc   = showPpr (getSrcSpan x)
-        ts  = snd3 $ bkArrow $ thd3 $ bkUniv t
+        ts    = ty_args $ toRTypeRep t
         msg'  = printf "%s: No decreasing argument on %s with %s" 
         msg   = printf "%s: No decreasing parameter" loc
                   loc (showPpr x) (showPpr vs)
@@ -877,15 +876,12 @@ checkIndex (x, vs, t, index)
 --    where sameLens  = (length vs) == (length is) && (length dxs) == (length is)
 --  
 
-makeRecType t vs' dxs' is
-  = mkArrow αs πs xts' tbd
-  where xts'          = replaceN (last is) (makeDecrType vdxs) xts
-        vdxs          = zip vs dxs
-        xts           = zip xs ts
-        vs            = vs'
-        dxs           = dxs'
-        (αs, πs, t0)  = bkUniv t
-        (xs, ts, tbd) = bkArrow t0
+makeRecType t vs dxs is
+  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+  where (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
+        vdxs       = zip vs dxs
+        xts        = zip (ty_binds trep) (ty_args trep)
+        trep       = toRTypeRep t
 
 safeLogIndex err ls n
   | n >= length ls
@@ -960,7 +956,7 @@ consCBSizedTys tflag γ (Rec xes)
   where 
        dmapM f  = sequence . (mapM f <$>)
        (xs, es) = unzip xes
-       collectArgs   = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+       collectArgs   = collectArguments . length . ty_binds . toRTypeRep
        checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
        checkSameLens = checkAll err2 length
        err1          = printf "%s: The decreasing parameters should be of same type" loc
@@ -999,7 +995,7 @@ makeTermEnvs γ xtes xes ts ts'
         rts  = zipWith addTermCond ts' <$> rss
         (xs, es)     = unzip xes
         mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
-        collectArgs  = collectArguments . length . fst3 . bkArrow . thd3 . bkUniv
+        collectArgs  = collectArguments . length . ty_binds . toRTypeRep
         err x = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x 
        
 consCB tflag γ (Rec xes) | tflag 
@@ -1042,7 +1038,7 @@ consBind isRec γ (x, e, Just spect)
        cconsE γπ e spect
        addIdA x (defAnn isRec spect)
        return $ Just spect -- Nothing
-  where πs   = snd3 $ bkUniv spect
+  where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Nothing)
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
@@ -1168,7 +1164,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
          _         -> return t0
 
 consE γ e'@(App e a)               
-  = do ([], πs, te)        <- bkUniv <$> consE γ e
+  = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
        (γ', te'')          <- dropExists γ te'
@@ -1520,7 +1516,7 @@ forallExprReft_ _ e = Nothing -- F.exprReft e
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
-    snap                 = bkArrow . thd3 . bkUniv . (γ ?=) . F.symbol
+    snap                 = bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
 grapBindsWithType tx γ 
   = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
@@ -1595,7 +1591,7 @@ type RTyConInv = M.HashMap RTyCon [SpecType]
 -- mkRTyConInv    :: [Located SpecType] -> RTyConInv 
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
-    strip      = thd3 . bkUniv . val 
+    strip      = fourth4 . bkUniv . val 
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)

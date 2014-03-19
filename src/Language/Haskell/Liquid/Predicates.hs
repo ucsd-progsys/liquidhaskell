@@ -107,6 +107,6 @@ isSpecialId γ x = pl /= 0
 
 varPredArgs γ x = varPredArgs_ (F.lookupSEnv (F.symbol x) γ)
 varPredArgs_ Nothing = (0, 0)
-varPredArgs_ (Just t) = (length vs, length ps)
-  where (vs, ps, _) = bkUniv t
+varPredArgs_ (Just t) = (length $ ty_vars trep, length $ ty_preds trep)
+  where trep = toRTypeRep t
 

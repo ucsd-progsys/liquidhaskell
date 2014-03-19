@@ -8,7 +8,6 @@ module Language.Haskell.Liquid.PredType (
   , substParg
   , pApp
   , wiredSortedSyms
-  , pVartoRConc
   ) where
 
 -- import PprCore          (pprCoreExpr)
@@ -43,12 +42,12 @@ import Data.List (nub)
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv conv size)
+mkRTyCon tc (TyConP αs' ps ls cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv conv size)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
-dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
+dataConPSpecType dc (DataConP vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
   where (xs, ts) = unzip $ reverse yts
         mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
         ys       = mkDSym <$> xs
@@ -62,17 +61,19 @@ dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
 
 
 instance PPrint TyConP where
-  pprint (TyConP vs ps _ _ _) 
+  pprint (TyConP vs ps ls _ _ _) 
     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-      (parens $ hsep (punctuate comma (map pprint ps)))
+      (parens $ hsep (punctuate comma (map pprint ps))) <+>
+      (parens $ hsep (punctuate comma (map pprint ls)))
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP vs ps cs yts t)
+  pprint (DataConP vs ps ls cs yts t)
      = (parens $ hsep (punctuate comma (map pprint vs))) <+>
        (parens $ hsep (punctuate comma (map pprint ps))) <+>
+       (parens $ hsep (punctuate comma (map pprint ls))) <+>
        (parens $ hsep (punctuate comma (map pprint cs))) <+>
        (parens $ hsep (punctuate comma (map pprint yts))) <+>
        pprint t

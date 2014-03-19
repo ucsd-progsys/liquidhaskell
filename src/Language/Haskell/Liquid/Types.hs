@@ -36,6 +36,8 @@ module Language.Haskell.Liquid.Types (
   , rFun
   , addTermCond
 
+  , RTypeRep(..), fromRTypeRep, toRTypeRep
+
   -- * Manipulating Predicate
   , pvars
 
@@ -261,6 +263,7 @@ data GhcSpec = SP {
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![(PVar RSort)]
+                     , freeLabelTy  :: ![Symbol]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
                      , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
@@ -268,6 +271,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
                          , freePred   :: ![(PVar RSort)]
+                         , freeLabels :: ![Symbol]
                          , tyConsts   :: ![SpecType]
                          , tyArgs     :: ![(Symbol, SpecType)]
                          , tyRes      :: !SpecType
@@ -524,6 +528,8 @@ data DataDecl   = D { tycName   :: LocString
                                 -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]
                                 -- ^ PVar  Parameters
+                    , tycTyLabs :: [String]
+                                -- ^ PLabel  Parameters
                     , tycDCons  :: [(LocString, [(String, BareType)])]
                                 -- ^ [DataCon, [(fieldName, fieldType)]]
                     , tycSrcPos :: !SourcePos
@@ -566,7 +572,25 @@ instance Hashable a => Hashable (BDataCon a) where
 -- | Constructor and Destructors for RTypes ----------------------------
 ------------------------------------------------------------------------
 
-mkArrow αs πs xts = mkUnivs αs πs . mkArrs xts 
+data RTypeRep p c tv r
+  = RTypeRep { ty_vars   :: [tv]
+             , ty_preds  :: [PVar (RType p c tv ())]
+             , ty_labels :: [Symbol]
+             , ty_binds  :: [Symbol]
+             , ty_args   :: [RType p c tv r]
+             , ty_res    :: (RType p c tv r)
+             }
+
+fromRTypeRep rep 
+  = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip (ty_binds rep) (ty_args rep)) (ty_res rep)
+
+toRTypeRep :: RType p c tv r -> RTypeRep p c tv r
+toRTypeRep t 
+  = RTypeRep αs πs ls xs ts t''
+  where (αs, πs, ls, t') = bkUniv  t
+        (xs, ts, t'')    = bkArrow t'
+
+mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts 
   where 
     mkArrs xts t  = foldr (uncurry rFun) t xts 
 
@@ -582,22 +606,22 @@ safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow t           = bkArrow t
 
-mkUnivs αs πs t = foldr RAllT (foldr RAllP t πs) αs 
+mkUnivs αs πs ls t = foldr RAllT (foldr RAllP t πs) αs 
 
-bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], RType t t1 a t2)
-bkUniv (RAllT α t)      = let (αs, πs, t') = bkUniv t in  (α:αs, πs, t') 
-bkUniv (RAllP π t)      = let (αs, πs, t') = bkUniv t in  (αs, π:πs, t') 
-bkUniv t                = ([], [], t)
+bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], [Symbol], RType t t1 a t2)
+bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t') 
+bkUniv (RAllP π t)      = let (αs, πs, ls, t') = bkUniv t in  (αs, π:πs, ls, t') 
+bkUniv t                = ([], [], [], t)
 
 bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' mempty
 
-addTermCond t r = mkArrow αs πs xts $ RRTy r t2
-  where (αs, πs, t1) = bkUniv t
-        (xs, ts, t2) = bkArrow t1
-        xts          = zip xs ts
+addTermCond t r = mkArrow αs πs ls xts $ RRTy r t2
+  where (αs, πs, ls, t1) = bkUniv t
+        (xs, ts, t2)     = bkArrow t1
+        xts              = zip xs ts
 
 --------------------------------------------
 

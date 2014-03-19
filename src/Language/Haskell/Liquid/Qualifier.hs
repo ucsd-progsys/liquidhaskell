@@ -53,7 +53,7 @@ refTypeQuals tce t = quals ++
     ]  
     where 
       quals        = refTypeQuals' tce t
-      preds        = snd3 $ bkUniv t
+      preds        = ty_preds $ toRTypeRep t
 
 expressionsOfSort sort (Q _ pars (PAtom Eq (EVar v) e2)) 
   | (v, sort) `elem` pars
@@ -100,7 +100,7 @@ refTopQuals tce t0 γ t
                           , pa                         <- atoms p
     ] ++
     [ mkPQual tce t0 γ s e | let (U _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
-                           , p <- (findPVar (snd3 (bkUniv t0))) <$> ps
+                           , p <- (findPVar (ty_preds $ toRTypeRep t0)) <$> ps
                            , (s, _, e) <- pargs p
     ] 
     where 

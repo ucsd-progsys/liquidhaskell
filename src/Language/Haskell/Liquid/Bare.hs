@@ -84,12 +84,12 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
 checkMBody γ emb name sort (Def s c bs body) = go γ' body
   where 
     γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
+    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> (ty_args trep)
     ct  = ofType $ dataConUserType c :: SpecType
-    su  = unify tr (head $ snd3 $ bkArrowDeep sort)
+    su  = unify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
 
-    (_, ts, tr) = bkArrow $ thd3 $ bkUniv ct 
 
+    trep = toRTypeRep ct
     unify (RVar tv _) t                    = [(tv, toRSort t, t)]
     unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
     unify _ _                              = []
@@ -175,6 +175,7 @@ makeGhcSpec' cfg vars defVars exports specs
                              , exports    = exports
                              , measures   = subst su <$> M.elems $ Ms.measMap measures
                              }
+
 
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
@@ -379,9 +380,9 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
            let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                | (_, _, t) <- vts]
            let t = RCls (fromJust $ tyConClass_maybe tc) as'
-           let dcp = DataConP αs [] ss' (reverse sts) t
+           let dcp = DataConP αs [] [] ss' (reverse sts) t
            return ((dc,dcp),vts)
-    unClass = snd . bkClass . thd3 . bkUniv
+    unClass = snd . bkClass . fourth4 . bkUniv
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
@@ -452,14 +453,14 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] t')
+renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] ls t')
   where
-    t'                     = subts su (mkUnivs [] ps tbody)
+    t'                     = subts su (mkUnivs [] ps ls tbody)
     su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
-    (as, ps, tbody)        = bkUniv t
+    (as, ps, ls, tbody)    = bkUniv t
     err                    = errTypeMismatch x lt
 
 
@@ -541,8 +542,8 @@ dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
-    ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
-    ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
+    ((_, π1s, ls1, _), (α2s, [], ls2, t2')) -> meet t1 (mkUnivs α2s π1s (ls1 ++ ls2) t2')
+    ((α1s, [], ls1, t1'), (_, π2s, ls2, _)) -> meet (mkUnivs α1s π2s (ls1 ++ ls2) t1') t2
     _                             -> errorstar $ "meetPad: " ++ msg
   where msg = "\nt1 = " ++ showpp t1 ++ "\nt2 = " ++ showpp t2
  
@@ -691,14 +692,14 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
     tx = (v,) . Loc l . generalize
 
 plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps cs' $ go rt' st''
+plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
   where
-    (αs, _, rt)  = bkUniv (ofType t :: SpecType)
-    (cs, rt')    = bkClass rt
+    (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
+    (cs, rt')         = bkClass rt
 
-    (_, ps, st') = bkUniv st
-    (_, st'')    = bkClass st'
-    cs'          = [(dummySymbol, RCls c t) | (c,t) <- cs]
+    (_, ps, ls2, st') = bkUniv st
+    (_, st'')         = bkClass st'
+    cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
     go t                (RHole r)          = fmap f t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
@@ -737,7 +738,7 @@ makeInvariants' ts = mapM mkI ts
   where 
     mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType l t
 
-mkSpecType l t = mkSpecType' l (snd3 $ bkUniv t)  t
+mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t)  t
 
 mkSpecType' :: Show p => p -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
@@ -979,9 +980,9 @@ wiredTyDataCons = (concat tcs, concat dcs)
     l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
-                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] [] lt)
-                   , (consDataCon, DataConP [(RTV tyv)] [p] [] cargs  lt)])
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
+                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] [] [] lt)
+                   , (consDataCon, DataConP [(RTV tyv)] [p] [] [] cargs  lt)])
     where c      = listTyCon
           [tyv]  = tyConTyVars c
           t      = {- TyVarTy -} rVar tyv :: RSort
@@ -997,8 +998,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
           fsize  = \x -> EApp (dummyLoc $ S "len") [EVar x]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
-                    , [(dc, DataConP (RTV <$> tyvs) ps []  cargs  lt)])
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
+                    , [(dc, DataConP (RTV <$> tyvs) ps [] []  cargs  lt)])
   where c             = tupleTyCon BoxedTuple n
         dc            = tupleCon BoxedTuple n 
         tyvs@(tv:tvs) = tyConTyVars c
@@ -1156,18 +1157,19 @@ makeConTypes' :: [DataDecl] -> BareM ([(TyCon, TyConP)], [[(DataCon, DataConP)]]
 makeConTypes' dcs = unzip <$> mapM ofBDataDecl dcs
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
-ofBDataDecl (D tc as ps cts pos sfun)
+ofBDataDecl (D tc as ps ls cts pos sfun)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc
-       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts
+       cts'  <- mapM (ofBDataCon tc' αs ps ls' πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = concatMap (getPsSig initmap True) tys
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       return ((tc', TyConP αs πs cov contr sfun), cts')
+       return ((tc', TyConP αs πs ls' cov contr sfun), cts')
     where αs   = fmap (RTV . stringTyVar) as
+          ls'  = stringSymbol <$> ls
           -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 getPsSig m pos (RAllT _ t) 
@@ -1205,12 +1207,12 @@ mapM_pvar f (PV x t v txys)
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' v txys'
 
-ofBDataCon tc αs ps πs (c, xts)
+ofBDataCon tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' dummyPos  ps) ts
        let cs   = map ofType (dataConStupidTheta c')
        let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) mempty 
-       return   $ (c', DataConP αs πs cs (reverse (zip xs' ts')) t0)
+       return   $ (c', DataConP αs πs ls cs (reverse (zip xs' ts')) t0)
     where 
        (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
@@ -1233,7 +1235,7 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
   where xπm = M.fromList xπs
         xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
-rtypePredBinds = map uPVar . snd3 . bkUniv
+rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 -- rtypePredBinds t = everything (++) ([] `mkQ` grab) t
 --   where grab ((RAllP pv _) :: BRType RPVar RPredicate) = [pv]
@@ -1395,7 +1397,7 @@ data ExSt = ExSt { fresh :: Int
 
 txExpToBind   :: SpecType -> SpecType
 txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
-  where πs = M.fromList [(pname p, p) | p <- snd3 $ bkUniv t ]
+  where πs = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
 
 expToBindT :: SpecType -> State ExSt SpecType
 expToBindT (RVar v r) 

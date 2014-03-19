@@ -182,10 +182,10 @@ ppr_fun_tail bb t
 
 -- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t
-  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) αs πs , ppr_clss cls, ppr_rtype bb TopPrec t' ]
+  = maybeParen p FunPrec $ sep [ ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) , ppr_clss cls, ppr_rtype bb TopPrec t' ]
   where
-    (αs, πs,  ct')         = bkUniv t
-    (cls, t')              = bkClass ct'
+    trep                   = toRTypeRep t
+    (cls, t')              = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
   
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty

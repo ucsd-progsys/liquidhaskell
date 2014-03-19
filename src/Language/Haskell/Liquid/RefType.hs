@@ -474,7 +474,8 @@ toPoly (RPoly ss t) rc
 toPoly (RMono ss r) t 
   = RPoly ss $ (ofRSort $ ptype t) `strengthen` r  
 
-generalize t = mkUnivs (freeTyVars t) [] t 
+generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
+generalize t = mkUnivs (freeTyVars t) [] [] t 
          
 freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
@@ -787,9 +788,12 @@ isBaseTy (ForAllTy _ _)  = False
 
 vv_ = vv Nothing
 
-dataConMsReft ty ys  = subst su (rTypeReft t) 
-  where (xs, ts, t)  = bkArrow $ thd3 $ bkUniv ty
-        su           = mkSubst [(x, EVar y) | ((x,_), y) <- zip (zip xs ts) ys] 
+dataConMsReft ty ys  = subst su (rTypeReft (ty_res trep)) 
+  where trep = toRTypeRep ty
+        xs   = ty_binds trep
+        ts   = ty_args  trep
+        su   = mkSubst $ [(x, EVar y) | ((x, _), y) <- zip (zip xs ts) ys]
+        -- zip (ty_binds trep) (EVar <$> ys)
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
@@ -935,12 +939,11 @@ mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 expandProductType x t 
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where t'           = mkArrow as ps xts' tr
-           τs           = fst $ splitFunTys $ toType t
-           (as, ps, t0) = bkUniv t
-           (xs, ts, tr) = bkArrow t0
-           xts'         = concatMap mkProductTy $ zip3 τs xs ts
- 
+     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+           τs         = fst $ splitFunTys $ toType t
+           trep       = toRTypeRep t
+           (xs', ts') = unzip $ concatMap mkProductTy $ zip3 τs (ty_binds trep) (ty_args trep)
+          
 mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe τ
   where f = ((<$>) ((,) dummySymbol . ofType)) . forth4
           
