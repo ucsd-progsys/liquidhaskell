@@ -930,18 +930,20 @@ consCBLet, consCBTop :: CGEnv -> CoreBind -> CG CGEnv
 consCBLet γ cb
   = do oldtcheck <- tcheck <$> get
        strict    <- specLazy <$> get
-       let tflag  = oldtcheck && (tcond cb strict)
+       let tflag  = oldtcheck
+       let isStr  = tcond cb strict
        modify $ \s -> s{tcheck = tflag}
-       γ' <- consCB tflag γ cb
+       γ' <- consCB (tflag && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
 consCBTop γ cb
   = do oldtcheck <- tcheck <$> get
        strict    <- specLazy <$> get
-       let tflag  = oldtcheck && (tcond cb strict)
+       let tflag  = oldtcheck
+       let isStr  = tcond cb strict
        modify $ \s -> s{tcheck = tflag}
-       γ' <- consCB tflag γ cb
+       γ' <- consCB (tflag && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
@@ -951,7 +953,7 @@ tcond cb strict
         binds (Rec xes)    = fst $ unzip xes
 
 -------------------------------------------------------------------
-consCB :: Bool -> CGEnv -> CoreBind -> CG CGEnv 
+consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
 consCBSizedTys tflag γ (Rec xes)
@@ -1013,7 +1015,7 @@ makeTermEnvs γ xtes xes ts ts'
         collectArgs  = collectArguments . length . ty_binds . toRTypeRep
         err x = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x 
        
-consCB tflag γ (Rec xes) | tflag 
+consCB tflag _ γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
        let xxes = catMaybes $ (`lookup` texprs) <$> xs
@@ -1028,21 +1030,24 @@ consCB tflag γ (Rec xes) | tflag
         lookup k m | Just x <- M.lookup k m = Just (k, x)
                    | otherwise              = Nothing
 
--- TODO : no termination check:
--- check that the result type is trivial!
-consCB _ γ (Rec xes) 
-  = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+consCB _ str γ (Rec xes) | not str
+  = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let xets = mapThd3 (fmap makeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
-       let xts = [(x, {-topBaseRef <$>-} to) | (x, _, to) <- xets] -- , not (isGrty x)]
+       let xts = traceShow "LAZY!!!" [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
-    where isGrty x = (F.symbol x) `memberREnv` (grtys γ)
-          topBaseRef (RVar v r)       = RVar v (F.top r)
-          topBaseRef (RApp c ts rs r) = RApp c ts rs (F.top r)
-          topBaseRef  t               = t
 
-consCB _ γ (NonRec x e)
+consCB _ _ γ (Rec xes) 
+  = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       modify $ \i -> i { recCount = recCount i + length xes }
+       let xts = [(x, to) | (x, _, to) <- xets]
+       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
+       mapM_ (consBind True γ') xets
+       return γ' 
+
+consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
@@ -1181,7 +1186,9 @@ consE γ e'@(App e a) | eqType (exprType a) predType
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
-       te'                 <- return (replacePreds "consE" te zs) {- =>> addKuts -}
+       su                  <- zip ls <$> mapM (\_ -> fresh) ls
+       let f x = fromMaybe x $ L.lookup x $ traceShow "SU" su
+       let te'              = traceShow "THIS" $ F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''

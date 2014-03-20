@@ -112,7 +112,7 @@ module Language.Haskell.Liquid.Types (
 
   , insertsSEnv
 
-  , Stratum(..), Strata, getStrata
+  , Stratum(..), Strata, getStrata, makeDivType
   )
   where
 
@@ -694,9 +694,9 @@ ppr_reft r d s       = text "^" <> pprint s <+> braces (toFix v <+> colon <+> d 
 
 instance Subable r => Subable (UReft r) where
   syms (U r p s)     = syms r ++ syms p 
-  subst s (U r z l)  = U (subst s r) (subst s z) l
-  substf f (U r z l) = U (substf f r) (substf f z) l 
-  substa f (U r z l) = U (substa f r) (substa f z) l
+  subst s (U r z l)  = U (subst s r) (subst s z) (subst s l)
+  substf f (U r z l) = U (substf f r) (substf f z) (substf f l) 
+  substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
 instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
@@ -931,6 +931,16 @@ stripRTypeBase (RAppTy _ _ x)
   = Just x
 stripRTypeBase _                
   = Nothing
+
+mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
+mapRBase f (RVar a r)       = RVar a $ f r
+mapRBase f (RFun x t1 t2 r) = RFun x t1 t2 $ f r
+mapRBase f (RAppTy t1 t2 r) = RAppTy t1 t2 $ f r   
+mapRBase f t                = t
+
+makeDivType t = fromRTypeRep trep{ty_res = mapRBase f $ ty_res trep}
+  where trep = toRTypeRep t
+        f (U r p s) = U r p [SDiv]
 
 getStrata = maybe [] ur_strata . stripRTypeBase
 
