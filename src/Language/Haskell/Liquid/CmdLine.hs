@@ -103,7 +103,7 @@ config = Config {
           &= help "Don't complain about specifications for unexported and unused values "
 
  , maxParams 
-    = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+    = 10   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
 
  , shortNames
    = def &= name "short-names"
