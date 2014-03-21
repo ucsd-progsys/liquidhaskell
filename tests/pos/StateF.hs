@@ -11,11 +11,9 @@ data ST a s = S (s -> (a, s))
        = S (ys::(x:s<pre> -> ((a, s)<post x>)))
   @-}
 
-
--- TODO
-{- returnST :: forall <post :: s -> a -> s -> Prop>.
-               xState:a 
-           -> ST <{v:s<post v xState>| true}, post> a s
+{-@ returnST :: forall <pre :: s -> Prop>.
+               y:a
+           -> ST <pre, {\xs xa v -> ((v = xs) && (xa = y))}> a s
   @-}
 returnST :: a -> ST a s
 returnST x = S $ \s -> (x, s)
