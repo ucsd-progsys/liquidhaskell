@@ -1163,8 +1163,9 @@ ofBDataDecl (D tc as ps cts pos sfun)
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = concatMap (getPsSig initmap True) tys
-       let cov     = [i | (i, b)<- varInfo, b, i >=0]
-       let contr   = [i | (i, b)<- varInfo, not b, i >=0]
+       let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
+       let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
+       let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
        return ((tc', TyConP αs πs cov contr sfun), cts')
     where αs   = fmap (RTV . stringTyVar) as
           -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
