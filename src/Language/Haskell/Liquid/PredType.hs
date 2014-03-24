@@ -39,7 +39,7 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Applicative  ((<$>))
 import Control.Monad.State
-
+import Data.List (nub)
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
@@ -282,7 +282,9 @@ substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, 
 
 substPredP su@(p, RPoly ss tt) (RPoly s t)       
   = RPoly ss' $ substPred "substPredP" su t
- where ss' = if isFreePredInType p t then (ss ++ s) else s
+ where ss' = drop n ss ++  s
+-- where ss' = (reverse $ take (length (isFreePredInType p t)) $ reverse ss) ++  s
+       n   = length ss - length (freeArgsPs p t)
 
 substPredP _  (RMono _ _)       
   = error $ "RMono found in substPredP"
@@ -314,30 +316,32 @@ isPredInType _ (ROth _)
 
 isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
 
-isFreePredInType p (RVar _ r) 
-  = isFreePredInURef p r
-isFreePredInType p (RFun _ t1 t2 r) 
-  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
-isFreePredInType p (RAllT _ t)
-  = isFreePredInType p t 
-isFreePredInType p (RAllP p' t)
-  = not (p == p') && isFreePredInType p t 
-isFreePredInType p (RApp _ ts _ r) 
-  = isFreePredInURef p r || any (isFreePredInType p) ts
-isFreePredInType p (RCls _ ts) 
-  = any (isFreePredInType p) ts
-isFreePredInType p (RAllE _ t1 t2) 
-  = isFreePredInType p t1 || isFreePredInType p t2 
-isFreePredInType p (RAppTy t1 t2 r) 
-  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
-isFreePredInType _ (RExprArg _)              
-  = False
-isFreePredInType _ (ROth _)
-  = False
+freeArgsPs p (RVar _ r) 
+  = freeArgsPsRef p r
+freeArgsPs p (RFun _ t1 t2 r) 
+  = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+freeArgsPs p (RAllT _ t)
+  = freeArgsPs p t 
+freeArgsPs p (RAllP p' t)
+  | p == p'   = []
+  | otherwise = freeArgsPs p t 
+freeArgsPs p (RApp _ ts _ r) 
+  = nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
+freeArgsPs p (RCls _ ts) 
+  = nub $ concatMap (freeArgsPs p) ts
+freeArgsPs p (RAllE _ t1 t2) 
+  = nub $ freeArgsPs p t1 ++ freeArgsPs p t2 
+freeArgsPs p (RAppTy t1 t2 r) 
+  = nub $ freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+freeArgsPs _ (RExprArg _)              
+  = []
+freeArgsPs _ (ROth _)
+  = []
 
-isFreePredInURef p (U _ (Pr ps))
-  = any (\(_, x, w) -> (EVar x) == w) $ concatMap pargs ps'
-  where ps' = filter (uPVar p ==) ps
+freeArgsPsRef p (U _ (Pr ps)) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
+  where 
+   ps' = f <$> filter (uPVar p ==) ps
+   f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
