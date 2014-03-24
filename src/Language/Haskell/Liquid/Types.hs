@@ -255,6 +255,7 @@ data GhcSpec = SP {
   , lazy       :: !(S.HashSet Var)               -- ^ Binders to IGNORE during termination checking
   , config     :: !Config                        -- ^ Configuration Options
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
+  , measures   :: [Measure SpecType DataCon]
   }
 
 
@@ -1214,3 +1215,9 @@ hole = RKvar (S "HOLE") mempty
 
 isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
 isHole _                                            = False
+
+instance PPrint DataCon where
+  pprint = text . showPpr
+
+instance Show DataCon where
+  show = showpp
