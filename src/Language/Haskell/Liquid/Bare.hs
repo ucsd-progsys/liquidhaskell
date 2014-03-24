@@ -105,7 +105,7 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
-             -> BareM (GhcSpec, [Measure SpecType DataCon])
+             -> BareM GhcSpec
 makeGhcSpec' cfg vars defVars exports specs
   = do name <- gets modName
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
@@ -157,24 +157,24 @@ makeGhcSpec' cfg vars defVars exports specs
                          | (x, t) <- renamedSigs
                          , let τ = expandTypeSynonyms $ varType x
                          , let r = maybeTrue x name exports]
-       return           $ (SP { tySigs     = pluggedSigs
-                              , ctors      = tx cs'
-                              , meas       = tx (ms' ++ varMeasures vars ++ cms')
-                              , invariants = txi invs
-                              , dconsP     = datacons
-                              , tconsP     = tycons 
-                              , freeSyms   = syms'
-                              , tcEmbeds   = embs 
-                              , qualifiers = txq quals
-                              , decr       = decr'
-                              , texprs     = texprs'
-                              , lvars      = lvars'
-                              , lazy       = lazies
-                              , tgtVars    = targetVars
-                              , config     = cfg
-                              , exports    = exports
-                              }
-                          , subst su <$> M.elems $ Ms.measMap measures)
+       return           $ SP { tySigs     = pluggedSigs
+                             , ctors      = tx cs'
+                             , meas       = tx (ms' ++ varMeasures vars ++ cms')
+                             , invariants = txi invs
+                             , dconsP     = datacons
+                             , tconsP     = tycons
+                             , freeSyms   = syms'
+                             , tcEmbeds   = embs
+                             , qualifiers = txq quals
+                             , decr       = decr'
+                             , texprs     = texprs'
+                             , lvars      = lvars'
+                             , lazy       = lazies
+                             , tgtVars    = targetVars
+                             , config     = cfg
+                             , exports    = exports
+                             , measures   = subst su <$> M.elems $ Ms.measMap measures
+                             }
 
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
