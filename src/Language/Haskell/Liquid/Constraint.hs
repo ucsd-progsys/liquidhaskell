@@ -94,9 +94,32 @@ consAct info penv
        foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
+       scs <- concat <$> mapM splitS hcs
+       modify $ \st -> st {sMap = traceShow "solved SMAP" $ solveS $ traceShow "SMAP" scs}
        fcs <- concat <$> mapM splitC hcs 
        fws <- concat <$> mapM splitW hws
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws }
+
+solveS = M.fromList . go True [] [] 
+  where go False solved acc [] = solved
+        go True  solved acc [] = go False solved [] $ traceShow ("AGAIN " ++ show acc) $ subS solved <$> acc
+        go mod   solved acc (([], []):ls) = go mod solved acc ls
+        go mod   solved acc (l:ls) | allSVars l  = go mod solved (l:acc) ls
+                                   | noSVar l    = go mod solved acc ls 
+                                   | otherwise   = go True (solve l ++ solved) (l:acc) ls 
+
+
+subS su (xs, ys) = traceShow "HERE" (go <$> xs, go <$> ys)
+  where go s@(SVar x) = fromMaybe s $ L.lookup x su
+        go s          = s
+
+isSVar (SVar _) = True
+isSVar _        = False
+allSVars (xs, ys) = all isSVar xs
+noSVar (xs, ys) = all (not . isSVar) $ xs ++ ys
+solve (xs, ys) 
+  | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys] 
+  | otherwise        = []
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
@@ -344,6 +367,113 @@ bsplitW' γ t pflag
 mkSortedReft tce = F.RR . rTypeSort tce
 
 ------------------------------------------------------------
+splitS  :: SubC -> CG [([Stratum], [Stratum])]
+bsplitS :: SpecType -> SpecType -> CG [([Stratum], [Stratum])]
+------------------------------------------------------------
+
+splitS (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ t1 (REx x tx t2)) 
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ (REx x tx t1) t2) 
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ (RAllE x tx t1) t2)
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ t1 (RAllE x tx t2))
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ (RRTy r t1) t2) 
+  = do c1 <- splitS (SubR γ r)
+       c2 <- splitS (SubC γ t1 t2)
+       return $ c1 ++ c2
+
+splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
+  =  do cs       <- bsplitS t1 t2 
+        cs'      <- splitS  (SubC γ r2 r1) 
+        γ'       <- (γ, "splitC") += (x2, r2) 
+        let r1x2' = r1' `F.subst1` (x1, F.EVar x2) 
+        cs''     <- splitS  (SubC γ' r1x2' r2') 
+        return    $ cs ++ cs' ++ cs''
+
+splitS (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _)) 
+  =  do cs    <- bsplitS t1 t2 
+        cs'   <- splitS  (SubC γ r1 r2) 
+        cs''  <- splitS  (SubC γ r1' r2') 
+        return $ cs ++ cs' ++ cs''
+
+splitS (SubC γ t1 (RAllP p t))
+  = splitS $ SubC γ t1 t'
+  where t' = fmap (replacePredsWithRefs su) t
+        su = (uPVar p, pVartoRConc p)
+
+splitS (SubC _ t1@(RAllP _ _) t2) 
+  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+
+splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
+  |  α1 ==  α2 
+  = splitS $ SubC γ t1 t2
+  | otherwise   
+  = splitS $ SubC γ t1 t2' 
+  where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
+
+splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+  = do (t1',t2') <- unifyVV t1 t2
+       cs    <- bsplitS t1' t2'
+       γ'    <- γ `extendEnvWithVV` t1' 
+       let RApp c  t1s r1s _ = t1'
+       let RApp c' t2s r2s _ = t2'
+       let tyInfo = rTyConInfo c
+       cscov  <- splitSIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
+       cscon  <- splitSIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
+       cscov' <- rsplitSIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
+       cscon' <- rsplitSIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
+       return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
+
+splitS (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
+  | a1 == a2
+  = bsplitS t1 t2
+
+splitS (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
+  = return []
+
+splitS c@(SubC _ t1 t2) 
+  = errorstar $ "(Another Broken Test!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+
+splitS (SubR _ _)
+  = return []
+
+splitSIndexed γ t1s t2s indexes 
+  = concatMapM splitS (zipWith (SubC γ) t1s' t2s')
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
+
+rsplitSIndexed γ t1s t2s indexes 
+  = concatMapM (rsplitS γ) (safeZip "rsplitC" t1s' t2s')
+  where t1s' = catMaybes $ (!?) t1s <$> indexes
+        t2s' = catMaybes $ (!?) t2s <$> indexes
+
+bsplitS t1 t2 
+  = return $ [(s1, s2)] 
+  where [s1, s2]   = getStrata <$> [t1, t2]
+
+rsplitCS _ (RMono _ _, RMono _ _) 
+  = errorstar "RefTypes.rsplitC on RMono"
+
+rsplitS γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
+  = splitS (SubC γ (F.subst su r1) r2)
+  where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
+
+rsplitS _ _  
+  = errorstar "rspliS Rpoly - RMono"
+
+------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
@@ -461,8 +591,7 @@ rsplitCIndexed γ t1s t2s indexes
 
 
 bsplitC γ t1 t2 
-  = unifyStrata t1 t2 
-    >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+  = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -479,14 +608,6 @@ bsplitC' γ t1 t2 pflag
     tag = getTag γ
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
-
-unifyStrata t1 t2
-  = modify $ \s -> s { sMapUp = inserts (sMapUp s) ((, s2) <$> s1')
-                     , sMapDown = inserts (sMapDown s) ((,s1) <$> s2')}
-  where [s1, s2]   = traceShow "STRATA" $ getStrata <$> [t1, t2]
-        inserts    = foldr (uncurry M.insert)
-        s1' = [l | SVar l <- s1]
-        s2' = [l | SVar l <- s2]
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
@@ -520,8 +641,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
                      , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
                      , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
-                     , sMapUp       :: !(M.HashMap F.Symbol [Stratum])    -- ^ Unification of Strata
-                     , sMapDown       :: !(M.HashMap F.Symbol [Stratum])    -- ^ Unification of Strata
+                     , sMap       :: !(M.HashMap F.Symbol Stratum)    -- ^ Unification of Strata
                      , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
                      , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
@@ -573,8 +693,7 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , termExprs  = M.fromList $ texprs spc
-  , sMapDown   = M.empty
-  , sMapUp     = M.empty
+  , sMap       = M.empty
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
