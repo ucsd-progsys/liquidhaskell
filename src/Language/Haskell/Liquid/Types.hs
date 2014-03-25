@@ -112,7 +112,7 @@ module Language.Haskell.Liquid.Types (
 
   , insertsSEnv
 
-  , Stratum(..), Strata, getStrata, makeDivType
+  , Stratum(..), Strata, getStrata, makeDivType, makeFinType
   )
   where
 
@@ -623,7 +623,9 @@ bkArrow t               = ([], [], t)
 
 safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
-safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
+safeBkArrow (RAllS _ t) = safeBkArrow t -- errorstar "safeBkArrow on RAllS"
+-- tmp for unfoldR
+-- safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
 safeBkArrow t           = bkArrow t
 
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs 
@@ -938,9 +940,16 @@ mapRBase f (RFun x t1 t2 r) = RFun x t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r) = RAppTy t1 t2 $ f r   
 mapRBase f t                = t
 
-makeDivType t = fromRTypeRep trep{ty_res = mapRBase f $ ty_res trep}
+
+
+makeLType :: Stratum -> SpecType -> SpecType
+makeLType l t = fromRTypeRep trep{ty_res = mapRBase f $ ty_res trep}
   where trep = toRTypeRep t
-        f (U r p s) = U r p [SDiv]
+        f (U r p s) = U r p [l]
+
+
+makeDivType = makeLType SDiv 
+makeFinType = makeLType SFin
 
 getStrata = maybe [] ur_strata . stripRTypeBase
 
