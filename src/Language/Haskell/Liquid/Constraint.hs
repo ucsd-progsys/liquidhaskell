@@ -102,14 +102,14 @@ consAct info penv
 
 solveS = M.fromList . go True [] [] 
   where go False solved acc [] = solved
-        go True  solved acc [] = go False solved [] $ traceShow ("AGAIN " ++ show acc) $ subS solved <$> acc
+        go True  solved acc [] = go False solved [] $ subS solved <$> acc
         go mod   solved acc (([], []):ls) = go mod solved acc ls
         go mod   solved acc (l:ls) | allSVars l  = go mod solved (l:acc) ls
                                    | noSVar l    = go mod solved acc ls 
                                    | otherwise   = go True (solve l ++ solved) (l:acc) ls 
 
 
-subS su (xs, ys) = traceShow "HERE" (go <$> xs, go <$> ys)
+subS su (xs, ys) = (go <$> xs, go <$> ys)
   where go s@(SVar x) = fromMaybe s $ L.lookup x su
         go s          = s
 
@@ -1076,7 +1076,8 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 -------------------------------------------------------------------
 
 consCBSizedTys tflag γ (Rec xes)
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets'    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let xets = mapThd3 (fmap makeFinType) <$> xets'
        ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts es
        is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
@@ -1105,7 +1106,8 @@ consCBSizedTys tflag γ (Rec xes)
          | otherwise                = errorstar err
 
 consCBWithExprs γ xtes (Rec xes) 
-  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let xets = mapThd3 (fmap makeFinType) <$> xets'
        let ts    = safeFromJust err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
