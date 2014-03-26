@@ -686,7 +686,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) && (isTauto $ ur_strata u)
 
 ppTy_ureft u@(U r p s) d 
-  | isTauto_ureft u  = d
+--   | isTauto_ureft u  = d
   | otherwise        = ppr_reft r (ppTy p d) s
 
 ppr_reft r d s       = text "^" <> pprint s <+> braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')

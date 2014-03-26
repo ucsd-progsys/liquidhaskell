@@ -410,7 +410,10 @@ strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
 strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ t1 t2
 
-strengthenRefType_ (RAllS s t1) (RAllS _ t2)
+strengthenRefType_ (RAllS s t1) t2
+  = RAllS s $ strengthenRefType_ t1 t2
+
+strengthenRefType_ t1 (RAllS s t2)
   = RAllS s $ strengthenRefType_ t1 t2
 
 strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 

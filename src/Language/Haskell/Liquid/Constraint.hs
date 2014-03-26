@@ -45,7 +45,7 @@ import Control.Monad.State
 import Control.Applicative      ((<$>))
 import Control.Exception.Base
 
-import Data.Monoid              (mconcat, mempty)
+import Data.Monoid              (mconcat, mempty, mappend)
 import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -94,31 +94,77 @@ consAct info penv
        foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
-       scs <- concat <$> mapM splitS hcs
-       modify $ \st -> st {sMap = traceShow "solved SMAP" $ solveS $ traceShow "SMAP" scs}
+       scss <- sCs <$> get
+       annot <- annotMap <$> get
+       scs <- concat <$> mapM splitS (hcs ++ scss)
+       let smap = traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs
+       modify $ \st -> st {sMap = smap } -- traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs}
        fcs <- concat <$> mapM splitC hcs 
        fws <- concat <$> mapM splitW hws
-       modify $ \st -> st { fixCs = fcs } { fixWfs = fws }
+       let annot' = (\t -> subsS (M.toList smap) t) <$> annot
+       modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
 
 solveS = M.fromList . go True [] [] 
   where go False solved acc [] = solved
-        go True  solved acc [] = go False solved [] $ subS solved <$> acc
-        go mod   solved acc (([], []):ls) = go mod solved acc ls
+        go True  solved acc [] = go False solved [] $ traceShow ("OLD \n" ++ showMap solved acc ) $ subsS solved <$> acc
+        go mod   solved acc (([], _):ls) = go mod solved acc ls
+        go mod   solved acc ((_, []):ls) = go mod solved acc ls
         go mod   solved acc (l:ls) | allSVars l  = go mod solved (l:acc) ls
-                                   | noSVar l    = go mod solved acc ls 
+                                   | noSVar   l  = go mod solved acc ls 
+                                   | noUpdate l  = go mod solved (l:acc) ls 
                                    | otherwise   = go True (solve l ++ solved) (l:acc) ls 
 
+traceSMap s init sol= trace (s ++ "\n" ++ showMap (M.toList sol) init) sol 
 
-subS su (xs, ys) = (go <$> xs, go <$> ys)
-  where go s@(SVar x) = fromMaybe s $ L.lookup x su
-        go s          = s
+showMap :: [(F.Symbol, Stratum)] -> [([Stratum], [Stratum])] -> String
+showMap s acc 
+  = "\nMap lenght = " ++ show (length acc) ++ "\n" ++
+    "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
+    ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
 
+
+class SubStratum a where
+  subS  :: (F.Symbol, Stratum) -> a -> a
+  subsS :: [(F.Symbol, Stratum)] -> a -> a
+
+  subsS su x = foldr subS x su
+
+instance SubStratum Stratum where
+  subS (x, s) (SVar y) | x == y    = s
+                       | otherwise = (SVar y)
+  subS _      s        = s
+
+
+instance (SubStratum a, SubStratum b) => SubStratum (a, b) where
+  subS su (x, y) = (subS su x, subS su y)
+
+instance (SubStratum a) => SubStratum [a] where
+  subS su xs = subS su <$> xs
+
+instance SubStratum Annot where
+  subS su (Use t) = Use $ subS su t
+  subS su (Def t) = Def $ subS su t
+  subS su (RDf t) = RDf $ subS su t
+  subS su (Loc s) = Loc s
+
+instance SubStratum SpecType where
+  subS su t = (\r -> r {ur_strata = subS su (ur_strata r)}) <$> t
+
+-- subS su (xs, ys) = (go <$> xs, go <$> ys)
+--   where go s@(SVar x) = fromMaybe s $ L.lookup x su
+--         go s          = s
+-- 
 isSVar (SVar _) = True
 isSVar _        = False
-allSVars (xs, ys) = all isSVar xs
-noSVar (xs, ys) = all (not . isSVar) $ xs ++ ys
+allSVars (xs, ys) = all isSVar $ xs ++ ys
+noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
+noUpdate (xs, ys) 
+  =     all (\x -> (isSVar x) || (x == SFin)) xs
+     && all (\x -> (isSVar x) || (x == SDiv)) ys
+
 solve (xs, ys) 
   | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys] 
+  | any (== SFin) ys = [(l, SFin) | SVar l <- xs] 
   | otherwise        = []
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
@@ -132,12 +178,16 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' tce tyi penv)) <$> traceShow "INITENV" [f0 ++ f0', f1, f2, f3]
+       let bs    =traceShow "INITENV" $ (map (unifyts' f2 tce tyi penv)) <$> [f0 ++ f0', f1, f2, traceShow "F3" f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        mapM_ (addW . WfC γ0) (catMaybes ks)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       gg <- foldM (++=) γ0 $ traceShow "TO ADD" [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       return $ traceShow "REAL INITENV" gg 
+--        let bs' = traceShow "GROUPED" $ L.groupBy (\x y -> (show $ fst x) == (show $ fst y)) $ (concat $ tail bs)
+--        gg <- foldM (++=) γ0 $ traceShow "TO ADD" [("initEnv", x, y) | (x, y) <- (f <$> bs')]
+--        return $ traceShow "REAL INITENV" gg 
   where
     freeVars     = impVars info
                  ++ filter isConLikeId (snd <$> freeSyms (spec info))
@@ -152,13 +202,18 @@ initEnv info penv
             | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
+    f ((x, t):xts) = (x, foldl mappend t (snd <$> xts))
+
 
 instance Show Var where
   show = showPpr
 
 ctor' = map (mapSnd val) . ctors
 
-unifyts' tce tyi penv = (second (addTyConInfo tce tyi)) . (unifyts penv)
+unifyts' senv tce tyi penv = (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
+
+sunify senv (x, t) = (x, maybe t (`mappend` t) pt)
+ where pt = L.lookup x (mapFst F.symbol <$> senv)
 
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
@@ -166,7 +221,7 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv $ second (uRType . val) <$> meas sp
+        , renv  = fromListREnv $ traceShow "RENV" $ second (uRType . val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , penv  = penv 
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
@@ -631,7 +686,9 @@ rsplitC _ _
 
 data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
                      , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
+                     , sCs      :: ![SubC]                       -- ^ wellformedness constraints over RType
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
+                     , isBind     :: ![Bool]                   -- ^ subtyping over Sort (post-splitting)
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
                      , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
@@ -679,8 +736,10 @@ type CG = State CGInfo
 
 initCGI cfg info = CGInfo {
     hsCs       = [] 
+  , sCs      = [] 
   , hsWfs      = [] 
   , fixCs      = []
+  , isBind     = []
   , fixWfs     = [] 
   , globals    = globs
   , freshIndex = 0
@@ -731,9 +790,9 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (_, x, t') 
+γ ++= (msg, x, t') 
   = do idx   <- fresh
-       let t  = normalize γ {-x-} idx t'  
+       let t  = traceShow ("NORMALIZE "++ msg ++ show x ++ show t') $ normalize x γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        pflag <- pruneRefs <$> get
        is    <- if isBase t 
@@ -771,7 +830,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> refreshTy $ γ ?= x
+    Nothing -> refreshTy $ traceShow ("HEREEE" ++ show x) $ γ ?= x
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -780,12 +839,16 @@ rTypeSortedReft' pflag γ
                                ++ " in renv " 
                                ++ showpp (renv γ)
 
-normalize' γ x idx t = traceShow ("normalize " ++ showpp x ++ " idx = " ++ show idx ++ " t = " ++ showpp t) $ normalize γ idx t
+normalize' γ x idx t = traceShow ("normalize " ++ showpp x ++ " idx = " ++ show idx ++ " t = " ++ showpp t) $ normalize x γ idx t
 
-normalize γ idx 
-  = addRTyConInv (invs γ) 
-  . normalizeVV idx 
-  . normalizePds
+normalize x γ idx t
+  = traceShow ("FINAL normalize" ++ show x ) t3
+  where t1 = traceShow ("normalize1 " ++ show x) $ normalizePds t
+        t2 = traceShow ("normalize2 " ++ show x) $ normalizeVV idx t1
+        t3 = addRTyConInv (invs γ) t2
+--   = addRTyConInv (invs γ) 
+--   . normalizeVV idx 
+--   . normalizePds
 
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
@@ -832,10 +895,21 @@ addClassBind = mapM (uncurry addBind) . classBinds
 -- addClassBind _ 
 --   = return [] 
 
+setConsBind = modify $ \s -> s {isBind = True : (isBind s)}
+unsetConsBind = modify $ \s -> s {isBind = tail (isBind s)}
+
 addC :: SubC -> String -> CG ()  
-addC !c@(SubC _ t1 t2) _msg 
-  = trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-     modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c@(SubC γ t1 t2) _msg 
+  = do trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+        modify $ \s -> s { hsCs  = c : (hsCs s) }
+       flag <- (safeHead False. isBind) <$> get
+       if flag 
+         then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
+         else return ()
+  where safeHead a [] = a
+        safeHead _ (x:xs) = x
+
+
 addC !c _msg 
   = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
@@ -1075,19 +1149,32 @@ tcond cb strict
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
+makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
+  where trep = toRTypeRep t
+        args' = mapNs ns makeFinType $ ty_args trep
+
+
+mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
+
+mapN 0 f (x:xs) = f x : xs
+mapN n f (x:xs) = x : mapN (n-1) f xs
+mapN _ _ []     = []
+
+
 consCBSizedTys tflag γ (Rec xes)
-  = do xets'    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let xets = mapThd3 (fmap makeFinType) <$> xets'
-       ts       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
-       let vs    = zipWith collectArgs ts es
-       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts)
+  = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       let xets = mapThd3 (fmap makeFinType) <$> xets''
+       ts'       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       let vs    = zipWith collectArgs ts' es
+       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts')
+       let ts = makeFinTy <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
        checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Just <$> ts)
-       γ'       <- foldM extender γ xts
+       γ'       <- foldM (extender "1") γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
-       let xets' = zip3 xs es (Just <$> ts)
+       let xets' = zip3 xs es (Just <$> (traceShow ("Decr = " ++ show is) ts))
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where 
@@ -1111,7 +1198,7 @@ consCBWithExprs γ xtes (Rec xes)
        let ts    = safeFromJust err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
-       γ'       <- foldM extender γ xts
+       γ'       <- foldM (extender "2") γ xts
        let γs    = makeTermEnvs γ' xtes xes ts ts'
        let xets' = zip3 xs es (Just <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
@@ -1156,7 +1243,7 @@ consCB _ str γ (Rec xes) | not str
        let xets = mapThd3 (fmap makeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = traceShow "LAZY!!!" [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
+       γ'     <- foldM (extender "3") (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
 
@@ -1164,26 +1251,28 @@ consCB _ _ γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
+       γ'     <- foldM (extender "4") (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
-       extender γ (x, to')
+       extender "5" γ (x, to')
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
+       setConsBind
        cconsE γπ e spect
-       addIdA x (defAnn isRec spect)
+       unsetConsBind
+       addIdA x (defAnn isRec $ traceShow ("1addIdA for " ++ showPpr x) spect)
        return $ Just spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Nothing)
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-       addIdA x (defAnn isRec t)
+       addIdA x (defAnn isRec  $ traceShow ("2addIdA for " ++ showPpr x) t)
        return $ Just t
 
 defAnn True  = RDf
@@ -1193,8 +1282,8 @@ addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
-extender γ (x, Just t) = γ ++= ("extender", F.symbol x, t)
-extender γ _           = return γ
+extender s γ (x, Just t) = γ ++= ("extender" ++ s, F.symbol x, t)
+extender _ γ _           = return γ
 
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
@@ -1286,7 +1375,7 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 consE γ (Var x)   
   = do t <- varRefType γ x
        addLocA (Just x) (loc γ) (varAnn γ x t)
-       return t
+       return $ traceShow ("VarType" ++ showPpr x) t
 
 consE γ (Lit c) 
   = refreshVV $ uRType $ literalFRefType (emb γ) c
@@ -1295,7 +1384,8 @@ consE γ (App e (Type τ))
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
-       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
+       t' <- liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
+       return $ traceShow ("TYAPP " ++ showPpr e ++ ":" ++ show te) t'
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1309,7 +1399,7 @@ consE γ e'@(App e a)
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x = fromMaybe x $ L.lookup x $ traceShow "SU" su
-       let te'              = traceShow "THIS" $ F.substa f $ replacePreds "consE" te zs
+       let te'              = traceShow ("App" ++ showPpr e' ++ "" ++ show ([πs], ls, te) ) $ F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
