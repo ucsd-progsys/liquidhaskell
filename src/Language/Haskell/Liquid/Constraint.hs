@@ -99,7 +99,7 @@ consAct info penv
        scs <- concat <$> mapM splitS (hcs ++ scss)
        let smap = traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs
        modify $ \st -> st {sMap = smap } -- traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs}
-       fcs <- concat <$> mapM splitC hcs 
+       fcs <- concat <$> mapM splitC (subsS (M.toList smap) hcs) 
        fws <- concat <$> mapM splitW hws
        let annot' = (\t -> subsS (M.toList smap) t) <$> annot
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
@@ -150,6 +150,9 @@ instance SubStratum Annot where
 instance SubStratum SpecType where
   subS su t = (\r -> r {ur_strata = subS su (ur_strata r)}) <$> t
 
+instance SubStratum SubC where
+  subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
+  subS _  c              = c
 -- subS su (xs, ys) = (go <$> xs, go <$> ys)
 --   where go s@(SVar x) = fromMaybe s $ L.lookup x su
 --         go s          = s
@@ -644,9 +647,16 @@ rsplitCIndexed γ t1s t2s indexes
   where t1s' = catMaybes $ (!?) t1s <$> indexes
         t2s' = catMaybes $ (!?) t2s <$> indexes
 
+s1 <:= s2 
+  | any (==SDiv) s1 && any (==SFin) s2 = False
+  | otherwise              = True
 
-bsplitC γ t1 t2 
+bsplitC γ t1 t2
+  | s1 <:= s2
   = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+  | otherwise
+  = error $ "Stratum Error : " ++ show SDiv ++ " > " ++ show SFin ++ " \tat " ++ show (pprint $ loc γ)
+  where [s1, s2]   = getStrata <$> [t1, t2]
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
