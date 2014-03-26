@@ -974,7 +974,7 @@ isCon []     = False
 --------------------------------------------------------------------
 
 maxArity :: Arity 
-maxArity = 0
+maxArity = 7
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 wiredTyDataCons = (concat tcs, concat dcs)
