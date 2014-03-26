@@ -64,6 +64,7 @@ import Language.Haskell.Liquid.Fresh
 
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
@@ -122,48 +123,14 @@ showMap s acc
     "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
     ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
 
-
-class SubStratum a where
-  subS  :: (F.Symbol, Stratum) -> a -> a
-  subsS :: [(F.Symbol, Stratum)] -> a -> a
-
-  subsS su x = foldr subS x su
-
-instance SubStratum Stratum where
-  subS (x, s) (SVar y) | x == y    = s
-                       | otherwise = (SVar y)
-  subS _      s        = s
-
-
-instance (SubStratum a, SubStratum b) => SubStratum (a, b) where
-  subS su (x, y) = (subS su x, subS su y)
-
-instance (SubStratum a) => SubStratum [a] where
-  subS su xs = subS su <$> xs
-
-instance SubStratum Annot where
-  subS su (Use t) = Use $ subS su t
-  subS su (Def t) = Def $ subS su t
-  subS su (RDf t) = RDf $ subS su t
-  subS su (Loc s) = Loc s
-
-instance SubStratum SpecType where
-  subS su t = (\r -> r {ur_strata = subS su (ur_strata r)}) <$> t
-
-instance SubStratum SubC where
-  subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
-  subS _  c              = c
--- subS su (xs, ys) = (go <$> xs, go <$> ys)
---   where go s@(SVar x) = fromMaybe s $ L.lookup x su
---         go s          = s
--- 
 isSVar (SVar _) = True
 isSVar _        = False
 allSVars (xs, ys) = all isSVar $ xs ++ ys
 noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
-noUpdate (xs, ys) 
-  =     all (\x -> (isSVar x) || (x == SFin)) xs
-     && all (\x -> (isSVar x) || (x == SDiv)) ys
+noUpdate (xs, ys) = (not $ updateFin(xs, ys)) && (not $ updateDiv (xs, ys)) 
+
+updateFin (xs, ys) = any (==SFin) ys && any isSVar   xs
+updateDiv (xs, ys) = any isSVar   ys && any (==SDiv) xs
 
 solve (xs, ys) 
   | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys] 
@@ -181,16 +148,12 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    =traceShow "INITENV" $ (map (unifyts' f2 tce tyi penv)) <$> [f0 ++ f0', f1, f2, traceShow "F3" f3]
+       let bs    = (map (unifyts' f2 tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
        mapM_ (addW . WfC γ0) (catMaybes ks)
-       gg <- foldM (++=) γ0 $ traceShow "TO ADD" [("initEnv", x, y) | (x, y) <- concat $ tail bs]
-       return $ traceShow "REAL INITENV" gg 
---        let bs' = traceShow "GROUPED" $ L.groupBy (\x y -> (show $ fst x) == (show $ fst y)) $ (concat $ tail bs)
---        gg <- foldM (++=) γ0 $ traceShow "TO ADD" [("initEnv", x, y) | (x, y) <- (f <$> bs')]
---        return $ traceShow "REAL INITENV" gg 
+       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     freeVars     = impVars info
                  ++ filter isConLikeId (snd <$> freeSyms (spec info))
@@ -224,7 +187,7 @@ unifyts penv (x, t) = (x', unify pt t)
 
 measEnv sp penv xts cbs lts
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv $ traceShow "RENV" $ second (uRType . val) <$> meas sp
+        , renv  = fromListREnv $ second (uRType . val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , penv  = penv 
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
@@ -364,7 +327,9 @@ instance PPrint SubC where
 instance PPrint WfC where
   pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
 
-
+instance SubStratum SubC where
+  subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
+  subS _  c              = c
 ------------------------------------------------------------
 ------------------- Constraint Splitting -------------------
 ------------------------------------------------------------
@@ -802,7 +767,7 @@ extendEnvWithVV γ t
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 γ ++= (msg, x, t') 
   = do idx   <- fresh
-       let t  = traceShow ("NORMALIZE "++ msg ++ show x ++ show t') $ normalize x γ {-x-} idx t'  
+       let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        pflag <- pruneRefs <$> get
        is    <- if isBase t 
@@ -840,7 +805,7 @@ rTypeSortedReft' pflag γ
 γ ??= x 
   = case M.lookup x (lcb γ) of
     Just e  -> consE (γ-=x) e
-    Nothing -> refreshTy $ traceShow ("HEREEE" ++ show x) $ γ ?= x
+    Nothing -> refreshTy $ γ ?= x
 
 (?=) ::  CGEnv -> F.Symbol -> SpecType 
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
@@ -849,16 +814,12 @@ rTypeSortedReft' pflag γ
                                ++ " in renv " 
                                ++ showpp (renv γ)
 
-normalize' γ x idx t = traceShow ("normalize " ++ showpp x ++ " idx = " ++ show idx ++ " t = " ++ showpp t) $ normalize x γ idx t
+normalize' γ x idx t = normalize γ idx t
 
-normalize x γ idx t
-  = traceShow ("FINAL normalize" ++ show x ) t3
-  where t1 = traceShow ("normalize1 " ++ show x) $ normalizePds t
-        t2 = traceShow ("normalize2 " ++ show x) $ normalizeVV idx t1
-        t3 = addRTyConInv (invs γ) t2
---   = addRTyConInv (invs γ) 
---   . normalizeVV idx 
---   . normalizePds
+normalize γ idx 
+  = addRTyConInv (invs γ) 
+  . normalizeVV idx 
+  . normalizePds
 
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
@@ -910,8 +871,8 @@ unsetConsBind = modify $ \s -> s {isBind = False : isBind s}
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
-  = do trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-        modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = do -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+       modify $ \s -> s { hsCs  = c : (hsCs s) }
        flag <- (safeHead True . isBind) <$> get
        if flag 
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
@@ -1184,7 +1145,7 @@ consCBSizedTys tflag γ (Rec xes)
        let xts   = zip xs (Just <$> ts)
        γ'       <- foldM (extender "1") γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
-       let xets' = zip3 xs es (Just <$> (traceShow ("Decr = " ++ show is) ts))
+       let xets' = zip3 xs es (Just <$> ts)
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where 
@@ -1385,7 +1346,7 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 consE γ (Var x)   
   = do t <- varRefType γ x
        addLocA (Just x) (loc γ) (varAnn γ x t)
-       return $ traceShow ("VarType" ++ showPpr x) t
+       return t
 
 consE γ (Lit c) 
   = refreshVV $ uRType $ literalFRefType (emb γ) c
@@ -1394,8 +1355,7 @@ consE γ (App e (Type τ))
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
        addW       $ WfC γ t
-       t' <- liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
-       return $ traceShow ("TYAPP " ++ showPpr e ++ ":" ++ show te) t'
+       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
 
 consE γ e'@(App e a) | eqType (exprType a) predType 
   = do t0 <- consE γ e
@@ -1409,7 +1369,7 @@ consE γ e'@(App e a)
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x = fromMaybe x $ L.lookup x $ traceShow "SU" su
-       let te'              = traceShow ("App" ++ showPpr e' ++ "" ++ show ([πs], ls, te) ) $ F.substa f $ replacePreds "consE" te zs
+       let te'              = F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
