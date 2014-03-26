@@ -895,14 +895,14 @@ addClassBind = mapM (uncurry addBind) . classBinds
 -- addClassBind _ 
 --   = return [] 
 
-setConsBind = modify $ \s -> s {isBind = True : (isBind s)}
-unsetConsBind = modify $ \s -> s {isBind = tail (isBind s)}
+setConsBind = modify $ \s -> s {isBind = tail (isBind s)}
+unsetConsBind = modify $ \s -> s {isBind = False : isBind s}
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
   = do trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
         modify $ \s -> s { hsCs  = c : (hsCs s) }
-       flag <- (safeHead False. isBind) <$> get
+       flag <- (safeHead True . isBind) <$> get
        if flag 
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
          else return ()
@@ -1263,9 +1263,9 @@ consCB _ _ γ (NonRec x e)
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       setConsBind
+       -- setConsBind
        cconsE γπ e spect
-       unsetConsBind
+       -- unsetConsBind
        addIdA x (defAnn isRec $ traceShow ("1addIdA for " ++ showPpr x) spect)
        return $ Just spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
@@ -1403,7 +1403,9 @@ consE γ e'@(App e a)
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
+       unsetConsBind
        cconsE γ' a tx 
+       setConsBind
        addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 --    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
