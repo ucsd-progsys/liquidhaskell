@@ -301,6 +301,7 @@ instance PPrint WfC where
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
   subS _  c              = c
+
 ------------------------------------------------------------
 ------------------- Constraint Splitting -------------------
 ------------------------------------------------------------
@@ -838,15 +839,16 @@ addClassBind = mapM (uncurry addBind) . classBinds
 -- addClassBind _ 
 --   = return [] 
 
-setConsBind = modify $ \s -> s {isBind = tail (isBind s)}
+setConsBind   = modify $ \s -> s {isBind = tail (isBind s)}
 unsetConsBind = modify $ \s -> s {isBind = False : isBind s}
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
   = do -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
        modify $ \s -> s { hsCs  = c : (hsCs s) }
-       flag <- (safeHead True . isBind) <$> get
-       if flag 
+       bflag <- (safeHead True . isBind) <$> get
+       sflag <- scheck <$> get 
+       if bflag && sflag
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
          else return ()
   where safeHead a [] = a
@@ -956,7 +958,7 @@ trueTy t
   = do t     <- true $ uRType $ ofType t
        tyi   <- liftM tyConInfo get
        tce   <- tyConEmbed <$> get
-       return $ addTyConInfo tce tyi t -- (uRType t)
+       return $ addTyConInfo tce tyi t
 
 refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
@@ -1017,7 +1019,8 @@ checkIndex (x, vs, t, index)
        mapM  (safeLogIndex msg  ts) index
   where loc   = showPpr (getSrcSpan x)
         ts    = ty_args $ toRTypeRep t
-        msg'  = printf "%s: No decreasing argument on %s with %s" 
+        msg'  = printf "%s: No decreasing argument on %s with %s"
+                  loc (showPpr x) (showPpr vs)
         msg   = printf "%s: No decreasing parameter" loc
 
 makeRecType t vs dxs is
@@ -1085,18 +1088,6 @@ tcond cb strict
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
-makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
-  where trep = toRTypeRep t
-        args' = mapNs ns makeFinType $ ty_args trep
-
-
-mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
-
-mapN 0 f (x:xs) = f x : xs
-mapN n f (x:xs) = x : mapN (n-1) f xs
-mapN _ _ []     = []
-
-
 consCBSizedTys tflag γ (Rec xes)
   = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        sflag     <- scheck <$> get
@@ -1147,6 +1138,10 @@ consCBWithExprs γ xtes (Rec xes)
        return γ'
   where (xs, es) = unzip xes
         err      = "Constant: consCBWithExprs"
+
+makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
+  where trep = toRTypeRep t
+        args' = mapNs ns makeFinType $ ty_args trep
 
 makeTermEnvs γ xtes xes ts ts'
   = (\rt -> γ `withTRec` (zip xs rt)) <$> rts
@@ -1207,9 +1202,7 @@ consCB _ _ γ (NonRec x e)
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       -- setConsBind
        cconsE γπ e spect
-       -- unsetConsBind
        addIdA x (defAnn isRec spect)
        return $ Just spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
