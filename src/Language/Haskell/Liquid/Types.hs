@@ -203,14 +203,14 @@ instance (PPrint a, PPrint b) => PPrint (a,b) where
 
 data PPEnv 
   = PP { ppPs    :: Bool
-       , ppTyVar :: Bool
+       , ppTyVar :: Bool -- TODO if set to True all Bare fails
        , ppSs    :: Bool
        , ppShort :: Bool
        }
 
 ppEnv           = ppEnvPrintPreds
 ppEnvCurrent    = PP False False False False
-ppEnvPrintPreds = PP True True False False
+ppEnvPrintPreds = PP True False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
