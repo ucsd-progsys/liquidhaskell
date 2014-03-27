@@ -1244,9 +1244,9 @@ rtypePredBinds = map uPVar . snd3 . bkUniv
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
-             -> (GhcSpec, [Measure SpecType DataCon]) -> Either [Error] GhcSpec
+             -> GhcSpec -> Either [Error] GhcSpec
 
-checkGhcSpec specs (sp, ms) =  applyNonNull (Right sp) Left errors
+checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
     errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
@@ -1261,6 +1261,7 @@ checkGhcSpec specs (sp, ms) =  applyNonNull (Right sp) Left errors
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
     emb              =  tcEmbeds sp
     env              =  ghcSpecEnv sp
+    ms               =  measures sp
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
 
 -- specError            = errorstar 
