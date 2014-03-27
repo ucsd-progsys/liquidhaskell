@@ -5,6 +5,8 @@ import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
+import Data.Maybe (fromMaybe)
+
 
 import Language.Fixpoint.Misc 
 import Language.Fixpoint.Names              (symSepName)
@@ -31,15 +33,16 @@ tidySymbols t = substa dropSuffix $ mapBind dropBind t
     dropSuffix = S . takeWhile (/= symSepName) . symbolString
 
 tidyLocalRefas :: SpecType -> SpecType
-tidyLocalRefas = mapReft (txReft)
+tidyLocalRefas t = mapReft (txReft) t
   where 
-    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p (txStrata (syms t) l)
     dropLocals = filter (not . any isTmp . syms) . flattenRefas
     isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
 
 isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
   where str    = symbolString x
 
+txStrata syms s = filter (not . isSVar) s
 
 tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ substa tx t

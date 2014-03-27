@@ -112,7 +112,7 @@ module Language.Haskell.Liquid.Types (
 
   , insertsSEnv
 
-  , Stratum(..), Strata, getStrata, makeDivType, makeFinType
+  , Stratum(..), Strata, isSVar, getStrata, makeDivType, makeFinType
   )
   where
 
@@ -168,6 +168,7 @@ data Config = Config {
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
@@ -505,8 +506,11 @@ type RefType    = RRType    Reft
 
 
 data Stratum = SVar Symbol | SDiv | SWhnf | SFin 
-  deriving (Eq, Show)
-type Strata = [Stratum]  -- deriving (Monoid)
+  deriving (Eq)
+type Strata = [Stratum]
+
+isSVar (SVar _) = True
+isSVar _        = False
 
 instance Monoid Strata where
   mempty        = []
@@ -665,7 +669,7 @@ instance Subable Strata where
   substa f   = (substa f <$>)
 
 instance Reftable Strata where
-  isTauto [SFin]     = True
+  isTauto []         = True
   isTauto _          = False
 
   ppTy s             = error "ppTy on Strata" 
@@ -685,14 +689,19 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) && (isTauto $ ur_strata u)
 
-ppTy_ureft u@(U r p s) d 
---   | isTauto_ureft u  = d
-  | otherwise        = ppr_reft r (ppTy p d) s
+isTauto_ureft' u     = isTauto (ur_reft u) && isTauto (ur_pred u)
 
-ppr_reft r d s       = text "^" <> pprint s <+> braces (toFix v <+> colon <+> d <+> text "|" <+> pprint r')
+ppTy_ureft u@(U r p s) d 
+  | isTauto_ureft  u  = d
+  | isTauto_ureft' u  = d <> ppr_str s
+  | otherwise         = ppr_reft r (ppTy p d) s
+
+ppr_reft r d s       = braces (toFix v <+> colon <+> d <> ppr_str s <+> text "|" <+> pprint r')
   where 
     r'@(Reft (v, _)) = toReft r
 
+ppr_str [] = empty
+ppr_str s  = text "^" <> pprint s
 
 instance Subable r => Subable (UReft r) where
   syms (U r p s)     = syms r ++ syms p 
@@ -957,8 +966,18 @@ getStrata = maybe [] ur_strata . stripRTypeBase
 -- | PPrint -----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
+instance Show Stratum where
+  show SFin = "Fin"
+  show SDiv = "Div"
+  show SWhnf = "Whnf"
+  show (SVar s) = show s
+
 instance PPrint Stratum where
   pprint = text . show
+
+instance PPrint Strata where
+  pprint [] = empty
+  pprint ss = hsep (pprint <$> nub ss)
 
 instance PPrint SourcePos where
   pprint = text . show 
