@@ -1,9 +1,8 @@
 module ListSort  where
 
-{-@ type COList a = [a]<\fld -> {v:a | v >= fld}>  @-}
-{-@ type OList a = [a]<{\fld v -> (v >= fld)}>  @-}
+{-@ type GN N = {v:a | v >= N}  @-}
 
-{-@ mergesort :: COList a -> OList a @-}
-mergesort :: [a] -> [a]
-mergesort []  = []
+{-@ mergesort :: x:a -> GN x @-}
+mergesort :: a -> a
+mergesort x  = x
 

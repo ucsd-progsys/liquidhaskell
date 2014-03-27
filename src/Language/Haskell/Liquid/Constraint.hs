@@ -1237,13 +1237,13 @@ consBind isRec γ (x, e, Just spect)
        -- setConsBind
        cconsE γπ e spect
        -- unsetConsBind
-       addIdA x (defAnn isRec $ traceShow ("1addIdA for " ++ showPpr x) spect)
+       addIdA x (defAnn isRec spect)
        return $ Just spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Nothing)
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
-       addIdA x (defAnn isRec  $ traceShow ("2addIdA for " ++ showPpr x) t)
+       addIdA x (defAnn isRec t)
        return $ Just t
 
 defAnn True  = RDf
