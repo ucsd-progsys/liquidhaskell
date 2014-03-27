@@ -2,15 +2,50 @@
 {-# LANGUAGE FlexibleInstances         #-}
 
 module Language.Haskell.Liquid.Strata (
-  SubStratum(..)
+    SubStratum(..)
+  , solveStrata
   ) where
 
 import Control.Applicative      ((<$>))
 
-
+import Debug.Trace (trace)
+import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)
 import Language.Haskell.Liquid.Annotate (Annot(..))
+
+solveStrata = go True [] [] 
+  where go False solved acc [] = solved
+        go True  solved acc [] = go False solved [] $ {-traceShow ("OLD \n" ++ showMap solved acc ) $ -} subsS solved <$> acc
+        go mod   solved acc (([], _):ls) = go mod solved acc ls
+        go mod   solved acc ((_, []):ls) = go mod solved acc ls
+        go mod   solved acc (l:ls) | allSVars l  = go mod solved (l:acc) ls
+                                   | noSVar   l  = go mod solved acc ls 
+                                   | noUpdate l  = go mod solved (l:acc) ls 
+                                   | otherwise   = go True (solve l ++ solved) (l:acc) ls 
+
+traceSMap s init sol= sol -- trace (s ++ "\n" ++ showMap sol init) sol 
+
+showMap :: [(Symbol, Stratum)] -> [([Stratum], [Stratum])] -> String
+showMap s acc 
+  = "\nMap lenght = " ++ show (length acc) ++ "\n" ++
+    "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
+    ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
+
+isSVar (SVar _) = True
+isSVar _        = False
+allSVars (xs, ys) = all isSVar $ xs ++ ys
+noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
+noUpdate (xs, ys) = (not $ updateFin(xs, ys)) && (not $ updateDiv (xs, ys)) 
+
+updateFin (xs, ys) = any (==SFin) ys && any isSVar   xs
+updateDiv (xs, ys) = any isSVar   ys && any (==SDiv) xs
+
+solve (xs, ys) 
+  | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys] 
+  | any (== SFin) ys = [(l, SFin) | SVar l <- xs] 
+  | otherwise        = []
+
 
 class SubStratum a where
   subS  :: (Symbol, Stratum) -> a -> a
