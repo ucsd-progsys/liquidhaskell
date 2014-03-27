@@ -98,44 +98,11 @@ consAct info penv
        scss <- sCs <$> get
        annot <- annotMap <$> get
        scs <- concat <$> mapM splitS (hcs ++ scss)
-       let smap = traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs
-       modify $ \st -> st {sMap = smap } -- traceSMap "SOLVED" scs $ solveS $ trace ("INITSMAP" ++ showMap [] scs)  scs}
-       fcs <- concat <$> mapM splitC (subsS (M.toList smap) hcs) 
+       let smap = solveStrata scs
+       fcs <- concat <$> mapM splitC (subsS smap hcs) 
        fws <- concat <$> mapM splitW hws
-       let annot' = (\t -> subsS (M.toList smap) t) <$> annot
+       let annot' = (\t -> subsS smap t) <$> annot
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
-
-solveS = M.fromList . go True [] [] 
-  where go False solved acc [] = solved
-        go True  solved acc [] = go False solved [] $ traceShow ("OLD \n" ++ showMap solved acc ) $ subsS solved <$> acc
-        go mod   solved acc (([], _):ls) = go mod solved acc ls
-        go mod   solved acc ((_, []):ls) = go mod solved acc ls
-        go mod   solved acc (l:ls) | allSVars l  = go mod solved (l:acc) ls
-                                   | noSVar   l  = go mod solved acc ls 
-                                   | noUpdate l  = go mod solved (l:acc) ls 
-                                   | otherwise   = go True (solve l ++ solved) (l:acc) ls 
-
-traceSMap s init sol= trace (s ++ "\n" ++ showMap (M.toList sol) init) sol 
-
-showMap :: [(F.Symbol, Stratum)] -> [([Stratum], [Stratum])] -> String
-showMap s acc 
-  = "\nMap lenght = " ++ show (length acc) ++ "\n" ++
-    "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
-    ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
-
-isSVar (SVar _) = True
-isSVar _        = False
-allSVars (xs, ys) = all isSVar $ xs ++ ys
-noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
-noUpdate (xs, ys) = (not $ updateFin(xs, ys)) && (not $ updateDiv (xs, ys)) 
-
-updateFin (xs, ys) = any (==SFin) ys && any isSVar   xs
-updateDiv (xs, ys) = any isSVar   ys && any (==SDiv) xs
-
-solve (xs, ys) 
-  | any (== SDiv) xs = [(l, SDiv) | SVar l <- ys] 
-  | any (== SFin) ys = [(l, SFin) | SVar l <- xs] 
-  | otherwise        = []
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
 initEnv info penv
@@ -617,10 +584,13 @@ s1 <:= s2
   | otherwise              = True
 
 bsplitC γ t1 t2
+  = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+
+checkStratum γ t1 t2
   | s1 <:= s2
-  = pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+  = return ()
   | otherwise
-  = error $ "Stratum Error : " ++ show SDiv ++ " > " ++ show SFin ++ " \tat " ++ show (pprint $ loc γ)
+  = addWarning $ "Stratum Error : " ++ show SDiv ++ " > " ++ show SFin ++ " \tat " ++ show (pprint $ loc γ)
   where [s1, s2]   = getStrata <$> [t1, t2]
 
 bsplitC' γ t1 t2 pflag
@@ -673,7 +643,6 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
                      , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
                      , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
-                     , sMap       :: !(M.HashMap F.Symbol Stratum)    -- ^ Unification of Strata
                      , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
                      , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
@@ -727,7 +696,6 @@ initCGI cfg info = CGInfo {
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
   , termExprs  = M.fromList $ texprs spc
-  , sMap       = M.empty
   , specDecr   = decr spc
   , specLVars  = lvars spc
   , specLazy   = lazy spc
@@ -1143,7 +1111,7 @@ consCBSizedTys tflag γ (Rec xes)
        checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Just <$> ts)
-       γ'       <- foldM (extender "1") γ xts
+       γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
        let xets' = zip3 xs es (Just <$> ts)
        mapM_ (uncurry $ consBind True) (zip γs xets')
@@ -1169,7 +1137,7 @@ consCBWithExprs γ xtes (Rec xes)
        let ts    = safeFromJust err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
-       γ'       <- foldM (extender "2") γ xts
+       γ'       <- foldM extender γ xts
        let γs    = makeTermEnvs γ' xtes xes ts ts'
        let xets' = zip3 xs es (Just <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
@@ -1368,7 +1336,7 @@ consE γ e'@(App e a)
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
-       let f x = fromMaybe x $ L.lookup x $ traceShow "SU" su
+       let f x = fromMaybe x $ L.lookup x su
        let te'              = F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
