@@ -92,16 +92,19 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct info penv
   = do γ     <- initEnv info penv
+       sflag <- scheck <$> get
        foldM_ consCBTop γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        scss <- sCs <$> get
        annot <- annotMap <$> get
-       scs <- concat <$> mapM splitS (hcs ++ scss)
-       let smap = solveStrata scs
-       fcs <- concat <$> mapM splitC (subsS smap hcs) 
+       scs <- if sflag then concat <$> mapM splitS (hcs ++ scss)
+                       else return []
+       let smap = if sflag then solveStrata scs else []
+       let hcs' = if sflag then subsS smap hcs else hcs
+       fcs <- concat <$> mapM splitC (subsS smap hcs') 
        fws <- concat <$> mapM splitW hws
-       let annot' = (\t -> subsS smap t) <$> annot
+       let annot' = if sflag then (\t -> subsS smap t) <$> annot else annot
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
 
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
@@ -143,9 +146,9 @@ instance Show Var where
 
 ctor' = map (mapSnd val) . ctors
 
-unifyts' senv tce tyi penv = (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
+unifyts' senv tce tyi penv = (sunify senv) . (second (addTyConInfo tce tyi)) . (unifyts penv)
 
-sunify senv (x, t) = (x, maybe t (`mappend` t) pt)
+sunify senv (x, t) = (x, maybe t (mappend t) pt)
  where pt = L.lookup x (mapFst F.symbol <$> senv)
 
 unifyts penv (x, t) = (x', unify pt t)
@@ -649,6 +652,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
                      , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS 
                      , tcheck     :: !Bool                        -- ^ ? FIX THIS
+                     , scheck     :: !Bool                        -- ^ ? FIX THIS
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
@@ -700,6 +704,7 @@ initCGI cfg info = CGInfo {
   , specLVars  = lvars spc
   , specLazy   = lazy spc
   , tcheck     = not $ notermination cfg
+  , scheck     = strata cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
   , kvProf     = emptyKVProf
@@ -1015,13 +1020,6 @@ checkIndex (x, vs, t, index)
         ts    = ty_args $ toRTypeRep t
         msg'  = printf "%s: No decreasing argument on %s with %s" 
         msg   = printf "%s: No decreasing parameter" loc
-                  loc (showPpr x) (showPpr vs)
-
--- MOVE THE SAME LENS CHECKS BEFORE - TO DO IT ONCE FOR ALL FUNCTIOS
---  makeRecType t vs dxs is | not sameLens
---    = errorstar "Constraint.makeRecType: invalid arguments"
---    where sameLens  = (length vs) == (length is) && (length dxs) == (length is)
---  
 
 makeRecType t vs dxs is
   = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
@@ -1102,11 +1100,14 @@ mapN _ _ []     = []
 
 consCBSizedTys tflag γ (Rec xes)
   = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let xets = mapThd3 (fmap makeFinType) <$> xets''
+       sflag     <- scheck <$> get
+       let cmakeFinType = if sflag then makeFinType else id
+       let cmakeFinTy   = if sflag then makeFinTy   else snd
+       let xets = mapThd3 (fmap cmakeFinType) <$> xets''
        ts'       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
        is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts')
-       let ts = makeFinTy <$> zip is ts'
+       let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
        checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
        let rts   = (recType <$>) <$> xeets
@@ -1133,7 +1134,10 @@ consCBSizedTys tflag γ (Rec xes)
 
 consCBWithExprs γ xtes (Rec xes) 
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let xets = mapThd3 (fmap makeFinType) <$> xets'
+       sflag     <- scheck <$> get
+       let cmakeFinType = if sflag then makeFinType else id
+       let cmakeFinTy   = if sflag then makeFinTy   else snd
+       let xets = mapThd3 (fmap cmakeFinType) <$> xets'
        let ts    = safeFromJust err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Just <$> ts')
@@ -1179,7 +1183,9 @@ consCB tflag _ γ (Rec xes) | tflag
 
 consCB _ str γ (Rec xes) | not str
   = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       let xets = mapThd3 (fmap makeDivType) <$> xets'
+       sflag     <- scheck <$> get
+       let cmakeDivType = if sflag then makeDivType else id
+       let xets = mapThd3 (fmap cmakeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
        γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts

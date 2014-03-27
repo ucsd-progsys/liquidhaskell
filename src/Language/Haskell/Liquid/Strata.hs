@@ -32,8 +32,6 @@ showMap s acc
     "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
     ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
 
-isSVar (SVar _) = True
-isSVar _        = False
 allSVars (xs, ys) = all isSVar $ xs ++ ys
 noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
 noUpdate (xs, ys) = (not $ updateFin(xs, ys)) && (not $ updateDiv (xs, ys)) 
