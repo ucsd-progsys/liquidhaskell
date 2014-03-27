@@ -176,7 +176,6 @@ makeGhcSpec' cfg vars defVars exports specs
                              , measures   = subst su <$> M.elems $ Ms.measMap measures
                              }
 
-
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
                         makeRPAliases dummyPos pts

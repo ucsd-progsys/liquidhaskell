@@ -118,7 +118,9 @@ initEnv info penv
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
-       let bs    = (map (unifyts' f2 tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       sflag    <- scheck <$> get
+       let senv  = if sflag then f2 else []
+       let bs    = (map (unifyts' senv tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
@@ -138,8 +140,6 @@ initEnv info penv
             | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
-    f ((x, t):xts) = (x, foldl mappend t (snd <$> xts))
-
 
 instance Show Var where
   show = showPpr
@@ -583,19 +583,15 @@ rsplitCIndexed γ t1s t2s indexes
   where t1s' = catMaybes $ (!?) t1s <$> indexes
         t2s' = catMaybes $ (!?) t2s <$> indexes
 
-s1 <:= s2 
-  | any (==SDiv) s1 && any (==SFin) s2 = False
-  | otherwise              = True
-
 bsplitC γ t1 t2
   = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
 
 checkStratum γ t1 t2
-  | s1 <:= s2
-  = return ()
-  | otherwise
-  = addWarning $ "Stratum Error : " ++ show SDiv ++ " > " ++ show SFin ++ " \tat " ++ show (pprint $ loc γ)
+  | s1 <:= s2 = return ()
+  | otherwise = addWarning wrn
   where [s1, s2]   = getStrata <$> [t1, t2]
+        wrn        =  "Stratum Error : " ++ show s1 ++ " > " ++ show s2 ++ 
+                      "\tat " ++ show (pprint $ loc γ)
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -612,6 +608,8 @@ bsplitC' γ t1 t2 pflag
     tag = getTag γ
     err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
+
+
 
 unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
@@ -635,7 +633,7 @@ rsplitC _ _
 
 data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
                      , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
-                     , sCs      :: ![SubC]                       -- ^ wellformedness constraints over RType
+                     , sCs        :: ![SubC]                       -- ^additional stratum constrains for let bindings
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
                      , isBind     :: ![Bool]                   -- ^ subtyping over Sort (post-splitting)
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
@@ -685,7 +683,7 @@ type CG = State CGInfo
 
 initCGI cfg info = CGInfo {
     hsCs       = [] 
-  , sCs      = [] 
+  , sCs        = [] 
   , hsWfs      = [] 
   , fixCs      = []
   , isBind     = []
@@ -739,7 +737,7 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (msg, x, t') 
+γ ++= (_, x, t') 
   = do idx   <- fresh
        let t  = normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
