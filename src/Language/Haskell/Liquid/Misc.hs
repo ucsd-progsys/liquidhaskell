@@ -52,3 +52,11 @@ getHqBotPath  = getDataFileName "include/Bot.hquals"
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
 safeZipWithError msg _      _      = errorstar msg
+
+mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
+
+mapN 0 f (x:xs) = f x : xs
+mapN n f (x:xs) = x : mapN (n-1) f xs
+mapN _ _ []     = []
+
+

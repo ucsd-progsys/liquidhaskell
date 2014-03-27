@@ -519,14 +519,12 @@ instance Monoid Strata where
 class SubsTy tv ty a where
   subt :: (tv, ty) -> a -> a
 
--- MOVE TO TYPES
 class (Eq c) => TyConable c where
   isFun    :: c -> Bool
   isList   :: c -> Bool
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
 
--- MOVE TO TYPES
 class ( TyConable c
       , Eq p, Eq c, Eq tv
       , Hashable tv

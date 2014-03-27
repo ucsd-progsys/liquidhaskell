@@ -434,6 +434,9 @@ strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
 strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ t1 t2
 
+strengthenRefType_ (RAllS s1 t1) (RAllS s2 t2) | s1 == s2
+  = RAllS s1 $ strengthenRefType_ t1 t2
+
 strengthenRefType_ (RAllS s t1) t2
   = RAllS s $ strengthenRefType_ t1 t2
 
@@ -831,7 +834,6 @@ dataConMsReft ty ys  = subst su (rTypeReft (ty_res trep))
         xs   = ty_binds trep
         ts   = ty_args  trep
         su   = mkSubst $ [(x, EVar y) | ((x, _), y) <- zip (zip xs ts) ys]
-        -- zip (ty_binds trep) (EVar <$> ys)
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------

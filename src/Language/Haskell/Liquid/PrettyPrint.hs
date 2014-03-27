@@ -201,8 +201,7 @@ ppr_forall bb p t
     dπs False _            = empty 
     dπs True πs            = angleBrackets $ intersperse comma $ ppr_pvar_def pprint <$> πs
     dss _ []               = empty 
---    dss False _            = empty 
-    dss _ ss            = angleBrackets $ intersperse comma $ pprint <$> ss
+    dss _ ss               = angleBrackets $ intersperse comma $ pprint <$> ss
 
 
 ppr_cls bb p c ts
