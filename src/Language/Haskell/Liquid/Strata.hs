@@ -4,6 +4,7 @@
 module Language.Haskell.Liquid.Strata (
     SubStratum(..)
   , solveStrata
+  , (<:=)
   ) where
 
 import Control.Applicative      ((<$>))
@@ -13,6 +14,10 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)
 import Language.Haskell.Liquid.Annotate (Annot(..))
+
+s1 <:= s2 
+  | any (==SDiv) s1 && any (==SFin) s2 = False
+  | otherwise                          = True
 
 solveStrata = go True [] [] 
   where go False solved acc [] = solved
