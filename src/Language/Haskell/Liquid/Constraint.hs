@@ -1064,7 +1064,7 @@ consCBLet γ cb
        strict    <- specLazy <$> get
        let tflag  = oldtcheck
        let isStr  = tcond cb strict
-       modify $ \s -> s{tcheck = tflag}
+       modify $ \s -> s{tcheck = tflag && isStr}
        γ' <- consCB (tflag && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
@@ -1074,7 +1074,7 @@ consCBTop γ cb
        strict    <- specLazy <$> get
        let tflag  = oldtcheck
        let isStr  = tcond cb strict
-       modify $ \s -> s{tcheck = tflag}
+       modify $ \s -> s{tcheck = tflag && isStr}
        γ' <- consCB (tflag && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
