@@ -1213,8 +1213,8 @@ consCB _ str γ (Rec xes) | not str
   = do xets'   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        let xets = mapThd3 (fmap makeDivType) <$> xets'
        modify $ \i -> i { recCount = recCount i + length xes }
-       let xts = traceShow "LAZY!!!" [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM (extender "3") (γ `withRecs` (fst <$> xts)) xts
+       let xts = [(x, to) | (x, _, to) <- xets]
+       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
 
@@ -1222,14 +1222,14 @@ consCB _ _ γ (Rec xes)
   = do xets   <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        modify $ \i -> i { recCount = recCount i + length xes }
        let xts = [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM (extender "4") (γ `withRecs` (fst <$> xts)) xts
+       γ'     <- foldM extender (γ `withRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ' 
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to)
-       extender "5" γ (x, to')
+       extender γ (x, to')
 
 consBind isRec γ (x, e, Just spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1253,8 +1253,8 @@ addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
-extender s γ (x, Just t) = γ ++= ("extender" ++ s, F.symbol x, t)
-extender _ γ _           = return γ
+extender γ (x, Just t) = γ ++= ("extender", F.symbol x, t)
+extender γ _           = return γ
 
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
