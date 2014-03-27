@@ -137,20 +137,44 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
   mempty                              = RMono [] mempty
-  mappend (RMono s1 r1) (RMono s2 r2) = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
-  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
-  mappend (RPoly s1 t1) (RPoly s2 t2) = RPoly (s1 ++ s2) $ t1 `strengthenRefType` t2
+  mappend (RMono s1 r1) (RMono s2 r2) 
+    | isTauto r1 = RMono s2 r2
+    | isTauto r2 = RMono s1 r1
+    | otherwise  = RMono (s1 ++ s2) $ r1 `meet` r2
+  mappend (RMono s1 r) (RPoly s2 t) 
+    | isTauto   r = RPoly s2 t
+    | isTrivial t = RMono s1 r
+    | otherwise   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
+  mappend (RPoly s1 t) (RMono s2 r) 
+    | isTrivial t = RMono s2 r
+    | isTauto   r = RPoly s1 t
+    | otherwise   = RPoly (s1 ++ s2) $ t  `strengthen` (U r mempty mempty)
+  mappend (RPoly s1 t1) (RPoly s2 t2) 
+    | isTrivial t1 = RPoly s2 t2
+    | isTrivial t2 = RPoly s1 t1
+    | otherwise    = RPoly (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r
          , RefTypable a b c r
          , RefTypable a b c ()
          ) => Monoid (Ref (RType a b c ()) r (RType a b c r)) where
   mempty                              = RMono [] mempty
-  mappend (RMono s1 r1) (RMono s2 r2) = RMono (s1 ++ s2)  $ mappend r1 r2
-  mappend (RMono s1 r) (RPoly s2 t)   = RPoly (s1 ++ s2)  $ t `strengthen` r
-  mappend (RPoly s1 t) (RMono s2 r)   = RPoly (s1 ++ s2)  $ t `strengthen` r
-  mappend (RPoly s1 t1) (RPoly s2 t2) = RPoly (s1 ++ s2)  $ t1 `strengthenRefType_` t2
+  mappend (RMono s1 r1) (RMono s2 r2) 
+    | isTauto r1 = RMono s2 r2
+    | isTauto r2 = RMono s1 r1
+    | otherwise  = RMono (s1 ++ s2) $ r1 `meet` r2
+  mappend (RMono s1 r) (RPoly s2 t) 
+    | isTauto   r = RPoly s2 t
+    | isTrivial t = RMono s1 r
+    | otherwise   = RPoly (s1 ++ s2) $ t `strengthen` r
+  mappend (RPoly s1 t) (RMono s2 r) 
+    | isTrivial t = RMono s2 r
+    | isTauto   r = RPoly s1 t
+    | otherwise   = RPoly (s1 ++ s2) $ t `strengthen` r
+  mappend (RPoly s1 t1) (RPoly s2 t2) 
+    | isTrivial t1 = RPoly s2 t2
+    | isTrivial t2 = RPoly s1 t1
+    | otherwise    = RPoly (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) 
          => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where

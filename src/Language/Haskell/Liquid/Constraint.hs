@@ -146,10 +146,11 @@ instance Show Var where
 
 ctor' = map (mapSnd val) . ctors
 
-unifyts' senv tce tyi penv = (sunify senv) . (second (addTyConInfo tce tyi)) . (unifyts penv)
+unifyts' senv tce tyi penv =  (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
 
+sunify :: [(Var, SpecType)] -> (F.Symbol, SpecType) -> (F.Symbol, SpecType)
 sunify senv (x, t) = (x, maybe t (mappend t) pt)
- where pt = L.lookup x (mapFst F.symbol <$> senv)
+ where pt = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x (mapFst F.symbol <$> senv)
 
 unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
