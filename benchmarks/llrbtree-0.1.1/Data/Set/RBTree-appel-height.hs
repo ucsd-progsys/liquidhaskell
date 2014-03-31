@@ -125,6 +125,14 @@ makeBlack (Node _ l x r) = Node B l x r
 -- | Specifications -------------------------------------------------------
 ---------------------------------------------------------------------------
 
+{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
+      = Leaf 
+      | Node (color :: Color) 
+             (left  :: RBTree <l, r> (a <l key>) 
+             (key   :: a) 
+             (right :: RBTree <l, r> (a <r key>) 
+  @-}
+  
 -- | Red-Black Trees
 
 {-@ type RBT a    = {v: (RBTree a) | ((isRB v) && (isBH v)) } @-}
@@ -132,7 +140,7 @@ makeBlack (Node _ l x r) = Node B l x r
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
-    isRB (Node c l x r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
+    isRB (Node c l x r) = ((isRB l) && (isRB r) && ((Red c) => ((IsB l) && (IsB r))))
   @-}
 
 -- | Almost Red-Black Trees
@@ -161,7 +169,8 @@ makeBlack (Node _ l x r) = Node B l x r
     isB (Node c l x r) = c == B 
   @-}
 
-{-@ predicate IsB T = not ((col T) == R) @-}
+{-@ predicate IsB T = not (Red (col T)) @-}
+{-@ predicate Red C = C == R            @-}
 
 -- | Black Height
 
@@ -174,6 +183,8 @@ makeBlack (Node _ l x r) = Node B l x r
     bh (Leaf)         = 0
     bh (Node c l x r) = (bh l) + (if (c == R) then 0 else 1) 
   @-}
+
+
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
