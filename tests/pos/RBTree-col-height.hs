@@ -20,7 +20,7 @@ data Color = B -- ^ Black
 {-@ add :: (Ord a) => a -> RBT a -> RBT a @-}
 add x s = makeBlack (ins x s)
 
-{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
+{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBTN a {(bh t)} | ((IsB t) => (isRB v))} @-}
 ins kx Leaf             = Node R kx Leaf Leaf
 ins kx s@(Node B x l r) = case compare kx x of
                             LT -> let t = lbal x (ins kx l) r in t 
@@ -38,7 +38,9 @@ ins kx s@(Node R x l r) = case compare kx x of
 {-@ remove :: (Ord a) => a -> RBT a -> RBT a @-}
 remove x t = makeBlack (del x t)
 
-{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((isB t) || (isRB v))} @-}
+{-@ predicate HDel T V = (bh V) = (if (isB T) then (bh T) - 1 else (bh T)) @-}
+
+{-@ del              :: (Ord a) => a -> t:RBT a -> {v:ARBT a | ((HDel t v) && ((isB t) || (isRB v)))} @-}
 del x Leaf           = Leaf
 del x (Node _ y a b) = case compare x y of
    EQ -> append y a b 
@@ -51,31 +53,43 @@ del x (Node _ y a b) = case compare x y of
            Node B _ _ _ -> rbalS y a (del x b)
            _            -> Node R y a (del x b)
 
-{-@ append :: y:a -> l:RBT a -> r:RBT a -> (ARBT2 a l r) @-}
+{-@ append :: y:a -> l:RBT a -> r:RBTN a {(bh l)} -> (ARBT2 a l r) @-}
 append :: a -> RBTree a -> RBTree a -> RBTree a
-append _ Leaf r                               = r
-append _ l Leaf                               = l
-append piv (Node R lx ll lr) (Node R rx rl rr)  = case append piv lr rl of 
-                                                    Node R x lr' rl' -> Node R x (Node R lx ll lr') (Node R rx rl' rr)
-                                                    lrl              -> Node R lx ll (Node R rx lrl rr)
-append piv (Node B lx ll lr) (Node B rx rl rr)  = case append piv lr rl of 
-                                                    Node R x lr' rl' -> Node R x (Node B lx ll lr') (Node B rx rl' rr)
-                                                    lrl              -> lbalS lx ll (Node B rx lrl rr)
-append piv l@(Node B _ _ _) (Node R rx rl rr)   = Node R rx (append piv l rl) rr
-append piv l@(Node R lx ll lr) r@(Node B _ _ _) = Node R lx ll (append piv lr r)
+
+append _ Leaf r                               
+  = r
+
+append _ l Leaf                               
+  = l
+
+append piv (Node R lx ll lr) (Node R rx rl rr)  
+  = case append piv lr rl of 
+     Node R x lr' rl' -> Node R x (Node R lx ll lr') (Node R rx rl' rr)
+     lrl              -> Node R lx ll (Node R rx lrl rr)
+
+append piv (Node B lx ll lr) (Node B rx rl rr)  
+  = case append piv lr rl of 
+      Node R x lr' rl' -> Node R x (Node B lx ll lr') (Node B rx rl' rr)
+      lrl              -> lbalS lx ll (Node B rx lrl rr)
+
+append piv l@(Node B _ _ _) (Node R rx rl rr)   
+  = Node R rx (append piv l rl) rr
+
+append piv l@(Node R lx ll lr) r@(Node B _ _ _) 
+  = Node R lx ll (append piv lr r)
 
 ---------------------------------------------------------------------------
 -- | Delete Minimum Element -----------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ deleteMin :: RBT a -> RBT a @-}
+{-@ deleteMin            :: RBT a -> RBT a @-}
 deleteMin (Leaf)         = Leaf
 deleteMin (Node _ x l r) = makeBlack t
   where 
     (_, t)               = deleteMin' x l r
 
 
-{-@ deleteMin' :: k:a -> l:RBT a -> r:RBT a -> (a, ARBT2 a l r) @-}
+{-@ deleteMin'                   :: k:a -> l:RBT a -> r:RBTN a {(bh l)} -> (a, ARBT2 a l r) @-}
 deleteMin' k Leaf r              = (k, r)
 deleteMin' x (Node R lx ll lr) r = (k, Node R x l' r)   where (k, l') = deleteMin' lx ll lr 
 deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMin' lx ll lr 
@@ -84,24 +98,24 @@ deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ lbalS                             :: k:a -> l:ARBT a -> r:RBT a -> {v: ARBT a | ((IsB r) => (isRB v))} @-}
+{-@ lbalS  :: k:a -> l:ARBT a -> r:RBTN a {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
 lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
 lbalS k l (Node B y a b)              = let t = rbal k l (Node R y a b) in t 
 lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
-lbalS k l r                           = liquidError "nein"
+lbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ rbalS                             :: k:a -> l:RBT a -> r:ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
+{-@ rbalS  :: k:a -> l:RBT a -> r:ARBTN a {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
 rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
 rbalS k (Node B x a b) r              = let t = lbal k (Node R x a b) r in t 
 rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
-rbalS k l r                           = liquidError "nein" 
+rbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ lbal                              :: k:a -> l:ARBT a -> RBT a -> RBT a @-}
+{-@ lbal  :: k:a -> l:ARBT a -> RBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 lbal k (Node R y (Node R x a b) c) r  = Node R y (Node B x a b) (Node B k c r)
 lbal k (Node R x a (Node R y b c)) r  = Node R y (Node B x a b) (Node B k c r)
 lbal k l r                            = Node B k l r
 
-{-@ rbal                              :: k:a -> l:RBT a -> ARBT a -> RBT a  @-}
+{-@ rbal  :: k:a -> l:RBT a -> ARBTN a {(bh l)} -> RBTN a {1 + (bh l)} @-}
 rbal x a (Node R y b (Node R z c d))  = Node R y (Node B x a b) (Node B z c d)
 rbal x a (Node R z (Node R y b c) d)  = Node R y (Node B x a b) (Node B z c d)
 rbal x l r                            = Node B x l r
@@ -110,9 +124,9 @@ rbal x l r                            = Node B x l r
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ type BlackRBT a = {v: RBT a | (IsB v)} @-}
+{-@ type BlackRBT a = {v: RBT a | ((IsB v) && (bh v) > 0)} @-}
 
-{-@ makeRed :: l:BlackRBT a -> ARBT a @-}
+{-@ makeRed :: l:BlackRBT a -> ARBTN a {(bh l) - 1} @-}
 makeRed (Node _ x l r) = Node R x l r
 makeRed Leaf           = liquidError "nein" 
 
@@ -126,7 +140,9 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Red-Black Trees
 
-{-@ type RBT a    = {v: RBTree a | (isRB v)} @-}
+{-@ type RBT a    = {v: RBTree a | ((isRB v) && (isBH v)) } @-}
+
+{-@ type RBTN a N = {v: (RBT a) | (bh v) = N }              @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -135,7 +151,9 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Almost Red-Black Trees
 
-{-@ type ARBT a    = {v: RBT a | (isARB v) } @-}
+{-@ type ARBT a    = {v: RBTree a | ((isARB v) && (isBH v))} @-}
+
+{-@ type ARBTN a N = {v: ARBT a   | (bh v) = N }             @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
@@ -144,7 +162,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 -- | Conditionally Red-Black Tree
 
-{-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
+{-@ type ARBT2 a L R = {v:ARBTN a {(bh L)} | (((IsB L) && (IsB R)) => (isRB v))} @-}
 
 -- | Color of a tree
 
@@ -160,13 +178,26 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ predicate IsB T = not ((col T) == R) @-}
 
-------------------------------------------------------------------
--- Auxiliary Invariants ------------------------------------------
-------------------------------------------------------------------
+-- | Black Height
 
-{-@ predicate Invs V = ((Inv1 V) && (Inv2 V))               @-}
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH (Leaf)         = true
+    isBH (Node c x l r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
+  @-}
+
+{-@ measure bh        :: RBTree a -> Int
+    bh (Leaf)         = 0
+    bh (Node c x l r) = (bh l) + (if (c == R) then 0 else 1) 
+  @-}
+
+-------------------------------------------------------------------------------
+-- Auxiliary Invariants -------------------------------------------------------
+-------------------------------------------------------------------------------
+
+{-@ predicate Invs V = ((Inv1 V) && (Inv2 V) && (Inv3 V))   @-}
 {-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
 {-@ predicate Inv2 V = ((isRB v) => (isARB v))              @-}
+{-@ predicate Inv3 V = 0 <= (bh v)                          @-}
 
 {-@ invariant {v: Color | (v = R || v = B)}                 @-}
 
