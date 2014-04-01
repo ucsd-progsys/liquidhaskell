@@ -1,20 +1,14 @@
-module Blank where
+module ToyMVar where
 
--- This is a blank file.
+import Prelude hiding (IO)
+data RealWorld
+data State# s 
 
-data P = P Int
-
-{-@ measure moo :: P -> Prop @-}
-{-@ measure poo :: P -> Prop @-}
-
-{-@ alice :: Int -> {v:P | (poo v)} @-}
-alice :: Int -> P
-alice x = bob x      -- FAILS
--- alice = bob          -- FAILS
--- alice x = let zoo = bob x in zoo
-
-{-@ bob :: Int -> {v:P | (moo v)} @-}
-bob :: Int -> P
-bob = undefined
-
-{-@ invariant {v:P | ((moo v) => (poo v))} @-}
+data IO a = IO (State# RealWorld -> (State# RealWorld, a))
+{-@ data IO a <p :: State# -> Prop, q :: State# -> a -> Prop>
+      = IO (io :: State# RealWorld -> ((State# RealWorld, a)<q>))
+  @-}
+instance Monad IO where
+  return = returnIO
+returnIO :: a -> IO a
+returnIO x = IO $ \s -> (s, x)
