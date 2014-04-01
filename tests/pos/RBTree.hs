@@ -115,8 +115,8 @@ rbal x l r                            = Node B x l r
 {-@ type BlackRBT a = {v: RBT a | ((IsB v) && (bh v) > 0)} @-}
 
 {-@ makeRed :: l:BlackRBT a -> ARBTN a {(bh l) - 1} @-}
-makeRed (Node _ x l r) = Node R x l r
-makeRed Leaf           = liquidError "nein" 
+makeRed (Node B x l r) = Node R x l r
+makeRed _              = liquidError "nein"
 
 {-@ makeBlack :: ARBT a -> RBT a @-}
 makeBlack Leaf           = Leaf
