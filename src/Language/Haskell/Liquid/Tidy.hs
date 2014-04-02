@@ -5,6 +5,8 @@ import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
+import Data.Maybe (fromMaybe)
+
 
 import Language.Fixpoint.Misc 
 import Language.Fixpoint.Names              (symSepName)
@@ -31,15 +33,16 @@ tidySymbols t = substa dropSuffix $ mapBind dropBind t
     dropSuffix = S . takeWhile (/= symSepName) . symbolString
 
 tidyLocalRefas :: SpecType -> SpecType
-tidyLocalRefas = mapReft (txReft)
+tidyLocalRefas t = mapReft (txReft) t
   where 
-    txReft (U (Reft (v,ras)) p) = U (Reft (v, dropLocals ras)) p
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p (txStrata (syms t) l)
     dropLocals = filter (not . any isTmp . syms) . flattenRefas
     isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
 
 isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
   where str    = symbolString x
 
+txStrata syms s = filter (not . isSVar) s
 
 tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ substa tx t
@@ -69,6 +72,7 @@ bindersTx ds   = \y -> M.lookupDefault y y m
  
 
 tyVars (RAllP _ t)     = tyVars t
+tyVars (RAllS _ t)     = tyVars t
 tyVars (RAllT α t)     = α : tyVars t
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t' 
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t' 
@@ -90,6 +94,7 @@ subsTyVarsAll ats = go
 
 funBinds (RAllT _ t)      = funBinds t
 funBinds (RAllP _ t)      = funBinds t
+funBinds (RAllS _ t)      = funBinds t
 funBinds (RFun b t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RApp _ ts _ _)  = concatMap funBinds ts
 funBinds (RCls _ ts)      = concatMap funBinds ts 

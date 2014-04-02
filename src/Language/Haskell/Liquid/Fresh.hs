@@ -61,8 +61,15 @@ instance Freshable m Integer => Freshable m Reft where
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = errorstar "fresh RReft"
-  true (U r _)      = liftM uTop (true r)  
-  refresh (U r _)   = liftM uTop (refresh r) 
+  true (U r _ s)    = liftM3 U (true r)    (return mempty) (true s) 
+  refresh (U r _ s) = liftM3 U (refresh r) (return mempty) (refresh s)
+
+instance Freshable m Integer => Freshable m Strata where
+  fresh      = liftM ((:[]) . SVar) fresh           
+  true []    = fresh
+  true s     = return s
+  refresh [] = fresh
+  refresh s  = return s
 
 instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable m (RRType r) where
   fresh   = errorstar "fresh RefType"
@@ -76,11 +83,13 @@ trueRefType (RAllP π t)
   = liftM (RAllP π) (true t)
 trueRefType (RFun _ t t' _)    
   = liftM3 rFun fresh (true t) (true t')
-trueRefType (RApp c ts _ _)  
-  = liftM (\ts -> RApp c ts truerefs mempty) (mapM true ts)
+trueRefType (RApp c ts _ r)  
+  = liftM2 (\ts -> RApp c ts truerefs) (mapM true ts) (true r)
 		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM3 RAppTy (true t) (true t') (return mempty)
+trueRefType (RVar a r)
+  = liftM (RVar a) (true r)
 trueRefType t                
   = return t
 
