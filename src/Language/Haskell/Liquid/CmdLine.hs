@@ -201,7 +201,7 @@ writeExit cfg target r out
        writeFile   (extFileName Result target) rs
        writeWarns     $ o_warns out
        writeCheckVars $ o_vars  out
-       return r
+       return $ if (null $ o_warns out) then r else (Unsafe [])
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)
