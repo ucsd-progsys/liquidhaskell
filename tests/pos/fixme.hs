@@ -12,3 +12,4 @@ instance Monad IO where
   return = returnIO
 returnIO :: a -> IO a
 returnIO x = IO $ \s -> (s, x)
+

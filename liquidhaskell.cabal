@@ -166,6 +166,7 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
                     Paths_liquidhaskell
  

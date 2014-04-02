@@ -1,4 +1,5 @@
 module ListRange () where
+{-@ LIQUID "--no-termination" @-}
 
 import Language.Haskell.Liquid.Prelude
 
