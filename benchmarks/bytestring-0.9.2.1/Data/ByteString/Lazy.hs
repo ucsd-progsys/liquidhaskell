@@ -1511,8 +1511,9 @@ copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
 hGetContentsN :: Int -> Handle -> IO ByteString
 hGetContentsN k h = lazyRead
   where
+    {-@ Lazy lazyRead @-}
     lazyRead = unsafeInterleaveIO loop
-
+    {-@ Lazy loop @-}
     loop = do
         c <- S.hGetNonBlocking h k
         --TODO: I think this should distinguish EOF from no data available

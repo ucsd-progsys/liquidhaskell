@@ -1,5 +1,7 @@
 module ListSort () where
 
+{-@ LIQUID "--no-termination" @-}
+
 import Language.Haskell.Liquid.Prelude
 
 low, high :: Int
