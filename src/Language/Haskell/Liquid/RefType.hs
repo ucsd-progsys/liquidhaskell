@@ -486,10 +486,13 @@ expandRApp _ _ t
   = t
 
 appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
-  where ps' = map (subts (zip (RTV <$> αs) (toRSort <$> ts))) (rTyConPs rc')
+  where ps' = map (subts (zip (RTV <$> αs) ts')) (rTyConPs rc')
+        ts' = if null ts then ((rVar) <$> βs) else (toRSort <$> ts)
         rc' = M.lookupDefault rc c tyi
         αs  = TC.tyConTyVars $ rTyCon rc'
+        βs  = TC.tyConTyVars c
         rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+
 isNumeric tce c 
   =  (fromMaybe (stringFTycon . dummyLoc $ tyConName (rTyCon c)))
        (M.lookup (rTyCon c) tce) == intFTyCon
