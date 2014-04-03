@@ -1,2 +1,22 @@
 
-
+Failed 20 tests: 
+ ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Internal.hs,
+  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs,
+  ../benchmarks/esop2013-submission/Base.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Fusion.hs,
+  pos/ListRange-LType.hs,
+  pos/ListRange.hs,
+  pos/LocalSpec.hs,
+  pos/LocalSpecImport.hs,
+  pos/Map.hs,
+  pos/Map0.hs,
+  pos/Map2.hs,
+  pos/Strata.hs,
+  pos/Strata1.hs,
+  pos/ToyMVar.hs,
+  pos/forloop.hs,
+  pos/pair0.hs,
+  pos/pair00.hs,
+  pos/testMRec.hs,
+  pos/vector1.hs,
+  pos/vector1b.hs 
