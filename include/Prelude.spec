@@ -20,7 +20,9 @@ assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
                                      v = (x :: int) }
 assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
-assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x >= 0) && (y >= 0)) => ((v >= x) && (v >= y))) && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
+assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x = 0) || (y = 0)) => (v = 0))
+                                                                         && (((x > 0) && (y > 0)) => ((v >= x) && (v >= y)))
+                                                                         && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 
 embed GHC.Integer.Type.Integer  as int
 

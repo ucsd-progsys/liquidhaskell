@@ -2,6 +2,8 @@ module ListRange () where
 
 import Language.Haskell.Liquid.Prelude
 
+{-@ LIQUID "--no-termination" @-}
+
 {-@  
 data List [llen] a <p :: x0:a -> x1:a -> Prop>  
   = Nil 
