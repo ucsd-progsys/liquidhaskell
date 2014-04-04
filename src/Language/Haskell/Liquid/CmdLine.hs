@@ -86,6 +86,9 @@ config = Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+, strata
+    = def &= help "Enable Strata Analysis"
+
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
@@ -165,13 +168,14 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def 2 def def def
+  mempty        = Config def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (strata         c1    ||     strata         c2) 
                          (notruetypes    c1    ||     notruetypes    c2) 
                          (totality       c1    ||     totality       c2) 
                          (noPrune        c1    ||     noPrune        c2) 
@@ -203,7 +207,7 @@ writeExit cfg target r out
        writeFile   (extFileName Result target) rs
        writeWarns     $ o_warns out
        writeCheckVars $ o_vars  out
-       return r
+       return $ if (null $ o_warns out) then r else (Unsafe [])
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)

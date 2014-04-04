@@ -1,5 +1,6 @@
 module Vec1 () where
 
+{-@ LIQUID "--no-termination" @-}
 import Language.Haskell.Liquid.Prelude
 
 mmax x y 

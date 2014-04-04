@@ -361,7 +361,7 @@ applySolution = fmap . fmap . mapReft . map . appSolRefa
   where appSolRefa _ ra@(RConc _) = ra 
         -- appSolRefa _ p@(RPvar _)  = p  
         appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (U (Reft (x, zs)) p) = U (Reft (x, squishRefas $ f zs)) p
+        mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
 
 
 

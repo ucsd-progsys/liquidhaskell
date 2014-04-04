@@ -143,7 +143,8 @@ bareTypeP :: Parser BareType
 --  <|> bareAtomP 
  
 bareTypeP
-  =  bareAllP
+  =  try bareAllP
+ <|> bareAllS
  <|> bareAllExprP
  <|> bareExistsP
  <|> try bareFunP
@@ -169,15 +170,24 @@ bbaseP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
 --  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
- <|> try (liftM2 bRVar lowerIdP monoPredicateP)
- <|> liftM3 bCon locUpperIdP predicatesP (sepBy bareTyArgP blanks)
+ <|> try (liftM3 bRVar lowerIdP stratumP monoPredicateP)
+ <|> liftM4 bCon locUpperIdP stratumP predicatesP (sepBy bareTyArgP blanks)
+
+stratumP :: Parser Strata
+stratumP 
+  = do reserved "^"
+       bstratumP
+ <|> return mempty
+
+bstratumP
+  = ((:[]) . SVar) <$> symbolP
 
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM3 bCon locUpperIdP predicatesP (return []))
- <|> liftM2 bRVar lowerIdP monoPredicateP 
+ <|> try (liftM4 bCon locUpperIdP stratumP predicatesP (return []))
+ <|> liftM3 bRVar lowerIdP stratumP monoPredicateP 
 
 maybeP p = liftM Just p <|> return Nothing
 
@@ -209,6 +219,12 @@ exBindP
        t <- bareArgP b
        return (b,t)
   
+bareAllS
+  = do reserved "forall"
+       ss <- (angles $ sepBy1 symbolP comma)
+       dot
+       t  <- bareTypeP
+       return $ foldr RAllS t ss
 
 bareAllP 
   = do reserved "forall"
@@ -238,9 +254,9 @@ bPVar p _ xts  = PV p τ dummySymbol τxs
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = do t <- bareTypeP
-                  let (xs, ts, t') = bkArrow $ thd3 $ bkUniv $ t
-                  if isPropBareType t' 
-                    then return $ zip xs (toRSort <$> ts) 
+                  let trep = toRTypeRep t
+                  if isPropBareType $ ty_res trep
+                    then return $ zip (ty_binds trep) (toRSort <$> (ty_args trep)) 
                     else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
 
 
@@ -356,13 +372,13 @@ predVarUseP
 ------------------------------------------------------------------------
 
 bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms' expr = RPoly ss $ bRVar dummyName mempty r
+bRPoly syms' expr = RPoly ss $ bRVar dummyName mempty mempty r
   where (ss, (v, _)) = (init syms, last syms)
         syms = [(y, s) | ((_, s), y) <- syms']
         su   = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
         r    = su `subst` Reft(v, expr)
 
-bRVar α p r               = RVar α (U r p)
+bRVar α s p r             = RVar α (U r p s)
 bLst (Just t) rs r        = RApp (dummyLoc listConName) [t] rs (reftUReft r)
 bLst (Nothing) rs r       = RApp (dummyLoc listConName) []  rs (reftUReft r)
 
@@ -374,15 +390,15 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
 -- w/o it
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
-bCon b [RMono _ r1] [] r  = RApp b [] [] (r1 `meet` (reftUReft r)) 
-bCon b rs ts r            = RApp b ts rs (reftUReft r)
+bCon b s [RMono _ r1] [] r = RApp b [] [] (r1 `meet` (U r mempty s)) 
+bCon b s rs ts r           = RApp b ts rs (U r mempty s)
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
 bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)
 
 
-reftUReft      = (`U` mempty)
-predUReft      = (U dummyReft) 
+reftUReft      = \r -> U r mempty mempty
+predUReft      = \p -> U dummyReft p mempty
 dummyReft      = mempty
 dummyTyId      = ""
 dummyRSort     = ROth "dummy"
@@ -664,7 +680,7 @@ dataDeclSizeP
        x   <- locUpperIdP
        spaces
        fsize <- dataSizeP
-       return $ D x [] [] [] pos fsize
+       return $ D x [] [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
@@ -677,7 +693,8 @@ dataDeclFullP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
-       return $ D x ts ps dcs pos fsize
+       return $ D x ts ps [] dcs pos fsize
+
 
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
