@@ -10,7 +10,6 @@ categories: basic
 demo: refinements101.hs
 ---
 
-
 One of the great things about Haskell is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
 nipping a large swathe of run-time errors in the bud. Refinement types
