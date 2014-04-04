@@ -98,8 +98,7 @@ getGhcInfo' cfg0 target
       (name,tgtSpec)     <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
       let paths           = idirs cfg
-      df                 <- getSessionDynFlags
-      setSessionDynFlags  $ updateDynFlags df (idirs cfg)
+      updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
@@ -118,18 +117,21 @@ getGhcInfo' cfg0 target
       let letVs           = letVars     coreBinds
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
-      hqualFiles         <- moduleHquals modguts (idirs cfg) target imps incs
+      hqualFiles         <- moduleHquals modguts paths target imps incs
       return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
 
-updateDynFlags df ps 
-  = df { importPaths  = ps ++ importPaths df   
-       , libraryPaths = ps ++ libraryPaths df 
-       , profAuto     = ProfAutoCalls         
-       , ghcLink      = NoLink                
-       , hscTarget    = HscInterpreted
-       , ghcMode      = CompManager
-       } `xopt_set` Opt_MagicHash
-         `dopt_set` Opt_ImplicitImportQualified
+updateDynFlags cfg
+  = do df <- getSessionDynFlags
+       let df' = df { importPaths  = idirs cfg ++ importPaths df
+                    , libraryPaths = idirs cfg ++ libraryPaths df
+                    , profAuto     = ProfAutoCalls
+                    , ghcLink      = NoLink
+                    , hscTarget    = HscInterpreted
+                    , ghcMode      = CompManager
+                    } `xopt_set` Opt_MagicHash
+                      `dopt_set` Opt_ImplicitImportQualified
+       (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
+       setSessionDynFlags df''
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
