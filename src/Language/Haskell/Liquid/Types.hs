@@ -175,6 +175,7 @@ data Config = Config {
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]
   , shortNames     :: Bool       -- ^ whether to drop module qualifers from pretty-printed names
+  , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   } deriving (Data, Typeable, Show, Eq)
 
 

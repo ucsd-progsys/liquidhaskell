@@ -106,11 +106,16 @@ config = Config {
           &= help "Don't complain about specifications for unexported and unused values "
 
  , maxParams 
-    = 10   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+    = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
 
  , shortNames
-   = def &= name "short-names"
-         &= help "Print shortened names, i.e. drop all module qualifiers."
+    = def &= name "short-names"
+          &= help "Print shortened names, i.e. drop all module qualifiers."
+
+ , ghcOptions
+    = def &= name "ghc-option"
+          &= typ "OPTION"
+          &= help "Pass this option to GHC"
  
  -- , verbose  
  --    = def &= help "Generate Verbose Output"
@@ -129,7 +134,7 @@ config = Config {
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
              putStrLn $ copyright
-             whenLoud $ putStrLn $ "liquid " ++ show args ++ "\n"
+             whenLoud $ putStrLn $ "liquid " ++ show md ++ "\n"
              mkOpts md
 
 copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
@@ -163,7 +168,7 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def 2 def def
+  mempty        = Config def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
@@ -177,6 +182,7 @@ instance Monoid Config where
                          (maxParams      c1   `max`   maxParams      c2)
                          (smtsolver c1      `mappend` smtsolver      c2)
                          (shortNames c1        ||     shortNames     c2)
+                         (ghcOptions c1        ++     ghcOptions     c2)
 
 instance Monoid SMTSolver where
   mempty        = def
