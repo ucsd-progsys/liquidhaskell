@@ -372,7 +372,7 @@ meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
   = RPoly s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
-  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> s1) (pargs π)]
+  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
 
 ----------------------------------------------------------------------------
