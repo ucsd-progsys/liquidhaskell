@@ -55,6 +55,7 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 
+import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -620,21 +621,20 @@ makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss = do
   env <- gets hscEnv
-  ns <- liftIO $ catMaybes <$> mapM (lookupName env name . dummyLoc . prefix) ss
+  ns <- liftIO $ concatMapM (lookupName env name . dummyLoc . prefix) ss
   return $ filter ((`elem` ns) . varName) vs
  where
   prefix s = getModString name ++ "." ++ s
 
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
-  |  cmod == mod
+  | cmod == mod
   = makeLocalAssumeSpec cfg cmod vs lvs $ Ms.sigs spec
-  | otherwise 
+  | otherwise
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
 makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
- 
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
        vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
@@ -766,7 +766,7 @@ freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> 
 -----------------------------------------------------------------
 
 class GhcLookup a where
-  lookupName :: HscEnv -> ModName -> a -> IO (Maybe Name)
+  lookupName :: HscEnv -> ModName -> a -> IO [Name]
   pp         :: a -> String
   srcSpan    :: a -> SrcSpan
 
@@ -776,11 +776,11 @@ instance GhcLookup (Located String) where
   srcSpan        = sourcePosSrcSpan . loc
 
 instance GhcLookup Name where
-  lookupName _ _ = return . Just
+  lookupName _ _ = return . (:[])
   pp             = showPpr
   srcSpan        = nameSrcSpan
 
-lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
+-- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x
        case zs of
@@ -789,18 +789,19 @@ lookupGhcThing name f x
   where
     msg = "Not in scope: " ++ name ++ " `" ++ pp x ++ "'"
 
-lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
-lookupGhcThing' _    f x 
+-- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing' _    f x
   = do (BE mod _ _ _ env) <- get
-       z              <- liftIO $ lookupName env mod x
-       case z of
-         Nothing -> return Nothing 
-         Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
+       ns                 <- liftIO $ lookupName env mod x
+       mts                <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
+       case catMaybes mts of
+         []    -> return Nothing
+         (t:_) -> return $ Just t
 
-stringLookup :: HscEnv -> ModName -> String -> IO (Maybe Name)
+stringLookup :: HscEnv -> ModName -> String -> IO [Name]
 stringLookup env mod k
   | k `M.member` wiredIn
-  = return $ M.lookup k wiredIn
+  = return $ maybeToList $ M.lookup k wiredIn
   | otherwise
   = stringLookupEnv env mod k
 
@@ -809,22 +810,22 @@ stringLookupEnv env mod s
   = do let modName = getModName mod
        L _ rn <- hscParseIdentifier env s
        res    <- lookupRdrName env modName rn
-       case res of
-         Just _  -> return res
-         Nothing -> lookupRdrName env modName (setRdrNameSpace rn tcName)
+       -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
+       -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
+       res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
+       return $ catMaybes [res, res']
   | otherwise
   = do L _ rn         <- hscParseIdentifier env s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
-         Just (n:_) -> return (Just n)
-         _          -> return Nothing
+         Just ns -> return ns
+         _       -> return []
 
--- | lookupGhcVar: It's possible that we have already resolved the Name we are
---   looking for, but have had to turn it back into a String, e.g. to be used in
---   an Expr, as in {v:Ordering | v = EQ}. In this case, the fully-qualified Name
---   (GHC.Types.EQ) will likely not be in scope, so we store our own mapping of
---   fully-qualified Names to Vars and prefer pulling Vars from it.
-  
+-- | It's possible that we have already resolved the 'Name' we are looking for,
+-- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
+-- as in @{v:Ordering | v = EQ}@. In this case, the fully-qualified 'Name'
+-- (@GHC.Types.EQ@) will likely not be in scope, so we store our own mapping of
+-- fully-qualified 'Name's to 'Var's and prefer pulling 'Var's from it.
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
@@ -841,7 +842,6 @@ lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
                        `catchError` (tryPropTyCon s)
   where 
     ftc (ATyCon x)   = Just x
-    ftc (ADataCon x) = Just $ dataConTyCon x
     ftc _            = Nothing
 
 tryPropTyCon s e   

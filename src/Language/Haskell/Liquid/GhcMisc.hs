@@ -200,6 +200,17 @@ instance Fixpoint Name where
 instance Fixpoint Type where
   toFix = pprDoc
 
+instance Show Name where
+  show = showPpr
+
+instance Show Var where
+  show = showPpr
+
+instance Show Class where
+  show = showPpr
+
+instance Show TyCon where
+  show = showPpr
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
 sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc 
