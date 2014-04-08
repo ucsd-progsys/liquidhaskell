@@ -32,7 +32,7 @@ import Control.DeepSeq
 import Control.Monad
 import Control.Applicative                      ((<$>))
 
-import           Data.List                                (foldl')
+import           Data.List                                (foldl', nub)
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.HashMap.Strict as M
@@ -210,7 +210,7 @@ writeExit cfg target r out
        return $ if (null $ o_warns out) then r else (Unsafe [])
 
 writeWarns []            = return () 
-writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)
+writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
@@ -224,7 +224,7 @@ writeResult c            = mapM_ (writeDoc c) . resDocs
 
 resDocs Safe              = [text "SAFE"]
 resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
-resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " xs
+resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " $ nub xs
 resDocs (UnknownError d)  = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
 reportUrl                 =      text "Please submit a bug report at:"
                             $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"
