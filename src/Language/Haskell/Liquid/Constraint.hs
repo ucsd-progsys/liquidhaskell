@@ -141,9 +141,6 @@ initEnv info penv
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
 
-instance Show Var where
-  show = showPpr
-
 ctor' = map (mapSnd val) . ctors
 
 unifyts' senv tce tyi penv =  (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
