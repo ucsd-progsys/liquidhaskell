@@ -1023,6 +1023,10 @@ instance PPrint Expr where
   pprint (EIte p e1 e2)  = parens $ text "if" <+> pprint p <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
   pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 
   pprint (EBot)          = text "_|_"
+  pprint (ESym s)        = pprint s
+
+instance PPrint SymConst where
+  pprint (SL s)          = text s
 
 instance PPrint Pred where
   pprint PTop            = text "???"
