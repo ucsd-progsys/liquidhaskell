@@ -39,15 +39,15 @@ import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 
-anormalize :: HscEnv -> MGIModGuts -> IO [CoreBind]
-anormalize hscEnv modGuts
+anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
+anormalize expandFlag hscEnv modGuts
   = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
        -- putStrLn $ showPpr orig_cbs
        liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
-          act      = liftM concat $ mapM (normalizeTopBind emptyVarEnv) orig_cbs
+          act      = liftM concat $ mapM (normalizeTopBind expandFlag emptyVarEnv) orig_cbs
           orig_cbs = transformRecExpr $ mgi_binds modGuts
           err      = errorstar "anormalize fails!"
 
@@ -63,14 +63,14 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it 
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
-normalizeTopBind :: VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
-normalizeTopBind γ (NonRec x e)
-  = do e' <- runDsM $ evalStateT (stitch γ e) []
+normalizeTopBind :: Bool -> VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
+normalizeTopBind expandFlag γ (NonRec x e)
+  = do e' <- runDsM $ evalStateT (stitch γ e) (DsST expandFlag  [])
        return [normalizeTyVars $ NonRec x e']
 
-normalizeTopBind γ (Rec xes)
-  = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) []
-       return $ map normalizeTyVars xes'
+normalizeTopBind expandFlag γ (Rec xes)
+  = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) (DsST expandFlag [])
+       return $ map normalizeTyVars (st_binds xes')
 
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
   where t'       = subst msg as as' bt
@@ -91,7 +91,12 @@ subst msg as as' bt
 
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
    deriving (Functor, Monad, MonadUnique)
-type DsMW = StateT [CoreBind] DsM
+
+data DsST = DsST { st_expandflag :: Bool
+                 , st_binds      :: [CoreBind]
+                 }
+
+type DsMW = StateT DsST DsM
 
 ------------------------------------------------------------------
 normalizeBind :: VarEnv Id -> CoreBind -> DsMW ()
@@ -145,7 +150,7 @@ normalizeName γ e
 
 
 add :: [CoreBind] -> DsMW ()
-add w = modify (++w)
+add w = modify $ \s -> s{st_binds = st_binds s++w}
 
 ---------------------------------------------------------------------
 normalizeLiteral :: CoreExpr -> DsMW CoreExpr
@@ -178,7 +183,8 @@ normalize γ (Case e x t as)
        x'    <- lift $ freshNormalVar τx -- rename "wild" to avoid shadowing
        let γ' = extendVarEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
-       as''  <- lift $ expandDefaultCase τx as' 
+       flag  <- st_expandflag <$> get
+       as''  <- lift $ expandDefaultCase flag τx as' 
        return $ Case n x' t as''
     where τx = varType x
 
@@ -210,24 +216,24 @@ normalize _ (Coercion c)
 stitch :: VarEnv Id -> CoreExpr -> DsMW CoreExpr 
 stitch γ e
   = do bs'   <- get
-       put [] 
+       modify $ \s -> s {st_binds = []}
        e'    <- normalize γ e
-       bs    <- get
+       bs    <- st_binds <$> get
        put bs'
        return $ mkCoreLets bs e'
 
 ----------------------------------------------------------------------------------
-expandDefaultCase :: Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
+expandDefaultCase :: Bool -> Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
 ----------------------------------------------------------------------------------
 
-expandDefaultCase (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
+expandDefaultCase flag (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs) | flag
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
                      dcs'   <- forM ds' $ cloneCase argτs e
                      return $ sortCases $ dcs' ++ dcs
        Nothing -> return z --
 
-expandDefaultCase _ z
+expandDefaultCase _ _ z
    = return z
 
 cloneCase argτs e d 
