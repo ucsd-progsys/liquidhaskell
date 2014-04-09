@@ -86,6 +86,10 @@ config = Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nocaseexpand
+    = def &= help "Disable Termination Check"
+          &= name "no-case-expand"
+
 , strata
     = def &= help "Enable Strata Analysis"
 
@@ -168,13 +172,14 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def 2 def def def
+  mempty        = Config def def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (nocaseexpand   c1    ||     nocaseexpand   c2) 
                          (strata         c1    ||     strata         c2) 
                          (notruetypes    c1    ||     notruetypes    c2) 
                          (totality       c1    ||     totality       c2) 

@@ -110,7 +110,7 @@ getGhcInfo' cfg0 target
       load LoadAllTargets
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
-      coreBinds          <- liftIO $ anormalize hscEnv modguts
+      coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
