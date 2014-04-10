@@ -52,15 +52,6 @@ infix  4 `elem`, `notElem`
 
 
 
-{-@ measure sumLens :: [[a]] -> Int
-    sumLens ([])   = 0
-    sumLens (c:cs) = (len c) + (sumLens cs)
-  @-}
-{-@ invariant {v:[[a]] | (sumLens v) >= 0} @-}
-{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
-{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
-{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
-
 \end{code}
 
 %*********************************************************
