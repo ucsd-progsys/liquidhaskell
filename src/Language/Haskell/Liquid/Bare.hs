@@ -55,6 +55,7 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 
+import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -84,12 +85,12 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
 checkMBody γ emb name sort (Def s c bs body) = go γ' body
   where 
     γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ts
+    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> (ty_args trep)
     ct  = ofType $ dataConUserType c :: SpecType
-    su  = unify tr (head $ snd3 $ bkArrowDeep sort)
+    su  = unify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
 
-    (_, ts, tr) = bkArrow $ thd3 $ bkUniv ct 
 
+    trep = toRTypeRep ct
     unify (RVar tv _) t                    = [(tv, toRSort t, t)]
     unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
     unify _ _                              = []
@@ -225,7 +226,7 @@ expandRTAlias l bt = expType =<< expReft bt
     expPred      = expandPAlias l []
 
 txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
-txPredReft f (U r p) = (`U` p) <$> txPredReft' f r
+txPredReft f (U r p l) = (\r -> U r p l) <$> txPredReft' f r
   where 
     txPredReft' f (Reft (v, ras)) = Reft . (v,) <$> mapM (txPredRefa f) ras
     txPredRefa  f (RConc p)       = RConc <$> f p
@@ -249,6 +250,7 @@ expandAlias l = go
     go s (REx x t1 t2)    = liftM2 (REx x) (go s t1) (go s t2)
     go s (RAllT a t)      = RAllT (stringRTyVar a) <$> go s t
     go s (RAllP a t)      = RAllP <$> ofBPVar a <*> go s t
+    go s (RAllS l t)      = RAllS l <$> go s t
     go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> mapM (go s) ts
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
@@ -379,9 +381,9 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
            let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                | (_, _, t) <- vts]
            let t = RCls (fromJust $ tyConClass_maybe tc) as'
-           let dcp = DataConP αs [] ss' (reverse sts) t
+           let dcp = DataConP αs [] [] ss' (reverse sts) t
            return ((dc,dcp),vts)
-    unClass = snd . bkClass . thd3 . bkUniv
+    unClass = snd . bkClass . fourth4 . bkUniv
 
 makeHints vs (_,spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVars vs (_,spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
@@ -430,7 +432,7 @@ addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
 addSymSortRef (p, RPoly s t) 
   = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
 
-addSymSortRef (p, RMono s r@(U _ (Pr [up]))) 
+addSymSortRef (p, RMono s r@(U _ (Pr [up]) _)) 
   = RMono (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
 addSymSortRef (p, RMono s t)
   = RMono s t
@@ -452,14 +454,14 @@ isSimpleType t = null tvs && isNothing (splitFunTy_maybe tb)
 
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] t')
+renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
   where
-    t'                     = subts su (mkUnivs [] ps tbody)
+    t'                     = subts su $ mkUnivs [] ps ls tbody
     su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
     tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
-    (as, ps, tbody)        = bkUniv t
+    (as, ps, ls, tbody)    = bkUniv t
     err                    = errTypeMismatch x lt
 
 
@@ -481,6 +483,8 @@ mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
 mapTyVars (TyVarTy α) (RVar a _)      
    = modify $ \s -> mapTyRVar α a s
 mapTyVars τ (RAllP _ t)   
+  = mapTyVars τ t 
+mapTyVars τ (RAllS _ t)   
   = mapTyVars τ t 
 mapTyVars τ (RCls _ ts)     
   = return ()
@@ -541,8 +545,8 @@ dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
   case (bkUniv t1, bkUniv t2) of
-    ((_, π1s, _), (α2s, [], t2')) -> meet t1 (mkUnivs α2s π1s t2')
-    ((α1s, [], t1'), (_, π2s, _)) -> meet (mkUnivs α1s π2s t1') t2
+    ((_, π1s, ls1, _), (α2s, [], ls2, t2')) -> meet t1 (mkUnivs α2s π1s (ls1 ++ ls2) t2')
+    ((α1s, [], ls1, t1'), (_, π2s, ls2, _)) -> meet (mkUnivs α1s π2s (ls1 ++ ls2) t1') t2
     _                             -> errorstar $ "meetPad: " ++ msg
   where msg = "\nt1 = " ++ showpp t1 ++ "\nt2 = " ++ showpp t2
  
@@ -617,21 +621,20 @@ makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vs ss = do
   env <- gets hscEnv
-  ns <- liftIO $ catMaybes <$> mapM (lookupName env name . dummyLoc . prefix) ss
+  ns <- liftIO $ concatMapM (lookupName env name . dummyLoc . prefix) ss
   return $ filter ((`elem` ns) . varName) vs
  where
   prefix s = getModString name ++ "." ++ s
 
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
-  |  cmod == mod
+  | cmod == mod
   = makeLocalAssumeSpec cfg cmod vs lvs $ Ms.sigs spec
-  | otherwise 
+  | otherwise
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
 makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
- 
 makeLocalAssumeSpec cfg mod vs lvs xbs
   = do env     <- get
        vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
@@ -691,14 +694,14 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
     tx = (v,) . Loc l . generalize
 
 plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps cs' $ go rt' st''
+plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
   where
-    (αs, _, rt)  = bkUniv (ofType t :: SpecType)
-    (cs, rt')    = bkClass rt
+    (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
+    (cs, rt')         = bkClass rt
 
-    (_, ps, st') = bkUniv st
-    (_, st'')    = bkClass st'
-    cs'          = [(dummySymbol, RCls c t) | (c,t) <- cs]
+    (_, ps, ls2, st') = bkUniv st
+    (_, st'')         = bkClass st'
+    cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
     go t                (RHole r)          = fmap f t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
@@ -737,7 +740,7 @@ makeInvariants' ts = mapM mkI ts
   where 
     mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType l t
 
-mkSpecType l t = mkSpecType' l (snd3 $ bkUniv t)  t
+mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t)  t
 
 mkSpecType' :: Show p => p -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
@@ -763,7 +766,7 @@ freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> 
 -----------------------------------------------------------------
 
 class GhcLookup a where
-  lookupName :: HscEnv -> ModName -> a -> IO (Maybe Name)
+  lookupName :: HscEnv -> ModName -> a -> IO [Name]
   pp         :: a -> String
   srcSpan    :: a -> SrcSpan
 
@@ -773,11 +776,11 @@ instance GhcLookup (Located String) where
   srcSpan        = sourcePosSrcSpan . loc
 
 instance GhcLookup Name where
-  lookupName _ _ = return . Just
+  lookupName _ _ = return . (:[])
   pp             = showPpr
   srcSpan        = nameSrcSpan
 
-lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
+-- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x
        case zs of
@@ -786,18 +789,19 @@ lookupGhcThing name f x
   where
     msg = "Not in scope: " ++ name ++ " `" ++ pp x ++ "'"
 
-lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
-lookupGhcThing' _    f x 
+-- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
+lookupGhcThing' _    f x
   = do (BE mod _ _ _ env) <- get
-       z              <- liftIO $ lookupName env mod x
-       case z of
-         Nothing -> return Nothing 
-         Just n  -> liftIO $ liftM (join . (f <$>) . snd) (tcRnLookupName env n)
+       ns                 <- liftIO $ lookupName env mod x
+       mts                <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
+       case catMaybes mts of
+         []    -> return Nothing
+         (t:_) -> return $ Just t
 
-stringLookup :: HscEnv -> ModName -> String -> IO (Maybe Name)
+stringLookup :: HscEnv -> ModName -> String -> IO [Name]
 stringLookup env mod k
   | k `M.member` wiredIn
-  = return $ M.lookup k wiredIn
+  = return $ maybeToList $ M.lookup k wiredIn
   | otherwise
   = stringLookupEnv env mod k
 
@@ -806,22 +810,22 @@ stringLookupEnv env mod s
   = do let modName = getModName mod
        L _ rn <- hscParseIdentifier env s
        res    <- lookupRdrName env modName rn
-       case res of
-         Just _  -> return res
-         Nothing -> lookupRdrName env modName (setRdrNameSpace rn tcName)
+       -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
+       -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
+       res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
+       return $ catMaybes [res, res']
   | otherwise
   = do L _ rn         <- hscParseIdentifier env s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
-         Just (n:_) -> return (Just n)
-         _          -> return Nothing
+         Just ns -> return ns
+         _       -> return []
 
--- | lookupGhcVar: It's possible that we have already resolved the Name we are
---   looking for, but have had to turn it back into a String, e.g. to be used in
---   an Expr, as in {v:Ordering | v = EQ}. In this case, the fully-qualified Name
---   (GHC.Types.EQ) will likely not be in scope, so we store our own mapping of
---   fully-qualified Names to Vars and prefer pulling Vars from it.
-  
+-- | It's possible that we have already resolved the 'Name' we are looking for,
+-- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
+-- as in @{v:Ordering | v = EQ}@. In this case, the fully-qualified 'Name'
+-- (@GHC.Types.EQ@) will likely not be in scope, so we store our own mapping of
+-- fully-qualified 'Name's to 'Var's and prefer pulling 'Var's from it.
 lookupGhcVar :: GhcLookup a => a -> BareM Var
 lookupGhcVar x
   = do env <- gets varEnv
@@ -838,7 +842,6 @@ lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
                        `catchError` (tryPropTyCon s)
   where 
     ftc (ATyCon x)   = Just x
-    ftc (ADataCon x) = Just $ dataConTyCon x
     ftc _            = Nothing
 
 tryPropTyCon s e   
@@ -945,7 +948,7 @@ instance Resolvable Sort where
         ss'              = mapM resolve ss
 
 instance Resolvable (UReft Reft) where
-  resolve (U r p) = U <$> resolve r <*> resolve p
+  resolve (U r p s) = U <$> resolve r <*> resolve p <*> return s
 
 instance Resolvable Reft where
   resolve (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
@@ -979,9 +982,9 @@ wiredTyDataCons = (concat tcs, concat dcs)
     l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
-                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] [] lt)
-                   , (consDataCon, DataConP [(RTV tyv)] [p] [] cargs  lt)])
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
+                   , [(nilDataCon , DataConP [(RTV tyv)] [p] [] [] [] lt)
+                   , (consDataCon, DataConP [(RTV tyv)] [p] [] [] cargs  lt)])
     where c      = listTyCon
           [tyv]  = tyConTyVars c
           t      = {- TyVarTy -} rVar tyv :: RSort
@@ -997,8 +1000,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [0] [] (Just fsize))]
           fsize  = \x -> EApp (dummyLoc $ S "len") [EVar x]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
-                    , [(dc, DataConP (RTV <$> tyvs) ps []  cargs  lt)])
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
+                    , [(dc, DataConP (RTV <$> tyvs) ps [] []  cargs  lt)])
   where c             = tupleTyCon BoxedTuple n
         dc            = tupleCon BoxedTuple n 
         tyvs@(tv:tvs) = tyConTyVars c
@@ -1018,7 +1021,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [0..(n-2)] [] Nothing)]
         mks_ x        = (\i ->  (x++ show i)) <$> [2..n]
 
 
-pdVarReft = U mempty . pdVar 
+pdVarReft = (\p -> U mempty p mempty) . pdVar 
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ (stringSymbol <$> ns) ts fxs [(t, f, x)] [] 
 mkps _  _      _           = error "Bare : mkps"
@@ -1064,6 +1067,8 @@ ofBareType (RAllT a t)
   = liftM  (RAllT (stringRTyVar a)) (ofBareType t)
 ofBareType (RAllP π t) 
   = liftM2 RAllP (ofBPVar π) (ofBareType t)
+ofBareType (RAllS s t) 
+  = liftM  (RAllS s) (ofBareType t)
 ofBareType (RApp tc ts@[_] rs r) 
   | isList tc
   = do tyi <- tcEnv <$> get
@@ -1156,18 +1161,19 @@ makeConTypes' :: [DataDecl] -> BareM ([(TyCon, TyConP)], [[(DataCon, DataConP)]]
 makeConTypes' dcs = unzip <$> mapM ofBDataDecl dcs
 
 ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
-ofBDataDecl (D tc as ps cts pos sfun)
+ofBDataDecl (D tc as ps ls cts pos sfun)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc
-       cts'  <- mapM (ofBDataCon tc' αs ps πs) cts
+       cts'  <- mapM (ofBDataCon tc' αs ps ls' πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
        let varInfo = concatMap (getPsSig initmap True) tys
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       return ((tc', TyConP αs πs cov contr sfun), cts')
+       return ((tc', TyConP αs πs ls' cov contr sfun), cts')
     where αs   = fmap (RTV . stringTyVar) as
+          ls'  = stringSymbol <$> ls
           -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 getPsSig m pos (RAllT _ t) 
@@ -1186,7 +1192,7 @@ getPsSig m pos (RFun _ t1 t2 r)
 getPsSigPs m pos (RMono _ r) = addps m pos r
 getPsSigPs m pos (RPoly _ t) = getPsSig m pos t
 
-addps m pos (U _ ps) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 -- ofBPreds = fmap (fmap stringTyVarTy)
 dataDeclTyConP d 
@@ -1205,12 +1211,12 @@ mapM_pvar f (PV x t v txys)
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' v txys'
 
-ofBDataCon tc αs ps πs (c, xts)
+ofBDataCon tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' dummyPos  ps) ts
        let cs   = map ofType (dataConStupidTheta c')
        let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) mempty 
-       return   $ (c', DataConP αs πs cs (reverse (zip xs' ts')) t0)
+       return   $ (c', DataConP αs πs ls cs (reverse (zip xs' ts')) t0)
     where 
        (xs, ts) = unzip xts
        xs'      = map stringSymbol xs
@@ -1233,7 +1239,7 @@ predMap πs t = Ex.assert (M.size xπm == length xπs) xπm
   where xπm = M.fromList xπs
         xπs = [(pname π, π) | π <- πs ++ rtypePredBinds t]
 
-rtypePredBinds = map uPVar . snd3 . bkUniv
+rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 -- rtypePredBinds t = everything (++) ([] `mkQ` grab) t
 --   where grab ((RAllP pv _) :: BRType RPVar RPredicate) = [pv]
@@ -1395,7 +1401,7 @@ data ExSt = ExSt { fresh :: Int
 
 txExpToBind   :: SpecType -> SpecType
 txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
-  where πs = M.fromList [(pname p, p) | p <- snd3 $ bkUniv t ]
+  where πs = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
 
 expToBindT :: SpecType -> State ExSt SpecType
 expToBindT (RVar v r) 
@@ -1408,6 +1414,8 @@ expToBindT (RAllT a t)
   = liftM (RAllT a) (expToBindT t)
 expToBindT (RAllP p t)
   = liftM (RAllP p) (expToBindT t)
+expToBindT (RAllS s t)
+  = liftM (RAllS s) (expToBindT t)
 expToBindT (RApp c ts rs r) 
   = do ts' <- mapM expToBindT ts
        rs' <- mapM expToBindReft rs
@@ -1438,8 +1446,8 @@ addExist t x (tx, e) = RAllE x t' t
         r  = Reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (U r (Pr p))
-  = mapM expToBind p >>= return . U r . Pr
+expToBindRef (U r (Pr p) l)
+  = mapM expToBind p >>= return . (\p -> U r p l). Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p

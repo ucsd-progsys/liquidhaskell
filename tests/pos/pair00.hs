@@ -1,5 +1,6 @@
 module Pair () where 
 
+{-@ LIQUID "--no-termination" @-}
 import Language.Haskell.Liquid.Prelude 
 
 incr x = (x, [x+1])

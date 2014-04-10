@@ -8,6 +8,9 @@ prop = if x > 0 then bar x else x
     {-@ bar :: Nat -> Nat @-}
         bar :: Int -> Int
         bar x = x
+    {-@ foo :: Nat -> Nat @-}
+        foo :: Int -> Int
+        foo x = x
 
 {-@ bar :: a -> {v:Int | v = 9} @-}
 bar :: a -> Int

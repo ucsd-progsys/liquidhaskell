@@ -358,7 +358,10 @@ dropWhile p xs@(x:xs')
 -- in which @n@ may be of any integral type.
 
 
-{-@ assert take        :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+{-@ take :: n:Int 
+         -> xs:[a] 
+         -> {v:[a] | (if (n >=0) then ((len v) = ((len(xs) < n) ? len(xs):n)) else ((len v) = 0))} 
+  @-}
 take                   :: Int -> [a] -> [a]
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
@@ -373,7 +376,9 @@ take                   :: Int -> [a] -> [a]
 --
 -- It is an instance of the more general 'Data.List.genericDrop',
 -- in which @n@ may be of any integral type.
-{-@ assert drop        :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) <  n) ? 0 : len(xs) - n) } @-}
+{-@ drop  :: n: Int 
+          -> xs:[a] 
+          -> {v:[a] | (if (n >= 0) then (len(v) = ((len(xs) <  n) ? 0 : len(xs) - n)) else ((len v) = (len xs)))} @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
@@ -392,7 +397,7 @@ drop                   :: Int -> [a] -> [a]
 -- 'splitAt' is an instance of the more general 'Data.List.genericSplitAt',
 -- in which @n@ may be of any integral type.
 -- Liquid: TODO
-{-@ splitAt :: n:Nat -> x:[a] -> ({v:[a] | (Min (len v) (len x) n)},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}> @-}
+{-@ splitAt :: n:Int -> x:[a] -> ({v:[a] | (if (n >= 0) then (Min (len v) (len x) n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}> @-}
 splitAt                :: Int -> [a] -> ([a],[a])
 
 #ifdef USE_REPORT_PRELUDE
@@ -711,6 +716,11 @@ Zips for larger tuples are in the List module.
 -- | 'zip' takes two lists and returns a list of corresponding pairs.
 -- If one input list is short, excess elements of the longer list are
 -- discarded.
+
+{-@ zip :: xs : [a] -> ys:[b] 
+            -> {v : [(a, b)] | ((((len v) <= (len xs)) && ((len v) <= (len ys)))
+            && (((len xs) = (len ys)) => ((len v) = (len xs))) )} @-}
+
 zip :: [a] -> [b] -> [(a,b)]
 zip (a:as) (b:bs) = (a,b) : zip as bs
 zip _      _      = []

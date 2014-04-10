@@ -32,7 +32,7 @@ import Control.DeepSeq
 import Control.Monad
 import Control.Applicative                      ((<$>))
 
-import           Data.List                                (foldl')
+import           Data.List                                (foldl', nub)
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.HashMap.Strict as M
@@ -86,6 +86,13 @@ config = Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nocaseexpand
+    = def &= help "Disable Termination Check"
+          &= name "no-case-expand"
+
+, strata
+    = def &= help "Enable Strata Analysis"
+
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
@@ -103,11 +110,16 @@ config = Config {
           &= help "Don't complain about specifications for unexported and unused values "
 
  , maxParams 
-    = 10   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+    = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
 
  , shortNames
-   = def &= name "short-names"
-         &= help "Print shortened names, i.e. drop all module qualifiers."
+    = def &= name "short-names"
+          &= help "Print shortened names, i.e. drop all module qualifiers."
+
+ , ghcOptions
+    = def &= name "ghc-option"
+          &= typ "OPTION"
+          &= help "Pass this option to GHC"
  
  -- , verbose  
  --    = def &= help "Generate Verbose Output"
@@ -126,7 +138,7 @@ config = Config {
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
              putStrLn $ copyright
-             whenLoud $ putStrLn $ "liquid " ++ show args ++ "\n"
+             whenLoud $ putStrLn $ "liquid " ++ show md ++ "\n"
              mkOpts md
 
 copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
@@ -160,19 +172,22 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 ---------------------------------------------------------------------------------------
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def 2 def def
+  mempty        = Config def def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
                          (diffcheck c1         ||     diffcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (notermination  c1    ||     notermination  c2) 
+                         (nocaseexpand   c1    ||     nocaseexpand   c2) 
+                         (strata         c1    ||     strata         c2) 
                          (notruetypes    c1    ||     notruetypes    c2) 
                          (totality       c1    ||     totality       c2) 
                          (noPrune        c1    ||     noPrune        c2) 
                          (maxParams      c1   `max`   maxParams      c2)
                          (smtsolver c1      `mappend` smtsolver      c2)
                          (shortNames c1        ||     shortNames     c2)
+                         (ghcOptions c1        ++     ghcOptions     c2)
 
 instance Monoid SMTSolver where
   mempty        = def
@@ -197,10 +212,10 @@ writeExit cfg target r out
        writeFile   (extFileName Result target) rs
        writeWarns     $ o_warns out
        writeCheckVars $ o_vars  out
-       return r
+       return $ if (null $ o_warns out) then r else (Unsafe [])
 
 writeWarns []            = return () 
-writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines ws)
+writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
@@ -214,7 +229,7 @@ writeResult c            = mapM_ (writeDoc c) . resDocs
 
 resDocs Safe              = [text "SAFE"]
 resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
-resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " xs
+resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " $ nub xs
 resDocs (UnknownError d)  = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
 reportUrl                 =      text "Please submit a bug report at:"
                             $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"

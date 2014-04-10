@@ -1,5 +1,7 @@
 module Vec1 () where
 
+{-@ LIQUID "--no-termination" @-}
+
 import Language.Haskell.Liquid.Prelude
 import Data.Vector hiding (map, concat, zipWith, filter, foldl, foldr, (++))
 

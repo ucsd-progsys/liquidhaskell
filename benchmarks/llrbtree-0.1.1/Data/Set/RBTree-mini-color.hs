@@ -119,8 +119,6 @@ turnR (Node _ h l x r) = Node R h l x r
 turnB' Leaf             = Leaf
 turnB' (Node _ h l x r) = Node B h l x r
 
-
-
 {-@ insert' :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
 insert' :: Ord a => a -> RBTree a -> RBTree a
 insert' kx Leaf = Node R 1 Leaf kx Leaf
