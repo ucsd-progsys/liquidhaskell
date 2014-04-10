@@ -141,6 +141,7 @@ benchtestdirs = [ ("../web/demos", demosIgnored, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", {}, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 , ("../benchmarks/vector-algorithms-0.5.4.2", {}, 0)
+                , ("../benchmarks/hscolour-1.20.0.0", {}, 0)
                 ]
 
 parser = optparse.OptionParser()
