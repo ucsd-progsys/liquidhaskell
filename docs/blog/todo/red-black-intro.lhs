@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Conjoining Specifications" 
+title: "Composing Specifications: Red Black Trees" 
 date: 2014-04-05 16:12
 author: Ranjit Jhala
 published: false 
@@ -90,13 +90,21 @@ specify and enforce the various invariants.
 Continue to:
 
 * [Order][rbtOrder]
-* [Color][rbtColor]
-* [Height][rbtHeight]
-* [Conjoin][rbtAll]
+
+Coming soon:
+
+* Color
+* Height
+* Compose
 
 [rbtOrder]   : /blog/2014/04/07/red-black-order.lhs/ 
 
 <!--
+
+* [Color][rbtColor]
+* [Height][rbtHeight]
+* [Compose][rbtAll]
+
 [rbtColor]   : /blog/2014/04/14/red-black-color.lhs/ 
 [rbtHeight]  : /blog/2014/04/21/red-black-height.lhs/ 
 [rbtCompose] : /blog/2014/04/28/red-black-compose.lhs/

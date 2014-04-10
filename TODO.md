@@ -3,10 +3,6 @@
 TODO
 ====
 
-* Qualified Imports
-  - wtf is include/KMeansHelper.hs ? Fix module import issue
-  - break spec imports -- tests/todo/qualifiedvector.hs 
-
 * benchmarks: Data.Bytestring
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
@@ -221,8 +217,30 @@ Search.hs.cgi
 
 
 
+vector
+------
 
+Dependency order for vector 
 
+[ 1 of 19] Compiling Data.Vector.Storable.Internal
+[ 2 of 19] Compiling Data.Vector.Fusion.Util           
+[ 3 of 19] Compiling Data.Vector.Fusion.Stream.Size    
+[ 4 of 19] Compiling Data.Vector.Internal.Check        
+[ 5 of 19] Compiling Data.Vector.Fusion.Stream.Monadic 
+[ 6 of 19] Compiling Data.Vector.Fusion.Stream         
+[ 7 of 19] Compiling Data.Vector.Generic.Mutable       
+[ 8 of 19] Compiling Data.Vector.Generic.Base          
+[ 9 of 19] Compiling Data.Vector.Generic.New           
+[10 of 19] Compiling Data.Vector.Generic               
+[11 of 19] Compiling Data.Vector.Primitive.Mutable     
+[12 of 19] Compiling Data.Vector.Primitive             
+[13 of 19] Compiling Data.Vector.Storable.Mutable      
+[14 of 19] Compiling Data.Vector.Storable              
+[15 of 19] Compiling Data.Vector.Unboxed.Base          
+[16 of 19] Compiling Data.Vector.Unboxed               
+[17 of 19] Compiling Data.Vector.Unboxed.Mutable       
+[18 of 19] Compiling Data.Vector.Mutable               
+[19 of 19] Compiling Data.Vector                       
 
 hmatrix
 -------

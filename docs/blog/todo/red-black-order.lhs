@@ -10,22 +10,19 @@ categories: measures, abstract-refinements
 demo: RBTree-ord.hs
 ---
 
-A data structure that implements a *set* interface, 
-must provide an efficient way to determine *membership*, 
-i.e. a function 
+A data structure that implements a *set* interface, must 
+provide an efficient way to determine *membership*, i.e. 
+a function 
 
 \begin{code}
-elem :: a -> RBTree a -> Bool
+member :: a -> RBTree a -> Bool
 \end{code}
 
 where `elem x xs` returns `True` iff `x` is in the set denoted by `xs`.
 
-
 Red Black trees are use 
 
-
 To enable effici
-
 
 Abstract Refinements vs. Indices
 --------------------------------
