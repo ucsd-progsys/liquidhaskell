@@ -226,14 +226,27 @@ stitch γ e
 expandDefaultCase :: Bool -> Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
 ----------------------------------------------------------------------------------
 
-expandDefaultCase flag (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs) | flag
+expandDefaultCase flag tyapp zs@((DEFAULT, _ ,_) : _) | flag
+  = expandDefaultCase' tyapp zs
+
+expandDefaultCase _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
+  = case tyConDataCons_maybe tc of
+       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
+                     if (length ds') == 1 
+                      then expandDefaultCase' tyapp z 
+                      else return z
+       Nothing -> return z --
+
+expandDefaultCase _ _ z
+   = return z
+
+expandDefaultCase' (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
                      dcs'   <- forM ds' $ cloneCase argτs e
                      return $ sortCases $ dcs' ++ dcs
        Nothing -> return z --
-
-expandDefaultCase _ _ z
+expandDefaultCase' _ z
    = return z
 
 cloneCase argτs e d 
