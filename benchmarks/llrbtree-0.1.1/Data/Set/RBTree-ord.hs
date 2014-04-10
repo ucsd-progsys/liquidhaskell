@@ -86,19 +86,19 @@ deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ lbalS                             :: k:a -> l:ARBT {v:a | v < k} -> r:RBTN {v:a | k < v} {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
+{-@ lbalS :: k:a -> l:ARBT {v:a | v < k} -> r:RBTN {v:a | k < v} {1 + (bh l)} -> {v: ARBTN a {1 + (bh l)} | ((IsB r) => (isRB v))} @-}
 lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
 lbalS k l (Node B y a b)              = let zoo = rbal k l (Node R y a b) in zoo 
 lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
 lbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ rbalS                             :: k:a -> l:RBT {v:a | v < k} -> r:ARBTN {v:a | k < v} {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
+{-@ rbalS :: k:a -> l:RBT {v:a | v < k} -> r:ARBTN {v:a | k < v} {(bh l) - 1} -> {v: ARBTN a {(bh l)} | ((IsB l) => (isRB v))} @-}
 rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
 rbalS k (Node B x a b) r              = let zoo = lbal k (Node R x a b) r in zoo
 rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
 rbalS k l r                           = liquidError "nein" -- Node R l k r
 
-{-@ lbal                              :: k:a -> l:ARBT {v:a | v < k} -> RBTN {v:a | k < v} {(bh l)} -> RBTN a {1 + (bh l)} @-}
+{-@ lbal :: k:a -> l:ARBT {v:a | v < k} -> RBTN {v:a | k < v} {(bh l)} -> RBTN a {1 + (bh l)} @-}
 lbal k (Node R y (Node R x a b) c) r  = Node R y (Node B x a b) (Node B k c r)
 lbal k (Node R x a (Node R y b c)) r  = Node R y (Node B x a b) (Node B k c r)
 lbal k l r                            = Node B k l r
@@ -112,7 +112,7 @@ rbal x l r                            = Node B x l r
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ type BlackRBT a = {v: RBT a | ((IsB v) && (bh v) > 0)} @-}
+{-@ type BlackRBT a    = {v: RBT a | ((IsB v) && (bh v) > 0)} @-}
 
 {-@ makeRed :: l:BlackRBT a -> ARBTN a {(bh l) - 1} @-}
 makeRed (Node _ x l r) = Node R x l r
