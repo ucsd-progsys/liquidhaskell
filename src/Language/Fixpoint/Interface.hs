@@ -103,7 +103,7 @@ solveFile cfg
        return ec
  
 fixCommand cfg fp z3 verbosity 
-  = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -noslice -nosimple -strictsortcheck -sortedquals %s" 
+  = printf "LD_LIBRARY_PATH=%s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s" 
            z3 fp verbosity (command cfg)
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
