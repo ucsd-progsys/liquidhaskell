@@ -58,7 +58,7 @@ validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []
     (bids, benv)   = foldlMap (\e (x,t) -> insertBindEnv x t e) emptyBindEnv binds
 
 validSubc         :: a -> IBindEnv -> Pred -> SubC a  
-validSubc l env p = subC env PTrue lhs rhs i t l
+validSubc l env p = safeHead "Interface.validSubC" $ subC env PTrue lhs rhs i t l
   where 
     lhs           = mempty
     rhs           = RR mempty (predReft p)
