@@ -559,7 +559,7 @@ splitC c@(SubC _ t1 t2)
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitC (SubR γ r)
-  = return [F.subC γ' F.PTrue r1 r2 Nothing tag ci]
+  = return $ F.subC γ' F.PTrue r1 r2 Nothing tag ci
   where
     γ'  = fe_binds $ fenv γ
     r1  = F.RR s $ F.toReft r
@@ -593,9 +593,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue (r1' {F.sr_reft = mempty}) r2' Nothing tag ci]
+  = F.subC γ' F.PTrue (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
-  = [F.subC γ' F.PTrue r1'  r2' Nothing tag ci]
+  = F.subC γ' F.PTrue r1'  r2' Nothing tag ci
   | otherwise
   = []
   where 
@@ -1815,8 +1815,9 @@ memberREnv x (REnv env)   = M.member x env
 cgInfoFInfoBot cgi = cgInfoFInfo cgi { specQuals = [] }
 
 cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
-  where fixCs' = concatMap (updateCs kvars) (fixCs cgi) 
-        trueCs = (`F.trueSubCKvar` (Ci noSrcSpan Nothing)) <$> kvars
+  where 
+    fixCs'                 = concatMap (updateCs kvars) (fixCs cgi) 
+    trueCs                 = concatMap (`F.trueSubCKvar` (Ci noSrcSpan Nothing)) kvars
 
 cgInfoFInfo cgi
   = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi
