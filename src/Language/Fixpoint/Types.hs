@@ -1281,10 +1281,8 @@ instance Hashable FTycon where
 
 wfC  = WfC
 
--- subC γ p r1@(RR _ (Reft (v,_))) (RR t2 r2) x y z 
---    = SubC γ p r1 (RR t2 (shiftVV r2 v)) x y z
 subC γ p (RR t1 r1) (RR t2 r2) x y z 
-    = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2 vvCon)) x y z
+    = [SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2 vvCon)) x y z]
 
 lhsCs = sr_reft . slhs
 rhsCs = sr_reft . srhs
