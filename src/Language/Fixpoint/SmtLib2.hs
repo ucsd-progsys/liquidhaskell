@@ -26,6 +26,7 @@ module Language.Fixpoint.SmtLib2 (
     , SMTLIB2 (..)
 
     -- * Creating and killing SMTLIB2 Process
+    , Context (..)
     , makeContext
     , cleanupContext
 
@@ -39,6 +40,7 @@ import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 
 import Control.Arrow
+import Control.Monad
 import qualified Data.List as L
 import Data.Monoid
 import Data.Text.Format
@@ -74,6 +76,7 @@ data Command      = Push
                   | Pop
                   | CheckSat
                   | Declare   Symbol [Sort] Sort
+                  | Define    Sort
                   | Assert    Pred
                   | Distinct  [Expr] -- {v:[Expr] | (len v) >= 2}
                   | GetValue  [Symbol]
@@ -93,6 +96,7 @@ data Context      = Ctx { pId  :: ProcessHandle
                         , cIn  :: Handle
                         , cOut :: Handle
                         , cLog :: Handle
+                        , verbose :: Bool
                         }
 
 --------------------------------------------------------------------------
@@ -121,8 +125,10 @@ smtWrite me s    = smtWriteRaw me (T.append s "\n")
 
 smtRead          :: Context -> IO Response
 smtRead me       = do s  <- smtReadRaw me
-                      s' <- mbReadSexp (T.head s == '(') s
-                      TIO.putStrLn $ format "SMT Says: {}" (Only s')
+                      s' <- mbReadSexp ("((" `T.isPrefixOf` s && not ("))" `T.isSuffixOf` s)) s
+                      hPutStrNow (cLog me) $ format "; SMT Says: {}\n" (Only s')
+                      when (verbose me) $
+                        TIO.putStrLn $ format "SMT Says: {}" (Only s')
                       rs s'
   where
     rs "success" = smtRead me
@@ -130,7 +136,7 @@ smtRead me       = do s  <- smtReadRaw me
     rs "unsat"   = return Unsat
     rs "unknown" = return Unknown
     rs s
-      | T.head s == '('
+      | "((" `T.isPrefixOf` s
       = return $ Values $ tx $ parseSexp s
       | otherwise
       = return (Error s)
@@ -176,7 +182,7 @@ makeContext s
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
        hLog                <- openFile smtFile WriteMode
-       return $ Ctx pid hIn hOut hLog
+       return $ Ctx pid hIn hOut hLog False
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
@@ -295,13 +301,17 @@ class SMTLIB2 a where
   smt2 :: a -> Raw
 
 instance SMTLIB2 Sort where
-  smt2 _ = "Int"
+  smt2 FInt        = "Int"
+  smt2 (FApp t []) | t == propFTyCon = "Bool"
+  smt2 (FObj s)    = T.pack $ symbolString s
+  smt2 (FFunc _ _) = error "smt2 FFunc"
+  smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
   smt2 (S s) = T.pack s
 
 instance SMTLIB2 SymConst where
-  smt2 _ = error "TODO: SMTLIB2 SymConst"
+  smt2 (SL s) = T.pack s
 
 instance SMTLIB2 Constant where
   smt2 (I n) = format "{}" (Only n)
@@ -356,6 +366,7 @@ mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where
   smt2 (Declare x ts t) = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
+  smt2 (Define t)       = format "(declare-sort {})"         (Only $ smt2 t)
   smt2 (Assert p)       = format "(assert {})"               (Only $ smt2 p)
   smt2 (Distinct az)    = format "(assert (distinct {}))"    (Only $ smt2s az)
   smt2 (Push)           = "(push 1)"
