@@ -370,7 +370,7 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          return $ WfC env r Nothing ()
+          return $ wfC env r Nothing ()
 
 subCP :: Parser (SubC ())
 subCP = do reserved "env" 
@@ -384,7 +384,7 @@ subCP = do reserved "env"
            reserved "id"
            i   <- (integer <* spaces)
            tag <- tagP
-           return $ SubC env grd lhs rhs (Just i) tag () 
+           return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag () 
 
 tagP  :: Parser [Int]
 tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
