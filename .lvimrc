@@ -3,12 +3,12 @@ if isdirectory($HSENV)
   let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv/ghc_pkg_db'
 endif
 
+
 let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv/ghc_pkg_db'
 
 let g:makeprg='hdevtools check %'
 
-" let g:hdevtools_options = '-g -isrc -g -Wall -g -hide-package -g transformers'
-let g:hdevtools_options = '-g-isrc -g-idist -g -iliquid-fixpoint -g package=ghc-7.6.3 -g package=liquid-fixpoint
+let g:hdevtools_options = '-g-package-conf$HSENV/.hsenv_liquid/ghc_pkg_db -g-isrc -g-idist -g -iliquid-fixpoint -g package=ghc-7.6.3 -g package=liquid-fixpoint
   \-g-XTypeSynonymInstances 
   \-g-XFlexibleInstances 
   \-g-XNoMonomorphismRestriction 
@@ -24,5 +24,5 @@ let g:ctrlp_custom_ignore = {
  
 let g:ctrlp_working_path_mode = 0
 
-let b:ghc_staticoptions = '-package ghc -fno-warn-overlapping-patterns'
-
+" let b:ghc_staticoptions = '-package ghc -fno-warn-overlapping-patterns'
+let b:ghc_staticoptions = '-isrc  -package-db $HSENV/.hsenv_liquid/ghc_pkg_db'
