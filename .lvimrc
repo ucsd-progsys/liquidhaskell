@@ -24,5 +24,6 @@ let g:ctrlp_custom_ignore = {
  
 let g:ctrlp_working_path_mode = 0
 
-let b:ghc_staticoptions = '-package ghc -fno-warn-overlapping-patterns'
+" let b:ghc_staticoptions = '-package ghc -fno-warn-overlapping-patterns'
+let b:ghc_staticoptions = '-isrc  -package-db $HSENV/.hsenv_liquid/ghc_pkg_db'
 
