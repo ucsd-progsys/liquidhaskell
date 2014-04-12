@@ -62,8 +62,8 @@ module Language.Fixpoint.Types (
   , Predicate (..)
 
   -- * Constraints and Solutions
-  , SubC --(..)
-  , WfC --(..)
+  , SubC(..)
+  , WfC(..)
   , sid
   , subC, lhsCs, rhsCs, wfC
   , Tag, FixResult (..), FixSolution
