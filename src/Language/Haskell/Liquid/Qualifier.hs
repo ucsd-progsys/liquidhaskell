@@ -79,6 +79,7 @@ refTypeQuals' tce t0          = go emptySEnv t0
     go γ t@(RVar _ _)         = refTopQuals tce t0 γ t     
     go γ (RAllT _ t)          = go γ t 
     go γ (RAllP _ t)          = go γ t 
+    go γ (RAppTy t1 t2 _)     = go γ t1 ++ go γ t2 
     go γ (RFun x t t' _)      = (go γ t) 
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
     go γ t@(RApp c ts rs _)   = (refTopQuals tce t0 γ t) 
