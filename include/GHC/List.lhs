@@ -358,7 +358,7 @@ dropWhile p xs@(x:xs')
 -- in which @n@ may be of any integral type.
 
 
-{-@ take :: n:Int 
+{-@ take :: n:Nat
          -> xs:[a] 
          -> {v:[a] | (if (n >=0) then ((len v) = ((len(xs) < n) ? len(xs):n)) else ((len v) = 0))} 
   @-}
