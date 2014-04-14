@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.Prelude
 
 class Frog a where
   mkInt :: a -> Int
-  mkInt _ = liquidAssert (1 > 0) 10
+  mkInt _ = liquidAssert (0 > 1) 10
 
 
 {-@ mkInt :: (Frog a) => a -> Int @-}
