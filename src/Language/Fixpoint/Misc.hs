@@ -36,6 +36,9 @@ moodColor Happy = Green
 moodColor Angry = Red 
 
 wrapStars msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
+
+wrapStarsWithOptStars True  msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
+wrapStarsWithOptStars False msg = wrapStars msg
     
 withColor c act
   = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
@@ -47,10 +50,20 @@ colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)
 startPhase c msg   = colorPhaseLn c "START: " msg >> colorStrLn Ok " "
 doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok " "
 
+colorPhaseLnWithOptStars v c msg = colorStrLn c . wrapStarsWithOptStars v .  (msg ++)
+startPhaseWithOptStars   v c msg = colorPhaseLnWithOptStars v c "START: " msg >> colorStrLn Ok " "
+doneLineWithOptStars     v c msg = colorPhaseLnWithOptStars v c "DONE:  " msg >> colorStrLn Ok " "
+
 donePhase c str 
   = case lines str of 
       (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
       _      -> return ()
+
+donePhaseWithOptStars v c str 
+  = case lines str of 
+      (l:ls) -> doneLineWithOptStars v c l >> forM_ ls (colorPhaseLnWithOptStars v c "")
+      _      -> return ()
+
 
 -----------------------------------------------------------------------------------
 
@@ -321,6 +334,10 @@ ifM bm xm ym
 executeShellCommand phase cmd 
   = do whenLoud $ putStrLn $ "EXEC: " ++ cmd 
        Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
+
+executeShellCommandWithOptStars v phase cmd 
+  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd 
+       Ex.bracket_ (startPhaseWithOptStars v Loud phase) (donePhaseWithOptStars v Loud phase) $ system cmd
 
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n 
