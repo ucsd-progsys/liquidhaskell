@@ -238,8 +238,9 @@ data GhcInfo = GI {
 -- parsing the target source and dependent libraries
 
 data GhcSpec = SP {
-    tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted/Assumed Reftypes
+    tySigs     :: ![(Var, Located SpecType)]     -- ^ Asserted Reftypes
                                                  -- eg.  see include/Prelude.spec
+  , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
