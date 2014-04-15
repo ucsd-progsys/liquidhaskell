@@ -31,7 +31,7 @@ import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (listConName, propConName, tupConName)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
-import Language.Fixpoint.Parse 
+import Language.Fixpoint.Parse hiding (angles)
 
 ----------------------------------------------------------------------------
 -- Top Level Parsing API ---------------------------------------------------
@@ -407,11 +407,12 @@ dummyRSort     = ROth "dummy"
 --------------------------- Measures -----------------------------
 ------------------------------------------------------------------
 
-data Pspec ty ctor 
-  = Meas    (Measure ty ctor) 
-  | Assm    (LocSymbol, ty) 
-  | LAssm   (LocSymbol, ty) 
-  | Assms   ([LocSymbol], (ty, Maybe [Expr]))
+data Pspec ty ctor
+  = Meas    (Measure ty ctor)
+  | Assm    (LocSymbol, ty)
+  | Asrt    (LocSymbol, ty)
+  | LAsrt   (LocSymbol, ty)
+  | Asrts   ([LocSymbol], (ty, Maybe [Expr]))
   | Impt    Symbol
   | DDecl   DataDecl
   | Incl    FilePath
@@ -433,10 +434,11 @@ mkSpec name xs         = (name,)
                        $ Measure.qualifySpec (getModString name)
                        $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
-  , Measure.sigs       = [a | Assm   a <- xs] 
-                      ++ [(y, t) | Assms (ys, (t, _)) <- xs, y <- ys]
-  , Measure.localSigs  = [] 
-  , Measure.invariants = [t | Invt   t <- xs] 
+  , Measure.asmSigs    = [a | Assm   a <- xs]
+  , Measure.sigs       = [a | Asrt   a <- xs]
+                      ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
+  , Measure.localSigs  = []
+  , Measure.invariants = [t | Invt   t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs]
   , Measure.includes   = [q | Incl   q <- xs]
@@ -451,14 +453,14 @@ mkSpec name xs         = (name,)
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
-  , Measure.termexprs  = [(y, es) | Assms (ys, (_, Just es)) <- xs, y <- ys]
+  , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
 specP :: Parser (Pspec BareType LocSymbol)
 specP 
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
-    <|> (reserved "assert"    >> liftM Assm   tyBindP   )
-    <|> (reserved "Local"     >> liftM LAssm  tyBindP   )
+    <|> (reserved "assert"    >> liftM Asrt   tyBindP   )
+    <|> (reserved "Local"     >> liftM LAsrt  tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
     <|> try (reserved "class" >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
@@ -476,7 +478,7 @@ specP
     <|> (reserved "Strict"    >> liftM Lazy   lazyVarP  )
     <|> (reserved "Lazy"      >> liftM Lazy   lazyVarP  )
     <|> (reserved "LIQUID"    >> liftM Pragma pragmaP   )
-    <|> ({- DEFAULT -}           liftM Assms  tyBindsP  )
+    <|> ({- DEFAULT -}           liftM Asrts  tyBindsP  )
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP $ stringLiteral 
