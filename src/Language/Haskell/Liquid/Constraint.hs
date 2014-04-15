@@ -181,12 +181,13 @@ assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 
 grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
   where
-    topVs        = filter isTop $ defVars info
+    topVs        = filter (\v -> (isTop v || isDef v)) $ defVars info
     isTop v      = isExportedId v && not (v `S.member` sigVs)
     isExportedId = flip elemNameSet (exports $ spec info) . getName
     useVs        = S.fromList $ useVars info
     sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
-
+    isDef v      = (not (v `S.member` useVs))  && (isDefault v)
+    isDefault    = L.isPrefixOf "$d" . dropModuleNames . showPpr
 
 ------------------------------------------------------------------------
 -- | Helpers: Reading/Extending Environment Bindings -------------------
