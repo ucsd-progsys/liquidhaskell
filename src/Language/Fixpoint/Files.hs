@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | This module contains Haskell variables representing globally visible 
+-- | This module contains Haskell variables representing globally visible
 -- names for files, paths, extensions.
 --
 -- Rather than have strings floating around the system, all constant names
@@ -8,15 +8,16 @@
 -- manipulated elsewhere.
 
 module Language.Fixpoint.Files (
-  
+
   -- * Hardwired file extension names
     Ext (..)
   , extFileName
+  , tempExtFile
   , extModuleName
   , withExt
   , isExtFile
- 
-  -- * Hardwired paths 
+
+  -- * Hardwired paths
   , getFixpointPath, getZ3LibPath
 
   -- * Various generic utility functions for finding and removing files
@@ -24,7 +25,7 @@ module Language.Fixpoint.Files (
   , getFileInDirs
   , findFileInDirs
   , copyFiles
-  
+
 ) where
 
 import qualified Control.Exception            as Ex
@@ -48,35 +49,35 @@ getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
 getZ3LibPath    = dropFileName <$> getFixpointPath
 
 
-checkM f msg p 
+checkM f msg p
   = do ex <- f p
        if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
 
 
 -----------------------------------------------------------------------------------
 
-data Ext = Cgi    -- ^ Constraint Generation Information 
+data Ext = Cgi    -- ^ Constraint Generation Information
          | Fq     -- ^ Input to constraint solving (fixpoint)
          | Out    -- ^ Output from constraint solving (fixpoint)
-         | Html   -- ^ HTML file with inferred type annotations 
-         | Annot  -- ^ Text file with inferred types 
-         | Hs     -- ^ Target source 
+         | Html   -- ^ HTML file with inferred type annotations
+         | Annot  -- ^ Text file with inferred types
+         | Hs     -- ^ Target source
          | LHs    -- ^ Literate Haskell target source file
-         | Spec   -- ^ Spec file (e.g. include/Prelude.spec) 
+         | Spec   -- ^ Spec file (e.g. include/Prelude.spec)
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
          | Result -- ^ Final result: SAFE/UNSAFE
          | Cst    -- ^ HTML file with templates?
-         | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots) 
+         | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots)
          | Json   -- ^ JSON file containing result (annots + errors)
          | Saved  -- ^ Previous version of source (for incremental checking)
-         | Pred   
-         | PAss    
-         | Dat   
-         | Smt2   -- ^ SMTLIB2 query file 
+         | Pred
+         | PAss
+         | Dat
+         | Smt2   -- ^ SMTLIB2 query file
          deriving (Eq, Ord, Show)
 
 extMap e = go e
-  where 
+  where
     go Cgi    = ".cgi"
     go Pred   = ".pred"
     go PAss   = ".pass"
@@ -91,20 +92,28 @@ extMap e = go e
     go Mkdn   = ".markdown"
     go Json   = ".json"
     go Spec   = ".spec"
-    go Hquals = ".hquals" 
+    go Hquals = ".hquals"
     go Result = ".out"
     go Saved  = ".bak"
     go Smt2   = ".smt2"
     go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
-withExt         :: FilePath -> Ext -> FilePath 
+withExt         :: FilePath -> Ext -> FilePath
 withExt f ext   =  replaceExtension f (extMap ext)
 
 extFileName     :: Ext -> FilePath -> FilePath
-extFileName ext = (`addExtension` (extMap ext))
+extFileName ext = (`addExtension` extMap ext)
+
+tempDirectory :: IO FilePath
+tempDirectory = getCurrentDirectory
+
+tempExtFile       :: Ext -> FilePath -> IO FilePath
+tempExtFile ext f = (</> f') <$> tempDirectory
+  where
+    f'            = extFileName ext $ takeFileName f
 
 isExtFile ::  Ext -> FilePath -> Bool
-isExtFile ext = ((extMap ext) ==) . takeExtension
+isExtFile ext = (extMap ext ==) . takeExtension
 
 extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext =
