@@ -21,7 +21,7 @@ specificationQualifiers :: Int -> GhcInfo -> [Qualifier]
 -----------------------------------------------------------------------------------
 
 specificationQualifiers k info
-  = [ q | (x, t) <- tySigs $ spec info
+  = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
         , x `S.member` (S.fromList $ defVars info)
         , q <- refTypeQuals (tcEmbeds $ spec info) (val t)
         , length (q_params q) <= k + 1
