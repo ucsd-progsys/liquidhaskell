@@ -119,7 +119,8 @@ makeGhcSpec' cfg vars defVars exports specs
        measures        <- mconcat <$> mapM makeMeasureSpec specs
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
-       sigs'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+       sigs'           <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
+       asms'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
@@ -128,11 +129,13 @@ makeGhcSpec' cfg vars defVars exports specs
        tcEnv           <- gets tcEnv
        let sigs         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
                           | (m, x, t) <- sigs'++mts ]
+       let asms         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
+                          | (m, x, t) <- asms' ]
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs (datacons++cls)
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
-       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ cs') ms' invs
+       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ asms ++ cs') ms' invs
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txi          = subsFreeSymbolsInv su
@@ -158,7 +161,13 @@ makeGhcSpec' cfg vars defVars exports specs
                          | (x, t) <- renamedSigs
                          , let τ = expandTypeSynonyms $ varType x
                          , let r = maybeTrue x name exports]
+           renamedAsms = renameTyVars <$> tx asms
+           -- pluggedAsms = [ (x, plugHoles r τ <$> t)
+           --               | (x, t) <- renamedSigs
+           --               , let τ = expandTypeSynonyms $ varType x
+           --               , let r = maybeTrue x name exports]
        return           $ SP { tySigs     = pluggedSigs
+                             , asmSigs    = renamedAsms
                              , ctors      = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars ++ cms')
                              , invariants = txi invs
@@ -377,7 +386,7 @@ makeClasses cfg vs (mod,spec) = inModule mod $ mapM mkClass $ Ms.classes spec
            let as' = [rVar $ stringTyVar a | a <- as ]
            let ms' = [ (s, rFun (S "") (RCls (show <$> c) (flip RVar mempty <$> as)) t)
                      | (s, t) <- ms]
-           vts <- makeAssumeSpec' cfg vs ms'
+           vts <- makeSpec cfg vs ms'
            let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                | (_, _, t) <- vts]
            let t = RCls (fromJust $ tyConClass_maybe tc) as'
@@ -400,7 +409,7 @@ varSymbols f n vs  = concatMapM go
                      Nothing  -> ((:[]).(,ns)) <$> lookupGhcVar (symbolString <$> s)
         msg s      = printf "%s: %s for Undefined Var %s"
                          n (show (loc s)) (show (val s))
-      
+
 varsAfter f s lvs 
   | eqList (fst <$> lvs)
   = f (snd <$> lvs)
@@ -627,21 +636,27 @@ makeTargetVars name vs ss = do
   prefix s = getModString name ++ "." ++ s
 
 
+makeAssertSpec cmod cfg vs lvs (mod,spec)
+  | cmod == mod
+  = makeLocalSpec cfg cmod vs lvs $ (Ms.sigs spec ++ Ms.localSigs spec)
+  | otherwise
+  = inModule mod $ makeSpec cfg vs $ Ms.sigs spec
+
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalAssumeSpec cfg cmod vs lvs $ (Ms.sigs spec ++ Ms.localSigs spec)
+  = makeLocalSpec cfg cmod vs lvs $ (Ms.asmSigs spec)
   | otherwise
-  = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
+  = inModule mod $ makeSpec cfg vs $ Ms.asmSigs spec
 
-makeLocalAssumeSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
+makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
-makeLocalAssumeSpec cfg mod vs lvs xbs
+makeLocalSpec cfg mod vs lvs xbs
   = do env     <- get
        vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        unless (noCheckUnknown cfg) $
          checkDefAsserts env vbs1 xbs1
        vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
-       vts2    <- makeAssumeSpec' cfg vs xbs2
+       vts2    <- makeSpec cfg vs xbs2
        return   $ vts1 ++ vts2
   where (xbs1, xbs2)  = L.partition (modElem mod . fst) xbs
 
@@ -654,9 +669,9 @@ makeLocalAssumeSpec cfg mod vs lvs xbs
 
         modElem n x = (takeModuleNames $ show $ val x) == (show n)
 
-makeAssumeSpec' :: Config -> [Var] -> [(LocSymbol, BareType)]
+makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
-makeAssumeSpec' cfg vs xbs
+makeSpec cfg vs xbs
   = do vbs <- map (joinVar vs) <$> lookupIds xbs
        env@(BE { modName = mod}) <- get
        unless (noCheckUnknown cfg) $
@@ -1254,14 +1269,14 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
-    errors           =  mapMaybe (checkBind "variable"    emb env) (tySigs     sp)
+    errors           =  mapMaybe (checkBind "variable"    emb env) sigs
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
-                     ++ mapMaybe (checkExpr "measure"     emb env (tySigs   sp)) (texprs sp)
+                     ++ mapMaybe (checkExpr "measure"     emb env sigs) (texprs sp)
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
                      ++ checkMeasures emb env ms
-                     ++ mapMaybe checkMismatch                     (tySigs     sp)
-                     ++ checkDuplicate                             (tySigs     sp)
+                     ++ mapMaybe checkMismatch                     sigs
+                     ++ checkDuplicate                             sigs
                      ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp  | (_, sp) <- specs])
                      ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
@@ -1269,6 +1284,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     env              =  ghcSpecEnv sp
     ms               =  measures sp
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
+    sigs             =  tySigs sp ++ asmSigs sp
 
 -- specError            = errorstar 
 --                      . render 
@@ -1287,6 +1303,7 @@ checkBind s emb env (v, Loc l t) = checkTy msg emb env' t
   where 
     msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
+
 checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
 checkExpr s emb env vts (v, es) = mkErr <$> go es
   where 

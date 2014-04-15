@@ -39,9 +39,10 @@ type BareSpec      = Spec BareType LocSymbol
 
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
-  , invariants :: ![Located ty]                 -- ^ Data type invariants  
+  , invariants :: ![Located ty]                 -- ^ Data type invariants
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
@@ -77,6 +78,7 @@ instance Monoid (MSpec ty ctor) where
 
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
+                         , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
 --                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
@@ -115,6 +117,7 @@ checkDuplicateMeasure ms
 instance Monoid (Spec ty bndr) where
   mappend s1 s2
     = Spec { measures   =           measures s1   ++ measures s2
+           , asmSigs    =           asmSigs s1    ++ asmSigs s2 
            , sigs       =           sigs s1       ++ sigs s2 
            , localSigs  =           localSigs s1  ++ localSigs s2 
            , invariants =           invariants s1 ++ invariants s2
@@ -137,6 +140,7 @@ instance Monoid (Spec ty bndr) where
 
   mempty
     = Spec { measures   = [] 
+           , asmSigs    = [] 
            , sigs       = [] 
            , localSigs  = [] 
            , invariants = []
@@ -188,6 +192,7 @@ instance Bifunctor MSpec   where
 instance Bifunctor Spec    where
   first f s
     = s { measures   = first  f <$> (measures s)
+        , asmSigs    = second f <$> (asmSigs s)
         , sigs       = second f <$> (sigs s)
         , localSigs  = second f <$> (localSigs s)
         , invariants = fmap   f <$> (invariants s)

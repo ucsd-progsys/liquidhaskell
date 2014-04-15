@@ -453,6 +453,8 @@ instance PPrint GhcSpec where
               $$ (pprint $ tgtVars spec)
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
+              $$ (text "******* Assumed Type Signatures *************")
+              $$ (pprintLongList $ asmSigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
               $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")

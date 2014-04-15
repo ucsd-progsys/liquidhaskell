@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
@@ -117,13 +118,15 @@ initEnv info penv
        let f0'   = if (notruetypes $ config $ spec info) then [] else f0''
        f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
        f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
+       let asms  = [(x, val t) | (x, t) <- asmSigs $ spec info]
+       f3       <- refreshArgs' asms                -- assumed refinedments     (with `assume`)
+       f4       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       let bs    = (map (unifyts' senv tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3]
+       let bs    = (map (unifyts' senv tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
-       let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts)
+       let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
        mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
@@ -153,7 +156,7 @@ unifyts penv (x, t) = (x', unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = F.symbol x
 
-measEnv sp penv xts cbs lts
+measEnv sp penv xts cbs lts asms
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ second (uRType . val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
@@ -161,7 +164,8 @@ measEnv sp penv xts cbs lts
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
-        , grtys = fromListREnv xts 
+        , grtys = fromListREnv xts
+        , assms = fromListREnv asms
         , emb   = tce 
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
@@ -171,7 +175,7 @@ measEnv sp penv xts cbs lts
     where
       tce = tcEmbeds sp
 
-assm = assm_grty impVars 
+assm = assm_grty impVars
 grty = assm_grty defVars
 
 assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
@@ -185,9 +189,11 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
     isTop v      = isExportedId v && not (v `S.member` sigVs)
     isExportedId = flip elemNameSet (exports $ spec info) . getName
     useVs        = S.fromList $ useVars info
-    sigVs        = S.fromList $ [v | (v,_) <- tySigs $ spec info]
     isDef v      = (not (v `S.member` useVs))  && (isDefault v)
     isDefault    = L.isPrefixOf "$d" . dropModuleNames . showPpr
+    sigVs        = S.fromList $ [v | (v,_) <- (tySigs $ spec info)
+                                           ++ (asmSigs $ spec info)]
+
 
 ------------------------------------------------------------------------
 -- | Helpers: Reading/Extending Environment Bindings -------------------
@@ -213,6 +219,7 @@ data CGEnv
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+        , assms  :: !REnv              -- ^ Top-level variables with assumed types
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
@@ -711,11 +718,11 @@ initCGI cfg info = CGInfo {
   where 
     tce        = tcEmbeds spc 
     spc        = spec info
-    spec'      = spc {tySigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc] }
+    spec'      = spc {tySigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc]
+                     ,asmSigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs spc]}
     tyi        = makeTyConInfo (tconsP spc)
     globs      = F.fromListSEnv . map mkSort $ meas spc
     mkSort     = mapSnd (rTypeSortedReft tce . val)
-                               
 
 coreBindLits tce info
   = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts]
@@ -1092,20 +1099,20 @@ consCBSizedTys tflag γ (Rec xes)
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
-       ts'       <- mapM refreshArgs $ (fromJust . thd3 <$> xets)
+       ts'       <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
        is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts')
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
        checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
        let rts   = (recType <$>) <$> xeets
-       let xts   = zip xs (Just <$> ts)
+       let xts   = zip xs (Asserted <$> ts)
        γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
-       let xets' = zip3 xs es (Just <$> ts)
+       let xets' = zip3 xs es (Asserted <$> ts)
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
-  where 
+  where
        dmapM f  = sequence . (mapM f <$>)
        (xs, es) = unzip xes
        collectArgs   = collectArguments . length . ty_binds . toRTypeRep
@@ -1125,13 +1132,13 @@ consCBWithExprs γ xtes (Rec xes)
        sflag     <- scheck <$> get
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
-       let xets = mapThd3 (fmap cmakeFinType) <$> xets'
-       let ts    = safeFromJust err . thd3 <$> xets
+       let xets  = mapThd3 (fmap cmakeFinType) <$> xets'
+       let ts    = safeFromAsserted err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
-       let xts   = zip xs (Just <$> ts')
+       let xts   = zip xs (Asserted <$> ts')
        γ'       <- foldM extender γ xts
        let γs    = makeTermEnvs γ' xtes xes ts ts'
-       let xets' = zip3 xs es (Just <$> ts')
+       let xets' = zip3 xs es (Asserted <$> ts')
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where (xs, es) = unzip xes
@@ -1197,18 +1204,26 @@ consCB _ _ γ (NonRec x e)
        to' <- consBind False γ (x, e, to)
        extender γ (x, to')
 
-consBind isRec γ (x, e, Just spect) 
+consBind isRec γ (x, e, Asserted spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
        addIdA x (defAnn isRec spect)
-       return $ Just spect -- Nothing
+       return $ Asserted spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
 
-consBind isRec γ (x, e, Nothing)
+consBind isRec γ (x, e, Assumed spect) 
+  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
+       γπ    <- foldM addPToEnv γ' πs
+       cconsE γπ e =<< true spect
+       addIdA x (defAnn isRec spect)
+       return $ Asserted spect -- Nothing
+  where πs   = ty_preds $ toRTypeRep spect
+
+consBind isRec γ (x, e, Unknown)
   = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
-       return $ Just t
+       return $ Asserted t
 
 defAnn True  = RDf
 defAnn False = Def
@@ -1217,23 +1232,28 @@ addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
-extender γ (x, Just t) = γ ++= ("extender", F.symbol x, t)
-extender γ _           = return γ
+extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
+extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
+extender γ _               = return γ
 
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
+data Template a = Asserted a | Assumed a | Unknown deriving (Functor)
+fromAsserted (Asserted t) = t
+safeFromAsserted msg (Asserted t) = t
+
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
-
-varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Maybe SpecType)
+varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo)
-  = case (eo, lookupREnv (F.symbol x) (grtys γ)) of
-      (_, Just t) -> return $ Just t
-      (Just e, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
-                        addW (WfC γ t)
-                        {- KVPROF addKuts t -}
-                        return $ Just t
-      (_,      _) -> return Nothing
+  = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ)) of
+      (_, Just t, _) -> return $ Asserted t
+      (_, _, Just t) -> return $ Assumed t
+      (Just e, _, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
+                           addW (WfC γ t)
+                           {- KVPROF addKuts t -}
+                           return $ Asserted t
+      (_,      _, _) -> return Unknown
 
 unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
 
@@ -1616,7 +1636,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 _ x9 x10 _ _) 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 x9 _ x10 x11 _ _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
