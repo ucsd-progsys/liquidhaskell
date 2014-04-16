@@ -1276,7 +1276,8 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
-                     ++ checkDuplicate                             sigs
+                     ++ checkDuplicate                             (tySigs sp)
+                     ++ checkDuplicate                             (asmSigs sp)
                      ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp  | (_, sp) <- specs])
                      ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
