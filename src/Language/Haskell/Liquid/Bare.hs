@@ -1334,7 +1334,7 @@ checkDupIntersect xts mxts = concatMap mkWrn dups
   where 
     mkWrn (x, t)     = pprWrn x (sourcePosSrcSpan $ loc t)
     dups             = L.intersectBy (\x y -> (fst x == fst y)) mxts xts
-    pprWrn v l       = trace ("Assume Overwrites Specifications for "++ show v ++ " : " ++ showPpr l) []
+    pprWrn v l       = trace ("WARNING: Assume Overwrites Specifications for "++ show v ++ " : " ++ showPpr l) []
 
 checkDuplicate       :: [(Var, Located SpecType)] -> [Error]
 checkDuplicate xts   = mkErr <$> dups
