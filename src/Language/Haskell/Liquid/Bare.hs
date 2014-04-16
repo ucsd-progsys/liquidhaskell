@@ -60,6 +60,8 @@ import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import TypeRep
+
+import Debug.Trace (trace)
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
@@ -1278,6 +1280,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
                      ++ checkDuplicate                             (asmSigs sp)
+                     ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp  | (_, sp) <- specs])
                      ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
@@ -1325,6 +1328,13 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb env t = mkE <$> checkRType emb env t
+
+checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
+checkDupIntersect xts mxts = concatMap mkWrn dups
+  where 
+    mkWrn (x, t)     = pprWrn x (sourcePosSrcSpan $ loc t)
+    dups             = L.intersectBy (\x y -> (fst x == fst y)) mxts xts
+    pprWrn v l       = trace ("Assume Overwrites Specifications for "++ show v ++ " : " ++ showPpr l) []
 
 checkDuplicate       :: [(Var, Located SpecType)] -> [Error]
 checkDuplicate xts   = mkErr <$> dups

@@ -24,10 +24,10 @@ measure snd :: (a,b) -> b
 snd (a,b) = b
 
 invariant {v: [a] | len(v) >= 0 }
-assume map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
-assume (++)      :: xs:[a] -> ys:[a] -> {v:[a] | (len v) = (len xs) + (len ys)}
+map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
+(++)      :: xs:[a] -> ys:[a] -> {v:[a] | (len v) = (len xs) + (len ys)}
 
-assume $         :: (a -> b) -> a -> b
-assume id        :: x:a -> {v:a | v = x}
+$         :: (a -> b) -> a -> b
+id        :: x:a -> {v:a | v = x}
 
 
