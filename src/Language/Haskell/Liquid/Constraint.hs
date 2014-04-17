@@ -406,7 +406,8 @@ splitS (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitS t1 t2 
         cs'   <- splitS  (SubC γ r1 r2) 
         cs''  <- splitS  (SubC γ r1' r2') 
-        return $ cs ++ cs' ++ cs''
+        cs''' <- splitS  (SubC γ r2' r1') 
+        return $ cs ++ cs' ++ cs'' ++ cs'''
 
 splitS (SubC γ t1 (RAllP p t))
   = splitS $ SubC γ t1 t'
@@ -523,7 +524,8 @@ splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitC γ t1 t2 
         cs'   <- splitC  (SubC γ r1 r2) 
         cs''  <- splitC  (SubC γ r1' r2') 
-        return $ cs ++ cs' ++ cs''
+        cs''' <- splitC  (SubC γ r2' r1') 
+        return $ cs ++ cs' ++ cs'' ++ cs'''
 
 splitC (SubC γ t1 (RAllP p t))
   = splitC $ SubC γ t1 t'
