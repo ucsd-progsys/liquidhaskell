@@ -10,6 +10,8 @@ module Language.Haskell.Liquid.GhcInterface (
   , CBVisitable (..) 
   ) where
 
+import InstEnv
+import qualified Data.Foldable as F
 import Bag (bagToList)
 import ErrUtils
 import Panic
@@ -152,10 +154,26 @@ getGhcModGuts1 fn = do
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
-       return   $! (miModGuts mod_guts)
+       mod_p    <- parseModule modSummary
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
+       let deriv = getDerivedDictionaries mod_guts mod_p
+       return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
+
+getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns 
+  where hsmod    = unLoc $ pm_parsed_source mod
+        decls    = unLoc <$> hsmodDecls hsmod
+        tyClD    = [d  | TyClD  d <- decls]
+        tyDec    = filter isDataDecl tyClD
+        inst     = mkInst <$> tyDec
+        mkInst x = (tcdLName x, td_derivs $ tcdTyDefn x)
+        mkDic    = \(x, y) -> "$f" ++ showPpr y ++ showPpr x
+
+        pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
+        dFuns    = is_dfun <$> (instEnvElts $ mg_inst_env cm)
+   
+        shortPpr = dropModuleNames . showPpr
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
@@ -168,7 +186,7 @@ getGhcModGutsSimpl1 fn = do
        (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts
        liftIO $ putStrLn "************************* CoreGuts ****************************************"
        liftIO $ putStrLn (showPpr $ cg_binds cg)
-       return $! (miModGuts mod_guts) { mgi_binds = cg_binds cg } 
+       return $! (miModGuts Nothing mod_guts) { mgi_binds = cg_binds cg } 
      Nothing         -> error "GhcInterface : getGhcModGutsSimpl1"
 
 peepGHCSimple fn 
