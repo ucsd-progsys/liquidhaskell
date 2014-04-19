@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.GhcInterface (
   -- * visitors 
   , CBVisitable (..) 
   ) where
-
+import IdInfo
 import InstEnv
 import qualified Data.Foldable as F
 import Bag (bagToList)
@@ -47,7 +47,7 @@ import Control.Monad (filterM, zipWithM, when, forM, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', find, (\\), delete, nub)
+import Data.List (partition, intercalate, foldl', find, (\\), delete, nub)
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -117,10 +117,37 @@ getGhcInfo' cfg0 target
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
+      let coreBinds'      = ignoreDerivedInstances coreBinds (mgi_is_dfun modguts)
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds' impVs letVs useVs hqualFiles imps incs spec 
+
+ignoreDerivedInstances :: CoreProgram -> Maybe [DFunId] -> CoreProgram
+ignoreDerivedInstances cbs (Just fds) = foldl ignoreDerivedInstance cbs fds
+ignoreDerivedInstances cbs Nothing    = cbs
+
+ignoreDerivedInstance :: CoreProgram -> DFunId -> CoreProgram
+ignoreDerivedInstance cbs fd = ignoreDerivedInstances cbrest (Just deps)
+  where (cbf, cbrest)  = partition f cbs
+
+        f (NonRec x _) = eqFd x 
+        f (Rec xes   ) = any eqFd (fst <$> xes)
+        eqFd x = varName x == varName fd
+
+        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap grapDef cbf)
+
+        dep (DFunUnfolding _ _ e) = concatMap grapDep  e
+        dep _                     = []
+
+        grapDep :: DFunArg CoreExpr -> [Id]
+        grapDep (DFunPolyArg (Var x)) = [x]
+        grapDep _                     = []
+
+        grapDef :: Bind Id -> [Id]
+        grapDef (NonRec x _) = [x]
+        grapDef (Rec xes)    = fst <$> xes
+
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
