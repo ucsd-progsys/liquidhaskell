@@ -41,6 +41,7 @@ import Language.Fixpoint.Types
 
 import Control.Arrow
 import Control.Monad
+import Control.Monad.IO.Class
 import qualified Data.List as L
 import Data.Monoid
 import Data.Text.Format
@@ -49,7 +50,12 @@ import qualified Data.Text.Lazy.IO  as TIO
 import System.Exit
 import System.Process
 import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose)
-import Control.Applicative  ((<$>))
+import Control.Applicative  ((<$>), (<|>), (*>), (<*))
+
+import Text.Parsec.Text.Lazy ()
+import Text.Parsec.Char
+import Text.Parsec.Combinator
+import Text.Parsec.Prim (ParsecT, runPT, getState, setInput, try)
 
 {- Usage:
 runFile f
@@ -123,31 +129,53 @@ command me cmd       = say me cmd >> hear me cmd
 smtWrite         :: Context -> Raw -> IO ()
 smtWrite me s    = smtWriteRaw me (T.append s "\n")
 
-smtRead          :: Context -> IO Response
-smtRead me       = do s  <- smtReadRaw me
-                      s' <- mbReadSexp ("((" `T.isPrefixOf` s && not ("))" `T.isSuffixOf` s)) s
-                      hPutStrNow (cLog me) $ format "; SMT Says: {}\n" (Only s')
-                      when (verbose me) $
-                        TIO.putStrLn $ format "SMT Says: {}" (Only s')
-                      rs s'
+smtRead :: Context -> IO Response
+smtRead me
+  = do ln <- smtReadRaw me
+       res <- runPT responseP me "" ln
+       case res of
+         Left e  -> error $ show e
+         Right r -> do
+           hPutStrNow (cLog me) $ format "; SMT Says: {}\n" (Only $ show r)
+           when (verbose me) $
+             TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+           return r
+
+type Parser = ParsecT T.Text Context IO
+
+responseP :: Parser Response
+responseP =  try (string "(error")  *> errorP
+         <|>      char   '('        *> valuesP
+         <|> try (string "success") *> responseP
+         <|>      string "sat"      *> return Sat
+         <|> try (string "unsat")   *> return Unsat
+         <|>      string "unknown"  *> return Unknown
+
+valuesP :: Parser Response
+valuesP = Values <$> many1 (spaces *> valueP)
+
+valueP :: Parser (Symbol, String)
+valueP
+  = do (x,v) <- parens $ do
+         x <- symbol <$> many1 alphaNum
+         spaces
+         v <- parens (many1 $ satisfy (/=')')) <|> many1 alphaNum
+         return (x,v)
+       -- get next line
+       try (char ')' >> return ()) <|> getNextLine
+       return (x,v)
+
+getNextLine
+  = do ln <- liftIO . smtReadRaw =<< getState
+       setInput ln
+
+parens p = char '(' *> p <* char ')'
+
+errorP = Error . T.pack <$> (spaces *> quotedP anyChar <* char ')')
   where
-    rs "success" = smtRead me
-    rs "sat"     = return Sat
-    rs "unsat"   = return Unsat
-    rs "unknown" = return Unknown
-    rs s
-      | "((" `T.isPrefixOf` s
-      = return $ Values $ tx $ parseSexp s
-      | otherwise
-      = return (Error s)
-    tx        = map (textSymbol *** T.unpack) . pairs
-    parseSexp = T.words . T.filter (\c -> c /= '(' && c /= ')')
-    mbReadSexp True s = do s' <- smtReadRaw me
-                           let ss = s <> s'
-                           if "))" `T.isSuffixOf` s'
-                             then return ss
-                             else mbReadSexp True ss
-    mbReadSexp False s = return s
+    quotedP p = do string "\""
+                   manyTill p (try $ string "\"")
+
 
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
