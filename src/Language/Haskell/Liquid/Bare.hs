@@ -117,8 +117,10 @@ makeGhcSpec' cfg vars defVars exports specs
        let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'
+       let dcSelectors  = concat $ map makeMeasureSelectors datacons
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
-       measures        <- mconcat <$> mapM makeMeasureSpec specs
+       measures'        <- mconcat <$> mapM makeMeasureSpec specs
+       let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        sigs'           <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
@@ -187,6 +189,18 @@ makeGhcSpec' cfg vars defVars exports specs
                              , exports    = exports
                              , measures   = subst su <$> M.elems $ Ms.measMap measures
                              }
+
+makeMeasureSelectors :: (DataCon, DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors (dc, (DataConP vs _ _ _ xts r)) = go <$> (zip (reverse xts) [1..])
+  where go ((x,t), i) = makeMeasureSelector (Loc loc x) (dty t) dc n i
+        
+        dty t = foldr RAllT  (RFun dummySymbol r t mempty) vs
+        n     = length xts
+        loc   = dummyPos -- TODO
+
+makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
+  where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
+        mkx j = stringSymbol ("xx" ++ show j)
 
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
@@ -615,6 +629,7 @@ execBare act benv =
 ------------------- API: Bare Refinement Types -------------------
 ------------------------------------------------------------------
 
+makeMeasureSpec :: (ModName, Ms.Spec BareType LocSymbol) -> BareM (Ms.MSpec SpecType DataCon)
 makeMeasureSpec (mod,spec) = inModule mod mkSpec
   where
     mkSpec = mkMeasureDCon =<< mkMeasureSort =<< m
@@ -1005,9 +1020,9 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
     where c      = listTyCon
           [tyv]  = tyConTyVars c
           t      = {- TyVarTy -} rVar tyv :: RSort
-          fld    = stringSymbol "fld"
-          x      = stringSymbol "x"
-          xs     = stringSymbol "xs"
+          fld    = stringSymbol "fldList"
+          x      = stringSymbol "xListSelector"
+          xs     = stringSymbol "xsListSelector"
           p      = PV (stringSymbol "p") t (vv Nothing) [(t, fld, EVar fld)]
           px     = pdVarReft $ PV (stringSymbol "p") t (vv Nothing) [(t, fld, EVar x)] 
           lt     = rApp c [xt] [RMono [] $ pdVarReft p] mempty                 
@@ -1025,7 +1040,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
         (ta:ts)       = (rVar <$> tyvs) :: [RSort]
         flds          = mks "fld_Tuple"
         fld           = stringSymbol "fld_Tuple"
-        x1:xs         = mks "x_Tuple"
+        x1:xs         = mks ("x_Tuple" ++ show n)
         -- y             = stringSymbol "y"
         ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
         ups           = uPVar <$> ps
