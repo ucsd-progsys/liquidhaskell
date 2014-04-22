@@ -80,6 +80,11 @@ liquidAssert b x = x
 liquidAssume :: Bool -> a -> a 
 liquidAssume b x = x
 
+{-@ assume liquidAssumeB :: forall <p :: a -> Prop>. (a<p> -> {v:Bool| ((Prop v) <=> true)}) -> a -> a<p> @-}
+liquidAssumeB :: (a -> Bool) -> a -> a
+liquidAssumeB p x | p x = x
+                 | otherwise = error "liquidAssumeB fails"
+
 
 
 {-@ assume liquidError :: {v: String | 0 = 1} -> a  @-}
