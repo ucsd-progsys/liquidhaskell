@@ -64,8 +64,8 @@ data Spec ty bndr  = Spec {
 -- MOVE TO TYPES
 data MSpec ty ctor = MSpec { 
     ctorMap  :: M.HashMap Symbol [Def ctor]
-  , measMap  :: M.HashMap Symbol (Measure ty ctor)
-  , cmeasMap :: M.HashMap Symbol (Measure ty ())
+  , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
+  , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
   , imeas    :: ![Measure ty ctor]
   }
 
@@ -82,10 +82,14 @@ instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) wh
 instance Eq ctor => Monoid (MSpec ty ctor) where
   mempty = MSpec M.empty M.empty M.empty []
 
-  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) =
-    MSpec (M.unionWith (\c1 c2 -> (nub $ c1++c2)) c1 c2) (m1 `M.union` m2)
-          (cm1 `M.union` cm2) (im1 ++ im2)
-
+  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) 
+    | null dups 
+    = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+           (cm1 `M.union` cm2) (im1 ++ im2)
+    | otherwise 
+    = errorstar $ err (head dups)
+    where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
+          err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
@@ -104,20 +108,16 @@ mkM name typ eqns
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
 
-
 mkMSpec' ms = MSpec cm mm M.empty []
   where 
-    cm     = groupMap (symbol .  ctor) $ concatMap eqns ms'
-    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
-    -- cmm    = M.fromList [(val $ name m, m) | m <- cms ]
-    ms'    = ms -- checkDuplicateMeasure ms
-
+    cm     = groupMap (symbol . ctor) $ concatMap eqns ms
+    mm     = M.fromList [(name m, m) | m <- ms ]
 
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
-    cm     = groupMap (val.ctor) $ concatMap eqns (ms'++ims)
-    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
-    cmm    = M.fromList [(val $ name m, m) | m <- cms ]
+    cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
+    mm     = M.fromList [(name m, m) | m <- ms' ]
+    cmm    = M.fromList [(name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 

@@ -135,7 +135,7 @@ makeGhcSpec' cfg vars defVars exports specs
                           | (m, x, t) <- sigs'++mts ]
        let asms         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
                           | (m, x, t) <- asms' ]
-       let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs (datacons++cls)
+       let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs ((mapSnd val <$> datacons)++cls)
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
@@ -175,7 +175,7 @@ makeGhcSpec' cfg vars defVars exports specs
                              , ctors      = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars ++ cms')
                              , invariants = txi invs
-                             , dconsP     = datacons
+                             , dconsP     = mapSnd val <$> datacons
                              , tconsP     = tycons
                              , freeSyms   = syms'
                              , tcEmbeds   = embs
@@ -190,18 +190,17 @@ makeGhcSpec' cfg vars defVars exports specs
                              , measures   = subst su <$> M.elems $ Ms.measMap measures
                              }
 
-makeMeasureSelectors :: (DataCon, DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, (DataConP vs _ _ _ xts r)) = go <$> (zip (reverse xts) [1..])
+makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
+makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (reverse xts) [1..])
   where go ((x,t), i) = makeMeasureSelector (Loc loc x) (dty t) dc n i
         
         dty t = foldr RAllT  (RFun dummySymbol r t mempty) vs
         n     = length xts
-        loc   = dummyPos -- TODO
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = stringSymbol ("xx" ++ show j)
-
+        
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
                         makeRPAliases dummyPos pts
@@ -1007,8 +1006,8 @@ isCon []     = False
 maxArity :: Arity 
 maxArity = 7
 
-wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-wiredTyDataCons = (concat tcs, concat dcs)
+wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
+wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where 
     (tcs, dcs)  = unzip l
     l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
@@ -1189,10 +1188,10 @@ propTyCon   = stringTyCon 'w' 24 propConName
 
 makeConTypes (name,spec) = inModule name $ makeConTypes' $ Ms.dataDecls spec
 
-makeConTypes' :: [DataDecl] -> BareM ([(TyCon, TyConP)], [[(DataCon, DataConP)]])
+makeConTypes' :: [DataDecl] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
 makeConTypes' dcs = unzip <$> mapM ofBDataDecl dcs
 
-ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, DataConP)])
+ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (D tc as ps ls cts pos sfun)
   = do πs    <- mapM ofBPVar ps
        tc'   <- lookupGhcTyCon tc
@@ -1203,9 +1202,10 @@ ofBDataDecl (D tc as ps ls cts pos sfun)
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       return ((tc', TyConP αs πs ls' cov contr sfun), cts')
+       return ((tc', TyConP αs πs ls' cov contr sfun), (mapSnd (Loc lc) <$> cts'))
     where αs   = fmap (RTV . stringTyVar) as
           ls'  = stringSymbol <$> ls
+          lc   = loc tc 
           -- cpts = fmap (second (fmap (second (mapReft ur_pred)))) cts
 
 getPsSig m pos (RAllT _ t) 

@@ -6,10 +6,10 @@ data F a = F {fx :: a, fy :: a, fzz :: a} | G {fx :: a}
              | G {fxx :: a} 
   @-}
 
-{-@ fooG :: x:a -> {v : F a | (fxx v) > x} @-}
+{-@ fooG :: x:a -> {v : F a | (fxx v) = x} @-}
 fooG :: a -> F a
 fooG x = G x 
 
-{-@ foo :: x:a -> {v : F a | (fxx v) > x} @-}
+{-@ foo :: x:a -> {v : F a | (fxx v) = x} @-}
 foo :: a -> F a
 foo x = F x x x
