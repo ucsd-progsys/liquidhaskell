@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Measure (
     Spec (..)
   , BareSpec  
   , MSpec (..)
-  , mkM, mkMSpec
+  , mkM, mkMSpec, mkMSpec'
   , qualifySpec
   , mapTy
   , dataConTypes
@@ -22,7 +22,7 @@ import DataCon
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
 import Data.Monoid hiding ((<>))
-import Data.List (foldl1', union)
+import Data.List (foldl1', union, nub)
 import Data.Either (partitionEithers)
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
@@ -69,11 +69,21 @@ data MSpec ty ctor = MSpec {
   , imeas    :: ![Measure ty ctor]
   }
 
-instance Monoid (MSpec ty ctor) where
+
+instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
+  show (MSpec ct m cm im) 
+    = "\nMSpec:\n" ++ 
+      "\nctorMap:\t "  ++ show ct ++ 
+      "\nmeasMap:\t "  ++ show m  ++ 
+      "\ncmeasMap:\t " ++ show cm ++ 
+      "\nimeas:\t "    ++ show im ++ 
+      "\n" 
+
+instance Eq ctor => Monoid (MSpec ty ctor) where
   mempty = MSpec M.empty M.empty M.empty []
 
   (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) =
-    MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+    MSpec (M.unionWith (\c1 c2 -> (nub $ c1++c2)) c1 c2) (m1 `M.union` m2)
           (cm1 `M.union` cm2) (im1 ++ im2)
 
 
@@ -93,6 +103,16 @@ mkM name typ eqns
 
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
+
+
+mkMSpec' ms = MSpec cm mm M.empty []
+  where 
+    cm     = groupMap (symbol .  ctor) $ concatMap eqns ms'
+    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
+    -- cmm    = M.fromList [(val $ name m, m) | m <- cms ]
+    ms'    = ms -- checkDuplicateMeasure ms
+
+
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
     cm     = groupMap (val.ctor) $ concatMap eqns (ms'++ims)

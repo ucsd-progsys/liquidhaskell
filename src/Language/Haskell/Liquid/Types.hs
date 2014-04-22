@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving     #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
@@ -145,7 +146,7 @@ import qualified Data.HashSet as S
 import Data.Function                (on)
 import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
-import Data.List                    (nub, union, unionBy)
+import Data.List                    (isSuffixOf, nub, union, unionBy)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
@@ -153,6 +154,7 @@ import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def)
 -- import qualified Language.Fixpoint.Types as F
+import Language.Fixpoint.Names (symSepName)
 
 import CoreSyn (CoreBind)
 import Var
@@ -1250,13 +1252,15 @@ data Def ctor
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show)
+  
+deriving instance (Eq ctor) => Eq (Def ctor)
 
 -- MOVE TO TYPES
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
-  deriving (Show)
+  deriving (Show, Eq)
 
 instance Subable (Measure ty ctor) where
   syms (M _ _ es)      = concatMap syms es
@@ -1341,6 +1345,19 @@ hole = RKvar (S "HOLE") mempty
 
 isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
 isHole _                                            = False
+
+instance Symbolic DataCon where
+  symbol = symbol . dataConWorkId
+
+instance Symbolic Var where
+  symbol = varSymbol
+
+varSymbol ::  Var -> Symbol
+varSymbol v 
+  | us `isSuffixOf` vs = stringSymbol vs  
+  | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
+  where us  = showPpr $ getDataConVarUnique v
+        vs  = showPpr v
 
 instance PPrint DataCon where
   pprint = text . showPpr
