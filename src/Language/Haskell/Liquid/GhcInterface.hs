@@ -48,7 +48,7 @@ import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
 import Data.List (partition, intercalate, foldl', find, (\\), delete, nub)
-import Data.Maybe (catMaybes, maybeToList)
+import Data.Maybe (fromMaybe, catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
@@ -117,25 +117,25 @@ getGhcInfo' cfg0 target
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      let coreBinds'      = ignoreDerivedInstances coreBinds (mgi_is_dfun modguts)
+      let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds' impVs letVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
 
-ignoreDerivedInstances :: CoreProgram -> Maybe [DFunId] -> CoreProgram
-ignoreDerivedInstances cbs (Just fds) = foldl ignoreDerivedInstance cbs fds
-ignoreDerivedInstances cbs Nothing    = cbs
+derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
+derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
+derivedVars cbs Nothing    = []
 
-ignoreDerivedInstance :: CoreProgram -> DFunId -> CoreProgram
-ignoreDerivedInstance cbs fd = ignoreDerivedInstances cbrest (Just deps)
-  where (cbf, cbrest)  = partition f cbs
+derivedVs :: CoreProgram -> DFunId -> [Id]
+derivedVs cbs fd = concatMap bindersOf cbf ++ deps
+  where cbf            = filter f cbs
 
         f (NonRec x _) = eqFd x 
         f (Rec xes   ) = any eqFd (fst <$> xes)
-        eqFd x = varName x == varName fd
-
-        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap grapDef cbf)
+        eqFd x         = varName x == varName fd
+        deps :: [Id]
+        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap bindersOf cbf)
 
         dep (DFunUnfolding _ _ e) = concatMap grapDep  e
         dep _                     = []
@@ -143,11 +143,6 @@ ignoreDerivedInstance cbs fd = ignoreDerivedInstances cbrest (Just deps)
         grapDep :: DFunArg CoreExpr -> [Id]
         grapDep (DFunPolyArg (Var x)) = [x]
         grapDep _                     = []
-
-        grapDef :: Bind Id -> [Id]
-        grapDef (NonRec x _) = [x]
-        grapDef (Rec xes)    = fst <$> xes
-
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags

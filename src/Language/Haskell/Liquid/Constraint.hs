@@ -94,7 +94,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 consAct info penv
   = do γ     <- initEnv info penv
        sflag <- scheck <$> get
-       foldM_ consCBTop γ (cbs info)
+       foldM_ (consCBTop (derVars info)) γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        scss <- sCs <$> get
@@ -715,7 +715,7 @@ initCGI cfg info = CGInfo {
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
   , kvProf     = emptyKVProf
-  , recCount       = 0
+  , recCount   = 0
   } 
   where 
     tce        = tcEmbeds spc 
@@ -1063,7 +1063,8 @@ checkValidHint x ts f n
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
-consCBLet, consCBTop :: CGEnv -> CoreBind -> CG CGEnv 
+consCBTop :: [Var] -> CGEnv -> CoreBind -> CG CGEnv 
+consCBLet :: CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
 consCBLet γ cb
@@ -1076,7 +1077,14 @@ consCBLet γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
-consCBTop γ cb
+consCBTop dVs γ cb | isDerived
+  = do ts <- mapM trueTy (varType <$> xs)
+       foldM (\γ xt -> (γ, "derived") += xt) γ (zip xs' ts)
+  where isDerived = all (`elem` dVs) xs
+        xs        = bindersOf cb
+        xs'       = F.symbol <$> xs
+
+consCBTop _  γ cb
   = do oldtcheck <- tcheck <$> get
        strict    <- specLazy <$> get
        let tflag  = oldtcheck
