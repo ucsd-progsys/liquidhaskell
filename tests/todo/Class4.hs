@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-@ LIQUID "--no-termination" @-}
 
-module Class where
+module Class4 where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -10,4 +10,5 @@ class Frog a where
   mkInt _ = liquidAssert (0 > 1) 10
 
 
-{-@ mkInt :: (Frog a) => a -> Int @-}
+{-@ class Frog a where 
+    mkInt :: a -> Int @-}

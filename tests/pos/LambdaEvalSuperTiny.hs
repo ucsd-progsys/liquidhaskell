@@ -1,5 +1,4 @@
-{--! run liquid with no-termination -}
-
+{-@ LIQUID "--no-termination" @-}
 module LambdaEvalMini () where
 
 ---------------------------------------------------------------------
@@ -48,7 +47,7 @@ data Expr [elen]
 evalVar :: Bndr -> LL (Pair Bndr Expr) -> Expr 
 evalVar = error "HIDEME"
 
-{-@ eval :: sto:Store -> e:Expr -> (Pair Store Value) @-}
+{-@ eval :: Store -> e:Expr -> (Pair Store Value) @-}
 {-@ Decrease eval 2 @-}
 eval sto (Var x)  
   = P sto (evalVar x sto)
