@@ -37,6 +37,8 @@ module Language.Haskell.Liquid.Types (
   , rFun
   , addTermCond
 
+  , isBase
+
   , RTypeRep(..), fromRTypeRep, toRTypeRep
 
   -- * Manipulating Predicate
@@ -796,6 +798,15 @@ emapRef  f γ (RMono s r)         = RMono s $ f γ r
 emapRef  f γ (RPoly s t)         = RPoly s $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
+-- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
+
+-- isBase :: RType a -> Bool
+isBase (RAllP _ t)      = isBase t
+isBase (RVar _ _)       = True
+isBase (RApp _ ts _ _)  = all isBase ts
+isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
+isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
+isBase _                = False
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)

@@ -266,15 +266,6 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
 
--- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
-
--- isBase :: RType a -> Bool
-isBase (RAllP _ t)      = isBase t
-isBase (RVar _ _)       = True
-isBase (RApp _ ts _ _)  = all isBase ts
-isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
-isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
-isBase _                = False
 
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
@@ -969,7 +960,8 @@ trueTy t
 
 refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
-  = do xs' <- mapM (\_ -> fresh) xs
+  = do ts  <- mapM refreshArgs ts_u
+       xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
@@ -977,7 +969,7 @@ refreshArgs t
        return t'
   where trep = toRTypeRep t
         xs   = ty_binds trep
-        ts   = ty_args  trep
+        ts_u = ty_args  trep
         tbd  = ty_res   trep
 
 instance Freshable CG Integer where
