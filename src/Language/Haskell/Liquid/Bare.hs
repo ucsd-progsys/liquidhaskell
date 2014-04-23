@@ -191,13 +191,15 @@ makeGhcSpec' cfg vars defVars exports specs
                              }
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (reverse xts) [1..])
+makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = concatMap go (zip (reverse xts) [1..])
   where go ((x,t), i) = makeMeasureSelector (Loc loc x) (dty t) dc n i
         
-        dty t = foldr RAllT  (RFun dummySymbol r t mempty) vs
+        dty t = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
         n     = length xts
 
-makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
+makeMeasureSelector x s dc n i 
+  | isBase s  = [M {name = x, sort = s, eqns = [eqn]}]
+  | otherwise = []
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = stringSymbol ("xx" ++ show j)
         
