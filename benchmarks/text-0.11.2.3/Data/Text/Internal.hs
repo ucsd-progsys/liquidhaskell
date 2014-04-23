@@ -50,9 +50,9 @@ import Data.Typeable (Typeable)
 import Language.Haskell.Liquid.Prelude
 
 {-@ data Text [tlen] = Text
-            (arr :: A.Array)
-            (off :: AValidO arr)
-            (len :: (AValidL off arr))
+            (ttarr :: A.Array)
+            (ttoff :: AValidO ttarr)
+            (ttlen :: (AValidL ttoff ttarr))
   @-}
 
 {-@ measure tarr :: Text -> A.Array
