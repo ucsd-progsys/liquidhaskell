@@ -42,7 +42,7 @@ import Data.IORef as R
    constructor with one physical argument, so at runtime these will look the same as IORefs:
    we won't pay time or space overhead. -}
 {-@ data RGRef a <p :: a -> Prop, r :: a -> a -> Prop > 
-    = Wrap (r :: R.IORef a<p>) @-}
+    = Wrap (rr :: R.IORef a<p>) @-}
 data RGRef a = Wrap (R.IORef a)
 
 {- A stability proof can be embedded into LH as a function of type:

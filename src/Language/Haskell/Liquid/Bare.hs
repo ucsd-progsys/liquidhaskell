@@ -101,10 +101,18 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
     go γ (P p)   = checkSortFull γ psort p
     go γ (R s p) = checkSortFull (insertSEnv s sty γ) psort p
 
-    sty = rTypeSortedReft emb (thd3 $ bkArrowDeep sort)
-    rs  = rTypeSort       emb (thd3 $ bkArrowDeep sort)
+    sty = rTypeSortedReft emb sort' -- (thd3 $ bkArrowDeep sort)
+    rs  = rTypeSort       emb sort' -- (thd3 $ bkArrowDeep sort)
 
     psort = FApp propFTyCon []
+    sort' = fromRTypeRep $ trep' 
+                  { ty_vars = [], ty_preds = [], ty_labels = []
+                  , ty_binds = tail $ ty_binds trep'
+                  , ty_args = (tail $ ty_args trep')}
+
+    trep' = toRTypeRep sort
+
+
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
@@ -191,15 +199,13 @@ makeGhcSpec' cfg vars defVars exports specs
                              }
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = concatMap go (zip (reverse xts) [1..])
+makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (reverse xts) [1..])
   where go ((x,t), i) = makeMeasureSelector (Loc loc x) (dty t) dc n i
         
         dty t = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
         n     = length xts
 
-makeMeasureSelector x s dc n i 
-  | isBase s  = [M {name = x, sort = s, eqns = [eqn]}]
-  | otherwise = []
+makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = stringSymbol ("xx" ++ show j)
         

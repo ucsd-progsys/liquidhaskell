@@ -40,10 +40,6 @@ data MaybeS a = NothingS | JustS !a
     isBin (Tip)             = false
   @-}
 
-{-@ measure key :: Map k a -> k 
-    key (Bin sz kx x l r) = kx 
-  @-}
-
 {-@ isRoot :: t:Map k a -> {v: Bool | (Prop(v) <=> isBin(t))} @-}
 isRoot (Bin _ _ _ _ _) = True
 isRoot (Tip)           = False
