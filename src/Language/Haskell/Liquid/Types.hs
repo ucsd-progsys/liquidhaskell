@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving     #-}
 {-# LANGUAGE DeriveDataTypeable     #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE TypeSynonymInstances   #-}
@@ -35,6 +36,8 @@ module Language.Haskell.Liquid.Types (
   , mkUnivs, bkUniv, bkClass
   , rFun
   , addTermCond
+
+  , isBase
 
   , RTypeRep(..), fromRTypeRep, toRTypeRep
 
@@ -145,7 +148,7 @@ import qualified Data.HashSet as S
 import Data.Function                (on)
 import Data.Maybe                   (maybeToList, fromMaybe)
 import Data.Traversable             hiding (mapM)
-import Data.List                    (nub, union, unionBy)
+import Data.List                    (isSuffixOf, nub, union, unionBy)
 import Text.Parsec.Pos              (SourcePos, newPos) 
 import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
@@ -153,6 +156,7 @@ import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def)
 -- import qualified Language.Fixpoint.Types as F
+import Language.Fixpoint.Names (symSepName)
 
 import CoreSyn (CoreBind)
 import Var
@@ -794,6 +798,15 @@ emapRef  f γ (RMono s r)         = RMono s $ f γ r
 emapRef  f γ (RPoly s t)         = RPoly s $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
+-- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
+
+-- isBase :: RType a -> Bool
+isBase (RAllP _ t)      = isBase t
+isBase (RVar _ _)       = True
+isBase (RApp _ ts _ _)  = all isBase ts
+isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
+isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
+isBase _                = False
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
@@ -1250,13 +1263,15 @@ data Def ctor
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show)
+  
+deriving instance (Eq ctor) => Eq (Def ctor)
 
 -- MOVE TO TYPES
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
-  deriving (Show)
+  deriving (Show, Eq)
 
 instance Subable (Measure ty ctor) where
   syms (M _ _ es)      = concatMap syms es
@@ -1341,6 +1356,19 @@ hole = RKvar (S "HOLE") mempty
 
 isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
 isHole _                                            = False
+
+instance Symbolic DataCon where
+  symbol = symbol . dataConWorkId
+
+instance Symbolic Var where
+  symbol = varSymbol
+
+varSymbol ::  Var -> Symbol
+varSymbol v 
+  | us `isSuffixOf` vs = stringSymbol vs  
+  | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
+  where us  = showPpr $ getDataConVarUnique v
+        vs  = showPpr v
 
 instance PPrint DataCon where
   pprint = text . showPpr

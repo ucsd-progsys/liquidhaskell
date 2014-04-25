@@ -266,15 +266,6 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
 
--- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
-
--- isBase :: RType a -> Bool
-isBase (RAllP _ t)      = isBase t
-isBase (RVar _ _)       = True
-isBase (RApp _ ts _ _)  = all isBase ts
-isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
-isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
-isBase _                = False
 
 -----------------------------------------------------------------
 ------------------- Constraints: Types --------------------------
@@ -967,17 +958,28 @@ trueTy t
        tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi t
 
+refreshArgsTop :: (Var, SpecType) -> CG SpecType
+refreshArgsTop (x, t) 
+  = do (t', su) <- refreshArgsSub t
+       modify $ \s -> s {termExprs = M.adjust (F.subst su <$>) x $ termExprs s}
+       return t'
+  
 refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
-  = do xs' <- mapM (\_ -> fresh) xs
+  = fst <$> refreshArgsSub t
+
+refreshArgsSub :: SpecType -> CG (SpecType, F.Subst)
+refreshArgsSub t 
+  = do ts  <- mapM refreshArgs ts_u
+       xs' <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = F.subst su tbd}
-       return t'
+       return (t', su)
   where trep = toRTypeRep t
         xs   = ty_binds trep
-        ts   = ty_args  trep
+        ts_u = ty_args  trep
         tbd  = ty_res   trep
 
 instance Freshable CG Integer where
@@ -1137,8 +1139,10 @@ consCBSizedTys tflag γ (Rec xes)
          | all (==(f x)) (f <$> xs) = (x:xs)
          | otherwise                = errorstar err
 
-consCBWithExprs γ xtes (Rec xes) 
+consCBWithExprs γ (Rec xes) 
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       texprs <- termExprs <$> get
+       let xtes = catMaybes $ (`lookup` texprs) <$> xs
        sflag     <- scheck <$> get
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
@@ -1152,6 +1156,8 @@ consCBWithExprs γ xtes (Rec xes)
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where (xs, es) = unzip xes
+        lookup k m | Just x <- M.lookup k m = Just (k, x)
+                   | otherwise              = Nothing
         err      = "Constant: consCBWithExprs"
 
 makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
@@ -1181,7 +1187,7 @@ consCB tflag _ γ (Rec xes) | tflag
        let xxes = catMaybes $ (`lookup` texprs) <$> xs
        if null xxes 
          then consCBSizedTys tflag γ (Rec xes)
-         else check xxes <$> consCBWithExprs γ xxes (Rec xes)
+         else check xxes <$> consCBWithExprs γ (Rec xes)
   where xs = fst $ unzip xes
         check ys r | length ys == length xs = r
                    | otherwise              = errorstar err
@@ -1257,12 +1263,12 @@ safeFromAsserted msg (Asserted t) = t
 varTemplate :: CGEnv -> (Var, Maybe CoreExpr) -> CG (Template SpecType)
 varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ)) of
-      (_, Just t, _) -> return $ Asserted t
-      (_, _, Just t) -> return $ Assumed t
+      (_, Just t, _) -> Asserted <$> refreshArgsTop (x, t)
+      (_, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
       (Just e, _, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
                            addW (WfC γ t)
                            {- KVPROF addKuts t -}
-                           return $ Asserted t
+                           Asserted <$> refreshArgsTop (x, t)
       (_,      _, _) -> return Unknown
 
 unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
