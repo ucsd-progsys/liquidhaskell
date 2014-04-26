@@ -13,7 +13,7 @@ module Language.Fixpoint.Parse (
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
-  , parens  , brackets, braces
+  , angles  , parens  , brackets, braces
   , semi    , comma     
   , colon   , dcolon 
   , whiteSpace, blanks
@@ -129,6 +129,7 @@ comma         = Token.comma         lexer
 whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
 braces        = Token.braces        lexer
+angles        = Token.angles        lexer
 
 -- identifier = Token.identifier lexer
 
