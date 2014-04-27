@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -96,6 +95,8 @@ annotDump cfg srcFile htmlFile result ann
   = do let annm     = mkAnnMap cfg result ann
        let annFile  = extFileName Annot srcFile
        let jsonFile = extFileName Json  srcFile  
+       let vimFile  = extFileName Vim   srcFile
+       writeFile             vimFile  (vimAnnot annm) 
        B.writeFile           jsonFile (encode annm) 
        writeFilesOrStrings   annFile  [Left srcFile, Right (show annm)]
        annotHtmlDump         htmlFile srcFile annm 
@@ -377,6 +378,23 @@ data Annot1    = A1  { ident :: String
                      , row   :: Int
                      , col   :: Int  
                      }
+
+------------------------------------------------------------------------
+-- | Creating Vim Annotations ------------------------------------------
+------------------------------------------------------------------------
+
+vimAnnot :: ACSS.AnnMap -> String 
+vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
+
+vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (show ann) 
+  where
+    l1  = l
+    c1  = c 
+    l2  = l
+    c2  = c1 + sz
+    sz  = min 10 (length v)
+
+
 
 ------------------------------------------------------------------------
 -- | JSON Instances ----------------------------------------------------
