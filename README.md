@@ -714,7 +714,7 @@ verification attempts.
 Editor Integration
 ==================
 
-Currently, only support for Vim (sorry!)
+Currently, only support for Vim, *sorry!* (Feel free to submit a PR for emacs).
 
 Vim
 ---
@@ -731,29 +731,27 @@ Vim
     cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
     cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
 
-3. **Optionally** add whatever default options you want in your `.vimrc`, e.g.
-
-    let g:syntastic_haskell_liquid_args = "--diffcheck"
-
 **Run**
 
-+ Hit `:SyntasticCheck liquid` to run on the current buffer.
++ `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
 
-+ To run after **each save** (for all Haskell files...) add this to your `.vimrc`. 
-  If so, you probably want the `--diffcheck` default.
+**View**
+
+1. **Warnings** will be displayed in the usual error buffer.
+
+2. **Inferred Types** will be displayed when `<F1>` is pressed over an identifier.
+
+
+**Options**
+
+You can configure the checker in various ways in your `.vimrc`.
+
++ To run after **each save**, for *all* Haskell files, add:
 
     let g:syntastic_mode_map = { 'mode': 'active' }
     let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
 
-**View**
++ To pass extra options to liquidhaskell add: 
 
-+ Warnings will be displayed in the usual error buffer.
-+ Pressing `<F1>` over an identifier will show you its inferred type.
+    let g:syntastic_haskell_liquid_args = "--diffcheck"
 
-
-
-
-Emacs
------
-
-*TODO*
