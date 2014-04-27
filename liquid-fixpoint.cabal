@@ -165,6 +165,7 @@ Library
                , process
                , syb
                , text
+               , transformers
                , hashable<1.2
                , unordered-containers
                , text-format
