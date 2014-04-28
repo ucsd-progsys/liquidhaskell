@@ -723,14 +723,17 @@ Vim
 
 1. Add the following to your `.vimrc`
 
-    Bundle 'scrooloose/syntastic'
-    Bundle 'panagosg7/vim-annotations'
+~~~~~
+Bundle 'scrooloose/syntastic'
+Bundle 'panagosg7/vim-annotations'
+~~~~~
 
 2. Copy the following files
 
-    cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
-    cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
-
+~~~~~
+cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
+cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
+~~~~~
 **Run**
 
 + `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
@@ -748,10 +751,14 @@ You can configure the checker in various ways in your `.vimrc`.
 
 + To run after **each save**, for *all* Haskell files, add:
 
-    let g:syntastic_mode_map = { 'mode': 'active' }
-    let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
+~~~~~
+let g:syntastic_mode_map = { 'mode': 'active' }
+let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
+~~~~~
 
 + To pass extra options to liquidhaskell add: 
 
-    let g:syntastic_haskell_liquid_args = "--diffcheck"
+~~~~~
+let g:syntastic_haskell_liquid_args = "--diffcheck"
+~~~~~
 
