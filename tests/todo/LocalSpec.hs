@@ -3,12 +3,12 @@ module LocalSpec () where
 import Language.Haskell.Liquid.Prelude (choose)
 
 
-prop = if x > 0 then bar x else x
+prop = if x > 0 then bar x else foo x
   where x = choose 0
-    {-@ bar :: Nat -> Nat @-}
+    {-@ Local bar :: Nat -> Nat @-}
         bar :: Int -> Int
         bar x = x
-    {-@ foo :: Nat -> Nat @-}
+    {-@ Local foo :: Nat -> Nat @-}
         foo :: Int -> Int
         foo x = x
 
