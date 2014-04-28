@@ -410,6 +410,7 @@ dummyRSort     = ROth "dummy"
 data Pspec ty ctor 
   = Meas    (Measure ty ctor) 
   | Assm    (LocSymbol, ty) 
+  | LAssm   (LocSymbol, ty) 
   | Assms   ([LocSymbol], (ty, Maybe [Expr]))
   | Impt    Symbol
   | DDecl   DataDecl
@@ -434,6 +435,7 @@ mkSpec name xs         = (name,)
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.sigs       = [a | Assm   a <- xs] 
                       ++ [(y, t) | Assms (ys, (t, _)) <- xs, y <- ys]
+  , Measure.localSigs  = [] 
   , Measure.invariants = [t | Invt   t <- xs] 
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs]
@@ -456,6 +458,7 @@ specP :: Parser (Pspec BareType LocSymbol)
 specP 
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Assm   tyBindP   )
+    <|> (reserved "Local"     >> liftM LAssm  tyBindP   )
     <|> (reserved "measure"   >> liftM Meas   measureP  ) 
     <|> try (reserved "class" >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)

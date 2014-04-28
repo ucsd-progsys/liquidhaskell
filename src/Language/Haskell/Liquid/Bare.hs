@@ -629,7 +629,7 @@ makeTargetVars name vs ss = do
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalAssumeSpec cfg cmod vs lvs $ Ms.sigs spec
+  = makeLocalAssumeSpec cfg cmod vs lvs $ (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
   = inModule mod $ makeAssumeSpec' cfg vs $ Ms.sigs spec
 
