@@ -1,3 +1,6 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-@ LIQUID "--no-termination" @-}
+
 module Class4 where
 
 import Language.Haskell.Liquid.Prelude
@@ -12,3 +15,6 @@ class Frog a where
 
 -- If we put this in ANOTHER file (e.g. Class4Instance) then there is no error
 instance Frog () where
+
+{-@ class Frog a where 
+    mkInt :: a -> Int @-}

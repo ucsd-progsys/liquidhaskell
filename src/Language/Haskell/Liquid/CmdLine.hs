@@ -1,11 +1,8 @@
 {-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE BangPatterns              #-}
 
 -- | This module contains all the code needed to output the result which 
 --   is either: `SAFE` or `WARNING` with some reasonable error message when 
@@ -137,7 +134,7 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do md <- cmdArgs config 
-             putStrLn $ copyright
+             putStrLn copyright
              whenLoud $ putStrLn $ "liquid " ++ show md ++ "\n"
              mkOpts md
 
@@ -212,7 +209,7 @@ writeExit cfg target r out
        writeFile   (extFileName Result target) rs
        writeWarns     $ o_warns out
        writeCheckVars $ o_vars  out
-       return $ if (null $ o_warns out) then r else (Unsafe [])
+       return $ if null $ o_warns out then r else Unsafe []
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
@@ -220,28 +217,27 @@ writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unline
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
 
-writeResult c            = mapM_ (writeDoc c) . resDocs 
+writeResult c            = mapM_ (writeDoc c) . zip [0..] . resDocs 
   where 
-    writeDoc c           = writeBlock c . lines . render
-    writeBlock c (s:ss)  = do {colorPhaseLn c s ""; forM_ ss putStrLn }
-    writeBlock c _       = return ()
+    writeDoc c (i, d)    = writeBlock c i $ lines $ render d
+    writeBlock c _ []    = return ()
+    writeBlock c 0 ss    = forM_ ss (colorPhaseLn c "")
+    writeBlock c _ ss    = forM_ ("\n" : ss) putStrLn
 
-
-resDocs Safe              = [text "SAFE"]
-resDocs (Crash xs s)      = text ("CRASH: " ++ s) : pprManyOrdered "CRASH: " xs
-resDocs (Unsafe xs)       = pprManyOrdered "UNSAFE: " $ nub xs
-resDocs (UnknownError d)  = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
-reportUrl                 =      text "Please submit a bug report at:"
-                            $+$  text "  https://github.com/ucsd-progsys/liquidhaskell"
+resDocs Safe             = [text "SAFE"]
+resDocs (Crash xs s)     = text ("CRASH: " ++ s) : pprManyOrdered "" {- "CRASH: " -} xs
+resDocs (Unsafe xs)      = text "UNSAFE" : pprManyOrdered "" {- "UNSAFE: " -} (nub xs)
+resDocs (UnknownError d) = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
+reportUrl                = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs
 
-  -- vcat [[String]]
-  -- toFix Safe             = text "SAFE"
-  -- toFix (UnknownError d) = text "Unknown Error!"
-  -- toFix (Crash xs msg)   = vcat $ text "Crash!"  : pprManyOrdered "CRASH:   " xs ++ [parens (text msg)] 
-  -- toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprManyOrdered "WARNING: " xs
+-- | This generates errors/warnings to be used by syntastic et al.
+writeErrors = putStrLn . render . vcat . resDocFmt
+
+resDocFmt Safe         = []
+resDocFmt (Crash xs s) = undefined
 
 
 ------------------------------------------------------------------------

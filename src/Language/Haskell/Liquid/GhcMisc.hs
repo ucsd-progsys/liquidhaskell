@@ -81,9 +81,10 @@ data MGIModGuts = MI {
   , mgi_tcs       :: ![TyCon]
   , mgi_fam_insts :: ![FamInst]
   , mgi_exports   :: !NameSet
+  , mgi_is_dfun   :: !(Maybe [DFunId])
   }
 
-miModGuts mg = MI {
+miModGuts dids mg = MI {
     mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg
@@ -92,6 +93,7 @@ miModGuts mg = MI {
   , mgi_tcs       = mg_tcs mg
   , mgi_fam_insts = mg_fam_insts mg
   , mgi_exports   = availsToNameSet $ mg_exports mg
+  , mgi_is_dfun   = dids
   }
 
 -----------------------------------------------------------------------
