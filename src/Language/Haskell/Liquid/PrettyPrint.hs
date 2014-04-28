@@ -100,10 +100,23 @@ ppr_rtype bb p (RApp c ts rs r)
 --   = ppTy r $ {- parens $ -} ppTycon c
 
 ppr_rtype bb p (RApp c ts rs r)
-  = ppTy r $ parens $ ppT c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+  | isEmpty rsDoc && isEmpty tsDoc
+  = ppTy r $ ppT c
+  | otherwise
+  = ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
   where
+    rsDoc            = ppReftPs bb rs
+    tsDoc            = hsep (ppr_rtype bb p <$> ts)
     ppT | ppShort bb = text . dropModuleNames . render . ppTycon
         | otherwise  = ppTycon
+
+
+
+-- ppr_rtype bb p (RApp c ts rs r)
+--   = ppTy r $ parens $ ppT c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
+--   where
+--     ppT | ppShort bb = text . dropModuleNames . render . ppTycon
+--         | otherwise  = ppTycon
 
 ppr_rtype bb p (RCls c ts)
   = ppr_cls bb p c ts

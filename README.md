@@ -711,4 +711,54 @@ verification attempts.
   It is also possible to generate *slide shows* from the above.
   See the [tutorial directory](docs/tutorial) for an example.
 
+Editor Integration
+==================
+
+Currently, only support for Vim, *sorry!* (Feel free to submit a PR for emacs).
+
+Vim
+---
+
+**Install**
+
+1. Add the following to your `.vimrc`
+
+~~~~~
+Bundle 'scrooloose/syntastic'
+Bundle 'panagosg7/vim-annotations'
+~~~~~
+
+2. Copy the following files
+
+~~~~~
+cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
+cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
+~~~~~
+**Run**
+
++ `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
+
+**View**
+
+1. **Warnings** will be displayed in the usual error buffer.
+
+2. **Inferred Types** will be displayed when `<F1>` is pressed over an identifier.
+
+
+**Options**
+
+You can configure the checker in various ways in your `.vimrc`.
+
++ To run after **each save**, for *all* Haskell files, add:
+
+~~~~~
+let g:syntastic_mode_map = { 'mode': 'active' }
+let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
+~~~~~
+
++ To pass extra options to liquidhaskell add: 
+
+~~~~~
+let g:syntastic_haskell_liquid_args = "--diffcheck"
+~~~~~
 

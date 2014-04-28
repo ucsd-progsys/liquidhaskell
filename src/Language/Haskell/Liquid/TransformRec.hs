@@ -232,7 +232,7 @@ mapNonRec _ []                = []
 mapBnd f (NonRec b e)             = NonRec b (mapExpr f  e)
 mapBnd f (Rec bs)                 = Rec (map (second (mapExpr f)) bs)
 
-mapExpr f (Let b@(NonRec x _) e)  = Let b (f x e)
+mapExpr f (Let (NonRec x ex) e)   = Let (NonRec x (f x ex) ) (f x e)
 mapExpr f (App e1 e2)             = App  (mapExpr f e1) (mapExpr f e2)
 mapExpr f (Lam b e)               = Lam b (mapExpr f e)
 mapExpr f (Let bs e)              = Let (mapBnd f bs) (mapExpr f e)

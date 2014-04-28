@@ -366,10 +366,6 @@ mlen (Bin s k v l r) = 1 + mlen l + mlen r
     isBin (Tip)             = false
   @-}
 
-{-@ measure key :: Map k a -> k 
-    key (Bin sz kx x l r) = kx 
-  @-}
-
 {-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
 
 {-@ predicate IfDefLe X Y         = ((isJustS X) => ((fromJustS X) < Y)) @-}

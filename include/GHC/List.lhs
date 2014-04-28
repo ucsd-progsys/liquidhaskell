@@ -435,7 +435,7 @@ take (I# n#) xs = takeUInt n# xs
 takeUInt :: Int# -> [b] -> [b]
 takeUInt n xs
   | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  liquidAssert False []
+  | otherwise =  []
 
 take_unsafe_UInt :: Int# -> [b] -> [b]
 take_unsafe_UInt 0#  _  = []

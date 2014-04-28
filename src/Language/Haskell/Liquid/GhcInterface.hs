@@ -9,7 +9,9 @@ module Language.Haskell.Liquid.GhcInterface (
   -- * visitors 
   , CBVisitable (..) 
   ) where
-
+import IdInfo
+import InstEnv
+import qualified Data.Foldable as F
 import Bag (bagToList)
 import ErrUtils
 import Panic
@@ -45,8 +47,8 @@ import Control.Monad (filterM, zipWithM, when, forM, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
-import Data.List (intercalate, foldl', find, (\\), delete, nub)
-import Data.Maybe (catMaybes, maybeToList)
+import Data.List (partition, intercalate, foldl', find, (\\), delete, nub)
+import Data.Maybe (fromMaybe, catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
@@ -115,10 +117,32 @@ getGhcInfo' cfg0 target
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
+      let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds impVs letVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
+
+derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
+derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
+derivedVars cbs Nothing    = []
+
+derivedVs :: CoreProgram -> DFunId -> [Id]
+derivedVs cbs fd = concatMap bindersOf cbf ++ deps
+  where cbf            = filter f cbs
+
+        f (NonRec x _) = eqFd x 
+        f (Rec xes   ) = any eqFd (fst <$> xes)
+        eqFd x         = varName x == varName fd
+        deps :: [Id]
+        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap bindersOf cbf)
+
+        dep (DFunUnfolding _ _ e) = concatMap grapDep  e
+        dep _                     = []
+
+        grapDep :: DFunArg CoreExpr -> [Id]
+        grapDep (DFunPolyArg (Var x)) = [x]
+        grapDep _                     = []
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
@@ -152,10 +176,26 @@ getGhcModGuts1 fn = do
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
-       return   $! (miModGuts mod_guts)
+       mod_p    <- parseModule modSummary
+       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
+       let deriv = getDerivedDictionaries mod_guts mod_p
+       return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
+
+getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns 
+  where hsmod    = unLoc $ pm_parsed_source mod
+        decls    = unLoc <$> hsmodDecls hsmod
+        tyClD    = [d  | TyClD  d <- decls]
+        tyDec    = filter isDataDecl tyClD
+        inst     = mkInst <$> tyDec
+        mkInst x = (tcdLName x, td_derivs $ tcdTyDefn x)
+        mkDic    = \(x, y) -> "$f" ++ showPpr y ++ showPpr x
+
+        pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
+        dFuns    = is_dfun <$> (instEnvElts $ mg_inst_env cm)
+   
+        shortPpr = dropModuleNames . showPpr
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
@@ -168,7 +208,7 @@ getGhcModGutsSimpl1 fn = do
        (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts
        liftIO $ putStrLn "************************* CoreGuts ****************************************"
        liftIO $ putStrLn (showPpr $ cg_binds cg)
-       return $! (miModGuts mod_guts) { mgi_binds = cg_binds cg } 
+       return $! (miModGuts Nothing mod_guts) { mgi_binds = cg_binds cg } 
      Nothing         -> error "GhcInterface : getGhcModGutsSimpl1"
 
 peepGHCSimple fn 
@@ -453,6 +493,8 @@ instance PPrint GhcSpec where
               $$ (pprint $ tgtVars spec)
               $$ (text "******* Type Signatures *********************")
               $$ (pprintLongList $ tySigs spec)
+              $$ (text "******* Assumed Type Signatures *************")
+              $$ (pprintLongList $ asmSigs spec)
               $$ (text "******* DataCon Specifications (Measure) ****")
               $$ (pprintLongList $ ctors spec)
               $$ (text "******* Measure Specifications **************")
