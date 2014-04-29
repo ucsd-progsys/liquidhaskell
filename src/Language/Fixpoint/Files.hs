@@ -12,7 +12,8 @@ module Language.Fixpoint.Files (
   -- * Hardwired file extension names
     Ext (..)
   , extFileName
-  , tempExtFile
+  , extFileNameR
+  , tempDirectory
   , extModuleName
   , withExt
   , isExtFile
@@ -104,21 +105,24 @@ withExt         :: FilePath -> Ext -> FilePath
 withExt f ext   =  replaceExtension f (extMap ext)
 
 extFileName     :: Ext -> FilePath -> FilePath
-extFileName e f  = path </> ".liquid" </> file
+extFileName e f = path </> addExtension file ext
   where
-    path         = takeDirectory f
-    file         = takeFileName  f
+    path        = tempDirectory f
+    file        = takeFileName  f
+    ext         = extMap e
 
--- extFileName ext = (`addExtension` extMap ext)
-
-
-tempDirectory :: IO FilePath
-tempDirectory = getCurrentDirectory
-
-tempExtFile       :: Ext -> FilePath -> IO FilePath
-tempExtFile ext f = (</> f') <$> tempDirectory
+tempDirectory   :: FilePath -> FilePath
+tempDirectory f 
+  | isTmp dir   = dir 
+  | otherwise   = dir </> tmpDirName
   where
-    f'            = extFileName ext $ takeFileName f
+    dir         = takeDirectory f
+    isTmp       = (tmpDirName `isSuffixOf`)
+
+tmpDirName      = ".liquid"
+
+extFileNameR     :: Ext -> FilePath -> FilePath
+extFileNameR ext = (`addExtension` extMap ext)
 
 isExtFile ::  Ext -> FilePath -> Bool
 isExtFile ext = (extMap ext ==) . takeExtension
