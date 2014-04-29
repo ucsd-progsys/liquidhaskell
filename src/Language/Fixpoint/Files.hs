@@ -59,9 +59,10 @@ checkM f msg p
 data Ext = Cgi    -- ^ Constraint Generation Information
          | Fq     -- ^ Input to constraint solving (fixpoint)
          | Out    -- ^ Output from constraint solving (fixpoint)
-         | Html   -- ^ HTML file with inferred type annotations
-         | Annot  -- ^ Text file with inferred types
-         | Hs     -- ^ Target source
+         | Html   -- ^ HTML file with inferred type annotations 
+         | Annot  -- ^ Text file with inferred types 
+         | Vim    -- ^ Vim annotation file 
+         | Hs     -- ^ Target source 
          | LHs    -- ^ Literate Haskell target source file
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec)
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
@@ -87,6 +88,7 @@ extMap e = go e
     go Html   = ".html"
     go Cst    = ".cst"
     go Annot  = ".annot"
+    go Vim    = ".vim.annot"
     go Hs     = ".hs"
     go LHs    = ".lhs"
     go Mkdn   = ".markdown"
@@ -102,7 +104,13 @@ withExt         :: FilePath -> Ext -> FilePath
 withExt f ext   =  replaceExtension f (extMap ext)
 
 extFileName     :: Ext -> FilePath -> FilePath
-extFileName ext = (`addExtension` extMap ext)
+extFileName e f  = path </> ".liquid" </> file
+  where
+    path         = takeDirectory f
+    file         = takeFileName  f
+
+-- extFileName ext = (`addExtension` extMap ext)
+
 
 tempDirectory :: IO FilePath
 tempDirectory = getCurrentDirectory
