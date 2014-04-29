@@ -1,4 +1,5 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names" @-}
 
 module Test0 () where
 
@@ -16,7 +17,7 @@ incr x = x `plus` z
 
 {-@ decr :: x:Int -> {v:Int | v < x} @-}
 decr :: Int -> Int
-decr x = x - 1
+decr x = x + 100
 
 {-@ jog :: x:Int -> {v:Int | v = x} @-}
 jog  :: Int -> Int
