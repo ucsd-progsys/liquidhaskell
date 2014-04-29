@@ -43,7 +43,7 @@ import System.FilePath ( replaceExtension
 
 import DynFlags
 import Control.Arrow (second)
-import Control.Monad (filterM, zipWithM, when, forM, liftM)
+import Control.Monad (filterM, zipWithM, when, forM, forM_, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
@@ -53,7 +53,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
-import System.Directory (removeFile, doesFileExist)
+import System.Directory (removeFile, createDirectory, doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
 
@@ -85,17 +85,10 @@ getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
   where 
     handle            = return . Left . result
 
--- parseSpec :: (String, FilePath) -> IO (Either ErrorResult Ms.BareSpec)
--- parseSpec (name, file) 
---   = Ex.catch (parseSpec' name file) $ \(e :: Ex.IOException) ->
---       ioError $ userError $ 
---         printf "Hit exception: %s while parsing spec file: %s for module %s" 
---           (show e) file name
-
 
 getGhcInfo' cfg0 target
   = runGhc (Just libdir) $ do
-      liftIO              $ deleteBinFilez target
+      liftIO              $ cleanFiles target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
@@ -219,10 +212,19 @@ peepGHCSimple fn
        liftIO $ putStrLn $ showPpr (cm_binds z)
        errorstar "Done peepGHCSimple"
 
-deleteBinFilez :: FilePath -> IO ()
-deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists)
-                  $ (fn `replaceExtension`) `fmap` exts
-  where exts = ["hi", "o"]
+cleanFiles :: FilePath -> IO ()
+-- deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists) 
+--                   $ (fn `replaceExtension`) `fmap` exts
+--   where 
+--     exts = ["hi", "o"]
+
+cleanFiles fn 
+  = do forM_ bins (tryIgnore "delete binaries" . removeFileIfExists)
+       tryIgnore "create temp directory" $ createDirectory dir 
+    where 
+       bins = replaceExtension fn <$> ["hi", "o"]
+       dir  = tempDirectory fn
+
 
 removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 
@@ -354,7 +356,7 @@ isJust (Just a) = True
 
 specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
 specIncludes ext paths reqs 
-  = do let libFile  = extFileName ext preludeName
+  = do let libFile  = extFileNameR ext preludeName
        let incFiles = catMaybes $ reqFile ext <$> reqs 
        liftIO $ forM (libFile : incFiles) (`findFileInDirs` paths)
 
