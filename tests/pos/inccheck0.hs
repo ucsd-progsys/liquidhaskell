@@ -17,7 +17,7 @@ incr x = x `plus` z
 
 {-@ decr :: x:Int -> {v:Int | v < x} @-}
 decr :: Int -> Int
-decr x = x + 100
+decr x = x - 100
 
 {-@ jog :: x:Int -> {v:Int | v = x} @-}
 jog  :: Int -> Int

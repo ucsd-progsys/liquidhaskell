@@ -42,7 +42,7 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   else: time = []
   if lflags: lflags = ["--" + f for f in lflags]
   hygiene_flags = []
-  out = open(os.path.join(dir,file) + ".log", "w")
+  out = open(os.path.join(dir,".liquid",file) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file],
                         out=out, err=subprocess.STDOUT, dir=dir)
   out.close()

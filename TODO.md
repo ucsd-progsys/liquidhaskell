@@ -1,4 +1,4 @@
-LD_LIBRARY_PATH=/Users/jhala/research/liquid/.hsenv_liquid/cabal/bin/ /Users/jhala/research/liquid/.hsenv_liquid/cabal/bin/fixpoint.native -v 1 -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals -no-gen-qual-sorts -smtsolver z3 -out tests/pos/.liquid/Abs.hs.fqout tests/pos/.liquid/Abs.hs.fq
+LD_LIBRARY_PATH=/Users/jhala/research/liquid/.hsenv_liquid/cabal/bin/ /Users/jhala/research/liquid/liquid-fixpoint/external/fixpoint/fixpoint.native -v 1 -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals -no-gen-qual-sorts -smtsolver z3 -out tests/pos/.liquid/Abs.hs.fqout tests/pos/.liquid/Abs.hs.fq
 
 TODO
 ====
