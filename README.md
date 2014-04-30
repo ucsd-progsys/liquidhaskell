@@ -726,6 +726,7 @@ Vim
 ~~~~~
 Bundle 'scrooloose/syntastic'
 Bundle 'panagosg7/vim-annotations'
+let g:vim_annotations_offset = '/.liquid/'
 ~~~~~
 
 2. Copy the following files
