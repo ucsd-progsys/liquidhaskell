@@ -34,4 +34,3 @@ ping n = 1 `plus` pong (n-1)
 
 pong 0 = 1 
 pong n = 1 `plus` ping (n-1)
-
