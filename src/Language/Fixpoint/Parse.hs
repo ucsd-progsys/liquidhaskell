@@ -481,7 +481,7 @@ commandP
  <|> (reserved "push"     >> return Push)
  <|> (reserved "pop"      >> return Pop)
  <|> (reserved "check"    >> return CheckSat)
- <|> (reserved "assert"   >> (Assert   <$> predP))
+ <|> (reserved "assert"   >> (Assert Nothing <$> predP))
  <|> (reserved "distinct" >> (Distinct <$> (brackets $ sepBy exprP comma)))
 
 cmdVarP 

@@ -83,7 +83,7 @@ data Command      = Push
                   | CheckSat
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
-                  | Assert    Pred
+                  | Assert    (Maybe Int) Pred
                   | Distinct  [Expr] -- {v:[Expr] | (len v) >= 2}
                   | GetValue  [Symbol]
                   deriving (Eq, Show)
@@ -157,9 +157,10 @@ valuesP = Values <$> many1 (spaces *> valueP)
 valueP :: Parser (Symbol, String)
 valueP
   = do (x,v) <- parens $ do
-         x <- symbol <$> many1 alphaNum
+         x <- symbol <$> many1 (alphaNum <|> oneOf "_.-#%")
          spaces
-         v <- parens (many1 $ satisfy (/=')')) <|> many1 alphaNum
+         v <-  parens (many1 (satisfy (/=')')) >>= \s -> return $ "("<>s<>")")
+           <|> many1 alphaNum
          return (x,v)
        -- get next line
        try (char ')' >> return ()) <|> getNextLine
@@ -245,7 +246,7 @@ smtFile = extFileName Smt2 "out"
 smtDecl me x ts t = interact' me (Declare x ts t)
 smtPush me        = interact' me (Push)
 smtPop me         = interact' me (Pop)
-smtAssert me p    = interact' me (Assert p)
+smtAssert me p    = interact' me (Assert Nothing p)
 smtDistinct me az = interact' me (Distinct az)
 smtCheckUnsat me  = respSat <$> command me CheckSat
 
@@ -336,7 +337,7 @@ instance SMTLIB2 Sort where
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 (S s) = T.pack s
+  smt2 s = T.pack $ takeWhile (/= '#') $ symbolString s
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = T.pack s
@@ -395,7 +396,8 @@ mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 instance SMTLIB2 Command where
   smt2 (Declare x ts t) = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
   smt2 (Define t)       = format "(declare-sort {})"         (Only $ smt2 t)
-  smt2 (Assert p)       = format "(assert {})"               (Only $ smt2 p)
+  smt2 (Assert Nothing p) = format "(assert {})"               (Only $ smt2 p)
+  smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
   smt2 (Distinct az)    = format "(assert (distinct {}))"    (Only $ smt2s az)
   smt2 (Push)           = "(push 1)"
   smt2 (Pop)            = "(pop 1)"
