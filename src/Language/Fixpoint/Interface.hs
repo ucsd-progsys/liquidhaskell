@@ -86,7 +86,7 @@ execFq cfg fn hqs fi
   = do copyFiles hqs fq
        appendFile fq qstr 
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
-       solveFile $ traceShow "execFq" $ cfg `withTarget` fq
+       solveFile $ cfg `withTarget` fq
     where 
        fq   = extFileName Fq fn
        d    = {-# SCC "FixPointify" #-} toFixpoint fi 

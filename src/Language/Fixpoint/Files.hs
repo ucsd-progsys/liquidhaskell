@@ -131,8 +131,9 @@ extModuleName ::  String -> Ext -> FilePath
 extModuleName modName ext =
   case explode modName of
     [] -> errorstar $ "malformed module name: " ++ modName
-    ws -> extFileName ext $ foldr1 (</>) ws
-  where explode = words . map (\c -> if c == '.' then ' ' else c)
+    ws -> extFileNameR ext $ foldr1 (</>) ws
+  where 
+    explode = words . map (\c -> if c == '.' then ' ' else c)
 
 copyFiles :: [FilePath] -> FilePath -> IO ()
 copyFiles srcs tgt
