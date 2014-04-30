@@ -337,7 +337,7 @@ moduleFile paths name ext
          Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
          Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise
-  = do liftIO $ getFileInDirs (extModuleName name ext) paths
+  = liftIO $ getFileInDirs (extModuleName name ext) paths
 
 isJust Nothing = False
 isJust (Just a) = True
