@@ -1,0 +1,4 @@
+Failed 4 tests: 
+  neg/Class4Import.hs,
+  pos/AVLTree.hs,
+  pos/RBTree.hs,
