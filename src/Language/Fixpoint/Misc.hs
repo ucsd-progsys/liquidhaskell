@@ -82,7 +82,8 @@ wrap l r s = l ++ s ++ r
 repeats n  = concat . replicate n
 
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n") 
-  where stars = repeats 3 $ wrapStars "ERROR"
+  where 
+    stars = repeats 3 $ wrapStars "ERROR"
 
 errortext  = errorstar . render 
 
