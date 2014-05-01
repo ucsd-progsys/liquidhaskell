@@ -56,8 +56,8 @@ instance PPrint SrcSpan where
 --     (_,l',c')     = sourcePosElts $ sp_stop  z
 
 
-ppSrcSpan z       = parens 
-                  $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')  
+ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')  
+                -- parens $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')  
   where 
     (f,l ,c )     = sourcePosElts $ sp_start z
     (_,l',c')     = sourcePosElts $ sp_stop  z
@@ -90,8 +90,9 @@ data Error = Error { errLoc :: SrcSpan, errMsg :: String }
                deriving (Eq, Ord, Show, Typeable)
 
 instance PPrint Error where
-  pprint (Error l msg) = text $ printf "Error at %s\n  %s\n" (showpp l) msg 
-
+  pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
+                         -- text $ printf "%s\n  %s\n" (showpp l) msg 
+                         
 instance Fixpoint Error where
   toFix = pprint
 
