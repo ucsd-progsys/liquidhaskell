@@ -205,11 +205,11 @@ writeExit cfg target r out
   = do {-# SCC "annotate" #-} annotate cfg target r (o_soln out) (o_annot out)
        donePhase Loud "annotate"
        let rs = showFix r
+       writeCheckVars $ o_vars  out
+       writeWarns     $ o_warns out
        writeResult (colorResult r) r
        writeFile   (extFileName Result target) rs
-       writeWarns     $ o_warns out
-       writeCheckVars $ o_vars  out
-       return $ if null $ o_warns out then r else Unsafe []
+       return $ if null (o_warns out) then r else Unsafe []
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
@@ -232,13 +232,6 @@ reportUrl                = text "Please submit a bug report at: https://github.c
 
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs
-
--- | This generates errors/warnings to be used by syntastic et al.
-writeErrors = putStrLn . render . vcat . resDocFmt
-
-resDocFmt Safe         = []
-resDocFmt (Crash xs s) = undefined
-
 
 ------------------------------------------------------------------------
 -- | Stuff To Output ---------------------------------------------------

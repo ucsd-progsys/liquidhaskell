@@ -211,7 +211,7 @@ mkAnnMapTyp cfg (AI m)
   $ map (srcSpanStartLoc *** bindString)
   $ map (head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst)
-  $ [ (l, x) | (RealSrcSpan l, (x:_)) <- M.toList m, oneLine l]
+  $ [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where 
     bindString     = mapPair render . ppr
     env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
@@ -241,10 +241,10 @@ filterA (AI m) = AI (M.filter ff m)
 collapseA (AI m) = AI (fmap pickOneA m)
 
 pickOneA xas = case (rs, ds, ls, us) of
-                 ((x:_), _, _, _) -> [x]
-                 (_, (x:_), _, _) -> [x]
-                 (_, _, (x:_), _) -> [x]
-                 (_, _, _, (x:_)) -> [x]
+                 (x:_, _, _, _) -> [x]
+                 (_, x:_, _, _) -> [x]
+                 (_, _, x:_, _) -> [x]
+                 (_, _, _, x:_) -> [x]
   where 
     rs = [x | x@(_, RDf _) <- xas]
     ds = [x | x@(_, Def _) <- xas]
@@ -285,7 +285,7 @@ isIncl = spacePrefix "include"
 
 spacePrefix str s@(c:cs)
   | isSpace c   = spacePrefix str cs
-  | otherwise   = (take (length str) s) == str
+  | otherwise   = take (length str) s == str
 spacePrefix _ _ = False 
 
 
@@ -319,7 +319,7 @@ instance Monoid (AnnInfo a) where
   mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
 
 instance Functor AnnInfo where
-  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))) m)
+  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))  ) m)
 
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
@@ -386,7 +386,7 @@ data Annot1    = A1  { ident :: String
 vimAnnot :: ACSS.AnnMap -> String 
 vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
 
-vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (show ann) 
+vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
   where
     l1  = l
     c1  = c 
@@ -414,8 +414,8 @@ instance ToJSON Annot1 where
                                ]
 
 instance ToJSON Loc where
-  toJSON (L (l, c)) = object [ ("line"     .= toJSON l)
-                             , ("column"   .= toJSON c) ]
+  toJSON (L (l, c)) = object [ "line"     .= toJSON l
+                             , "column"   .= toJSON c ]
 
 instance ToJSON AnnErrors where 
   toJSON errs      = Array $ V.fromList $ fmap toJ errs
@@ -430,9 +430,9 @@ instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
       tshow        = T.pack . show 
 
 instance ToJSON ACSS.AnnMap where 
-  toJSON a = object [ ("types"  .= (toJSON $ annTypes a))
-                    , ("errors" .= (toJSON $ ACSS.errors   a))
-                    , ("status" .= (toJSON $ ACSS.status   a))
+  toJSON a = object [ "types"  .= toJSON (annTypes    a)
+                    , "errors" .= toJSON (ACSS.errors a)
+                    , "status" .= toJSON (ACSS.status a)
                     ]
 
 annTypes         :: ACSS.AnnMap -> AnnTypes 
