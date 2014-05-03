@@ -1,107 +1,104 @@
-module Fixme where
 
-import qualified Data.Set 
-import Prelude hiding (filter)
-data Stack a = Stack { focus  :: !a        -- focused thing in this set
-                     , up     :: [a]       -- clowns to the left
-                     , down   :: [a] }     -- jokers to the right
-    -- deriving (Show, Read, Eq)
-data Workspace i l a = Workspace  { tag :: !i, layout :: l, stack :: Maybe (Stack a) }
-    -- LIQUID deriving (Show, Read, Eq)
-{-@
-data Workspace i l a = Workspace  { tag :: i, layout :: l, stack :: Maybe (UStack a) }
+{-@ LIQUID "--no-termination"   @-}
+
+module Foo where
+
+import Language.Haskell.Liquid.Prelude
+
+data RBTree a = Leaf 
+              | Node Color a !(RBTree a) !(RBTree a)
+--               deriving (Show)
+
+data Color = B -- ^ Black
+           | R -- ^ Red
+--           deriving (Eq,Show)
+
+
+{-@ deleteMin'                   :: k:a -> l:RBT {v:a | v < k} -> r:RBTN {v:a | k < v} {(bh l)} -> (a, ARBT2 a l r) @-}
+
+-- with the sig it is SAFE 
+
+-- deleteMin' :: a -> RBTree a -> RBTree a -> (a, RBTree a)
+deleteMin' k Leaf r              = (k, r)
+deleteMin' x (Node R lx ll lr) r = (k, Node R x l' r)   where (k, l') = deleteMin' lx ll lr 
+
+
+-- | Ordered Red-Black Trees
+
+{-@ type ORBT a = RBTree <{\root v -> v < root }, {\root v -> v > root}> a @-}
+
+-- | Red-Black Trees
+
+{-@ type RBT a    = {v: (ORBT a) | ((isRB v) && (isBH v)) } @-}
+{-@ type RBTN a N = {v: (RBT a) | (bh v) = N }              @-}
+
+{-@ type ORBTL a X = RBT {v:a | v < X} @-}
+{-@ type ORBTG a X = RBT {v:a | X < v} @-}
+
+{-@ measure isRB        :: RBTree a -> Prop
+    isRB (Leaf)         = true
+    isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
   @-}
 
-{-@ stack :: w:(Workspace i l a) 
-          -> {v:(Maybe (UStack a)) | v = (getStackWorkspace w)}
+-- | Almost Red-Black Trees
+
+{-@ type ARBT a    = {v: (ORBT a) | ((isARB v) && (isBH v))} @-}
+{-@ type ARBTN a N = {v: (ARBT a)   | (bh v) = N }             @-}
+
+{-@ measure isARB        :: (RBTree a) -> Prop
+    isARB (Leaf)         = true 
+    isARB (Node c x l r) = ((isRB l) && (isRB r))
   @-}
 
-{-@ measure getStackWorkspace :: (Workspace i l a) -> (Maybe (Stack a))
-    getStackWorkspace(Workspace t l stack) = stack @-}
-{-@ removeFromWorkspace :: Eq a => a -> Workspace i l a -> Workspace i l a @-}
-removeFromWorkspace :: Eq a => a -> Workspace i l a -> Workspace i l a
-removeFromWorkspace w ws = ws { stack = stack ws >>= filter (/=w) }
+-- | Conditionally Red-Black Tree
 
-{-@ filter :: (a -> Bool) -> UStack a -> Maybe (UStack a) @-}
-filter :: (a -> Bool) -> Stack a -> Maybe (Stack a)
-filter = undefined
-{-@
-data Stack a = Stack { focus :: a   
-                     , up    :: UListDif a focus
-                     , down  :: UListDif a focus }
-@-}
+{-@ type ARBT2 a L R = {v:ARBTN a {(bh L)} | (((IsB L) && (IsB R)) => (isRB v))} @-}
 
-{-@ invariant {v: Stack a | (ListDisjoint (getUp v) (getDown v))}@-}
+-- | Color of a tree
 
-{-@ measure getUp :: forall a. (Stack a) -> [a] 
-    getUp (Stack focus up down) = up
+{-@ measure col         :: RBTree a -> Color
+    col (Node c x l r)  = c
+    col (Leaf)          = B
   @-}
 
-{-@ measure getDown :: forall a. (Stack a) -> [a] 
-    getDown (Stack focus up down) = down
+{-@ measure isB        :: RBTree a -> Prop
+    isB (Leaf)         = false
+    isB (Node c x l r) = c == B 
   @-}
 
-{-@ measure getFocus :: forall a. (Stack a) -> a
-    getFocus (Stack focus up down) = focus
+{-@ predicate IsB T = not ((col T) == R) @-}
+
+-- | Black Height
+
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH (Leaf)         = true
+    isBH (Node c x l r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
   @-}
 
-{-@ qualif Disjoint(v: List a, x:List a) : (Set_emp(Set_cap (listElts v) (listElts x))) @-}
-
-{-@ qualif NoDup(v: List a) : (Set_emp(listDup v)) @-}
-
-{-@ qualif NotMem1(v: List a, x:a) : (not (Set_mem x (listElts v))) @-}
-
-{-@ qualif NotMem2(v:a, x: List a) : (not (Set_mem v (listElts x))) @-}
-
-{-@ qualif NotMem3(v:Stack a) : (Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v)))) @-}
-
-{-@ type UStack a = {v:(Stack a) | (ListDisjoint (getUp v) (getDown v))}@-}
-
-
--- LIQUID HELPERS
-{-@ assume (GHC.List.++) :: xs:(UList a)
-                -> ys:{v: UList a | (ListDisjoint v xs)}
-                -> {v: UList a | (UnionElts v xs ys)}
-  @-}
-{-@ assume Data.List.filter :: (a -> Bool) 
-                            -> xs:(UList a) 
-                            -> {v:UList a | (SubElts v xs)} @-}
-
-{-@ assume elem :: Eq a 
-                => x:a 
-                -> xs:[a] 
-                -> {v:Bool|((Prop v)<=>(ListElt x xs))}
+{-@ measure bh        :: RBTree a -> Int
+    bh (Leaf)         = 0
+    bh (Node c x l r) = (bh l) + (if (c == R) then 0 else 1) 
   @-}
 
-{-@ assume reverse :: xs:(UList a)
-                   -> {v: UList a | (EqElts v xs)} 
+-- | Binary Search Ordering
+
+{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
+            = Leaf
+            | Node (c    :: Color)
+                   (key  :: a)
+                   (left :: RBTree <l, r> (a <l key>))
+                   (left :: RBTree <l, r> (a <r key>))
   @-}
 
-{-@
-  measure listDup :: [a] -> (Data.Set.Set a)
-  listDup([])   = {v | (? Set_emp (v))}
-  listDup(x:xs) = {v | v = ((Set_mem x (listElts xs))?(Set_cup (Set_sng x) (listDup xs)):(listDup xs)) }
-  @-}
+-------------------------------------------------------------------------------
+-- Auxiliary Invariants -------------------------------------------------------
+-------------------------------------------------------------------------------
 
-{-@ predicate SubElts X Y =
-       (Set_sub (listElts X) (listElts Y)) @-}
+{-@ predicate Invs V = ((Inv1 V) && (Inv2 V) && (Inv3 V))   @-}
+{-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
+{-@ predicate Inv2 V = ((isRB v) => (isARB v))              @-}
+{-@ predicate Inv3 V = 0 <= (bh v)                          @-}
 
-{-@ predicate UnionElts X Y Z =
-       ((listElts X) = (Set_cup (listElts Y) (listElts Z))) @-}
+{-@ invariant {v: Color | (v = R || v = B)}                 @-}
 
-{-@ predicate EqElts X Y =
-       ((listElts X) = (listElts Y)) @-}
-
-{-@ predicate ListUnique LS =
-       (Set_emp (listDup LS)) @-}
-
-{-@ predicate ListElt N LS =
-       (Set_mem N (listElts LS)) @-}
-
-{-@ predicate ListDisjoint X Y =
-       (Set_emp (Set_cap (listElts X) (listElts Y))) @-}
-
-{-@ type UList a = {v:[a] | (ListUnique v)} @-}
-
-{-@ type UListDif a N = {v:[a] | ((not (ListElt N v)) && (ListUnique v))} @-}
-
+{-@ invariant {v: RBTree a | (Invs v)}                      @-}
