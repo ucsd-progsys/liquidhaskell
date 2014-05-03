@@ -125,7 +125,7 @@ makeGhcSpec' cfg vars defVars exports specs
        let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'
-       let dcSelectors  = [] -- concat $ map makeMeasureSelectors datacons
+       let dcSelectors  = concat $ map makeMeasureSelectors datacons
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures'        <- mconcat <$> mapM makeMeasureSpec specs
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
@@ -1012,7 +1012,7 @@ isCon []     = False
 --------------------------------------------------------------------
 
 maxArity :: Arity 
-maxArity = 0
+maxArity = 7
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
