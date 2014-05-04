@@ -1,3 +1,4 @@
+{-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
@@ -31,7 +32,8 @@ import CoreSyn
 import SrcLoc           
 import Type             -- (coreEqType)
 import PrelNames
-import qualified TyCon as TC
+import qualified TyCon   as TC
+import qualified DataCon as DC
 
 import TypeRep 
 import Class            (Class, className)
@@ -123,7 +125,8 @@ initEnv info penv
        f4       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       let bs    = (map (unifyts' senv tce tyi penv)) <$> [f0 ++ f0', f1, f2, f3, f4]
+       let tx    = mapFst F.symbol . addRInv invs . unifyts' senv tce tyi penv
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
@@ -143,16 +146,19 @@ initEnv info penv
             | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
+    invs  = mkRTyConInv $ invariants $ spec info
+
+
 
 ctor' = map (mapSnd val) . ctors
 
 unifyts' senv tce tyi penv =  (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
 
-sunify :: [(Var, SpecType)] -> (F.Symbol, SpecType) -> (F.Symbol, SpecType)
+sunify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 sunify senv (x, t) = (x, maybe t (mappend t) pt)
- where pt = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x (mapFst F.symbol <$> senv)
+ where pt = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
 
-unifyts penv (x, t) = (x', unify pt t)
+unifyts penv (x, t) = (x, unify pt t)
  where pt = F.lookupSEnv x' penv
        x' = F.symbol x
 
@@ -276,6 +282,7 @@ data SubC     = SubC { senv  :: !CGEnv
                      , rhs   :: !SpecType 
                      }
               | SubR { senv  :: !CGEnv
+                     , oblig :: !Oblig
                      , ref   :: !RReft
                      }
 
@@ -380,8 +387,9 @@ splitS (SubC γ (RAllE x tx t1) t2)
 splitS (SubC γ t1 (RAllE x tx t2))
   = splitS (SubC γ t1 t2)
 
-splitS (SubC γ (RRTy r t1) t2) 
-  = do c1 <- splitS (SubR γ r)
+splitS (SubC γ (RRTy e r o t1) t2) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
+       c1 <- splitS (SubR γ' o r)
        c2 <- splitS (SubC γ t1 t2)
        return $ c1 ++ c2
 
@@ -438,7 +446,7 @@ splitS (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitS c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
-splitS (SubR _ _)
+splitS (SubR _ _ _)
   = return []
 
 splitSIndexed γ t1s t2s indexes 
@@ -498,8 +506,9 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ (RRTy r t1) t2) 
-  = do c1 <- splitC (SubR γ r)
+splitC (SubC γ (RRTy e r o t1) t2) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
+       c1 <- splitC (SubR γ' o  r )
        c2 <- splitC (SubC γ t1 t2)
        return $ c1 ++ c2
 
@@ -559,16 +568,19 @@ splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
 splitC c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
-splitC (SubR γ r)
-  = return $ F.subC γ' F.PTrue r1 r2 Nothing tag ci
+splitC (SubR γ o r)
+  = do fg     <- pruneRefs <$> get 
+       let r1' = if fg then pruneUnsortedReft γ'' r1 else r1
+       return $ F.subC γ' F.PTrue r1' r2 Nothing tag ci
   where
+    γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
     r1  = F.RR s $ F.toReft r
     r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
     vv  = F.S "vvRec"
     s   = F.FApp F.boolFTyCon []
     ci  = Ci src err
-    err = Just $ ErrAssType src (text "termination type error") r
+    err = Just $ ErrAssType src o (text (show o ++ "type error")) r
     tag = getTag γ
     src = loc γ 
 
@@ -735,16 +747,22 @@ extendEnvWithVV γ t
   where vv = rTypeValueVar t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
-(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-γ ++= (_, x, t') 
+addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
-       let t  = normalize γ {-x-} idx t'  
+       let t  = tx $ normalize γ {-x-} idx t'  
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        pflag <- pruneRefs <$> get
        is    <- if isBase t 
                   then liftM single $ addBind x $ rTypeSortedReft' pflag γ' t 
                   else addClassBind t 
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
+
+(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+(++=) γ = addCGEnv (addRTyConInv (invs γ)) γ  
+
+addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+addSEnv = addCGEnv id
 
 rTypeSortedReft' pflag γ 
   | pflag
@@ -785,11 +803,10 @@ rTypeSortedReft' pflag γ
                                ++ " in renv " 
                                ++ showpp (renv γ)
 
-normalize' γ x idx t = normalize γ idx t
+normalize' γ x idx t = addRTyConInv (invs γ) $ normalize γ idx t
 
 normalize γ idx 
-  = addRTyConInv (invs γ) 
-  . normalizeVV idx 
+  = normalizeVV idx 
   . normalizePds
 
 normalizeVV idx t@(RApp _ _ _ _)
@@ -842,7 +859,7 @@ unsetConsBind = modify $ \s -> s {isBind = False : isBind s}
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
-  = do -- trace ("addC " ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+  = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
        modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- (safeHead True . isBind) <$> get
        sflag <- scheck <$> get 
@@ -856,8 +873,13 @@ addC !c@(SubC γ t1 t2) _msg
 addC !c _msg 
   = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
-addPost γ (RRTy r t) 
-  = addC (SubR γ r) "precondition" >> return t
+addPost γ (RRTy e r OInv t) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e 
+       addC (SubR γ' OInv r) "precondition" >> return t
+
+addPost γ (RRTy e r o t) 
+  = do γ' <- foldM (\γ (x, t) -> γ ++= ("addPost", x,t)) γ e 
+       addC (SubR γ' o r) "precondition" >> return t
 addPost _ t  
   = return t
 
@@ -1217,8 +1239,8 @@ consCB _ _ γ (Rec xes)
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
-       to' <- consBind False γ (x, e, to)
-       extender γ (x, to')
+       to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
+       extender γ $ traceShow "consCB" (x, to')
 
 consBind isRec γ (x, e, Asserted spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1255,6 +1277,14 @@ extender γ _               = return γ
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 data Template a = Asserted a | Assumed a | Unknown deriving (Functor)
+
+deriving instance (Show a) => (Show (Template a))
+
+
+addPostTemplate γ (Asserted t) = liftM Asserted $ addPost γ t
+addPostTemplate γ (Assumed  t) = liftM Assumed  $ addPost γ t
+addPostTemplate γ Unknown      = return Unknown 
+
 fromAsserted (Asserted t) = t
 safeFromAsserted msg (Asserted t) = t
 
@@ -1322,7 +1352,7 @@ cconsE γ e (RAllP p t)
 
 cconsE γ e t
   = do te  <- consE γ e
-       te' <- instantiatePreds γ e te
+       te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 instantiatePreds γ e (RAllP p t)
@@ -1370,7 +1400,7 @@ consE γ e'@(App e a)
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x = fromMaybe x $ L.lookup x su
        let te'              = F.substa f $ replacePreds "consE" te zs
-       (γ', te'')          <- dropExists γ te'
+       (γ', te'')          <- dropExists γ te' -- teUnPost
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        unsetConsBind
@@ -1554,7 +1584,7 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
 
-unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, rt)
+unfoldR dc td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where 
         tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
         (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
@@ -1636,8 +1666,8 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 varRefType γ x = liftM (varRefType' γ x) (γ ??= F.symbol x)
 
 varRefType' γ x t'
-  | Just tys <- trec γ 
-  = maybe t (`strengthen` xr) (x' `M.lookup` tys)
+  | Just tys <- trec γ, Just tr <- M.lookup x' tys 
+  = tr `strengthen` xr
   | otherwise
   = t
   where t  = t' `strengthen` xr
@@ -1662,7 +1692,7 @@ instance NFData FEnv where
 instance NFData SubC where
   rnf (SubC x1 x2 x3) 
     = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (SubR x1 x2) 
+  rnf (SubR x1 _ x2) 
     = rnf x1 `seq` rnf x2
 
 instance NFData Class where
@@ -1721,7 +1751,7 @@ forallExprReft_ _ e = Nothing -- F.exprReft e
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
-    snap                 = bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
+    snap                 = mapThd3 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
 grapBindsWithType tx γ 
   = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
@@ -1805,6 +1835,18 @@ addRTyConInv m t@(RApp c _ _ _)
       Just ts -> foldl' conjoinInvariant' t ts
 addRTyConInv _ t 
   = t 
+
+addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
+addRInv m (x, t) 
+  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
+  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
+  | otherwise    
+  = (x, t)
+   where ids = [id | tc <- M.keys                m
+                   , dc <- TC.tyConDataCons $ rTyCon tc
+                   , id <- DC.dataConImplicitIds dc]
+         res = ty_res . toRTypeRep
+         xs  = ty_args $ toRTypeRep t
 
 conjoinInvariant' t1 t2     
   = conjoinInvariantShift t1 t2
