@@ -125,7 +125,7 @@ initEnv info penv
        f4       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv invs . unifyts' senv tce tyi penv
+       let tx    = mapFst F.symbol . addRInv ialias . unifyts' senv tce tyi penv
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
@@ -146,7 +146,7 @@ initEnv info penv
             | otherwise = return r
     extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
   -- where tce = tcEmbeds $ spec info
-    invs  = mkRTyConInv $ invariants $ spec info
+    ialias  = mkRTyConIAl $ ialiases $ spec info
 
 
 
@@ -170,6 +170,7 @@ measEnv sp penv xts cbs lts asms
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
+        , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts
         , assms = fromListREnv asms
         , emb   = tce 
@@ -224,6 +225,7 @@ data CGEnv
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
+        , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants 
         , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
         , assms  :: !REnv              -- ^ Top-level variables with assumed types
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
@@ -759,10 +761,10 @@ addCGEnv tx γ (_, x, t')
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-(++=) γ = addCGEnv (addRTyConInv (invs γ)) γ  
+(++=) γ = addCGEnv (addRTyConInv (invs γ `mappend` ial γ)) γ  
 
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addSEnv = addCGEnv id
+addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 rTypeSortedReft' pflag γ 
   | pflag
@@ -803,7 +805,7 @@ rTypeSortedReft' pflag γ
                                ++ " in renv " 
                                ++ showpp (renv γ)
 
-normalize' γ x idx t = addRTyConInv (invs γ) $ normalize γ idx t
+normalize' γ x idx t = addRTyConInv (invs γ `mappend` ial γ) $ normalize γ idx t
 
 normalize γ idx 
   = normalizeVV idx 
@@ -1240,7 +1242,7 @@ consCB _ _ γ (Rec xes)
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender γ $ traceShow "consCB" (x, to')
+       extender γ (x, to')
 
 consBind isRec γ (x, e, Asserted spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1682,7 +1684,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 x9 _ x10 x11 _ _) 
+  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 x9 _ _ x10 x11 _ _) 
     = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
@@ -1822,11 +1824,14 @@ extendγ γ xts
 -------------------------------------------------------------------
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
+type RTyConIAl = M.HashMap RTyCon [SpecType]
 
 -- mkRTyConInv    :: [Located SpecType] -> RTyConInv 
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
     strip      = fourth4 . bkUniv . val 
+
+mkRTyConIAl    = mkRTyConInv . (snd <$>)
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)

@@ -417,6 +417,7 @@ data Pspec ty ctor
   | DDecl   DataDecl
   | Incl    FilePath
   | Invt    (Located ty)
+  | IAlias  (Located ty, Located ty)
   | Alias   (RTAlias String BareType)
   | PAlias  (RTAlias Symbol Pred)
   | Embed   (Located String, FTycon)
@@ -439,6 +440,7 @@ mkSpec name xs         = (name,)
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
   , Measure.invariants = [t | Invt   t <- xs]
+  , Measure.ialiases   = [t | IAlias t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs]
   , Measure.includes   = [q | Incl   q <- xs]
@@ -469,6 +471,7 @@ specP
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
     <|> (reserved "invariant" >> liftM Invt   invariantP)
+    <|> (reserved "using"     >> liftM IAlias invaliasP )
     <|> (reserved "type"      >> liftM Alias  aliasP    )
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
@@ -517,6 +520,12 @@ termTypeP
        return (t, Just es)
 
 invariantP   = locParserP genBareTypeP 
+
+invaliasP   
+  = do t  <- locParserP genBareTypeP 
+       reserved "as"
+       ta <- locParserP genBareTypeP
+       return (t, ta)
 
 genBareTypeP
   = bareTypeP -- liftM generalize bareTypeP 

@@ -134,6 +134,7 @@ makeGhcSpec' cfg vars defVars exports specs
        sigs'           <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
        asms'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
+       ialias          <- mconcat <$> mapM makeIAliases   specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
        (cls,mts)       <- second mconcat . unzip . mconcat
@@ -147,10 +148,11 @@ makeGhcSpec' cfg vars defVars exports specs
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
-       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ asms ++ cs') ms' invs
+       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txi          = subsFreeSymbolsInv su
+       let txia         = subsFreeSymbolsIAliases su
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
@@ -183,6 +185,7 @@ makeGhcSpec' cfg vars defVars exports specs
                              , ctors      = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars ++ cms')
                              , invariants = txi invs
+                             , ialiases   = txia ialias
                              , dconsP     = mapSnd val <$> datacons
                              , tconsP     = tycons
                              , freeSyms   = syms'
@@ -557,6 +560,11 @@ subsFreeSymbolsInv su  = tx
   where 
     tx                 = fmap $ subst su 
 
+subsFreeSymbolsIAliases su  = tx
+  where 
+    tx                 = fmap (mapFst f . mapSnd f)
+    f                  = subst su
+
 
 subsFreeSymbolsQual su = tx
   where
@@ -770,6 +778,15 @@ makeTyConEmbeds' :: TCEmb (Located String) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where 
     tx (c, y) = (, y) <$> lookupGhcTyCon c
+
+makeIAliases (mod,spec)
+  = inModule mod $ makeIAliases' $ Ms.ialiases spec
+
+makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecType, Located SpecType)]
+makeIAliases' ts = mapM mkIA ts
+  where 
+    mkIA (t1, t2)      = liftM2 (,) (mkI t1) (mkI t2)
+    mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType l t
 
 makeInvariants (mod,spec)
   = inModule mod $ makeInvariants' $ Ms.invariants spec
