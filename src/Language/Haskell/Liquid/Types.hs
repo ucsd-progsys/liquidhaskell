@@ -1174,6 +1174,15 @@ data Error =
                 , inv :: !SpecType
                 , msg :: !Doc
                 } -- ^ Invariant sort error
+  | ErrIAl      { pos :: !SrcSpan
+                , inv :: !SpecType
+                , msg :: !Doc
+                } -- ^ Using  sort error
+  | ErrIAlMis   { pos :: !SrcSpan
+                , t1  :: !SpecType
+                , t2  :: !SpecType
+                , msg :: !Doc
+                } -- ^ Incompatible using error
   | ErrMeas     { pos :: !SrcSpan
                 , ms  :: !Symbol
                 , msg :: !Doc

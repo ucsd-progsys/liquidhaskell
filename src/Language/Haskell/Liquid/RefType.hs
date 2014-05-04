@@ -1088,6 +1088,14 @@ ppError (ErrInvt l t s)
   = pprintE l <+> text "Bad Invariant Specification" 
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
 
+ppError (ErrIAl l t s)
+  = pprintE l <+> text "Bad Using Specification" 
+    $+$ (nest 4 $ text "as" <+> pprint t $+$ s)
+
+ppError (ErrIAlMis l t1 t2 s)
+  = pprintE l <+> text "Incompatible Using Specification" 
+    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ s)
+
 ppError (ErrMeas l t s)
   = pprintE l <+> text "Bad Measure Specification" 
     $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
