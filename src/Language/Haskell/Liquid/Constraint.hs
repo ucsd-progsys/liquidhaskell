@@ -761,7 +761,7 @@ addCGEnv tx γ (_, x, t')
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-(++=) γ = addCGEnv (addRTyConInv (invs γ `mappend` ial γ)) γ  
+(++=) γ = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ  
 
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
@@ -805,7 +805,7 @@ rTypeSortedReft' pflag γ
                                ++ " in renv " 
                                ++ showpp (renv γ)
 
-normalize' γ x idx t = addRTyConInv (invs γ `mappend` ial γ) $ normalize γ idx t
+normalize' γ x idx t = addRTyConInv (M.unionWith mappend (invs γ) (ial γ)) $ normalize γ idx t
 
 normalize γ idx 
   = normalizeVV idx 
