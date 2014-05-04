@@ -1316,6 +1316,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
                      ++ mapMaybe (checkExpr "measure"     emb env sigs) (texprs sp)
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
+                     ++ (checkIAl  emb env) (ialiases   sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
@@ -1340,6 +1341,21 @@ checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb env t   = checkTy err emb env (val t) 
   where 
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
+
+checkIAl :: TCEmb TyCon -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
+checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
+
+checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+  where 
+    tcheck t = checkTy (err t) emb env (val t)
+    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t)
+    t1'      :: RSort 
+    t1'      = toRSort $ val t1
+    t2'      :: RSort 
+    t2'      = toRSort $ val t2
+    checkEq  = if (t1' == t2') then Nothing else Just $ errmis
+    errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) (pprint t1 <+> text "does not match with" <+> pprint t2 ) 
+
 
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
