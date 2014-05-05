@@ -1,1 +1,1 @@
-rm  *.smt2 *.bak *.json *.css *.md *.hi *.out *.fqout *.fq *.o *.err *.annot *log *html *.cgi
+find . | grep -E -e '\.(smt2|bak|json|css|md|hi|out|fqout|fq|o|err|annot|log|html|cgi|liquid)$' | xargs rm -rf
