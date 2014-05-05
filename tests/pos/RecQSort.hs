@@ -1,32 +1,25 @@
-module GhcSort () where
+module GhcSort (qsort) where
 
 {-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
 
 {-@ assert sort3 :: (Ord a) => [a] -> OList a @-}
 sort3 :: (Ord a) => [a] -> [a]
-sort3 ls = qsort ls d 0 
-  where d = (length ls) 
+sort3 = qsort 
 
 
-{-@ Decrease qsort 3 4 @-}
-{-@ Decrease qpart 6 7 @-}
-qsort:: (Ord a) => [a] -> Int -> Int -> [a]
-{-@ qsort:: (Ord a) => xs:[a] -> {v:Int |v = (len xs)} -> {v:Int | v = 0} -> OList a @-}
-qsort []  _ _  = []
-qsort (x:xs) _ _ = qpart x xs [] [] d1 d2
-  where d1 = (length xs) 
-        d2 = (length xs + 1) 
+qsort:: (Ord a) => [a] -> [a]
+{-@ qsort:: (Ord a) => xs:[a] -> OList a / [(len xs), 0]@-}
+qsort []     = []
+qsort (x:xs) = qpart x xs [] []
 
-qpart  :: (Ord a) => a -> [a] -> [a] -> [a] -> Int -> Int -> [a]
-{-@ qpart  :: (Ord a) => x:a -> q:[a] -> r:[{v:a | ((true) && (v < x))}] -> p:[{v:a | ((true) && (v >= x))}] -> {v:Int | v = ((len r) + (len q) + (len p))} -> {v:Int|v = (len q) + 1} -> OList a @-}
-qpart x [] rlt rge _ _ =
-    app x (qsort rlt dl 0) (x:qsort rge dg 0)
-  where dl = length rlt
-        dg = length rge
-qpart x (y:ys) rlt rge d1 d2 =
+qpart  :: (Ord a) => a -> [a] -> [a] -> [a] -> [a]
+{-@ qpart  :: (Ord a) => x:a -> q:[a] -> r:[{v:a | (v < x)}] -> p:[{v:a |(v >= x)}] -> OList a / [((len p) + (len r) + (len q)), ((len q) + 1)]@-}
+qpart x [] rlt rge =
+    app x (qsort rlt) (x:qsort rge)
+qpart x (y:ys) rlt rge =
     case compare x y of
-        GT -> qpart x ys (y:rlt) rge d1 (d2-1)
-        _  -> qpart x ys rlt (y:rge) d1 (d2-1)
+        GT -> qpart x ys (y:rlt) rge
+        _  -> qpart x ys rlt (y:rge)
 
 
 {-@ app :: Ord a => x:a -> (OList ({v:a | v < x})) -> (OList ({v:a| v >= x})) -> OList a @-} 
