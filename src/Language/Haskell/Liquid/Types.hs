@@ -35,7 +35,9 @@ module Language.Haskell.Liquid.Types (
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
+  , Oblig(..), ignoreOblig
   , addTermCond
+  , addInvCond
 
   , isBase
 
@@ -251,6 +253,8 @@ data GhcSpec = SP {
   , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
   , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
+
+  , ialiases   :: ![(Located SpecType, Located SpecType)] -- ^ Data Type Invariant Aliases
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
@@ -478,7 +482,9 @@ data RType p c tv r
     }
 
   | RRTy  {
-      rr_ref   :: !r
+      rt_env   :: ![(Symbol, RType p c tv r)]
+    , rt_ref   :: !r
+    , rt_obl   :: !Oblig 
     , rt_ty    :: !(RType p c tv r)
     }
   | ROth  !String 
@@ -486,7 +492,20 @@ data RType p c tv r
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
 
--- MOVE TO TYPES
+data Oblig 
+  = OTerm -- ^ Obligation that proves termination
+  | OInv  -- ^ Obligation that proves invariants
+
+
+ignoreOblig (RRTy _ _ _ t) = t
+ignoreOblig t              = t
+
+instance Show Oblig where
+ show OTerm = "termination-condition"
+ show OInv  = "invariant-obligation"
+
+instance PPrint Oblig where
+  pprint = text . show
 
 data Ref t s m 
   = RMono [(Symbol, t)] s
@@ -651,7 +670,27 @@ bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' mempty
 
-addTermCond t r = mkArrow αs πs ls xts $ RRTy r t2
+
+
+addTermCond = addObligation OTerm
+
+addInvCond :: SpecType -> RReft -> SpecType
+addInvCond t r' 
+  | null rv 
+  = t
+  | otherwise
+  = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
+  where trep = toRTypeRep t
+        tbd  = ty_res trep
+        r    = r'{ur_reft = Reft (v, rx)}
+        su   = (v, EVar x')
+        x'   = stringSymbol "xInv"
+        rx   = [RConc $ PIff (PBexp $ EVar v) $ subst1 r su | RConc r <- rv]
+
+        Reft(v, rv) = ur_reft r'
+
+addObligation :: Oblig -> SpecType -> RReft -> SpecType
+addObligation o t r = mkArrow αs πs ls xts $ RRTy [] r o t2
   where (αs, πs, ls, t1) = bkUniv t
         (xs, ts, t2)     = bkArrow t1
         xts              = zip xs ts
@@ -789,7 +828,7 @@ emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
 emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
 emapReft _ _ (RExprArg e)        = RExprArg e
 emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
-emapReft f γ (RRTy r t)          = RRTy (f γ r) (emapReft f γ t)
+emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
 emapReft _ _ (ROth s)            = ROth  s 
 emapReft f γ (RHole r)           = RHole (f γ r)
 
@@ -806,6 +845,7 @@ isBase (RVar _ _)       = True
 isBase (RApp _ ts _ _)  = all isBase ts
 isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
 isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
+isBase (RRTy _ _ _ t)   = isBase t
 isBase _                = False
 
 
@@ -847,7 +887,7 @@ efoldReft cb g f fp = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
-    go γ z (RRTy _ t)                   = go γ z t
+    go γ z me@(RRTy e r o t)            = f γ (Just me) r (go γ z t)
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
     go γ z me@(RHole r)                 = f γ (Just me) r z
@@ -910,7 +950,7 @@ mapBind f (REx b t1 t2)    = REx    (f b) (mapBind f t1) (mapBind f t2)
 mapBind _ (RVar α r)       = RVar α r
 mapBind _ (ROth s)         = ROth s
 mapBind _ (RHole r)        = RHole r
-mapBind f (RRTy r t)       = RRTy r (mapBind f t)
+mapBind f (RRTy e r o t)   = RRTy e r o (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
@@ -1107,6 +1147,7 @@ data Error =
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
+                , obl :: !Oblig
                 , msg :: !Doc
                 , ref :: !RReft
                 } -- ^ liquid type error
@@ -1133,6 +1174,15 @@ data Error =
                 , inv :: !SpecType
                 , msg :: !Doc
                 } -- ^ Invariant sort error
+  | ErrIAl      { pos :: !SrcSpan
+                , inv :: !SpecType
+                , msg :: !Doc
+                } -- ^ Using  sort error
+  | ErrIAlMis   { pos :: !SrcSpan
+                , t1  :: !SpecType
+                , t2  :: !SpecType
+                , msg :: !Doc
+                } -- ^ Incompatible using error
   | ErrMeas     { pos :: !SrcSpan
                 , ms  :: !Symbol
                 , msg :: !Doc

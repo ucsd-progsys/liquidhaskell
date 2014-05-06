@@ -386,7 +386,7 @@ nlzP ps t@(ROth _)
  = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
-nlzP ps t@(RRTy _ t') 
+nlzP ps t@(RRTy _ _ _ t') 
  = (t, ps ++ ps')
  where ps' = snd $ nlzP [] t'
 nlzP ps t@(RAllE _ _ _) 
@@ -542,7 +542,7 @@ tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
 tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
 tyClasses (RVar α _)      = [] 
-tyClasses (RRTy _ t)      = tyClasses t
+tyClasses (RRTy _ _ _ t)  = tyClasses t
 tyClasses (RHole r)       = []
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
@@ -575,7 +575,7 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
-  rnf (RRTy r t)       = rnf r `seq` rnf t
+  rnf (RRTy _ r o t)   = rnf r `seq` rnf t
   rnf (RHole r)        = rnf r
 
 ----------------------------------------------------------------
@@ -654,8 +654,8 @@ subsFree m s z@(_, _, _) (RAppTy t t' r)
   = subsFreeRAppTy m s (subsFree m s z t) (subsFree m s z t') r
 subsFree _ _ _ t@(RExprArg _)        
   = t
-subsFree m s z (RRTy r t)        
-  = RRTy r (subsFree m s z t)
+subsFree m s z (RRTy e r o t)        
+  = RRTy (mapSnd (subsFree m s z) <$> e) r o (subsFree m s z t)
 subsFree _ _ _ t@(ROth _)        
   = t
 subsFree _ _ _ t@(RHole r)
@@ -820,7 +820,7 @@ isBaseTy (ForAllTy _ _)  = False
 
 vv_ = vv Nothing
 
-dataConMsReft ty ys  = subst su (rTypeReft (ty_res trep)) 
+dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep)) 
   where trep = toRTypeRep ty
         xs   = ty_binds trep
         ts   = ty_args  trep
@@ -855,7 +855,7 @@ toType t@(RExprArg _)
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 toType t@(ROth _)      
   = errorstar $ "RefType.toType cannot handle: " ++ show t
-toType (RRTy _ t)      
+toType (RRTy _ _ _ t)      
   = toType t
 
 
@@ -1063,8 +1063,11 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
-ppError (ErrAssType l s r) 
+ppError (ErrAssType l OTerm s r) 
   = pprintE l <+> text "Termination Check"
+
+ppError (ErrAssType l OInv s r) 
+  = pprintE l <+> text "Invariant Check"
 
 ppError (ErrSubType l s tA tE) 
   = pprintE l <+> text "Liquid Type Mismatch"
@@ -1084,6 +1087,14 @@ ppError (ErrTySpec l v t s)
 ppError (ErrInvt l t s)
   = pprintE l <+> text "Bad Invariant Specification" 
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
+
+ppError (ErrIAl l t s)
+  = pprintE l <+> text "Bad Using Specification" 
+    $+$ (nest 4 $ text "as" <+> pprint t $+$ s)
+
+ppError (ErrIAlMis l t1 t2 s)
+  = pprintE l <+> text "Incompatible Using Specification" 
+    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ s)
 
 ppError (ErrMeas l t s)
   = pprintE l <+> text "Bad Measure Specification" 

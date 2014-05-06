@@ -591,8 +591,38 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
-The easiest way to use such self-invariants or refinements, is to just define a type 
-alias (e.g. `IList` or `IMaybe` and use them in the specification and verification.)
+
+Invariants 
+==========
+There are two ways of specifying invariants in LiquidHaskell.
+First, there are *global* invariants that always hold for a data-type. For
+example,  the length of a list cannot be negative
+
+    {-@ invariant {v:[a] | (len v >= 0)} @-}
+
+LiquidHaskell can prove that this invariant holds, by proving that all List's
+constractos (ie., `:` and `[]`) satisfy it.(TODO!)
+Then, LiquidHaskell assumes that each list element that is created satisfies
+this invariant.
+
+Second, there are *local* invariants that one may use. For
+example, in [test/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+list is treated as a Stream. To establish this local invariant one can use the
+`using` declaration
+
+    {-@ using ([a]) as  {v:[a] | (len v > 0)} @-}
+
+denoting that each list is not empty.
+Then, LiquidHaskell will prove that this invariant holds, by proving that *all
+calls* to List's
+constractos (ie., `:` and `[]`) satisfy it, and
+will assume that each list element that is created satisfies
+this invariant.
+
+With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
+proves that taking the `head` of a list is safe.
+But, at [test/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
+`[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 Formal Grammar of Refinement Predicates
 =======================================

@@ -130,8 +130,10 @@ ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
 ppr_rtype _ _ (ROth s)
   = text $ "???-" ++ s 
-ppr_rtype bb p (RRTy r t)         
-  = text "<<" <+> pprint r <+> text ">>" <+> ppr_rtype bb p t
+ppr_rtype bb p (RRTy e r o t)         
+  = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
+  where ppe = (hsep $ punctuate comma (pprint <$> e)) <+> colon <> colon
+        ppp = \doc -> text "<<" <+> doc <+> text ">>"
 ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
@@ -147,7 +149,7 @@ ppSpine (RApp c ts rs _) = text "RApp" <+> parens (pprint c)
 ppSpine (RVar v _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
 ppSpine (ROth s)         = text "ROth" <+> text s
-ppSpine (RRTy _ _)       = text "RRTy"
+ppSpine (RRTy _ _ _ _)   = text "RRTy"
 
 -- | From GHC: TypeRep 
 -- pprArrowChain p [a,b,c]  generates   a -> b -> c

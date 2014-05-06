@@ -134,6 +134,7 @@ makeGhcSpec' cfg vars defVars exports specs
        sigs'           <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
        asms'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs            <- mconcat <$> mapM makeInvariants specs
+       ialias          <- mconcat <$> mapM makeIAliases   specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
        (cls,mts)       <- second mconcat . unzip . mconcat
@@ -147,10 +148,11 @@ makeGhcSpec' cfg vars defVars exports specs
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
-       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ asms ++ cs') ms' invs
+       syms            <- makeSymbols (vars ++ map fst cs') (map fst ms) (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx           = subsFreeSymbols su
        let txi          = subsFreeSymbolsInv su
+       let txia         = subsFreeSymbolsIAliases su
        let txq          = subsFreeSymbolsQual su
        let syms'        = [(symbol v, v) | (_, v) <- syms]
        decr'           <- mconcat <$> mapM (makeHints defVars) specs
@@ -183,6 +185,7 @@ makeGhcSpec' cfg vars defVars exports specs
                              , ctors      = tx cs'
                              , meas       = tx (ms' ++ varMeasures vars ++ cms')
                              , invariants = txi invs
+                             , ialiases   = txia ialias
                              , dconsP     = mapSnd val <$> datacons
                              , tconsP     = tycons
                              , freeSyms   = syms'
@@ -557,6 +560,11 @@ subsFreeSymbolsInv su  = tx
   where 
     tx                 = fmap $ subst su 
 
+subsFreeSymbolsIAliases su  = tx
+  where 
+    tx                 = fmap (mapFst f . mapSnd f)
+    f                  = subst su
+
 
 subsFreeSymbolsQual su = tx
   where
@@ -770,6 +778,15 @@ makeTyConEmbeds' :: TCEmb (Located String) -> BareM (TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where 
     tx (c, y) = (, y) <$> lookupGhcTyCon c
+
+makeIAliases (mod,spec)
+  = inModule mod $ makeIAliases' $ Ms.ialiases spec
+
+makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecType, Located SpecType)]
+makeIAliases' ts = mapM mkIA ts
+  where 
+    mkIA (t1, t2)      = liftM2 (,) (mkI t1) (mkI t2)
+    mkI (Loc l t)      = (Loc l) . generalize <$> mkSpecType l t
 
 makeInvariants (mod,spec)
   = inModule mod $ makeInvariants' $ Ms.invariants spec
@@ -1299,6 +1316,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
                      ++ mapMaybe (checkExpr "measure"     emb env sigs) (texprs sp)
                      ++ mapMaybe (checkInv  emb env)               (invariants sp)
+                     ++ (checkIAl  emb env) (ialiases   sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
@@ -1323,6 +1341,21 @@ checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb env t   = checkTy err emb env (val t) 
   where 
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
+
+checkIAl :: TCEmb TyCon -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
+checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
+
+checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+  where 
+    tcheck t = checkTy (err t) emb env (val t)
+    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t)
+    t1'      :: RSort 
+    t1'      = toRSort $ val t1
+    t2'      :: RSort 
+    t2'      = toRSort $ val t2
+    checkEq  = if (t1' == t2') then Nothing else Just $ errmis
+    errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) (pprint t1 <+> text "does not match with" <+> pprint t2 ) 
+
 
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
