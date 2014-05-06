@@ -15,3 +15,8 @@ data Foo a = F {stack :: Stack a}
 {-@ instance measure elts :: Foo a -> (Data.Set.Set a)
     elts (F st) = (elts st)
   @-}
+
+{-@ measure bad :: [Foo a] -> (Data.Set.Set a)
+    bad([]) = {v| (? (Set_emp v))}
+    bad(x:xs) = (elts x)
+  @-}
