@@ -6,7 +6,13 @@ data Stack a = S [a]
 
 data Foo a = F {stack :: Stack a}
 
-{-@ class measure elts  :: a -> Data.Set.Set a @-}
+{-@ bar :: xs:[Foo a] -> {v:[Foo a] |(eltss v) = (eltss xs)} @-}
+bar :: [Foo a] -> [Foo a]
+bar = (F (S []):)
+
+foo = F 
+{-@ class measure elts  :: forall f a. f a -> Data.Set.Set a @-}
+{-@ class measure eltss  :: forall f a. [f a] -> Data.Set.Set a @-}
 
 {-@ instance measure elts :: Stack a -> (Data.Set.Set a)
     elts (S xs) = (listElts xs)
@@ -16,7 +22,7 @@ data Foo a = F {stack :: Stack a}
     elts (F st) = (elts st)
   @-}
 
-{-@ measure bad :: [Foo a] -> (Data.Set.Set a)
-    bad([]) = {v| (? (Set_emp v))}
-    bad(x:xs) = (elts x)
+{-@ instance measure  eltss :: [(Foo a)] -> (Data.Set.Set a)
+    eltss([]) = {v| (? (Set_emp v))}
+    eltss(x:xs) = (Set_cup (elts x) (eltss xs))
   @-}
