@@ -42,7 +42,12 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   else: time = []
   if lflags: lflags = ["--" + f for f in lflags]
   hygiene_flags = []
-  out = open(os.path.join(dir,".liquid",file) + ".log", "w")
+  (dn, bn) = os.path.split(file)
+  try:
+    os.makedirs(os.path.join(dir,dn,".liquid"))
+  except OSError:
+    pass
+  out = open(os.path.join(dir,dn,".liquid",bn) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file],
                         out=out, err=subprocess.STDOUT, dir=dir)
   out.close()
@@ -163,6 +168,7 @@ def testdirs():
 
 testdirs = testdirs()
 
-[os.system(("cd %s; cleanup; cd ../" % d)) for (d,_,_) in testdirs]
+clean = os.path.abspath("../cleanup")
+[os.system(("cd %s; %s; cd ../" % (d,clean))) for (d,_,_) in testdirs + benchtestdirs]
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
 runner.run ()

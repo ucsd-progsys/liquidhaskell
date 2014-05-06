@@ -43,6 +43,7 @@ data Spec ty bndr  = Spec {
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
   , invariants :: ![Located ty]                 -- ^ Data type invariants
+  , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
@@ -141,6 +142,7 @@ instance Monoid (Spec ty bndr) where
            , sigs       =           sigs s1       ++ sigs s2 
            , localSigs  =           localSigs s1  ++ localSigs s2 
            , invariants =           invariants s1 ++ invariants s2
+           , ialiases   =           ialiases s1   ++ ialiases s2
            , imports    = sortNub $ imports s1    ++ imports s2
            , dataDecls  = dataDecls s1            ++ dataDecls s2
            , includes   = sortNub $ includes s1   ++ includes s2
@@ -164,6 +166,7 @@ instance Monoid (Spec ty bndr) where
            , sigs       = [] 
            , localSigs  = [] 
            , invariants = []
+           , ialiases   = []
            , imports    = []
            , dataDecls  = [] 
            , includes   = [] 
@@ -216,10 +219,12 @@ instance Bifunctor Spec    where
         , sigs       = second f <$> (sigs s)
         , localSigs  = second f <$> (localSigs s)
         , invariants = fmap   f <$> (invariants s)
+        , ialiases   = fmapP  f <$> (ialiases s)
         , cmeasures  = first f  <$> (cmeasures s)
         , imeasures  = first f  <$> (imeasures s)
         , classes    = fmap f   <$> (classes s)
         }
+    where fmapP f (x, y) = (fmap f x, fmap f y)
 
   second f s
     = s { measures   = fmap (second f) (measures s)
