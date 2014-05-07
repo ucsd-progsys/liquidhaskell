@@ -125,7 +125,7 @@ makeGhcSpec' cfg vars defVars exports specs
        let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'    
        let datacons     = concat dcs ++ dcs'
-       let dcSelectors  = concat $ map makeMeasureSelectors datacons
+       let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures'        <- mconcat <$> mapM makeMeasureSpec specs
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
