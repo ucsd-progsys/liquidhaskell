@@ -1,0 +1,122 @@
+#!/usr/bin/perl -w
+# haskell_count - count physical lines of code
+# Strips out {- .. -} and -- comments and counts the rest.
+# Pragmas, {-#...}, are counted as SLOC.
+# BUG: Doesn't handle strings with embedded block comment markers gracefully.
+#      In practice, that shouldn't be a problem.
+# Usage: haskell_count [-f file] [list_of_files]
+#  file: file with a list of files to count (if "-", read list from stdin)
+#  list_of_files: list of files to count
+#  -f file or list_of_files can be used, or both
+
+# This is part of SLOCCount, a toolsuite that counts
+# source lines of code (SLOC).
+# Copyright (C) 2001-2004 David A. Wheeler.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# 
+# To contact David A. Wheeler, see his website at:
+#  http://www.dwheeler.com.
+# 
+
+
+
+
+
+$total_sloc = 0;
+
+# Do we have "-f" (read list of files from second argument)?
+if (($#ARGV >= 1) && ($ARGV[0] eq "-f")) {
+  # Yes, we have -f
+  if ($ARGV[1] eq "-") {
+    # The list of files is in STDIN
+    while (<STDIN>) {
+      chomp ($_);
+      &count_file ($_);
+    }
+  } else {
+    # The list of files is in the file $ARGV[1]
+    open (FILEWITHLIST, $ARGV[1]) || die "Error: Could not open $ARGV[1]\n";
+    while (<FILEWITHLIST>) {
+      chomp ($_);
+      &count_file ($_);
+    }
+    close FILEWITHLIST;
+  }
+  shift @ARGV; shift @ARGV;
+}
+# Process all (remaining) arguments as file names
+while ($file = shift @ARGV) {
+  &count_file ($file);
+}
+
+print "Total:\n";
+print "$total_sloc\n";
+
+sub determine_lit_type {
+  my ($file) = @_;
+
+  open (FILE, $file);
+  while (<FILE>) {
+    if (m/^\\begin{code}/) { close FILE; return 2; }
+    if (m/^>\s/) { close FILE; return 1; }
+  }
+
+  return 0;
+}
+
+sub count_file {
+  my ($file) = @_;
+  my $sloc = 0;
+  my $incomment = 0;
+  my ($literate, $inlitblock) = (0,0);
+
+  $literate = 1 if $file =~ /\.lhs$/;
+  if($literate) { $literate = determine_lit_type($file) }
+
+  open (FILE, $file);
+  while (<FILE>) {
+    if ($literate == 1) {
+      if (!s/^>//) { s/.*//; }
+    } elsif ($literate == 2) {
+      if ($inlitblock) {
+        if (m/^\\end{code}/) { s/.*//; $inlitblock = 0; }
+      } elsif (!$inlitblock) {
+        if (m/^\\begin{code}/) { s/.*//; $inlitblock = 1; }
+        else { s/.*//; }
+      }
+    }
+
+    if ($incomment) {
+      if (m/\-\}/) { s/^.*?\-\}//;  $incomment = 0;}
+      else { s/.*//; }
+    }
+    if (!$incomment) {
+      s/--.*//;
+      s![^"]{-[^#].*?-}!!g;
+      if (m/[^"]{-/ && (!m/{-#/)) {
+        s/[^"]{-.*//;
+	$incomment = 1;
+      }
+    }
+    if (m/\S/) {$sloc++;}
+  }
+  print "$sloc $file\n";
+  if ($incomment) {print "ERROR: ended in comment in $ARGV\n";}
+  $total_sloc += $sloc;
+  $sloc = 0;
+  $incomment = 0;
+  close (FILE);
+}

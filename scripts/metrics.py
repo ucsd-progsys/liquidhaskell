@@ -50,6 +50,25 @@ benchmarks = {
 
     'benchmarks/esop2013-submission': [ 'Base.hs', 'Splay.hs' ],
 
+    'benchmarks/hscolour-1.20.0.0': [ 'Language/Haskell/HsColour.hs'
+                                    , 'Language/Haskell/HsColour/ACSS.hs'
+                                    , 'Language/Haskell/HsColour/Anchors.hs'
+                                    , 'Language/Haskell/HsColour/ANSI.hs'
+                                    , 'Language/Haskell/HsColour/Classify.hs'
+                                    , 'Language/Haskell/HsColour/ColourHighlight.hs'
+                                    , 'Language/Haskell/HsColour/Colourise.hs'
+                                    , 'Language/Haskell/HsColour/CSS.hs'
+                                    , 'Language/Haskell/HsColour/General.hs'
+                                    , 'Language/Haskell/HsColour/HTML.hs'
+                                    , 'Language/Haskell/HsColour/InlineCSS.hs'
+                                    , 'Language/Haskell/HsColour/LaTeX.hs'
+                                    , 'Language/Haskell/HsColour/MIRC.hs'
+                                    , 'Language/Haskell/HsColour/Options.hs'
+                                    , 'Language/Haskell/HsColour/Output.hs'
+                                    , 'Language/Haskell/HsColour/TTY.hs' ],
+
+    'benchmarks/xmonad': [ 'XMonad/StackSet.hs' ],
+
     'include': [ 'GHC/List.lhs' ],
 
     '.': [ 'benchmarks/base-4.5.1.0/Data/List.hs' ]
@@ -67,8 +86,9 @@ def errors(fn):
     unsafes = [l for l in log if l.startswith('**** UNSAFE:')]
     return unsafes
 
-def sloc(fn):
-    return int(subprocess.check_output('sloccount --details %s | grep -E "haskell\stop_dir" | cut -f1' % fn, shell=True))
+def sloc(scripts,fn):
+    return int(subprocess.check_output(
+        '%s/haskell_count %s | tail -n1' % (scripts, fn), shell=True))
 
 def lines(anns):
     return sum(map(lambda x:(1+x.count('\n')), anns))
@@ -127,7 +147,7 @@ def main():
             print fn
             f_res = {}
             f_res['time'] = time(fn)
-            f_res['sloc'] = sloc(fn)
+            f_res['sloc'] = sloc(os.path.join(pwd,'scripts'),fn)
             [fs,rs,rfs] = recs(fn)
             f_res['funs'] = fs
             f_res['recs'] = rs
