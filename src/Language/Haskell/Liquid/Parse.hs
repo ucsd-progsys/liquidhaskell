@@ -149,6 +149,10 @@ bareTypeP
  <|> bareExistsP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
+ <|> try (angles (do t <- parens $ bareTypeP
+                     p <- monoPredicateP
+                     return $ t `strengthen` (U mempty p mempty))
+        )
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
