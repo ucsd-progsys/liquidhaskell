@@ -11,23 +11,23 @@ demo: TextInternal.hs
 ---
 
 So far we have mostly discussed LiquidHaskell in the context of
-recursive data structures like lists, but there comes a time in 
-many programs when you have to put down the list and pick up an 
-array for the sake of performance. 
-In this series we're going to examine the `text` library, which 
+recursive data structures like lists, but there comes a time in
+many programs when you have to put down the list and pick up an
+array for the sake of performance.
+In this series we're going to examine the `text` library, which
 does exactly this in addition to having extensive Unicode support.
 
-`text` is a popular library for efficient text processing. 
-It provides the high-level API haskellers have come to expect while 
+`text` is a popular library for efficient text processing.
+It provides the high-level API haskellers have come to expect while
 using stream fusion and byte arrays under the hood to guarantee high
-performance. 
+performance.
 
-The thing that makes `text` stand out as an interesting target for 
-LiquidHaskell, however, is its use of Unicode. 
-Specifically, `text` uses UTF-16 as its internal encoding, where 
-each character is represented with either two or four bytes. 
-We'll see later on how this encoding presents a challenge for 
-verifying memory-safety, but first let us look at how a `Text` 
+The thing that makes `text` stand out as an interesting target for
+LiquidHaskell, however, is its use of Unicode.
+Specifically, `text` uses UTF-16 as its internal encoding, where
+each character is represented with either two or four bytes.
+We'll see later on how this encoding presents a challenge for
+verifying memory-safety, but first let us look at how a `Text`
 is represented.
 
 <!-- more -->
@@ -52,8 +52,8 @@ import GHC.Word (Word16(..))
 import Language.Haskell.Liquid.Prelude
 
 {-@ data Array = Array { aBA  :: ByteArray#
-                       , aLen :: Nat 
-                       } 
+                       , aLen :: Nat
+                       }
   @-}
 
 {-@ aLen :: a:Array -> {v:Nat | v = (alen a)}  @-}
@@ -141,7 +141,7 @@ shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 types of arrays, immutable `Array`s and mutable `MArray`s. This leads to
 the following general lifecycle:
 
-![The lifecycle of a `Text`](text-lifecycle.png)
+![The lifecycle of a `Text`](/images/text-lifecycle.png)
 
 
 \begin{code}
@@ -169,11 +169,11 @@ Both types carry around with them the number of `Word16`s they can
 hold (this is actually only true when you compile with asserts turned
 on, but we use this to ease the verification process).
 
-The main three array operations we care about are: 
+The main three array operations we care about are:
 
-1. **writing** into an `MArray`, 
-2. **reading** from an `Array`, and 
-3. **freezing** an `MArray` into an `Array`. 
+1. **writing** into an `MArray`,
+2. **reading** from an `Array`, and
+3. **freezing** an `MArray` into an `Array`.
 
 But first, let's see how one creates an `MArray`.
 
@@ -231,7 +231,7 @@ the right type however, we can regain safety. `text` provides a wrapper around
 {-@ type MAValidO MA = {v:Nat | v <= (malen MA)} @-}
 {-@ copyM :: dest:MArray s
           -> didx:MAValidO dest
-          -> src:MArray s 
+          -> src:MArray s
           -> sidx:MAValidO src
           -> {v:Nat | (((didx + v) <= (malen dest))
                     && ((sidx + v) <= (malen src)))}
@@ -247,11 +247,11 @@ copyM dest didx src sidx count
                            (fromIntegral count)
 \end{code}
 
-`copyM` requires two `MArray`s and valid offsets into each -- note 
-that a valid offset is **not** necessarily a valid *index*, it may 
+`copyM` requires two `MArray`s and valid offsets into each -- note
+that a valid offset is **not** necessarily a valid *index*, it may
 be one element out-of-bounds -- and a `count` of elements to copy.
-The `count` must represent a valid region in each `MArray`, in 
-other words `offset + count <= length` must hold for each array. 
+The `count` must represent a valid region in each `MArray`, in
+other words `offset + count <= length` must hold for each array.
 `memcpyM` is an FFI function writen in C, which we don't currently
 support, so we simply leave it `undefined`.
 
@@ -293,36 +293,24 @@ As before, LiquidHaskell can easily prove that the run-time assertions
 will never fail.
 
 
-Now we can finally define the core datatype of the `text` package! 
-A `Text` value consists of an *array*, an *offset*, and a *length*. 
-The offset and length are `Nat`s satisfying two properties: 
+Now we can finally define the core datatype of the `text` package!
+A `Text` value consists of an *array*, an *offset*, and a *length*.
+The offset and length are `Nat`s satisfying two properties:
 
-1. `off <= alen arr`, and 
+1. `off <= alen arr`, and
 2. `off + len <= alen arr`
 
 These invariants ensure that any *index* we pick between `off` and
 `off + len` will be a valid index into `arr`. If you're not quite
 convinced, consider the following `Text`s.
 
-![Multiple valid `Text` configurations, all using an `Array` with 10 slots. The valid slots are shaded. Note that the key invariant is that `off + len <= alen`.](text-layout.png)
+![Multiple valid `Text` configurations, all using an `Array` with 10 slots. The valid slots are shaded. Note that the key invariant is that `off + len <= alen`.](/images/text-layout.png)
 
 \begin{code}
 data Text = Text Array Int Int
-{-@ data Text [tlen] = Text (arr :: Array)
-                            (off :: TValidO arr)
-                            (len :: TValidL off arr)
-  @-}
-
-{-@ measure tarr :: Text -> Array
-    tarr (Text a o l) = a
-  @-}
-
-{-@ measure toff :: Text -> Int
-    toff (Text a o l) = o
-  @-}
-
-{-@ measure tlen :: Text -> Int
-    tlen (Text a o l) = l
+{-@ data Text [tlen] = Text (tarr :: Array)
+                            (toff :: TValidO tarr)
+                            (tlen :: TValidL toff tarr)
   @-}
 \end{code}
 

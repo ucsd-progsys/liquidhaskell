@@ -18,7 +18,7 @@ length (Cons x xs) = 1 + length xs
 
 {-@ (!!) :: xs:List a -> {v:Nat | v < (size xs)} -> a @-}
 (!!) :: List a -> Int -> a
-Nil         !! i = undefined
+Nil         !! i = liquidError "impossible"
 (Cons x _)  !! 0 = x
 (Cons x xs) !! i = xs !! (i - 1)
 

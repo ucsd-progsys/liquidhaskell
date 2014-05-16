@@ -174,21 +174,9 @@ unsafeIndex Array{..} i@(I# i#)
                   r# -> (W16# r#)
 
 data Text = Text Array Int Int
-{-@ data Text [tlen] = Text (arr :: Array)
-                            (off :: TValidO arr)
-                            (len :: TValidL off arr)
-  @-}
-
-{-@ measure tarr :: Text -> Array
-    tarr (Text a o l) = a
-  @-}
-
-{-@ measure toff :: Text -> Int
-    toff (Text a o l) = o
-  @-}
-
-{-@ measure tlen :: Text -> Int
-    tlen (Text a o l) = l
+{-@ data Text [tlen] = Text (tarr :: Array)
+                            (toff :: TValidO tarr)
+                            (tlen :: TValidL toff tarr)
   @-}
 
 {-@ type TValidI T   = {v:Nat | v     <  (tlen T)} @-}
