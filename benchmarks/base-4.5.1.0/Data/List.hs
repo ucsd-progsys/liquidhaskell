@@ -458,6 +458,15 @@ intercalate xs xss = concat (intersperse xs xss)
 --
 -- > transpose [[1,2,3],[4,5,6]] == [[1,4],[2,5],[3,6]]
 
+{-@ measure sumLens :: [[a]] -> GHC.Types.Int
+      sumLens ([])   = 0
+      sumLens (c:cs) = (len c) + (sumLens cs)
+  @-}
+{-@ invariant {v:[[a]] | (sumLens v) >= 0} @-}
+{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
+
 {-@ transpose :: xs:[[a]] -> [[a]] / [(sumLens xs)+(len xs)] @-}
 transpose               :: [[a]] -> [[a]]
 transpose []             = []

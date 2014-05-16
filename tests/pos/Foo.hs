@@ -3,4 +3,4 @@ module Foo where
 
 bar = 0
 
-{-@ assume (GHC.List.++) :: [a] -> [a] -> [a] @-}
+{-@ assume (Prelude.++) :: [a] -> [a] -> [a] @-}
