@@ -21,11 +21,11 @@ import GHC                      ( SrcSpan (..)
                                 , srcSpanStartCol
                                 , srcSpanEndCol
                                 , srcSpanStartLine
-                                , srcSpanEndLine)
-
+                                , srcSpanEndLine
+                                , RealSrcSpan (..))
 import Var                      (Var (..))
 import TypeRep                  (Prec(..))
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint.HughesPJ hiding (first, second)
 import GHC.Exts                 (groupWith, sortWith)
 
 import Data.Char                (isSpace)
@@ -96,8 +96,8 @@ annotDump cfg srcFile htmlFile result ann
        let annFile  = extFileName Annot srcFile
        let jsonFile = extFileName Json  srcFile  
        let vimFile  = extFileName Vim   srcFile
-       writeFile             vimFile  (vimAnnot annm) 
-       B.writeFile           jsonFile (encode annm) 
+       writeFile             vimFile  $ vimAnnot cfg ann
+       B.writeFile           jsonFile $ encode annm 
        writeFilesOrStrings   annFile  [Left srcFile, Right (show annm)]
        annotHtmlDump         htmlFile srcFile annm 
        return ()
@@ -207,18 +207,18 @@ cinfoErr e = case pos e of
 
 
 -- mkAnnMapTyp :: (RefTypable a c tv r, RefTypable a c tv (), PPrint tv, PPrint a) =>Config-> AnnInfo (RType a c tv r) -> M.HashMap Loc (String, String)
-mkAnnMapTyp cfg (AI m)
-  = M.fromList
-  $ map (srcSpanStartLoc *** bindString)
-  $ map (head . sortWith (srcSpanEndCol . fst))
+mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders cfg z
+
+mkAnnMapBinders cfg (AI m)
+  = map (second bindString . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst)
-  $ [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where 
     bindString     = mapPair render . ppr
     env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
     ppr (x, v)     = (xd, ppr_rtype env TopPrec v)
       where
-        xd = maybe (text "unknown") pprint x
+        xd         = maybe (text "_") pprint x
 
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
@@ -384,17 +384,40 @@ data Annot1    = A1  { ident :: String
 -- | Creating Vim Annotations ------------------------------------------
 ------------------------------------------------------------------------
 
--- TODO: vimAnnot :: AnnInfo SpecType -> String
-vimAnnot :: ACSS.AnnMap -> String 
-vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
+vimAnnot     :: Config -> AnnInfo SpecType -> String
+vimAnnot cfg = L.intercalate "\n" . map vimBind . mkAnnMapBinders cfg 
 
-vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
+vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
   where
-    l1  = l
-    c1  = c 
-    l2  = l
-    c2  = c1 + sz
-    sz  = min 10 (length v)
+    l1  = srcSpanStartLine sp
+    c1  = srcSpanStartCol  sp 
+    l2  = srcSpanEndLine   sp 
+    c2  = srcSpanStartCol  sp 
+
+-- annInfoBinders :: Config -> AnnInfo t -> [(RealSrcSpan, (Maybe Var, t))]
+-- annInfoBinders cfg (AI m) 
+--   = map (head . sortWith (srcSpanEndCol . fst))
+--   $ groupWith (lineCol . fst)
+--   $ [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+--   where 
+--     bindString     = mapPair render . ppr
+--     env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
+--     ppr (x, v)     = (xd, ppr_rtype env TopPrec v)
+--       where
+--         xd = maybe (text "unknown") pprint x
+
+
+
+-- vimAnnot :: ACSS.AnnMap -> String 
+-- vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
+
+-- vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
+--   where
+--     l1  = l
+--     c1  = c 
+--     l2  = l
+--     c2  = c1 + sz
+--     sz  = min 10 (length v)
 
 
 
