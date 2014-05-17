@@ -158,7 +158,7 @@ import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def)
 -- import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Names (symSepName)
+import Language.Fixpoint.Names      (symSepName)
 
 import CoreSyn (CoreBind)
 import Var
