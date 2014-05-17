@@ -7,6 +7,7 @@ module Test0 () where
 plus :: Int -> Int -> Int
 plus x y = x + y
 
+
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int
 incr xoo = xoo `plus` zaa
