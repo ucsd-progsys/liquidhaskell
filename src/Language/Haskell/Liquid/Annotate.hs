@@ -210,16 +210,15 @@ cinfoErr e = case pos e of
 mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders cfg z
 
 mkAnnMapBinders cfg (AI m)
-  = map (second bindString . head . sortWith (srcSpanEndCol . fst))
+  = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
-  where 
-    bindString     = mapPair render . ppr
-    env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
-    ppr (x, v)     = (xd, ppr_rtype env TopPrec v)
-      where
-        xd         = maybe (text "_") pprint x
-
+  where
+    bindStr (x, v) = (maybe "_" varStr x, render $ ppr_rtype env TopPrec v)
+    short          = shortNames cfg
+    env            = if short then ppEnvShort ppEnv else ppEnv
+    shorten        = if short then dropModuleNames  else id
+    varStr         = shorten . showPpr 
 
 closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
@@ -392,34 +391,7 @@ vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ sh
     l1  = srcSpanStartLine sp
     c1  = srcSpanStartCol  sp 
     l2  = srcSpanEndLine   sp 
-    c2  = srcSpanStartCol  sp 
-
--- annInfoBinders :: Config -> AnnInfo t -> [(RealSrcSpan, (Maybe Var, t))]
--- annInfoBinders cfg (AI m) 
---   = map (head . sortWith (srcSpanEndCol . fst))
---   $ groupWith (lineCol . fst)
---   $ [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
---   where 
---     bindString     = mapPair render . ppr
---     env            = if shortNames cfg then ppEnvShort ppEnv else ppEnv
---     ppr (x, v)     = (xd, ppr_rtype env TopPrec v)
---       where
---         xd = maybe (text "unknown") pprint x
-
-
-
--- vimAnnot :: ACSS.AnnMap -> String 
--- vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
-
--- vimAnnotBind (L (l, c), (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
---   where
---     l1  = l
---     c1  = c 
---     l2  = l
---     c2  = c1 + sz
---     sz  = min 10 (length v)
-
-
+    c2  = srcSpanEndCol    sp 
 
 ------------------------------------------------------------------------
 -- | JSON Instances ----------------------------------------------------
