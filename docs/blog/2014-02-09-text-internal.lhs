@@ -166,8 +166,9 @@ data MArray s = MArray {
 \end{code}
 
 Both types carry around with them the number of `Word16`s they can
-hold (this is actually only true when you compile with asserts turned
-on, but we use this to ease the verification process).
+hold <!-- (this is actually only true when you compile with asserts turned
+on, but we use this to ease the verification process). -->
+
 
 The main three array operations we care about are:
 
