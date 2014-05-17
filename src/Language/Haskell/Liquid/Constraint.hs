@@ -646,9 +646,9 @@ rsplitC _ _
 
 data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
                      , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
-                     , sCs        :: ![SubC]                       -- ^additional stratum constrains for let bindings
+                     , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-                     , isBind     :: ![Bool]                   -- ^ subtyping over Sort (post-splitting)
+                     , isBind     :: ![Bool]                      -- ^ subtyping over Sort (post-splitting)
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
                      , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
@@ -663,8 +663,8 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
                      , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
                      , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS 
-                     , tcheck     :: !Bool                        -- ^ ? FIX THIS
-                     , scheck     :: !Bool                        -- ^ ? FIX THIS
+                     , tcheck     :: !Bool                        -- ^ Check Termination (?) 
+                     , scheck     :: !Bool                        -- ^ Check Strata (?)
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
