@@ -206,6 +206,7 @@ cinfoErr e = case pos e of
 -- cinfoErr _                      = Nothing
 
 
+-- mkAnnMapTyp :: (RefTypable a c tv r, RefTypable a c tv (), PPrint tv, PPrint a) =>Config-> AnnInfo (RType a c tv r) -> M.HashMap Loc (String, String)
 mkAnnMapTyp cfg (AI m)
   = M.fromList
   $ map (srcSpanStartLoc *** bindString)
@@ -383,6 +384,7 @@ data Annot1    = A1  { ident :: String
 -- | Creating Vim Annotations ------------------------------------------
 ------------------------------------------------------------------------
 
+-- TODO: vimAnnot :: AnnInfo SpecType -> String
 vimAnnot :: ACSS.AnnMap -> String 
 vimAnnot =  L.intercalate "\n" . map vimAnnotBind . M.toList . ACSS.types
 
