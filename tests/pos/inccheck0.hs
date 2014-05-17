@@ -9,11 +9,11 @@ plus x y = x + y
 
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int
-incr x = x `plus` z
+incr xoo = xoo `plus` zaa
   where
-     z = a - b
-     a = 3
-     b = 2
+     zaa = a00 - b00
+     a00 = 300
+     b00 = 2
 
 {-@ decr :: x:Int -> {v:Int | v < x} @-}
 decr :: Int -> Int
