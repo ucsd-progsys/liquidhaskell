@@ -12,6 +12,7 @@ main         = defaultMainWithHooks fixHooks
   where
     fixHooks = simpleUserHooks { postBuild = buildFixpoint
                                , postCopy = copyFixpoint
+                               , postInst = copyFixpoint
                                }
 
 buildFixpoint _ _ pkg lbi
