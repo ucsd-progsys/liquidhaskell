@@ -132,7 +132,7 @@ class MVector v a where
   basicSet             :: forall m. PrimMonad m => (v (PrimState m) a) -> a -> (m ())
   basicUnsafeCopy      :: forall m. PrimMonad m => dst:(v (PrimState m) a) -> {src:(v (PrimState m) a) | (mvLen src) = (mvLen dst)} -> (m ())
   basicUnsafeMove      :: forall m. PrimMonad m => dst:(v (PrimState m) a) -> {src:(v (PrimState m) a) | (mvLen src) = (mvLen dst)} -> (m ())
-  basicUnsafeGrow      :: forall m. PrimMonad m => x:(v (PrimState m) a) -> by:Nat -> (m {v:(v (PrimState m) a) | (SzPlus v x by)})
+  basicUnsafeGrow      :: forall m. PrimMonad m => x:(v (PrimState m) a) -> by:Nat -> (m {v:(v (PrimState m) a) | (SzPlus v x 666)})
 @-}
 
 
@@ -540,7 +540,7 @@ tail v = slice 1 (length v - 1) v
 -- | Yield a part of the mutable vector without copying it. No bounds checks
 -- are performed.
 
-{-@ unsafeSlice  :: (MVector v a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v: (v s a) | (mvLen v) = n} @-}
+{-@ unsafeSlice  :: (MVector v a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v: _ | (mvLen v) = n} @-}
 
 unsafeSlice :: MVector v a => Int  -- ^ starting index
                            -> Int  -- ^ length of the slice
