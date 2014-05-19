@@ -68,7 +68,7 @@ import Data.Typeable ( Typeable )
 data MVector s a = MVector {-# UNPACK #-} !Int
                            {-# UNPACK #-} !Int
                            {-# UNPACK #-} !(MutableByteArray s)
-        --deriving ( Typeable )
+        deriving ( Typeable )
 
 type IOVector = MVector RealWorld
 type STVector s = MVector s
