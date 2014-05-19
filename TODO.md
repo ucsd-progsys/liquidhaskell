@@ -40,27 +40,57 @@ Can we minimize KVars and hence, simplify constraints with exists?
 vector
 ------
 
-Dependency order for vector 
+Wordcount for vector
 
-[ 1 of 19] Compiling Data.Vector.Storable.Internal
-[ 2 of 19] Compiling Data.Vector.Fusion.Util           
-[ 3 of 19] Compiling Data.Vector.Fusion.Stream.Size    
-[ 4 of 19] Compiling Data.Vector.Internal.Check        
-[ 5 of 19] Compiling Data.Vector.Fusion.Stream.Monadic 
-[ 6 of 19] Compiling Data.Vector.Fusion.Stream         
-[ 7 of 19] Compiling Data.Vector.Generic.Mutable       
-[ 8 of 19] Compiling Data.Vector.Generic.Base          
-[ 9 of 19] Compiling Data.Vector.Generic.New           
-[10 of 19] Compiling Data.Vector.Generic               
-[11 of 19] Compiling Data.Vector.Primitive.Mutable     
-[12 of 19] Compiling Data.Vector.Primitive             
-[13 of 19] Compiling Data.Vector.Storable.Mutable      
-[14 of 19] Compiling Data.Vector.Storable              
-[15 of 19] Compiling Data.Vector.Unboxed.Base          
-[16 of 19] Compiling Data.Vector.Unboxed               
-[17 of 19] Compiling Data.Vector.Unboxed.Mutable       
-[18 of 19] Compiling Data.Vector.Mutable               
-[19 of 19] Compiling Data.Vector                       
+    1476 ./Vector/Fusion/Stream/Monadic.hs
+      87 ./Vector/Fusion/Stream/Size.hs
+     634 ./Vector/Fusion/Stream.hs
+      57 ./Vector/Fusion/Util.hs
+     142 ./Vector/Generic/Base.hs
+     884 ./Vector/Generic/Mutable.hs
+     172 ./Vector/Generic/New.hs
+    2027 ./Vector/Generic.hs
+     163 ./Vector/Internal/Check.hs
+     398 ./Vector/Mutable.hs
+     332 ./Vector/Primitive/Mutable.hs
+    1328 ./Vector/Primitive.hs
+      45 ./Vector/Storable/Internal.hs
+     490 ./Vector/Storable/Mutable.hs
+    1421 ./Vector/Storable.hs
+     389 ./Vector/Unboxed/Base.hs
+     285 ./Vector/Unboxed/Mutable.hs
+    1368 ./Vector/Unboxed.hs
+    1510 ./Vector.hs
+   13208 total
+
+
+Dependency order for vector
+
+[ 1 of 19]  [45]      Data.Vector.Storable.Internal
+[ 2 of 19]  [57]      Data.Vector.Fusion.Util
+[ 4 of 19]  [163]     Data.Vector.Internal.Check
+[ 3 of 19]  [87]      Data.Vector.Fusion.Stream.Size      (SKIP:STREAM?)
+[ 5 of 19]  [1476]    Data.Vector.Fusion.Stream.Monadic   (SKIP:STREAM?)
+[ 6 of 19]  [634]     Data.Vector.Fusion.Stream           (SKIP:STREAM?)
+[ 7 of 19]  [884]     Data.Vector.Generic.Mutable
+[ 8 of 19]  [142]     Data.Vector.Generic.Base            (REDO: no class instances...)
+[ 9 of 19]  [172]     Data.Vector.Generic.New             (TODO:FORALL/APP/github issue #202)
+
+HEREHEREHERE
+
+[10 of 19]  [2027]    Data.Vector.Generic
+[11 of 19]  [332]     Data.Vector.Primitive.Mutable
+[12 of 19]  [1328]    Data.Vector.Primitive
+[13 of 19]  [490]     Data.Vector.Storable.Mutable
+[14 of 19]  [1421]    Data.Vector.Storable
+[15 of 19]  [389]     Data.Vector.Unboxed.Base
+[16 of 19]  [1368]    Data.Vector.Unboxed
+[17 of 19]  [285]     Data.Vector.Unboxed.Mutable
+[18 of 19]  [398]     Data.Vector.Mutable
+[19 of 19]  [1510]    Data.Vector
+
+
+
 
 hmatrix
 -------

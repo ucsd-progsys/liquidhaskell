@@ -10,7 +10,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Class of pure vectors
 --
 
@@ -45,6 +45,17 @@ type family Mutable (v :: * -> *) :: * -> * -> *
 --
 --   * 'basicUnsafeIndexM'
 --
+
+{-@
+    class Vector v a where
+      basicUnsafeFreeze  :: forall m. PrimMonad m => x:(Mutable v (PrimState m) a) -> (m {v:(v a) | (SzEq v x)})
+      basicUnsafeThaw    :: forall m. PrimMonad m => x:(v a) -> (m {v:(Mutable v (PrimState m) a) | (SzEq v x)})
+      basicLength        :: x:(v a) -> (NatN {(mvLen x)})
+      basicUnsafeSlice   :: i:Int -> n:Int -> {v:(v a) | (OkSlice v i n)} -> {v:(v a) | (mvLen v) = n}
+      basicUnsafeIndexM  :: forall m. Monad m => x:(v a) -> (OkIx x) -> (m a)
+      basicUnsafeCopy    :: forall m. PrimMonad m => x:(Mutable v (PrimState m) a) -> {v:(v a) | (SzEq v x)} -> m ()
+  @-}
+
 class MVector (Mutable v) a => Vector v a where
   -- | /Assumed complexity: O(1)/
   --
@@ -138,5 +149,3 @@ class MVector (Mutable v) a => Vector v a where
 
   {-# INLINE elemseq #-}
   elemseq _ = \_ x -> x
-
-
