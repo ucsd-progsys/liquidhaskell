@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DeriveDataTypeable, ScopedTypeVariables, CPP #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DeriveDataTypeable, ScopedTypeVariables #-}
 
 -- |
 -- Module      : Data.Vector.Primitive.Mutable
@@ -62,7 +62,27 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
 
 import Data.Typeable ( Typeable )
 
-#include "../../../include/vector.h"
+
+
+
+
+
+
+
+
+import qualified Data.Vector.Internal.Check as Ck
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- | Mutable vectors of primitive types.
 data MVector s a = MVector {-# UNPACK #-} !Int
@@ -75,8 +95,11 @@ type STVector s = MVector s
 
 instance NFData (MVector s a)
 
+{-@ instance measure mvLen :: MVector a -> Int
+    mvLen (MVector x y z) = y
+  @-}
 instance Prim a => G.MVector MVector a where
-  basicLength (MVector _ n _) = n
+  basicLength (MVector _ n _) =  n
   basicUnsafeSlice j m (MVector i n arr)
     = MVector (i+j) m arr
 
@@ -129,9 +152,11 @@ null = G.null
 -- ---------------------
 
 -- | Yield a part of the mutable vector without copying it.
+
+{-@ slice :: (Prim a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v:_ | (mvLen v) = n} @-}
 slice :: Prim a => Int -> Int -> MVector s a -> MVector s a
 {-# INLINE slice #-}
-slice = G.slice
+slice =   G.slice
 
 take :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE take #-}
@@ -145,16 +170,19 @@ splitAt :: Prim a => Int -> MVector s a -> (MVector s a, MVector s a)
 {-# INLINE splitAt #-}
 splitAt = G.splitAt
 
+{-@ init :: (Prim a) => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v) = (mvLen x) - 1} @-}
 init :: Prim a => MVector s a -> MVector s a
 {-# INLINE init #-}
 init = G.init
 
+{-@ tail :: (Prim a) => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v) = (mvLen x) - 1} @-}
 tail :: Prim a => MVector s a -> MVector s a
 {-# INLINE tail #-}
 tail = G.tail
 
 -- | Yield a part of the mutable vector without copying it. No bounds checks
 -- are performed.
+{-@ unsafeSlice  :: (Prim a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v:_ | (mvLen v) = n} @-}
 unsafeSlice :: Prim a
             => Int  -- ^ starting index
             -> Int  -- ^ length of the slice
@@ -163,10 +191,12 @@ unsafeSlice :: Prim a
 {-# INLINE unsafeSlice #-}
 unsafeSlice = G.unsafeSlice
 
+{-@ unsafeTake :: (Prim a) => n:Nat -> x:{_ | (HasN x n)} -> {v: _ | (mvLen v) = n} @-}
 unsafeTake :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE unsafeTake #-}
 unsafeTake = G.unsafeTake
 
+{-@ unsafeDrop :: (Prim a) => n:Nat -> x:{_ | (HasN x n)} -> {v:_ | (mvLen v) = (mvLen x) - n} @-}
 unsafeDrop :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE unsafeDrop #-}
 unsafeDrop = G.unsafeDrop
@@ -329,4 +359,5 @@ unsafeMove :: (PrimMonad m, Prim a)
                           -> m ()
 {-# INLINE unsafeMove #-}
 unsafeMove = G.unsafeMove
+
 
