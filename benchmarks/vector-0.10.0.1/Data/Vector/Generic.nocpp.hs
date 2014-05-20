@@ -1,5 +1,5 @@
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FlexibleContexts,
-             TypeFamilies, ScopedTypeVariables, BangPatterns #-}
+             TypeFamilies, ScopedTypeVariables, BangPatterns      #-}
 -- |
 -- Module      : Data.Vector.Generic
 -- Copyright   : (c) Roman Leshchinskiy 2008-2010
@@ -196,23 +196,43 @@ import Prelude hiding ( length, null,
 import qualified Text.Read as Read
 import Data.Typeable ( Typeable1, gcast1 )
 
-#include "vector.h"
+
+
+
+
+
+
+
+
+import qualified Data.Vector.Internal.Check as Ck
+
+
+
+
+
+
+
+
+
+
+
+
 
 import Data.Data ( Data, DataType )
-#if MIN_VERSION_base(4,2,0)
+--LIQUID #if MIN_VERSION_base(4,2,0)
 import Data.Data ( mkNoRepType )
-#else
-import Data.Data ( mkNorepType )
-mkNoRepType :: String -> DataType
-mkNoRepType = mkNorepType
-#endif
+--LIQUID #else
+--LIQUID import Data.Data ( mkNorepType )
+--LIQUID mkNoRepType :: String -> DataType
+--LIQUID mkNoRepType = mkNorepType
+--LIQUID #endif
 
 -- Length information
 -- ------------------
 
 -- | /O(1)/ Yield the length of the vector.
 length :: Vector v a => v a -> Int
-{-# INLINE_STREAM length #-}
+{-# INLINE [1] length #-}
 length v = basicLength v
 
 {-# RULES
@@ -222,9 +242,10 @@ length v = basicLength v
 
   #-}
 
+
 -- | /O(1)/ Test whether a vector if empty
 null :: Vector v a => v a -> Bool
-{-# INLINE_STREAM null #-}
+{-# INLINE [1] null #-}
 null v = basicLength v == 0
 
 {-# RULES
@@ -234,47 +255,48 @@ null v = basicLength v == 0
 
   #-}
 
+
 -- Indexing
 -- --------
 
 infixl 9 !
 -- | O(1) Indexing
 (!) :: Vector v a => v a -> Int -> a
-{-# INLINE_STREAM (!) #-}
-(!) v i = BOUNDS_CHECK(checkIndex) "(!)" i (length v)
+{-# INLINE [1] (!) #-}
+(!) v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 244) Ck.Bounds) "(!)" i (length v)
         $ unId (basicUnsafeIndexM v i)
 
 infixl 9 !?
 -- | O(1) Safe indexing
 (!?) :: Vector v a => v a -> Int -> Maybe a
-{-# INLINE_STREAM (!?) #-}
+{-# INLINE [1] (!?) #-}
 v !? i | i < 0 || i >= length v = Nothing
        | otherwise              = Just $ unsafeIndex v i
 
 -- | /O(1)/ First element
 head :: Vector v a => v a -> a
-{-# INLINE_STREAM head #-}
+{-# INLINE [1] head #-}
 head v = v ! 0
 
 -- | /O(1)/ Last element
 last :: Vector v a => v a -> a
-{-# INLINE_STREAM last #-}
+{-# INLINE [1] last #-}
 last v = v ! (length v - 1)
 
 -- | /O(1)/ Unsafe indexing without bounds checking
 unsafeIndex :: Vector v a => v a -> Int -> a
-{-# INLINE_STREAM unsafeIndex #-}
-unsafeIndex v i = UNSAFE_CHECK(checkIndex) "unsafeIndex" i (length v)
+{-# INLINE [1] unsafeIndex #-}
+unsafeIndex v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 267) Ck.Unsafe) "unsafeIndex" i (length v)
                 $ unId (basicUnsafeIndexM v i)
 
 -- | /O(1)/ First element without checking if the vector is empty
 unsafeHead :: Vector v a => v a -> a
-{-# INLINE_STREAM unsafeHead #-}
+{-# INLINE [1] unsafeHead #-}
 unsafeHead v = unsafeIndex v 0
 
 -- | /O(1)/ Last element without checking if the vector is empty
 unsafeLast :: Vector v a => v a -> a
-{-# INLINE_STREAM unsafeLast #-}
+{-# INLINE [1] unsafeLast #-}
 unsafeLast v = unsafeIndex v (length v - 1)
 
 {-# RULES
@@ -302,6 +324,7 @@ unsafeLast v = unsafeIndex v (length v - 1)
 
  #-}
 
+
 -- Monadic indexing
 -- ----------------
 
@@ -325,39 +348,39 @@ unsafeLast v = unsafeIndex v (length v - 1)
 -- elements) is evaluated eagerly.
 --
 indexM :: (Vector v a, Monad m) => v a -> Int -> m a
-{-# INLINE_STREAM indexM #-}
-indexM v i = BOUNDS_CHECK(checkIndex) "indexM" i (length v)
+{-# INLINE [1] indexM #-}
+indexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 329) Ck.Bounds) "indexM" i (length v)
            $ basicUnsafeIndexM v i
 
 -- | /O(1)/ First element of a vector in a monad. See 'indexM' for an
 -- explanation of why this is useful.
 headM :: (Vector v a, Monad m) => v a -> m a
-{-# INLINE_STREAM headM #-}
+{-# INLINE [1] headM #-}
 headM v = indexM v 0
 
 -- | /O(1)/ Last element of a vector in a monad. See 'indexM' for an
 -- explanation of why this is useful.
 lastM :: (Vector v a, Monad m) => v a -> m a
-{-# INLINE_STREAM lastM #-}
+{-# INLINE [1] lastM #-}
 lastM v = indexM v (length v - 1)
 
 -- | /O(1)/ Indexing in a monad without bounds checks. See 'indexM' for an
 -- explanation of why this is useful.
 unsafeIndexM :: (Vector v a, Monad m) => v a -> Int -> m a
-{-# INLINE_STREAM unsafeIndexM #-}
-unsafeIndexM v i = UNSAFE_CHECK(checkIndex) "unsafeIndexM" i (length v)
+{-# INLINE [1] unsafeIndexM #-}
+unsafeIndexM v i = ((Ck.checkIndex "Data/Vector/Generic.hs" 348) Ck.Unsafe) "unsafeIndexM" i (length v)
                  $ basicUnsafeIndexM v i
 
 -- | /O(1)/ First element in a monad without checking for empty vectors.
 -- See 'indexM' for an explanation of why this is useful.
 unsafeHeadM :: (Vector v a, Monad m) => v a -> m a
-{-# INLINE_STREAM unsafeHeadM #-}
+{-# INLINE [1] unsafeHeadM #-}
 unsafeHeadM v = unsafeIndexM v 0
 
 -- | /O(1)/ Last element in a monad without checking for empty vectors.
 -- See 'indexM' for an explanation of why this is useful.
 unsafeLastM :: (Vector v a, Monad m) => v a -> m a
-{-# INLINE_STREAM unsafeLastM #-}
+{-# INLINE [1] unsafeLastM #-}
 unsafeLastM v = unsafeIndexM v (length v - 1)
 
 {-# RULES
@@ -382,6 +405,7 @@ unsafeLastM v = unsafeIndexM v (length v - 1)
 
   #-}
 
+
 -- Extracting subvectors (slicing)
 -- -------------------------------
 
@@ -391,33 +415,33 @@ slice :: Vector v a => Int   -- ^ @i@ starting index
                     -> Int   -- ^ @n@ length
                     -> v a
                     -> v a
-{-# INLINE_STREAM slice #-}
-slice i n v = BOUNDS_CHECK(checkSlice) "slice" i n (length v)
+{-# INLINE [1] slice #-}
+slice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 395) Ck.Bounds) "slice" i n (length v)
             $ basicUnsafeSlice i n v
 
 -- | /O(1)/ Yield all but the last element without copying. The vector may not
 -- be empty.
 init :: Vector v a => v a -> v a
-{-# INLINE_STREAM init #-}
+{-# INLINE [1] init #-}
 init v = slice 0 (length v - 1) v
 
 -- | /O(1)/ Yield all but the first element without copying. The vector may not
 -- be empty.
 tail :: Vector v a => v a -> v a
-{-# INLINE_STREAM tail #-}
+{-# INLINE [1] tail #-}
 tail v = slice 1 (length v - 1) v
 
 -- | /O(1)/ Yield the first @n@ elements without copying. The vector may
 -- contain less than @n@ elements in which case it is returned unchanged.
 take :: Vector v a => Int -> v a -> v a
-{-# INLINE_STREAM take #-}
+{-# INLINE [1] take #-}
 take n v = unsafeSlice 0 (delay_inline min n' (length v)) v
   where n' = max n 0
 
 -- | /O(1)/ Yield all but the first @n@ elements without copying. The vector may
 -- contain less than @n@ elements in which case an empty vector is returned.
 drop :: Vector v a => Int -> v a -> v a
-{-# INLINE_STREAM drop #-}
+{-# INLINE [1] drop #-}
 drop n v = unsafeSlice (delay_inline min n' len)
                        (delay_inline max 0 (len - n')) v
   where n' = max n 0
@@ -427,7 +451,7 @@ drop n v = unsafeSlice (delay_inline min n' len)
 --
 -- Note that @'splitAt' n v@ is equivalent to @('take' n v, 'drop' n v)@
 -- but slightly more efficient.
-{-# INLINE_STREAM splitAt #-}
+{-# INLINE [1] splitAt #-}
 splitAt :: Vector v a => Int -> v a -> (v a, v a)
 splitAt n v = ( unsafeSlice 0 m v
               , unsafeSlice m (delay_inline max 0 (len - n')) v
@@ -443,20 +467,20 @@ unsafeSlice :: Vector v a => Int   -- ^ @i@ starting index
                           -> Int   -- ^ @n@ length
                           -> v a
                           -> v a
-{-# INLINE_STREAM unsafeSlice #-}
-unsafeSlice i n v = UNSAFE_CHECK(checkSlice) "unsafeSlice" i n (length v)
+{-# INLINE [1] unsafeSlice #-}
+unsafeSlice i n v = ((Ck.checkSlice "Data/Vector/Generic.hs" 447) Ck.Unsafe) "unsafeSlice" i n (length v)
                   $ basicUnsafeSlice i n v
 
 -- | /O(1)/ Yield all but the last element without copying. The vector may not
 -- be empty but this is not checked.
 unsafeInit :: Vector v a => v a -> v a
-{-# INLINE_STREAM unsafeInit #-}
+{-# INLINE [1] unsafeInit #-}
 unsafeInit v = unsafeSlice 0 (length v - 1) v
 
 -- | /O(1)/ Yield all but the first element without copying. The vector may not
 -- be empty but this is not checked.
 unsafeTail :: Vector v a => v a -> v a
-{-# INLINE_STREAM unsafeTail #-}
+{-# INLINE [1] unsafeTail #-}
 unsafeTail v = unsafeSlice 1 (length v - 1) v
 
 -- | /O(1)/ Yield the first @n@ elements without copying. The vector must
@@ -498,6 +522,7 @@ unsafeDrop n v = unsafeSlice n (length v - n) v
   unsafeTail (new p) = new (New.unsafeTail p)
 
   #-}
+
 
 -- Initialisation
 -- --------------
@@ -680,7 +705,7 @@ concat vs = unstream (Stream.flatten mk step (Exact n) (Stream.fromList vs))
   where
     n = List.foldl' (\k v -> k + length v) 0 vs
 
-    {-# INLINE_INNER step #-}
+    {-# INLINE [0] step #-}
     step (v,i,k)
       | i < k = case unsafeIndexM v i of
                   Box x -> Stream.Yield x (v,i+1,k)
@@ -709,7 +734,7 @@ generateM n f = unstreamM (MStream.generateM n f)
 -- | Execute the monadic action and freeze the resulting vector.
 --
 -- @
--- create (do { v \<- 'M.new' 2; 'M.write' v 0 \'a\'; 'M.write' v 1 \'b\' }) = \<'a','b'\>
+-- create (do { v \<- 'M.new' 2; 'M.write' v 0 \'a\'; 'M.write' v 1 \'b\'; return v }) = \<'a','b'\>
 -- @
 create :: Vector v a => (forall s. ST s (Mutable v s a)) -> v a
 {-# INLINE create #-}
@@ -731,7 +756,7 @@ create p = new (New.create p)
 force :: Vector v a => v a -> v a
 -- FIXME: we probably ought to inline this later as the rules still might fire
 -- otherwise
-{-# INLINE_STREAM force #-}
+{-# INLINE [1] force #-}
 force v = new (clone v)
 
 -- Bulk updates
@@ -916,7 +941,7 @@ backpermute v is = seq v
     {-# INLINE index #-}
     -- NOTE: we do it this way to avoid triggering LiberateCase on n in
     -- polymorphic code
-    index i = BOUNDS_CHECK(checkIndex) "backpermute" i n
+    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 919) Ck.Bounds) "backpermute" i n
             $ basicUnsafeIndexM v i
 
 -- | Same as 'backpermute' but without bounds checking.
@@ -934,7 +959,7 @@ unsafeBackpermute v is = seq v
     {-# INLINE index #-}
     -- NOTE: we do it this way to avoid triggering LiberateCase on n in
     -- polymorphic code
-    index i = UNSAFE_CHECK(checkIndex) "unsafeBackpermute" i n
+    index i = ((Ck.checkIndex "Data/Vector/Generic.hs" 937) Ck.Unsafe) "unsafeBackpermute" i n
             $ basicUnsafeIndexM v i
 
 -- Safe destructive updates
@@ -996,7 +1021,7 @@ concatMap f = unstream
             . Stream.flatten mk step Unknown
             . stream
   where
-    {-# INLINE_INNER step #-}
+    {-# INLINE [0] step #-}
     step (v,i,k)
       | i < k = case unsafeIndexM v i of
                   Box x -> Stream.Yield x (v,i+1,k)
@@ -1276,7 +1301,7 @@ partition f = partition_stream f . stream
 -- implemented in C++)
 
 partition_stream :: Vector v a => (a -> Bool) -> Stream a -> (v a, v a)
-{-# INLINE_STREAM partition_stream #-}
+{-# INLINE [1] partition_stream #-}
 partition_stream f s = s `seq` runST (
   do
     (mv1,mv2) <- M.partitionStream f s
@@ -1294,7 +1319,7 @@ unstablePartition f = unstablePartition_stream f . stream
 
 unstablePartition_stream
   :: Vector v a => (a -> Bool) -> Stream a -> (v a, v a)
-{-# INLINE_STREAM unstablePartition_stream #-}
+{-# INLINE [1] unstablePartition_stream #-}
 unstablePartition_stream f s = s `seq` runST (
   do
     (mv1,mv2) <- M.unstablePartitionStream f s
@@ -1303,7 +1328,7 @@ unstablePartition_stream f s = s `seq` runST (
     return (v1,v2))
 
 unstablePartition_new :: Vector v a => (a -> Bool) -> New v a -> (v a, v a)
-{-# INLINE_STREAM unstablePartition_new #-}
+{-# INLINE [1] unstablePartition_new #-}
 unstablePartition_new f (New.New p) = runST (
   do
     mv <- p
@@ -1318,6 +1343,7 @@ unstablePartition_new f (New.New p) = runST (
     = unstablePartition_new f p
 
   #-}
+
 
 
 -- FIXME: make span and break fusible
@@ -1777,12 +1803,12 @@ freeze mv = unsafeFreeze =<< M.clone mv
 -- | /O(1)/ Unsafely convert an immutable vector to a mutable one without
 -- copying. The immutable vector may not be used after this operation.
 unsafeThaw :: (PrimMonad m, Vector v a) => v a -> m (Mutable v (PrimState m) a)
-{-# INLINE_STREAM unsafeThaw #-}
+{-# INLINE [1] unsafeThaw #-}
 unsafeThaw = basicUnsafeThaw
 
 -- | /O(n)/ Yield a mutable copy of the immutable vector.
 thaw :: (PrimMonad m, Vector v a) => v a -> m (Mutable v (PrimState m) a)
-{-# INLINE_STREAM thaw #-}
+{-# INLINE [1] thaw #-}
 thaw v = do
            mv <- M.unsafeNew (length v)
            unsafeCopy mv v
@@ -1798,11 +1824,12 @@ thaw v = do
 
   #-}
 
+
 {-
 -- | /O(n)/ Yield a mutable vector containing copies of each vector in the
 -- list.
 thawMany :: (PrimMonad m, Vector v a) => [v a] -> m (Mutable v (PrimState m) a)
-{-# INLINE_STREAM thawMany #-}
+{-# INLINE [1] thawMany #-}
 -- FIXME: add rule for (stream (new (New.create (thawMany vs))))
 -- NOTE: We don't try to consume the list lazily as this wouldn't significantly
 -- change the space requirements anyway.
@@ -1826,7 +1853,7 @@ thawMany vs = do
 copy
   :: (PrimMonad m, Vector v a) => Mutable v (PrimState m) a -> v a -> m ()
 {-# INLINE copy #-}
-copy dst src = BOUNDS_CHECK(check) "copy" "length mismatch"
+copy dst src = ((Ck.check "Data/Vector/Generic.hs" 1829) Ck.Bounds) "copy" "length mismatch"
                                           (M.length dst == length src)
              $ unsafeCopy dst src
 
@@ -1835,7 +1862,7 @@ copy dst src = BOUNDS_CHECK(check) "copy" "length mismatch"
 unsafeCopy
   :: (PrimMonad m, Vector v a) => Mutable v (PrimState m) a -> v a -> m ()
 {-# INLINE unsafeCopy #-}
-unsafeCopy dst src = UNSAFE_CHECK(check) "unsafeCopy" "length mismatch"
+unsafeCopy dst src = ((Ck.check "Data/Vector/Generic.hs" 1838) Ck.Unsafe) "unsafeCopy" "length mismatch"
                                          (M.length dst == length src)
                    $ (dst `seq` src `seq` basicUnsafeCopy dst src)
 
@@ -1844,7 +1871,7 @@ unsafeCopy dst src = UNSAFE_CHECK(check) "unsafeCopy" "length mismatch"
 
 -- | /O(1)/ Convert a vector to a 'Stream'
 stream :: Vector v a => v a -> Stream a
-{-# INLINE_STREAM stream #-}
+{-# INLINE [1] stream #-}
 stream v = v `seq` n `seq` (Stream.unfoldr get 0 `Stream.sized` Exact n)
   where
     n = length v
@@ -1881,9 +1908,10 @@ unstream s = new (New.unstream s)
 
  #-}
 
+
 -- | /O(1)/ Convert a vector to a 'Stream', proceeding from right to left
 streamR :: Vector v a => v a -> Stream a
-{-# INLINE_STREAM streamR #-}
+{-# INLINE [1] streamR #-}
 streamR v = v `seq` n `seq` (Stream.unfoldr get n `Stream.sized` Exact n)
   where
     n = length v
@@ -1923,14 +1951,15 @@ unstreamR s = new (New.unstreamR s)
 
  #-}
 
+
 unstreamM :: (Monad m, Vector v a) => MStream m a -> m (v a)
-{-# INLINE_STREAM unstreamM #-}
+{-# INLINE [1] unstreamM #-}
 unstreamM s = do
                 xs <- MStream.toList s
                 return $ unstream $ Stream.unsafeFromList (MStream.size s) xs
 
 unstreamPrimM :: (PrimMonad m, Vector v a) => MStream m a -> m (v a)
-{-# INLINE_STREAM unstreamPrimM #-}
+{-# INLINE [1] unstreamPrimM #-}
 unstreamPrimM s = M.munstream s >>= unsafeFreeze
 
 -- FIXME: the next two functions are only necessary for the specialisations
@@ -1950,18 +1979,19 @@ unstreamPrimM_ST = unstreamPrimM
  #-}
 
 
+
 -- Recycling support
 -- -----------------
 
 -- | Construct a vector from a monadic initialiser.
 new :: Vector v a => New v a -> v a
-{-# INLINE_STREAM new #-}
+{-# INLINE [1] new #-}
 new m = m `seq` runST (unsafeFreeze =<< New.run m)
 
 -- | Convert a vector to an initialiser which, when run, produces a copy of
 -- the vector.
 clone :: Vector v a => v a -> New v a
-{-# INLINE_STREAM clone #-}
+{-# INLINE [1] clone #-}
 clone v = v `seq` New.create (
   do
     mv <- M.new (length v)
@@ -2024,4 +2054,5 @@ dataCast :: (Vector v a, Data a, Typeable1 v, Typeable1 t)
          => (forall d. Data  d => c (t d)) -> Maybe  (c (v a))
 {-# INLINE dataCast #-}
 dataCast f = gcast1 f
+
 
