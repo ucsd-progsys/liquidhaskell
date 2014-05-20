@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, ScopedTypeVariables, DeriveDataTypeable #-}
 
 -- |
 -- Module      : Data.Vector.Primitive.Mutable
@@ -95,11 +95,8 @@ type STVector s = MVector s
 
 instance NFData (MVector s a)
 
-{-@ instance measure mvLen :: MVector a -> Int
-    mvLen (MVector x y z) = y
-  @-}
 instance Prim a => G.MVector MVector a where
-  basicLength (MVector _ n _) =  n
+  basicLength (MVector _ n _) = n
   basicUnsafeSlice j m (MVector i n arr)
     = MVector (i+j) m arr
 
@@ -139,11 +136,13 @@ instance Prim a => G.MVector MVector a where
 -- ------------------
 
 -- | Length of the mutable vector.
+{-@ length :: Prim v a => x:_ -> {v:Nat | v = (mvLen x)} @-}
 length :: Prim a => MVector s a -> Int
 {-# INLINE length #-}
 length = G.length
 
 -- | Check whether the vector is empty
+{-@ null :: Prim v a => x:_ -> {v:Bool | ((Prop v) <=> (mvLen x) = 0)} @-}
 null :: Prim a => MVector s a -> Bool
 {-# INLINE null #-}
 null = G.null
@@ -152,11 +151,10 @@ null = G.null
 -- ---------------------
 
 -- | Yield a part of the mutable vector without copying it.
-
 {-@ slice :: (Prim a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v:_ | (mvLen v) = n} @-}
 slice :: Prim a => Int -> Int -> MVector s a -> MVector s a
 {-# INLINE slice #-}
-slice =   G.slice
+slice = G.slice
 
 take :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE take #-}
@@ -191,7 +189,7 @@ unsafeSlice :: Prim a
 {-# INLINE unsafeSlice #-}
 unsafeSlice = G.unsafeSlice
 
-{-@ unsafeTake :: (Prim a) => n:Nat -> x:{_ | (HasN x n)} -> {v: _ | (mvLen v) = n} @-}
+{-@ unsafeTake :: (Prim a) => n:Nat -> x:{_ | (HasN x n)} -> {v:_ | (mvLen v) = n} @-}
 unsafeTake :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE unsafeTake #-}
 unsafeTake = G.unsafeTake
@@ -201,10 +199,12 @@ unsafeDrop :: Prim a => Int -> MVector s a -> MVector s a
 {-# INLINE unsafeDrop #-}
 unsafeDrop = G.unsafeDrop
 
+{-@ unsafeInit :: (Prim a) => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v)  = (mvLen x) - 1} @-}
 unsafeInit :: Prim a => MVector s a -> MVector s a
 {-# INLINE unsafeInit #-}
 unsafeInit = G.unsafeInit
 
+{-@ unsafeTail :: (Prim a) => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v)  = (mvLen x) - 1} @-}
 unsafeTail :: Prim a => MVector s a -> MVector s a
 {-# INLINE unsafeTail #-}
 unsafeTail = G.unsafeTail
@@ -221,28 +221,33 @@ overlaps = G.overlaps
 -- --------------
 
 -- | Create a mutable vector of the given length.
+{-@ new :: (PrimMonad m, Prim a) => n:Nat -> m (PVecN MVector m a n)  @-}
 new :: (PrimMonad m, Prim a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE new #-}
 new = G.new
 
 -- | Create a mutable vector of the given length. The length is not checked.
+{-@ unsafeNew :: (PrimMonad m, Prim a) => n:Nat -> m (PVecN MVector m a n)  @-}
 unsafeNew :: (PrimMonad m, Prim a) => Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeNew #-}
 unsafeNew = G.unsafeNew
 
 -- | Create a mutable vector of the given length (0 if the length is negative)
 -- and fill it with an initial value.
+{-@ replicate :: (PrimMonad m, Prim a) => n:Nat -> a -> m (PVecN MVector m a n) @-}
 replicate :: (PrimMonad m, Prim a) => Int -> a -> m (MVector (PrimState m) a)
 {-# INLINE replicate #-}
 replicate = G.replicate
 
 -- | Create a mutable vector of the given length (0 if the length is negative)
 -- and fill it with values produced by repeatedly executing the monadic action.
+{-@ replicateM :: (PrimMonad m, Prim a) => n:Nat -> m a -> m (PVecN MVector m a n) @-}
 replicateM :: (PrimMonad m, Prim a) => Int -> m a -> m (MVector (PrimState m) a)
 {-# INLINE replicateM #-}
 replicateM = G.replicateM
 
 -- | Create a copy of a mutable vector.
+{-@ clone :: (PrimMonad m, Prim a) => x:(PVec MVector m a) -> m (PVecV MVector m a x) @-}
 clone :: (PrimMonad m, Prim a)
       => MVector (PrimState m) a -> m (MVector (PrimState m) a)
 {-# INLINE clone #-}
@@ -253,6 +258,8 @@ clone = G.clone
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive.
+{-@ grow :: (PrimMonad m, Prim a)
+                => x:(PVec MVector m a) -> by:Nat -> m (PVecN MVector m a {(mvLen x) + by}) @-}
 grow :: (PrimMonad m, Prim a)  
               => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
 {-# INLINE grow #-}
@@ -260,6 +267,7 @@ grow = G.grow
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive but this is not checked.
+{-@ unsafeGrow :: (PrimMonad m, Prim a) => x: (PVec MVector m a) -> n:Nat -> (m (PVecN MVector m a {(mvLen x) + n})) @-}
 unsafeGrow :: (PrimMonad m, Prim a)
                => MVector (PrimState m) a -> Int -> m (MVector (PrimState m) a)
 {-# INLINE unsafeGrow #-}
@@ -278,33 +286,41 @@ clear = G.clear
 -- -----------------------------
 
 -- | Yield the element at the given position.
+{-@ read :: (PrimMonad m, Prim a) => x:(PVec MVector m a) -> (OkIx x) -> m a @-}
 read :: (PrimMonad m, Prim a) => MVector (PrimState m) a -> Int -> m a
 {-# INLINE read #-}
 read = G.read
 
 -- | Replace the element at the given position.
+{-@ write :: (PrimMonad m, Prim a) => x:(PVec MVector m a) -> (OkIx x)-> a -> m () @-}
 write :: (PrimMonad m, Prim a) => MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
 write = G.write
 
 -- | Swap the elements at the given positions.
+{-@ swap :: (PrimMonad m, Prim a) => x:(PVec MVector m a) -> (OkIx x) -> (OkIx x) -> m () @-}
 swap :: (PrimMonad m, Prim a) => MVector (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE swap #-}
 swap = G.swap
 
 
 -- | Yield the element at the given position. No bounds checks are performed.
+{-@ unsafeRead :: (PrimMonad m, Prim a) => x:(PVec MVector m a) -> (OkIx x) -> m a @-}
 unsafeRead :: (PrimMonad m, Prim a) => MVector (PrimState m) a -> Int -> m a
 {-# INLINE unsafeRead #-}
 unsafeRead = G.unsafeRead
 
 -- | Replace the element at the given position. No bounds checks are performed.
+{-@ unsafeWrite :: (PrimMonad m, Prim a)
+                                => x:(MVector (PrimState m) a) -> (OkIx x) -> a -> (m ()) @-}
 unsafeWrite
     :: (PrimMonad m, Prim a) =>  MVector (PrimState m) a -> Int -> a -> m ()
 {-# INLINE unsafeWrite #-}
 unsafeWrite = G.unsafeWrite
 
 -- | Swap the elements at the given positions. No bounds checks are performed.
+{-@ unsafeSwap :: (PrimMonad m, Prim a)
+                => x:(PVec MVector m a) -> (OkIx x) -> (OkIx x) -> m () @-}
 unsafeSwap
     :: (PrimMonad m, Prim a) => MVector (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE unsafeSwap #-}
@@ -320,6 +336,8 @@ set = G.set
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap.
+{-@ copy :: (PrimMonad m, Prim a)
+                => dst:(PVec MVector m a) -> src:(PVecV MVector m a dst) -> m () @-}
 copy :: (PrimMonad m, Prim a) 
                  => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
 {-# INLINE copy #-}
@@ -327,6 +345,8 @@ copy = G.copy
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap. This is not checked.
+{-@ unsafeCopy :: (PrimMonad m, Prim a)
+               => dst:(PVec MVector m a) -> src:(PVecV MVector m a dst) -> m () @-}
 unsafeCopy :: (PrimMonad m, Prim a)
            => MVector (PrimState m) a   -- ^ target
            -> MVector (PrimState m) a   -- ^ source
@@ -341,6 +361,8 @@ unsafeCopy = G.unsafeCopy
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
+{-@ move :: (PrimMonad m, Prim a)
+                => dst:(PVec MVector m a) -> src:(PVecV MVector m a dst) -> m () @-}
 move :: (PrimMonad m, Prim a)
                  => MVector (PrimState m) a -> MVector (PrimState m) a -> m ()
 {-# INLINE move #-}
@@ -353,6 +375,10 @@ move = G.move
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
+{-@ unsafeMove :: (PrimMonad m, Prim a) => dst:(PVec MVector m a)
+                                             -> src:(PVecV MVector m a dst)
+                                             -> m ()
+  @-}
 unsafeMove :: (PrimMonad m, Prim a)
                           => MVector (PrimState m) a   -- ^ target
                           -> MVector (PrimState m) a   -- ^ source
