@@ -12,6 +12,10 @@
 -- Monadic stream combinators.
 --
 
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--idirs=/Users/rjhala/research/liquid/liquidhaskell/benchmarks/vector-0.10.0.1/" @-}
+{-@ LIQUID "--diffcheck" @-}
+
 module Data.Vector.Fusion.Stream.Monadic (
   Stream(..), Step(..), SPEC(..),
 

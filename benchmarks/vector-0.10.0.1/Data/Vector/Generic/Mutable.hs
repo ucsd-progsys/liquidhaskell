@@ -7,9 +7,12 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- Generic interface to mutable vectors
 --
+
+{-@ LIQUID "--shortnames"     @-}
+{-@ LIQUID "--no-termination" @-}
 
 module Data.Vector.Generic.Mutable (
   -- * Class of mutable vector types
@@ -57,6 +60,7 @@ module Data.Vector.Generic.Mutable (
   unstablePartition, unstablePartitionStream, partitionStream
 ) where
 
+import           Language.Haskell.Liquid.Prelude (liquidAssert, liquidAssume)
 import qualified Data.Vector.Fusion.Stream      as Stream
 import           Data.Vector.Fusion.Stream      ( Stream, MStream )
 import qualified Data.Vector.Fusion.Stream.Monadic as MStream
@@ -86,6 +90,52 @@ import Prelude hiding ( length, null, replicate, reverse, map, read,
 --
 --   * 'basicUnsafeWrite'
 --
+
+
+{-@ qualif Enlarge(v:Int, x:a): 0  = (mvLen x)                @-}
+{-@ qualif Enlarge(v:Int, x:a): v <= (mvLen x)                @-}
+{-@ qualif Enlarge(v:Int, x:a): v < (mvLen x)                 @-}
+{-@ qualif Enlarge(v:a, x:b): (mvLen x) = (mvLen v)           @-}
+{-@ qualif Enlarge(v:a, x:a): (mvLen x) < (mvLen v)           @-}
+{-@ qualif GrowBy(v:a, x:a, n:Int): (mvLen v) = (mvLen x) + n @-}
+{-@ qualif Size(v:a, n:Int): (mvLen v) = n                    @-}
+{-@ qualif Size(v:a, n:Int, m:Int): (mvLen v) = n + m         @-}
+{-@ qualif PVec(v:a): 0 <= (mvLen v)                          @-}
+{-@ qualif UnsafeAppend1(v:a, i:Int): i < (mvLen v)           @-}
+
+
+{-@ type PVec v m a        = {x: (v (PrimState m) a) | 0 <= (mvLen x)}    @-}
+{-@ type PVecN v m a N     = {x: (PVec v m a) | (mvLen x) = N}            @-}
+{-@ type VecAndIx a K      = (a, Int) <{\vec v -> (ValidIx (v-K) vec)}>   @-}
+{-@ type PVecV v m a Y     = {x: (PVec v m a) | (mvLen x) = (mvLen Y)}    @-}
+{-@ type Pos               = {v:Int | 0 < v }                             @-}
+{-@ type NatN N            = {v:Nat | v = N}                              @-}
+{-@ predicate ValidIx I V  = (0 <= I && I < (mvLen V))                    @-}
+{-@ type OkIx X            = {v:Int | (ValidIx v X)}                      @-}
+
+{-@ predicate SzEq   V X   = (mvLen V) = (mvLen X)                        @-}
+{-@ predicate SzPlus V X N = (mvLen V) = (mvLen X) + N                    @-}
+{-@ predicate OkSlice V I N = I + N <= (mvLen V)                          @-}
+{-@ predicate HasN V N = (OkSlice V 0 N) @-}
+
+{-@ class measure mvLen :: forall a. a -> Int @-}
+{-@
+class MVector v a where
+  basicLength          :: forall s. x:(v s a) -> {v:Nat | v = (mvLen x)}
+  basicUnsafeSlice     :: forall s. i:Nat -> n:Nat -> {v: (v s a) | (OkSlice v i n)} -> {v: (v s a) | (mvLen v) = n}
+  basicOverlaps        :: forall s. (v s a) -> (v s a) -> Bool
+  basicUnsafeNew       :: forall m. PrimMonad m => n:Nat -> (m {x:(v (PrimState m) a) | (mvLen x) = n})
+  basicUnsafeReplicate :: forall m. PrimMonad m => n:Nat -> a -> (m (PVecN v m a n))
+  basicUnsafeRead      :: forall m. PrimMonad m => x:(v (PrimState m) a) -> (OkIx x) -> (m a)
+  basicUnsafeWrite     :: forall m. PrimMonad m => x:(v (PrimState m) a) -> (OkIx x) -> a -> (m ())
+  basicClear           :: forall m. PrimMonad m => (v (PrimState m) a) -> (m ())
+  basicSet             :: forall m. PrimMonad m => (v (PrimState m) a) -> a -> (m ())
+  basicUnsafeCopy      :: forall m. PrimMonad m => dst:(v (PrimState m) a) -> {src:(v (PrimState m) a) | (mvLen src) = (mvLen dst)} -> (m ())
+  basicUnsafeMove      :: forall m. PrimMonad m => dst:(v (PrimState m) a) -> {src:(v (PrimState m) a) | (mvLen src) = (mvLen dst)} -> (m ())
+  basicUnsafeGrow      :: forall m. PrimMonad m => x:(v (PrimState m) a) -> by:Nat -> (m {v:(v (PrimState m) a) | (SzPlus v x 666)})
+@-}
+
+
 class MVector v a where
   -- | Length of the mutable vector. This method should not be
   -- called directly, use 'length' instead.
@@ -180,7 +230,7 @@ class MVector v a where
                             basicUnsafeWrite dst i x
                             do_copy (i+1)
                 | otherwise = return ()
-  
+
   {-# INLINE basicUnsafeMove #-}
   basicUnsafeMove !dst !src
     | basicOverlaps dst src = do
@@ -201,6 +251,9 @@ class MVector v a where
 -- Internal functions
 -- ------------------
 
+{-@ unsafeAppend1 :: (PrimMonad m, MVector v a)
+        => x:(PVec v m a) -> i:{Nat | i <= (mvLen x)} -> a -> m {v: (PVec v m a) | i < (mvLen v)} @-}
+
 unsafeAppend1 :: (PrimMonad m, MVector v a)
         => v (PrimState m) a -> Int -> a -> m (v (PrimState m) a)
 {-# INLINE_INNER unsafeAppend1 #-}
@@ -217,6 +270,10 @@ unsafeAppend1 v i x
                      INTERNAL_CHECK(checkIndex) "unsafeAppend1" i (length v')
                        $ unsafeWrite v' i x
                      return v'
+
+
+{-@ unsafePrepend1 :: (PrimMonad m, MVector v a)
+        => x:(PVec v m a) -> {v:Nat | v <= (mvLen x)} -> a -> m (VecAndIx (PVec v m a) {0}) @-}
 
 unsafePrepend1 :: (PrimMonad m, MVector v a)
         => v (PrimState m) a -> Int -> a -> m (v (PrimState m) a, Int)
@@ -244,6 +301,8 @@ mstream v = v `seq` n `seq` (MStream.unfoldrM get 0 `MStream.sized` Exact n)
                            return $ Just (x, i+1)
           | otherwise = return $ Nothing
 
+{-@ fill :: (PrimMonad m, MVector v a)
+              => (PVec v m a) -> MStream m a -> m (PVec v m a) @-}
 fill :: (PrimMonad m, MVector v a)
            => v (PrimState m) a -> MStream m a -> m (v (PrimState m) a)
 {-# INLINE fill #-}
@@ -252,14 +311,17 @@ fill v s = v `seq` do
                      return $ unsafeSlice 0 n' v
   where
     {-# INLINE_INNER put #-}
-    put i x = do
-                INTERNAL_CHECK(checkIndex) "fill" i (length v)
-                  $ unsafeWrite v i x
-                return (i+1)
+    put i' x = do
+                 INTERNAL_CHECK(checkIndex) "fill" i (length v)
+                   $ unsafeWrite v i x
+                 return (i+1)
+               where i = liquidAssume (i' < length v) i' -- LIQUID: stream size
 
+{-@ transform :: (PrimMonad m, MVector v a)
+      => (MStream m a -> MStream m a) -> (PVec v m a) -> m (PVec v m a) @-}
 transform :: (PrimMonad m, MVector v a)
   => (MStream m a -> MStream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
-{-# INLINE_STREAM transform #-}
+{-# INLINE_STREAM transform #-} -- LIQUID: type application oddity with New.transform (CHECK)
 transform f v = fill v (f (mstream v))
 
 mstreamR :: (PrimMonad m, MVector v a) => v (PrimState m) a -> MStream m a
@@ -275,6 +337,8 @@ mstreamR v = v `seq` n `seq` (MStream.unfoldrM get n `MStream.sized` Exact n)
       where
         j = i-1
 
+{-@ fillR :: (PrimMonad m, MVector v a)
+            => (PVec v m a) -> MStream m a -> m (PVec v m a) @-}
 fillR :: (PrimMonad m, MVector v a)
            => v (PrimState m) a -> MStream m a -> m (v (PrimState m) a)
 {-# INLINE fillR #-}
@@ -289,8 +353,10 @@ fillR v s = v `seq` do
                 unsafeWrite v j x
                 return j
       where
-        j = i-1
+        j = (liquidAssume (i > 0) i) - 1 -- LIQUID: stream
 
+{-@ transformR :: (PrimMonad m, MVector v a)
+     => (MStream m a -> MStream m a) -> (PVec v m a) -> m (PVec v m a) @-}
 transformR :: (PrimMonad m, MVector v a)
   => (MStream m a -> MStream m a) -> v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE_STREAM transformR #-}
@@ -323,6 +389,8 @@ munstream s = case upperBound (MStream.size s) of
 --
 -- I'm not sure this still applies (19/04/2010)
 
+{-@ munstreamMax
+     :: (PrimMonad m, MVector v a) => MStream m a -> Nat -> m (PVec v m a) @-}
 munstreamMax
   :: (PrimMonad m, MVector v a) => MStream m a -> Int -> m (v (PrimState m) a)
 {-# INLINE munstreamMax #-}
@@ -330,13 +398,17 @@ munstreamMax s n
   = do
       v <- INTERNAL_CHECK(checkLength) "munstreamMax" n
            $ unsafeNew n
-      let put i x = do
-                       INTERNAL_CHECK(checkIndex) "munstreamMax" i n
-                         $ unsafeWrite v i x
-                       return (i+1)
+      let put i' x = do
+                        INTERNAL_CHECK(checkIndex) "munstreamMax" i n
+                          $ unsafeWrite v i x
+                        return (i+1)
+                     where i = liquidAssume (i' < n) i -- LIQUID: stream
       n' <- MStream.foldM' put 0 s
       return $ INTERNAL_CHECK(checkSlice) "munstreamMax" 0 n' n
              $ unsafeSlice 0 n' v
+
+{-@ munstreamUnknown
+     :: (PrimMonad m, MVector v a) => MStream m a -> m (PVec v m a) @-}
 
 munstreamUnknown
   :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
@@ -356,6 +428,8 @@ munstreamUnknown s
 -- | Create a new mutable vector and fill it with elements from the 'Stream'
 -- from right to left. The vector will grow exponentially if the maximum size
 -- of the 'Stream' is unknown.
+
+{-@ unstreamR :: (PrimMonad m, MVector v a) => Stream a -> m (PVec v m a) @-}
 unstreamR :: (PrimMonad m, MVector v a) => Stream a -> m (v (PrimState m) a)
 -- NOTE: replace INLINE_STREAM by INLINE? (also in unstream)
 {-# INLINE_STREAM unstreamR #-}
@@ -364,12 +438,16 @@ unstreamR s = munstreamR (Stream.liftStream s)
 -- | Create a new mutable vector and fill it with elements from the monadic
 -- stream from right to left. The vector will grow exponentially if the maximum
 -- size of the stream is unknown.
+
+{-@ munstreamR :: (PrimMonad m, MVector v a) => MStream m a -> m (PVec v m a) @-}
 munstreamR :: (PrimMonad m, MVector v a) => MStream m a -> m (v (PrimState m) a)
 {-# INLINE_STREAM munstreamR #-}
 munstreamR s = case upperBound (MStream.size s) of
                Just n  -> munstreamRMax     s n
                Nothing -> munstreamRUnknown s
 
+{-@ munstreamRMax
+     :: (PrimMonad m, MVector v a) => MStream m a -> Nat -> m (PVec v m a) @-}
 munstreamRMax
   :: (PrimMonad m, MVector v a) => MStream m a -> Int -> m (v (PrimState m) a)
 {-# INLINE munstreamRMax #-}
@@ -378,7 +456,7 @@ munstreamRMax s n
       v <- INTERNAL_CHECK(checkLength) "munstreamRMax" n
            $ unsafeNew n
       let put i x = do
-                      let i' = i-1
+                      let i' = (liquidAssume (0 < i) i) - 1
                       INTERNAL_CHECK(checkIndex) "munstreamRMax" i' n
                         $ unsafeWrite v i' x
                       return i'
@@ -404,11 +482,14 @@ munstreamRUnknown s
 -- ------
 
 -- | Length of the mutable vector.
+
+{-@ length :: MVector v a => x:(v s a) -> {v:Nat | v = (mvLen x)} @-}
 length :: MVector v a => v s a -> Int
 {-# INLINE length #-}
 length = basicLength
 
 -- | Check whether the vector is empty
+{-@ null :: MVector v a => x:_ -> {v:Bool | ((Prop v) <=> (mvLen x) = 0)} @-}
 null :: MVector v a => v s a -> Bool
 {-# INLINE null #-}
 null v = length v == 0
@@ -417,6 +498,9 @@ null v = length v == 0
 -- ---------------------
 
 -- | Yield a part of the mutable vector without copying it.
+
+{-@ slice :: (MVector v a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v:_ | (mvLen v) = n} @-}
+
 slice :: MVector v a => Int -> Int -> v s a -> v s a
 {-# INLINE slice #-}
 slice i n v = BOUNDS_CHECK(checkSlice) "slice" i n (length v)
@@ -443,16 +527,21 @@ splitAt n v = ( unsafeSlice 0 m v
       n'  = max n 0
       len = length v
 
+{-@ init :: MVector v a => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v) = (mvLen x) - 1} @-}
 init :: MVector v a => v s a -> v s a
 {-# INLINE init #-}
 init v = slice 0 (length v - 1) v
 
+{-@ tail :: MVector v a => x:{_ | (mvLen x) > 0} -> {v:_ | (mvLen v) = (mvLen x) - 1} @-}
 tail :: MVector v a => v s a -> v s a
 {-# INLINE tail #-}
 tail v = slice 1 (length v - 1) v
 
 -- | Yield a part of the mutable vector without copying it. No bounds checks
 -- are performed.
+
+{-@ unsafeSlice  :: (MVector v a) => i:Nat -> n:Nat -> {v:_ | (OkSlice v i n)} -> {v: _ | (mvLen v) = n} @-}
+
 unsafeSlice :: MVector v a => Int  -- ^ starting index
                            -> Int  -- ^ length of the slice
                            -> v s a
@@ -461,18 +550,22 @@ unsafeSlice :: MVector v a => Int  -- ^ starting index
 unsafeSlice i n v = UNSAFE_CHECK(checkSlice) "unsafeSlice" i n (length v)
                   $ basicUnsafeSlice i n v
 
+{-@ unsafeInit :: MVector v a => x:{(v s a) | (mvLen x) > 0} -> {v: (v s a) | (mvLen v)  = (mvLen x) - 1} @-}
 unsafeInit :: MVector v a => v s a -> v s a
 {-# INLINE unsafeInit #-}
 unsafeInit v = unsafeSlice 0 (length v - 1) v
 
+{-@ unsafeTail :: MVector v a => x:{(v s a) | (mvLen x) > 0} -> {v: (v s a) | (mvLen v)  = (mvLen x) - 1} @-}
 unsafeTail :: MVector v a => v s a -> v s a
 {-# INLINE unsafeTail #-}
 unsafeTail v = unsafeSlice 1 (length v - 1) v
 
+{-@ unsafeTake :: MVector v a => n:Nat -> x:{(v s a) | (HasN x n)} -> {v: (v s a) | (mvLen v) = n} @-}
 unsafeTake :: MVector v a => Int -> v s a -> v s a
 {-# INLINE unsafeTake #-}
 unsafeTake n v = unsafeSlice 0 n v
 
+{-@ unsafeDrop :: MVector v a => n:Nat -> x:{(v s a) | (HasN x n)} -> {v: (v s a) | (mvLen v) = (mvLen x) - n} @-}
 unsafeDrop :: MVector v a => Int -> v s a -> v s a
 {-# INLINE unsafeDrop #-}
 unsafeDrop n v = unsafeSlice n (length v - n) v
@@ -489,12 +582,14 @@ overlaps = basicOverlaps
 -- --------------
 
 -- | Create a mutable vector of the given length.
+{-@ new :: (PrimMonad m, MVector v a) => n:Nat -> m (PVecN v m a n)  @-}
 new :: (PrimMonad m, MVector v a) => Int -> m (v (PrimState m) a)
 {-# INLINE new #-}
 new n = BOUNDS_CHECK(checkLength) "new" n
       $ unsafeNew n
 
 -- | Create a mutable vector of the given length. The length is not checked.
+{-@ unsafeNew :: (PrimMonad m, MVector v a) => n:Nat -> m (PVecN v m a n)  @-}
 unsafeNew :: (PrimMonad m, MVector v a) => Int -> m (v (PrimState m) a)
 {-# INLINE unsafeNew #-}
 unsafeNew n = UNSAFE_CHECK(checkLength) "unsafeNew" n
@@ -502,17 +597,23 @@ unsafeNew n = UNSAFE_CHECK(checkLength) "unsafeNew" n
 
 -- | Create a mutable vector of the given length (0 if the length is negative)
 -- and fill it with an initial value.
+{-@ replicate :: (PrimMonad m, MVector v a) => n:Nat -> a -> m (PVecN v m a n) @-}
 replicate :: (PrimMonad m, MVector v a) => Int -> a -> m (v (PrimState m) a)
 {-# INLINE replicate #-}
 replicate n x = basicUnsafeReplicate (delay_inline max 0 n) x
 
 -- | Create a mutable vector of the given length (0 if the length is negative)
 -- and fill it with values produced by repeatedly executing the monadic action.
+{-@ replicateM :: (PrimMonad m, MVector v a) => n:Nat -> m a -> m (PVecN v m a n) @-}
 replicateM :: (PrimMonad m, MVector v a) => Int -> m a -> m (v (PrimState m) a)
 {-# INLINE replicateM #-}
-replicateM n m = munstream (MStream.replicateM n m)
+replicateM n m = do v <- munstream (MStream.replicateM n m)
+                    let v' = liquidAssume (length v == n) v -- LIQUID: stream FAIL
+                    return v'
+
 
 -- | Create a copy of a mutable vector.
+{-@ clone :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> m (PVecV v m a x) @-}
 clone :: (PrimMonad m, MVector v a) => v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE clone #-}
 clone v = do
@@ -525,6 +626,8 @@ clone v = do
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive.
+{-@ grow :: (PrimMonad m, MVector v a)
+                => x:(PVec v m a) -> by:Nat -> m (PVecN v m a {(mvLen x) + by}) @-}
 grow :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE grow #-}
@@ -537,14 +640,17 @@ growFront :: (PrimMonad m, MVector v a)
 growFront v by = BOUNDS_CHECK(checkLength) "growFront" by
                $ unsafeGrowFront v by
 
+{-@ enlarge_delta :: (MVector v a) => x:(v s a) -> {v:Pos | (mvLen x) <= v} @-}
 enlarge_delta v = max (length v) 1
 
 -- | Grow a vector logarithmically
+{-@ enlarge :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (m {v:(PVec v m a) | (mvLen x) < (mvLen v)}) @-}
 enlarge :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> m (v (PrimState m) a)
 {-# INLINE enlarge #-}
 enlarge v = unsafeGrow v (enlarge_delta v)
 
+{-@ enlargeFront :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (m (VecAndIx {v:(PVec v m a) | (mvLen x) < (mvLen v)} {1})) @-}
 enlargeFront :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> m (v (PrimState m) a, Int)
 {-# INLINE enlargeFront #-}
@@ -556,12 +662,17 @@ enlargeFront v = do
 
 -- | Grow a vector by the given number of elements. The number must be
 -- positive but this is not checked.
+
+{-@ unsafeGrow :: (PrimMonad m, MVector v a) => x: (PVec v m a) -> n:Nat -> (m (PVecN v m a {(mvLen x) + n})) @-}
 unsafeGrow :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE unsafeGrow #-}
 unsafeGrow v n = UNSAFE_CHECK(checkLength) "unsafeGrow" n
                $ basicUnsafeGrow v n
 
+
+{-@ unsafeGrowFront :: (PrimMonad m, MVector v a)
+                        => x:(v (PrimState m) a) -> n:Nat -> (m (PVecN v m a {(mvLen x) + n})) @-}
 unsafeGrowFront :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Int -> m (v (PrimState m) a)
 {-# INLINE unsafeGrowFront #-}
@@ -576,7 +687,7 @@ unsafeGrowFront v by = UNSAFE_CHECK(checkLength) "unsafeGrowFront" by
 -- ------------------------
 
 -- | Reset all elements of the vector to some undefined value, clearing all
--- references to external objects. This is usually a noop for unboxed vectors. 
+-- references to external objects. This is usually a noop for unboxed vectors.
 clear :: (PrimMonad m, MVector v a) => v (PrimState m) a -> m ()
 {-# INLINE clear #-}
 clear = basicClear
@@ -585,18 +696,21 @@ clear = basicClear
 -- -----------------------------
 
 -- | Yield the element at the given position.
+{-@ read :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (OkIx x) -> m a @-}
 read :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> m a
 {-# INLINE read #-}
 read v i = BOUNDS_CHECK(checkIndex) "read" i (length v)
          $ unsafeRead v i
 
 -- | Replace the element at the given position.
+{-@ write :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (OkIx x)-> a -> m () @-}
 write :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> a -> m ()
 {-# INLINE write #-}
 write v i x = BOUNDS_CHECK(checkIndex) "write" i (length v)
             $ unsafeWrite v i x
 
 -- | Swap the elements at the given positions.
+{-@ swap :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (OkIx x) -> (OkIx x) -> m () @-}
 swap :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE swap #-}
 swap v i j = BOUNDS_CHECK(checkIndex) "swap" i (length v)
@@ -604,18 +718,22 @@ swap v i j = BOUNDS_CHECK(checkIndex) "swap" i (length v)
            $ unsafeSwap v i j
 
 -- | Replace the element at the give position and return the old element.
+{-@ exchange :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (OkIx x) -> a -> m a @-}
 exchange :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> a -> m a
 {-# INLINE exchange #-}
 exchange v i x = BOUNDS_CHECK(checkIndex) "exchange" i (length v)
                $ unsafeExchange v i x
 
 -- | Yield the element at the given position. No bounds checks are performed.
+{-@ unsafeRead :: (PrimMonad m, MVector v a) => x:(PVec v m a) -> (OkIx x) -> m a @-}
 unsafeRead :: (PrimMonad m, MVector v a) => v (PrimState m) a -> Int -> m a
 {-# INLINE unsafeRead #-}
 unsafeRead v i = UNSAFE_CHECK(checkIndex) "unsafeRead" i (length v)
                $ basicUnsafeRead v i
 
 -- | Replace the element at the given position. No bounds checks are performed.
+{-@ unsafeWrite :: (PrimMonad m, MVector v a)
+                                => x:(v (PrimState m) a) -> (OkIx x) -> a -> (m ()) @-}
 unsafeWrite :: (PrimMonad m, MVector v a)
                                 => v (PrimState m) a -> Int -> a -> m ()
 {-# INLINE unsafeWrite #-}
@@ -623,6 +741,8 @@ unsafeWrite v i x = UNSAFE_CHECK(checkIndex) "unsafeWrite" i (length v)
                   $ basicUnsafeWrite v i x
 
 -- | Swap the elements at the given positions. No bounds checks are performed.
+{-@ unsafeSwap :: (PrimMonad m, MVector v a)
+                => x:(PVec v m a) -> (OkIx x) -> (OkIx x) -> m () @-}
 unsafeSwap :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> Int -> Int -> m ()
 {-# INLINE unsafeSwap #-}
@@ -636,6 +756,8 @@ unsafeSwap v i j = UNSAFE_CHECK(checkIndex) "unsafeSwap" i (length v)
 
 -- | Replace the element at the give position and return the old element. No
 -- bounds checks are performed.
+{-@ unsafeExchange :: (PrimMonad m, MVector v a)
+                                => x:(PVec v m a) -> (OkIx x) -> a -> m a @-}
 unsafeExchange :: (PrimMonad m, MVector v a)
                                 => v (PrimState m) a -> Int -> a -> m a
 {-# INLINE unsafeExchange #-}
@@ -655,10 +777,13 @@ set = basicSet
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap.
+
+{-@ copy :: (PrimMonad m, MVector v a)
+                => dst:(PVec v m a) -> src:(PVecV v m a dst) -> m () @-}
 copy :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> v (PrimState m) a -> m ()
 {-# INLINE copy #-}
-copy dst src = BOUNDS_CHECK(check) "copy" "overlapping vectors"
+copy dst src = BOUNDS_CHECK(checkLIQUID) "copy" "overlapping vectors"
                                           (not (dst `overlaps` src))
              $ BOUNDS_CHECK(check) "copy" "length mismatch"
                                           (length dst == length src)
@@ -666,11 +791,15 @@ copy dst src = BOUNDS_CHECK(check) "copy" "overlapping vectors"
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'copy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
+
+{-@ move :: (PrimMonad m, MVector v a)
+                => dst:(PVec v m a) -> src:(PVecV v m a dst) -> m () @-}
+
 move :: (PrimMonad m, MVector v a)
                 => v (PrimState m) a -> v (PrimState m) a -> m ()
 {-# INLINE move #-}
@@ -680,23 +809,32 @@ move dst src = BOUNDS_CHECK(check) "move" "length mismatch"
 
 -- | Copy a vector. The two vectors must have the same length and may not
 -- overlap. This is not checked.
+
+{-@ unsafeCopy :: (PrimMonad m, MVector v a)
+               => dst:(PVec v m a) -> src:(PVecV v m a dst) -> m () @-}
 unsafeCopy :: (PrimMonad m, MVector v a) => v (PrimState m) a   -- ^ target
                                          -> v (PrimState m) a   -- ^ source
                                          -> m ()
 {-# INLINE unsafeCopy #-}
 unsafeCopy dst src = UNSAFE_CHECK(check) "unsafeCopy" "length mismatch"
                                          (length dst == length src)
-                   $ UNSAFE_CHECK(check) "unsafeCopy" "overlapping vectors"
+                   $ UNSAFE_CHECK(checkLIQUID) "unsafeCopy" "overlapping vectors"
                                          (not (dst `overlaps` src))
                    $ (dst `seq` src `seq` basicUnsafeCopy dst src)
 
 -- | Move the contents of a vector. The two vectors must have the same
 -- length, but this is not checked.
--- 
+--
 -- If the vectors do not overlap, then this is equivalent to 'unsafeCopy'.
 -- Otherwise, the copying is performed as if the source vector were
 -- copied to a temporary vector and then the temporary vector was copied
 -- to the target vector.
+
+{-@ unsafeMove :: (PrimMonad m, MVector v a) => dst:(PVec v m a)
+                                             -> src:(PVecV v m a dst)
+                                             -> m ()
+  @-}
+
 unsafeMove :: (PrimMonad m, MVector v a) => v (PrimState m) a   -- ^ target
                                          -> v (PrimState m) a   -- ^ source
                                          -> m ()
@@ -707,7 +845,8 @@ unsafeMove dst src = UNSAFE_CHECK(check) "unsafeMove" "length mismatch"
 
 -- Permutations
 -- ------------
-
+{-@ accum :: (PrimMonad m, MVector v a)
+        => (a -> b -> a) -> x:_ -> Stream ((OkIx x), b) -> m () @-}
 accum :: (PrimMonad m, MVector v a)
         => (a -> b -> a) -> v (PrimState m) a -> Stream (Int, b) -> m ()
 {-# INLINE accum #-}
@@ -721,6 +860,8 @@ accum f !v s = Stream.mapM_ upd s
 
     !n = length v
 
+{-@ update :: (PrimMonad m, MVector v a)
+                        => x:_ -> Stream ((OkIx x), a) -> m () @-}
 update :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Stream (Int, a) -> m ()
 {-# INLINE update #-}
@@ -732,6 +873,8 @@ update !v s = Stream.mapM_ upd s
 
     !n = length v
 
+{-@ unsafeAccum :: (PrimMonad m, MVector v a)
+            => (a -> b -> a) -> x:_ -> Stream ((OkIx x), b) -> m () @-}
 unsafeAccum :: (PrimMonad m, MVector v a)
             => (a -> b -> a) -> v (PrimState m) a -> Stream (Int, b) -> m ()
 {-# INLINE unsafeAccum #-}
@@ -745,6 +888,8 @@ unsafeAccum f !v s = Stream.mapM_ upd s
 
     !n = length v
 
+{-@ unsafeUpdate :: (PrimMonad m, MVector v a)
+                        => x:_  -> Stream ((OkIx x), a) -> m () @-}
 unsafeUpdate :: (PrimMonad m, MVector v a)
                         => v (PrimState m) a -> Stream (Int, a) -> m ()
 {-# INLINE unsafeUpdate #-}
@@ -794,6 +939,10 @@ unstablePartition f !v = from_left 0 (length v)
                                from_left (i+1) j
                         else from_right i (j-1)
 
+{-@ unstablePartitionMax :: (PrimMonad m, MVector v a)
+        => (a -> Bool) -> Stream a -> n:Nat
+        -> m ((PVec v m a), (PVec v m a)) @-} -- some glitch prevents this: <{\x1 x2 -> (mvLen x1) + (mvLen x2) <= n}>) @-}
+
 unstablePartitionStream :: (PrimMonad m, MVector v a)
         => (a -> Bool) -> Stream a -> m (v (PrimState m) a, v (PrimState m) a)
 {-# INLINE unstablePartitionStream #-}
@@ -811,14 +960,17 @@ unstablePartitionMax f s n
       v <- INTERNAL_CHECK(checkLength) "unstablePartitionMax" n
            $ unsafeNew n
       let {-# INLINE_INNER put #-}
-          put (i, j) x
+          put (i', j') x
             | f x       = do
                             unsafeWrite v i x
                             return (i+1, j)
             | otherwise = do
                             unsafeWrite v (j-1) x
                             return (i, j-1)
-                                
+            where
+              i = liquidAssume (i' < j') i' -- LIQUID: stream
+              j = liquidAssume (i' < j') j' -- LIQUID: stream
+
       (i,j) <- Stream.foldM' put (0, n) s
       return (unsafeSlice 0 i v, unsafeSlice j (n-j) v)
 
@@ -830,6 +982,9 @@ partitionStream f s
       Just n  -> partitionMax f s n
       Nothing -> partitionUnknown f s
 
+
+{-@ partitionMax :: (PrimMonad m, MVector v a)
+        => (a -> Bool) -> Stream a -> n:Nat -> m ((PVec v m a), (PVec v m a)) @-}
 partitionMax :: (PrimMonad m, MVector v a)
   => (a -> Bool) -> Stream a -> Int -> m (v (PrimState m) a, v (PrimState m) a)
 {-# INLINE partitionMax #-}
@@ -839,7 +994,7 @@ partitionMax f s n
          $ unsafeNew n
 
       let {-# INLINE_INNER put #-}
-          put (i,j) x
+          put (i'', j'') x
             | f x       = do
                             unsafeWrite v i x
                             return (i+1,j)
@@ -847,8 +1002,11 @@ partitionMax f s n
             | otherwise = let j' = j-1 in
                           do
                             unsafeWrite v j' x
-                            return (i,j') 
-                            
+                            return (i,j')
+            where
+              i = liquidAssume (i'' < j'') i''
+              j = liquidAssume (i'' < j'') j''
+
       (i,j) <- Stream.foldM' put (0,n) s
       INTERNAL_CHECK(check) "partitionMax" "invalid indices" (i <= j)
         $ return ()
@@ -881,4 +1039,3 @@ partitionUnknown f s
       | otherwise = do
                       v2' <- unsafeAppend1 v2 i2 x
                       return (v1, i1, v2', i2+1)
-
