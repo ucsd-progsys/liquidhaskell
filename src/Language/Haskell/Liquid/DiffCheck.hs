@@ -228,7 +228,7 @@ rawDiff cbs = DC cbs mempty
 -- | @save@ creates an .saved version of the @target@ file, which will be 
 --    used to find what has changed the /next time/ @target@ is checked.
 -------------------------------------------------------------------------
-save :: FilePath -> IO ()
+save :: FilePath -> FixResult Error -> IO ()
 -------------------------------------------------------------------------
 save target = copyFile target $ extFileName Saved target
 
