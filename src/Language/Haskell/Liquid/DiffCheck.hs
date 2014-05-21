@@ -75,20 +75,20 @@ slice target cbs = ifM (doesFileExist saved) (Just <$> dc) (return Nothing)
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> IO DiffCheck
 sliceSaved target saved cbs 
-  = do is       <- {- tracePpr "INCCHECK: changed lines" <$> -} lineDiff target saved
+  = do (is, lm) <- {- tracePpr "INCCHECK: changed lines" <$> -} lineDiff target saved
        let dfs   = coreDefs cbs
        forM_ dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
-       return    $ thin cbs $ diffVars is dfs 
+       return    $ thin (Just lm) cbs (Just lm) $ diffVars is dfs 
 
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
 -------------------------------------------------------------------------
-thin :: [CoreBind] -> [Var] -> DiffCheck
+thin :: Maybe LMap -> [CoreBind] -> [Var] -> DiffCheck
 -------------------------------------------------------------------------
-thin cbs xs = DC (filterBinds cbs ys) res
+thin lm cbs xs = DC (filterBinds cbs ys) res
   where
-    ys      = dependentVars (coreDeps cbs) $ S.fromList xs
-    res     = error "TODO:extract-old-errors"
+    ys         = dependentVars (coreDeps cbs) $ S.fromList xs
+    res        = undefined lm "TODO:extract-old-errors"
 
 -------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
@@ -158,6 +158,7 @@ bindDep b = [(x, ys) | x <- bindersOf b]
     ys    = S.fromList $ freeVars S.empty b
 
 type Deps = M.HashMap Var (S.HashSet Var)
+type LMap = M.HashMap Int Int             -- old-line-num -> new-line-num
 
 -------------------------------------------------------------------------
 dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
@@ -194,14 +195,14 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
 -- | `lineDiff src dst` compares the contents of `src` with `dst` 
 --   and returns the lines of `src` that are different. 
 -------------------------------------------------------------------------
-lineDiff :: FilePath -> FilePath -> IO [Int]
+lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
 -------------------------------------------------------------------------
 lineDiff src dst 
   = do s1      <- getLines src 
        s2      <- getLines dst
        let ns   = diffLines 1 $ getGroupedDiff s1 s2
        -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
-       return ns
+       return (ns, undefined)
 
 diffLines _ []              = []
 diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls
