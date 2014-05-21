@@ -1,10 +1,9 @@
-{-# LANGUAGE BangPatterns   #-}
 {-# LANGUAGE TupleSections  #-}
 
 import qualified Data.HashMap.Strict as M
 -- import qualified Control.Exception as Ex
 -- import Data.Maybe       (catMaybes)
-import Data.Monoid      (mconcat)
+import Data.Monoid      (mconcat, mempty)
 import System.Exit 
 import Control.Applicative ((<$>))
 import Control.DeepSeq
@@ -48,8 +47,9 @@ liquidOne target info =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************" 
-     (pruned, cbs'') <- prune cfg cbs' target info
-     let cgi = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
+     dc <- prune cfg cbs' target info
+     let cbs'' = maybe cbs' DC.newBinds dc
+     let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
      -- SUPER SLOW: ONLY FOR DESPERATE DEBUGGING
      -- SUPER SLOW: whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
@@ -58,19 +58,25 @@ liquidOne target info =
      (r, sol) <- solveCs cfg target cgi info
      _        <- when (diffcheck cfg) $ DC.save target 
      donePhase Loud "solve"
-     let out   = Just $ O (checkedNames pruned cbs'') (logWarn cgi) sol (annotMap cgi)
-     exitWithResult cfg target out (result $ sinfo <$> r)
+     let out   = Just $ O (checkedNames dc) (logWarn cgi) sol (annotMap cgi)
+     exitWithResult cfg target out (checkedResult dc r)
 
-checkedNames False _    = Nothing
-checkedNames True cbs   = Just $ concatMap names cbs
+
+checkedResult dc r = mconcat [oldResult, newResult] 
   where
-    names (NonRec v _ ) = [varName v]
-    names (Rec bs)      = map (varName . fst) bs
+     newResult     = result $ sinfo <$> r
+     oldResult     = maybe mempty DC.oldResult dc
 
+checkedNames dc = concatMap names . DC.newBinds <$> dc
+   where
+     names (NonRec v _ ) = [varName v]
+     names (Rec bs)      = map (varName . fst) bs
+
+-- prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe Diff)
 prune cfg cbs target info
-  | not (null vs) = return (True, DC.thin cbs vs)
-  | diffcheck cfg = (True,) <$> DC.slice target cbs
-  | otherwise     = return (False, cbs)
+  | not (null vs) = return . Just $ DC.thin cbs vs
+  | diffcheck cfg = DC.slice target cbs
+  | otherwise     = return Nothing
   where 
     vs            = tgtVars $ spec info
 
