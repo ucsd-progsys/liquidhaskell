@@ -76,7 +76,7 @@ module Language.Haskell.Liquid.Types (
   -- * Class for values that can be pretty printed 
   , PPrint (..)
   , showpp
-  
+   
   -- * Printer Configuration 
   , PPEnv (..), ppEnv, ppEnvShort
 
@@ -92,7 +92,10 @@ module Language.Haskell.Liquid.Types (
 
   -- * Different kinds of errors
   , Error (..)
+  , EMsg (..)
+  , LParseError (..)
   , ErrorResult
+  , showEMsg 
 
   -- * Source information associated with each constraint
   , Cinfo (..)
@@ -132,7 +135,6 @@ import Unique
 import Literal
 import Text.Printf
 import GHC                          (Class, HscEnv, ModuleName, Name, moduleNameString)
-import GHC                          (Class, HscEnv)
 import Language.Haskell.Liquid.GhcMisc 
 
 import Control.Arrow (second)
@@ -159,9 +161,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def)
 -- import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Names      (symSepName)
-
 import CoreSyn (CoreBind)
-import Var
 -----------------------------------------------------------------------------
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
@@ -196,6 +196,9 @@ class PPrint a where
 showpp :: (PPrint a) => a -> String 
 showpp = render . pprint 
 
+showEMsg :: (PPrint a) => a -> EMsg 
+showEMsg = EMsg . showpp 
+
 -- pshow :: PPrint a => a -> String
 -- pshow = render . pprint
 
@@ -208,7 +211,7 @@ instance PPrint a => PPrint [a] where
 
 
 instance (PPrint a, PPrint b) => PPrint (a,b) where
-  pprint (x, y)  = (pprint x) <+> text ":" <+> (pprint y)
+  pprint (x, y)  = pprint x <+> text ":" <+> pprint y
 
 data PPEnv 
   = PP { ppPs    :: Bool
@@ -278,7 +281,7 @@ data GhcSpec = SP {
 
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
-                     , freePredTy   :: ![(PVar RSort)]
+                     , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
                      , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
@@ -286,7 +289,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      }
 
 data DataConP = DataConP { freeTyVars :: ![RTyVar]
-                         , freePred   :: ![(PVar RSort)]
+                         , freePred   :: ![PVar RSort]
                          , freeLabels :: ![Symbol]
                          , tyConsts   :: ![SpecType]
                          , tyArgs     :: ![(Symbol, SpecType)]
@@ -309,10 +312,10 @@ data PVar t
        , parg  :: !Symbol
        , pargs :: ![(t, Symbol, Expr)]
        }
-	deriving (Show)
+	deriving (Data, Typeable, Show)
 
 instance Eq (PVar t) where
-  pv == pv' = (pname pv == pname pv') {- UNIFY: What about: && eqArgs pv pv' -}
+  pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
 
 instance Ord (PVar t) where
   compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
@@ -331,7 +334,7 @@ instance Hashable (PVar a) where
 --------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
-newtype Predicate  = Pr [UsedPVar] -- deriving (Data, Typeable) 
+newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
 
 instance NFData Predicate where
   rnf _ = ()
@@ -380,14 +383,14 @@ instance NFData RTyVar where
 
 
 -- MOVE TO TYPES
-newtype RTyVar = RTV TyVar
+newtype RTyVar = RTV TyVar deriving (Data, Typeable)
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
-  -- deriving (Data, Typeable)
+  deriving (Data, Typeable)
 
 -----------------------------------------------------------------------
 ----------- TyCon get CoVariance - ContraVariance Info ----------------
@@ -408,12 +411,12 @@ data RTyCon = RTyCon
 --  con - contra variance
 
 data TyConInfo = TyConInfo
-  { covariantTyArgs     :: ![Int] -- indexes of covariant type arguments
-  , contravariantTyArgs :: ![Int] -- indexes of contravariant type arguments
-  , covariantPsArgs     :: ![Int] -- indexes of covariant predicate arguments
-  , contravariantPsArgs :: ![Int] -- indexes of contravariant predicate arguments
+  { covariantTyArgs     :: ![Int] -- ^ indexes of covariant type arguments
+  , contravariantTyArgs :: ![Int] -- ^ indexes of contravariant type arguments
+  , covariantPsArgs     :: ![Int] -- ^ indexes of covariant predicate arguments
+  , contravariantPsArgs :: ![Int] -- ^ indexes of contravariant predicate arguments
   , sizeFunction        :: !(Maybe (Symbol -> Expr))
-  }
+  } deriving (Data, Typeable)
 
 
 --------------------------------------------------------------------
@@ -451,14 +454,14 @@ data RType p c tv r
 
   | RApp  { 
       rt_tycon  :: !c
-    , rt_args   :: ![(RType p c tv r)]     
+    , rt_args   :: ![RType p c tv r]     
     , rt_pargs  :: ![Ref (RType p c tv ()) r (RType p c tv r)] 
     , rt_reft   :: !r
     }
 
   | RCls  { 
       rt_class  :: !p
-    , rt_args   :: ![(RType p c tv r)]
+    , rt_args   :: ![RType p c tv r]
     }
 
   | RAllE { 
@@ -491,11 +494,12 @@ data RType p c tv r
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
-
+  deriving (Data, Typeable)
+  
 data Oblig 
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
-
+  deriving (Data, Typeable)
 
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
@@ -510,10 +514,12 @@ instance PPrint Oblig where
 data Ref t s m 
   = RMono [(Symbol, t)] s
   | RPoly [(Symbol, t)] m
+  deriving (Data, Typeable)
 
 -- MOVE TO TYPES
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
+    deriving (Data, Typeable)
 
 -- MOVE TO TYPES
 type BRType     = RType LocString LocString String
@@ -532,8 +538,9 @@ type SpecType   = RRType    RReft
 type RefType    = RRType    Reft
 
 
-data Stratum = SVar Symbol | SDiv | SWhnf | SFin 
-  deriving (Eq)
+data Stratum    = SVar Symbol | SDiv | SWhnf | SFin 
+                  deriving (Data, Typeable, Eq)
+
 type Strata = [Stratum]
 
 isSVar (SVar _) = True
@@ -1138,66 +1145,76 @@ instance PPrint SortedReft where
 ------------------------------------------------------------------------
 
 type ErrorResult = FixResult Error
+
+newtype EMsg     = EMsg String deriving (Data, Typeable)
+
+
+instance PPrint EMsg where
+  pprint (EMsg s) = text s
+
 data Error = 
 -- | INVARIANT : all Error constructors should hava a pos field
     ErrSubType  { pos :: !SrcSpan
-                , msg :: !Doc
+                , msg :: !EMsg
                 , act :: !SpecType
                 , exp :: !SpecType
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
                 , obl :: !Oblig
-                , msg :: !Doc
+                , msg :: !EMsg
                 , ref :: !RReft
                 } -- ^ liquid type error
 
   | ErrParse    { pos :: !SrcSpan
-                , msg :: !Doc
-                , err :: !ParseError
+                , msg :: !EMsg
+                , err :: !LParseError
                 } -- ^ specification parse error
   | ErrTySpec   { pos :: !SrcSpan
-                , var :: !Doc
+                , var :: !EMsg
                 , typ :: !SpecType  
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ sort error in specification
   | ErrDupAlias { pos  :: !SrcSpan
-                , kind :: !Doc
-                , var  :: !Doc
+                , kind :: !EMsg
+                , var  :: !EMsg
                 , locs :: ![SrcSpan]
                 } -- ^ multiple alias with same name error
   | ErrDupSpecs { pos :: !SrcSpan
-                , var :: !Doc
+                , var :: !EMsg
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error 
   | ErrInvt     { pos :: !SrcSpan
                 , inv :: !SpecType
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ Invariant sort error
   | ErrIAl      { pos :: !SrcSpan
                 , inv :: !SpecType
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ Using  sort error
   | ErrIAlMis   { pos :: !SrcSpan
                 , t1  :: !SpecType
                 , t2  :: !SpecType
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ Incompatible using error
   | ErrMeas     { pos :: !SrcSpan
                 , ms  :: !Symbol
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ Measure sort error
   | ErrGhc      { pos :: !SrcSpan
-                , msg :: !Doc
+                , msg :: !EMsg
                 } -- ^ GHC error: parsing or type checking
   | ErrMismatch { pos :: !SrcSpan
-                , var :: !Doc
+                , var :: !EMsg
                 , hs  :: !Type
                 , exp :: !SpecType
                 } -- ^ Mismatch between Liquid and Haskell types
-  | ErrOther    {  msg :: !Doc 
+  | ErrOther    {  msg :: !EMsg 
                 } -- ^ Unexpected PANIC 
-  deriving (Typeable)
+  deriving (Data, Typeable)
+
+data LParseError = LPE !SourcePos [String] 
+                   deriving (Data, Typeable)
 
 instance Eq Error where
   e1 == e2 = pos e1 == pos e2
@@ -1206,7 +1223,8 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = ErrOther . text
+  strMsg = ErrOther . EMsg 
+
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
@@ -1231,7 +1249,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther d) = UnknownError d 
+  result (ErrOther d) = UnknownError $ pprint d 
   result e            = result [e]
 
 instance Result (FixResult Cinfo) where
@@ -1281,7 +1299,7 @@ mapRT f e = e { typeAliases = f $ typeAliases e }
 mapRP f e = e { predAliases = f $ predAliases e }
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ (showPpr l)
+cinfoError (Ci l _)        = ErrOther $ EMsg $ "Cinfo:" ++ showPpr l
 
 
 --------------------------------------------------------------------------------
@@ -1298,12 +1316,6 @@ data CMeasure ty
   = CM { cName :: LocSymbol
        , cSort :: ty
        }
-
--- data IMeasure ty ctor
---   = IM { iName :: LocSymbol
---        , iSort :: ty
---        , iEqns :: [Def ctor]
---        }
 
 -- MOVE TO TYPES
 data Def ctor 

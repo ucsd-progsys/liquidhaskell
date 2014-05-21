@@ -6,7 +6,11 @@ module Language.Haskell.Liquid.Parse
 
 import Control.Monad
 import Text.Parsec
-import Text.Parsec.Error (newErrorMessage, errorPos, Message (..)) 
+import Text.Parsec.Error ( messageString 
+                         , errorMessages
+                         , newErrorMessage
+                         , errorPos
+                         , Message (..)) 
 import Text.Parsec.Pos   (newPos) 
 
 import qualified Text.Parsec.Token as Token
@@ -91,10 +95,13 @@ parseWithError parser f s
 ---------------------------------------------------------------------------
 parseErrorError     :: SourceName -> ParseError -> Error
 ---------------------------------------------------------------------------
-parseErrorError f e = ErrParse p msg e
+parseErrorError f e = ErrParse sp msg lpe
   where 
-    p               = sourcePosSrcSpan $ errorPos e
-    msg             = text $ "Error Parsing Specification from: " ++ f
+    pos             = errorPos e
+    sp              = sourcePosSrcSpan pos 
+    msg             = showEMsg $ "Error Parsing Specification from: " ++ f
+    lpe             = LPE pos (eMsgs e)
+    eMsgs           = fmap messageString . errorMessages 
 
 ---------------------------------------------------------------------------
 remParseError       :: SourceName -> String -> String -> ParseError 

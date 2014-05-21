@@ -19,10 +19,11 @@ Report OLD error messages for unchanged code unchecked in diff-check mode
 
 grep: error "TODO:extract-old-errors"
 
-1. compute src-diff
-2. extract old error messages
-3. `patchSrcSpan    :: SrcSpan -> Diff -> SrcSpan`
-4. `checkedSrcSpan  :: CheckedBinders -> SrcSpan -> Bool`
+- `saveResult` <------ HEREHEREHEREHERE> 
+- `loadResult`
+
+- `adjustResult`
+- `lineDiff` : compute `LMap`
 
 exists-based constraints
 ------------------------
