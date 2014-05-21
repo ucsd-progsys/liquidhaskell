@@ -74,7 +74,7 @@ checkedNames dc = concatMap names . DC.newBinds <$> dc
 
 -- prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe Diff)
 prune cfg cbs target info
-  | not (null vs) = return . Just $ DC.thin cbs vs
+  | not (null vs) = return . Just $ DC.DC (DC.thin cbs vs) mempty
   | diffcheck cfg = DC.slice target cbs
   | otherwise     = return Nothing
   where 
