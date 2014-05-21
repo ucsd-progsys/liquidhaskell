@@ -55,7 +55,14 @@ data Def  = D { binder :: Var -- ^ name of binder
               , end    :: Int -- ^ line at which binder definition ends
               } 
             deriving (Eq, Ord)
-              
+
+-- | Variable dependencies "call-graph"
+type Deps = M.HashMap Var (S.HashSet Var)
+
+-- | Map from saved-line-num ---> current-line-num
+type LMap = M.HashMap Int Int
+
+
 instance Show Def where 
   show (D i j x) = showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
 
@@ -75,20 +82,28 @@ slice target cbs = ifM (doesFileExist saved) (Just <$> dc) (return Nothing)
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> IO DiffCheck
 sliceSaved target saved cbs 
-  = do (is, lm) <- {- tracePpr "INCCHECK: changed lines" <$> -} lineDiff target saved
-       let dfs   = coreDefs cbs
-       forM_ dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
-       return    $ thin (Just lm) cbs (Just lm) $ diffVars is dfs 
+  = do (is, lm) <- lineDiff target saved
+       res      <- loadResult target
+       return    $ sliceSaved' is lm (DC cbs res) 
+
+sliceSaved'          :: [Int] -> LMap -> DiffCheck -> DiffCheck
+sliceSaved' is lm dc = DC cbs' res'
+  where
+    cbs'             = thin cbs $ diffVars is dfs
+    res'             = adjustResult lm chDfs res
+    dfs              = coreDefs cbs
+    chDfs            = coreDefs cbs'
+    DC cbs res       = dc
 
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
 -------------------------------------------------------------------------
-thin :: Maybe LMap -> [CoreBind] -> [Var] -> DiffCheck
+thin :: [CoreBind] -> [Var] -> [CoreBind] 
 -------------------------------------------------------------------------
-thin lm cbs xs = DC (filterBinds cbs ys) res
+thin cbs xs = filterBinds cbs ys 
   where
-    ys         = dependentVars (coreDeps cbs) $ S.fromList xs
-    res        = undefined lm "TODO:extract-old-errors"
+    ys      = dependentVars (coreDeps cbs) $ S.fromList xs
+
 
 -------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
@@ -157,9 +172,6 @@ bindDep b = [(x, ys) | x <- bindersOf b]
   where 
     ys    = S.fromList $ freeVars S.empty b
 
-type Deps = M.HashMap Var (S.HashSet Var)
-type LMap = M.HashMap Int Int             -- old-line-num -> new-line-num
-
 -------------------------------------------------------------------------
 dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
 -------------------------------------------------------------------------
@@ -223,5 +235,5 @@ save target = copyFile target $ extFileName Saved target
 loadResult        :: FilePath -> IO (FixResult Error) 
 loadResult target = undefined
 
-adjustResult :: Diff [String] -> FixResult Error -> FixResult Error
+adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
 adjustResult = undefined
