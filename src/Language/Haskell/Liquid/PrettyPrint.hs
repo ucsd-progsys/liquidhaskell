@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.PrettyPrint (
     ppr_rtype
 
   -- * Converting To String
-  , showpp
+  -- , showpp
 
   -- * Printing an Orderable List
   , pprManyOrdered 
@@ -40,14 +40,21 @@ import Data.List    (sort)
 import Data.Function (on)
 import Data.Monoid   (mempty)
 
+instance PPrint Doc where
+  pprint x = x 
+
+
 instance PPrint ErrMsg where
   pprint = text . show
 
 instance PPrint SourceError where
   pprint = text . show
 
-instance PPrint ParseError where 
-  pprint = text . show 
+-- instance PPrint ParseError where 
+--   pprint = text . show 
+
+instance PPrint LParseError where
+  pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
 
 instance PPrint Var where
   pprint = pprDoc 

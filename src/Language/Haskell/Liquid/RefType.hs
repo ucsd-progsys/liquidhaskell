@@ -1071,7 +1071,7 @@ ppError (ErrAssType l OInv s r)
 
 ppError (ErrSubType l s tA tE) 
   = pprintE l <+> text "Liquid Type Mismatch"
---     DO NOT DELETE 
+--     DO NOT DELETE EVER! 
 --     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
 --     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
 
@@ -1081,48 +1081,48 @@ ppError (ErrParse l _ e)
 
 ppError (ErrTySpec l v t s)       
   = pprintE l <+> text "Bad Type Specification"
-    $+$ (v <+> dcolon <+> pprint t) 
-    $+$ (nest 4 s)
+    $+$ (pprint v <+> dcolon <+> pprint t) 
+    $+$ (nest 4 $ pprint s)
 
 ppError (ErrInvt l t s)
   = pprintE l <+> text "Bad Invariant Specification" 
-    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
+    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
 
 ppError (ErrIAl l t s)
   = pprintE l <+> text "Bad Using Specification" 
-    $+$ (nest 4 $ text "as" <+> pprint t $+$ s)
+    $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
 
 ppError (ErrIAlMis l t1 t2 s)
   = pprintE l <+> text "Incompatible Using Specification" 
-    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ s)
+    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
 ppError (ErrMeas l t s)
   = pprintE l <+> text "Bad Measure Specification" 
-    $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
+    $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
 ppError (ErrDupSpecs l v ls)
-  = pprintE l <+> text "Multiple Specifications for" <+> v <> colon
+  = pprintE l <+> text "Multiple Specifications for" <+> pprint v <> colon
     $+$ (nest 4 $ vcat $ pprint <$> ls) 
 
 ppError (ErrDupAlias l k v ls)
   = pprintE l <+> text "Multiple Declarations! " 
-    $+$ (nest 2 $ text "Multiple Declarations of" <+> k <+> ppVar v $+$ text "Declared at:")
+    $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
     <+> (nest 4 $ vcat $ pprint <$> ls) 
 
 ppError (ErrGhc l s)       
   = pprintE l <+> text "GHC Error"
-    $+$ (nest 4 s)
+    $+$ (nest 4 $ pprint s)
 
 ppError (ErrMismatch l x τ t) 
-  = pprintE l <+> text "Specified Type Does Not Refine Haskell Type for" <+> x
+  = pprintE l <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t 
     
 ppError (ErrOther s)       
-  = text "Panic!" $+$ nest 4 s
+  = text "Panic!" $+$ nest 4 (pprint s)
 
 
-ppVar v = text "`" <> v <> text "'"
+ppVar v = text "`" <> pprint v <> text "'"
 
 
 pprintE l = pprint l <> text ": Error:"

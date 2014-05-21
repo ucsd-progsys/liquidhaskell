@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.DiffCheck (
    , thin
    
    -- * Save current information for next time 
-   , save
+   , saveResult
 
    ) 
    where
@@ -228,9 +228,10 @@ rawDiff cbs = DC cbs mempty
 -- | @save@ creates an .saved version of the @target@ file, which will be 
 --    used to find what has changed the /next time/ @target@ is checked.
 -------------------------------------------------------------------------
-save :: FilePath -> FixResult Error -> IO ()
+saveResult :: FilePath -> res FixResult Error -> IO ()
 -------------------------------------------------------------------------
-save target = copyFile target $ extFileName Saved target
+saveResult target res = do copyFile target $ extFileName Saved target
+                           undefined
 
 loadResult        :: FilePath -> IO (FixResult Error) 
 loadResult target = undefined
