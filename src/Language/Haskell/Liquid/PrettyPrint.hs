@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleContexts           #-} 
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE UndecidableInstances       #-}
--- | Module with all the printing routines
+{-# LANGUAGE OverloadedStrings          #-}
+
+-- | Module with all the printing and serialization routines
 
 module Language.Haskell.Liquid.PrettyPrint (
   
@@ -31,14 +33,16 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Text.Parsec.Pos  (SourcePos)
+import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error (ParseError)
 import Var              (Var)
-import Control.Applicative ((<$>))
+import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort)
 import Data.Function (on)
 import Data.Monoid   (mempty)
+import Data.Aeson    
+import qualified Data.Text as T
 
 instance PPrint Doc where
   pprint x = x 
@@ -265,3 +269,80 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
 
 pprintLongList :: PPrint a => [a] -> Doc
 pprintLongList = brackets . vcat . map pprint
+
+-------------------------------------------------------------------------
+-- | Aeson instances ----------------------------------------------------
+-------------------------------------------------------------------------
+
+instance ToJSON SourcePos where
+  toJSON p = object [   "sourceName"   .= f
+                      , "sourceLine"   .= l
+                      , "sourceColumn" .= c
+                      ]
+             where
+               f    = sourceName   p
+               l    = sourceLine   p
+               c    = sourceColumn p
+
+instance FromJSON SourcePos where
+  parseJSON (Object v) = newPos <$> v .: "sourceName"   
+                                  <*> v .: "sourceLine"   
+                                  <*> v .: "sourceColumn"  
+  parseJSON _            = mempty
+
+instance ToJSON SrcSpan
+instance FromJSON SrcSpan
+
+
+-- Move to Fixpoint
+instance ToJSON   Symbol  
+instance FromJSON Symbol  
+instance ToJSON   Subst 
+instance FromJSON Subst
+instance ToJSON   Sort
+instance FromJSON Sort
+instance ToJSON   SymConst 
+instance FromJSON SymConst
+instance ToJSON   Constant 
+instance FromJSON Constant
+instance ToJSON   Bop  
+instance FromJSON Bop 
+instance ToJSON   Brel  
+instance FromJSON Brel
+instance ToJSON   LocSymbol 
+instance FromJSON LocSymbol 
+instance ToJSON   FTycon 
+instance FromJSON FTycon 
+instance ToJSON   Expr 
+instance FromJSON Expr 
+instance ToJSON   Pred 
+instance FromJSON Pred 
+instance ToJSON   Refa 
+instance FromJSON Refa 
+instance ToJSON   Reft
+instance FromJSON Reft
+
+instance ToJSON   Predicate 
+instance FromJSON Predicate 
+instance ToJSON   LParseError 
+instance FromJSON LParseError 
+instance ToJSON   Error
+instance FromJSON Error
+
+
+instance ToJSON   Oblig 
+instance FromJSON Oblig 
+instance ToJSON   Stratum
+instance FromJSON Stratum
+instance ToJSON   RReft
+instance FromJSON RReft
+instance ToJSON   UsedPVar
+instance FromJSON UsedPVar
+instance ToJSON   EMsg 
+instance FromJSON EMsg
+
+
+instance ToJSON (FixResult Error)
+instance FromJSON (FixResult Error)
+
+
