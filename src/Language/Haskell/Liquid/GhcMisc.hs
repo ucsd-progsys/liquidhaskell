@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -54,9 +54,12 @@ import qualified DataCon                      as DC
 import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
+import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
+import           Data.Aeson                 
+import qualified Data.Text                    as T
 import           Control.Applicative          ((<$>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
@@ -179,6 +182,31 @@ instance Hashable SrcSpan where
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
+
+
+instance ToJSON RealSrcSpan where
+  toJSON    = undefined -- TODO
+
+instance FromJSON RealSrcSpan where
+  parseJSON = undefined -- TODO
+
+
+
+instance ToJSON SrcSpan where
+  toJSON (RealSrcSpan rsp) = object [ "tag" .= True, "spanInfo" .= rsp ]  
+  toJSON (UnhelpfulSpan _) = object [ "tag" .= False ]
+
+instance FromJSON SrcSpan where
+  parseJSON (Object v) = do tag <- v .: "tag"
+                            case tag of
+                              False -> return noSrcSpan 
+                              True  -> RealSrcSpan <$> v .: "spanInfo"
+
+  parseJSON _          = mempty
+
+ --   RealSrcSpan !RealSrcSpan
+ --   UnhelpfulSpan !FastString 
+
 
 -------------------------------------------------------
 
