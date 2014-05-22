@@ -274,6 +274,9 @@ pprintLongList = brackets . vcat . map pprint
 -- | Aeson instances ----------------------------------------------------
 -------------------------------------------------------------------------
 
+
+
+
 instance ToJSON SourcePos where
   toJSON p = object [   "sourceName"   .= f
                       , "sourceLine"   .= l
@@ -286,13 +289,30 @@ instance ToJSON SourcePos where
 
 instance FromJSON SourcePos where
   parseJSON (Object v) = newPos <$> v .: "sourceName"   
-                                  <*> v .: "sourceLine"   
-                                  <*> v .: "sourceColumn"  
+                                <*> v .: "sourceLine"   
+                                <*> v .: "sourceColumn"  
   parseJSON _            = mempty
 
-instance ToJSON SrcSpan
-instance FromJSON SrcSpan
+instance ToJSON RealSrcSpan where
+  toJSON    = undefined -- TODO
 
+instance FromJSON RealSrcSpan where
+  parseJSON = undefined -- TODO
+
+instance ToJSON SrcSpan where
+  toJSON (RealSrcSpan rsp) = object [ "tag" .= "RealSrc", "spanInfo" .= toJSON rsp ]  
+  toJSON (UnhelpfulSpan _) = object [ "tag" .= "Unhelpful" ]
+
+instance FromJSON SrcSpan where
+  parseJSON (Object v) = do tag <- v .: tag
+                            case tag of
+                              "Unhelpful" -> return noSrcSpan 
+                              "RealSrc"   -> RealSrcSpan <$> v .: "spanInfo"
+
+  parseJSON _          = object [ "srcSpan" .= "Unhelpful" ]
+
+ --   RealSrcSpan !RealSrcSpan
+ --   UnhelpfulSpan !FastString 
 
 -- Move to Fixpoint
 instance ToJSON   Symbol  
@@ -322,14 +342,13 @@ instance FromJSON Refa
 instance ToJSON   Reft
 instance FromJSON Reft
 
+-- Move to Types
 instance ToJSON   Predicate 
 instance FromJSON Predicate 
 instance ToJSON   LParseError 
 instance FromJSON LParseError 
 instance ToJSON   Error
 instance FromJSON Error
-
-
 instance ToJSON   Oblig 
 instance FromJSON Oblig 
 instance ToJSON   Stratum
