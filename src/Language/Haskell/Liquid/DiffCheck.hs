@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.DiffCheck (
    where
 
 import            Control.Applicative           ((<$>))
+import            Data.Aeson                    (encode, decode) 
 import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
 import            CoreSyn                      
@@ -40,6 +41,7 @@ import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos               (sourceLine) 
 import            Control.Monad                 (forM, forM_)
 
+import qualified  Data.ByteString.Lazy               as B
 
 -------------------------------------------------------------------------
 -- Data Types -----------------------------------------------------------
@@ -230,8 +232,14 @@ rawDiff cbs = DC cbs mempty
 -------------------------------------------------------------------------
 saveResult :: FilePath -> FixResult Error -> IO ()
 -------------------------------------------------------------------------
-saveResult target res = do copyFile target $ extFileName Saved target
-                           undefined
+saveResult target res 
+  = do copyFile target saveF
+       B.writeFile errF $ encode res 
+    where
+       saveF = extFileName Saved  target
+       errF  = extFileName Errors target
+
+
 
 loadResult        :: FilePath -> IO (FixResult Error) 
 loadResult target = undefined

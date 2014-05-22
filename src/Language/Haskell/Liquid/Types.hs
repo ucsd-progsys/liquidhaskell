@@ -1,11 +1,12 @@
-{-# LANGUAGE StandaloneDeriving     #-}
-{-# LANGUAGE DeriveDataTypeable     #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TypeSynonymInstances   #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FlexibleContexts       #-} 
-{-# LANGUAGE OverlappingInstances   #-}
-{-# LANGUAGE ViewPatterns           #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE FlexibleContexts      #-} 
+{-# LANGUAGE OverlappingInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE DeriveGeneric         #-}
 
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
@@ -129,31 +130,33 @@ import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
 import NameSet
-import TypeRep          hiding (maybeParen, pprArrowChain)  
+import TypeRep                          hiding  (maybeParen, pprArrowChain)  
 import Var
 import Unique
 import Literal
 import Text.Printf
-import GHC                          (Class, HscEnv, ModuleName, Name, moduleNameString)
+import GHC                                      (Class, HscEnv, ModuleName, Name, moduleNameString)
+import GHC.Generics
 import Language.Haskell.Liquid.GhcMisc 
 
-import Control.Arrow (second)
-import Control.Monad  (liftM, liftM2, liftM3)
-import qualified Control.Monad.Error as Ex
+import Control.Arrow                            (second)
+import Control.Monad                            (liftM, liftM2, liftM3)
+import            qualified Control.Monad.Error as Ex
 import Control.DeepSeq
-import Control.Applicative          ((<$>))
-import Data.Typeable                (Typeable)
-import Data.Generics                (Data)   
-import Data.Monoid                  hiding ((<>))
-import qualified Data.Foldable as F
-import Data.Hashable
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as S
-import Data.Function                (on)
-import Data.Maybe                   (maybeToList, fromMaybe)
-import Data.Traversable             hiding (mapM)
-import Data.List                    (isSuffixOf, nub, union, unionBy)
-import Text.Parsec.Pos              (SourcePos, newPos) 
+import Control.Applicative                      ((<$>), (<*>))
+import Data.Typeable                            (Typeable)
+import Data.Generics                            (Data)   
+import Data.Monoid                              hiding ((<>))
+import qualified  Data.Foldable as F
+import            Data.Hashable
+import qualified  Data.HashMap.Strict as M
+import qualified  Data.HashSet as S
+import            Data.Function                (on)
+import            Data.Maybe                   (maybeToList, fromMaybe)
+import            Data.Traversable             hiding (mapM)
+import            Data.List                    (isSuffixOf, nub, union, unionBy)
+import            Data.Aeson        hiding     (Result)      
+import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config     hiding (Config) 
@@ -207,8 +210,6 @@ instance PPrint a => PPrint (Maybe a) where
 
 instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
-
-
 
 instance (PPrint a, PPrint b) => PPrint (a,b) where
   pprint (x, y)  = pprint x <+> text ":" <+> pprint y
@@ -312,7 +313,7 @@ data PVar t
        , parg  :: !Symbol
        , pargs :: ![(t, Symbol, Expr)]
        }
-	deriving (Data, Typeable, Show)
+	deriving (Generic, Data, Typeable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
@@ -334,7 +335,7 @@ instance Hashable (PVar a) where
 --------------------------------------------------------------------
 
 type UsedPVar      = PVar ()
-newtype Predicate  = Pr [UsedPVar] deriving (Data, Typeable) 
+newtype Predicate  = Pr [UsedPVar] deriving (Generic, Data, Typeable) 
 
 instance NFData Predicate where
   rnf _ = ()
@@ -383,14 +384,14 @@ instance NFData RTyVar where
 
 
 -- MOVE TO TYPES
-newtype RTyVar = RTV TyVar deriving (Data, Typeable)
+newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
   , rTyConInfo :: !TyConInfo        -- TyConInfo
   }
-  deriving (Data, Typeable)
+  deriving (Generic, Data, Typeable)
 
 -----------------------------------------------------------------------
 ----------- TyCon get CoVariance - ContraVariance Info ----------------
@@ -416,7 +417,7 @@ data TyConInfo = TyConInfo
   , covariantPsArgs     :: ![Int] -- ^ indexes of covariant predicate arguments
   , contravariantPsArgs :: ![Int] -- ^ indexes of contravariant predicate arguments
   , sizeFunction        :: !(Maybe (Symbol -> Expr))
-  } deriving (Data, Typeable)
+  } deriving (Generic, Data, Typeable)
 
 
 --------------------------------------------------------------------
@@ -494,12 +495,12 @@ data RType p c tv r
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
-  deriving (Data, Typeable)
+  deriving (Generic, Data, Typeable)
   
 data Oblig 
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
-  deriving (Data, Typeable)
+  deriving (Generic, Data, Typeable)
 
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
@@ -514,12 +515,12 @@ instance PPrint Oblig where
 data Ref t s m 
   = RMono [(Symbol, t)] s
   | RPoly [(Symbol, t)] m
-  deriving (Data, Typeable)
+  deriving (Generic, Data, Typeable)
 
 -- MOVE TO TYPES
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
-    deriving (Data, Typeable)
+    deriving (Generic, Data, Typeable)
 
 -- MOVE TO TYPES
 type BRType     = RType LocString LocString String
@@ -539,7 +540,7 @@ type RefType    = RRType    Reft
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin 
-                  deriving (Data, Typeable, Eq)
+                  deriving (Generic, Data, Typeable, Eq)
 
 type Strata = [Stratum]
 
@@ -1146,18 +1147,22 @@ instance PPrint SortedReft where
 
 type ErrorResult = FixResult Error
 
-newtype EMsg     = EMsg String deriving (Data, Typeable)
+newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
 
 
 instance PPrint EMsg where
   pprint (EMsg s) = text s
 
+-- | In the below, we use EMsg instead of, say, SpecType because the latter is
+-- impossible to serialize, as it contains GHC internals like TyCon and Class
+-- inside it.
+
 data Error = 
 -- | INVARIANT : all Error constructors should hava a pos field
     ErrSubType  { pos :: !SrcSpan
                 , msg :: !EMsg
-                , act :: !SpecType
-                , exp :: !SpecType
+                , act :: !EMsg -- !SpecType
+                , exp :: !EMsg -- !SpecType
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
@@ -1172,7 +1177,7 @@ data Error =
                 } -- ^ specification parse error
   | ErrTySpec   { pos :: !SrcSpan
                 , var :: !EMsg
-                , typ :: !SpecType  
+                , typ :: !EMsg -- !SpecType  
                 , msg :: !EMsg
                 } -- ^ sort error in specification
   | ErrDupAlias { pos  :: !SrcSpan
@@ -1185,16 +1190,16 @@ data Error =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error 
   | ErrInvt     { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !EMsg -- !SpecType
                 , msg :: !EMsg
                 } -- ^ Invariant sort error
   | ErrIAl      { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !EMsg -- !SpecType
                 , msg :: !EMsg
                 } -- ^ Using  sort error
   | ErrIAlMis   { pos :: !SrcSpan
-                , t1  :: !SpecType
-                , t2  :: !SpecType
+                , t1  :: !EMsg -- !SpecType
+                , t2  :: !EMsg -- !SpecType
                 , msg :: !EMsg
                 } -- ^ Incompatible using error
   | ErrMeas     { pos :: !SrcSpan
@@ -1206,15 +1211,16 @@ data Error =
                 } -- ^ GHC error: parsing or type checking
   | ErrMismatch { pos :: !SrcSpan
                 , var :: !EMsg
-                , hs  :: !Type
-                , exp :: !SpecType
+                , hs  :: !EMsg
+                , exp :: !EMsg -- !SpecType
                 } -- ^ Mismatch between Liquid and Haskell types
   | ErrOther    {  msg :: !EMsg 
                 } -- ^ Unexpected PANIC 
-  deriving (Data, Typeable)
+  deriving (Data, Typeable, Generic)
 
 data LParseError = LPE !SourcePos [String] 
-                   deriving (Data, Typeable)
+                   deriving (Data, Typeable, Generic)
+
 
 instance Eq Error where
   e1 == e2 = pos e1 == pos e2
@@ -1249,7 +1255,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther d) = UnknownError $ pprint d 
+  result (ErrOther d) = UnknownError $ showpp d 
   result e            = result [e]
 
 instance Result (FixResult Cinfo) where
@@ -1387,7 +1393,7 @@ data KVKind
   | LamE
   | CaseE 
   | LetE
-  deriving (Eq, Ord, Show, Enum, Data, Typeable)
+  deriving (Generic, Eq, Ord, Show, Enum, Data, Typeable)
 
 instance Hashable KVKind where
   hashWithSalt i = hashWithSalt i. fromEnum
