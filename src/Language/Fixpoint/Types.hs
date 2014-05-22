@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
+
 -- | This module contains the data types, operations and serialization functions
 -- for representing Fixpoint's implication (i.e. subtyping) and well-formedness
 -- constraints in Haskell. The actual constraint solving is done by the
@@ -66,7 +67,9 @@ module Language.Fixpoint.Types (
   , WfC --(..)
   , sid
   , subC, lhsCs, rhsCs, wfC
-  , Tag, FixResult (..), FixSolution
+  , Tag
+  , FixResult (..)
+  , FixSolution
   , addIds, sinfo
   , trueSubCKvar
   , removeLhsKvars
@@ -898,8 +901,8 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
 data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
-                 | UnknownError !Doc
-                   deriving (Show)
+                 | UnknownError !String 
+                   deriving (Show, Generic)
 
 type FixSolution = M.HashMap Symbol Pred
 
@@ -927,7 +930,7 @@ instance Functor FixResult where
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"
-  toFix (UnknownError d) = text "Unknown Error!" <+> d
+  toFix (UnknownError d) = text $ "Unknown Error: " ++ d
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  ppr_sinfos "CRASH: " xs ++ [parens (text msg)]
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : ppr_sinfos "WARNING: " xs
 
@@ -937,7 +940,7 @@ ppr_sinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
 resultDoc :: (Ord a, Fixpoint a) => FixResult a -> Doc
 resultDoc Safe             = text "Safe"
-resultDoc (UnknownError d) = text "Unknown Error!" <+> d
+resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
 resultDoc (Crash xs msg)   = vcat $ (text ("Crash!: " ++ msg)) : (((text "CRASH:" <+>) . toFix) <$> xs)
 resultDoc (Unsafe xs)      = vcat $ (text "Unsafe:")           : (((text "WARNING:" <+>) . toFix) <$> xs)
 
