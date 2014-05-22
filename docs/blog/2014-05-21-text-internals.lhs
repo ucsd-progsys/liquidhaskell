@@ -5,7 +5,7 @@ date: 2014-05-21
 comments: true
 external-url:
 author: Eric Seidel
-published: false
+published: true
 categories: benchmarks, text
 demo: TextInternal.hs
 ---
