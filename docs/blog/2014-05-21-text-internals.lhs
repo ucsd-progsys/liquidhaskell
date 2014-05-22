@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Text Internals"
-date: 2014-02-09
+date: 2014-05-21
 comments: true
 external-url:
 author: Eric Seidel
@@ -80,7 +80,7 @@ with LiquidHaskell.
 {-@ LIQUID "--no-termination" @-}
 module TextInternal where
 
-import Control.Exception (assert)
+import qualified Control.Exception as Ex
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Data.Bits (shiftR, xor, (.&.))
 import Data.Char
@@ -96,13 +96,7 @@ import qualified Data.Text.Internal as T
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Array = Array { aBA  :: ByteArray#
-                       , aLen :: Nat
-                       }
-  @-}
-
 {-@ aLen :: a:Array -> {v:Nat | v = (aLen a)}  @-}
-
 
 {-@ maLen :: a:MArray s -> {v:Nat | v = (maLen a)}  @-}
 
@@ -124,66 +118,14 @@ memcpyM = undefined
 --------------------------------------------------------------------------------
 --- Helper Code
 --------------------------------------------------------------------------------
-{-@ predicate RoomN N MA I = (I+N <= (maLen MA)) @-}
-
-{-@ writeChar :: ma:MArray s -> i:{Nat | i < (maLen ma) - 1} -> Char
-              -> ST s {v:Nat | (RoomN v ma i)}
-  @-}
-writeChar :: MArray s -> Int -> Char -> ST s Int
-writeChar marr i c
-    | n < 0x10000 = do
-        unsafeWrite marr i (fromIntegral n)
-        return 1
-    | otherwise = do
-        unsafeWrite marr i lo
-        unsafeWrite marr (i+1) hi
-        return 2
-    where n = ord c
-          m = n - 0x10000
-          lo = fromIntegral $ (m `shiftR` 10) + 0xD800
-          hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
-
-
-{-@ measure isUnknown :: Size -> Prop
-    isUnknown (Exact n) = false
-    isUnknown (Max   n) = false
-    isUnknown (Unknown) = true
-  @-}
-{-@ measure getSize :: Size -> Int
-    getSize (Exact n) = n
-    getSize (Max   n) = n
-  @-}
-
-{-@ invariant {v:Size | (getSize v) >= 0} @-}
-
-data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
-          | Max   {-# UNPACK #-} !Int -- ^ Upper bound on size.
-          | Unknown                   -- ^ Unknown size.
-            deriving (Eq, Show)
-
-{-@ upperBound :: k:Nat -> s:Size -> {v:Nat | v = ((isUnknown s) ? k : (getSize s))} @-}
-upperBound :: Int -> Size -> Int
-upperBound _ (Exact n) = n
-upperBound _ (Max   n) = n
-upperBound k _         = k
-
-data Step s a = Done
-              | Skip !s
-              | Yield !a !s
-
-data Stream a =
-    forall s. Stream
-    (s -> Step s a)             -- stepper function
-    !s                          -- current state
-    !Size                       -- size hint
-
 {-@ shiftL :: i:Nat -> n:Nat -> {v:Nat | ((n = 1) => (v = (i * 2)))} @-}
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 
-{-@ pack :: String -> Text @-}
 pack :: String -> Text
 pack = undefined -- not "actually" using
+
+assert b a = Ex.assert b a
 \end{code}
 
 </div>
@@ -221,29 +163,35 @@ can store.
 data MArray s = MArray { maBA  :: MutableByteArray# s
                        , maLen :: !Int
                        }
+\end{code}
+
+It doesn't make any sense to have a negative length, so we add a
+simple refined data definition which states that `maLen` must be
+non-negative.
+
+\begin{code}
 {-@ data MArray s = MArray { maBA  :: MutableByteArray# s
                            , maLen :: Nat
                            }
   @-}
 \end{code}
 
-It doesn't make any sense to have a negative length, so we add a
-simple refined data definition which states that `maLen` must be
-non-negative. A nice new side effect of adding this refined data
+A nice new side effect of adding this refined data
 \begin{code}definition is that we also get the following *accessor measures* for free
-{-@ measure maBA :: MArray s -> MutableByteArray# s
-    maBA (MArray a l) = a
-  @-}
-{-@ measure maLen :: MArray s -> Int
-    maLen (MArray a l) = l
-  @-}
+measure maBA  :: MArray s -> MutableByteArray# s
+measure maLen :: MArray s -> Int
 \end{code}
 
 With our free accessor measures in hand, we can start building `MArray`s.
+We'll define an `MArrayN n` to be an `MArray` with `n` slots
 
 \begin{code}
 {-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
+\end{code}
 
+and use it to express that `new n` should return an `MArrayN n`.
+
+\begin{code}
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new n
   | n < 0 || n .&. highBit /= 0 = error "size overflow"
@@ -255,8 +203,7 @@ new n
         bytesInArray n = n `shiftL` 1
 \end{code}
 
-`new n` is an `ST` action that produces an `MArray s` with `n` slots,
-denoted by the type alias `MArrayN s n`. Note that we are not talking
+Note that we are not talking
 about bytes here, `text` deals with `Word16`s internally and as such
 we actualy allocate `2*n` bytes.  While this may seem like a lot of
 code to just create an array, the verification process here is quite
@@ -270,14 +217,24 @@ dealt with before the `MutableByteArray#` is touched.
 Writing into an `MArray`
 ------------------------
 Once we have an `MArray`, we'll want to be able to write our
-data into it. A `Nat` is a valid index into an `MArray` if it is
-less than the number of slots, for which we have another type alias
-`MAValidI`. `text` checks this property at run-time, but LiquidHaskell
-can statically prove that the error branch is unreachable.
+data into it. Writing into an `MArray` requires a valid index into the
+array.
+
+\begin{code}
+{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
+\end{code}
+
+A valid index into an `MArray` is a `Nat` that is *strictly* less than
+the length of the array.
 
 \begin{code}
 {-@ type MAValidI MA = {v:Nat | v < (maLen MA)} @-}
-{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
+\end{code}
+
+`text` checks this property at run-time, but LiquidHaskell
+can statically prove that the error branch is unreachable.
+
+\begin{code}
 unsafeWrite MArray{..} i@(I# i#) (W16# e#)
   | i < 0 || i >= maLen = liquidError "out of bounds"
   | otherwise = ST $ \s1# ->
@@ -292,8 +249,19 @@ C has `memcpy` for cases like this but it's notoriously unsafe; with
 the right type however, we can regain safety. `text` provides a wrapper around
 `memcpy` to copy `n` elements from one `MArray` to another.
 
+`copyM` requires two `MArray`s and valid offsets into each -- note
+that a valid offset is **not** necessarily a valid *index*, it may
+be one element out-of-bounds
+
 \begin{code}
 {-@ type MAValidO MA = {v:Nat | v <= (maLen MA)} @-}
+\end{code}
+
+-- and a `count` of elements to copy.
+The `count` must represent a valid region in each `MArray`, in
+other words `offset + count <= length` must hold for each array.
+
+\begin{code}
 {-@ copyM :: dest:MArray s
           -> didx:MAValidO dest
           -> src:MArray s
@@ -305,24 +273,20 @@ the right type however, we can regain safety. `text` provides a wrapper around
 copyM dest didx src sidx count
     | count <= 0 = return ()
     | otherwise =
-    liquidAssert (sidx + count <= maLen src) .
-    liquidAssert (didx + count <= maLen dest) .
+    assert (sidx + count <= maLen src) .
+    assert (didx + count <= maLen dest) .
     unsafeIOToST $ memcpyM (maBA dest) (fromIntegral didx)
                            (maBA src) (fromIntegral sidx)
                            (fromIntegral count)
 \end{code}
 
-`copyM` requires two `MArray`s and valid offsets into each -- note
-that a valid offset is **not** necessarily a valid *index*, it may
-be one element out-of-bounds -- and a `count` of elements to copy.
-The `count` must represent a valid region in each `MArray`, in
-other words `offset + count <= length` must hold for each array.
+You might notice the two `assert`s in the function, they were in the
+original code as run-time checks of the precondition, but LiquidHaskell
+can actually *prove* that the `assert`s **cannot** fail, we just have
+to give `assert` the type
 
-You might notice the two `liquidAssert`s in the function, these were converted
-from `Control.Exception.assert` so that LiquidHaskell will statically guarantee
-they will never fail. The trick is simply to give
-\begin{code} `liquidAssert` the type
-{-@ liquidAssert :: {v:Bool | (Prop v)} -> a -> a @-}
+\begin{code}
+{-@ assert assert :: {v:Bool | (Prop v)} -> a -> a @-}
 \end{code}
 
 Freezing an `MArray` into an `Array`
@@ -336,15 +300,23 @@ Just as `MArray` wraps a mutable array, `Array` wraps an *immutable*
 `ByteArray#` and carries its length in `Word16`s.
 
 \begin{code}
-data Array = Array
-  { aBA  :: ByteArray#
-  , aLen :: !Int
-  }
+data Array = Array { aBA  :: ByteArray#
+                   , aLen :: !Int
+                   }
 \end{code}
 
-As before, we get free accessor measures `aBA` and `aLen` so we can
-refer to the components of an `Array` in our refinements. Using these
-measures, we can define
+As before, we get free accessor measures `aBA` and `aLen` just by
+refining the data definition
+
+\begin{code}
+{-@ data Array = Array { aBA  :: ByteArray#
+                       , aLen :: Nat
+                       }
+  @-}
+\end{code}
+
+so we can refer to the components of an `Array` in our refinements.
+Using these measures, we can define
 
 \begin{code}
 {-@ type ArrayN N = {v:Array | (aLen v) = N} @-}
@@ -374,7 +346,16 @@ unsafeIndex Array{..} i@(I# i#)
 As before, LiquidHaskell can easily prove that the error branch
 is unreachable!
 
-Before moving on, let's take a quick step back and recall the example
+Wrapping it all up
+------------------
+Now we can finally define the core datatype of the `text` package!
+A `Text` value consists of an *array*, an *offset*, and a *length*.
+
+\begin{code}
+data Text = Text Array Int Int
+\end{code}
+
+Now let's take a quick step back and recall the example
 that motivated this whole discussion.
 
 \begin{code}
@@ -386,27 +367,20 @@ Fantastic! LiquidHaskell is telling us that our call to
 `unsafeIndex` is, in fact, **unsafe** because we don't know
 that `i` is a valid index.
 
-Wrapping it all up
-------------------
-Now we can finally define the core datatype of the `text` package!
-A `Text` value consists of an *array*, an *offset*, and a *length*.
-
-\begin{code}
-data Text = Text Array Int Int
-\end{code}
-
+<!--
 The offset and length are `Nat`s satisfying two properties:
 
 1. `off <= aLen arr`, and
 2. `off + len <= aLen arr`
 
 \begin{code}
-{-@ type TValidO A   = {v:Nat | v     <= (aLen A)} @-}
-{-@ type TValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
+{- type TValidO A   = {v:Nat | v     <= (aLen A)} @-}
+{- type TValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
 
-{-@ data Text [tlen] = Text (tarr :: Array)
-                            (toff :: TValidO tarr)
-                            (tlen :: TValidL toff tarr)
+{- data Text [tlen] = Text { tarr :: Array
+                            , toff :: TValidO tarr
+                            , tlen :: TValidL toff tarr
+                            }
   @-}
 \end{code}
 
@@ -416,6 +390,7 @@ convinced, consider the following `Text`s.
 
 ![the layout of multiple Texts](/images/text-layout.png)
 <div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
+-->
 
 Phew, that was a lot for one day, next time we'll take a look at how to handle
 uncode in `text`.
