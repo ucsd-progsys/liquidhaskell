@@ -23,7 +23,7 @@ import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
-import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
+import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
@@ -60,7 +60,7 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
 import           Data.Aeson                 
 import qualified Data.Text                    as T
-import           Control.Applicative          ((<$>))
+import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
 import           Outputable                   (Outputable (..), text, ppr)
@@ -183,29 +183,37 @@ instance Hashable SrcSpan where
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
 
-
 instance ToJSON RealSrcSpan where
-  toJSON    = undefined -- TODO
+  toJSON sp = object [ "filename"  .= (unpackFS $ srcSpanFile sp)
+                     , "startLine" .= srcSpanStartLine sp 
+                     , "startCol"  .= srcSpanStartCol  sp
+                     , "endLine"   .= srcSpanEndLine   sp
+                     , "endCol"    .= srcSpanEndCol    sp
+                     ] 
 
 instance FromJSON RealSrcSpan where
-  parseJSON = undefined -- TODO
+  parseJSON (Object v) = realSrcSpan <$> v .: "filename" 
+                                     <*> v .: "startLine"
+                                     <*> v .: "startCol"
+                                     <*> v .: "endLine"
+                                     <*> v .: "endCol"
+  parseJSON _          = mempty
 
-
+realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2 
+  where
+    loc1              = mkRealSrcLoc (fsLit f) l1 c1
+    loc2              = mkRealSrcLoc (fsLit f) l2 c2
 
 instance ToJSON SrcSpan where
-  toJSON (RealSrcSpan rsp) = object [ "tag" .= True, "spanInfo" .= rsp ]  
-  toJSON (UnhelpfulSpan _) = object [ "tag" .= False ]
+  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]  
+  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
 
 instance FromJSON SrcSpan where
-  parseJSON (Object v) = do tag <- v .: "tag"
+  parseJSON (Object v) = do tag <- v .: "realSpan"
                             case tag of
                               False -> return noSrcSpan 
                               True  -> RealSrcSpan <$> v .: "spanInfo"
-
   parseJSON _          = mempty
-
- --   RealSrcSpan !RealSrcSpan
- --   UnhelpfulSpan !FastString 
 
 
 -------------------------------------------------------
@@ -256,6 +264,7 @@ srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
+srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
 srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l

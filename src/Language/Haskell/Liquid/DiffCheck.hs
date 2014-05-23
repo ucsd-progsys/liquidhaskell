@@ -3,6 +3,9 @@
 --   modified since it was last checked, as determined by a diff against
 --   a saved version of the file. 
 
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE FlexibleInstances         #-}
+
 module Language.Haskell.Liquid.DiffCheck (
   
    -- * Changed binders + Unchanged Errors
@@ -20,10 +23,12 @@ module Language.Haskell.Liquid.DiffCheck (
    ) 
    where
 
-import            Control.Applicative           ((<$>))
-import            Data.Aeson                    (encode, decode) 
+import            Control.Applicative          ((<$>), (<*>))
+import            Data.Aeson                   
+import qualified  Data.Text as T
 import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
+import            Data.Maybe                    (fromMaybe)
 import            CoreSyn                      
 import            Name
 import            SrcLoc  
@@ -38,7 +43,7 @@ import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.Types (Error)
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
-import            Text.Parsec.Pos               (sourceLine) 
+import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Control.Monad                 (forM, forM_)
 
 import qualified  Data.ByteString.Lazy               as B
@@ -80,7 +85,6 @@ slice target cbs = ifM (doesFileExist saved) (Just <$> dc) (return Nothing)
   where 
     saved        = extFileName Saved target
     dc           = sliceSaved target saved cbs 
-    ifM b x y    = b >>= \z -> if z then x else y
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> IO DiffCheck
 sliceSaved target saved cbs 
@@ -239,10 +243,86 @@ saveResult target res
        saveF = extFileName Saved  target
        errF  = extFileName Errors target
 
-
-
-loadResult        :: FilePath -> IO (FixResult Error) 
-loadResult target = undefined
+-------------------------------------------------------------------------
+loadResult   :: FilePath -> IO (FixResult Error) 
+-------------------------------------------------------------------------
+loadResult f = ifM (doesFileExist errF) res (return mempty)  
+  where
+    errF     = extFileName Errors f
+    res      = (fromMaybe mempty . decode) <$> B.readFile errF
 
 adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
 adjustResult = undefined
+
+ifM b x y    = b >>= \z -> if z then x else y
+
+-------------------------------------------------------------------------
+-- | Aeson instances ----------------------------------------------------
+-------------------------------------------------------------------------
+
+instance ToJSON SourcePos where
+  toJSON p = object [   "sourceName"   .= f
+                      , "sourceLine"   .= l
+                      , "sourceColumn" .= c
+                      ]
+             where
+               f    = sourceName   p
+               l    = sourceLine   p
+               c    = sourceColumn p
+
+instance FromJSON SourcePos where
+  parseJSON (Object v) = newPos <$> v .: "sourceName"   
+                                <*> v .: "sourceLine"   
+                                <*> v .: "sourceColumn"  
+  parseJSON _            = mempty
+
+
+
+
+
+-- Move to Fixpoint
+-- instance ToJSON   Symbol  
+-- instance FromJSON Symbol  
+-- instance ToJSON   Subst 
+-- instance FromJSON Subst
+-- instance ToJSON   Sort
+-- instance FromJSON Sort
+-- instance ToJSON   SymConst 
+-- instance FromJSON SymConst
+-- instance ToJSON   Constant 
+-- instance FromJSON Constant
+-- instance ToJSON   Bop  
+-- instance FromJSON Bop 
+-- instance ToJSON   Brel  
+-- instance FromJSON Brel
+-- instance ToJSON   LocSymbol 
+-- instance FromJSON LocSymbol 
+-- instance ToJSON   FTycon 
+-- instance FromJSON FTycon 
+-- instance ToJSON   Expr 
+-- instance FromJSON Expr 
+-- instance ToJSON   Pred 
+-- instance FromJSON Pred 
+-- instance ToJSON   Refa 
+-- instance FromJSON Refa 
+-- instance ToJSON   Reft
+-- instance FromJSON Reft
+-- 
+-- -- Move to Types
+-- instance ToJSON   Predicate 
+-- instance FromJSON Predicate 
+-- instance ToJSON   LParseError 
+-- instance FromJSON LParseError 
+-- instance ToJSON   Oblig 
+-- instance FromJSON Oblig 
+-- instance ToJSON   Stratum
+-- instance FromJSON Stratum
+-- instance ToJSON   RReft
+-- instance FromJSON RReft
+-- instance ToJSON   UsedPVar
+-- instance FromJSON UsedPVar
+-- instance ToJSON   EMsg 
+-- instance FromJSON EMsg
+
+instance ToJSON (FixResult Error)
+instance FromJSON (FixResult Error)

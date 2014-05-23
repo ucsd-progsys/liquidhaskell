@@ -61,6 +61,7 @@ import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 import Data.Monoid      hiding ((<>))
 import Data.Maybe               (fromMaybe, isJust)
 import Data.Hashable
+import Data.Aeson    
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
@@ -1126,6 +1127,12 @@ ppVar v = text "`" <> pprint v <> text "'"
 
 
 pprintE l = pprint l <> text ": Error:"
+
+instance ToJSON   Error where
+  toJSON = undefined
+
+instance FromJSON Error where
+  parseJSON = undefined
 
 -------------------------------------------------------------------------------
 

@@ -99,7 +99,7 @@ parseErrorError f e = ErrParse sp msg lpe
   where 
     pos             = errorPos e
     sp              = sourcePosSrcSpan pos 
-    msg             = showEMsg $ "Error Parsing Specification from: " ++ f
+    msg             = text $ "Error Parsing Specification from: " ++ f
     lpe             = LPE pos (eMsgs e)
     eMsgs           = fmap messageString . errorMessages 
 

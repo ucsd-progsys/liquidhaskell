@@ -537,7 +537,7 @@ instance PPrint TargetVars where
 
 -- | Throw a panic exception
 exitWithPanic  :: String -> a 
-exitWithPanic  = Ex.throw . ErrOther . EMsg 
+exitWithPanic  = Ex.throw . ErrOther . text 
 
 -- | Convert a GHC error into one of ours
 instance Result SourceError where 
@@ -546,5 +546,5 @@ instance Result SourceError where
          . bagToList 
          . srcErrorMessages
      
-errMsgErrors e = [ ErrGhc l (showEMsg e) | l <- errMsgSpans e ] 
+errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
 

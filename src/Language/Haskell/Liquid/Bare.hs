@@ -82,7 +82,7 @@ checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Measure SpecType Dat
 checkMeasure emb γ (M name@(Loc src n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where 
-    txerror = ErrMeas (sourcePosSrcSpan src) n . showEMsg
+    txerror = ErrMeas (sourcePosSrcSpan src) n
 
 checkMBody γ emb name sort (Def s c bs body) = go γ' body
   where 
@@ -275,7 +275,7 @@ expandAlias :: Show p => p -> [String] -> BareType -> BareM SpecType
 expandAlias l = go
   where
     go s t@(RApp (Loc _ c) _ _ _)
-      | c `elem` s = Ex.throw $ ErrOther $ EMsg 
+      | c `elem` s = Ex.throw $ ErrOther $ text 
                               $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | otherwise  = lookupExpandRTApp l s t
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
@@ -761,7 +761,7 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
     go t                st                 = Ex.throw err
      where
-       err = ErrOther $ EMsg msg
+       err = ErrOther $ text msg
        msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 showTopLevelVars vs = 
@@ -841,7 +841,7 @@ lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x
        case zs of
          Just x' -> return x'
-         Nothing -> throwError $ ErrGhc (srcSpan x) (EMsg msg)
+         Nothing -> throwError $ ErrGhc (srcSpan x) (text msg)
   where
     msg = "Not in scope: " ++ name ++ " `" ++ pp x ++ "'"
 
@@ -1331,16 +1331,10 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
 
--- specError            = errorstar 
---                      . render 
---                      . vcat 
---                      . punctuate (text "\n----\n") 
---                      . (text "Alas, errors found in specification..." :)
-
 checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb env t   = checkTy err emb env (val t) 
   where 
-    err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t) . showEMsg 
+    err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t) 
 
 checkIAl :: TCEmb TyCon -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
 checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
@@ -1348,26 +1342,26 @@ checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
 checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where 
     tcheck t = checkTy (err t) emb env (val t)
-    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t) . showEMsg
+    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t) 
     t1'      :: RSort 
     t1'      = toRSort $ val t1
     t2'      :: RSort 
     t2'      = toRSort $ val t2
     checkEq  = if (t1' == t2') then Nothing else Just errmis
     errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) emsg
-    emsg     = showEMsg $ pprint t1 <+> text "does not match with" <+> pprint t2 
+    emsg     = pprint t1 <+> text "does not match with" <+> pprint t2 
 
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
 checkBind s emb env (v, Loc l t) = checkTy msg emb env' t
   where 
-    msg                      = ErrTySpec (sourcePosSrcSpan l) (showEMsg $ text s <+> pprint v) t . showEMsg  
+    msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
 checkExpr s emb env vts (v, es) = mkErr <$> go es
   where 
-  mkErr = ErrTySpec (sourcePosSrcSpan l) (showEMsg $ text s <+> pprint v) t . showEMsg
+  mkErr = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
   go    = foldl (\err e -> err <|> checkSorted env' e) Nothing  
 
   (Loc l t) = safeFromJust msg $ L.lookup v vts
@@ -1395,15 +1389,15 @@ checkDupIntersect xts mxts = concatMap mkWrn dups
 checkDuplicate       :: [(Var, Located SpecType)] -> [Error]
 checkDuplicate xts   = mkErr <$> dups
   where 
-    mkErr (x, ts)    = ErrDupSpecs (getSrcSpan x) (showEMsg x) (sourcePosSrcSpan . loc <$> ts)
+    mkErr (x, ts)    = ErrDupSpecs (getSrcSpan x) (pprint x) (sourcePosSrcSpan . loc <$> ts)
     dups             = [z | z@(x, t1:t2:_) <- M.toList $ group xts ]
 
 checkDuplicateRTAlias :: String -> [RTAlias s a] -> [Error]
 checkDuplicateRTAlias s tas = mkErr <$> dups
   where
     mkErr xs@(x:_) = ErrDupAlias (sourcePosSrcSpan $ srcPos x) 
-                                 (showEMsg s) 
-                                 (showEMsg $ rtName x) 
+                                 (text s) 
+                                 (pprint $ rtName x) 
                                  (sourcePosSrcSpan . srcPos <$> xs)
     dups  = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
@@ -1432,7 +1426,7 @@ ghcSpecEnv sp        = fromListSEnv binds
     varRType         = ofType . varType
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (showEMsg x) (varType x) (val t)
+errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
 
 -------------------------------------------------------------------------------------
 -- | This function checks if a type is malformed in a given environment -------------
