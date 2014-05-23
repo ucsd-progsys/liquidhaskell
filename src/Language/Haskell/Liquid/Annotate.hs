@@ -345,10 +345,11 @@ pprAnnInfoBinds (l, xvs)
 
 pprAnnInfoBind (RealSrcSpan k, xv) 
   = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
-    where l        = srcSpanStartLine k
-          c        = srcSpanStartCol k
-          (xd, vd) = pprXOT xv 
-          n        = length $ lines $ render vd
+    where 
+      l        = srcSpanStartLine k
+      c        = srcSpanStartCol k
+      (xd, vd) = pprXOT xv 
+      n        = length $ lines $ render vd
 
 pprAnnInfoBind (_, _) 
   = empty
