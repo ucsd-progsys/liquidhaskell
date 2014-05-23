@@ -1121,7 +1121,10 @@ ppError' dSp (ErrMismatch _ x τ t)
   = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t 
-    
+     
+ppError' dSp (ErrSaved _ s)       
+  = dSp $+$ nest 4 s
+
 ppError' _ (ErrOther _ s)       
   = text "Panic!" $+$ nest 4 (pprint s)
 
@@ -1135,8 +1138,12 @@ instance ToJSON Error where
                     ]
 
 instance FromJSON Error where
-  parseJSON (Object v) = undefined 
+  parseJSON (Object v) = errSaved <$> v .: "pos" 
+                                  <*> v .: "msg"
+  parseJSON _          = mempty
 
+errSaved :: SrcSpan -> String -> Error
+errSaved x = ErrSaved x . text
 -------------------------------------------------------------------------------
 
 mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
