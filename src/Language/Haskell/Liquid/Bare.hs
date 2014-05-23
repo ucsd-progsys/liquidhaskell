@@ -275,7 +275,7 @@ expandAlias :: Show p => p -> [String] -> BareType -> BareM SpecType
 expandAlias l = go
   where
     go s t@(RApp (Loc _ c) _ _ _)
-      | c `elem` s = Ex.throw $ ErrOther $ text 
+      | c `elem` s = Ex.throw $ errOther $ text 
                               $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | otherwise  = lookupExpandRTApp l s t
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
@@ -761,7 +761,7 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
     go t                st                 = Ex.throw err
      where
-       err = ErrOther $ text msg
+       err = errOther $ text msg
        msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 showTopLevelVars vs = 

@@ -537,7 +537,7 @@ instance PPrint TargetVars where
 
 -- | Throw a panic exception
 exitWithPanic  :: String -> a 
-exitWithPanic  = Ex.throw . ErrOther . text 
+exitWithPanic  = Ex.throw . errOther . text 
 
 -- | Convert a GHC error into one of ours
 instance Result SourceError where 

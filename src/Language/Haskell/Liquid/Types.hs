@@ -96,7 +96,9 @@ module Language.Haskell.Liquid.Types (
   , EMsg (..)
   , LParseError (..)
   , ErrorResult
-  , showEMsg 
+  -- , showEMsg 
+  , errSpan
+  , errOther
 
   -- * Source information associated with each constraint
   , Cinfo (..)
@@ -126,7 +128,7 @@ module Language.Haskell.Liquid.Types (
   where
 
 import FastString                               (fsLit)
-import SrcLoc                                   (mkGeneralSrcSpan, SrcSpan)
+import SrcLoc                                   (noSrcSpan, mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
 import NameSet
@@ -1229,7 +1231,8 @@ data Error =
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
  
-  | ErrOther    {  msg :: !Doc
+  | ErrOther    { pos :: !SrcSpan
+                , msg :: !Doc
                 } -- ^ Unexpected PANIC 
   deriving (Typeable)
 
@@ -1244,10 +1247,12 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = ErrOther . pprint
+  strMsg = errOther . pprint
 
 errSpan :: Error -> SrcSpan
-errSpan = undefined
+errSpan = pos 
+
+errOther = ErrOther noSrcSpan
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
@@ -1272,8 +1277,8 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther d) = UnknownError $ render d 
-  result e            = result [e]
+  result (ErrOther _ d) = UnknownError $ render d 
+  result e              = result [e]
 
 instance Result (FixResult Cinfo) where
   result = fmap cinfoError  
@@ -1322,7 +1327,7 @@ mapRT f e = e { typeAliases = f $ typeAliases e }
 mapRP f e = e { predAliases = f $ predAliases e }
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ showPpr l
+cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
 
 
 --------------------------------------------------------------------------------
