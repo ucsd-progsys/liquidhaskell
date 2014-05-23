@@ -254,14 +254,11 @@ instance Fixpoint Class where
 instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c String r where
   ppCls   = ppClassString
   ppRType = ppr_rtype ppEnv
-  -- ppBase  = undefined 
 
 -- MOVE TO TYPES
 instance (Reftable r, PPrint r) => RefTypable Class RTyCon RTyVar r where
   ppCls   = ppClassClassPred
   ppRType = ppr_rtype ppEnv
-  -- ppBase  = undefined
-
 
 -- MOVE TO TYPES
 class FreeVar a v where 
@@ -1119,7 +1116,7 @@ ppError (ErrMismatch l x τ t)
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t 
     
-ppError (ErrOther s)       
+ppError (ErrOther _ s)       
   = text "Panic!" $+$ nest 4 (pprint s)
 
 
@@ -1128,8 +1125,8 @@ ppVar v = text "`" <> pprint v <> text "'"
 
 pprintE l = pprint l <> text ": Error:"
 
-instance ToJSON   Error where
-  toJSON = undefined
+instance ToJSON Error where
+  toJSON e = undefined 
 
 instance FromJSON Error where
   parseJSON = undefined
