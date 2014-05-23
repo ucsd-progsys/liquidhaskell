@@ -1157,66 +1157,81 @@ instance PPrint EMsg where
 -- impossible to serialize, as it contains GHC internals like TyCon and Class
 -- inside it.
 
-data Error = 
 -- | INVARIANT : all Error constructors should hava a pos field
+
+data Error = 
     ErrSubType  { pos :: !SrcSpan
-                , msg :: !EMsg
-                , act :: !EMsg -- !SpecType
-                , exp :: !EMsg -- !SpecType
+                , msg :: !Doc 
+                , act :: !SpecType
+                , exp :: !SpecType
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
                 , obl :: !Oblig
-                , msg :: !EMsg
+                , msg :: !Doc
                 , ref :: !RReft
                 } -- ^ liquid type error
 
   | ErrParse    { pos :: !SrcSpan
-                , msg :: !EMsg
+                , msg :: !Doc
                 , err :: !LParseError
                 } -- ^ specification parse error
+
   | ErrTySpec   { pos :: !SrcSpan
-                , var :: !EMsg
-                , typ :: !EMsg -- !SpecType  
-                , msg :: !EMsg
+                , var :: !Doc
+                , typ :: !SpecType  
+                , msg :: !Doc
                 } -- ^ sort error in specification
+
   | ErrDupAlias { pos  :: !SrcSpan
-                , kind :: !EMsg
-                , var  :: !EMsg
+                , var  :: !Doc
+                , kind :: !Doc
                 , locs :: ![SrcSpan]
                 } -- ^ multiple alias with same name error
+
   | ErrDupSpecs { pos :: !SrcSpan
-                , var :: !EMsg
+                , var :: !Doc
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error 
+
   | ErrInvt     { pos :: !SrcSpan
-                , inv :: !EMsg -- !SpecType
-                , msg :: !EMsg
+                , inv :: !SpecType
+                , msg :: !Doc
                 } -- ^ Invariant sort error
+
   | ErrIAl      { pos :: !SrcSpan
-                , inv :: !EMsg -- !SpecType
-                , msg :: !EMsg
+                , inv :: !SpecType
+                , msg :: !Doc
                 } -- ^ Using  sort error
+
   | ErrIAlMis   { pos :: !SrcSpan
-                , t1  :: !EMsg -- !SpecType
-                , t2  :: !EMsg -- !SpecType
-                , msg :: !EMsg
+                , t1  :: !SpecType
+                , t2  :: !SpecType
+                , msg :: !Doc
                 } -- ^ Incompatible using error
+
   | ErrMeas     { pos :: !SrcSpan
                 , ms  :: !Symbol
-                , msg :: !EMsg
+                , msg :: !Doc
                 } -- ^ Measure sort error
+
   | ErrGhc      { pos :: !SrcSpan
-                , msg :: !EMsg
+                , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
+
   | ErrMismatch { pos :: !SrcSpan
-                , var :: !EMsg
-                , hs  :: !EMsg
-                , exp :: !EMsg -- !SpecType
+                , var :: !Doc
+                , hs  :: !Type
+                , exp :: !SpecType
                 } -- ^ Mismatch between Liquid and Haskell types
-  | ErrOther    {  msg :: !EMsg 
+
+  | ErrSaved    { pos :: !SrcSpan 
+                , msg :: !Doc
                 } -- ^ Unexpected PANIC 
-  deriving (Data, Typeable, Generic)
+ 
+  | ErrOther    {  msg :: !Doc
+                } -- ^ Unexpected PANIC 
+  deriving (Typeable)
 
 data LParseError = LPE !SourcePos [String] 
                    deriving (Data, Typeable, Generic)
@@ -1229,8 +1244,10 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = ErrOther . EMsg 
+  strMsg = ErrOther . pprint
 
+errSpan :: Error -> SrcSpan
+errSpan = undefined
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
@@ -1255,7 +1272,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther d) = UnknownError $ showpp d 
+  result (ErrOther d) = UnknownError $ render d 
   result e            = result [e]
 
 instance Result (FixResult Cinfo) where
@@ -1305,7 +1322,7 @@ mapRT f e = e { typeAliases = f $ typeAliases e }
 mapRP f e = e { predAliases = f $ predAliases e }
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther $ EMsg $ "Cinfo:" ++ showPpr l
+cinfoError (Ci l _)        = ErrOther $ text $ "Cinfo:" ++ showPpr l
 
 
 --------------------------------------------------------------------------------

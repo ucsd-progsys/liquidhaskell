@@ -582,7 +582,7 @@ splitC (SubR γ o r)
     vv  = F.S "vvRec"
     s   = F.FApp F.boolFTyCon []
     ci  = Ci src err
-    err = Just $ ErrAssType src o (showEMsg $ show o ++ "type error") r
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") r
     tag = getTag γ
     src = loc γ 
 
@@ -619,7 +619,7 @@ bsplitC' γ t1 t2 pflag
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ ErrSubType src (showEMsg "subtype") t1 t2 
+    err = Just $ ErrSubType src (text "subtype") t1 t2 
     src = loc γ 
 
 
