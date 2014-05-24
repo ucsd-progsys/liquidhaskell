@@ -257,7 +257,10 @@ adjustResult lm cd (Unsafe es) = Unsafe $ adjustErrors lm cd es
 adjustResult lm cd (Crash  es) = Crash  $ adjustErrors lm cd es
 adjustErrors _  _  r           = r
 
+adjustErrors lm cd es =  filter unchecked . mapMaybe (adjustSpan lm) 
 
+unchecked = undefined
+adjustSpan = undefined
 
 
 
