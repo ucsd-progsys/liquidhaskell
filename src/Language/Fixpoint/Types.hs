@@ -192,7 +192,7 @@ data Def a
   | Qul Qualifier
   | Kut Symbol
   | IBind Int Symbol SortedReft
-  -- deriving (Show, Generic, Data, Typeable)
+  deriving (Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
 
@@ -284,8 +284,7 @@ toFix_constant (c, so)
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
 
-newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable)
-
+newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 intFTyCon  = TC $ dummyLoc (S "int")
 boolFTyCon = TC $ dummyLoc (S "bool")
@@ -333,7 +332,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type
-	      deriving (Eq, Ord, Show, Generic, Data, Typeable)
+	      deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable Sort
 
@@ -378,7 +377,7 @@ symChars
   ++ ['0' .. '9']
   ++ ['_', '%', '.', '#']
 
-data Symbol = S !String deriving (Eq, Ord, Data, Typeable)
+data Symbol = S !String deriving (Eq, Ord, Data, Typeable, Generic)
 
 instance Fixpoint Symbol where
   toFix (S x) = text x
@@ -489,16 +488,16 @@ intKvar             = intSymbol "k_"
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
 data SymConst = SL !String
-              deriving (Eq, Ord, Show, Data, Typeable)
+              deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Constant = I  !Integer
-              deriving (Eq, Ord, Show, Data, Typeable)
+              deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
-            deriving (Eq, Ord, Show, Data, Typeable)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Bop  = Plus | Minus | Times | Div | Mod
-            deriving (Eq, Ord, Show, Data, Typeable)
+            deriving (Eq, Ord, Show, Data, Typeable, Generic)
 	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ESym !SymConst
@@ -510,7 +509,7 @@ data Expr = ESym !SymConst
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show, Data, Typeable)
+          deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Fixpoint Integer where
   toFix = integer
@@ -564,7 +563,7 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show, Data, Typeable)
+          deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -752,14 +751,15 @@ predReft p    = Reft (vv_, [RConc $ prop p])
 data Refa
   = RConc !Pred
   | RKvar !Symbol !Subst
-  deriving (Eq, Ord, Show, Data, Typeable)
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Ord, Data, Typeable)
+newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Ord, Data, Typeable, Generic)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x
 
-data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } deriving (Eq)
+data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } 
+                  deriving (Eq, Show, Data, Typeable, Generic)
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
   = not $ null ras
@@ -877,7 +877,7 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable)
+newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable, Generic)
 data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft)
                         }
@@ -891,12 +891,14 @@ data SubC a = SubC { senv  :: !IBindEnv
                    , stag  :: !Tag
                    , sinfo :: !a
                    }
+              deriving (Generic)
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
                    , wid   :: !(Maybe Integer)
                    , winfo :: !a
                    }
+              deriving (Generic)
 
 data FixResult a = Crash [a] String
                  | Safe
@@ -1104,7 +1106,7 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable)
+newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable, Generic)
 
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 emptySubst               = Su [] -- M.empty
@@ -1351,7 +1353,7 @@ data Qualifier = Q { q_name   :: String           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
-               deriving (Eq, Ord, Show, Data, Typeable)
+               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Fixpoint Qualifier where
   toFix = pprQual
@@ -1604,7 +1606,7 @@ editDistance xs ys = table ! (m,n)
 
 data Located a = Loc { loc :: !SourcePos
                      , val :: a
-                     } deriving (Data, Typeable)
+                     } deriving (Data, Typeable, Generic)
 
 type LocSymbol = Located Symbol
 type LocString = Located String
