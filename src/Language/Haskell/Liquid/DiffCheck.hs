@@ -226,9 +226,7 @@ lineDiff' s1 s2  = (ns, lm)
     ns           = diffLines 1 diff
     lm           = foldr setShift IM.empty $ diffShifts diff
     diff         = fmap length <$> getGroupedDiff s1 s2
-    
     -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
-    --   return (ns, undefined)
 
 diffLines _ []                  = []
 diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
