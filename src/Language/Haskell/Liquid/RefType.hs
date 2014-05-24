@@ -1131,7 +1131,6 @@ ppError' _ (ErrOther _ s)
 
 ppVar v = text "`" <> pprint v <> text "'"
 
-
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)
                     , "msg" .= (showpp e)
@@ -1142,8 +1141,6 @@ instance FromJSON Error where
                                   <*> v .: "msg"
   parseJSON _          = mempty
 
-instance ToJSON (FixResult Error)
-instance FromJSON (FixResult Error)
 
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text

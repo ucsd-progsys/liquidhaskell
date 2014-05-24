@@ -37,15 +37,15 @@ import            Var
 import qualified  Data.HashSet                  as S    
 import qualified  Data.HashMap.Strict           as M    
 import qualified  Data.List                     as L
-import            Data.Function                 (on)
-import            System.Directory              (copyFile, doesFileExist)
-import            Language.Fixpoint.Types       (FixResult (..))
+import            Data.Function                   (on)
+import            System.Directory                (copyFile, doesFileExist)
+import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types (Error (..))
+import            Language.Haskell.Liquid.Types   (errSpan, Error (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
-import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import            Control.Monad                 (forM, forM_)
+import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import            Control.Monad                   (forM, forM_)
 
 import qualified  Data.ByteString.Lazy               as B
 
@@ -252,26 +252,34 @@ loadResult f = ifM (doesFileExist errF) res (return mempty)
     errF     = extFileName Errors f
     res      = (fromMaybe mempty . decode) <$> B.readFile errF
 
+-------------------------------------------------------------------------
 adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
+-------------------------------------------------------------------------
 adjustResult lm cd (Unsafe es)   = Unsafe (adjustErrors lm cd es)
 adjustResult lm cd (Crash es z)  = Crash  (adjustErrors lm cd es) z
 adjustResult _  _  r             = r
 
-adjustErrors lm cd               =  filter unchecked . mapMaybe (adjustError lm) 
+adjustErrors lm cd               =  unCheckedDefs cd . mapMaybe (adjustError lm) 
 
 adjustError lm (ErrSaved sp msg) = (`ErrSaved` msg) <$> adjustSpan lm sp 
 adjustError lm e                 = Just e 
 
 adjustSpan lm (RealSrcSpan rsp)  = RealSrcSpan <$> adjustReal lm rsp 
 adjustSpan lm sp                 = Just sp 
-
 adjustReal lm rsp
   | Just δ <- getShift l1 lm     = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                    = Nothing
   where
     (f, l1, c1, l2, c2)          = unpackRealSrcSpan rsp 
   
-unchecked = undefined
+unCheckedDefs cd                 = filter . not . isCheckedError (checkedMap cd)
+
+   
+isCheckedError cm e
+  | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
+  | otherwise                    = False
+  where
+    isCheckedSpan                = not . null . (`IM.search` cm) . srcSpanStartLine  
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
 -- in the diff and returns @Nothing@ otherwise.
@@ -282,6 +290,9 @@ getShift old = fmap snd . listToMaybe . IM.search old
 setShift :: (Int, Int) -> Int -> LMap -> LMap
 setShift (l1, l2) δ = IM.insert (IM.Interval l1 l2) δ
 
+checkedMap :: [Def] -> IM.IntervalMap Int ()
+checkedMap = undefined
+ 
 
 ifM b x y    = b >>= \z -> if z then x else y
 
@@ -308,6 +319,8 @@ instance FromJSON SourcePos where
 
 
 
+instance ToJSON (FixResult Error)
+instance FromJSON (FixResult Error)
 
 -- Move to Fixpoint
 -- instance ToJSON   Symbol  
