@@ -217,24 +217,38 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
 lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
 -------------------------------------------------------------------------
 lineDiff src dst = lineDiff' <$> getLines src <*> getLines dst
+  where
+    getLines     = fmap lines . readFile
 
+lineDiff'        :: [String] -> [String] -> ([Int], LMap)
 lineDiff' s1 s2  = (ns, lm)
   where 
     ns           = diffLines 1 diff
-    lm           = lineMap diff 
-    diff         = getGroupedDiff s1 s2
+    lm           = foldr setShift IM.empty $ diffShifts diff
+    diff         = fmap length <$> getGroupedDiff s1 s2
     
     -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
     --   return (ns, undefined)
 
-diffLines _ []              = []
-diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls
-diffLines n (First ls : d)  = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + length ls
-diffLines n (Second _ : d)  = diffLines n d 
+diffLines _ []                  = []
+diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
+diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + i -- length ls
+diffLines n (Second _ : d)      = diffLines n d 
 
-getLines = fmap lines . readFile
+-- diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
+diffShifts ds                   = go 1 1 ds 
+  where
+    go old new (Both n _ : d) = (old, old + n - 1, new) : go (old + n) (new + n) d
+    go old new (First n  : d) = go (old + n) new d
+    go old new (Second n : d) = go old (new + n) d
 
-rawDiff cbs = DC cbs mempty
+
+instance Functor Diff where
+  fmap f (First x)  = First (f x)
+  fmap f (Second x) = Second (f x)
+  fmap f (Both x y) = Both (f x) (f y)
+
+
 
 -- | @save@ creates an .saved version of the @target@ file, which will be 
 --    used to find what has changed the /next time/ @target@ is checked.
@@ -291,9 +305,9 @@ isCheckedError cm e
 getShift     :: Int -> LMap -> Maybe Int
 getShift old = fmap snd . listToMaybe . IM.search old
 
--- | @setShift (lo, hi) δ lm@ updates the interval map @lm@ appropriately
-setShift :: (Int, Int) -> Int -> LMap -> LMap
-setShift (l1, l2) δ = IM.insert (IM.Interval l1 l2) δ
+-- | @setShift (lo, hi, δ) lm@ updates the interval map @lm@ appropriately
+setShift             :: (Int, Int, Int) -> LMap -> LMap
+setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
 
 checkedMap :: [Def] -> IM.IntervalMap Int ()
 checkedMap chDefs = foldr (`IM.insert` ()) IM.empty is 
