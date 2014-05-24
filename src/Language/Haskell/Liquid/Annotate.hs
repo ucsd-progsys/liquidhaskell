@@ -29,7 +29,7 @@ import           Data.Aeson
 import           Control.Arrow            hiding ((<+>))
 import           Control.Applicative      ((<$>))
 import           Control.DeepSeq
-import           Control.Monad            (when)
+import           Control.Monad            (when, forM_)
 import           Data.Monoid
 
 import           System.FilePath          (takeFileName, dropFileName, (</>)) 
@@ -57,51 +57,35 @@ import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: Config -> FilePath -> Output -> IO ()
-annotate cfg fname out 
-  = do annotDump cfg fname chtmlF result annm
-       annotDump cfg fname htmlF  result annm'
-       showBots annm'
+annotate cfg srcFile out
+  = do generateHtml srcFile htmlTpFile tplAnnMap
+       generateHtml srcFile htmlTpFile typAnnMap 
+       writeFile            vimFile  $ vimAnnot cfg annTyp 
+       B.writeFile          jsonFile $ encode typAnnMap
+       forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
     where
-      chtmlF = extFileName Html $ extFileName Cst fname
-      htmlF  = extFileName Html fname
-      annm   = o_templates out -- closeAnnots anna
-      annm'  = o_types     out -- tidySpecType <$> applySolution sol annm
+       tplAnnMap  = mkAnnMap cfg result annTpl
+       typAnnMap  = mkAnnMap cfg result annTyp
+       annTpl     = o_templs out
+       annTyp     = o_types  out
+       result     = o_result out
+       bots       = o_bots   out
+       htmlTyFile = extFileName Html                   srcFile  
+       htmlTpFile = extFileName Html $ extFileName Cst srcFile 
+       annFile    = extFileName Annot srcFile
+       jsonFile   = extFileName Json  srcFile  
+       vimFile    = extFileName Vim   srcFile
 
--- annotate :: Config -> FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
--- annotate cfg fname result sol anna
---   = do annotDump cfg fname chtmlF result annm
---        annotDump cfg fname htmlF  result annm'
---        showBots annm'
---     where
---       chtmlF =extFileName Html $ extFileName Cst fname
---       htmlF  = extFileName Html fname
---       annm   = closeAnnots anna
---       annm'  = tidySpecType <$> applySolution sol annm
+mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot a) -> (Output a)
+mkOutput = undefined
 
-showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
-  where
-    showBot (src, (Just v, spec):_) =
-        when (isFalse (rTypeReft spec)) $
-             printf "WARNING: Found false in %s\n" (showPpr src)
-    showBot _ = return ()
-
-annotDump :: Config -> FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
-annotDump cfg srcFile htmlFile result ann
-  = do let annm     = mkAnnMap cfg result ann
-       let annFile  = extFileName Annot srcFile
-       let jsonFile = extFileName Json  srcFile  
-       let vimFile  = extFileName Vim   srcFile
-       writeFile             vimFile  $ vimAnnot cfg ann
-       B.writeFile           jsonFile $ encode annm 
-       writeFilesOrStrings   annFile  [Left srcFile, Right (show annm)]
-       annotHtmlDump         htmlFile srcFile annm 
-       return ()
+mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
+                      , isFalse (rTypeReft t) ]
 
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`) 
 
-annotHtmlDump htmlFile srcFile annm
+generateHtml htmlFile srcFile annm
   = do src     <- readFile srcFile
        let lhs  = isExtFile LHs srcFile
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
@@ -182,13 +166,13 @@ cssHTML css = unlines
 --   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 --   annotations.
 
-mkAnnMap :: Config -> FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap cfg res ann = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
+mkAnnMap :: Config -> FixResult Error -> AnnInfo Doc -> ACSS.AnnMap
+mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
 
-mkStatus (Safe)      = ACSS.Safe
-mkStatus (Unsafe _)  = ACSS.Unsafe
-mkStatus (Crash _ _) = ACSS.Error
-mkStatus _           = ACSS.Crash
+mkStatus (Safe)          = ACSS.Safe
+mkStatus (Unsafe _)      = ACSS.Unsafe
+mkStatus (Crash _ _)     = ACSS.Error
+mkStatus _               = ACSS.Crash
 
 mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
 mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls 
@@ -210,29 +194,44 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
+    bindStr (x, v) = (maybe "_" varStr x, render v) -- $ ppr_rtype env TopPrec v)
+    short          = shortNames cfg
+    -- env            = if short then ppEnvShort ppEnv else ppEnv
+    shorten        = if short then dropModuleNames  else id
+    varStr         = shorten -- . showPpr
+
+mkAnnMapBindersOLD cfg (AI m)
+  = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
+  $ groupWith (lineCol . fst)
+    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+  where
     bindStr (x, v) = (maybe "_" varStr x, render $ ppr_rtype env TopPrec v)
     short          = shortNames cfg
     env            = if short then ppEnvShort ppEnv else ppEnv
     shorten        = if short then dropModuleNames  else id
-    varStr         = shorten . showPpr 
+    varStr         = shorten . showPpr
 
-closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
+
+
+
+closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
 
-closeA a@(AI m)  = cf <$> a 
+closeA a@(AI m)   = cf <$> a 
   where 
-    cf (Loc loc) = case m `mlookup` loc of
-                         [(_, Use t)] -> t
-                         [(_, Def t)] -> t
-                         [(_, RDf t)] -> t
-                         _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-    cf (Use t)        = t
-    cf (Def t)        = t
-    cf (RDf t)        = t
+    cf (AnnLoc l)  = case m `mlookup` l of
+                      [(_, AnnUse t)] -> t
+                      [(_, AnnDef t)] -> t
+                      [(_, AnnRDf t)] -> t
+                      _               -> errorstar $ "malformed AnnInfo: " ++ showPpr l
+    cf (AnnUse t) = t
+    cf (AnnDef t) = t
+    cf (AnnRDf t) = t
 
 filterA (AI m) = AI (M.filter ff m)
-  where ff [(_, Loc loc)] = loc `M.member` m
-        ff _              = True
+  where 
+    ff [(_, AnnLoc l)] = l `M.member` m
+    ff _               = True
 
 collapseA (AI m) = AI (fmap pickOneA m)
 
@@ -242,10 +241,10 @@ pickOneA xas = case (rs, ds, ls, us) of
                  (_, _, x:_, _) -> [x]
                  (_, _, _, x:_) -> [x]
   where 
-    rs = [x | x@(_, RDf _) <- xas]
-    ds = [x | x@(_, Def _) <- xas]
-    ls = [x | x@(_, Loc _) <- xas]
-    us = [x | x@(_, Use _) <- xas]
+    rs = [x | x@(_, AnnRDf _) <- xas]
+    ds = [x | x@(_, AnnDef _) <- xas]
+    ls = [x | x@(_, AnnLoc _) <- xas]
+    us = [x | x@(_, AnnUse _) <- xas]
 
 ------------------------------------------------------------------------------
 -- | Tokenizing Refinement Type Annotations in @-blocks ----------------------
@@ -327,7 +326,7 @@ data Annot1    = A1  { ident :: String
 -- | Creating Vim Annotations ------------------------------------------
 ------------------------------------------------------------------------
 
-vimAnnot     :: Config -> AnnInfo SpecType -> String
+vimAnnot     :: Config -> AnnInfo Doc -> String
 vimAnnot cfg = L.intercalate "\n" . map vimBind . mkAnnMapBinders cfg 
 
 vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
