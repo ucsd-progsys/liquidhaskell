@@ -47,7 +47,8 @@ import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Control.Monad                   (forM, forM_)
 
-import qualified  Data.ByteString.Lazy               as B
+import qualified  Data.ByteString               as B
+import qualified  Data.ByteString.Lazy          as LB
 
 -------------------------------------------------------------------------
 -- Data Types -----------------------------------------------------------
@@ -255,7 +256,7 @@ saveResult :: FilePath -> FixResult Error -> IO ()
 -------------------------------------------------------------------------
 saveResult target res 
   = do copyFile target saveF
-       B.writeFile errF $ encode res 
+       B.writeFile errF $ LB.toStrict $ encode res 
     where
        saveF = extFileName Saved  target
        errF  = extFileName Errors target
@@ -266,7 +267,7 @@ loadResult   :: FilePath -> IO (FixResult Error)
 loadResult f = ifM (doesFileExist errF) res (return mempty)  
   where
     errF     = extFileName Errors f
-    res      = (fromMaybe mempty . decode) <$> B.readFile errF
+    res      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile errF
 
 -------------------------------------------------------------------------
 adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
