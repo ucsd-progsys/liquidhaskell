@@ -253,7 +253,10 @@ loadResult f = ifM (doesFileExist errF) res (return mempty)
     res      = (fromMaybe mempty . decode) <$> B.readFile errF
 
 adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
-adjustResult lm cd (Unchanged
+adjustResult lm cd (Unsafe es) = Unsafe $ adjustErrors lm cd es
+adjustResult lm cd (Crash  es) = Crash  $ adjustErrors lm cd es
+adjustErrors _  _  r           = r
+
 
 
 
