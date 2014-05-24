@@ -47,7 +47,6 @@ import qualified Data.Text as T
 instance PPrint Doc where
   pprint x = x 
 
-
 instance PPrint ErrMsg where
   pprint = text . show
 
@@ -269,4 +268,34 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
 
 pprintLongList :: PPrint a => [a] -> Doc
 pprintLongList = brackets . vcat . map pprint
+
+
+
+instance PPrint Annot where
+  pprint (Use t) = text "Use" <+> pprint t
+  pprint (Def t) = text "Def" <+> pprint t
+  pprint (RDf t) = text "RDf" <+> pprint t
+  pprint (Loc l) = text "Loc" <+> pprDoc l
+
+pprAnnInfoBinds (l, xvs) 
+  = vcat $ map (pprAnnInfoBind . (l,)) xvs
+
+pprAnnInfoBind (RealSrcSpan k, xv) 
+  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
+    where 
+      l        = srcSpanStartLine k
+      c        = srcSpanStartCol k
+      (xd, vd) = pprXOT xv 
+      n        = length $ lines $ render vd
+
+pprAnnInfoBind (_, _) 
+  = empty
+
+pprXOT (x, v) = (xd, pprint v)
+  where
+    xd = maybe (text "unknown") pprint x
+
+instance PPrint a => PPrint (AnnInfo a) where
+  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
 

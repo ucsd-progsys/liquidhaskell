@@ -233,14 +233,3 @@ reportUrl                = text "Please submit a bug report at: https://github.c
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs
 
-------------------------------------------------------------------------
--- | Stuff To Output ---------------------------------------------------
-------------------------------------------------------------------------
-
-data Output = O { o_vars   :: Maybe [Name] 
-                , o_warns  :: [String]
-                , o_soln   :: FixSolution 
-                , o_annot  :: !(AnnInfo Annot)
-                }
-
-emptyOutput = O Nothing [] M.empty mempty 
