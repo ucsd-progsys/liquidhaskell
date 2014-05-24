@@ -29,6 +29,7 @@ import qualified  Data.Text as T
 import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
 import            Data.Maybe                    (fromMaybe)
+import qualified  Data.IntervalMap.FingerTree as IM 
 import            CoreSyn                      
 import            Name
 import            SrcLoc  
@@ -38,9 +39,9 @@ import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            Data.Function                 (on)
 import            System.Directory              (copyFile, doesFileExist)
-import            Language.Fixpoint.Types       (FixResult)
+import            Language.Fixpoint.Types       (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types (Error)
+import            Language.Haskell.Liquid.Types (Error (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
@@ -67,7 +68,7 @@ data Def  = D { binder :: Var -- ^ name of binder
 type Deps = M.HashMap Var (S.HashSet Var)
 
 -- | Map from saved-line-num ---> current-line-num
-type LMap = M.HashMap Int Int
+type LMap = IM.IntervalMap Int Int
 
 
 instance Show Def where 
@@ -252,7 +253,10 @@ loadResult f = ifM (doesFileExist errF) res (return mempty)
     res      = (fromMaybe mempty . decode) <$> B.readFile errF
 
 adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
-adjustResult = undefined
+adjustResult lm cd (Unchanged
+
+
+
 
 ifM b x y    = b >>= \z -> if z then x else y
 
@@ -323,7 +327,4 @@ instance FromJSON SourcePos where
 -- instance FromJSON UsedPVar
 -- instance ToJSON   EMsg 
 -- instance FromJSON EMsg
-
-instance ToJSON (FixResult Error)
-instance FromJSON (FixResult Error)
 

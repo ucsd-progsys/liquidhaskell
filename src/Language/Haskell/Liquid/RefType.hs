@@ -1142,6 +1142,9 @@ instance FromJSON Error where
                                   <*> v .: "msg"
   parseJSON _          = mempty
 
+instance ToJSON (FixResult Error)
+instance FromJSON (FixResult Error)
+
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
 -------------------------------------------------------------------------------
