@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleContexts           #-} 
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE FlexibleContexts     #-} 
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TupleSections        #-}
 
 -- | Module with all the printing and serialization routines
 
@@ -22,7 +23,7 @@ module Language.Haskell.Liquid.PrettyPrint (
 
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
-import SrcLoc                           (SrcSpan)
+import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
 import GHC                              (Name, Class)
 import TcType                           (tidyType)
 import VarEnv                           (emptyTidyEnv)
@@ -43,6 +44,7 @@ import Data.Function (on)
 import Data.Monoid   (mempty)
 import Data.Aeson    
 import qualified Data.Text as T
+import qualified Data.HashMap.Strict as M
 
 instance PPrint Doc where
   pprint x = x 
@@ -271,11 +273,11 @@ pprintLongList = brackets . vcat . map pprint
 
 
 
-instance PPrint Annot where
-  pprint (Use t) = text "Use" <+> pprint t
-  pprint (Def t) = text "Def" <+> pprint t
-  pprint (RDf t) = text "RDf" <+> pprint t
-  pprint (Loc l) = text "Loc" <+> pprDoc l
+instance (PPrint t) => PPrint (Annot t) where
+  pprint (AnnUse t) = text "AnnUse" <+> pprint t
+  pprint (AnnDef t) = text "AnnDef" <+> pprint t
+  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
+  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
 
 pprAnnInfoBinds (l, xvs) 
   = vcat $ map (pprAnnInfoBind . (l,)) xvs

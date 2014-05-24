@@ -1415,11 +1415,11 @@ instance Functor RClass where
 -- | Annotations -------------------------------------------------------
 ------------------------------------------------------------------------
 
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe String, a)])
 
-data Annot        = AnnUse SpecType 
-                  | AnnDef SpecType 
-                  | AnnRDf SpecType
+data Annot t      = AnnUse t 
+                  | AnnDef t
+                  | AnnRDf t 
                   | AnnLoc SrcSpan
 
 instance Monoid (AnnInfo a) where
@@ -1433,7 +1433,7 @@ instance Functor AnnInfo where
 instance NFData a => NFData (AnnInfo a) where
   rnf (AI x) = () 
 
-instance NFData Annot where
+instance NFData (Annot a) where
   rnf (AnnDef x) = ()
   rnf (AnnRDf x) = ()
   rnf (AnnUse x) = ()
@@ -1443,13 +1443,20 @@ instance NFData Annot where
 -- | Output ------------------------------------------------------------
 ------------------------------------------------------------------------
 
-data Output = O { o_vars   :: Maybe [Name] 
-                , o_warns  :: [String]
-                , o_soln   :: FixSolution 
-                , o_annot  :: !(AnnInfo Annot)
-                }
+data Output a = O { o_vars   :: Maybe [Name] 
+                  , o_warns  :: [String]
+                  , o_types  :: !(AnnInfo a)
+                  , o_templs :: !(AnnInfo a)
+                  , o_bots   :: ![SrcSpan] 
+                  , o_result :: FixResult Error
+                  }
 
-emptyOutput = O Nothing [] M.empty mempty 
+emptyOutput = O Nothing [] mempty mempty [] mempty
+
+instance Monoid (Output a) where 
+  mempty        = emptyOutput  
+  mappend o1 o2 = error "undefined: Monoid for Output"
+
 
 -----------------------------------------------------------
 -- | KVar Profile -----------------------------------------
