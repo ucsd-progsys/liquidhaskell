@@ -28,7 +28,7 @@ import            Data.Aeson
 import qualified  Data.Text as T
 import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
-import            Data.Maybe                    (fromMaybe)
+import            Data.Maybe                    (mapMaybe, fromMaybe)
 import qualified  Data.IntervalMap.FingerTree as IM 
 import            CoreSyn                      
 import            Name
@@ -257,10 +257,23 @@ adjustResult lm cd (Unsafe es) = Unsafe $ adjustErrors lm cd es
 adjustResult lm cd (Crash  es) = Crash  $ adjustErrors lm cd es
 adjustErrors _  _  r           = r
 
-adjustErrors lm cd es =  filter unchecked . mapMaybe (adjustSpan lm) 
+adjustErrors lm cd es =  filter unchecked . mapMaybe (adjustError lm) 
 
+adjustError lm (ErrSaved sp msg) = (`ErrSaved` msg) <$> adjustSpan lm sp 
+adjustError lm e                 = Just e 
+
+adjustSpan lm (RealSrcSpan rsp)  
+  | Just δ <- getShift lm rsp    = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+adjustSpan lm (RealSrcSpan _)    = Nothing 
+adjustSpan lm sp                 = sp 
+
+adjustReal lm rsp
+  | Just δ <- getShift lm l1     = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | otherwise                    = Nothing
+  where
+    (f, l1, c1, l2, c2)          = unpackRealSrcSpan rsp 
+  
 unchecked = undefined
-adjustSpan = undefined
 
 
 
