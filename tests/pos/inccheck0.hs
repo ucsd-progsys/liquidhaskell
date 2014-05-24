@@ -13,8 +13,8 @@ incr :: Int -> Int
 incr xoo = xoo `plus` zaa
   where
      zaa = a00 - b00
-     a00 = 300
-     b00 = 2
+     b00 = 300
+     a00 = 2
 
 {-@ decr :: x:Int -> {v:Int | v < x} @-}
 decr :: Int -> Int
