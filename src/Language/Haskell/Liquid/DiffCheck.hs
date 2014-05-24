@@ -234,12 +234,13 @@ diffLines n (Both i _ : d)      = diffLines n' d                         where n
 diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + i -- length ls
 diffLines n (Second _ : d)      = diffLines n d 
 
--- diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
+diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
 diffShifts ds                   = go 1 1 ds 
   where
     go old new (Both n _ : d) = (old, old + n - 1, new) : go (old + n) (new + n) d
     go old new (First n  : d) = go (old + n) new d
     go old new (Second n : d) = go old (new + n) d
+    go _   _   []             = []
 
 
 instance Functor Diff where
