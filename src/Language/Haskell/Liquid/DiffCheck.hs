@@ -326,3 +326,4 @@ instance FromJSON SourcePos where
 
 instance ToJSON (FixResult Error)
 instance FromJSON (FixResult Error)
+
