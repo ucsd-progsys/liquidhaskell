@@ -1123,10 +1123,10 @@ ppError' dSp (ErrMismatch _ x τ t)
     $+$ text "Liquid :" <+> pprint t 
      
 ppError' dSp (ErrSaved _ s)       
-  = dSp $+$ nest 4 s
+  = dSp <+> s
 
 ppError' _ (ErrOther _ s)       
-  = text "Panic!" $+$ nest 4 (pprint s)
+  = text "Panic!" <+> nest 4 (pprint s)
 
 
 ppVar v = text "`" <> pprint v <> text "'"

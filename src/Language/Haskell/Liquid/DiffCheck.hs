@@ -39,6 +39,7 @@ import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            Data.Function                   (on)
 import            System.Directory                (copyFile, doesFileExist)
+import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.Types   (errSpan, Error (..))
@@ -212,21 +213,21 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
 -------------------------------------------------------------------------
 
 
--- | `lineDiff src dst` compares the contents of `src` with `dst` 
+-- | `lineDiff new old` compares the contents of `src` with `dst` 
 --   and returns the lines of `src` that are different. 
 -------------------------------------------------------------------------
 lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
 -------------------------------------------------------------------------
-lineDiff src dst = lineDiff' <$> getLines src <*> getLines dst
+lineDiff new old  = lineDiff' <$> getLines new <*> getLines old 
   where
-    getLines     = fmap lines . readFile
+    getLines      = fmap lines . readFile
 
-lineDiff'        :: [String] -> [String] -> ([Int], LMap)
-lineDiff' s1 s2  = (ns, lm)
+lineDiff'         :: [String] -> [String] -> ([Int], LMap)
+lineDiff' new old = (ns, lm)
   where 
-    ns           = diffLines 1 diff
-    lm           = foldr setShift IM.empty $ diffShifts diff
-    diff         = fmap length <$> getGroupedDiff s1 s2
+    ns            = diffLines 1 diff
+    lm            = foldr setShift IM.empty $ traceShow "diffShifts" $ diffShifts diff
+    diff          = fmap length <$> getGroupedDiff new old
     -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
 
 diffLines _ []                  = []
@@ -237,10 +238,10 @@ diffLines n (Second _ : d)      = diffLines n d
 diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
 diffShifts ds                   = go 1 1 ds 
   where
-    go old new (Both n _ : d) = (old, old + n - 1, new) : go (old + n) (new + n) d
-    go old new (First n  : d) = go (old + n) new d
-    go old new (Second n : d) = go old (new + n) d
-    go _   _   []             = []
+    go old new (Both n _ : d)   = (old, old + n - 1, new - old) : go (old + n) (new + n) d
+    go old new (Second n : d)   = go (old + n) new d
+    go old new (First n  : d)   = go old (new + n) d
+    go _   _   []               = []
 
 
 instance Functor Diff where
