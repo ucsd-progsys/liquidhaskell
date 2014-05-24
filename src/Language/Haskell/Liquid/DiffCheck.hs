@@ -216,12 +216,16 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
 -------------------------------------------------------------------------
 lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
 -------------------------------------------------------------------------
-lineDiff src dst 
-  = do s1      <- getLines src 
-       s2      <- getLines dst
-       let ns   = diffLines 1 $ getGroupedDiff s1 s2
-       -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
-       return (ns, undefined)
+lineDiff src dst = lineDiff' <$> getLines src <*> getLines dst
+
+lineDiff' s1 s2  = (ns, lm)
+  where 
+    ns           = diffLines 1 diff
+    lm           = lineMap diff 
+    diff         = getGroupedDiff s1 s2
+    
+    -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
+    --   return (ns, undefined)
 
 diffLines _ []              = []
 diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls
@@ -275,7 +279,6 @@ adjustReal lm rsp
 unCheckedDefs cd                 = filter (not . isCheckedError cm) 
   where 
     cm                           = checkedMap cd
-
    
 isCheckedError cm e
   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
