@@ -56,11 +56,11 @@ liquidOne target info =
      -- SUPER SLOW: {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- SUPER SLOW: donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
-     let rNew  = result $ sinfo <$> r
-     _        <- when (diffcheck cfg) $ DC.saveResult target rNew 
+     let rNew  = checkedResult dc (result $ sinfo <$> r)
+     _        <- {- when (diffcheck cfg) $ -}  DC.saveResult target rNew 
      donePhase Loud "solve"
      let out   = Just $ O (checkedNames dc) (logWarn cgi) sol (annotMap cgi)
-     exitWithResult cfg target out (checkedResult dc rNew)
+     exitWithResult cfg target out rNew --(checkedResult dc rNew)
 
 
 checkedResult dc rNew = mconcat [rOld, rNew] 

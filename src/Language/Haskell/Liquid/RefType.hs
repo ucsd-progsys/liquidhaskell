@@ -1133,7 +1133,7 @@ ppVar v = text "`" <> pprint v <> text "'"
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)
-                    , "msg" .= (showpp e)
+                    , "msg" .= (render $ ppError' empty e)
                     ]
 
 instance FromJSON Error where
