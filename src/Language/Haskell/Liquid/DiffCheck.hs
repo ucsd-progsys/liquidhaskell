@@ -272,7 +272,9 @@ adjustReal lm rsp
   where
     (f, l1, c1, l2, c2)          = unpackRealSrcSpan rsp 
   
-unCheckedDefs cd                 = filter . not . isCheckedError (checkedMap cd)
+unCheckedDefs cd                 = filter (not . isCheckedError cm) 
+  where 
+    cm                           = checkedMap cd
 
    
 isCheckedError cm e
@@ -291,8 +293,10 @@ setShift :: (Int, Int) -> Int -> LMap -> LMap
 setShift (l1, l2) δ = IM.insert (IM.Interval l1 l2) δ
 
 checkedMap :: [Def] -> IM.IntervalMap Int ()
-checkedMap = undefined
- 
+checkedMap chDefs = foldr (`IM.insert` ()) IM.empty is 
+  where
+    is            = [IM.Interval l1 l2 | D _ l1 l2 <- chDefs]
+
 
 ifM b x y    = b >>= \z -> if z then x else y
 
