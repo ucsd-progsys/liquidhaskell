@@ -56,6 +56,13 @@ module Language.Haskell.Liquid.Types (
   , PVar (..) , Predicate (..), UReft(..), DataDecl (..), TyConInfo(..)
   , TyConP (..), DataConP (..)
 
+  -- * Inferred Annotations 
+  , AnnInfo (..)
+  , Annot (..)
+
+  -- * Overall Output
+  , Output (..)
+
   -- * Default unknown name
   , dummyName, isDummy
   -- * Refinement Hole
@@ -1402,6 +1409,47 @@ data RClass ty
 
 instance Functor RClass where
   fmap f (RClass n ss tvs ms) = RClass n (fmap f ss) tvs (fmap (second f) ms)
+
+
+------------------------------------------------------------------------
+-- | Annotations -------------------------------------------------------
+------------------------------------------------------------------------
+
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
+
+data Annot        = AnnUse SpecType 
+                  | AnnDef SpecType 
+                  | AnnRDf SpecType
+                  | AnnLoc SrcSpan
+
+instance Monoid (AnnInfo a) where
+  mempty                  = AI M.empty
+  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
+
+instance Functor AnnInfo where
+  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))  ) m)
+
+
+instance NFData a => NFData (AnnInfo a) where
+  rnf (AI x) = () 
+
+instance NFData Annot where
+  rnf (AnnDef x) = ()
+  rnf (AnnRDf x) = ()
+  rnf (AnnUse x) = ()
+  rnf (AnnLoc x) = ()
+
+------------------------------------------------------------------------
+-- | Output ------------------------------------------------------------
+------------------------------------------------------------------------
+
+data Output = O { o_vars   :: Maybe [Name] 
+                , o_warns  :: [String]
+                , o_soln   :: FixSolution 
+                , o_annot  :: !(AnnInfo Annot)
+                }
+
+emptyOutput = O Nothing [] M.empty mempty 
 
 -----------------------------------------------------------
 -- | KVar Profile -----------------------------------------

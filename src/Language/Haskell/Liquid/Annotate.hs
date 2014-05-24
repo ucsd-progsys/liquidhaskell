@@ -7,81 +7,77 @@
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
 
-module Language.Haskell.Liquid.Annotate (
-  
-  -- * Types representing annotations
-    AnnInfo (..)
-  , Annot (..)
+module Language.Haskell.Liquid.Annotate (annotate) where
 
-  -- * Top-level annotation renderer function
-  , annotate
-  ) where
+import           GHC                      ( SrcSpan (..)
+                                          , srcSpanStartCol
+                                          , srcSpanEndCol
+                                          , srcSpanStartLine
+                                          , srcSpanEndLine
+                                          , RealSrcSpan (..))
+import           Var                      (Var (..))
+import           TypeRep                  (Prec(..))
+import           Text.PrettyPrint.HughesPJ hiding (first, second)
+import           GHC.Exts                 (groupWith, sortWith)
 
-import GHC                      ( SrcSpan (..)
-                                , srcSpanStartCol
-                                , srcSpanEndCol
-                                , srcSpanStartLine
-                                , srcSpanEndLine
-                                , RealSrcSpan (..))
-import Var                      (Var (..))
-import TypeRep                  (Prec(..))
-import Text.PrettyPrint.HughesPJ hiding (first, second)
-import GHC.Exts                 (groupWith, sortWith)
+import           Data.Char                (isSpace)
+import           Data.Function            (on)
+import           Data.List                (sortBy)
+import           Data.Maybe               (mapMaybe)
 
-import Data.Char                (isSpace)
-import Data.Function            (on)
-import Data.List                (sortBy)
-import Data.Maybe               (mapMaybe)
+import           Data.Aeson               
+import           Control.Arrow            hiding ((<+>))
+import           Control.Applicative      ((<$>))
+import           Control.DeepSeq
+import           Control.Monad            (when)
+import           Data.Monoid
 
-import Data.Aeson               
-import Control.Arrow            hiding ((<+>))
-import Control.Applicative      ((<$>))
-import Control.DeepSeq
-import Control.Monad            (when)
-import Data.Monoid
-
-import System.FilePath          (takeFileName, dropFileName, (</>)) 
-import System.Directory         (findExecutable, copyFile)
-import Text.Printf              (printf)
-
+import           System.FilePath          (takeFileName, dropFileName, (</>)) 
+import           System.Directory         (findExecutable, copyFile)
+import           Text.Printf              (printf)
+import qualified Data.List              as L
+import qualified Data.Vector            as V
 import qualified Data.ByteString.Lazy   as B
 import qualified Data.Text              as T
 import qualified Data.HashMap.Strict    as M
-
 import qualified Language.Haskell.Liquid.ACSS as ACSS
-
-import Language.Haskell.HsColour.Classify
-import Language.Fixpoint.Files
-import Language.Fixpoint.Names
-import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc
-import Language.Fixpoint.Types hiding (Def (..), Located (..))
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
--- import Language.Haskell.Liquid.Result
-
-import qualified Data.List           as L
-import qualified Data.Vector         as V
-
--- import           Language.Fixpoint.Misc (inserts)
--- import           Language.Haskell.Liquid.ACSS
-
+import           Language.Haskell.HsColour.Classify
+import           Language.Fixpoint.Files
+import           Language.Fixpoint.Names
+import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.GhcMisc
+import           Language.Fixpoint.Types hiding (Def (..), Located (..))
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.PrettyPrint
+import           Language.Haskell.Liquid.RefType
+import           Language.Haskell.Liquid.Tidy
+import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
 -------------------------------------------------------------------
 ------ Rendering HTMLized source with Inferred Types --------------
 -------------------------------------------------------------------
 
-annotate :: Config -> FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
-annotate cfg fname result sol anna
-  = do annotDump cfg fname (extFileName Html $ extFileName Cst fname) result annm
-       annotDump cfg fname (extFileName Html fname) result annm'
+annotate :: Config -> FilePath -> Output -> IO ()
+annotate cfg fname out 
+  = do annotDump cfg fname chtmlF result annm
+       annotDump cfg fname htmlF  result annm'
        showBots annm'
     where
-      annm  = closeAnnots anna
-      annm' = tidySpecType <$> applySolution sol annm
+      chtmlF = extFileName Html $ extFileName Cst fname
+      htmlF  = extFileName Html fname
+      annm   = o_templates out -- closeAnnots anna
+      annm'  = o_types     out -- tidySpecType <$> applySolution sol annm
+
+-- annotate :: Config -> FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
+-- annotate cfg fname result sol anna
+--   = do annotDump cfg fname chtmlF result annm
+--        annotDump cfg fname htmlF  result annm'
+--        showBots annm'
+--     where
+--       chtmlF =extFileName Html $ extFileName Cst fname
+--       htmlF  = extFileName Html fname
+--       annm   = closeAnnots anna
+--       annm'  = tidySpecType <$> applySolution sol annm
 
 showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
   where
@@ -303,69 +299,16 @@ chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -}
   filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
   $ chopAlts [("<{", "}>"), ("{", "}")] y
 
----------------------------------------------------------------
----------------- Annotations and Solutions --------------------
----------------------------------------------------------------
-
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
-
-data Annot        = Use SpecType 
-                  | Def SpecType 
-                  | RDf SpecType
-                  | Loc SrcSpan
-
-instance Monoid (AnnInfo a) where
-  mempty                  = AI M.empty
-  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
-
-instance Functor AnnInfo where
-  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))  ) m)
-
-instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
 
 
-instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = () -- rnf x
-
-instance NFData Annot where
-  rnf (Def x) = () -- rnf x
-  rnf (RDf x) = () -- rnf x
-  rnf (Use x) = () -- rnf x
-  rnf (Loc x) = () -- rnf x
-
-instance PPrint Annot where
-  pprint (Use t) = text "Use" <+> pprint t
-  pprint (Def t) = text "Def" <+> pprint t
-  pprint (RDf t) = text "RDf" <+> pprint t
-  pprint (Loc l) = text "Loc" <+> pprDoc l
-
-pprAnnInfoBinds (l, xvs) 
-  = vcat $ map (pprAnnInfoBind . (l,)) xvs
-
-pprAnnInfoBind (RealSrcSpan k, xv) 
-  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
-    where 
-      l        = srcSpanStartLine k
-      c        = srcSpanStartCol k
-      (xd, vd) = pprXOT xv 
-      n        = length $ lines $ render vd
-
-pprAnnInfoBind (_, _) 
-  = empty
-
-pprXOT (x, v) = (xd, pprint v)
-  where
-    xd = maybe (text "unknown") pprint x
 
 applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
-  where appSolRefa _ ra@(RConc _) = ra 
-        -- appSolRefa _ p@(RPvar _)  = p  
-        appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
-
-
+  where 
+    appSolRefa _ ra@(RConc _)        = ra 
+    -- appSolRefa _ p@(RPvar _)  = p  
+    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s  
+    mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
 
 ------------------------------------------------------------------------
 -- | JSON: Annotation Data Types ---------------------------------------
