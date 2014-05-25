@@ -62,6 +62,7 @@ liquidOne target info =
      DC.saveResult target out'
      exitWithResult cfg target out'
 
+-- checkedNames ::  Maybe DC.DiffCheck -> Maybe [Name.Name]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
      names (NonRec v _ ) = [varName v]
@@ -77,12 +78,12 @@ prune cfg cbs target info
 
 solveCs cfg target cgi info dc 
   = do (r, sol) <- solve fx target (hqFiles info) (cgInfoFInfo cgi)
-       let names = (checkedNames dc)
+       let names = checkedNames dc
        let warns = logWarn cgi
        let annm  = annotMap cgi
        let res   = result $ sinfo <$> r
        let out0  = mkOutput cfg res sol annm
-       return    $ out0 { o_vars = Just names} { o_warns  = warns} { o_result = res }
+       return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
     where 
        fx = def { FC.solver = smtsolver cfg }
 

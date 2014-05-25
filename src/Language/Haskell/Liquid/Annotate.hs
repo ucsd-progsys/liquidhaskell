@@ -64,7 +64,13 @@ import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 --------------------------------------------------------------------------------------------
 mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
-mkOutput = error "undefined: Annotate.output"  
+mkOutput = O { o_vars   = Nothing
+             , o_warns  = []
+             , o_types  = annTy
+             , o_templs = annTempl
+             , o_bots   =
+
+
 
 
 
