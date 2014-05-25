@@ -56,13 +56,11 @@ liquidOne target info =
      -- SUPER SLOW: {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- SUPER SLOW: donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
-     let out   = mkOutput (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
+     let out   = output (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
      let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
      DC.saveResult target out'
      donePhase Loud "solve"
      exitWithResult cfg target out'
-
-mkOutput = error "undefined: mkOutput" 
 
 checkedNames dc = concatMap names . DC.newBinds <$> dc
    where
