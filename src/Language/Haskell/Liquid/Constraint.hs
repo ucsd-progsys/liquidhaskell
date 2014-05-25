@@ -653,7 +653,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
                      , binds      :: !F.BindEnv                   -- ^ set of environment binders
-                     , annotMap   :: !(AnnInfo Annot)             -- ^ source-position annotation map
+                     , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
                      , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
                      , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
@@ -893,33 +893,33 @@ addWarning w = modify $ \s -> s { logWarn = w : (logWarn s) }
 
 -- | Used for annotation binders (i.e. at binder sites)
 
-addIdA            :: Var -> Annot -> CG ()
+addIdA            :: Var -> Annot SpecType -> CG ()
 addIdA !x !t      = modify $ \s -> s { annotMap = upd $ annotMap s }
   where 
     loc           = getSrcSpan x
     upd m@(AI z)  = if boundRecVar loc m then m else addA loc (Just x) t m
     -- loc        = traceShow ("addIdA: " ++ show x ++ " :: " ++ showpp t ++ " at ") $ getSrcSpan x
 
-boundRecVar l (AI m) = not $ null [t | (_, RDf t) <- M.lookupDefault [] l m]
+boundRecVar l (AI m) = not $ null [t | (_, AnnRDf t) <- M.lookupDefault [] l m]
 
 
 -- | Used for annotating reads (i.e. at Var x sites) 
 
-addLocA :: Maybe Var -> SrcSpan -> Annot -> CG ()
+addLocA :: Maybe Var -> SrcSpan -> Annot SpecType -> CG ()
 addLocA !xo !l !t 
   = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
 
 -- | Used to update annotations for a location, due to (ghost) predicate applications
 
-updateLocA (_:_)  (Just l) t = addLocA Nothing l (Use t)
+updateLocA (_:_)  (Just l) t = addLocA Nothing l (AnnUse t)
 updateLocA _      _        _ = return () 
 
 addA !l !xo@(Just _)  !t !(AI m) 
   | isGoodSrcSpan l 
-  = AI $ inserts l (xo, t) m
+  = AI $ inserts l (showPpr <$> xo, t) m
 addA !l !xo@(Nothing) !t !(AI m) 
   | l `M.member` m                  -- only spans known to be variables
-  = AI $ inserts l (xo, t) m
+  = AI $ inserts l (showPpr <$> xo, t) m
 addA _ _ _ !a 
   = a
 
@@ -1265,8 +1265,8 @@ consBind isRec γ (x, e, Unknown)
        addIdA x (defAnn isRec t)
        return $ Asserted t
 
-defAnn True  = RDf
-defAnn False = Def
+defAnn True  = AnnRDf
+defAnn False = AnnDef
 
 addPToEnv γ π
   = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
@@ -1338,7 +1338,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x) 
   = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
-       addIdA x (Def ty) 
+       addIdA x (AnnDef ty) 
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
@@ -1415,12 +1415,12 @@ consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e) 
 
 consE γ  e@(Lam x e1) 
-  = do tx     <- freshTy_type LamE (Var x) τx 
-       γ'     <- ((γ, "consE") += (F.symbol x, tx))
-       t1     <- consE γ' e1
-       addIdA x (Def tx) 
-       addW   $ WfC γ tx 
-       return $ rFun (F.symbol x) tx t1
+  = do tx      <- freshTy_type LamE (Var x) τx 
+       γ'      <- ((γ, "consE") += (F.symbol x, tx))
+       t1      <- consE γ' e1
+       addIdA x $ AnnDef tx 
+       addW     $ WfC γ tx 
+       return   $ rFun (F.symbol x) tx t1
     where FunTy τx _ = exprType e 
 
 -- EXISTS-BASED CONSTRAINTS HEREHEREHEREHERE
@@ -1443,7 +1443,7 @@ consE γ e@(Case _ _ _ _)
 
 consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
-       addLocA Nothing l (Use t)
+       addLocA Nothing l (AnnUse t)
        return t
     where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
 
@@ -1626,9 +1626,9 @@ checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ ", type: " ++ sho
 
 varAnn γ x t 
   | x `S.member` recs γ
-  = Loc (getSrcSpan' x) 
+  = AnnLoc (getSrcSpan' x) 
   | otherwise 
-  = Use t
+  = AnnUse t
 
 getSrcSpan' x 
   | loc == noSrcSpan

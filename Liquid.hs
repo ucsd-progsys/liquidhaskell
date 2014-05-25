@@ -1,27 +1,24 @@
 {-# LANGUAGE TupleSections  #-}
 
-import qualified Data.HashMap.Strict as M
--- import qualified Control.Exception as Ex
--- import Data.Maybe       (catMaybes)
 import Data.Monoid      (mconcat, mempty)
 import System.Exit 
 import Control.Applicative ((<$>))
 import Control.DeepSeq
 import Control.Monad (when)
+import Text.PrettyPrint.HughesPJ    
 
 import CoreSyn
 import Var
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Console.CmdArgs.Default
-import Language.Fixpoint.Config (Config (..)) 
+import qualified Language.Fixpoint.Config as FC -- (Config (..)) 
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface
-import Language.Fixpoint.Types (sinfo, showFix, isFalse)
+import Language.Fixpoint.Types (sinfo)
 
 import qualified Language.Haskell.Liquid.DiffCheck as DC
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
@@ -31,11 +28,14 @@ import Language.Haskell.Liquid.TransformRec
 main :: IO b
 main = do cfg0    <- getOpts
           res     <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
-          exitWith $ resultExit res
+          exitWith $ resultExit $ o_result res
 
-checkOne cfg0 t = getGhcInfo cfg0 t >>= either (exitWithResult cfg0 t Nothing) (liquidOne t)
+checkOne :: Config -> FilePath -> IO (Output Doc)
+checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)
+  where
+    errOut r    = exitWithResult cfg0 t $ mempty { o_result = r}
 
-
+liquidOne :: FilePath -> GhcInfo -> IO (Output Doc) 
 liquidOne target info = 
   do donePhase Loud "Extracted Core From GHC"
      let cfg   = config $ spec info 
@@ -56,16 +56,13 @@ liquidOne target info =
      -- SUPER SLOW: {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- SUPER SLOW: donePhase Loud "FINISH: Write CGI"
      (r, sol) <- solveCs cfg target cgi info
-     let rNew  = checkedResult dc (result $ sinfo <$> r)
-     _        <- {- when (diffcheck cfg) $ -}  DC.saveResult target rNew 
+     let out   = mkOutput (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
+     let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
+     DC.saveResult target out'
      donePhase Loud "solve"
-     let out   = Just $ O (checkedNames dc) (logWarn cgi) sol (annotMap cgi)
-     exitWithResult cfg target out rNew --(checkedResult dc rNew)
+     exitWithResult cfg target out'
 
-
-checkedResult dc rNew = mconcat [rOld, rNew] 
-  where
-     rOld             = maybe mempty DC.oldResult dc
+mkOutput = error "undefined: mkOutput" 
 
 checkedNames dc = concatMap names . DC.newBinds <$> dc
    where
@@ -84,7 +81,7 @@ prune cfg cbs target info
 solveCs cfg target cgi info 
   = solve fx target (hqFiles info) (cgInfoFInfo cgi)
   where 
-    fx = def { solver = smtsolver cfg }
+    fx = def { FC.solver = smtsolver cfg }
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 

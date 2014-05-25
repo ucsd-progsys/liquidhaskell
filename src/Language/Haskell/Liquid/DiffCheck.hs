@@ -42,10 +42,11 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (errSpan, Error (..))
+import            Language.Haskell.Liquid.Types   (errSpan, Error (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import            Text.PrettyPrint.HughesPJ       (Doc)
 import            Control.Monad                   (forM, forM_)
 
 import qualified  Data.ByteString               as B
@@ -57,7 +58,7 @@ import qualified  Data.ByteString.Lazy          as LB
 
 -- | Main type of value returned for diff-check.
 data DiffCheck = DC { newBinds  :: [CoreBind] 
-                    , oldResult :: FixResult Error
+                    , oldOutput :: !(Output Doc)
                     }
 
 data Def  = D { binder :: Var -- ^ name of binder
@@ -254,29 +255,33 @@ instance Functor Diff where
 -- | @save@ creates an .saved version of the @target@ file, which will be 
 --    used to find what has changed the /next time/ @target@ is checked.
 -------------------------------------------------------------------------
-saveResult :: FilePath -> FixResult Error -> IO ()
+saveResult :: FilePath -> Output Doc -> IO ()
 -------------------------------------------------------------------------
 saveResult target res 
   = do copyFile target saveF
-       B.writeFile errF $ LB.toStrict $ encode res 
+       error "undefined: DC.saveResult"
+       -- B.writeFile errF $ LB.toStrict $ encode res 
     where
        saveF = extFileName Saved  target
        errF  = extFileName Errors target
 
 -------------------------------------------------------------------------
-loadResult   :: FilePath -> IO (FixResult Error) 
+loadResult   :: FilePath -> IO (Output Doc) -- (FixResult Error) 
 -------------------------------------------------------------------------
-loadResult f = ifM (doesFileExist errF) res (return mempty)  
-  where
-    errF     = extFileName Errors f
-    res      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile errF
+loadResult = error "undefined: DC.loadResult"
+-- loadResult f = ifM (doesFileExist errF) res (return mempty)  
+--   where
+--     errF     = extFileName Errors f
+--     res      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile errF
 
 -------------------------------------------------------------------------
-adjustResult :: LMap -> [Def] -> FixResult Error -> FixResult Error
+adjustResult :: LMap -> [Def] -> Output Doc -> Output Doc 
 -------------------------------------------------------------------------
-adjustResult lm cd (Unsafe es)   = Unsafe (adjustErrors lm cd es)
-adjustResult lm cd (Crash es z)  = Crash  (adjustErrors lm cd es) z
-adjustResult _  _  r             = r
+adjustResult = error "undefined: DC.adjustResult"
+
+-- adjustResult lm cd (Unsafe es)   = Unsafe (adjustErrors lm cd es)
+-- adjustResult lm cd (Crash es z)  = Crash  (adjustErrors lm cd es) z
+-- adjustResult _  _  r             = r
 
 adjustErrors lm cd               =  unCheckedDefs cd . mapMaybe (adjustError lm) 
 
