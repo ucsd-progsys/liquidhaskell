@@ -4,10 +4,17 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+---------------------------------------------------------------------------
+-- | This module contains the code that uses the inferred types to generate 
+-- 1. HTMLized source with Inferred Types
+-- 2. Annotations files (e.g. for vim/emacs)
+-- 3. JSON files for the web-demo etc.
+---------------------------------------------------------------------------
+
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
 
-module Language.Haskell.Liquid.Annotate (annotate) where
+module Language.Haskell.Liquid.Annotate (output, annotate) where
 
 import           GHC                      ( SrcSpan (..)
                                           , srcSpanStartCol
@@ -53,10 +60,18 @@ import           Language.Haskell.Liquid.RefType
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
--------------------------------------------------------------------
------- Rendering HTMLized source with Inferred Types --------------
--------------------------------------------------------------------
+-- | @output@ creates the pretty printed output
+--------------------------------------------------------------------------------------------
+output :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+--------------------------------------------------------------------------------------------
+output = error "undefined: Annotate.output"  
 
+
+
+-- | @annotate@ actually renders the output to files 
+-------------------------------------------------------------------
+annotate :: Config -> FilePath -> Output Doc -> IO () 
+-------------------------------------------------------------------
 annotate cfg srcFile out
   = do generateHtml srcFile htmlTpFile tplAnnMap
        generateHtml srcFile htmlTpFile typAnnMap 
@@ -76,8 +91,13 @@ annotate cfg srcFile out
        jsonFile   = extFileName Json  srcFile  
        vimFile    = extFileName Vim   srcFile
 
-mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot a) -> (Output a)
-mkOutput = undefined
+
+
+
+
+
+
+
 
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
