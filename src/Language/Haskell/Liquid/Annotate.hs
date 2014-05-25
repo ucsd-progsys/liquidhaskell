@@ -14,7 +14,7 @@
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
 
-module Language.Haskell.Liquid.Annotate (output, annotate) where
+module Language.Haskell.Liquid.Annotate (mkOutput, annotate) where
 
 import           GHC                      ( SrcSpan (..)
                                           , srcSpanStartCol
@@ -62,9 +62,9 @@ import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
-output :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
-output = error "undefined: Annotate.output"  
+mkOutput = error "undefined: Annotate.output"  
 
 
 

@@ -12,7 +12,7 @@ import Var
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Console.CmdArgs.Default
-import qualified Language.Fixpoint.Config as FC -- (Config (..)) 
+import qualified Language.Fixpoint.Config as FC
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Interface
@@ -24,6 +24,7 @@ import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Constraint       
 import Language.Haskell.Liquid.TransformRec   
+import Language.Haskell.Liquid.Annotate (mkOutput)
 
 main :: IO b
 main = do cfg0    <- getOpts
@@ -55,14 +56,13 @@ liquidOne target info =
      -- SUPER SLOW: whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
      -- SUPER SLOW: {-# SCC "writeCGI" #-} writeCGI target cgi 
      -- SUPER SLOW: donePhase Loud "FINISH: Write CGI"
-     (r, sol) <- solveCs cfg target cgi info
-     let out   = output (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
+     out      <- solveCs cfg target cgi info dc
+     donePhase Loud "solve"
      let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
      DC.saveResult target out'
-     donePhase Loud "solve"
      exitWithResult cfg target out'
 
-checkedNames dc = concatMap names . DC.newBinds <$> dc
+checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
      names (NonRec v _ ) = [varName v]
      names (Rec bs)      = map (varName . fst) bs
@@ -75,9 +75,9 @@ prune cfg cbs target info
   where 
     vs            = tgtVars $ spec info
 
-
-solveCs cfg target cgi info 
-  = solve fx target (hqFiles info) (cgInfoFInfo cgi)
+solveCs cfg target cgi info dc 
+  = do (r, sol) <- solve fx target (hqFiles info) (cgInfoFInfo cgi)
+       return    $ error "undefined: mkOutput" -- mkOutput (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
   where 
     fx = def { FC.solver = smtsolver cfg }
 
