@@ -198,18 +198,19 @@ instance Monoid SMTSolver where
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-exitWithResult :: Config -> FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
-exitWithResult cfg target o r = writeExit cfg target r $ fromMaybe emptyOutput o
-
-writeExit cfg target r out
-  = do {-# SCC "annotate" #-} annotate cfg target r (o_soln out) (o_annot out)
-       donePhase Loud "annotate"
+------------------------------------------------------------------------
+exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc) 
+------------------------------------------------------------------------
+exitWithResult cfg target out
+  = do let r  = o_result out 
        let rs = showFix r
+       {-# SCC "annotate" #-} annotate cfg target out -- r (o_soln out) (o_annot out)
+       donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        writeWarns     $ o_warns out
        writeResult (colorResult r) r
        writeFile   (extFileName Result target) rs
-       return $ if null (o_warns out) then r else Unsafe []
+       return $ out { o_result = if null (o_warns out) then r else Unsafe [] }
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
