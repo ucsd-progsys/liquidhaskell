@@ -69,7 +69,7 @@ mkOutput cfg res sol anna
       , o_warns  = []
       , o_types  = toDoc <$> annTy 
       , o_templs = toDoc <$> annTmpl
-      , o_bots   = undefined
+      , o_bots   = mkBots    annTy 
       , o_result = res 
       }
   where
@@ -101,14 +101,6 @@ annotate cfg srcFile out
        annFile    = extFileName Annot srcFile
        jsonFile   = extFileName Json  srcFile  
        vimFile    = extFileName Vim   srcFile
-
-
-
-
-
-
-
-
 
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
@@ -143,8 +135,7 @@ renderPandoc' pandocPath htmlFile srcFile css body
     where mdFile = extFileName Mkdn srcFile 
           cmd    = pandocCmd pandocPath mdFile htmlFile
 
-pandocCmd pandocPath mdFile htmlFile
-  = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile  
+pandocCmd = printf "%s -f markdown -t html %s > %s"
 
 pandocPreProc  = T.unpack . stripBegin . stripEnd . T.pack
   where 
@@ -390,12 +381,12 @@ instance ToJSON Loc where
 instance ToJSON AnnErrors where 
   toJSON errs      = Array $ V.fromList $ fmap toJ errs
     where 
-      toJ (l,l',s) = object [ ("start"   .= toJSON l )
-                            , ("stop"    .= toJSON l') 
-                            , ("message" .= toJSON s ) ]
+      toJ (l,l',s) = object [ "start"   .= toJSON l 
+                            , "stop"    .= toJSON l' 
+                            , "message" .= toJSON s  ]
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
-  toJSON (Asc kas) = object [ (tshow k) .= (toJSON a) | (k, a) <- M.toList kas ]
+  toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
     where
       tshow        = T.pack . show 
 
