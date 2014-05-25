@@ -135,7 +135,8 @@ renderPandoc' pandocPath htmlFile srcFile css body
     where mdFile = extFileName Mkdn srcFile 
           cmd    = pandocCmd pandocPath mdFile htmlFile
 
-pandocCmd = printf "%s -f markdown -t html %s > %s"
+pandocCmd pandocPath mdFile htmlFile
+  = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile  
 
 pandocPreProc  = T.unpack . stripBegin . stripEnd . T.pack
   where 

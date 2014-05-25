@@ -266,7 +266,7 @@ saveResult target res
        errF  = extFileName Errors target
 
 -------------------------------------------------------------------------
-loadResult   :: FilePath -> IO (Output Doc) -- (FixResult Error) 
+loadResult   :: FilePath -> IO (Output Doc)
 -------------------------------------------------------------------------
 loadResult = error "undefined: DC.loadResult"
 -- loadResult f = ifM (doesFileExist errF) res (return mempty)  
