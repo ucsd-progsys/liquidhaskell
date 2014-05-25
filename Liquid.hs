@@ -82,7 +82,7 @@ solveCs cfg target cgi info dc
        let annm  = annotMap cgi
        let res   = result $ sinfo <$> r
        let out0  = mkOutput cfg res sol annm
-       return    $ out { o_vars = Just names} { o_warns  = warns} { o_result = res }
+       return    $ out0 { o_vars = Just names} { o_warns  = warns} { o_result = res }
     where 
        fx = def { FC.solver = smtsolver cfg }
 
