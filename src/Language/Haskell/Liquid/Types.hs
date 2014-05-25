@@ -1457,11 +1457,6 @@ instance Monoid (Output a) where
   mempty        = emptyOutput  
   mappend o1 o2 = error "undefined: Monoid for Output"
 
-instance Functor Output where
-  fmap f o = undefined
-  --  @(O {o_types = ty, o_templs = tp }) 
-  -- = o { o_types = f <$> ty} -- { o_templs = f <$> o_templs o }
-
 -----------------------------------------------------------
 -- | KVar Profile -----------------------------------------
 -----------------------------------------------------------
