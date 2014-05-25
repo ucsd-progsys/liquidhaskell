@@ -64,14 +64,19 @@ import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 --------------------------------------------------------------------------------------------
 mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
-mkOutput = O { o_vars   = Nothing
-             , o_warns  = []
-             , o_types  = annTy
-             , o_templs = annTempl
-             , o_bots   =
-
-
-
+mkOutput cfg res sol anna 
+  = O { o_vars   = Nothing
+      , o_warns  = []
+      , o_types  = toDoc <$> annTy 
+      , o_templs = toDoc <$> annTmpl
+      , o_bots   = undefined
+      , o_result = res 
+      }
+  where
+    annTmpl      = closeAnnots anna
+    annTy        = tidySpecType <$> applySolution sol annTmpl 
+    toDoc        = ppr_rtype env TopPrec
+    env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
 
 
 -- | @annotate@ actually renders the output to files 
@@ -222,7 +227,6 @@ mkAnnMapBinders cfg (AI m)
   where
     bindStr (x, v) = (maybe "_" varStr x, render v) -- $ ppr_rtype env TopPrec v)
     short          = shortNames cfg
-    -- env            = if short then ppEnvShort ppEnv else ppEnv
     shorten        = if short then dropModuleNames  else id
     varStr         = shorten -- . showPpr
 
