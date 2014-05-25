@@ -77,9 +77,14 @@ prune cfg cbs target info
 
 solveCs cfg target cgi info dc 
   = do (r, sol) <- solve fx target (hqFiles info) (cgInfoFInfo cgi)
-       return    $ error "undefined: mkOutput" -- mkOutput (checkedNames dc) (logWarn cgi) sol (annotMap cgi) (result $ sinfo <$> r)
-  where 
-    fx = def { FC.solver = smtsolver cfg }
+       let names = (checkedNames dc)
+       let warns = logWarn cgi
+       let annm  = annotMap cgi
+       let res   = result $ sinfo <$> r
+       let out0  = mkOutput cfg res sol annm
+       return    $ out { o_vars = Just names} { o_warns  = warns} { o_result = res }
+    where 
+       fx = def { FC.solver = smtsolver cfg }
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
