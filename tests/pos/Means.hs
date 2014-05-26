@@ -46,6 +46,21 @@ mulNeutral :: Scalar -> Bool
 mulNeutral x | x == one * x = True
       --        | otherwise  = error "mulNeutral fails"
 
+{-@ mulExpTwo :: x:Scalar -> {v:Bool | (times 2 x) = x + x } @-}
+mulExpTwo :: Scalar -> Bool
+mulExpTwo x  | two * x == x + x = True
+      --        | otherwise  = error "mulAssoc fails"
+
+{-@ mulTrans :: x:Scalar -> y:Scalar -> z:Scalar -> {v:Bool | (times (times x y) z) = (times x (times y z))} @-}
+mulTrans :: Scalar -> Scalar -> Scalar -> Bool
+mulTrans x y z | x * y * z == x * (y * z) = True
+      --        | otherwise  = error "mulAssoc fails"
+
+{-@ mulAssoc :: x:Scalar -> y:Scalar -> {v:Bool | (times x y) = (times y x)} @-}
+mulAssoc :: Scalar -> Scalar -> Bool
+mulAssoc x y | x * y == y * x = True
+      --        | otherwise  = error "mulAssoc fails"
+
 {-@ mulDivId :: x:{v:Scalar|v/= 0} -> {v:Bool | 1 = (times x (inverse x))} @-}
 mulDivId :: Scalar -> Bool
 mulDivId x | one == x * inverse x = True
@@ -83,7 +98,15 @@ foo x = liquidAssume (mulNeutral x) $ one * x
 
 {-@ prop1 :: Vec a => a -> a -> a -> Valid @-}
 prop1 :: Vec a => a -> a -> a -> Bool
-prop1 x y c = liquidAssume (triangleInequality x y c && mulNeutral dxy && mulDivId two) $ 
-              (dist x c) + (dist c y) >= (two * inverse two) * dxy
+prop1 x y c = liquidAssume ( triangleInequality x y c 
+                          && mulNeutral dxy 
+                          && mulDivId two
+                          && mulTrans two itwo dxy
+                          && mulExpTwo itwo_dxy
+                           ) $ 
+              (dist x c) + (dist c y) >= (itwo_dxy + itwo_dxy')
   where c'  = mean x y
         dxy = dist x y
+        itwo = inverse two
+        itwo_dxy = itwo * dxy
+        itwo_dxy' = inverse two * dist x y 
