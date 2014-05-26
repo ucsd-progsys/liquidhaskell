@@ -328,25 +328,19 @@ dependencies). If you do so, you can use that interface with:
 Incremental Checking
 --------------------
 
-LiquidHaskell supports *incremental* checking where each run only checks
-the part of the program that has been modified since the previous run.
+By **default**, LiquidHaskell supports *incremental* checking where each
+run only checks the part of the program that has been modified since the 
+previous run.
 
-    $ liquid -d foo.hs
-
-1. Each run of `liquid` saves the file to a `.bak` file and
-
-2. Each subsequent run 
+Each run of `liquid` saves the file to a `.bak` file and the *subsequent* 
+run 
     + does a `diff` to see what has changed w.r.t. the `.bak` file
     + only generates constraints for the `[CoreBind]` corresponding to the 
        changed top-level binders and their transitive dependencies.
 
-**Note:** Subsequent runs will report **Safe** if there are no errors in the
-changed portions but there *are* errors in the unchanged portion. Thus, you
-should finally run *without* the `-d` option before concluding a module is Safe!
-
 The time savings are quite significant. For example:
 
-    $ time liquid --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
+    $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
 
     real	7m3.179s
     user	4m18.628s
@@ -354,20 +348,33 @@ The time savings are quite significant. For example:
 
 Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
 
-    $ time liquid -d --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
+    $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
 
     real	0m11.584s
     user	0m6.008s
-    sys	0m0.696s
+    sys	    0m0.696s
 
-The diff is only performed against *code*, i.e. if you only change
+The diff is only performed against **code**, i.e. if you only change
 specifications, qualifiers, measures, etc. `liquid -d` will not perform
-any checks. In this case, you may specify individual definitions to
-verify:
+any checks. In this case, you may specify individual definitions to verify:
 
     $ liquid -b bar -b baz foo.hs
 
 This will verify `bar` and `baz`, as well as any functions they use.
+
+Full Checking
+-------------
+
+If instead, you really want to run LiquidHaskell on the **whole** file, use:
+
+    $ liquid --full foo.hs
+
+As always, if you always want to run a given file with full-checking then add
+the pragma:
+
+    {-@ LIQUID "--full" @-}
+
+to the file.
 
 Writing Specifications
 ======================
