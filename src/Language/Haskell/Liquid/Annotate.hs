@@ -85,7 +85,7 @@ annotate :: Config -> FilePath -> Output Doc -> IO ()
 -------------------------------------------------------------------
 annotate cfg srcFile out
   = do generateHtml srcFile htmlTpFile tplAnnMap
-       generateHtml srcFile htmlTpFile typAnnMap 
+       generateHtml srcFile htmlTyFile typAnnMap 
        writeFile            vimFile  $ vimAnnot cfg annTyp 
        B.writeFile          jsonFile $ encode typAnnMap
        forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
