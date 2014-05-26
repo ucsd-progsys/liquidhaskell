@@ -183,7 +183,7 @@ data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check 
--- , fullcheck      :: Bool       -- ^ check all binders modified (DEFAULT: only those modified since last check) 
+  , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
