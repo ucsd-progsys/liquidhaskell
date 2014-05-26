@@ -8,10 +8,9 @@ module Test0 () where
 decr :: Int -> Int
 decr x = x - 100
 
-
 {-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
 plus :: Int -> Int -> Int
-plus  x yo = x + yo
+plus x y = x + y
 
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int

@@ -232,9 +232,8 @@ lineDiff'         :: [String] -> [String] -> ([Int], LMap)
 lineDiff' new old = (ns, lm)
   where 
     ns            = diffLines 1 diff
-    lm            = foldr setShift IM.empty $ traceShow "diffShifts" $ diffShifts diff
+    lm            = foldr setShift IM.empty $ diffShifts diff
     diff          = fmap length <$> getGroupedDiff new old
-    -- putStrLn $ "INCCHECK: diff lines = " ++ show ns
 
 diffLines _ []                  = []
 diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
