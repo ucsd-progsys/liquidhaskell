@@ -65,8 +65,10 @@ liquidOne target info =
 -- checkedNames ::  Maybe DC.DiffCheck -> Maybe [Name.Name]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
-     names (NonRec v _ ) = [showPpr $ varName v]
-     names (Rec bs)      = map (varName . fst) bs
+     names (NonRec v _ ) = [undefined $ var v]
+     names (Rec bs)      = map (var . fst) bs
+     var                 = showpp . varName
+
 
 -- prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe Diff)
 prune cfg cbs target info
