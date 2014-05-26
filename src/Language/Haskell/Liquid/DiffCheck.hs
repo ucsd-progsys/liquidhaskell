@@ -158,7 +158,7 @@ meetSpans b (Just (l,l')) (Just (m,_))
   = (max l m, l')
 
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan b _                = Nothing -- error $ "INCCHECK: lineSpan unexpected dummy span in lineSpan" ++ showPpr (bindersOf b)
+lineSpan b _                = Nothing 
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs             = foldr1 combineSrcSpans xs
@@ -249,13 +249,10 @@ diffShifts                      = go 1 1
     go old new (First n  : d)   = go old (new + n) d
     go _   _   []               = []
 
-
 instance Functor Diff where
   fmap f (First x)  = First (f x)
   fmap f (Second x) = Second (f x)
   fmap f (Both x y) = Both (f x) (f y)
-
-
 
 -- | @save@ creates an .saved version of the @target@ file, which will be 
 --    used to find what has changed the /next time/ @target@ is checked.
@@ -298,7 +295,9 @@ adjustErrors lm cm                = mapMaybe adjustError
     adjustError (ErrSaved sp msg) =  (`ErrSaved` msg) <$> adjustSrcSpan lm cm sp 
     adjustError e                 = Just e 
 
+-------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
+-------------------------------------------------------------------------
 adjustSrcSpan lm cm sp 
   = do sp' <- adjustSpan lm sp
        if isCheckedSpan cm sp' 
@@ -317,13 +316,13 @@ adjustReal lm rsp
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp 
   
--- unCheckedDefs cd                  = filter (not . isCheckedError cm) 
---   where 
---     cm                            = checkedItv cd
---    
--- isCheckedError cm e
---   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
---   | otherwise                    = False
+-- DELETE unCheckedDefs cd                  = filter (not . isCheckedError cm) 
+-- DELETE   where 
+-- DELETE     cm                            = checkedItv cd
+-- DELETE    
+-- DELETE isCheckedError cm e
+-- DELETE   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
+-- DELETE   | otherwise                    = False
 
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
@@ -335,7 +334,7 @@ getShift old = fmap snd . listToMaybe . IM.search old
 setShift             :: (Int, Int, Int) -> LMap -> LMap
 setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
 
-checkedItv :: [Def] ->ChkItv --  IM.IntervalMap Int ()
+checkedItv :: [Def] -> ChkItv
 checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is 
   where
     is            = [IM.Interval l1 l2 | D _ l1 l2 <- chDefs]
@@ -385,8 +384,6 @@ instance FromJSON a => FromJSON (AnnInfo a)
 
 instance ToJSON (Output Doc)
 instance FromJSON (Output Doc)
-
-
 
 -- Move to Fixpoint
 -- instance ToJSON   Symbol  
