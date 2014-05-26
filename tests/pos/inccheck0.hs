@@ -6,11 +6,14 @@ module Test0 () where
 
 {-@ decr :: x:Int -> {v:Int | v < x} @-}
 decr :: Int -> Int
-decr x = x - 100
+decr xo = xo - 100
 
 {-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
 plus :: Int -> Int -> Int
 plus x y = x + y
+
+
+
 
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int
