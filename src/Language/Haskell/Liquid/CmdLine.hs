@@ -69,9 +69,9 @@ config = Config {
     = def &= typDir 
           &= help "Paths to Spec Include Directory " 
  
---  , fullcheck 
---     = def 
---           &= help "Full Checking: check all binders (DEFAULT: only changed binders)" 
+ , fullcheck 
+     = def 
+           &= help "Full Checking: check all binders (DEFAULT)" 
   
  , diffcheck 
     = def 
@@ -137,14 +137,21 @@ config = Config {
               ]
 
 getOpts :: IO Config 
-getOpts = do cfg0    <- (parsePragma . envLoc . fromMaybe "") =<< lookupEnv "LIQUIDHASKELL_OPTS"
+getOpts = do cfg0    <- envCfg 
              cfg1    <- mkOpts =<< cmdArgs config 
-             let cfg  = mconcat [cfg0, cfg1]
+             let cfg  = fixCfg $ mconcat [cfg0, cfg1]
              putStrLn copyright
              whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
              return cfg
 
-envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
+fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) } 
+
+envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
+            case so of
+              Nothing -> return mempty
+              Just s  -> parsePragma $ envLoc s
+         where 
+            envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
 
 copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
@@ -156,8 +163,6 @@ mkOpts cfg
        return  $ cfg { files = files' } 
                      { idirs = (dropFileName <$> files') ++ [id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
-
--- diffcheck = not . fullcheck
 
 ---------------------------------------------------------------------------------------
 -- | Updating options
@@ -178,24 +183,25 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 -- | Monoid instances for updating options
 ---------------------------------------------------------------------------------------
 
+  
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def 2 def def def
-  mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
-                         (sortNub $ idirs c1   ++     idirs          c2)
-                      -- (fullcheck c1         ||     fullcheck      c2) 
-                         (diffcheck c1         ||     diffcheck      c2) 
-                         (sortNub $ binders c1 ++     binders        c2) 
-                         (noCheckUnknown c1    ||     noCheckUnknown c2) 
-                         (notermination  c1    ||     notermination  c2) 
-                         (nocaseexpand   c1    ||     nocaseexpand   c2) 
-                         (strata         c1    ||     strata         c2) 
-                         (notruetypes    c1    ||     notruetypes    c2) 
-                         (totality       c1    ||     totality       c2) 
-                         (noPrune        c1    ||     noPrune        c2) 
-                         (maxParams      c1   `max`   maxParams      c2)
-                         (smtsolver c1      `mappend` smtsolver      c2)
-                         (shortNames c1        ||     shortNames     c2)
-                         (ghcOptions c1        ++     ghcOptions     c2)
+  mempty        = Config def def def def def def def def def def def def 2 def def def
+  mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2  
+                         , idirs          = sortNub $ idirs c1   ++     idirs          c2 
+                         , fullcheck      = fullcheck c1         ||     fullcheck      c2  
+                         , diffcheck      = diffcheck c1         ||     diffcheck      c2  
+                         , binders        = sortNub $ binders c1 ++     binders        c2  
+                         , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2  
+                         , notermination  = notermination  c1    ||     notermination  c2  
+                         , nocaseexpand   = nocaseexpand   c1    ||     nocaseexpand   c2  
+                         , strata         = strata         c1    ||     strata         c2  
+                         , notruetypes    = notruetypes    c1    ||     notruetypes    c2  
+                         , totality       = totality       c1    ||     totality       c2  
+                         , noPrune        = noPrune        c1    ||     noPrune        c2  
+                         , maxParams      = maxParams      c1   `max`   maxParams      c2 
+                         , smtsolver      = smtsolver c1      `mappend` smtsolver      c2 
+                         , shortNames     = shortNames c1        ||     shortNames     c2 
+                         , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2 }
 
 instance Monoid SMTSolver where
   mempty        = def
