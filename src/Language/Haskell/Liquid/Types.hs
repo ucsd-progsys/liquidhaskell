@@ -1415,7 +1415,7 @@ instance Functor RClass where
 -- | Annotations -------------------------------------------------------
 ------------------------------------------------------------------------
 
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe String, a)])
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe String, a)]) deriving (Generic)
 
 data Annot t      = AnnUse t 
                   | AnnDef t
@@ -1443,19 +1443,25 @@ instance NFData (Annot a) where
 -- | Output ------------------------------------------------------------
 ------------------------------------------------------------------------
 
-data Output a = O { o_vars   :: Maybe [Name] 
+data Output a = O { o_vars   :: Maybe [String] 
                   , o_warns  :: [String]
                   , o_types  :: !(AnnInfo a)
                   , o_templs :: !(AnnInfo a)
                   , o_bots   :: ![SrcSpan] 
                   , o_result :: FixResult Error
-                  }
+                  } deriving (Generic)
 
 emptyOutput = O Nothing [] mempty mempty [] mempty
 
 instance Monoid (Output a) where 
   mempty        = emptyOutput  
-  mappend o1 o2 = error "undefined: Monoid for Output"
+  mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
+                    , o_warns  = sortNub  $  mappend (o_warns  o1) (o_warns  o2)
+                    , o_types  =             mappend (o_types  o1) (o_types  o2) 
+                    , o_templs =             mappend (o_templs o1) (o_templs o2) 
+                    , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
+                    , o_result =             mappend (o_result o1) (o_result o2)
+                    }
 
 -----------------------------------------------------------
 -- | KVar Profile -----------------------------------------

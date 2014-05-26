@@ -29,6 +29,7 @@ import qualified  Data.Text as T
 import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
+import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM 
 import            CoreSyn                      
 import            Name
@@ -42,11 +43,11 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (errSpan, Error (..), Output (..))
+import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo, Error (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import            Text.PrettyPrint.HughesPJ       (Doc)
+import            Text.PrettyPrint.HughesPJ       (text, render, Doc)
 import            Control.Monad                   (forM, forM_)
 
 import qualified  Data.ByteString               as B
@@ -263,16 +264,15 @@ saveResult target res
        -- B.writeFile errF $ LB.toStrict $ encode res 
     where
        saveF = extFileName Saved  target
-       errF  = extFileName Errors target
+       errF  = extFileName Cache  target
 
 -------------------------------------------------------------------------
 loadResult   :: FilePath -> IO (Output Doc)
 -------------------------------------------------------------------------
-loadResult = error "undefined: DC.loadResult"
--- loadResult f = ifM (doesFileExist errF) res (return mempty)  
---   where
---     errF     = extFileName Errors f
---     res      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile errF
+loadResult f = ifM (doesFileExist jsonF) out (return mempty)  
+  where
+    jsonF    = extFileName Cache f
+    out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
 
 -------------------------------------------------------------------------
 adjustResult :: LMap -> [Def] -> Output Doc -> Output Doc 
@@ -341,13 +341,32 @@ instance FromJSON SourcePos where
   parseJSON (Object v) = newPos <$> v .: "sourceName"   
                                 <*> v .: "sourceLine"   
                                 <*> v .: "sourceColumn"  
-  parseJSON _            = mempty
-
-
+  parseJSON _          = mempty
 
 
 instance ToJSON (FixResult Error)
 instance FromJSON (FixResult Error)
+
+instance ToJSON Doc where
+  toJSON = String . T.pack . render 
+
+instance FromJSON Doc where
+  parseJSON (String s) = return $ text $ T.unpack s
+  parseJSON _          = mempty
+
+instance (ToJSON k, ToJSON v) => ToJSON (M.HashMap k v) where
+  toJSON = toJSON . M.toList
+
+instance (Eq k, Hashable k, FromJSON k, FromJSON v) => FromJSON (M.HashMap k v) where
+  parseJSON = fmap M.fromList . parseJSON
+
+instance ToJSON a => ToJSON (AnnInfo a)
+instance FromJSON a => FromJSON (AnnInfo a)
+
+instance ToJSON (Output Doc)
+instance FromJSON (Output Doc)
+
+
 
 -- Move to Fixpoint
 -- instance ToJSON   Symbol  
