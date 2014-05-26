@@ -35,7 +35,7 @@ import           Data.Monoid
 import qualified Data.HashMap.Strict as M
 
 import           System.FilePath                          (dropFileName)
-import           System.Environment                       (withArgs)
+import           System.Environment                       (lookupEnv, withArgs)
 import           System.Console.CmdArgs  hiding           (Loud)                
 import           System.Console.CmdArgs.Verbosity         (whenLoud)            
 
@@ -52,6 +52,7 @@ import Language.Haskell.Liquid.Types hiding     (config, typ, name)
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
+import Text.Parsec.Pos                          (newPos)
 
 
 ---------------------------------------------------------------------------------
@@ -68,13 +69,13 @@ config = Config {
     = def &= typDir 
           &= help "Paths to Spec Include Directory " 
  
- , fullcheck 
-    = def 
-          &= help "Full Checking: check all binders (DEFAULT: only changed binders)" 
+--  , fullcheck 
+--     = def 
+--           &= help "Full Checking: check all binders (DEFAULT: only changed binders)" 
   
- -- , diffcheck 
- --    = def 
- --          &= help "Incremental Checking: only check changed binders (DEFAULT)" 
+ , diffcheck 
+    = def 
+          &= help "Incremental Checking: only check changed binders" 
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -136,11 +137,14 @@ config = Config {
               ]
 
 getOpts :: IO Config 
-getOpts = do cfg <- mkOpts =<< cmdArgs config 
+getOpts = do cfg0    <- (parsePragma . envLoc . fromMaybe "") =<< lookupEnv "LIQUIDHASKELL_OPTS"
+             cfg1    <- mkOpts =<< cmdArgs config 
+             let cfg  = mconcat [cfg0, cfg1]
              putStrLn copyright
              whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
-             -- mkOpts cfg
              return cfg
+
+envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
 
 copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
@@ -153,7 +157,7 @@ mkOpts cfg
                      { idirs = (dropFileName <$> files') ++ [id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
 
-diffcheck = not . fullcheck
+-- diffcheck = not . fullcheck
 
 ---------------------------------------------------------------------------------------
 -- | Updating options
@@ -178,7 +182,8 @@ instance Monoid Config where
   mempty        = Config def def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
-                         (fullcheck c1         ||     fullcheck      c2) 
+                      -- (fullcheck c1         ||     fullcheck      c2) 
+                         (diffcheck c1         ||     diffcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (notermination  c1    ||     notermination  c2) 
