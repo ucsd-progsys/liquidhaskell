@@ -204,7 +204,7 @@ exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 exitWithResult cfg target out
   = do let r  = o_result out 
        let rs = showFix r
-       {-# SCC "annotate" #-} annotate cfg target out -- r (o_soln out) (o_annot out)
+       {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        writeWarns     $ o_warns out

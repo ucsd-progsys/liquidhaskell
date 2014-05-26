@@ -83,11 +83,11 @@ mkOutput cfg res sol anna
 -------------------------------------------------------------------
 annotate :: Config -> FilePath -> Output Doc -> IO () 
 -------------------------------------------------------------------
-annotate cfg srcFile out
-  = do generateHtml srcFile htmlTpFile tplAnnMap
-       generateHtml srcFile htmlTyFile typAnnMap 
-       writeFile            vimFile  $ vimAnnot cfg annTyp 
-       B.writeFile          jsonFile $ encode typAnnMap
+annotate cfg srcF out
+  = do generateHtml srcF tpHtmlF tplAnnMap
+       generateHtml srcF tyHtmlF typAnnMap 
+       writeFile         vimF  $ vimAnnot cfg annTyp 
+       B.writeFile       jsonF $ encode typAnnMap
        forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
     where
        tplAnnMap  = mkAnnMap cfg result annTpl
@@ -96,11 +96,11 @@ annotate cfg srcFile out
        annTyp     = o_types  out
        result     = o_result out
        bots       = o_bots   out
-       htmlTyFile = extFileName Html                   srcFile  
-       htmlTpFile = extFileName Html $ extFileName Cst srcFile 
-       annFile    = extFileName Annot srcFile
-       jsonFile   = extFileName Json  srcFile  
-       vimFile    = extFileName Vim   srcFile
+       tyHtmlF    = extFileName Html                   srcF  
+       tpHtmlF    = extFileName Html $ extFileName Cst srcF 
+       annF       = extFileName Annot srcF
+       jsonF      = extFileName Json  srcF  
+       vimF       = extFileName Vim   srcF
 
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
@@ -108,13 +108,13 @@ mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`) 
 
-generateHtml htmlFile srcFile annm
-  = do src     <- readFile srcFile
-       let lhs  = isExtFile LHs srcFile
+generateHtml srcF htmlF annm
+  = do src     <- readFile srcF
+       let lhs  = isExtFile LHs srcF
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
        cssFile <- getCssPath
-       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
-       renderHtml lhs htmlFile srcFile (takeFileName cssFile) body
+       copyFile cssFile (dropFileName htmlF </> takeFileName cssFile) 
+       renderHtml lhs htmlF srcF (takeFileName cssFile) body
 
 renderHtml True  = renderPandoc 
 renderHtml False = renderDirect

@@ -65,7 +65,7 @@ liquidOne target info =
 -- checkedNames ::  Maybe DC.DiffCheck -> Maybe [Name.Name]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
-     names (NonRec v _ ) = [undefined $ var v]
+     names (NonRec v _ ) = [showpp $ var v]
      names (Rec bs)      = map (var . fst) bs
      var                 = showpp . varName
 
