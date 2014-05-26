@@ -43,7 +43,7 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo, Error (..), Output (..))
+import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo (..), Error (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
@@ -72,7 +72,10 @@ data Def  = D { binder :: Var -- ^ name of binder
 type Deps = M.HashMap Var (S.HashSet Var)
 
 -- | Map from saved-line-num ---> current-line-num
-type LMap = IM.IntervalMap Int Int
+type LMap   = IM.IntervalMap Int Int
+
+-- | Intervals of line numbers that have been re-checked
+type ChkItv = IM.IntervalMap Int ()
 
 
 instance Show Def where 
@@ -101,7 +104,8 @@ sliceSaved'          :: [Int] -> LMap -> DiffCheck -> DiffCheck
 sliceSaved' is lm dc = DC cbs' res'
   where
     cbs'             = thin cbs $ diffVars is dfs
-    res'             = adjustResult lm chDfs res
+    res'             = adjustOutput lm cm res
+    cm               = checkedItv chDfs
     dfs              = coreDefs cbs
     chDfs            = coreDefs cbs'
     DC cbs res       = dc
@@ -238,7 +242,7 @@ diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n
 diffLines n (Second _ : d)      = diffLines n d 
 
 diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
-diffShifts ds                   = go 1 1 ds 
+diffShifts                      = go 1 1  
   where
     go old new (Both n _ : d)   = (old, old + n - 1, new - old) : go (old + n) (new + n) d
     go old new (Second n : d)   = go (old + n) new d
@@ -260,8 +264,7 @@ saveResult :: FilePath -> Output Doc -> IO ()
 -------------------------------------------------------------------------
 saveResult target res 
   = do copyFile target saveF
-       error "undefined: DC.saveResult"
-       -- B.writeFile errF $ LB.toStrict $ encode res 
+       B.writeFile errF $ LB.toStrict $ encode res 
     where
        saveF = extFileName Saved  target
        errF  = extFileName Cache  target
@@ -275,36 +278,53 @@ loadResult f = ifM (doesFileExist jsonF) out (return mempty)
     out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
 
 -------------------------------------------------------------------------
-adjustResult :: LMap -> [Def] -> Output Doc -> Output Doc 
+adjustOutput :: LMap -> ChkItv -> Output Doc -> Output Doc 
 -------------------------------------------------------------------------
-adjustResult = error "undefined: DC.adjustResult"
+adjustOutput lm cm o  = mempty { o_types  = adjustTypes  lm cm (o_types  o) }
+                               { o_result = adjustResult lm cm (o_result o) }
 
--- adjustResult lm cd (Unsafe es)   = Unsafe (adjustErrors lm cd es)
--- adjustResult lm cd (Crash es z)  = Crash  (adjustErrors lm cd es) z
--- adjustResult _  _  r             = r
+adjustTypes :: LMap -> ChkItv -> AnnInfo a -> AnnInfo a
+adjustTypes lm cm (AI m)          = AI $ M.fromList 
+                                    [(sp', v) | (sp, v)  <- M.toList m
+                                              , Just sp' <- [adjustSrcSpan lm cm sp]]
 
-adjustErrors lm cd               =  unCheckedDefs cd . mapMaybe (adjustError lm) 
+adjustResult :: LMap -> ChkItv -> FixResult Error -> FixResult Error 
+adjustResult lm cm (Unsafe es)    = Unsafe (adjustErrors lm cm es)
+adjustResult lm cm (Crash es z)   = Crash  (adjustErrors lm cm es) z
+adjustResult _  _  r              = r
 
-adjustError lm (ErrSaved sp msg) = (`ErrSaved` msg) <$> adjustSpan lm sp 
-adjustError lm e                 = Just e 
-
-adjustSpan lm (RealSrcSpan rsp)  = RealSrcSpan <$> adjustReal lm rsp 
-adjustSpan lm sp                 = Just sp 
-adjustReal lm rsp
-  | Just δ <- getShift l1 lm     = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
-  | otherwise                    = Nothing
-  where
-    (f, l1, c1, l2, c2)          = unpackRealSrcSpan rsp 
-  
-unCheckedDefs cd                 = filter (not . isCheckedError cm) 
+adjustErrors lm cm                = mapMaybe adjustError
   where 
-    cm                           = checkedMap cd
-   
-isCheckedError cm e
-  | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
-  | otherwise                    = False
+    adjustError (ErrSaved sp msg) =  (`ErrSaved` msg) <$> adjustSrcSpan lm cm sp 
+    adjustError e                 = Just e 
+
+adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
+adjustSrcSpan lm cm sp 
+  = do sp' <- adjustSpan lm sp
+       if isCheckedSpan cm sp' 
+         then Nothing 
+         else Just sp'
+
+isCheckedSpan cm (RealSrcSpan sp) = isCheckedRealSpan cm sp
+isCheckedSpan _  _                = False
+isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine  
+
+adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp 
+adjustSpan lm sp                  = Just sp 
+adjustReal lm rsp
+  | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | otherwise                     = Nothing
   where
-    isCheckedSpan                = not . null . (`IM.search` cm) . srcSpanStartLine  
+    (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp 
+  
+-- unCheckedDefs cd                  = filter (not . isCheckedError cm) 
+--   where 
+--     cm                            = checkedItv cd
+--    
+-- isCheckedError cm e
+--   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
+--   | otherwise                    = False
+
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
 -- in the diff and returns @Nothing@ otherwise.
@@ -315,8 +335,8 @@ getShift old = fmap snd . listToMaybe . IM.search old
 setShift             :: (Int, Int, Int) -> LMap -> LMap
 setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
 
-checkedMap :: [Def] -> IM.IntervalMap Int ()
-checkedMap chDefs = foldr (`IM.insert` ()) IM.empty is 
+checkedItv :: [Def] ->ChkItv --  IM.IntervalMap Int ()
+checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is 
   where
     is            = [IM.Interval l1 l2 | D _ l1 l2 <- chDefs]
 
