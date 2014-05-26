@@ -334,6 +334,7 @@ getShift old = fmap snd . listToMaybe . IM.search old
 setShift             :: (Int, Int, Int) -> LMap -> LMap
 setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
 
+
 checkedItv :: [Def] -> ChkItv
 checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is 
   where
