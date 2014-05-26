@@ -136,10 +136,11 @@ config = Config {
               ]
 
 getOpts :: IO Config 
-getOpts = do cfg <- cmdArgs config 
+getOpts = do cfg <- mkOpts =<< cmdArgs config 
              putStrLn copyright
              whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
-             mkOpts cfg
+             -- mkOpts cfg
+             return cfg
 
 copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
@@ -151,10 +152,8 @@ mkOpts cfg
        return  $ cfg { files = files' } 
                      { idirs = (dropFileName <$> files') ++ [id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
-                              
 
-diffcheck = not . fullcheck             
-
+diffcheck = not . fullcheck
 
 ---------------------------------------------------------------------------------------
 -- | Updating options
@@ -179,7 +178,7 @@ instance Monoid Config where
   mempty        = Config def def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
                          (sortNub $ idirs c1   ++     idirs          c2)
-                         (diffcheck c1         ||     diffcheck      c2) 
+                         (fullcheck c1         ||     fullcheck      c2) 
                          (sortNub $ binders c1 ++     binders        c2) 
                          (noCheckUnknown c1    ||     noCheckUnknown c2) 
                          (notermination  c1    ||     notermination  c2) 
