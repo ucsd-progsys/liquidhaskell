@@ -21,8 +21,8 @@ module Language.Haskell.Liquid.CmdLine (
    -- * Exit Function
    , exitWithResult
 
-   -- * Extra Outputs
-   , Output (..)
+   -- * Diff check mode
+   , diffcheck 
 ) where
 
 import Control.DeepSeq
@@ -67,10 +67,14 @@ config = Config {
  , idirs 
     = def &= typDir 
           &= help "Paths to Spec Include Directory " 
-   
- , diffcheck 
+ 
+ , fullcheck 
     = def 
-          &= help "Incremental Checking: only check changed binders" 
+          &= help "Full Checking: check all binders (DEFAULT: only changed binders)" 
+  
+ -- , diffcheck 
+ --    = def 
+ --          &= help "Incremental Checking: only check changed binders (DEFAULT)" 
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -93,7 +97,6 @@ config = Config {
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
-
 
  , totality 
     = def &= help "Check totality"
@@ -133,21 +136,25 @@ config = Config {
               ]
 
 getOpts :: IO Config 
-getOpts = do md <- cmdArgs config 
+getOpts = do cfg <- cmdArgs config 
              putStrLn copyright
-             whenLoud $ putStrLn $ "liquid " ++ show md ++ "\n"
-             mkOpts md
+             whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
+             mkOpts cfg
 
-copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
-mkOpts md  
-  = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
-       -- idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
+mkOpts cfg  
+  = do files' <- sortNub . concat <$> mapM getHsTargets (files cfg) 
+       -- idirs' <- if null (idirs cfg) then single <$> getIncludeDir else return (idirs cfg)
        id0 <- getIncludeDir 
-       return  $ md { files = files' } 
-                    { idirs = (dropFileName <$> files') ++ [id0] ++ idirs md }
+       return  $ cfg { files = files' } 
+                     { idirs = (dropFileName <$> files') ++ [id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
+                              
+
+diffcheck = not . fullcheck             
+
 
 ---------------------------------------------------------------------------------------
 -- | Updating options
