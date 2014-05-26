@@ -11,15 +11,17 @@ decr xo = xo - 100
 plus :: Int -> Int -> Int
 plus x yo = x + yo
 
-
+{-@ goo :: Int -> Nat @-}
+goo :: Int -> Int
+goo x = x +  1
 
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int
 incr xoo = xoo  `plus` zaa
   where
      zaa = a00 - b00
-     b00 = 300
-     a00 = 2
+     a00 = 300
+     b00 = 2
 
 {-@ jog :: x:Int -> {v:Int | v = x} @-}
 jog  :: Int -> Int
