@@ -1,12 +1,5 @@
-Failed 11 tests: 
+Failed 4 tests: 
  neg/Class4Import.hs,
   neg/ClassI.hs,
-  pos/Infinity.hs,
-  pos/RBTree-col-height.hs,
-  pos/RBTree-color.hs,
-  pos/RBTree-height.hs,
-  pos/RBTree.hs,
-  pos/datacon-inv.hs,
-  pos/fixme.hs,
-  pos/fixme2.hs,
-  pos/linspace.hs 
+  pos/Class2.hs,
+  pos/inccheck0.hs 
