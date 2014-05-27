@@ -108,5 +108,15 @@ prop1 x y c = liquidAssume ( triangleInequality x y c
   where c'  = mean x y
         dxy = dist x y
         itwo = inverse two
-        itwo_dxy = itwo * dxy
-        itwo_dxy' = inverse two * dist x y 
+        itwo_dxy = itwo * dxy              -- = dist (y, mean x y)
+        itwo_dxy' = inverse two * dist x y -- = dist (x, mean x y)
+
+
+-- Q: how do we enforce linear arithmetic now? tests/pos/mul.hs
+-- Step 1: encode everything as Real and use nlsat tactick
+--         (check-sat-using qfnra-nlsat)
+--         http://rise4fun.com/Z3/1EYC
+-- Step 2: encode class theorems, like triangleInequality
+--         at every environment with 3 Vecs enforce the theorem
+-- Step 3: "prove" the theorems for class instances
+--           testing?
