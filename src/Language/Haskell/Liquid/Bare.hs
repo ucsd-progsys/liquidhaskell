@@ -68,7 +68,7 @@ import Debug.Trace (trace)
 
 makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
-            -> IO (GhcSpec, [Var])
+            -> IO GhcSpec
 makeGhcSpec cfg name vars defVars exports env specs
   = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
   where
@@ -116,7 +116,7 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
-             -> BareM (GhcSpec,[Var])
+             -> BareM GhcSpec
 makeGhcSpec' cfg vars defVars' exports specs
   = do name <- gets modName
        expvars <- mapM lookupGhcVar $ filter isVarName $ nameSetToList exports
@@ -183,7 +183,7 @@ makeGhcSpec' cfg vars defVars' exports specs
            --               | (x, t) <- renamedSigs
            --               , let τ = expandTypeSynonyms $ varType x
            --               , let r = maybeTrue x name exports]
-       return           (SP { tySigs     = pluggedSigs
+       return          $ SP { tySigs     = pluggedSigs
                             , asmSigs    = renamedAsms
                             , ctors      = tx cs'
                             , meas       = tx (ms' ++ varMeasures vars ++ cms')
@@ -203,7 +203,6 @@ makeGhcSpec' cfg vars defVars' exports specs
                             , exports    = exports
                             , measures   = subst su <$> M.elems $ Ms.measMap measures
                             }
-                         ,defVars)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (reverse xts) [1..])
@@ -1325,9 +1324,9 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
-             -> (GhcSpec, [Var]) -> Either [Error] (GhcSpec,[Var])
+             -> GhcSpec -> Either [Error] GhcSpec
 
-checkGhcSpec specs (sp,defs) =  applyNonNull (Right (sp,defs)) Left errors
+checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
     errors           =  mapMaybe (checkBind "variable"    emb env) sigs
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)

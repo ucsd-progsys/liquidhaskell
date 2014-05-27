@@ -116,10 +116,10 @@ getGhcInfo' cfg0 target
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
-      (spec, defs, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
+      (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds derVs impVs defs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
@@ -271,8 +271,8 @@ moduleSpec cfg vars defVars target mg tgtSpec impSpecs
                                            | (_,spec) <- specs
                                            , x <- Ms.imports spec
                                            ]
-       (ghcSpec,defs) <- liftIO $ makeGhcSpec cfg target vars defVars exports env specs
-       return      (ghcSpec, defs, imps, Ms.includes tgtSpec)
+       ghcSpec    <- liftIO $ makeGhcSpec cfg target vars defVars exports env specs
+       return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       exports    = mgi_exports mg
       name       = mgi_namestring mg
