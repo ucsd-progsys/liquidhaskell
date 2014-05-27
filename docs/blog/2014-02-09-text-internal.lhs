@@ -10,6 +10,13 @@ categories: benchmarks, text
 demo: TextInternal.hs
 ---
 
+TODO:
+
+1. fix intro segment
+2. fix end-segment (why can't we have 3)? shouldn't need qualifiers.
+3. tighten up middle bits
+
+
 So far we have mostly discussed LiquidHaskell in the context of
 recursive data structures like lists, but there comes a time in
 many programs when you have to put down the list and pick up an
@@ -70,12 +77,13 @@ much rather have the compiler throw an error on these last two calls.
 
 In this post we'll see exactly how prevent invalid memory accesses like this
 with LiquidHaskell.
+
 <!-- more -->
 
 <div class="hidden">
 
 \begin{code}
-{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
+{-# LANGUAGE BangPatterns, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
 module TextInternal where
@@ -196,14 +204,6 @@ the following general lifecycle:
 
 ![The lifecycle of a `Text`](/images/text-lifecycle.png)
 
-
-<!--
-
-Both types carry around with them the number of `Word16`s they can
-hold (this is actually only true when you compile with asserts turned
-on, but we use this to ease the verification process).
--->
-
 The main four array operations we care about are:
 
 1. **creating** an `MArray`,
@@ -213,6 +213,7 @@ The main four array operations we care about are:
 
 Creating an `MArray`
 --------------------
+
 The (mutable) `MArray` is a thin wrapper around GHC's primitive
 `MutableByteArray#`, additionally carrying the number of `Word16`s it
 can store.
@@ -221,29 +222,35 @@ can store.
 data MArray s = MArray { maBA  :: MutableByteArray# s
                        , maLen :: !Int
                        }
+\end{code}
+
+It doesn't make any sense to have a negative length, so we *refine*
+the data definition to require that `maLen` be non-negative. 
+
+\begin{code}
 {-@ data MArray s = MArray { maBA  :: MutableByteArray# s
                            , maLen :: Nat
                            }
   @-}
 \end{code}
 
-It doesn't make any sense to have a negative length, so we add a
-simple refined data definition which states that `maLen` must be
-non-negative. A nice new side effect of adding this refined data
-\begin{code}definition is that we also get the following *accessor measures* for free
-{-@ measure maBA :: MArray s -> MutableByteArray# s
-    maBA (MArray a l) = a
-  @-}
+
+\begin{code} As an added bonus, the above specification generates **field-accessor measures** that we will use inside types:
 {-@ measure maLen :: MArray s -> Int
     maLen (MArray a l) = l
   @-}
 \end{code}
 
-With our free accessor measures in hand, we can start building `MArray`s.
+We can use these accessor measures to define `MArray`s of size `N`:
 
 \begin{code}
-{-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
+{-@ type MArrayN a N = {v:MArray a | (maLen v) = N} @-}
+\end{code}
 
+and we can use the above alias, to nicely write a type that tracks the size
+of an `MArray` at the point where it is created:
+
+\begin{code}
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
 new n
   | n < 0 || n .&. highBit /= 0 = error "size overflow"
@@ -255,25 +262,23 @@ new n
         bytesInArray n = n `shiftL` 1
 \end{code}
 
-`new n` is an `ST` action that produces an `MArray s` with `n` slots,
-denoted by the type alias `MArrayN s n`. Note that we are not talking
-about bytes here, `text` deals with `Word16`s internally and as such
-we actualy allocate `2*n` bytes.  While this may seem like a lot of
-code to just create an array, the verification process here is quite
-simple. LiquidHaskell simply recognizes that the `n` used to construct
-the returned array (`MArray marr# n`) is the same `n` passed to
-`new`. It should be noted that we're abstracting away some detail here
-with respect to the underlying `MutableByteArray#`, specifically we're
-making the assumption that any *unsafe* operation will be caught and
-dealt with before the `MutableByteArray#` is touched.
+`new n` is an `ST` action that produces an `MArray s` with `n` slots each 
+of which is 2 bytes (as internally `text` manipulates `Word16`s).
+The verification process here is quite simple; LH recognizes that 
+the `n` used to construct the returned array (`MArray marr# n`) 
+the same `n` passed to `new`. 
 
 Writing into an `MArray`
 ------------------------
-Once we have an `MArray`, we'll want to be able to write our
-data into it. A `Nat` is a valid index into an `MArray` if it is
-less than the number of slots, for which we have another type alias
-`MAValidI`. `text` checks this property at run-time, but LiquidHaskell
-can statically prove that the error branch is unreachable.
+
+Once we have *created* an `MArray`, we'll want to write our data into it. 
+
+HEREHEREHEREHERE
+
+A `Nat` is a valid index into an `MArray` if it is less than the number 
+of slots, for which we have another type alias `MAValidI`. `text` checks 
+this property at run-time, but LiquidHaskell can statically prove that 
+the error branch is unreachable.
 
 \begin{code}
 {-@ type MAValidI MA = {v:Nat | v < (maLen MA)} @-}
@@ -327,10 +332,11 @@ they will never fail. The trick is simply to give
 
 Freezing an `MArray` into an `Array`
 ------------------------------------
+
 Before we can package up our `MArray` into a `Text`, we need to
-*freeze* it, preventing any further mutation. The key property here is
-of course that the frozen `Array` should have the same length as the
-`MArray`.
+*freeze* it, preventing any further mutation. The key property 
+here is of course that the frozen `Array` should have the same 
+length as the `MArray`.
 
 Just as `MArray` wraps a mutable array, `Array` wraps an *immutable*
 `ByteArray#` and carries its length in `Word16`s.
@@ -388,6 +394,7 @@ that `i` is a valid index.
 
 Wrapping it all up
 ------------------
+
 Now we can finally define the core datatype of the `text` package!
 A `Text` value consists of an *array*, an *offset*, and a *length*.
 
