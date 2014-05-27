@@ -14,7 +14,7 @@ class Frog a where
   @-}
 
 -- If we put this in ANOTHER file (e.g. Class4Instance) then there is no error
-instance Frog () where
+-- instance Frog () where
 
-{-@ class Frog a where 
+{- class Frog a where 
     mkInt :: a -> Int @-}
