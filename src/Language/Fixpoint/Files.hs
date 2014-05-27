@@ -71,7 +71,8 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Cst    -- ^ HTML file with templates?
          | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots)
          | Json   -- ^ JSON file containing result (annots + errors)
-         | Saved  -- ^ Previous version of source (for incremental checking)
+         | Saved  -- ^ Previous source (for incremental checking)
+         | Cache  -- ^ Previous output (for incremental checking)
          | Pred
          | PAss
          | Dat
@@ -98,6 +99,7 @@ extMap e = go e
     go Hquals = ".hquals"
     go Result = ".out"
     go Saved  = ".bak"
+    go Cache  = ".err"
     go Smt2   = ".smt2"
     go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
