@@ -339,7 +339,7 @@ instance SMTLIB2 Sort where
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 s = T.pack . zEncodeString . symbolString $ s
+  smt2 s = T.pack . zEncodeString . takeWhile (/='#') . symbolString $ s
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = T.pack s
