@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.Bare (
 import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
-import Name                     (getSrcSpan, isInternalName)
+import Name                     (getSrcSpan, isInternalName, isVarName)
 import NameSet
 import Id                       (isConLikeId)
 import PrelNames
@@ -68,7 +68,7 @@ import Debug.Trace (trace)
 
 makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
-            -> IO GhcSpec
+            -> IO (GhcSpec, [Var])
 makeGhcSpec cfg name vars defVars exports env specs
   = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
   where
@@ -116,18 +116,20 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
-             -> BareM GhcSpec
-makeGhcSpec' cfg vars defVars exports specs
+             -> BareM (GhcSpec,[Var])
+makeGhcSpec' cfg vars defVars' exports specs
   = do name <- gets modName
+       expvars <- mapM lookupGhcVar $ filter isVarName $ nameSetToList exports
+       let defVars = L.nub $ defVars' ++ expvars
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
                  (concat [map (mod,) $ Ms.paliases sp | (mod,sp) <- specs])
        (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let (tcs', dcs') = wiredTyDataCons
-       let tycons       = tcs ++ tcs'    
+       let tycons       = tcs ++ tcs'
        let datacons     = concat dcs ++ dcs'
        let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
-       measures'        <- mconcat <$> mapM makeMeasureSpec specs
+       measures'       <- mconcat <$> mapM makeMeasureSpec specs
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
@@ -139,9 +141,10 @@ makeGhcSpec' cfg vars defVars exports specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
        (cls,mts)       <- second mconcat . unzip . mconcat
                           <$> mapM (makeClasses cfg vars) specs
+       let dms          = makeDefaultMethods vars mts
        tcEnv           <- gets tcEnv
        let sigs         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
-                          | (m, x, t) <- sigs'++mts ]
+                          | (m, x, t) <- sigs'++mts++dms ]
        let asms         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
                           | (m, x, t) <- asms' ]
        let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs ((mapSnd val <$> datacons)++cls)
@@ -180,26 +183,27 @@ makeGhcSpec' cfg vars defVars exports specs
            --               | (x, t) <- renamedSigs
            --               , let τ = expandTypeSynonyms $ varType x
            --               , let r = maybeTrue x name exports]
-       return           $ SP { tySigs     = pluggedSigs
-                             , asmSigs    = renamedAsms
-                             , ctors      = tx cs'
-                             , meas       = tx (ms' ++ varMeasures vars ++ cms')
-                             , invariants = txi invs
-                             , ialiases   = txia ialias
-                             , dconsP     = mapSnd val <$> datacons
-                             , tconsP     = tycons
-                             , freeSyms   = syms'
-                             , tcEmbeds   = embs
-                             , qualifiers = txq quals
-                             , decr       = decr'
-                             , texprs     = texprs'
-                             , lvars      = lvars'
-                             , lazy       = lazies
-                             , tgtVars    = targetVars
-                             , config     = cfg
-                             , exports    = exports
-                             , measures   = subst su <$> M.elems $ Ms.measMap measures
-                             }
+       return           (SP { tySigs     = pluggedSigs
+                            , asmSigs    = renamedAsms
+                            , ctors      = tx cs'
+                            , meas       = tx (ms' ++ varMeasures vars ++ cms')
+                            , invariants = txi invs
+                            , ialiases   = txia ialias
+                            , dconsP     = mapSnd val <$> datacons
+                            , tconsP     = tycons
+                            , freeSyms   = syms'
+                            , tcEmbeds   = embs
+                            , qualifiers = txq quals
+                            , decr       = decr'
+                            , texprs     = texprs'
+                            , lvars      = lvars'
+                            , lazy       = lazies
+                            , tgtVars    = targetVars
+                            , config     = cfg
+                            , exports    = exports
+                            , measures   = subst su <$> M.elems $ Ms.measMap measures
+                            }
+                         ,defVars)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (reverse xts) [1..])
@@ -670,15 +674,29 @@ makeTargetVars name vs ss = do
 
 makeAssertSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs $ (Ms.sigs spec ++ Ms.localSigs spec)
+  = makeLocalSpec cfg cmod vs lvs (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.sigs spec
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs $ (Ms.asmSigs spec)
+  = makeLocalSpec cfg cmod vs lvs $ Ms.asmSigs spec
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.asmSigs spec
+
+makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
+                   -> [(ModName,Var,Located SpecType)]
+makeDefaultMethods defVs sigs
+  = [ (m,dmv,t)
+    | dmv <- defVs
+    , let dm = showpp dmv
+    , "$dm" `L.isPrefixOf` (dropModuleNames dm)
+    , let mod = takeModuleNames dm
+    , let method = mod ++ "." ++ drop 3 (dropModuleNames dm)
+    , let mb = L.find ((method `L.isPrefixOf`) . showpp . snd3) sigs
+    , isJust mb
+    , let Just (m,_,t) = mb
+    ]
 
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
@@ -1307,9 +1325,9 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
-             -> GhcSpec -> Either [Error] GhcSpec
+             -> (GhcSpec, [Var]) -> Either [Error] (GhcSpec,[Var])
 
-checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
+checkGhcSpec specs (sp,defs) =  applyNonNull (Right (sp,defs)) Left errors
   where 
     errors           =  mapMaybe (checkBind "variable"    emb env) sigs
                      ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
