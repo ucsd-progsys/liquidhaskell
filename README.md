@@ -205,7 +205,7 @@ any checks. In this case, you may specify individual definitions to verify:
 
 This will verify `bar` and `baz`, as well as any functions they use.
 
-If you always want to run a given file with full-checking, add
+If you always want to run a given file with diff-checking, add
 the pragma:
 
     {-@ LIQUID "--diff" @-}
@@ -225,7 +225,7 @@ elsewhere (e.g. inside the file.)
 If you always want to run a given file with full-checking, add
 the pragma:
 
-    {-@ LIQUID "--diff" @-}
+    {-@ LIQUID "--full" @-}
 
 Specifying Different SMT Solvers
 --------------------------------
