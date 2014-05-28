@@ -1,5 +1,10 @@
 
-{-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections, DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-} 
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Haskell.Liquid.GhcInterface (
   
@@ -532,7 +537,7 @@ instance PPrint TargetVars where
 
 -- | Throw a panic exception
 exitWithPanic  :: String -> a 
-exitWithPanic  = Ex.throw . ErrOther . text 
+exitWithPanic  = Ex.throw . errOther . text 
 
 -- | Convert a GHC error into one of ours
 instance Result SourceError where 

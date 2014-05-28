@@ -4,114 +4,117 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+---------------------------------------------------------------------------
+-- | This module contains the code that uses the inferred types to generate 
+-- 1. HTMLized source with Inferred Types
+-- 2. Annotations files (e.g. for vim/emacs)
+-- 3. JSON files for the web-demo etc.
+---------------------------------------------------------------------------
+
 -- | This module contains the code that uses the inferred types to generate
 -- htmlized source with mouseover annotations.
 
-module Language.Haskell.Liquid.Annotate (
-  
-  -- * Types representing annotations
-    AnnInfo (..)
-  , Annot (..)
+module Language.Haskell.Liquid.Annotate (mkOutput, annotate) where
 
-  -- * Top-level annotation renderer function
-  , annotate
-  ) where
+import           GHC                      ( SrcSpan (..)
+                                          , srcSpanStartCol
+                                          , srcSpanEndCol
+                                          , srcSpanStartLine
+                                          , srcSpanEndLine
+                                          , RealSrcSpan (..))
+import           Var                      (Var (..))
+import           TypeRep                  (Prec(..))
+import           Text.PrettyPrint.HughesPJ hiding (first, second)
+import           GHC.Exts                 (groupWith, sortWith)
 
-import GHC                      ( SrcSpan (..)
-                                , srcSpanStartCol
-                                , srcSpanEndCol
-                                , srcSpanStartLine
-                                , srcSpanEndLine
-                                , RealSrcSpan (..))
-import Var                      (Var (..))
-import TypeRep                  (Prec(..))
-import Text.PrettyPrint.HughesPJ hiding (first, second)
-import GHC.Exts                 (groupWith, sortWith)
+import           Data.Char                (isSpace)
+import           Data.Function            (on)
+import           Data.List                (sortBy)
+import           Data.Maybe               (mapMaybe)
 
-import Data.Char                (isSpace)
-import Data.Function            (on)
-import Data.List                (sortBy)
-import Data.Maybe               (mapMaybe)
+import           Data.Aeson               
+import           Control.Arrow            hiding ((<+>))
+import           Control.Applicative      ((<$>))
+import           Control.DeepSeq
+import           Control.Monad            (when, forM_)
+import           Data.Monoid
 
-import Data.Aeson               
-import Control.Arrow            hiding ((<+>))
-import Control.Applicative      ((<$>))
-import Control.DeepSeq
-import Control.Monad            (when)
-import Data.Monoid
-
-import System.FilePath          (takeFileName, dropFileName, (</>)) 
-import System.Directory         (findExecutable, copyFile)
-import Text.Printf              (printf)
-
+import           System.FilePath          (takeFileName, dropFileName, (</>)) 
+import           System.Directory         (findExecutable, copyFile)
+import           Text.Printf              (printf)
+import qualified Data.List              as L
+import qualified Data.Vector            as V
 import qualified Data.ByteString.Lazy   as B
 import qualified Data.Text              as T
 import qualified Data.HashMap.Strict    as M
-
 import qualified Language.Haskell.Liquid.ACSS as ACSS
+import           Language.Haskell.HsColour.Classify
+import           Language.Fixpoint.Files
+import           Language.Fixpoint.Names
+import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.GhcMisc
+import           Language.Fixpoint.Types hiding (Def (..), Located (..))
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.PrettyPrint
+import           Language.Haskell.Liquid.RefType
+import           Language.Haskell.Liquid.Tidy
+import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
-import Language.Haskell.HsColour.Classify
-import Language.Fixpoint.Files
-import Language.Fixpoint.Names
-import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc
-import Language.Fixpoint.Types hiding (Def (..), Located (..))
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Tidy
-import Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
--- import Language.Haskell.Liquid.Result
-
-import qualified Data.List           as L
-import qualified Data.Vector         as V
-
--- import           Language.Fixpoint.Misc (inserts)
--- import           Language.Haskell.Liquid.ACSS
-
-
--------------------------------------------------------------------
------- Rendering HTMLized source with Inferred Types --------------
--------------------------------------------------------------------
-
-annotate :: Config -> FilePath -> FixResult Error -> FixSolution -> AnnInfo Annot -> IO ()
-annotate cfg fname result sol anna
-  = do annotDump cfg fname (extFileName Html $ extFileName Cst fname) result annm
-       annotDump cfg fname (extFileName Html fname) result annm'
-       showBots annm'
-    where
-      annm  = closeAnnots anna
-      annm' = tidySpecType <$> applySolution sol annm
-
-showBots (AI m) = mapM_ showBot $ sortBy (compare `on` fst) $ M.toList m
+-- | @output@ creates the pretty printed output
+--------------------------------------------------------------------------------------------
+mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+--------------------------------------------------------------------------------------------
+mkOutput cfg res sol anna 
+  = O { o_vars   = Nothing
+      , o_warns  = []
+      , o_types  = toDoc <$> annTy 
+      , o_templs = toDoc <$> annTmpl
+      , o_bots   = mkBots    annTy 
+      , o_result = res 
+      }
   where
-    showBot (src, (Just v, spec):_) =
-        when (isFalse (rTypeReft spec)) $
-             printf "WARNING: Found false in %s\n" (showPpr src)
-    showBot _ = return ()
+    annTmpl      = closeAnnots anna
+    annTy        = tidySpecType <$> applySolution sol annTmpl 
+    toDoc        = ppr_rtype env TopPrec
+    env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
 
-annotDump :: Config -> FilePath -> FilePath -> FixResult Error -> AnnInfo SpecType -> IO ()
-annotDump cfg srcFile htmlFile result ann
-  = do let annm     = mkAnnMap cfg result ann
-       let annFile  = extFileName Annot srcFile
-       let jsonFile = extFileName Json  srcFile  
-       let vimFile  = extFileName Vim   srcFile
-       writeFile             vimFile  $ vimAnnot cfg ann
-       B.writeFile           jsonFile $ encode annm 
-       writeFilesOrStrings   annFile  [Left srcFile, Right (show annm)]
-       annotHtmlDump         htmlFile srcFile annm 
-       return ()
+
+-- | @annotate@ actually renders the output to files 
+-------------------------------------------------------------------
+annotate :: Config -> FilePath -> Output Doc -> IO () 
+-------------------------------------------------------------------
+annotate cfg srcF out
+  = do generateHtml srcF tpHtmlF tplAnnMap
+       generateHtml srcF tyHtmlF typAnnMap 
+       writeFile         vimF  $ vimAnnot cfg annTyp 
+       B.writeFile       jsonF $ encode typAnnMap
+       forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+    where
+       tplAnnMap  = mkAnnMap cfg result annTpl
+       typAnnMap  = mkAnnMap cfg result annTyp
+       annTpl     = o_templs out
+       annTyp     = o_types  out
+       result     = o_result out
+       bots       = o_bots   out
+       tyHtmlF    = extFileName Html                   srcF  
+       tpHtmlF    = extFileName Html $ extFileName Cst srcF 
+       annF       = extFileName Annot srcF
+       jsonF      = extFileName Json  srcF  
+       vimF       = extFileName Vim   srcF
+
+mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
+                      , isFalse (rTypeReft t) ]
 
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
 writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`) 
 
-annotHtmlDump htmlFile srcFile annm
-  = do src     <- readFile srcFile
-       let lhs  = isExtFile LHs srcFile
+generateHtml srcF htmlF annm
+  = do src     <- readFile srcF
+       let lhs  = isExtFile LHs srcF
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
        cssFile <- getCssPath
-       copyFile cssFile (dropFileName htmlFile </> takeFileName cssFile) 
-       renderHtml lhs htmlFile srcFile (takeFileName cssFile) body
+       copyFile cssFile (dropFileName htmlF </> takeFileName cssFile) 
+       renderHtml lhs htmlF srcF (takeFileName cssFile) body
 
 renderHtml True  = renderPandoc 
 renderHtml False = renderDirect
@@ -186,13 +189,13 @@ cssHTML css = unlines
 --   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 --   annotations.
 
-mkAnnMap :: Config -> FixResult Error -> AnnInfo SpecType -> ACSS.AnnMap
-mkAnnMap cfg res ann = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
+mkAnnMap :: Config -> FixResult Error -> AnnInfo Doc -> ACSS.AnnMap
+mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
 
-mkStatus (Safe)      = ACSS.Safe
-mkStatus (Unsafe _)  = ACSS.Unsafe
-mkStatus (Crash _ _) = ACSS.Error
-mkStatus _           = ACSS.Crash
+mkStatus (Safe)          = ACSS.Safe
+mkStatus (Unsafe _)      = ACSS.Unsafe
+mkStatus (Crash _ _)     = ACSS.Error
+mkStatus _               = ACSS.Crash
 
 mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
 mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls 
@@ -214,29 +217,43 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
+    bindStr (x, v) = (maybe "_" varStr x, render v) -- $ ppr_rtype env TopPrec v)
+    short          = shortNames cfg
+    shorten        = if short then dropModuleNames  else id
+    varStr         = shorten -- . showPpr
+
+mkAnnMapBindersOLD cfg (AI m)
+  = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
+  $ groupWith (lineCol . fst)
+    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+  where
     bindStr (x, v) = (maybe "_" varStr x, render $ ppr_rtype env TopPrec v)
     short          = shortNames cfg
     env            = if short then ppEnvShort ppEnv else ppEnv
     shorten        = if short then dropModuleNames  else id
-    varStr         = shorten . showPpr 
+    varStr         = shorten . showPpr
 
-closeAnnots :: AnnInfo Annot -> AnnInfo SpecType 
+
+
+
+closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
 
-closeA a@(AI m)  = cf <$> a 
+closeA a@(AI m)   = cf <$> a 
   where 
-    cf (Loc loc) = case m `mlookup` loc of
-                         [(_, Use t)] -> t
-                         [(_, Def t)] -> t
-                         [(_, RDf t)] -> t
-                         _            -> errorstar $ "malformed AnnInfo: " ++ showPpr loc
-    cf (Use t)        = t
-    cf (Def t)        = t
-    cf (RDf t)        = t
+    cf (AnnLoc l)  = case m `mlookup` l of
+                      [(_, AnnUse t)] -> t
+                      [(_, AnnDef t)] -> t
+                      [(_, AnnRDf t)] -> t
+                      _               -> errorstar $ "malformed AnnInfo: " ++ showPpr l
+    cf (AnnUse t) = t
+    cf (AnnDef t) = t
+    cf (AnnRDf t) = t
 
 filterA (AI m) = AI (M.filter ff m)
-  where ff [(_, Loc loc)] = loc `M.member` m
-        ff _              = True
+  where 
+    ff [(_, AnnLoc l)] = l `M.member` m
+    ff _               = True
 
 collapseA (AI m) = AI (fmap pickOneA m)
 
@@ -246,10 +263,10 @@ pickOneA xas = case (rs, ds, ls, us) of
                  (_, _, x:_, _) -> [x]
                  (_, _, _, x:_) -> [x]
   where 
-    rs = [x | x@(_, RDf _) <- xas]
-    ds = [x | x@(_, Def _) <- xas]
-    ls = [x | x@(_, Loc _) <- xas]
-    us = [x | x@(_, Use _) <- xas]
+    rs = [x | x@(_, AnnRDf _) <- xas]
+    ds = [x | x@(_, AnnDef _) <- xas]
+    ls = [x | x@(_, AnnLoc _) <- xas]
+    us = [x | x@(_, AnnUse _) <- xas]
 
 ------------------------------------------------------------------------------
 -- | Tokenizing Refinement Type Annotations in @-blocks ----------------------
@@ -303,68 +320,16 @@ chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -}
   filter (/= "") $ concatMap (chopAlts [("{", ":"), ("|", "}")])
   $ chopAlts [("<{", "}>"), ("{", "}")] y
 
----------------------------------------------------------------
----------------- Annotations and Solutions --------------------
----------------------------------------------------------------
-
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Var, a)])
-
-data Annot        = Use SpecType 
-                  | Def SpecType 
-                  | RDf SpecType
-                  | Loc SrcSpan
-
-instance Monoid (AnnInfo a) where
-  mempty                  = AI M.empty
-  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
-
-instance Functor AnnInfo where
-  fmap f (AI m) = AI (fmap (fmap (\(x, y) -> (x, f y))  ) m)
-
-instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
 
 
-instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = () -- rnf x
-
-instance NFData Annot where
-  rnf (Def x) = () -- rnf x
-  rnf (RDf x) = () -- rnf x
-  rnf (Use x) = () -- rnf x
-  rnf (Loc x) = () -- rnf x
-
-instance PPrint Annot where
-  pprint (Use t) = text "Use" <+> pprint t
-  pprint (Def t) = text "Def" <+> pprint t
-  pprint (RDf t) = text "RDf" <+> pprint t
-  pprint (Loc l) = text "Loc" <+> pprDoc l
-
-pprAnnInfoBinds (l, xvs) 
-  = vcat $ map (pprAnnInfoBind . (l,)) xvs
-
-pprAnnInfoBind (RealSrcSpan k, xv) 
-  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
-    where l        = srcSpanStartLine k
-          c        = srcSpanStartCol k
-          (xd, vd) = pprXOT xv 
-          n        = length $ lines $ render vd
-
-pprAnnInfoBind (_, _) 
-  = empty
-
-pprXOT (x, v) = (xd, pprint v)
-  where
-    xd = maybe (text "unknown") pprint x
 
 applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
-  where appSolRefa _ ra@(RConc _) = ra 
-        -- appSolRefa _ p@(RPvar _)  = p  
-        appSolRefa s (RKvar k su) = RConc $ subst su $ M.lookupDefault PTop k s  
-        mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
-
-
+  where 
+    appSolRefa _ ra@(RConc _)        = ra 
+    -- appSolRefa _ p@(RPvar _)  = p  
+    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s  
+    mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
 
 ------------------------------------------------------------------------
 -- | JSON: Annotation Data Types ---------------------------------------
@@ -383,7 +348,7 @@ data Annot1    = A1  { ident :: String
 -- | Creating Vim Annotations ------------------------------------------
 ------------------------------------------------------------------------
 
-vimAnnot     :: Config -> AnnInfo SpecType -> String
+vimAnnot     :: Config -> AnnInfo Doc -> String
 vimAnnot cfg = L.intercalate "\n" . map vimBind . mkAnnMapBinders cfg 
 
 vimBind (sp, (v, ann)) = printf "%d:%d-%d:%d::%s" l1 c1 l2 c2 (v ++ " :: " ++ show ann) 
@@ -417,12 +382,12 @@ instance ToJSON Loc where
 instance ToJSON AnnErrors where 
   toJSON errs      = Array $ V.fromList $ fmap toJ errs
     where 
-      toJ (l,l',s) = object [ ("start"   .= toJSON l )
-                            , ("stop"    .= toJSON l') 
-                            , ("message" .= toJSON s ) ]
+      toJ (l,l',s) = object [ "start"   .= toJSON l 
+                            , "stop"    .= toJSON l' 
+                            , "message" .= toJSON s  ]
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
-  toJSON (Asc kas) = object [ (tshow k) .= (toJSON a) | (k, a) <- M.toList kas ]
+  toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
     where
       tshow        = T.pack . show 
 
@@ -442,6 +407,8 @@ annTypes a       = grp [(l, c, ann1 l c x s) | (l, c, x, s) <- binders]
 ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where 
     Asc rm         = M.lookupDefault (Asc M.empty) r m
+
+
 
 --------------------------------------------------------------------------------
 -- | A Little Unit Test --------------------------------------------------------

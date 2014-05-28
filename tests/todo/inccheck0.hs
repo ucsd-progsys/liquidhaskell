@@ -1,24 +1,27 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--short-names"    @-}
 
 module Test0 () where
 
+{-@ decr :: x:Int -> {v:Int | v < x} @-}
+decr :: Int -> Int
+decr xo = xo - 100
+
 {-@ plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
 plus :: Int -> Int -> Int
-plus x y = x + y
+plus x yo = x + yo
 
+{-@ goo :: Int -> Nat @-}
+goo :: Int -> Int
+goo x = x +  1
 
 {-@ incr :: x:Int -> {v:Int | v > x} @-}
 incr :: Int -> Int
-incr xoo = xoo `plus` zaa
+incr xoo = xoo  `plus` zaa
   where
      zaa = a00 - b00
      a00 = 300
      b00 = 2
-
-{-@ decr :: x:Int -> {v:Int | v < x} @-}
-decr :: Int -> Int
-decr x = x - 100
 
 {-@ jog :: x:Int -> {v:Int | v = x} @-}
 jog  :: Int -> Int

@@ -72,6 +72,7 @@ Executable liquid
                , unordered-containers
                , aeson
                , bytestring
+               , fingertree
                , liquidhaskell
 
   Main-is: Liquid.hs
@@ -105,6 +106,7 @@ Executable liquid
 --                , unordered-containers
 --                , aeson
 --                , bytestring
+--                , fingertree
 --                , liquidhaskell
 --                
 --   Main-is: CountBinders.hs
@@ -139,6 +141,7 @@ Library
                 , liquid-fixpoint
                 , aeson
                 , bytestring
+                , fingertree
  
    hs-source-dirs:  include, src
  

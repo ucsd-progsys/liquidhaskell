@@ -1,15 +1,16 @@
-{-# LANGUAGE IncoherentInstances        #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE NoMonomorphismRestriction  #-}
-{-# LANGUAGE FlexibleContexts           #-} 
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE RankNTypes                 #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE IncoherentInstances       #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleContexts          #-} 
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE PatternGuards             #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 -- room for refinements of various sorts.
@@ -58,9 +59,11 @@ import TypeRep          hiding (maybeParen, pprArrowChain)
 import Type             (splitFunTys, expandTypeSynonyms, isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType, isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 
-import Data.Monoid      hiding ((<>))
-import Data.Maybe               (fromMaybe, isJust)
-import Data.Hashable
+import qualified        Data.Text as T
+import           Data.Monoid      hiding ((<>))
+import           Data.Maybe               (fromMaybe, isJust)
+import           Data.Hashable
+import           Data.Aeson    
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
@@ -253,14 +256,11 @@ instance Fixpoint Class where
 instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c String r where
   ppCls   = ppClassString
   ppRType = ppr_rtype ppEnv
-  -- ppBase  = undefined 
 
 -- MOVE TO TYPES
 instance (Reftable r, PPrint r) => RefTypable Class RTyCon RTyVar r where
   ppCls   = ppClassClassPred
   ppRType = ppr_rtype ppEnv
-  -- ppBase  = undefined
-
 
 -- MOVE TO TYPES
 class FreeVar a v where 
@@ -1063,70 +1063,87 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: Error -> Doc
 ------------------------------------------------------------------------
-ppError (ErrAssType l OTerm s r) 
-  = pprintE l <+> text "Termination Check"
 
-ppError (ErrAssType l OInv s r) 
-  = pprintE l <+> text "Invariant Check"
+ppError e = ppError' (pprintE $ errSpan e) e
+pprintE l = pprint l <> text ": Error:"
 
-ppError (ErrSubType l s tA tE) 
-  = pprintE l <+> text "Liquid Type Mismatch"
---     DO NOT DELETE 
+ppError' dSp (ErrAssType _ OTerm s r) 
+  = dSp <+> text "Termination Check"
+
+ppError' dSp (ErrAssType _ OInv s r) 
+  = dSp <+> text "Invariant Check"
+
+ppError' dSp (ErrSubType _ s tA tE) 
+  = dSp <+> text "Liquid Type Mismatch"
+--     DO NOT DELETE EVER! 
 --     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
 --     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
 
-ppError (ErrParse l _ e)       
-  = pprintE l <+> text "Cannot parse specification:" 
+ppError' dSp (ErrParse _ _ e)       
+  = dSp <+> text "Cannot parse specification:" 
     $+$ (nest 4 $ pprint e)
 
-ppError (ErrTySpec l v t s)       
-  = pprintE l <+> text "Bad Type Specification"
-    $+$ (v <+> dcolon <+> pprint t) 
-    $+$ (nest 4 s)
+ppError' dSp (ErrTySpec _ v t s)       
+  = dSp <+> text "Bad Type Specification"
+    $+$ (pprint v <+> dcolon <+> pprint t) 
+    $+$ (nest 4 $ pprint s)
 
-ppError (ErrInvt l t s)
-  = pprintE l <+> text "Bad Invariant Specification" 
-    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ s)
+ppError' dSp (ErrInvt _ t s)
+  = dSp <+> text "Bad Invariant Specification" 
+    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
 
-ppError (ErrIAl l t s)
-  = pprintE l <+> text "Bad Using Specification" 
-    $+$ (nest 4 $ text "as" <+> pprint t $+$ s)
+ppError' dSp (ErrIAl _ t s)
+  = dSp <+> text "Bad Using Specification" 
+    $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
 
-ppError (ErrIAlMis l t1 t2 s)
-  = pprintE l <+> text "Incompatible Using Specification" 
-    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ s)
+ppError' dSp (ErrIAlMis _ t1 t2 s)
+  = dSp <+> text "Incompatible Using Specification" 
+    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
-ppError (ErrMeas l t s)
-  = pprintE l <+> text "Bad Measure Specification" 
-    $+$ (nest 4 $ text "measure " <+> pprint t $+$ s)
+ppError' dSp (ErrMeas _ t s)
+  = dSp <+> text "Bad Measure Specification" 
+    $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
-ppError (ErrDupSpecs l v ls)
-  = pprintE l <+> text "Multiple Specifications for" <+> v <> colon
+ppError' dSp (ErrDupSpecs _ v ls)
+  = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
     $+$ (nest 4 $ vcat $ pprint <$> ls) 
 
-ppError (ErrDupAlias l k v ls)
-  = pprintE l <+> text "Multiple Declarations! " 
-    $+$ (nest 2 $ text "Multiple Declarations of" <+> k <+> ppVar v $+$ text "Declared at:")
+ppError' dSp (ErrDupAlias _ k v ls)
+  = dSp <+> text "Multiple Declarations! " 
+    $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
     <+> (nest 4 $ vcat $ pprint <$> ls) 
 
-ppError (ErrGhc l s)       
-  = pprintE l <+> text "GHC Error"
-    $+$ (nest 4 s)
+ppError' dSp (ErrGhc _ s)       
+  = dSp <+> text "GHC Error"
+    $+$ (nest 4 $ pprint s)
 
-ppError (ErrMismatch l x τ t) 
-  = pprintE l <+> text "Specified Type Does Not Refine Haskell Type for" <+> x
+ppError' dSp (ErrMismatch _ x τ t) 
+  = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t 
-    
-ppError (ErrOther s)       
-  = text "Panic!" $+$ nest 4 s
+     
+ppError' dSp (ErrSaved _ s)       
+  = dSp <+> s
+
+ppError' _ (ErrOther _ s)       
+  = text "Panic!" <+> nest 4 (pprint s)
 
 
-ppVar v = text "`" <> v <> text "'"
+ppVar v = text "`" <> pprint v <> text "'"
+
+instance ToJSON Error where
+  toJSON e = object [ "pos" .= (errSpan e)
+                    , "msg" .= (render $ ppError' empty e)
+                    ]
+
+instance FromJSON Error where
+  parseJSON (Object v) = errSaved <$> v .: "pos" 
+                                  <*> v .: "msg"
+  parseJSON _          = mempty
 
 
-pprintE l = pprint l <> text ": Error:"
-
+errSaved :: SrcSpan -> String -> Error
+errSaved x = ErrSaved x . text
 -------------------------------------------------------------------------------
 
 mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
@@ -1135,7 +1152,7 @@ mkTyConInfo c = TyConInfo pos neg
         neg       = neutral ++ [i | (i, b) <- varsigns, not b, i /= dindex]
         varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
         initmap   = zip (showPpr <$> tyvars) [0..n]
-        mkmap vs  = zip (showPpr <$> vs) (repeat (dindex)) ++ initmap
+        mkmap vs  = zip (showPpr <$> vs) (repeat dindex) ++ initmap
         goDCon dc = concatMap (go (mkmap (DataCon.dataConExTyVars dc)) True)
                               (DataCon.dataConOrigArgTys dc)
         go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t

@@ -13,7 +13,6 @@ import Debug.Trace (trace)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)
-import Language.Haskell.Liquid.Annotate (Annot(..))
 
 s1 <:= s2 
   | any (==SDiv) s1 && any (==SFin) s2 = False
@@ -68,11 +67,11 @@ instance (SubStratum a, SubStratum b) => SubStratum (a, b) where
 instance (SubStratum a) => SubStratum [a] where
   subS su xs = subS su <$> xs
 
-instance SubStratum Annot where
-  subS su (Use t) = Use $ subS su t
-  subS su (Def t) = Def $ subS su t
-  subS su (RDf t) = RDf $ subS su t
-  subS su (Loc s) = Loc s
+instance SubStratum (Annot SpecType) where
+  subS su (AnnUse t) = AnnUse $ subS su t
+  subS su (AnnDef t) = AnnDef $ subS su t
+  subS su (AnnRDf t) = AnnRDf $ subS su t
+  subS su (AnnLoc s) = AnnLoc s
 
 instance SubStratum SpecType where
   subS su t = (\r -> r {ur_strata = subS su (ur_strata r)}) <$> t
