@@ -368,9 +368,8 @@ We can specify the invariants (A) and (B) via the refined type:
 These invariants ensure that any *index* we pick between `tOff` and
 `tOff + tLen` will be a valid index into `tArr`. 
 
-By using the signatures of functions like `new`, `unsafeWrite` and
-`unsafeFreeze` we can verify that the top-level function that creates
-`Text` from a `[Char]` has type:
+As shown above with `new`, `unsafeWrite`, and `unsafeFreeze`, we can type the
+top-level function that creates a `Text` from a `[Char]` as:
 
 \begin{code}
 {-@ pack :: s:String -> {v:Text | (tLen v) = (len s)} @-}
