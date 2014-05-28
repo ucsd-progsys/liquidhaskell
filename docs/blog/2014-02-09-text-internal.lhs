@@ -247,7 +247,7 @@ We can use these accessor measures to define `MArray`s of size `N`:
 {-@ type MArrayN a N = {v:MArray a | (maLen v) = N} @-}
 \end{code}
 
-and we can use the above alias, to nicely write a type that tracks the size
+and we can use the above alias, to write a type that tracks the size
 of an `MArray` at the point where it is created:
 
 \begin{code}
@@ -264,6 +264,7 @@ new n
 
 `new n` is an `ST` action that produces an `MArray s` with `n` slots each 
 of which is 2 bytes (as internally `text` manipulates `Word16`s).
+
 The verification process here is quite simple; LH recognizes that 
 the `n` used to construct the returned array (`MArray marr# n`) 
 the same `n` passed to `new`. 
