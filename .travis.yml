@@ -1,0 +1,31 @@
+language: haskell
+
+notifications:
+  email:
+    - gridaphobe@gmail.com
+
+before_install:
+  - git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
+  - sudo apt-get update -qq
+  - sudo apt-get install ocaml camlidl
+  - pushd /tmp/fixpoint && cabal install -fz3mem && popd
+
+install:
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks
+
+# Here starts the actual work to be performed for the package under
+# test; any command which exits with a non-zero exit code causes the
+# build to fail.
+script:
+ # -v2 provides useful information for debugging
+ - cabal install --enable-tests --enable-benchmarks -v2 -fz3mem
+
+ - cd tests
+ - PATH=$HOME/.cabal/bin:$PATH python regrtest.py -o '-s z3mem'
+ - cd ..
+ - cabal check
+
+ # tests that a source-distribution can be generated
+ - cabal sdist
+
+# EOF
