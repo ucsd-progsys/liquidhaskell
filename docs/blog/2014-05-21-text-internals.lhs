@@ -48,7 +48,7 @@ to a `Char`, using functions exported by `text`.
 [^bad]: This function is bad for numerous reasons, least of which is that `Data.Text.index` is already provided.
 
 \begin{code}Let's try this out in GHCi.
-ghci> let t = T.pack "dog"
+ghci> let t = T.pack ['d','o','g']
 ghci> charAt t 0
 'd'
 ghci> charAt t 2
@@ -78,7 +78,7 @@ with LiquidHaskell.
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
-module TextInternal where
+module TextInternal (test) where
 
 import qualified Control.Exception as Ex
 import Control.Monad.ST.Unsafe (unsafeIOToST)
@@ -122,6 +122,7 @@ memcpyM = undefined
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 
+{-@ pack :: s:String -> {v:Text | (tlen v) = (len s)} @-}
 pack :: String -> Text
 pack = undefined -- not "actually" using
 
@@ -355,32 +356,21 @@ A `Text` value consists of an *array*, an *offset*, and a *length*.
 data Text = Text Array Int Int
 \end{code}
 
-Now let's take a quick step back and recall the example
-that motivated this whole discussion.
+**ES**: still need to fix up this text..
 
-\begin{code}
-charAt (Text a o l) i = word2char $ unsafeIndex a i
-  where word2char = chr . fromIntegral
-\end{code}
-
-Fantastic! LiquidHaskell is telling us that our call to
-`unsafeIndex` is, in fact, **unsafe** because we don't know
-that `i` is a valid index.
-
-<!--
 The offset and length are `Nat`s satisfying two properties:
 
 1. `off <= aLen arr`, and
 2. `off + len <= aLen arr`
 
 \begin{code}
-{- type TValidO A   = {v:Nat | v     <= (aLen A)} @-}
-{- type TValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
+{-@ type TValidO A   = {v:Nat | v     <= (aLen A)} @-}
+{-@ type TValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
 
-{- data Text [tlen] = Text { tarr :: Array
-                            , toff :: TValidO tarr
-                            , tlen :: TValidL toff tarr
-                            }
+{-@ data Text = Text { tarr :: Array
+                     , toff :: TValidO tarr
+                     , tlen :: TValidL toff tarr
+                     }
   @-}
 \end{code}
 
@@ -390,7 +380,27 @@ convinced, consider the following `Text`s.
 
 ![the layout of multiple Texts](/images/text-layout.png)
 <div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
--->
+
+
+Now let's take a quick step back and recall the example
+that motivated this whole discussion.
+
+\begin{code}
+{-@ charAt :: t:Text -> {v:Nat | v < (tlen t)} -> Char @-}
+charAt (Text a o l) i = word2char $ unsafeIndex a i
+  where word2char = chr . fromIntegral
+
+
+test = [good,bad]
+  where
+    dog = ['d','o','g']
+    bad = charAt (pack dog) 4
+    good = charAt (pack dog) 2
+\end{code}
+
+Fantastic! LiquidHaskell is telling us that our call to
+`unsafeIndex` is, in fact, **unsafe** because we don't know
+that `i` is a valid index.
 
 Phew, that was a lot for one day, next time we'll take a look at how to handle
 uncode in `text`.
