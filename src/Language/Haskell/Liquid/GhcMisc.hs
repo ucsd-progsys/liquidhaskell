@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -23,7 +23,7 @@ import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
-import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
+import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
@@ -54,10 +54,13 @@ import qualified DataCon                      as DC
 import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
+import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
-import           Control.Applicative          ((<$>))
+import           Data.Aeson                 
+import qualified Data.Text                    as T
+import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
 import           Outputable                   (Outputable (..), text, ppr)
@@ -180,6 +183,52 @@ instance Hashable SrcSpan where
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
 
+instance ToJSON RealSrcSpan where
+  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
+                     , "startLine" .= l1 -- srcSpanStartLine sp 
+                     , "startCol"  .= c1 -- srcSpanStartCol  sp
+                     , "endLine"   .= l2 -- srcSpanEndLine   sp
+                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+                     ]
+    where 
+      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp          
+
+unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
+  where    
+    f                 = unpackFS $ srcSpanFile rsp
+    l1                = srcSpanStartLine rsp 
+    c1                = srcSpanStartCol  rsp
+    l2                = srcSpanEndLine   rsp
+    c2                = srcSpanEndCol    rsp
+    
+
+instance FromJSON RealSrcSpan where
+  parseJSON (Object v) = realSrcSpan <$> v .: "filename" 
+                                     <*> v .: "startLine"
+                                     <*> v .: "startCol"
+                                     <*> v .: "endLine"
+                                     <*> v .: "endCol"
+  parseJSON _          = mempty
+
+realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2 
+  where
+    loc1                  = mkRealSrcLoc (fsLit f) l1 c1
+    loc2                  = mkRealSrcLoc (fsLit f) l2 c2
+
+
+
+instance ToJSON SrcSpan where
+  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]  
+  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
+
+instance FromJSON SrcSpan where
+  parseJSON (Object v) = do tag <- v .: "realSpan"
+                            case tag of
+                              False -> return noSrcSpan 
+                              True  -> RealSrcSpan <$> v .: "spanInfo"
+  parseJSON _          = mempty
+
+
 -------------------------------------------------------
 
 toFixSDoc = PJ.text . PJ.render . toFix 
@@ -228,6 +277,7 @@ srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
+srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
 srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l

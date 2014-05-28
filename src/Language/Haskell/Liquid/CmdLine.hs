@@ -21,8 +21,8 @@ module Language.Haskell.Liquid.CmdLine (
    -- * Exit Function
    , exitWithResult
 
-   -- * Extra Outputs
-   , Output (..)
+   -- * Diff check mode
+   , diffcheck 
 ) where
 
 import Control.DeepSeq
@@ -35,7 +35,7 @@ import           Data.Monoid
 import qualified Data.HashMap.Strict as M
 
 import           System.FilePath                          (dropFileName)
-import           System.Environment                       (withArgs)
+import           System.Environment                       (lookupEnv, withArgs)
 import           System.Console.CmdArgs  hiding           (Loud)                
 import           System.Console.CmdArgs.Verbosity         (whenLoud)            
 
@@ -52,6 +52,7 @@ import Language.Haskell.Liquid.Types hiding     (config, typ, name)
 import Name
 import SrcLoc                                   (SrcSpan)
 import Text.PrettyPrint.HughesPJ    
+import Text.Parsec.Pos                          (newPos)
 
 
 ---------------------------------------------------------------------------------
@@ -67,7 +68,11 @@ config = Config {
  , idirs 
     = def &= typDir 
           &= help "Paths to Spec Include Directory " 
-   
+ 
+ , fullcheck 
+     = def 
+           &= help "Full Checking: check all binders (DEFAULT)" 
+  
  , diffcheck 
     = def 
           &= help "Incremental Checking: only check changed binders" 
@@ -93,7 +98,6 @@ config = Config {
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
-
 
  , totality 
     = def &= help "Check totality"
@@ -133,20 +137,31 @@ config = Config {
               ]
 
 getOpts :: IO Config 
-getOpts = do md <- cmdArgs config 
+getOpts = do cfg0    <- envCfg 
+             cfg1    <- mkOpts =<< cmdArgs config 
+             let cfg  = fixCfg $ mconcat [cfg0, cfg1]
              putStrLn copyright
-             whenLoud $ putStrLn $ "liquid " ++ show md ++ "\n"
-             mkOpts md
+             whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
+             return cfg
 
-copyright = "LiquidHaskell © Copyright 2009-13 Regents of the University of California. All Rights Reserved.\n"
+fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) } 
+
+envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
+            case so of
+              Nothing -> return mempty
+              Just s  -> parsePragma $ envLoc s
+         where 
+            envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
+
+copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
-mkOpts md  
-  = do files' <- sortNub . concat <$> mapM getHsTargets (files md) 
-       -- idirs' <- if null (idirs md) then single <$> getIncludeDir else return (idirs md)
+mkOpts cfg  
+  = do files' <- sortNub . concat <$> mapM getHsTargets (files cfg) 
+       -- idirs' <- if null (idirs cfg) then single <$> getIncludeDir else return (idirs cfg)
        id0 <- getIncludeDir 
-       return  $ md { files = files' } 
-                    { idirs = (dropFileName <$> files') ++ [id0] ++ idirs md }
+       return  $ cfg { files = files' } 
+                     { idirs = (dropFileName <$> files') ++ [id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
 
 ---------------------------------------------------------------------------------------
@@ -168,23 +183,25 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 -- | Monoid instances for updating options
 ---------------------------------------------------------------------------------------
 
+  
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def 2 def def def
-  mappend c1 c2 = Config (sortNub $ files c1   ++     files          c2)
-                         (sortNub $ idirs c1   ++     idirs          c2)
-                         (diffcheck c1         ||     diffcheck      c2) 
-                         (sortNub $ binders c1 ++     binders        c2) 
-                         (noCheckUnknown c1    ||     noCheckUnknown c2) 
-                         (notermination  c1    ||     notermination  c2) 
-                         (nocaseexpand   c1    ||     nocaseexpand   c2) 
-                         (strata         c1    ||     strata         c2) 
-                         (notruetypes    c1    ||     notruetypes    c2) 
-                         (totality       c1    ||     totality       c2) 
-                         (noPrune        c1    ||     noPrune        c2) 
-                         (maxParams      c1   `max`   maxParams      c2)
-                         (smtsolver c1      `mappend` smtsolver      c2)
-                         (shortNames c1        ||     shortNames     c2)
-                         (ghcOptions c1        ++     ghcOptions     c2)
+  mempty        = Config def def def def def def def def def def def def 2 def def def
+  mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2  
+                         , idirs          = sortNub $ idirs c1   ++     idirs          c2 
+                         , fullcheck      = fullcheck c1         ||     fullcheck      c2  
+                         , diffcheck      = diffcheck c1         ||     diffcheck      c2  
+                         , binders        = sortNub $ binders c1 ++     binders        c2  
+                         , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2  
+                         , notermination  = notermination  c1    ||     notermination  c2  
+                         , nocaseexpand   = nocaseexpand   c1    ||     nocaseexpand   c2  
+                         , strata         = strata         c1    ||     strata         c2  
+                         , notruetypes    = notruetypes    c1    ||     notruetypes    c2  
+                         , totality       = totality       c1    ||     totality       c2  
+                         , noPrune        = noPrune        c1    ||     noPrune        c2  
+                         , maxParams      = maxParams      c1   `max`   maxParams      c2 
+                         , smtsolver      = smtsolver c1      `mappend` smtsolver      c2 
+                         , shortNames     = shortNames c1        ||     shortNames     c2 
+                         , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2 }
 
 instance Monoid SMTSolver where
   mempty        = def
@@ -198,18 +215,19 @@ instance Monoid SMTSolver where
 -- | Exit Function -----------------------------------------------------
 ------------------------------------------------------------------------
 
-exitWithResult :: Config -> FilePath -> Maybe Output -> ErrorResult -> IO ErrorResult
-exitWithResult cfg target o r = writeExit cfg target r $ fromMaybe emptyOutput o
-
-writeExit cfg target r out
-  = do {-# SCC "annotate" #-} annotate cfg target r (o_soln out) (o_annot out)
-       donePhase Loud "annotate"
+------------------------------------------------------------------------
+exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc) 
+------------------------------------------------------------------------
+exitWithResult cfg target out
+  = do let r  = o_result out 
        let rs = showFix r
+       {-# SCC "annotate" #-} annotate cfg target out
+       donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        writeWarns     $ o_warns out
        writeResult (colorResult r) r
        writeFile   (extFileName Result target) rs
-       return $ if null (o_warns out) then r else Unsafe []
+       return $ out { o_result = if null (o_warns out) then r else Unsafe [] }
 
 writeWarns []            = return () 
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
@@ -227,20 +245,9 @@ writeResult c            = mapM_ (writeDoc c) . zip [0..] . resDocs
 resDocs Safe             = [text "SAFE"]
 resDocs (Crash xs s)     = text ("CRASH: " ++ s) : pprManyOrdered "" {- "CRASH: " -} xs
 resDocs (Unsafe xs)      = text "UNSAFE" : pprManyOrdered "" {- "UNSAFE: " -} (nub xs)
-resDocs (UnknownError d) = [text "PANIC: Unexpected Error: " <+> d, reportUrl]
+resDocs (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl]
 reportUrl                = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs
 
-------------------------------------------------------------------------
--- | Stuff To Output ---------------------------------------------------
-------------------------------------------------------------------------
-
-data Output = O { o_vars   :: Maybe [Name] 
-                , o_warns  :: [String]
-                , o_soln   :: FixSolution 
-                , o_annot  :: !(AnnInfo Annot)
-                }
-
-emptyOutput = O Nothing [] M.empty mempty 

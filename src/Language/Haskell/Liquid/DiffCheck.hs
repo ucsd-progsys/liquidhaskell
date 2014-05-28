@@ -1,40 +1,83 @@
 -- | This module contains the code for Incremental checking, which finds the 
 --   part of a target file (the subset of the @[CoreBind]@ that have been 
---   modified since it was last checked (as determined by a diff against
+--   modified since it was last checked, as determined by a diff against
 --   a saved version of the file. 
 
-module Language.Haskell.Liquid.DiffCheck (slice, save, thin) where
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE FlexibleInstances         #-}
 
-import            Control.Applicative          ((<$>))
+module Language.Haskell.Liquid.DiffCheck (
+  
+   -- * Changed binders + Unchanged Errors
+     DiffCheck (..)
+   
+   -- * Use previously saved info to generate DiffCheck target 
+   , slice
+
+   -- * Use target binders to generate DiffCheck target 
+   , thin
+   
+   -- * Save current information for next time 
+   , saveResult
+
+   ) 
+   where
+
+import            Control.Applicative          ((<$>), (<*>))
+import            Data.Aeson                   
+import qualified  Data.Text as T
 import            Data.Algorithm.Diff
+import            Data.Monoid                   (mempty)
+import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
+import            Data.Hashable
+import qualified  Data.IntervalMap.FingerTree as IM 
 import            CoreSyn                      
 import            Name
 import            SrcLoc  
--- import            Outputable 
 import            Var 
-import qualified  Data.HashSet                 as S    
-import qualified  Data.HashMap.Strict          as M    
-import qualified  Data.List                    as L
-import            Data.Function                (on)
-import            System.Directory             (copyFile, doesFileExist)
-
+import qualified  Data.HashSet                  as S    
+import qualified  Data.HashMap.Strict           as M    
+import qualified  Data.List                     as L
+import            Data.Function                   (on)
+import            System.Directory                (copyFile, doesFileExist)
+import            Language.Fixpoint.Misc          (traceShow)
+import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
+import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo (..), Error (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
-import            Text.Parsec.Pos              (sourceLine) 
-import            Control.Monad(forM)
+import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import            Text.PrettyPrint.HughesPJ       (text, render, Doc)
+import            Control.Monad                   (forM, forM_)
 
+import qualified  Data.ByteString               as B
+import qualified  Data.ByteString.Lazy          as LB
 
 -------------------------------------------------------------------------
 -- Data Types -----------------------------------------------------------
 -------------------------------------------------------------------------
 
-data Def  = D { start  :: Int
-              , end    :: Int
-              , binder :: Var 
+-- | Main type of value returned for diff-check.
+data DiffCheck = DC { newBinds  :: [CoreBind] 
+                    , oldOutput :: !(Output Doc)
+                    }
+
+data Def  = D { binder :: Var -- ^ name of binder
+              , start  :: Int -- ^ line at which binder definition starts
+              , end    :: Int -- ^ line at which binder definition ends
               } 
             deriving (Eq, Ord)
-              
+
+-- | Variable dependencies "call-graph"
+type Deps = M.HashMap Var (S.HashSet Var)
+
+-- | Map from saved-line-num ---> current-line-num
+type LMap   = IM.IntervalMap Int Int
+
+-- | Intervals of line numbers that have been re-checked
+type ChkItv = IM.IntervalMap Int ()
+
+
 instance Show Def where 
   show (D i j x) = showPpr x ++ " start: " ++ show i ++ " end: " ++ show j
 
@@ -44,26 +87,38 @@ instance Show Def where
 --    file which correspond to top-level binders whose code has changed 
 --    and their transitive dependencies.
 -------------------------------------------------------------------------
-slice :: FilePath -> [CoreBind] -> IO [CoreBind] 
+slice :: FilePath -> [CoreBind] -> IO (Maybe DiffCheck)
 -------------------------------------------------------------------------
-slice target cbs
-  = do let saved = extFileName Saved target
-       ex  <- doesFileExist saved 
-       if ex then do is      <- {- tracePpr "INCCHECK: changed lines" <$> -} lineDiff target saved
-                     let dfs  = coreDefs cbs
-                     forM dfs $ putStrLn . ("INCCHECK: Def " ++) . show 
-                     let xs   = diffVars is dfs   
-                     return   $ thin cbs xs
-             else return cbs 
+slice target cbs = ifM (doesFileExist saved) (Just <$> dc) (return Nothing)
+  where 
+    saved        = extFileName Saved target
+    dc           = sliceSaved target saved cbs 
 
--- | `thin` returns a subset of the @[CoreBind]@ given which correspond
+sliceSaved :: FilePath -> FilePath -> [CoreBind] -> IO DiffCheck
+sliceSaved target saved cbs 
+  = do (is, lm) <- lineDiff target saved
+       res      <- loadResult target
+       return    $ sliceSaved' is lm (DC cbs res) 
+
+sliceSaved'          :: [Int] -> LMap -> DiffCheck -> DiffCheck
+sliceSaved' is lm dc = DC cbs' res'
+  where
+    cbs'             = thin cbs $ diffVars is dfs
+    res'             = adjustOutput lm cm res
+    cm               = checkedItv chDfs
+    dfs              = coreDefs cbs
+    chDfs            = coreDefs cbs'
+    DC cbs res       = dc
+
+-- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
 -------------------------------------------------------------------------
-thin :: [CoreBind] -> [Var] -> [CoreBind]
+thin :: [CoreBind] -> [Var] -> [CoreBind] 
 -------------------------------------------------------------------------
-thin cbs xs = filterBinds cbs ys
+thin cbs xs = filterBinds cbs ys 
   where
-    ys = dependentVars (coreDeps cbs) $ S.fromList xs
+    ys      = dependentVars (coreDeps cbs) $ S.fromList xs
+
 
 -------------------------------------------------------------------------
 filterBinds        :: [CoreBind] -> S.HashSet Var -> [CoreBind]
@@ -76,7 +131,7 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDefs cbs = L.sort [D x l l' | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
@@ -102,12 +157,8 @@ meetSpans b (Just (l,l')) Nothing
 meetSpans b (Just (l,l')) (Just (m,_)) 
   = (max l m, l')
 
--- coreDef b    = lineSpan $ catSpans b $ map getSrcSpan 
---                         $ tracePpr ("INCCHECK: letvars " ++ showPpr (bindersOf b)) 
---                         $ letVars b 
-
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan b _                = Nothing -- error $ "INCCHECK: lineSpan unexpected dummy span in lineSpan" ++ showPpr (bindersOf b)
+lineSpan b _                = Nothing 
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs             = foldr1 combineSrcSpans xs
@@ -127,22 +178,6 @@ exprSpans e               = []
 
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 
-
--- coreDefs cbs = mkDefs lxs 
---   where
---     lxs      = coreDefs' cbs
---     -- lxs      = L.sortBy (compare `on` fst) [(line x, x) | x <- xs ]
---     -- xs       = concatMap bindersOf cbs
---     -- line     = sourceLine . getSourcePos 
--- 
--- mkDefs []          = []
--- mkDefs ((l,x):lxs) = case lxs of
---                        []       -> [D l Nothing x]
---                        (l',_):_ -> (D l (Just l') x) : mkDefs lxs
--- 
--- coreDefs' cbs = L.sort [(l, x) | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
-
-
 -------------------------------------------------------------------------
 coreDeps  :: [CoreBind] -> Deps
 -------------------------------------------------------------------------
@@ -152,13 +187,11 @@ bindDep b = [(x, ys) | x <- bindersOf b]
   where 
     ys    = S.fromList $ freeVars S.empty b
 
-type Deps = M.HashMap Var (S.HashSet Var)
-
 -------------------------------------------------------------------------
 dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
 -------------------------------------------------------------------------
-dependentVars d xs = {- tracePpr "INCCHECK: tx changed vars" $ -} 
-                     go S.empty $ {- tracePpr "INCCHECK: seed changed vars" -} xs
+dependentVars d    = {- tracePpr "INCCHECK: tx changed vars" $ -} 
+                     go S.empty {- tracePpr "INCCHECK: seed changed vars" -} 
   where 
     pre            = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
@@ -185,29 +218,217 @@ diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines 
 -- Diff Interface -------------------------------------------------------
 -------------------------------------------------------------------------
 
--- | `save` creates an .saved version of the `target` file, which will be 
---    used to find what has changed the /next time/ `target` is checked.
--------------------------------------------------------------------------
-save :: FilePath -> IO ()
--------------------------------------------------------------------------
-save target = copyFile target $ extFileName Saved target
 
-
--- | `lineDiff src dst` compares the contents of `src` with `dst` 
+-- | `lineDiff new old` compares the contents of `src` with `dst` 
 --   and returns the lines of `src` that are different. 
 -------------------------------------------------------------------------
-lineDiff :: FilePath -> FilePath -> IO [Int]
+lineDiff :: FilePath -> FilePath -> IO ([Int], LMap)
 -------------------------------------------------------------------------
-lineDiff src dst 
-  = do s1      <- getLines src 
-       s2      <- getLines dst
-       let ns   = diffLines 1 $ getGroupedDiff s1 s2
-       putStrLn $ "INCCHECK: diff lines = " ++ show ns
-       return ns
+lineDiff new old  = lineDiff' <$> getLines new <*> getLines old 
+  where
+    getLines      = fmap lines . readFile
 
-diffLines _ []              = []
-diffLines n (Both ls _ : d) = diffLines n' d                         where n' = n + length ls
-diffLines n (First ls : d)  = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + length ls
-diffLines n (Second _ : d)  = diffLines n d 
+lineDiff'         :: [String] -> [String] -> ([Int], LMap)
+lineDiff' new old = (ns, lm)
+  where 
+    ns            = diffLines 1 diff
+    lm            = foldr setShift IM.empty $ diffShifts diff
+    diff          = fmap length <$> getGroupedDiff new old
 
-getLines = fmap lines . readFile
+diffLines _ []                  = []
+diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
+diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + i -- length ls
+diffLines n (Second _ : d)      = diffLines n d 
+
+diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
+diffShifts                      = go 1 1  
+  where
+    go old new (Both n _ : d)   = (old, old + n - 1, new - old) : go (old + n) (new + n) d
+    go old new (Second n : d)   = go (old + n) new d
+    go old new (First n  : d)   = go old (new + n) d
+    go _   _   []               = []
+
+instance Functor Diff where
+  fmap f (First x)  = First (f x)
+  fmap f (Second x) = Second (f x)
+  fmap f (Both x y) = Both (f x) (f y)
+
+-- | @save@ creates an .saved version of the @target@ file, which will be 
+--    used to find what has changed the /next time/ @target@ is checked.
+-------------------------------------------------------------------------
+saveResult :: FilePath -> Output Doc -> IO ()
+-------------------------------------------------------------------------
+saveResult target res 
+  = do copyFile target saveF
+       B.writeFile errF $ LB.toStrict $ encode res 
+    where
+       saveF = extFileName Saved  target
+       errF  = extFileName Cache  target
+
+-------------------------------------------------------------------------
+loadResult   :: FilePath -> IO (Output Doc)
+-------------------------------------------------------------------------
+loadResult f = ifM (doesFileExist jsonF) out (return mempty)  
+  where
+    jsonF    = extFileName Cache f
+    out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
+
+-------------------------------------------------------------------------
+adjustOutput :: LMap -> ChkItv -> Output Doc -> Output Doc 
+-------------------------------------------------------------------------
+adjustOutput lm cm o  = mempty { o_types  = adjustTypes  lm cm (o_types  o) }
+                               { o_result = adjustResult lm cm (o_result o) }
+
+adjustTypes :: LMap -> ChkItv -> AnnInfo a -> AnnInfo a
+adjustTypes lm cm (AI m)          = AI $ M.fromList 
+                                    [(sp', v) | (sp, v)  <- M.toList m
+                                              , Just sp' <- [adjustSrcSpan lm cm sp]]
+
+adjustResult :: LMap -> ChkItv -> FixResult Error -> FixResult Error 
+adjustResult lm cm (Unsafe es)    = errorsResult Unsafe      $ adjustErrors lm cm es
+adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
+adjustResult _  _  r              = r
+
+errorsResult f []                 = Safe
+errorsResult f es                 = f es
+
+adjustErrors lm cm                = mapMaybe adjustError
+  where 
+    adjustError (ErrSaved sp msg) =  (`ErrSaved` msg) <$> adjustSrcSpan lm cm sp 
+    adjustError e                 = Just e 
+
+-------------------------------------------------------------------------
+adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
+-------------------------------------------------------------------------
+adjustSrcSpan lm cm sp 
+  = do sp' <- adjustSpan lm sp
+       if isCheckedSpan cm sp' 
+         then Nothing 
+         else Just sp'
+
+isCheckedSpan cm (RealSrcSpan sp) = isCheckedRealSpan cm sp
+isCheckedSpan _  _                = False
+isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine  
+
+adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp 
+adjustSpan lm sp                  = Just sp 
+adjustReal lm rsp
+  | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | otherwise                     = Nothing
+  where
+    (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp 
+  
+-- DELETE unCheckedDefs cd                  = filter (not . isCheckedError cm) 
+-- DELETE   where 
+-- DELETE     cm                            = checkedItv cd
+-- DELETE    
+-- DELETE isCheckedError cm e
+-- DELETE   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
+-- DELETE   | otherwise                    = False
+
+
+-- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
+-- in the diff and returns @Nothing@ otherwise.
+getShift     :: Int -> LMap -> Maybe Int
+getShift old = fmap snd . listToMaybe . IM.search old
+
+-- | @setShift (lo, hi, δ) lm@ updates the interval map @lm@ appropriately
+setShift             :: (Int, Int, Int) -> LMap -> LMap
+setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
+
+
+checkedItv :: [Def] -> ChkItv
+checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is 
+  where
+    is            = [IM.Interval l1 l2 | D _ l1 l2 <- chDefs]
+
+
+ifM b x y    = b >>= \z -> if z then x else y
+
+-------------------------------------------------------------------------
+-- | Aeson instances ----------------------------------------------------
+-------------------------------------------------------------------------
+
+instance ToJSON SourcePos where
+  toJSON p = object [   "sourceName"   .= f
+                      , "sourceLine"   .= l
+                      , "sourceColumn" .= c
+                      ]
+             where
+               f    = sourceName   p
+               l    = sourceLine   p
+               c    = sourceColumn p
+
+instance FromJSON SourcePos where
+  parseJSON (Object v) = newPos <$> v .: "sourceName"   
+                                <*> v .: "sourceLine"   
+                                <*> v .: "sourceColumn"  
+  parseJSON _          = mempty
+
+
+instance ToJSON (FixResult Error)
+instance FromJSON (FixResult Error)
+
+instance ToJSON Doc where
+  toJSON = String . T.pack . render 
+
+instance FromJSON Doc where
+  parseJSON (String s) = return $ text $ T.unpack s
+  parseJSON _          = mempty
+
+instance (ToJSON k, ToJSON v) => ToJSON (M.HashMap k v) where
+  toJSON = toJSON . M.toList
+
+instance (Eq k, Hashable k, FromJSON k, FromJSON v) => FromJSON (M.HashMap k v) where
+  parseJSON = fmap M.fromList . parseJSON
+
+instance ToJSON a => ToJSON (AnnInfo a)
+instance FromJSON a => FromJSON (AnnInfo a)
+
+instance ToJSON (Output Doc)
+instance FromJSON (Output Doc)
+
+-- Move to Fixpoint
+-- instance ToJSON   Symbol  
+-- instance FromJSON Symbol  
+-- instance ToJSON   Subst 
+-- instance FromJSON Subst
+-- instance ToJSON   Sort
+-- instance FromJSON Sort
+-- instance ToJSON   SymConst 
+-- instance FromJSON SymConst
+-- instance ToJSON   Constant 
+-- instance FromJSON Constant
+-- instance ToJSON   Bop  
+-- instance FromJSON Bop 
+-- instance ToJSON   Brel  
+-- instance FromJSON Brel
+-- instance ToJSON   LocSymbol 
+-- instance FromJSON LocSymbol 
+-- instance ToJSON   FTycon 
+-- instance FromJSON FTycon 
+-- instance ToJSON   Expr 
+-- instance FromJSON Expr 
+-- instance ToJSON   Pred 
+-- instance FromJSON Pred 
+-- instance ToJSON   Refa 
+-- instance FromJSON Refa 
+-- instance ToJSON   Reft
+-- instance FromJSON Reft
+-- 
+-- -- Move to Types
+-- instance ToJSON   Predicate 
+-- instance FromJSON Predicate 
+-- instance ToJSON   LParseError 
+-- instance FromJSON LParseError 
+-- instance ToJSON   Oblig 
+-- instance FromJSON Oblig 
+-- instance ToJSON   Stratum
+-- instance FromJSON Stratum
+-- instance ToJSON   RReft
+-- instance FromJSON RReft
+-- instance ToJSON   UsedPVar
+-- instance FromJSON UsedPVar
+-- instance ToJSON   EMsg 
+-- instance FromJSON EMsg
+

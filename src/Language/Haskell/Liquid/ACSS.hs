@@ -29,7 +29,7 @@ import Language.Haskell.Liquid.GhcMisc
 data AnnMap  = Ann { 
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
   , errors :: [(Loc, Loc, String)]           -- ^ List of error intervals
-  , status :: !Status 
+  , status :: !Status          
   } 
   
 data Status = Safe | Unsafe | Error | Crash 

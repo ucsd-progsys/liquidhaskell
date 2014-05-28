@@ -1,7 +1,10 @@
-{-# LANGUAGE FlexibleContexts           #-} 
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE UndecidableInstances       #-}
--- | Module with all the printing routines
+{-# LANGUAGE FlexibleContexts     #-} 
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TupleSections        #-}
+
+-- | Module with all the printing and serialization routines
 
 module Language.Haskell.Liquid.PrettyPrint (
   
@@ -9,7 +12,7 @@ module Language.Haskell.Liquid.PrettyPrint (
     ppr_rtype
 
   -- * Converting To String
-  , showpp
+  -- , showpp
 
   -- * Printing an Orderable List
   , pprManyOrdered 
@@ -20,7 +23,7 @@ module Language.Haskell.Liquid.PrettyPrint (
 
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
-import SrcLoc                           (SrcSpan)
+import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
 import GHC                              (Name, Class)
 import TcType                           (tidyType)
 import VarEnv                           (emptyTidyEnv)
@@ -31,14 +34,20 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Text.Parsec.Pos  (SourcePos)
+import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error (ParseError)
 import Var              (Var)
-import Control.Applicative ((<$>))
+import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort)
 import Data.Function (on)
 import Data.Monoid   (mempty)
+import Data.Aeson    
+import qualified Data.Text as T
+import qualified Data.HashMap.Strict as M
+
+instance PPrint Doc where
+  pprint x = x 
 
 instance PPrint ErrMsg where
   pprint = text . show
@@ -46,8 +55,11 @@ instance PPrint ErrMsg where
 instance PPrint SourceError where
   pprint = text . show
 
-instance PPrint ParseError where 
-  pprint = text . show 
+-- instance PPrint ParseError where 
+--   pprint = text . show 
+
+instance PPrint LParseError where
+  pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
 
 instance PPrint Var where
   pprint = pprDoc 
@@ -258,3 +270,34 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
 
 pprintLongList :: PPrint a => [a] -> Doc
 pprintLongList = brackets . vcat . map pprint
+
+
+
+instance (PPrint t) => PPrint (Annot t) where
+  pprint (AnnUse t) = text "AnnUse" <+> pprint t
+  pprint (AnnDef t) = text "AnnDef" <+> pprint t
+  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
+  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+
+pprAnnInfoBinds (l, xvs) 
+  = vcat $ map (pprAnnInfoBind . (l,)) xvs
+
+pprAnnInfoBind (RealSrcSpan k, xv) 
+  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
+    where 
+      l        = srcSpanStartLine k
+      c        = srcSpanStartCol k
+      (xd, vd) = pprXOT xv 
+      n        = length $ lines $ render vd
+
+pprAnnInfoBind (_, _) 
+  = empty
+
+pprXOT (x, v) = (xd, pprint v)
+  where
+    xd = maybe (text "unknown") pprint x
+
+instance PPrint a => PPrint (AnnInfo a) where
+  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
+

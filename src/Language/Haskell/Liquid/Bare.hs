@@ -275,7 +275,7 @@ expandAlias :: Show p => p -> [String] -> BareType -> BareM SpecType
 expandAlias l = go
   where
     go s t@(RApp (Loc _ c) _ _ _)
-      | c `elem` s = Ex.throw $ ErrOther $ text
+      | c `elem` s = Ex.throw $ errOther $ text 
                               $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
       | otherwise  = lookupExpandRTApp l s t
     go s (RVar a r)       = RVar (stringRTyVar a) <$> resolve r
@@ -761,7 +761,7 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
     go t                st                 = Ex.throw err
      where
-       err = ErrOther $ text msg
+       err = errOther $ text msg
        msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 showTopLevelVars vs = 
@@ -1331,16 +1331,10 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
 
--- specError            = errorstar 
---                      . render 
---                      . vcat 
---                      . punctuate (text "\n----\n") 
---                      . (text "Alas, errors found in specification..." :)
-
 checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb env t   = checkTy err emb env (val t) 
   where 
-    err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
+    err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t) 
 
 checkIAl :: TCEmb TyCon -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
 checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
@@ -1348,20 +1342,20 @@ checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
 checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where 
     tcheck t = checkTy (err t) emb env (val t)
-    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t)
+    err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t) 
     t1'      :: RSort 
     t1'      = toRSort $ val t1
     t2'      :: RSort 
     t2'      = toRSort $ val t2
-    checkEq  = if (t1' == t2') then Nothing else Just $ errmis
-    errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) (pprint t1 <+> text "does not match with" <+> pprint t2 ) 
-
+    checkEq  = if (t1' == t2') then Nothing else Just errmis
+    errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) emsg
+    emsg     = pprint t1 <+> text "does not match with" <+> pprint t2 
 
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
 checkBind s emb env (v, Loc l t) = checkTy msg emb env' t
   where 
-    msg = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+    msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 

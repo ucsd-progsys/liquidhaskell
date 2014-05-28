@@ -158,25 +158,96 @@ for example, to disable termination checking (see below)
 
     {-@ LIQUID "--notermination" @-}
 
-Ignore False Predicates
+You may also put command line options in the environment variable
+`LIQUIDHASKELL_OPTS`. For example, if you add the line:
+  
+    LIQUIDHASKELL_OPTS="--diff"
+
+to your `.bashrc` then, by default, all files will be 
+*incrementally checked* unless you run with the overriding 
+`--full` flag (see below).
+
+Incremental Checking
+--------------------
+
+LiquidHaskell supports *incremental* checking where each run only checks 
+the part of the program that has been modified since the previous run.
+
+    $ liquid --diff foo.hs
+
+Each run of `liquid` saves the file to a `.bak` file and the *subsequent* 
+run 
+    + does a `diff` to see what has changed w.r.t. the `.bak` file
+    + only generates constraints for the `[CoreBind]` corresponding to the 
+       changed top-level binders and their transitive dependencies.
+
+The time savings are quite significant. For example:
+
+    $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
+
+    real	7m3.179s
+    user	4m18.628s
+    sys	    0m21.549s
+
+Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
+
+    $ time liquid -d --notermination -i . Data/ByteString.hs > log 2>&1
+
+    real	0m11.584s
+    user	0m6.008s
+    sys	    0m0.696s
+
+The diff is only performed against **code**, i.e. if you only change
+specifications, qualifiers, measures, etc. `liquid -d` will not perform
+any checks. In this case, you may specify individual definitions to verify:
+
+    $ liquid -b bar -b baz foo.hs
+
+This will verify `bar` and `baz`, as well as any functions they use.
+
+If you always want to run a given file with diff-checking, add
+the pragma:
+
+    {-@ LIQUID "--diff" @-}
+
+
+Full Checking (DEFAULT)
 -----------------------
 
-[PLEASE EDIT: I have no idea what "ignoring false predicates means"]
+To force LiquidHaskell to check the **whole** file (DEFAULT), use:
 
-To ignore false predicates use the nofalse option
- 
-    liquid --nofalse test.hs
+    $ liquid --full foo.hs
 
-See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
+to the file. This will override any other `--diff` incantation 
+elsewhere (e.g. inside the file.)
 
-Prune Unsorted Predicates
--------------------------
 
-By default unsorted predicates are pruned away (yielding `true` 
-for the corresponding refinement.) To disable this behaviour 
-use the `no-prune-unsorted` flag.
- 
-    liquid --no-prune-unsorted test.hs
+If you always want to run a given file with full-checking, add
+the pragma:
+
+    {-@ LIQUID "--full" @-}
+
+Specifying Different SMT Solvers
+--------------------------------
+
+By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+
+To run a different solver (supporting SMTLIB2) do:
+
+    $ liquid --smtsolver=NAME foo.hs
+
+Currently, LiquidHaskell supports
+
++ [CVC4](http://cvc4.cs.nyu.edu/) 
++ [MathSat](http://mathsat.fbk.eu/download.html )
+
+To use these solvers, you must install the corresponding binaries
+from the above web-pages into your `PATH`.
+
+You can also build and link against the Z3 API (faster but requires more
+dependencies). If you do so, you can use that interface with:
+
+    $ liquid --smtsolver=z3mem foo.hs
 
 Totality Check
 --------------
@@ -303,71 +374,27 @@ it is used. For example, with the above annotation the following code is SAFE:
 By default, all the variables starting with `fail` are marked as LAZY, to defer
 failing checks at the point where these variables are used.
 
-Specifying Different SMT Solvers
---------------------------------
+Prune Unsorted Predicates
+-------------------------
 
-By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+By default unsorted predicates are pruned away (yielding `true` 
+for the corresponding refinement.) To disable this behaviour 
+use the `no-prune-unsorted` flag.
+ 
+    liquid --no-prune-unsorted test.hs
 
-To run a different solver (via SMTLIB2 bindings) do:
+Ignore False Predicates
+-----------------------
 
-    $ liquid --smtsolver=NAME foo.hs
+[PLEASE EDIT: I have no idea what "ignoring false predicates means"]
 
-Currently, LiquidHaskell supports
+To ignore false predicates use the nofalse option
+ 
+    liquid --nofalse test.hs
 
-+ [CVC4](http://cvc4.cs.nyu.edu/) 
-+ [MathSat](http://mathsat.fbk.eu/download.html )
+See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
-To use these solvers, you must install the corresponding binaries
-from the above web-pages into your PATH.
 
-You can also build and link against the Z3 API (faster but requires more
-dependencies). If you do so, you can use that interface with:
-
-    $ liquid --smtsolver=z3mem foo.hs
-
-Incremental Checking
---------------------
-
-LiquidHaskell supports *incremental* checking where each run only checks
-the part of the program that has been modified since the previous run.
-
-    $ liquid -d foo.hs
-
-1. Each run of `liquid` saves the file to a `.bak` file and
-
-2. Each subsequent run 
-    + does a `diff` to see what has changed w.r.t. the `.bak` file
-    + only generates constraints for the `[CoreBind]` corresponding to the 
-       changed top-level binders and their transitive dependencies.
-
-**Note:** Subsequent runs will report **Safe** if there are no errors in the
-changed portions but there *are* errors in the unchanged portion. Thus, you
-should finally run *without* the `-d` option before concluding a module is Safe!
-
-The time savings are quite significant. For example:
-
-    $ time liquid --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
-
-    real	7m3.179s
-    user	4m18.628s
-    sys	    0m21.549s
-
-Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
-
-    $ time liquid -d --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
-
-    real	0m11.584s
-    user	0m6.008s
-    sys	0m0.696s
-
-The diff is only performed against *code*, i.e. if you only change
-specifications, qualifiers, measures, etc. `liquid -d` will not perform
-any checks. In this case, you may specify individual definitions to
-verify:
-
-    $ liquid -b bar -b baz foo.hs
-
-This will verify `bar` and `baz`, as well as any functions they use.
 
 Writing Specifications
 ======================
@@ -790,6 +817,6 @@ let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
 + To pass extra options to liquidhaskell add: 
 
 ~~~~~
-let g:syntastic_haskell_liquid_args = "--diffcheck"
+let g:syntastic_haskell_liquid_args = "--diff"
 ~~~~~
 
