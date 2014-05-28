@@ -10,6 +10,13 @@ categories: benchmarks, text
 demo: TextInternal.hs
 ---
 
+TODO:
+
+1. fix intro segment
+2. fix end-segment (why can't we have 3)? shouldn't need qualifiers.
+3. tighten up middle bits
+
+
 So far we have mostly discussed LiquidHaskell in the context of
 recursive data structures like lists, but there comes a time in
 many programs when you have to put down the list and pick up an
@@ -39,7 +46,7 @@ Suppose I want to write a function to get the `Char` at a given index of a
 
 Suppose we wanted to get the *i*th `Char` of a `Text`,
 \begin{code} we could write a function[^bad]
-charAt (Text a o l) i = word2char $ unsafeIndex a i
+charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
   where word2char = chr . fromIntegral
 \end{code}
 which extracts the underlying array, indexes into it, and casts the `Word16`
@@ -48,7 +55,7 @@ to a `Char`, using functions exported by `text`.
 [^bad]: This function is bad for numerous reasons, least of which is that `Data.Text.index` is already provided.
 
 \begin{code}Let's try this out in GHCi.
-ghci> let t = T.pack ['d','o','g']
+ghci> let t = pack ['d','o','g']
 ghci> charAt t 0
 'd'
 ghci> charAt t 2
@@ -70,12 +77,13 @@ much rather have the compiler throw an error on these last two calls.
 
 In this post we'll see exactly how prevent invalid memory accesses like this
 with LiquidHaskell.
+
 <!-- more -->
 
 <div class="hidden">
 
 \begin{code}
-{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types,
+{-# LANGUAGE BangPatterns, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
 module TextInternal (test) where
@@ -122,11 +130,14 @@ memcpyM = undefined
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 
-{-@ pack :: s:String -> {v:Text | (tlen v) = (len s)} @-}
+{-@ pack :: s:String -> {v:Text | (tLen v) = (len s)} @-}
 pack :: String -> Text
 pack = undefined -- not "actually" using
 
 assert b a = Ex.assert b a
+
+
+data Text = Text Array Int Int
 \end{code}
 
 </div>
@@ -139,14 +150,6 @@ the following general lifecycle:
 
 ![The lifecycle of a `Text`](/images/text-lifecycle.png)
 
-
-<!--
-
-Both types carry around with them the number of `Word16`s they can
-hold (this is actually only true when you compile with asserts turned
-on, but we use this to ease the verification process).
--->
-
 The main four array operations we care about are:
 
 1. **creating** an `MArray`,
@@ -156,6 +159,7 @@ The main four array operations we care about are:
 
 Creating an `MArray`
 --------------------
+
 The (mutable) `MArray` is a thin wrapper around GHC's primitive
 `MutableByteArray#`, additionally carrying the number of `Word16`s it
 can store.
@@ -166,9 +170,8 @@ data MArray s = MArray { maBA  :: MutableByteArray# s
                        }
 \end{code}
 
-It doesn't make any sense to have a negative length, so we add a
-simple refined data definition which states that `maLen` must be
-non-negative.
+It doesn't make any sense to have a negative length, so we *refine*
+the data definition to require that `maLen` be non-negative. 
 
 \begin{code}
 {-@ data MArray s = MArray { maBA  :: MutableByteArray# s
@@ -177,20 +180,21 @@ non-negative.
   @-}
 \end{code}
 
-A nice new side effect of adding this refined data
-\begin{code}definition is that we also get the following *accessor measures* for free
-measure maBA  :: MArray s -> MutableByteArray# s
-measure maLen :: MArray s -> Int
+
+\begin{code} As an added bonus, the above specification generates **field-accessor measures** that we will use inside types:
+{-@ measure maLen :: MArray s -> Int
+    maLen (MArray a l) = l
+  @-}
 \end{code}
 
-With our free accessor measures in hand, we can start building `MArray`s.
-We'll define an `MArrayN n` to be an `MArray` with `n` slots
+We can use these accessor measures to define `MArray`s of size `N`:
 
 \begin{code}
-{-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
+{-@ type MArrayN a N = {v:MArray a | (maLen v) = N} @-}
 \end{code}
 
-and use it to express that `new n` should return an `MArrayN n`.
+and we can use the above alias, to write a type that tracks the size
+of an `MArray` at the point where it is created:
 
 \begin{code}
 {-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
@@ -204,22 +208,24 @@ new n
         bytesInArray n = n `shiftL` 1
 \end{code}
 
-Note that we are not talking
-about bytes here, `text` deals with `Word16`s internally and as such
-we actualy allocate `2*n` bytes.  While this may seem like a lot of
-code to just create an array, the verification process here is quite
-simple. LiquidHaskell simply recognizes that the `n` used to construct
-the returned array (`MArray marr# n`) is the same `n` passed to
-`new`. It should be noted that we're abstracting away some detail here
-with respect to the underlying `MutableByteArray#`, specifically we're
-making the assumption that any *unsafe* operation will be caught and
-dealt with before the `MutableByteArray#` is touched.
+`new n` is an `ST` action that produces an `MArray s` with `n` slots each 
+of which is 2 bytes (as internally `text` manipulates `Word16`s).
+
+The verification process here is quite simple; LH recognizes that 
+the `n` used to construct the returned array (`MArray marr# n`) 
+the same `n` passed to `new`. 
 
 Writing into an `MArray`
 ------------------------
-Once we have an `MArray`, we'll want to be able to write our
-data into it. Writing into an `MArray` requires a valid index into the
-array.
+
+Once we have *created* an `MArray`, we'll want to write our data into it. 
+
+HEREHEREHEREHERE
+
+A `Nat` is a valid index into an `MArray` if it is less than the number 
+of slots, for which we have another type alias `MAValidI`. `text` checks 
+this property at run-time, but LiquidHaskell can statically prove that 
+the error branch is unreachable.
 
 \begin{code}
 {-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
@@ -292,10 +298,11 @@ to give `assert` the type
 
 Freezing an `MArray` into an `Array`
 ------------------------------------
+
 Before we can package up our `MArray` into a `Text`, we need to
-*freeze* it, preventing any further mutation. The key property here is
-of course that the frozen `Array` should have the same length as the
-`MArray`.
+*freeze* it, preventing any further mutation. The key property 
+here is of course that the frozen `Array` should have the same 
+length as the `MArray`.
 
 Just as `MArray` wraps a mutable array, `Array` wraps an *immutable*
 `ByteArray#` and carries its length in `Word16`s.
@@ -345,63 +352,70 @@ unsafeIndex Array{..} i@(I# i#)
 \end{code}
 
 As before, LiquidHaskell can easily prove that the error branch
-is unreachable!
+is unreachable, i.e. is *never* executed at run-time.
 
 Wrapping it all up
 ------------------
+
 Now we can finally define the core datatype of the `text` package!
-A `Text` value consists of an *array*, an *offset*, and a *length*.
+A `Text` value consists of three fields, an `Array` and
+
+A. an `Int` offset into the *middle* of the array, and
+
+B. an `Int` length denoting the number of valid indices *after* the offset.
+
+We can specify the invariants (A) and (B) via the refined type:
 
 \begin{code}
-data Text = Text Array Int Int
-\end{code}
-
-**ES**: still need to fix up this text..
-
-The offset and length are `Nat`s satisfying two properties:
-
-1. `off <= aLen arr`, and
-2. `off + len <= aLen arr`
-
-\begin{code}
-{-@ type TValidO A   = {v:Nat | v     <= (aLen A)} @-}
-{-@ type TValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
-
-{-@ data Text = Text { tarr :: Array
-                     , toff :: TValidO tarr
-                     , tlen :: TValidL toff tarr
-                     }
+{-@ data Text
+      = Text { tArr :: Array
+             , tOff :: {v:Nat | v      <= (aLen tArr)}
+             , tLen :: {v:Nat | v+tOff <= (aLen tArr)}
+             }
   @-}
 \end{code}
 
 These invariants ensure that any *index* we pick between `off` and
-`off + len` will be a valid index into `arr`. If you're not quite
-convinced, consider the following `Text`s.
+`off + len` will be a valid index into `arr`.
 
+If you're not quite convinced, consider the following `Text`s.
 ![the layout of multiple Texts](/images/text-layout.png)
 <div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
 
-
-Now let's take a quick step back and recall the example
+Lets take a quick step back and recall the example
 that motivated this whole discussion.
 
 \begin{code}
-{-@ charAt :: t:Text -> {v:Nat | v < (tlen t)} -> Char @-}
-charAt (Text a o l) i = word2char $ unsafeIndex a i
+charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
   where word2char = chr . fromIntegral
-
-
-test = [good,bad]
-  where
-    dog = ['d','o','g']
-    bad = charAt (pack dog) 4
-    good = charAt (pack dog) 2
 \end{code}
 
-Fantastic! LiquidHaskell is telling us that our call to
-`unsafeIndex` is, in fact, **unsafe** because we don't know
-that `i` is a valid index.
+A valid *index* into a `Text` is a `Nat` that is strictly less than the length
+`tLen`; remember, the `Text` invariants ensure that the above index into the
+array `(o+i)` will *also* be valid. Therefore the natural type to give `charAt`
+is
 
-Phew, that was a lot for one day, next time we'll take a look at how to handle
-uncode in `text`.
+\begin{code}
+{-@ charAt :: t:Text -> {v:Nat | v < (tLen t)} -> Char @-}
+\end{code}
+
+Now, if we try calling `charAt` as we did at the beginning
+
+\begin{code}
+test = [good,bad]
+  where
+    dog  = ['d','o','g']
+    good = charAt (pack dog) 2
+    bad  = charAt (pack dog) 3
+\end{code}
+
+we see that LiquidHaskell verifies the `good` call, but flags `bad` as
+**unsafe**, which is exactly what we want!
+
+
+RJ: RECAP
+
+
+That was a lot for one day; next time we'll take a look at how to handle uncode in `text`.
+
 
