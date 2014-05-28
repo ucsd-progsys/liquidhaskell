@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Text Internals"
+title: "Pointers Gone Wild"
 date: 2014-05-21
 comments: true
 external-url:
@@ -10,12 +10,22 @@ categories: benchmarks, text
 demo: TextInternal.hs
 ---
 
-TODO:
+A large part of the allure of Haskell are its elegant, high-level ADTs
+that ensure[^compilercorrectness] that programs won't be plagued by problems
+like the infamous [SSL heartbleed bug](http://en.wikipedia.org/wiki/Heartbleed).
 
-1. fix intro segment
-2. fix end-segment (why can't we have 3)? shouldn't need qualifiers.
-3. tighten up middle bits
+However, another part of Haskell's charm, is that when you really really 
+need to, you can drop down to low-level pointer twiddling to squeeze the 
+most performance out of your machine. But of course, that opens the door 
+to the #heartbleeds.
 
+Can we have have our cake and eat it too? 
+
+Can we twiddle pointers and still get the nice safety assurances of high-level types?
+
+<!-- more -->
+
+<!-- 
 
 So far we have mostly discussed LiquidHaskell in the context of
 recursive data structures like lists, but there comes a time in
@@ -24,12 +34,6 @@ array for the sake of performance.
 In this series we're going to examine the `text` library, which
 does exactly this in addition to having extensive Unicode support.
 
-`text` is a popular library for efficient text processing.
-It provides the high-level API Haskellers have come to expect while
-using stream fusion and byte arrays under the hood to guarantee high
-performance.
-
-<!--
 The thing that makes `text` stand out as an interesting target for
 LiquidHaskell, however, is its use of Unicode.
 Specifically, `text` uses UTF-16 as its internal encoding, where
@@ -44,15 +48,28 @@ Suppose I want to write a function to get the `Char` at a given index of a
 [^bad]: Disregard for the moment the UTF-8 encoding.
 -->
 
+To understand the potential for potential bleeding,
+lets study the popular `text` library for efficient 
+text processing. The library provides the high-level 
+API Haskellers have come to expect while using stream 
+fusion and byte arrays under the hood to guarantee 
+high performance.
+
 Suppose we wanted to get the *i*th `Char` of a `Text`,
+
 \begin{code} we could write a function[^bad]
 charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
-  where word2char = chr . fromIntegral
+  where 
+    word2char         = chr . fromIntegral
 \end{code}
-which extracts the underlying array, indexes into it, and casts the `Word16`
-to a `Char`, using functions exported by `text`.
 
-[^bad]: This function is bad for numerous reasons, least of which is that `Data.Text.index` is already provided.
+which extracts the underlying array `a`, indexes into it starting
+at the offset `o` and casts the `Word16` to a `Char`, using 
+functions exported by `text`.
+
+[^bad]: This function is bad for numerous reasons, least 
+        of which is that `Data.Text.index` is already 
+        provided, but stay with us...
 
 \begin{code}Let's try this out in GHCi.
 ghci> let t = pack ['d','o','g']
@@ -69,16 +86,18 @@ ghci> charAt t 100
 '\8745'
 \end{code}
 
-Oh dear, not only did we not get any sort of exception from Haskell, we weren't
-even stopped by the OS with a segfault. This is quite dangerous since we have no
-idea what sort of data (private keys?) we just read! To be fair to Bryan
-O'Sullivan, we did use a function that was clearly marked *unsafe*, but I'd
-much rather have the compiler throw an error on these last two calls.
+Oh dear, not only did we not get any sort of exception from Haskell, 
+we weren't even stopped by the OS with a segfault. This is quite 
+dangerous since we have no idea what sort of data we just read! 
+To be fair to the library's authors, we did use a function that 
+was clearly branded `unsafe`, but these functions, while not 
+intended for *clients*, pervade the implementation of the *library*.
 
-In this post we'll see exactly how prevent invalid memory accesses like this
-with LiquidHaskell.
+Wouldn't it be nice to have these last two calls *rejected at compile time*?
 
-<!-- more -->
+In this post we'll see exactly how prevent invalid memory accesses 
+like this with LiquidHaskell.
+
 
 <div class="hidden">
 
@@ -86,7 +105,7 @@ with LiquidHaskell.
 {-# LANGUAGE BangPatterns, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
-module TextInternal (test) where
+module TextInternal (test, charAt, charAt') where
 
 import qualified Control.Exception as Ex
 import Control.Monad.ST.Unsafe (unsafeIOToST)
@@ -130,7 +149,6 @@ memcpyM = undefined
 shiftL :: Int -> Int -> Int
 shiftL = undefined -- (I# x#) (I# i#) = I# (x# `iShiftL#` i#)
 
-{-@ pack :: s:String -> {v:Text | (tLen v) = (len s)} @-}
 pack :: String -> Text
 pack = undefined -- not "actually" using
 
@@ -220,41 +238,43 @@ Writing into an `MArray`
 
 Once we have *created* an `MArray`, we'll want to write our data into it. 
 
-HEREHEREHEREHERE
-
-A `Nat` is a valid index into an `MArray` if it is less than the number 
-of slots, for which we have another type alias `MAValidI`. `text` checks 
-this property at run-time, but LiquidHaskell can statically prove that 
-the error branch is unreachable.
-
-\begin{code}
-{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
-\end{code}
-
-A valid index into an `MArray` is a `Nat` that is *strictly* less than
-the length of the array.
+A `Nat` is a valid index into an `MArray` if it is *strictly less than* 
+the size of the array.
 
 \begin{code}
 {-@ type MAValidI MA = {v:Nat | v < (maLen MA)} @-}
 \end{code}
 
-`text` checks this property at run-time, but LiquidHaskell
-can statically prove that the error branch is unreachable.
+We use this valid index alias to refine the type of `unsafeWrite`
 
 \begin{code}
+{-@ unsafeWrite :: ma:MArray s -> MAValidI ma -> Word16 -> ST s () @-}
 unsafeWrite MArray{..} i@(I# i#) (W16# e#)
-  | i < 0 || i >= maLen = liquidError "out of bounds"
+  | i < 0 || i >= maLen = assert False $ error "out of bounds"
   | otherwise = ST $ \s1# ->
       case writeWord16Array# maBA i# e# s1# of
         s2# -> (# s2#, () #)
 \end{code}
 
+Note that, when compiled with appropriate options, the implementation of
+`text` checks the bounds at run-time. However, LiquidHaskell can statically
+prove that the error branch is unreachable, i.e. the `assert` **cannot fail**
+(as long as the inputs adhere to the given specification) by giving `assert`
+the type:
+
+\begin{code}
+{-@ assert assert :: {v:Bool | (Prop v)} -> a -> a @-}
+\end{code}
+
+Bulk Writing into an `MArray`
+-----------------------------
+
 So now we can write individual `Word16`s into an array, but maybe we
 have a whole bunch of text we want to dump into the array. Remember,
-`text` is supposed to be fast!
-C has `memcpy` for cases like this but it's notoriously unsafe; with
-the right type however, we can regain safety. `text` provides a wrapper around
-`memcpy` to copy `n` elements from one `MArray` to another.
+`text` is supposed to be fast! C has `memcpy` for cases like this but 
+it's notoriously unsafe; with the right type however, we can regain safety. 
+`text` provides a wrapper around `memcpy` to copy `n` elements from 
+one `MArray` to another.
 
 `copyM` requires two `MArray`s and valid offsets into each -- note
 that a valid offset is **not** necessarily a valid *index*, it may
@@ -287,14 +307,9 @@ copyM dest didx src sidx count
                            (fromIntegral count)
 \end{code}
 
-You might notice the two `assert`s in the function, they were in the
-original code as run-time checks of the precondition, but LiquidHaskell
-can actually *prove* that the `assert`s **cannot** fail, we just have
-to give `assert` the type
-
-\begin{code}
-{-@ assert assert :: {v:Bool | (Prop v)} -> a -> a @-}
-\end{code}
+Again, the two `assert`s in the function were in the original code as 
+(optionally compiled out) run-time checks of the precondition, but with 
+LiquidHaskell we can actually *prove* that the `assert`s **always succeed**.
 
 Freezing an `MArray` into an `Array`
 ------------------------------------
@@ -376,28 +391,42 @@ We can specify the invariants (A) and (B) via the refined type:
 \end{code}
 
 These invariants ensure that any *index* we pick between `off` and
-`off + len` will be a valid index into `arr`.
+`off + len` will be a valid index into `arr`. 
 
-If you're not quite convinced, consider the following `Text`s.
-![the layout of multiple Texts](/images/text-layout.png)
-<div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
-
-Lets take a quick step back and recall the example
-that motivated this whole discussion.
+By using the signatures of functions like `new`, `unsafeWrite` and
+`unsafeFreeze` we can verify that the top-level function that creates
+`Text` from a `[Char]` has type:
 
 \begin{code}
-charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
-  where word2char = chr . fromIntegral
+{-@ pack :: s:String -> {v:Text | (tLen v) = (len s)} @-}
 \end{code}
 
-A valid *index* into a `Text` is a `Nat` that is strictly less than the length
-`tLen`; remember, the `Text` invariants ensure that the above index into the
-array `(o+i)` will *also* be valid. Therefore the natural type to give `charAt`
-is
+Preventing Bleeds
+-----------------
+
+Now, let us close the circle and return to potentially *bleeding* function:
+
+\begin{code}
+charAt' (Text a o l) i = word2char $ unsafeIndex a (o+i)
+  where 
+    word2char          = chr . fromIntegral
+\end{code}
+
+Aha! LH flags the call to `unsafeIndex` because of course, `i` may fall
+outside the bounds of the given array `a`! We can remedy that by specifying
+a bound for the index:
 
 \begin{code}
 {-@ charAt :: t:Text -> {v:Nat | v < (tLen t)} -> Char @-}
+charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
+  where 
+    word2char         = chr . fromIntegral
 \end{code}
+
+That is, we can access the `i`-th `Char` as long as `i` is a `Nat` less
+than the the size of the text, namely `(tLen t)`. Now LH is convinced
+that the call to `unsafeIndex` is safe, but of course, we have passed
+the burden of proof onto users of `charAt`.
 
 Now, if we try calling `charAt` as we did at the beginning
 
@@ -410,12 +439,18 @@ test = [good,bad]
 \end{code}
 
 we see that LiquidHaskell verifies the `good` call, but flags `bad` as
-**unsafe**, which is exactly what we want!
+**unsafe**, thereby blocking, at compile time, any serious bleeding, 
+from pointers gone wild.
 
-
-RJ: RECAP
-
+<!--
 
 That was a lot for one day; next time we'll take a look at how to handle uncode in `text`.
+If you're not quite convinced, consider the following `Text`s.
+![the layout of multiple Texts](/images/text-layout.png)
+<div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
+
+-->
 
 
+
+[^compilercorrectness]: Assuming the absence of errors in the compiler and run-time...
