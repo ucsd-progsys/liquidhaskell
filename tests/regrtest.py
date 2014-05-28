@@ -161,7 +161,7 @@ print "args =", args
 
 def testdirs():
   global testdirs
-  if options.alltests: 
+  if options.alltests:
     return regtestdirs + benchtestdirs
   else:
     return regtestdirs
@@ -169,6 +169,6 @@ def testdirs():
 testdirs = testdirs()
 
 clean = os.path.abspath("../cleanup")
-[os.system(("cd %s; %s; cd ../" % (d,clean))) for (d,_,_) in testdirs + benchtestdirs]
+[os.system(("cd %s; %s; cd ../" % (d,clean))) for (d,_,_) in testdirs]
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
-runner.run ()
+sys.exit(runner.run())
