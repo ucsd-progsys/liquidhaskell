@@ -117,10 +117,8 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
              -> [(ModName,Ms.BareSpec)]
              -> BareM GhcSpec
-makeGhcSpec' cfg vars defVars' exports specs
+makeGhcSpec' cfg vars defVars exports specs
   = do name <- gets modName
-       expvars <- mapM lookupGhcVar $ filter isVarName $ nameSetToList exports
-       let defVars = L.nub $ defVars' ++ expvars
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
                  (concat [map (mod,) $ Ms.paliases sp | (mod,sp) <- specs])
        (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
