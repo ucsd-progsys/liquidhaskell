@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Pointers Gone Wild"
-date: 2014-05-21
+date: 2014-05-28
 comments: true
 external-url:
 author: Eric Seidel
@@ -14,7 +14,9 @@ A large part of the allure of Haskell are its elegant, high-level ADTs
 that ensure[^compilercorrectness] that programs won't be plagued by problems
 like the infamous [SSL heartbleed bug](http://en.wikipedia.org/wiki/Heartbleed).
 
-However, another part of Haskell's charm, is that when you really really 
+[^compilercorrectness]: Assuming the absence of errors in the compiler and run-time...
+
+However, another part of Haskell's charm is that when you really really 
 need to, you can drop down to low-level pointer twiddling to squeeze the 
 most performance out of your machine. But of course, that opens the door 
 to the #heartbleeds.
@@ -25,51 +27,24 @@ Can we twiddle pointers and still get the nice safety assurances of high-level t
 
 <!-- more -->
 
-<!-- 
-
-So far we have mostly discussed LiquidHaskell in the context of
-recursive data structures like lists, but there comes a time in
-many programs when you have to put down the list and pick up an
-array for the sake of performance.
-In this series we're going to examine the `text` library, which
-does exactly this in addition to having extensive Unicode support.
-
-The thing that makes `text` stand out as an interesting target for
-LiquidHaskell, however, is its use of Unicode.
-Specifically, `text` uses UTF-16 as its internal encoding, where
-each character is represented with either two or four bytes.
-We'll see later on how this encoding presents a challenge for
-verifying memory-safety, but first let us look at how a `Text`
-is represented.
-
-Suppose I want to write a function to get the `Char` at a given index of a
-`Text`[^bad].
-
-[^bad]: Disregard for the moment the UTF-8 encoding.
--->
-
 To understand the potential for potential bleeding,
-lets study the popular `text` library for efficient 
+let's study the popular `text` library for efficient 
 text processing. The library provides the high-level 
 API Haskellers have come to expect while using stream 
 fusion and byte arrays under the hood to guarantee 
 high performance.
 
 Suppose we wanted to get the *i*th `Char` of a `Text`,
-
 \begin{code} we could write a function[^bad]
 charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
   where 
     word2char         = chr . fromIntegral
 \end{code}
-
 which extracts the underlying array `a`, indexes into it starting
 at the offset `o` and casts the `Word16` to a `Char`, using 
 functions exported by `text`.
 
-[^bad]: This function is bad for numerous reasons, least 
-        of which is that `Data.Text.index` is already 
-        provided, but stay with us...
+[^bad]: This function is bad for numerous reasons, least of which is that `Data.Text.index` is already provided, but stay with us...
 
 \begin{code}Let's try this out in GHCi.
 ghci> let t = pack ['d','o','g']
@@ -199,7 +174,7 @@ the data definition to require that `maLen` be non-negative.
 \end{code}
 
 
-\begin{code} As an added bonus, the above specification generates **field-accessor measures** that we will use inside types:
+\begin{code} As an added bonus, the above specification generates **field-accessor measures** that we will use inside the refined types:
 {-@ measure maLen :: MArray s -> Int
     maLen (MArray a l) = l
   @-}
@@ -390,8 +365,8 @@ We can specify the invariants (A) and (B) via the refined type:
   @-}
 \end{code}
 
-These invariants ensure that any *index* we pick between `off` and
-`off + len` will be a valid index into `arr`. 
+These invariants ensure that any *index* we pick between `tOff` and
+`tOff + tLen` will be a valid index into `tArr`. 
 
 By using the signatures of functions like `new`, `unsafeWrite` and
 `unsafeFreeze` we can verify that the top-level function that creates
@@ -412,7 +387,7 @@ charAt' (Text a o l) i = word2char $ unsafeIndex a (o+i)
     word2char          = chr . fromIntegral
 \end{code}
 
-Aha! LH flags the call to `unsafeIndex` because of course, `i` may fall
+Aha! LiquidHaskell flags the call to `unsafeIndex` because of course, `i` may fall
 outside the bounds of the given array `a`! We can remedy that by specifying
 a bound for the index:
 
@@ -423,8 +398,8 @@ charAt (Text a o l) i = word2char $ unsafeIndex a (o+i)
     word2char         = chr . fromIntegral
 \end{code}
 
-That is, we can access the `i`-th `Char` as long as `i` is a `Nat` less
-than the the size of the text, namely `(tLen t)`. Now LH is convinced
+That is, we can access the `i`th `Char` as long as `i` is a `Nat` less
+than the the size of the text, namely `tLen t`. Now LiquidHaskell is convinced
 that the call to `unsafeIndex` is safe, but of course, we have passed
 the burden of proof onto users of `charAt`.
 
@@ -439,18 +414,5 @@ test = [good,bad]
 \end{code}
 
 we see that LiquidHaskell verifies the `good` call, but flags `bad` as
-**unsafe**, thereby blocking, at compile time, any serious bleeding, 
+**unsafe**, thereby blocking, at compile time, any serious bleeding
 from pointers gone wild.
-
-<!--
-
-That was a lot for one day; next time we'll take a look at how to handle uncode in `text`.
-If you're not quite convinced, consider the following `Text`s.
-![the layout of multiple Texts](/images/text-layout.png)
-<div style="width:80%; text-align:center; margin:auto; margin-bottom:1em;"><p>Multiple valid <code>Text</code> configurations, all using an <code>Array</code> with 10 slots. The valid slots are shaded. Note that the key invariant is that <code>off + len <= aLen</code>.</p></div>
-
--->
-
-
-
-[^compilercorrectness]: Assuming the absence of errors in the compiler and run-time...
