@@ -336,7 +336,7 @@ Finally, we will eventually want to read a value out of the
 {-@ type AValidI A = {v:Nat | v < (aLen A)} @-}
 {-@ unsafeIndex :: a:Array -> AValidI a -> Word16 @-}
 unsafeIndex Array{..} i@(I# i#)
-  | i < 0 || i >= aLen = liquidError "out of bounds"
+  | i < 0 || i >= aLen = assert False $ error "out of bounds"
   | otherwise = case indexWord16Array# aBA i# of
                   r# -> (W16# r#)
 \end{code}
@@ -348,13 +348,15 @@ Wrapping it all up
 ------------------
 
 Now we can finally define the core datatype of the `text` package!
-A `Text` value consists of three fields, an `Array` and
+A `Text` value consists of three fields:
 
-A. an `Int` offset into the *middle* of the array, and
+A. an `Array`,
 
-B. an `Int` length denoting the number of valid indices *after* the offset.
+B. an `Int` offset into the *middle* of the array, and
 
-We can specify the invariants (A) and (B) via the refined type:
+C. an `Int` length denoting the number of valid indices *after* the offset.
+
+We can specify the invariants for fields (b) and (c) with the refined type:
 
 \begin{code}
 {-@ data Text
