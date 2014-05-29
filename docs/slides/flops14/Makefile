@@ -28,10 +28,10 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 one: $(mdObjects)
-	$(REVEAL) lhs/00_Index.lhs.markdown > lhs/index.html
+	$(REVEAL) lhs/.liquid/00_Index.lhs.markdown > lhs/index.html
 
 tut: $(mdObjects)
-	$(REVEAL) lhs/*.markdown > lhs/tutorial.html 
+	$(REVEAL) lhs/.liquid/*.markdown > lhs/tutorial.html 
 
 all: slides copy
 
@@ -62,7 +62,7 @@ copy:
 	cp Benchmarks.html html/
 
 clean:
-#	cd lhs/ && ../cleanup && cd ../
+	cd lhs/ && ../cleanup && cd ../
 #	cd html/ && rm -rf * && cd ../
 #	cp index.html html/
 
