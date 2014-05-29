@@ -21,7 +21,7 @@ script:
  - cabal install --enable-tests --enable-benchmarks -v2 -fz3mem
 
  - cd tests
- - PATH=$HOME/.cabal/bin:$PATH python regrtest.py -o '-s z3mem'
+ - PATH=$HOME/.cabal/bin:$PATH python regrtest.py -o '--smtsolver' -o 'z3mem'
  - cd ..
  - cabal check
 
