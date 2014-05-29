@@ -10,7 +10,7 @@ categories: benchmarks, text
 demo: TextInternal.hs
 ---
 
-A large part of the allure of Haskell are its elegant, high-level ADTs
+A large part of the allure of Haskell is its elegant, high-level ADTs
 that ensure[^compilercorrectness] that programs won't be plagued by problems
 like the infamous [SSL heartbleed bug](http://en.wikipedia.org/wiki/Heartbleed).
 
