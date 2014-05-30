@@ -96,10 +96,6 @@ orD    = text " ||"
 pprintBin b _ [] = b
 pprintBin _ o xs = intersperse o $ pprint <$> xs 
 
-pprintBin b o []     = b
-pprintBin b o [x]    = pprint x
-pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
-
 instance PPrint Refa where
   pprint (RConc p)     = pprint p
   pprint k             = toFix k
