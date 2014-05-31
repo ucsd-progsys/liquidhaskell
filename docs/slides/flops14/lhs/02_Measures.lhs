@@ -29,14 +29,11 @@ Recap
 1. <div class="fragment">**Refinements:** Types + Predicates</div>
 2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
-<!--
 
 ---   -----------------------   ---  -------------------------
  1.      **Refinement Types**    :   Types + Predicates
  2.             **Subtyping**    :   SMT / Logical Implication 
 ---   -----------------------   ---  -------------------------
-
--->
 
 
 Example: Lists 
