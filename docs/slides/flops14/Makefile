@@ -27,23 +27,26 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
+total:
+	$(REVEAL) lhs/.liquid/total.markdown > lhs/total.html
+
 one: $(mdObjects)
 	$(REVEAL) lhs/.liquid/00_Index.lhs.markdown > lhs/index.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/.liquid/*.markdown > lhs/tutorial.html 
 
-all: slides copy
+all: slides 
 
 slides: $(htmlObjects)
 
 plpv: slides
 	scp lhs/*.html $(RJSERVER)
 
-lhs/%.lhs.markdown: lhs/%.lhs
+lhs/.liquid/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?
 
-lhs/%.lhs.slides.html: lhs/%.lhs.markdown
+lhs/%.lhs.slides.html: lhs/.liquid/%.lhs.markdown
 	$(REVEAL) $? -o $@ 
 
 lhs/%.lhs.slides.pdf: lhs/%.lhs.markdown
