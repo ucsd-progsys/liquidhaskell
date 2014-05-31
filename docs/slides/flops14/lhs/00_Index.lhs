@@ -203,7 +203,9 @@ Numbers
 Termination
 -----------
 
-How bad is *termination* requirement anyway?
+Proving termination is *easy*, in practice.
+
+<br>
 
 - <div class="fragment">`503` recursive functions</div>
 - <div class="fragment">`67%` automatically proved</div>
