@@ -72,22 +72,46 @@ Refinement types via special comments `{-@ ... @-}`
 Lets take a look.
 </div>
 
- {#refinementsArePredicates}
-============================
-
-Refinements Are Predicates
---------------------------
-
-HEREHEREHERE: ADD GRAMMAR
-
-
 Refinements Are Predicates
 ==========================
+
+From A Decidable Logic
+----------------------
+
+1. Expressions
+
+2. Predicates
+
+
+Expressions
+-----------
+
+\begin{code} <div/> 
+e := x, y, z,...      -- variable
+   | 0, 1, 2,...      -- constant
+   | (e + e)          -- addition
+   | (e - e)          -- subtraction
+   | (c * e)          -- linear mult.
+   | (v e1 e2 ... en) -- uninterpreted func. 
+\end{code}
+
+Predicates
+----------
+
+\begin{code} <div/>
+p := e           -- atom 
+   | e1 == e2    -- equality
+   | e1 <  e2    -- ordering 
+   | (p && p)    -- and
+   | (p || p)    -- or
+   | (not p)     -- negation
+\end{code}
+
 
 Subtyping is Implication
 ------------------------
 
-[Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
+[PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
 
 Subtyping is Implication
@@ -111,7 +135,7 @@ Subtyping is Implication
 <br>
 
 --------   ---     ----------------------------
-  **If**    :      `p => q`
+  **If**    :      `p` *implies* `q`
                 
 **Then**    :      `{v : t | p} <: {v : t | q}`
 --------   ---     ----------------------------
@@ -123,29 +147,32 @@ Subtyping is Implication
 <br>
 
 --------    ---  ---------------------------------------------------
-  **As**     :   `v=0` *implies* `0<=v` ... via SMT
+  **As**     :   `(v = 0)` *implies* `(0 <= v)` ... via SMT
                  
-  **So**     :   `{v:Int | v=0} <: {v:Int | 0<=v}`
+  **So**     :   `{v:Int| v = 0} <: {v:Int| 0 <= v}`
 --------    ---  ---------------------------------------------------
 
 
 Example: Natural Numbers
 ------------------------
 
-\begin{code} . 
+\begin{code} <br> 
 type Nat = {v : Int | 0 <= v}
 \end{code}
 
 <br>
-
-Via SMT, LiquidHaskell infers `EqZero <: Nat`, hence:
+<div class="fragment">
+Via SMT, &nbsp; `EqZero <: Nat`, &nbsp; hence:
+</div>
 
 <br>
 
+<div class="fragment">
 \begin{code}
 {-@ zero' :: Nat @-}
 zero'     =  zero
 \end{code}
+</div>
 
  {#universalinvariants}
 =======================
@@ -175,6 +202,9 @@ data L a = N | C a (L a)
 
 <div class="fragment">
 *Every element* in `nats` is non-negative:
+
+<br>
+
 \begin{code}
 {-@ nats :: L Nat @-}
 nats     =  0 `C` 1 `C` 3 `C` N
@@ -301,18 +331,18 @@ Dependent Function Types
 Example: `range`
 ----------------
 
-`(range i j)` returns `Int`s between `i` and `j`
+`(range i j)` returns `Int`s **between** `i` and `j`
 
 
 Example: `range`
 ----------------
 
-`(range i j)` returns `Int`s between `i` and `j`
+`(range i j)` returns `Int`s **between** `i` and `j`
 
 <br>
 
 \begin{code}
-{-@ type Btwn I J = {v:_|(I <= v && v < J)} @-}
+{-@ type Btwn I J = {v:_ | (I <= v && v < J)} @-}
 \end{code}
 
 Example: `range`
@@ -357,6 +387,6 @@ _        ! _ = liquidError "Oops!"
 - <div class="fragment">**Q:** How to ensure safety? </div>
 - <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
 
-<div class="fragment">Need way to [measure](#measures) *length of a list* ...</div>
+<div class="fragment">Need way to [measure](02_Measures.lhs.slides.html) the *length* of a list ...</div>
 
 
