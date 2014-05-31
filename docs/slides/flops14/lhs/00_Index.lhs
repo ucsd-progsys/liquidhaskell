@@ -22,6 +22,119 @@ main = putStrLn "Easter Egg"
 
 </div>
 
+Well-Typed Programs *Can* Go Very Wrong
+=======================================
+
+Division By Zero
+----------------
+
+\begin{code} _ 
+λ> let average xs = sum xs `div` length xs
+
+λ> average [1,2,3]
+2
+\end{code}
+
+<div class="fragment"> 
+
+\begin{code} _ 
+λ> average []
+*** Exception: divide by zero
+\end{code}
+
+</div>
+
+Missing Keys
+------------
+
+\begin{code} _ 
+λ> let m = Map.fromList [("haskell", "lazy"), ("ocaml", "eager")]
+
+λ> m ! "haskell"
+"lazy"
+\end{code}
+
+<div class="fragment"> 
+\begin{code} _ 
+λ> m ! "javascript"
+"*** Exception: Map.!: given key is not an element in the map
+\end{code}
+</div>
+
+Segmentation Faults
+-------------------
+
+\begin{code} _ 
+λ> import qualified Data.Vector as V 
+
+λ> let v = V.fromList ["haskell", "ocaml"]
+
+λ> V.unsafeIndex v 0
+"haskell"
+
+λ>  V.unsafeIndex v 1
+"ocaml"
+\end{code}
+
+<div class="fragment"> 
+\begin{code} _ 
+λ> V.unsafeIndex v 3
+
+'ghci' terminated by signal SIGSEGV (Address boundary error)
+\end{code}
+</div>
+
+
+"HeartBleeds"
+-------------
+
+\begin{code} _
+λ> import qualified Data.Text as T
+λ> import qualified Data.Text.Unsafe as U
+λ> let t = T.pack "kamakura"
+λ>  U.takeWord16 5 t
+"kamak"
+\end{code}
+
+<div class="fragment"> 
+\begin{code} _
+λ> U.takeWord16  20 t
+"kamakura\1912\3148\SOH\NUL\15928\2486\SOH\NUL\14834\3444\SOH\NUL"
+\end{code}
+</div>
+
+
+Goal: Hindley-Milner++ 
+======================
+
+ {#zxc}
+-------
+
+Extend HM to prevent *going wrong*
+
++ Automatic Verification
+
++ Expressive Specification
+
+
+
+LiquidHaskell: Refinement Types for Haskell
+-------------------------------------------
+
+Automatic
+
++ SMT & Abstract Interpretation 
+
++ [Liquid Types, PLDI 08](http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf)
+
+Expressive
+
++ This talk  
+
+
+LiquidHaskell
+=============
+
 Install
 -------
 
@@ -31,6 +144,8 @@ Install
 
 <br>
 
+
+<!-- 
 <div class="fragment"> 
 
   Requires an SMTLIB2 binary 
@@ -43,19 +158,14 @@ Install
 
 </div>
 
+-->
+
 Try Online
 ----------
 
 <br>
 
 `http://goto.ucsd.edu/liquid/haskell/demo`
-
-Follow Slides
--------------
-
-<br>
-
-`goto.ucsd.edu/~rjhala/liquid/haskell/plpv/lhs/`
 
 
  {#plan} 
@@ -64,31 +174,21 @@ Follow Slides
 1. <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements</a></div>
 2. <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
 3. <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
-4. <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements</a></div>
-    - <div class="fragment"><a href="05_Composition.lhs.slides.html" target="_blank">Dependency</a><a href="06_Inductive.lhs.slides.html" target= "_blank">, Induction</a> <a href="07_Array.lhs.slides.html" target= "_blank">, Indexing</a> <a href="08_Recursive.lhs.slides.html" target= "_blank">, Recursion</a></div>
+4. <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a></div>
+      <a href="06_Inductive.lhs.slides.html" target= "_blank">Code</a>,  
+      <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a></div>,
+      <a href="05_Composition.lhs.slides.html" target="_blank">...</a>,
+      <a href="05_Composition.lhs.slides.html" target="_blank">...</a>
+   </div>
 5. <div class="fragment"><a href="09_Laziness.lhs.slides.html" target="_blank">Lazy Evaluation</a></div>
 6. <div class="fragment"><a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
 
-<!--
-
-[Higher Order Functions](03_HigherOrderFunctions.lhs.slides.html)
-   </div>
-4. <div class="fragment">
-      [Abstract Refinements](04_AbstractRefinements.lhs.slides.html)
-   </div>
-    - <div class="fragment">[Dependency](05_Composition.lhs.slides.html), 
-                            [Induction](06_Inductive.lhs.slides.html), 
-                            [Indexing](07_Array.lhs.slides.html), 
-                            [Recursion](08_Recursive.lhs.slides.html)
-      </div>
-5. <div class="fragment">
-    [Lazy Evaluation](09_Laziness.lhs.slides.html)
-   </div>
-6. <div class="fragment">
-     [Termination](10_Termination.lhs.slides.html)
-   </div>
-
--->
+   <!--
+    - <div class="fragment"><a href="05_Composition.lhs.slides.html" target="_blank">Dependency</a>
+      <a href="06_Inductive.lhs.slides.html" target= "_blank">, Induction</a> 
+      <a href="07_Array.lhs.slides.html" target= "_blank">, Indexing</a> 
+      <a href="08_Recursive.lhs.slides.html" target= "_blank">, Recursion</a></div>
+      -->
 
 Evaluation
 ==========

@@ -1,13 +1,18 @@
 TODO
 ----
 
-0. Add motivation slides at beginning
+* Gather all the code into a SINGLE file for demo [NO, PANDOC DIES!]
 
-1. AbsRef: just max/recursion/fold
++ Add motivation slides at beginning
 
-2. Gather all the code into a SINGLE file for demo
-    + at least for abs-ref
++ ABSREF: just max/recursion/fold
 
-3. Make a single pass over the 
+- REFINEMENT LOGIC slide (GRAMMAR, DIFFERENT FROM HASKELL EXPRESSIONS)
 
-4. Merge into a single GIANT LHS file
+- Add REDBLACK properties after measure
+
+- ABSREF: CUT the polymorphic discussion with max. Just do maxInt
+
+- Termination: simplify using ICFP example
+
+- TERMINATION EXPRESSION SEQUENCE FROM ICFP paper
