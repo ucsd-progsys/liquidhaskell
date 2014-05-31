@@ -27,8 +27,7 @@ htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
-total:
-	$(REVEAL) lhs/.liquid/total.markdown > lhs/total.html
+all: slides 
 
 one: $(mdObjects)
 	$(REVEAL) lhs/.liquid/00_Index.lhs.markdown > lhs/index.html
@@ -36,7 +35,6 @@ one: $(mdObjects)
 tut: $(mdObjects)
 	$(REVEAL) lhs/.liquid/*.markdown > lhs/tutorial.html 
 
-all: slides 
 
 slides: $(htmlObjects)
 
