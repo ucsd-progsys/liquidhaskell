@@ -182,12 +182,16 @@ _        ! _ = liquidError "never happens!"
 
 <br>
 
+<div class="fragment">
 Where `LtLen` is a type alias:
+
+<br>
 
 \begin{code}
 {-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
 \end{code}
 
+</div>
 
 List Indexing Redux
 -------------------
@@ -207,15 +211,20 @@ _        ! _ = liquidError "never happens!"
 What if we *remove* the precondition?
 
 Multiple Measures
------------------
+=================
+
+ {#adasd}
+---------
 
 LiquidHaskell allows *many* measures for a type
 
 
-Multiple Measures 
------------------
+Ex: List Emptiness 
+------------------
 
-**Example:** Nullity of a `List` 
+Measure describing whether a `List` is empty 
+
+<br> 
 
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
@@ -227,7 +236,9 @@ Multiple Measures
 
 <div class="fragment">
 
-\begin{code} LiquidHaskell **strengthens** data constructors
+LiquidHaskell **strengthens** data constructors
+
+\begin{code} <br> 
 data L a where 
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
@@ -235,10 +246,10 @@ data L a where
 
 </div>
 
-Multiple Measures
------------------
+Conjoining Refinements
+----------------------
 
-LiquidHaskell *conjoins* data constructor types:
+Data constructor refinements are **conjoined** 
 
 \begin{code} <br>
 data L a where 
@@ -250,25 +261,43 @@ data L a where
               && not (isNull v)          }
 \end{code}
 
-Multiple Measures
------------------
+Ex: Red-Black Trees
+-------------------
+
++ FIXTHIS
+
++ HEREHERE
+
++ TODO
+
+Measures vs. Index Types
+------------------------
 
 Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <br>
 
-+ <div class="fragment">Measures *decouple* properties from structures</div>
-+ <div class="fragment">Support *multiple* properties over structures </div>
-+ <div class="fragment">Enable  *reuse* of structures                 </div>
+<div class="fragment">
+
++ Measures **decouple** properties from structures
+
++ Support **multiple** properties over structures 
+
++ Enable  **reuse** of structures                 
+
+</div>
 
 <br>
 
 <div class="fragment">Invaluable in practice!</div>
 
 Refined Data Constructors
--------------------------
+=========================
 
-Can *directly pack* properties inside data constructors
+ {#asd}
+-------
+
+Can encode invariants *inside constructors*
 
 <div class="fragment">
 
@@ -276,23 +305,24 @@ Can *directly pack* properties inside data constructors
 
 \begin{code}
 {-@ data L a = N
-             | C (x :: a) 
-                 (xs :: L {v:a | x <= v})  @-}
+             | C { x  :: a 
+                 , xs :: L {v:a| x <= v} } @-}
 \end{code}
-
 </div>
+<br>
 
 <div class="fragment">
+Head `x` is less than **every** element of tail `xs`
+</div>
 
 <br>
 
-Specifies *increasing* Lists 
+<div class="fragment">
+i.e. specifies **increasing** Lists 
 </div>
 
-Refined Data Constructors
--------------------------
-
-**Example:** Increasing Lists, with strengthened constructors:
+Increasing Lists 
+----------------
 
 \begin{code} <br>
 data L a where
@@ -302,11 +332,11 @@ data L a where
 
 <br>
 
-- <div class="fragment">LiquidHaskell *checks* property when *folding* `C`</div>
-- <div class="fragment">LiquidHaskell *assumes* property when *unfolding* `C`</div>
+- <div class="fragment">LiquidHaskell **checks** property when **folding** `C`</div>
+- <div class="fragment">LiquidHaskell **assumes** property when **unfolding** `C`</div>
 
-Refined Data Constructors
--------------------------
+Increasing Lists 
+----------------
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
 
