@@ -124,7 +124,7 @@ Facts about `llen` asserted at *syntax-directed* **fold** and **unfold**
 
 <div class="fragment">
 \begin{code}**Fold**<br>
-z = C x y -- z :: {v | llen v = 1 + llen y}
+z = C x y     -- z :: {v | llen v = 1 + llen y}
 \end{code}
 </div>
 
@@ -149,7 +149,7 @@ Now, we can verify:
 \begin{code}
 {-@ length      :: xs:L a -> (EqLen xs) @-}
 length N        = 0
-length (C _ xs) = 1 + (length xs)
+length (C _ xs) = 1 + length xs
 \end{code}
 
 <div class="fragment">
@@ -157,6 +157,8 @@ length (C _ xs) = 1 + (length xs)
 <br>
 
 Where `EqLen` is a type alias:
+
+<br>
 
 \begin{code}
 {-@ type EqLen Xs = {v:Nat | v = (llen Xs)} @-}
