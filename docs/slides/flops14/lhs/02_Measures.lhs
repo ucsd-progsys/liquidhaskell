@@ -16,9 +16,12 @@ length      :: L a -> Int
 (!)         :: L a -> Int -> a
 insert      :: Ord a => a -> L a -> L a
 insertSort  :: Ord a => [a] -> L a
+
+infixr `C`
 \end{code}
 
 </div>
+
 
 Measuring Data Types 
 ====================
@@ -35,27 +38,23 @@ Recap
  2.             **Subtyping**    :   SMT / Logical Implication 
 ---   -----------------------   ---  -------------------------
 
+Example: Length of a List 
+-------------------------
 
-Example: Lists 
---------------
-
-<div class="hidden">
-
-\begin{code}
-infixr `C`
-\end{code}
-
-</div>
+Given a type for lists:
 
 <br>
 
 \begin{code}
-data L a = N 
-         | C a (L a)
+data L a = N | C a (L a)
 \end{code}
 
-Example: Length of a List 
--------------------------
+<div class="fragment">
+<br>
+
+We can define the *length* as:
+
+<br>
 
 \begin{code}
 {-@ measure llen  :: (L a) -> Int
@@ -63,17 +62,28 @@ Example: Length of a List
     llen (C x xs) = 1 + (llen xs)  @-}
 \end{code}
 
+</div>
+
+Example: Length of a List 
+-------------------------
+
+\begin{code} <div/>
+{-@ measure llen  :: (L a) -> Int
+    llen (N)      = 0
+    llen (C x xs) = 1 + (llen xs)  @-}
+\end{code}
+
 <br>
 
-<div class="fragment">
 LiquidHaskell *strengthens* data constructor types
+
+<br>
+
 \begin{code} <div/>
 data L a where 
   N :: {v: L a | (llen v) = 0}
-  C :: a -> xs:L a 
-         -> {v:L a | (llen v) = 1 + (llen xs)}
+  C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{code}
-</div>
 
 Measures Are Uninterpreted
 --------------------------
@@ -81,8 +91,7 @@ Measures Are Uninterpreted
 \begin{code} <br>
 data L a where 
   N :: {v: L a | (llen v) = 0}
-  C :: a -> xs:L a 
-         -> {v:L a | (llen v) = 1 + (llen xs)}
+  C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
 \end{code}
 
 <br>
@@ -92,20 +101,24 @@ data L a where
 Measures Are Uninterpreted
 --------------------------
 
+<br>
+
 In SMT, [uninterpreted function](http://fm.csl.sri.com/SSFT12/smt-euf-arithmetic.pdf) `f` obeys *congruence* axiom:
+
+<br>
 
 `forall x y. (x = y) => (f x) = (f y)`
 
 <br>
 
 <div class="fragment">
-All other facts about `llen` asserted at *fold* and *unfold*
+All other facts about `llen` asserted at **fold** and **unfold**
 </div>
 
 Measures Are Uninterpreted
 --------------------------
 
-All other facts about `llen` asserted at *fold* and *unfold*
+Facts about `llen` asserted at *syntax-directed* **fold** and **unfold**
 
 <br>
 
