@@ -60,8 +60,6 @@ What if we need *both* [increasing *and* decreasing lists?](http://hackage.haske
 [Separate (indexed) types](http://web.cecs.pdx.edu/~sheard/Code/QSort.html) get quite complicated ...
 </div>
 
-HEREHEREHEREHERE
-
 Abstract That Refinement!
 -------------------------
 
@@ -132,13 +130,17 @@ That was a rather *abstract*!
 
 <br>
 
-How can we *use* fact that `p` holds between *every pair* ?
+How can we *use* fact that `p` holds between *every pair*?
+
+<br>
+
+<div class="fragment">**Instantiate** `p` with a *concrete* refinement</div>
 
 
 Example: Increasing Lists
 -------------------------
 
-*Instantiate* `p` with a *concrete* refinement
+**Instantiate** `p` with a *concrete* refinement
 
 <br>
 
@@ -148,14 +150,16 @@ Example: Increasing Lists
 
 <br>
 
-- <div class="fragment"> Refinement says `hd` less than each tail element `v`,</div>
+<div class="fragment"> Refinement says: &nbsp; `hd` less than **every** `v` in tail,</div>
 
-- <div class="fragment"> Thus, `IncL` denotes *increaing* lists. </div>
+<br>
+
+<div class="fragment"> i.e., `IncL` denotes **increasing** lists. </div>
 
 Example: Increasing Lists
 -------------------------
 
-LiquidHaskell verifies that `slist` is indeed increasing...
+LiquidHaskell *verifies* that `slist` is indeed increasing...
 
 \begin{code}
 {-@ slist :: IncL Int @-}
@@ -166,7 +170,7 @@ slist     = 1 `C` 6 `C` 12 `C` N
 
 <div class="fragment">
 
-... and protests that `slist'` is not: 
+... and *protests* that `slist'` is not: 
 
 \begin{code}
 {-@ slist' :: IncL Int @-}
@@ -189,7 +193,7 @@ insert y (x `C` xs)
 
 <br>
 
-(*Hover* over `insert'` to see inferred type.)
+(Mouseover `insert` to see inferred type.)
 
 Checking GHC Lists
 ------------------
@@ -200,7 +204,7 @@ Above applies to GHC's List definition:
 \begin{code} <br> 
 data [a] <p :: a -> a -> Prop>
   = [] 
-  | (:) (h :: a) (tl :: ([a<p h>]<p>))
+  | (:) { h :: a, tl :: [a<p h>]<p> }
 \end{code}
 
 Checking GHC Lists
@@ -265,7 +269,7 @@ mergeSort xs   = merge xs1' xs2'
    xs2'        = mergeSort xs2
 \end{code}
 
-Example: `mergeSort` [1/2]
+Example: `mergeSort` [2/2]
 --------------------------
 
 \begin{code}
@@ -284,22 +288,25 @@ merge (x:xs) (y:ys)
 Example: `Data.List.sort` 
 -------------------------
 
+<br>
+
 GHC's "official" list sorting routine
 
+<br>
+
 Juggling lists of increasing & decreasing lists
 
 
-Ex: `Data.List.sort` [1/4]
+
+
+Ex: `Data.List.sort` [1/5]
 --------------------------
 
-Juggling lists of increasing & decreasing lists
+**Step 1.** Make sequences of increasing & decreasing lists
 
 <br>
 
 \begin{code}
-{-@ sort :: (Ord a) => [a] -> Incs a  @-}
-sort = mergeAll . sequences
-
 sequences (a:b:xs)
   | a `compare` b == GT = descending b [a]  xs
   | otherwise           = ascending  b (a:) xs
@@ -307,10 +314,10 @@ sequences [x]           = [[x]]
 sequences []            = [[]]
 \end{code}
 
-Ex: `Data.List.sort` [2/4]
+Ex: `Data.List.sort` [2/5]
 --------------------------
 
-Juggling lists of increasing & decreasing lists
+**Step 1.** Make sequences of increasing & decreasing lists
 
 <br>
 
@@ -322,10 +329,10 @@ descending a as bs
   = (a:as): sequences bs
 \end{code}
 
-Ex: `Data.List.sort` [3/4]
+Ex: `Data.List.sort` [3/5]
 --------------------------
 
-Juggling lists of increasing & decreasing lists
+**Step 1.** Make sequences of increasing & decreasing lists
 
 <br>
 
@@ -338,10 +345,10 @@ ascending a as bs
   = as [a]: sequences bs
 \end{code}
 
-Ex: `Data.List.sort` [4/4]
+Ex: `Data.List.sort` [4/5]
 --------------------------
 
-Juggling lists of increasing & decreasing lists
+**Step 2.** Merge sequences
 
 <br>
 
@@ -353,6 +360,24 @@ mergePairs (a:b:xs) = merge a b: mergePairs xs
 mergePairs [x]      = [x]
 mergePairs []       = []
 \end{code}
+
+
+Ex: `Data.List.sort` [5/5]
+--------------------------
+
+Put it all together
+
+<br>
+
+\begin{code}
+{-@ sort :: (Ord a) => [a] -> Incs a  @-}
+sort = mergeAll . sequences
+\end{code}
+
+<br>
+
+<div class="fragment">No other hints or annotations required.</div>
+
 
 Phew!
 -----
@@ -466,7 +491,7 @@ Recap: Abstract Refinements
 
 <div class="fragment">
 
-Decouple invariants from *functions*
+Decouple invariants from **functions**
 
 + `max`
 + `loop`
@@ -475,7 +500,7 @@ Decouple invariants from *functions*
 </div>
 
 <div class="fragment">
-Decouple invariants from *data*
+Decouple invariants from **data**
 
 + `Vector`
 + `List`
@@ -487,8 +512,8 @@ Decouple invariants from *data*
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
-3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
-5. <div class="fragment">Er, what of *lazy evaluation*?</div>
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. **Abstract:** Refinements over functions and data
+5. <div class="fragment">Er, what about [lazy evaluation](09_Laziness.lhs.slides.html)?</div>
