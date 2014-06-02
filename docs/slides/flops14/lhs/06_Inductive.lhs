@@ -145,7 +145,7 @@ loop lo hi base f = go lo base
 **Base Case:** &nbsp; Initial accumulator `base` satisfies invariant
 
 
-`(p base lo)`   
+`(p lo base)`   
 
 
 Induction in `loop` (by hand)
@@ -164,7 +164,7 @@ loop lo hi base f = go lo base
 **Inductive Step:** &nbsp; `f` *preserves* invariant at `i`
 
 
-`(p acc i) => (p (f i acc) (i + 1))`
+`(p i acc) => (p (i+1) (f i acc))`
 
 Induction in `loop` (by hand)
 -----------------------------
@@ -181,7 +181,7 @@ loop lo hi base f = go lo base
 
 **"By Induction"** &nbsp; `out` satisfies invariant at `hi` 
 
-`(p out hi)`
+`(p hi out)`
 
 
 Induction in `loop` (by type)
@@ -227,10 +227,12 @@ add n m = loop 0 m n (\_ z -> z + 1)
 
 <br>
 
-**Verified** by instantiating the abstract refinement of `loop`
+**Verified** by *instantiating* the abstract refinement of `loop`
 
 `p := \i acc -> acc = i + n`
 
+
+<!--
 
 Using Induction
 ---------------
@@ -250,6 +252,7 @@ Verified by instantiating `p := \i acc -> acc = i + n`
 
 - <div class="fragment">**Goal:**  `out = m + n`</div>
 
+-->
 
 Generalizes To Structures 
 -------------------------
@@ -342,7 +345,7 @@ out  :: b<p ys>
 
 <br>
 
-`base` is related to empty list `N`
+`base` is related to **empty** list `N`
 
 `base :: b<p N>` 
 
@@ -361,9 +364,9 @@ out  :: b<p ys>
 
 <br>
 
-`step` extends relation from `xs` to `C x xs`
+`step` **extends** relation from `xs` to `C x xs`
 
-`step :: xs:L a -> x:a -> b<p xs> -> b<p(C x xs)>`
+`step :: xs:_ -> x:_ -> b<p xs> -> b<p (C x xs)>`
 
 
 `foldr`: Output
@@ -379,7 +382,7 @@ out  :: b<p ys>
 
 <br>
 
-Relation holds between `out` and input list `ys`
+Hence, relation holds between `out` and **entire input** list `ys`
 
 `out :: b<p ys>`
 
@@ -404,39 +407,26 @@ by *automatically instantiating*
 Using `foldr`: Append
 ---------------------
 
+We can now verify <br>
+
 \begin{code}
 {-@ (++) :: xs:_ -> ys:_ -> (Cat a xs ys) @-} 
 xs ++ ys = foldr (\_ -> C) ys xs 
 \end{code}
 
-<br>
-
 <div class="fragment">
-
-where the alias `Cat` is:
-
-<br>
+where 
 
 \begin{code}
 {-@ type Cat a X Y = 
     {v:_|(llen v) = (llen X) + (llen Y)} @-}
 \end{code}
-
 </div>
-
-Using `foldr`: Append
----------------------
-
-\begin{code} <div/>
-{-@ (++) :: xs:_ -> ys:_ -> (Cat a xs ys) @-} 
-xs ++ ys = foldr (\_ -> C) ys xs 
-\end{code}
 
 <br>
 
 <div class="fragment">
-
-Verified by automatically instantiating 
+By automatically instantiating 
 
 `p := \xs acc -> llen acc = llen xs + llen ys`
 

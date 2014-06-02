@@ -64,6 +64,7 @@ Example: Summing Lists
 ----------------------
 
 \begin{code}
+listSum     :: [Int] -> Int
 listSum xs  = loop 0 n 0 body 
   where 
     body    = \i acc -> acc + (xs !! i)
@@ -75,29 +76,20 @@ listSum xs  = loop 0 n 0 body
 <div class="fragment">
 **Function Subtyping** 
 
-`body` called with `i :: Btwn 0 (llen xs)`
++ `body` called with `i :: Btwn 0 (llen xs)`
+
++ Hence, indexing with `!!` is safe.
 </div>
 
-<br>
-
-<div class="fragment">Hence, indexing with `!!` is safe.</div>
-
-Example: Summing Lists
-----------------------
-
-\begin{code} <div/>
-listSum xs  = loop 0 n 0 body 
-  where 
-    body    = \i acc -> acc + (xs !! i)
-    n       = length xs
-\end{code}
-
-<br>
-
+<div class="fragment">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+</div>
 
 Polymorphic Instantiation
 =========================
+
+ {#poly}
+--------
 
 Example: Summing `Nat`s
 -----------------------
@@ -129,6 +121,8 @@ Function Subtyping
     <:  Nat   -> Nat   -> Nat
 \end{code}
 
+<br>
+
 <div class="fragment">
 Because,
 
@@ -138,11 +132,13 @@ Because,
 \end{code}
 </div>
 
+<br>
+
 <div class="fragment">
 Because,
 
 \begin{code}<div/>
-  0<=x && 0<=y && v = x+y => 0 <= v
+  0<=x && 0<=y && v = x+y   => 0 <= v
 \end{code}
 </div>
 
@@ -167,45 +163,28 @@ foldl :: (α -> β -> α) -> α -> [β] -> α
 `sumNats` verified by **instantiating** `α,β := Nat`
 </div>
 
-
-Example: Summing `Nat`s
------------------------
-
-\begin{code} <div/> 
-{-@ sumNats :: [Nat] -> Nat @-}
-sumNats xs  = foldl (+) 0 xs 
-\end{code}
-
-<br>
-
-\begin{code} Where:
-foldl :: (α -> β -> α) -> α -> [β] -> α
-(+)   :: Nat -> Nat -> Nat
-\end{code}
-
 <br>
 
 <div class="fragment">
-Parameter `α` is **loop invariant**, instantiation is invariant **synthesis**
+`α` is **loop invariant**, instantiation is invariant **synthesis**
 </div>
-
 
 Instantiation And Inference
 ---------------------------
 
-<div class="fragment">Polymorphic instantiation happens *everywhere*...</div> 
+Polymorphic instantiation happens *everywhere*...
 
 <br>
 
-<div class="fragment">... so *automatic inference* is crucial</div>
+... so *automatic inference* is crucial
 
 <br>
 
-<div class="fragment">Cannot use *unification* (unlike indexed approaches)</div>
+Cannot use *unification* (unlike indexed approaches)
 
 <br>
 
-<div class="fragment">LiquidHaskell uses [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)</div>
+LiquidHaskell uses [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)
 
 
 Iteration Dependence
@@ -222,11 +201,15 @@ add n m = loop 0 m n (\_ i -> i + 1)
 
 <br>
 
+<div class="fragment">
+As property only holds after **last iteration** ...
 
-- <div class="fragment">As property only holds after **last** loop iteration...</div>
+... cannot instantiate `α := {v:Int | v = n + m}`
+</div>
 
-- <div class="fragment">... cannot instantiate `α` with `{v:Int | v = n + m}`</div>
+<br>
 
-<div class="fragment">**Problem:** Need *iteration-dependent* invariants...<a href="04_AbstractRefinements.lhs.slides.html" target="_blank">[continue]</a>
+<div class="fragment">
+**Problem:** Need *iteration-dependent* invariants...&nbsp; &nbsp; [[Continue]](04_AbstractRefinements.lhs.slides.html)
 </div>
 

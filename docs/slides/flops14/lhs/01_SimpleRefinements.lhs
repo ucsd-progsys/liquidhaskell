@@ -389,6 +389,8 @@ _        ! _ = liquidError "Oops!"
 
 <div class="fragment">To ensure safety, *require* `i` between `0` and list **length**</div>
 
+<br>
+
 <div class="fragment">Need way to **measure** the length of a list [[continue...]](02_Measures.lhs.slides.html)</div>
 
 

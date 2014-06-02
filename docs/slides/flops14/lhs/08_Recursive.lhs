@@ -255,6 +255,12 @@ Checking GHC Lists
 
 Now we can check all the usual list sorting algorithms 
 
+<br>
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target="_blank">Demo:</a> List Sorting
+
+<!-- 
+
 Example: `mergeSort` [1/2]
 --------------------------
 
@@ -284,6 +290,8 @@ merge (x:xs) (y:ys)
   | x <= y     = x : merge xs (y:ys)
   | otherwise  = y : merge (x:xs) ys
 \end{code}
+
+
 
 Example: `Data.List.sort` 
 -------------------------
@@ -378,6 +386,7 @@ sort = mergeAll . sequences
 
 <div class="fragment">No other hints or annotations required.</div>
 
+-->
 
 Phew!
 -----
@@ -494,7 +503,7 @@ SMT & inference crucial for [verification](https://github.com/ucsd-progsys/liqui
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target="_blank">Demo:</a>Try online!
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target="_blank">Demo:</a> Binary Search Maps
 </div>
 
 Recap: Abstract Refinements

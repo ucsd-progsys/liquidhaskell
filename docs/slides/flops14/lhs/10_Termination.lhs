@@ -24,6 +24,8 @@ merge :: Ord a => L a -> L a -> L a
 \end{code}
 </div>
 
+<!--
+
 Dependent != Refinement
 -----------------------
 
@@ -40,8 +42,10 @@ Dependent != Refinement
 + <div class="fragment">Termination *not* required ...</div> 
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
+-->
+
 Refinements & Termination
-----------------------------
+-------------------------
 
 <div class="fragment">
 Fortunately, we can ensure termination **using refinements**

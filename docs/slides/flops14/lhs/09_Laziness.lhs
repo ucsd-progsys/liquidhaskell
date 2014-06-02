@@ -53,7 +53,7 @@ Back To the Beginning
 ---------------------
 
 \begin{code}
-{-@ safeDiv :: Int -> {v:Int| v /= 0} -> Int @-}
+{-@ safeDiv :: Int -> {v:Int|v /= 0} -> Int @-}
 safeDiv n 0 = liquidError "div-by-zero!"
 safeDiv n d = n `div` d
 \end{code}
@@ -143,12 +143,10 @@ explode = let z = 0     -- :: {v:Int| v = 0}
 Problem: Divergence
 -------------------
 
-<div class="fragment">
 What is denoted by:
 
 `e :: {v:Int | P}`
 
-</div>
 
 <br>
 

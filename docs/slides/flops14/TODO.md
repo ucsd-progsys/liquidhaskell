@@ -1,3 +1,26 @@
+Timing
+------
+
+[4]  Motivation 
+                        <------------------ 4 
+[8]  Refinements
+                        <------------------ 12 
+[10] Measures
+                        <------------------ 22 
+[8]  Higher-Order Functions
+                        <------------------ 30 
+[3/5] Abstract Refinements: 
+[5/8]   Code, 
+[5/8]   Data,...,...
+                        <------------------ 43/51
+[4] Lazy Evaluation
+[5] Termination
+                        <------------------ 52/60 
+[3] Evaluation
+                        <------------------ 55/63 
+
+
+
 TODO
 ----
 
@@ -7,25 +30,5 @@ TODO
 + ABSREF: CUT the polymorphic discussion with max. Just do maxInt
 + TERMINATION: simplify using ICFP examples
 + REDBLACK properties after measure
-
-Timing
-------
-
-[5]  Motivation 
-[5]  Refinements
-                        <------------------ 10 
-[12] Measures
-                        <------------------ 22 
-
-[8]  Higher-Order Functions
-                        <------------------ 30 
-[5] Abstract Refinements: 
-[5]   Code, 
-[5]   Data,...,...
-                        <------------------ 45
-[5] Lazy Evaluation
-[5] Termination
-                        <------------------ 55 
-[5] Evaluation
 
 
