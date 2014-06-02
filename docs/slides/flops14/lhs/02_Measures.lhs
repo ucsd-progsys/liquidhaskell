@@ -162,9 +162,7 @@ Where `EqLen` is a type alias:
 List Indexing Redux
 -------------------
 
-We can type list indexed lookup:
-
-<br>
+We can type list lookup:
 
 \begin{code}
 {-@ (!)      :: xs:L a -> (LtLen xs) -> a @-}
@@ -178,13 +176,14 @@ _        ! _ = liquidError "never happens!"
 <div class="fragment">
 Where `LtLen` is a type alias:
 
-<br>
-
 \begin{code}
 {-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
 \end{code}
-
 </div>
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
+&nbsp; What if we *remove* the precondition?
+
 
 List Indexing Redux
 -------------------
@@ -285,7 +284,7 @@ Color Invariant
 \begin{code} <br>
 measure isRB        :: Tree a -> Prop
 isRB (Leaf)         =  true
-isRB (Node c x l r) =  c=R => (isB l && isB r)
+isRB (Node c x l r) =  c=Red => (isB l && isB r)
                     && isRB l && isRB r
 \end{code}
 </div>
@@ -302,11 +301,9 @@ isB (Node c x l r)  = c == Black
 ------------------------
 
 <br>
-<br>
 
 Color Invariant **except** at root. 
 
-<br>
 <br>
 
 <div class="fragment">

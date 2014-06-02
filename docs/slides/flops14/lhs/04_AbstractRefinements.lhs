@@ -28,11 +28,14 @@ Abstract Refinements
 Two Problems
 ------------
 
+<br>
+<br>
+
 <div class="fragment">
 
 **Problem 1:** 
 
-How do we specify *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?
+How do we specify *both* increasing and decreasing lists?
 
 </div>
 
@@ -101,6 +104,8 @@ Refinement Polymorphism
 
 `maxInt` returns *one of* its two inputs `x` and `y` 
 
+<div class="fragment">
+
 <div align="center">
 
 <br>
@@ -113,6 +118,7 @@ Refinement Polymorphism
 
 <br>
 
+</div>
 </div>
 
 <div class="fragment">Above holds *for all properties*!</div>
@@ -204,27 +210,25 @@ Type Polymorphism? No.
 
 -->
 
-Parametric Refinements
+Parametric Refinements 
 ----------------------
 
 Enable *quantification over refinements* ...
 
-Parametric Refinements 
-----------------------
+<br>
 
+<div class="fragment">
 \begin{code}
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
 maxInt x y = if x <= y then y else x 
 \end{code}
+</div>
 
 <br>
-
 
 <div class="fragment">Type says: **for any** `p` that is a property of `Int`, </div>
-
-<br>
 
 - <div class="fragment">`max` **takes** two `Int`s that satisfy `p`,</div>
 
@@ -233,7 +237,11 @@ maxInt x y = if x <= y then y else x
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br>
+Enable *quantification over refinements* ...
+
+<br>
+
+\begin{code}<div/>
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
@@ -260,7 +268,10 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-**Check** and **Instantiate** refinements using *SMT & predicate abstraction*
+**Check** and **Instantiate** 
+
+Using [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)
+
 
 Using Abstract Refinements
 --------------------------
@@ -269,7 +280,7 @@ Using Abstract Refinements
 
 - <div class="fragment">**Then** `p` instantiated with *same* refinement,</div>
 
-- <div class="fragment">**Result** of call will also have concrete refinement.</div>
+- <div class="fragment">**Result** of call will also have *same* concrete refinement.</div>
 
 <div class="fragment">
 
@@ -296,7 +307,7 @@ Or any other property ...
 {-@ type RGB = {v:_ | (0 <= v && v < 256)} @-}
 
 {-@ rgb :: RGB @-}
-rgb = maxInt 56 8
+rgb = maxInt 56 8   -- p := \v -> 0 <= v < 256
 \end{code}
 
 </div>
@@ -308,7 +319,7 @@ Recap
 1. Refinements: Types + Predicates
 2. Subtyping: SMT Implication
 3. Measures: Strengthened Constructors
-4. <div class="fragment">**Abstract Refinements** over Types
+4. **Abstract Refinements** over Types
 
 <br>
 <br>

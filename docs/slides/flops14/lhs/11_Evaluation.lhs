@@ -75,7 +75,7 @@ Numbers
 Termination
 -----------
 
-Proving termination is **easy**, in practice.
+Proving termination is **easy in practice**.
 
 <br>
 
