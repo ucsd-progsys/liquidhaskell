@@ -340,6 +340,8 @@ Increasing Lists
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellInsertSort.hs" target= "_blank">Demo: Insertion Sort</a> (hover for inferred types) 
 
+<br>
+
 \begin{code}
 insertSort = foldr insert N
 
@@ -356,8 +358,13 @@ insert y N    = y `C` N
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
 3. <div class="fragment">**Measures:** Strengthened Constructors</div>
-    - <div class="fragment">*Decouple* structure & property, enable *reuse*</div>
+    - <div class="fragment">**Decouple** property from structure</div>
+    - <div class="fragment">**Reuse** structure across *different* properties</div>
 
+<br>
+
+<div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html"
+target="_blank">Continue...</a></div>

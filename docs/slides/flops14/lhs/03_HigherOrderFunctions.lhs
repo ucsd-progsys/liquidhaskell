@@ -5,13 +5,13 @@
 \begin{code}
 module Loop (
     listSum
-  , listNatSum
+  , sumNats
   ) where
 
 import Prelude
 
 {-@ LIQUID "--no-termination"@-}
-listNatSum  :: [Int] -> Int
+sumNats  :: [Int] -> Int
 add         :: Int -> Int -> Int
 \end{code}
 </div>
@@ -44,6 +44,8 @@ Higher Order Specifications
 Example: Higher Order Loop
 --------------------------
 
+<br>
+
 \begin{code}
 loop :: Int -> Int -> α -> (Int -> α -> α) -> α
 loop lo hi base f = go lo base
@@ -70,90 +72,146 @@ listSum xs  = loop 0 n 0 body
 
 <br>
 
-- <div class="fragment">*Function subtyping:* `body` called on `i :: Btwn 0 (llen xs)`</div>
-- <div class="fragment">Hence, indexing with `!!` is safe.</div>
-
-
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+**Function Subtyping** 
+
+`body` called with `i :: Btwn 0 (llen xs)`
 </div>
+
+<br>
+
+<div class="fragment">Hence, indexing with `!!` is safe.</div>
+
+Example: Summing Lists
+----------------------
+
+\begin{code} <div/>
+listSum xs  = loop 0 n 0 body 
+  where 
+    body    = \i acc -> acc + (xs !! i)
+    n       = length xs
+\end{code}
+
+<br>
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+
+Polymorphic Instantiation
+=========================
 
 Example: Summing `Nat`s
 -----------------------
-
-<br>
 
 \begin{code}
-{-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
-    body       = \i acc -> acc + (xs !! i)
-    n          = length xs
+{-@ sumNats :: [Nat] -> Nat @-}
+sumNats xs  = foldl (+) 0 xs 
 \end{code}
 
 <br>
 
-<div class="fragment" align="center">
+<div class="fragment">
+\begin{code} Recall 
+foldl :: (α -> β -> α) -> α -> [β] -> α
+\end{code}
+</div>
 
-----  ----  ---------------------------------------
- (+)  `::`  `x:Int -> y:Int -> {v:Int| v=x+y}`
-      `<:`  `Nat   -> Nat   -> Nat`
-----  ----  ---------------------------------------
+<br>
 
+<div class="fragment">
+How to **instantiate** `α` and `β` ?
+</div>
+
+Function Subtyping
+------------------
+
+\begin{code}<div/>
+(+) ::  x:Int -> y:Int -> {v:Int|v=x+y} 
+    <:  Nat   -> Nat   -> Nat
+\end{code}
+
+<div class="fragment">
+Because,
+
+\begin{code}<div/>
+               |- Nat       <: Int  -- Contra
+  x:Nat, y:Nat |- {v = x+y} <: Nat  -- Co
+\end{code}
+</div>
+
+<div class="fragment">
+Because,
+
+\begin{code}<div/>
+  0<=x && 0<=y && v = x+y => 0 <= v
+\end{code}
 </div>
 
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <br> 
-{-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
-    body       = \i acc -> acc + (xs !! i)
-    n          = length xs
+\begin{code} <div/> 
+{-@ sumNats :: [Nat] -> Nat @-}
+sumNats xs  = foldl (+) 0 xs 
 \end{code}
 
 <br>
 
-Hence, verified by *instantiating* `α` of `loop` with `Nat`
+\begin{code} Where:
+foldl :: (α -> β -> α) -> α -> [β] -> α
+(+)   :: Nat -> Nat -> Nat
+\end{code}
 
-<div class="fragment">`Int -> Int -> Nat -> (Int -> Nat -> Nat) -> Nat`</div>
+<br>
+
+<div class="fragment">
+`sumNats` verified by **instantiating** `α,β := Nat`
+</div>
+
 
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <br> 
-{-@ listNatSum :: [Nat] -> Nat @-}
-listNatSum xs  = loop 0 n 0 body 
-  where 
-    body       = \i acc -> acc + (xs !! i)
-    n          = length xs
+\begin{code} <div/> 
+{-@ sumNats :: [Nat] -> Nat @-}
+sumNats xs  = foldl (+) 0 xs 
 \end{code}
 
 <br>
 
-+ Parameter `α` corresponds to *loop invariant*
+\begin{code} Where:
+foldl :: (α -> β -> α) -> α -> [β] -> α
+(+)   :: Nat -> Nat -> Nat
+\end{code}
 
-+ Instantiation corresponds to invariant *synthesis*
+<br>
+
+<div class="fragment">
+Parameter `α` is **loop invariant**, instantiation is invariant **synthesis**
+</div>
 
 
 Instantiation And Inference
 ---------------------------
 
-+ <div class="fragment">Polymorphic instantiation happens *everywhere*</div> 
+<div class="fragment">Polymorphic instantiation happens *everywhere*...</div> 
 
-+ <div class="fragment">Automatic inference is crucial</div>
+<br>
 
-+ <div class="fragment">*Cannot use* unification (unlike indexed approaches)</div>
+<div class="fragment">... so *automatic inference* is crucial</div>
 
-+ <div class="fragment">*Can reuse* [SMT/predicate abstraction.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)</div>
+<br>
 
+<div class="fragment">Cannot use *unification* (unlike indexed approaches)</div>
+
+<br>
+
+<div class="fragment">LiquidHaskell uses [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)</div>
 
 
 Iteration Dependence
 --------------------
 
-**Cannot** use parametric polymorphism to verify:
+**Problem:** Cannot use parametric polymorphism to verify
 
 <br>
 
@@ -169,5 +227,6 @@ add n m = loop 0 m n (\_ i -> i + 1)
 
 - <div class="fragment">... cannot instantiate `α` with `{v:Int | v = n + m}`</div>
 
-<div class="fragment">**Problem:** Need *iteration-dependent* invariants...</div>
+<div class="fragment">**Problem:** Need *iteration-dependent* invariants...<a href="04_AbstractRefinements.lhs.slides.html" target="_blank">[continue]</a>
+</div>
 

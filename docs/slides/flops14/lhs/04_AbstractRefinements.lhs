@@ -83,7 +83,7 @@ maxInt x y = if y <= x then x else y
 Example: `maxInt` 
 -----------------
 
-Has *many incomparable* refinement types
+Has **many incomparable** refinement types
 
 \begin{code}<br>
 maxInt :: Nat  -> Nat  -> Nat
@@ -93,7 +93,7 @@ maxInt :: Odd  -> Odd  -> Odd
 
 <br>
 
-<div class="fragment">Yikes. **Which** one should we use?</div>
+<div class="fragment">Oh no! **Which** one should we use?</div>
 
 
 Refinement Polymorphism 
@@ -115,16 +115,17 @@ Refinement Polymorphism
 
 </div>
 
-<div class="fragment">Above holds *for all* properties!</div>
+<div class="fragment">Above holds *for all properties*!</div>
 
 <br>
 
 <div class="fragment"> 
 
-**Need to abstract refinements over types**
+**Need to abstract properties over types**
 
 </div>
 
+<!--
 
 By Type Polymorphism?
 ---------------------
@@ -201,10 +202,12 @@ Type Polymorphism? No.
 
 <div class="fragment">Need to try a bit harder...</div>
 
-By Parametric Refinements!
---------------------------
+-->
 
-That is, enable *quantification over refinements*...
+Parametric Refinements
+----------------------
+
+Enable *quantification over refinements* ...
 
 Parametric Refinements 
 ----------------------
@@ -220,6 +223,8 @@ maxInt x y = if x <= y then y else x
 
 
 <div class="fragment">Type says: **for any** `p` that is a property of `Int`, </div>
+
+<br>
 
 - <div class="fragment">`max` **takes** two `Int`s that satisfy `p`,</div>
 
@@ -237,11 +242,11 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-[Key idea: ](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) `Int<p>` is `{v:Int | (p v)}`
+[Key idea: ](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) &nbsp; `Int<p>`  &nbsp; is just  &nbsp; `{v:Int | (p v)}`
 
 <br>
 
-<div class="fragment">So, Abstract Refinement is an *uninterpreted function* in SMT logic</div>
+<div class="fragment">i.e., Abstract Refinement is an **uninterpreted function** in SMT logic</div>
 
 Parametric Refinements 
 ----------------------
@@ -255,7 +260,7 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-**Check** and **Instantiate** type using *SMT & predicate abstraction*
+**Check** and **Instantiate** refinements using *SMT & predicate abstraction*
 
 Using Abstract Refinements
 --------------------------
@@ -281,9 +286,11 @@ e' = maxInt 2 8     -- p := \v -> Even v
 Using Abstract Refinements
 --------------------------
 
-Or any other property 
+Or any other property ...
 
 <br>
+
+<div class="fragment">
 
 \begin{code}
 {-@ type RGB = {v:_ | (0 <= v && v < 256)} @-}
@@ -292,12 +299,21 @@ Or any other property
 rgb = maxInt 56 8
 \end{code}
 
+</div>
+
 
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
-3. **Measures:** Strengthened Constructors
-4. <div class="fragment">**Abstract:** Refinements over Type Signatures</div>
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. <div class="fragment">**Abstract Refinements** over Types
+
+<br>
+<br>
+
+<div class="fragment">
+  Abstract Refinements are *very* expressive ... <a href="06_Inductive.lhs.slides.html" target="_blank">[continue]</a>
+</div>
 
