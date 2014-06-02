@@ -178,10 +178,10 @@ Try Yourself
 [[continue]](01_SimpleRefinements.lhs.slides.html)
 
 
- {#plan} 
---------
+Plan 
+----
 
-1. <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements</a></div>
+1. <a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements
 2. <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
 3. <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
 4. <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>, <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">...</a>,<a href="05_Composition.lhs.slides.html" target= "_blank">...</a></div>

@@ -260,7 +260,7 @@ Multiple Measures: Red-Black Trees
 <img src="../img/RedBlack.png" height=300px>
 
 + <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
-+ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on **all paths**</div>
++ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on *all paths*</div>
 <br>
 
 [[Skip...]](#/4)
@@ -301,13 +301,19 @@ isB (Node c x l r)  = c == Black
 *Almost* Color Invariant 
 ------------------------
 
+<br>
+<br>
+
 Color Invariant **except** at root. 
+
+<br>
+<br>
 
 <div class="fragment">
 \begin{code} <br>
-measure isAlmost    :: Tree a -> Prop
-isRB (Leaf)         = true
-isRB (Node c x l r) = isRB l && isRB r
+measure isAlmost        :: Tree a -> Prop
+isAlmost (Leaf)         = true
+isAlmost (Node c x l r) = isRB l && isRB r
 \end{code}
 </div>
 
