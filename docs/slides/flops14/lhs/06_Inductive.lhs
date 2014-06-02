@@ -396,7 +396,7 @@ size     = foldr (\_ _ n -> n + 1) 0
 <br>
 
 <div class="fragment">
-Verified by automatically instantiating 
+by *automatically instantiating*
 
 `p := \xs acc -> acc = (llen xs)`
 </div>
@@ -445,20 +445,23 @@ Verified by automatically instantiating
 Recap
 -----
 
-Abstract refinements decouple *invariant* from *traversal*
+Abstract refinements *decouple* **invariant** from **traversal**
 
 <br>
 
-+ <div class="fragment">*reusable* specifications for higher-order functions.</div>
+<div class="fragment">**Reusable** specifications for higher-order functions.</div>
 
-+ <div class="fragment">*automatic* checking and instantiation by SMT.</div>
+<br>
+
+<div class="fragment">**Automatic** checking and instantiation by SMT.</div>
 
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
-3. **Measures:** Strengthened Constructors
-4. **Abstract:** Refinements over Type Signatures
-    + *Dependencies*
-    + <div class="fragment">*Induction*</div>
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. Abstract: Refinements over Type Signatures
+    + <div class="fragment">**Functions**</div>
+    + <div class="fragment">**Data** <a href="08_Recursive.lhs.slides.html" target="_blank">[continue]</a></div>
+

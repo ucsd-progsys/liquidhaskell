@@ -1,12 +1,13 @@
 Decouple Invariants From Data {#recursive} 
 ==========================================
 
+ {#asd}
+-------
+
 Recursive Structures 
 --------------------
 
-<div class="fragment">
 Lets see another example of decoupling...
-</div>
 
 <div class="hidden">
 \begin{code}
@@ -33,14 +34,14 @@ Recall: Lists
 
 \begin{code}
 data L a = N 
-         | C a (L a)
+         | C { hd :: a, tl :: L a }
 \end{code}
 
 
 Recall: Refined Constructors 
 ----------------------------
 
-Define *increasing* Lists with strengthened constructors:
+Define **increasing** Lists with strengthened constructors:
 
 \begin{code} <br>
 data L a where
@@ -51,14 +52,15 @@ data L a where
 Problem: Decreasing Lists?
 --------------------------
 
-What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?
+What if we need *both* [increasing *and* decreasing lists?](http://hackage.haskell.org/package/base-4.7.0.0/docs/src/Data-List.html#sort)
 
 <br>
 
 <div class="fragment">
-*Separate* types are tedious...
+[Separate (indexed) types](http://web.cecs.pdx.edu/~sheard/Code/QSort.html) get quite complicated ...
 </div>
 
+HEREHEREHEREHERE
 
 Abstract That Refinement!
 -------------------------
@@ -66,16 +68,20 @@ Abstract That Refinement!
 \begin{code}
 {-@ data L a <p :: a -> a -> Prop>
       = N 
-      | C (hd :: a) (tl :: (L <p> a<p hd>)) @-}
+      | C { hd :: a, tl :: L <p> a<p hd> } @-}
 \end{code}
 
 <br>
 
-- <div class="fragment"> `p` is a *binary* relation between two `a` values</div>
+<div class="fragment"> `p` is a **binary relation** between two `a` values</div>
 
-- <div class="fragment"> Definition relates `hd` with *all* the elements of `tl`</div>
+<br>
 
-- <div class="fragment"> Recursive: `p` holds for *every pair* of elements!</div>
+<div class="fragment"> Definition relates `hd` with **all** the elements of `tl`</div>
+
+<br>
+
+<div class="fragment"> Recursive: `p` holds for **every pair** of elements!</div>
 
 Example
 -------

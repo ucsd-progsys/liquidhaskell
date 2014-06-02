@@ -245,15 +245,13 @@ odds      =  1 `C` 3 `C` 5 `C` N
 What if `evens` contained `1`? 
 </div>
 
- {#functiontypes}
-=================
 
-Contracts = Function Types
---------------------------
 
 Contracts: Function Types
 =========================
 
+ {#as}
+------
 
 Example: `safeDiv`
 ------------------
@@ -265,12 +263,13 @@ Example: `safeDiv`
 <br>
 
 <div class="fragment">
+
 \begin{code}
 {-@ type NonZero = {v:Int | v /= 0} @-}
 \end{code}
+
 </div>
 
-<br>
 
 Example: `safeDiv`
 ------------------
@@ -377,8 +376,6 @@ Example: Indexing Into List
 (C _ xs) ! i = xs ! (i - 1)
 _        ! _ = liquidError "Oops!"
 \end{code}
-
-<br>
 
 <div class="fragment">(Mouseover to view type of `liquidError`)</div>
 
