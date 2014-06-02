@@ -672,7 +672,7 @@ Formal Grammar of Refinement Predicates
        | c                      -- constant
        | (e + e)                -- addition
        | (e - e)                -- subtraction
-       | (c * e)                -- multiplication by constant
+       | (c * e)                -- cmultiplication by constant
        | (v e1 e2 ... en)       -- uninterpreted function application
        | (if p then e else e)   -- if-then-else
 

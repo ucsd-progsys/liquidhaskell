@@ -366,5 +366,4 @@ Recap
 
 <br>
 
-<div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html"
-target="_blank">Continue...</a></div>
+<div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target="_blank">[continue]</a></div>

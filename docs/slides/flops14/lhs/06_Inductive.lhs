@@ -142,7 +142,7 @@ loop lo hi base f = go lo base
 
 <br>
 
-**Base Case** Initial accumulator `base` satisfies invariant
+**Base Case:** &nbsp; Initial accumulator `base` satisfies invariant
 
 
 `(p base lo)`   
@@ -161,7 +161,7 @@ loop lo hi base f = go lo base
 
 <br>
 
-**Inductive Step** `f` *preserves* invariant at `i`
+**Inductive Step:** &nbsp; `f` *preserves* invariant at `i`
 
 
 `(p acc i) => (p (f i acc) (i + 1))`
@@ -179,7 +179,7 @@ loop lo hi base f = go lo base
 
 <br>
 
-**"By Induction"** `out` satisfies invariant at `hi` 
+**"By Induction"** &nbsp; `out` satisfies invariant at `hi` 
 
 `(p out hi)`
 
@@ -193,8 +193,8 @@ Induction is an **abstract refinement type** for `loop`
 
 \begin{code}
 {-@ loop :: forall a <p :: Int -> a -> Prop>.
-        lo:Int 
-     -> hi:{v:Int|lo <= v}
+        lo:Int
+     -> hi:{Int | lo <= hi}
      -> base:a<p lo>                      
      -> f:(i:Int -> a<p i> -> a<p (i+1)>) 
      -> a<p hi>                           @-}
@@ -324,7 +324,7 @@ out  ::  b<p ys>
 
 <br>
 
-`(p xs b)` relates `b` with folded `xs`
+`(p xs b)` relates `b` with **folded** `xs`
 
 `p :: L a -> b -> Prop`
 
@@ -344,7 +344,7 @@ out  :: b<p ys>
 
 `base` is related to empty list `N`
 
-`base :: b<p N>` states 
+`base :: b<p N>` 
 
 
 
@@ -419,7 +419,7 @@ where the alias `Cat` is:
 
 \begin{code}
 {-@ type Cat a X Y = 
-    {v:L a|(llen v) = (llen X) + (llen Y)} @-}
+    {v:_|(llen v) = (llen X) + (llen Y)} @-}
 \end{code}
 
 </div>
