@@ -4,9 +4,12 @@
 <div class="hidden">
 \begin{code}
 module Laziness where
+
 import Language.Haskell.Liquid.Prelude
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short"          @-}
+
 
 safeDiv :: Int -> Int -> Int
 foo     :: Int -> Int
@@ -68,7 +71,7 @@ An Innocent Function
 
 <br>
 
-\begin{code}
+\begin{code} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -79,72 +82,78 @@ LiquidHaskell Lies!
 -------------------
 
 \begin{code}
-explode = let z = 0
+{-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
+foo n   
+  | n > 0     = n - 1
+  | otherwise = foo n
+
+explode = let z = 0    
               a = foo z
-          in  (\x -> 2013 `safeDiv` z) a 
+          in  
+              (\x -> 2013 `safeDiv` z) a 
 \end{code}
 
 <br>
 
 <div class="fragment">
-Why is this program deemed **safe**? 
-</div>
-
-<br>
-
-<div class="fragment">
-(Where's the *red* highlight when you want it?!)
+Why is this program **deemed safe**?! 
 </div>
 
 
-Safe With Eager Eval
---------------------
+*Safe* With Eager Eval
+----------------------
 
 \begin{code} <div/>
-{- foo       :: n:Nat -> {v:Nat | v < n} -}
+{-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
   | otherwise = foo n
 
-explode = let z = 0
-              a = foo z
-          in  (\x -> 2013 `safeDiv` z) a 
+explode = let z = 0     -- :: {v:Int| v = 0}
+              a = foo z -- :: {v:Nat| v < z}
+          in  
+              (\x -> 2013 `safeDiv` z) a 
 \end{code}
 
 <br>
 
 <div class="fragment">
-Java, ML *are safe*: program spins away, **never hits** divide-by-zero 
+**Safe** in Java, ML: program spins away, **never hits** divide-by-zero 
 </div>
 
-Unsafe With Lazy Eval
----------------------
+*Unsafe* With Lazy Eval
+-----------------------
 
-\begin{code}<div/>
-{- foo       :: n:Nat -> {v:Nat | v < n} -}
+\begin{code} <div/>
+{-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
   | otherwise = foo n
 
-explode = let z = 0
-          in  (\x -> (2013 `safeDiv` z)) (foo z)
+explode = let z = 0     -- :: {v:Int| v = 0}
+              a = foo z -- :: {v:Nat| v < z}
+          in  
+              (\x -> 2013 `safeDiv` z) a 
 \end{code}
 
 <br>
 
-In Haskell, program *skips* `(foo z)` & hits divide-by-zero!
+**Unsafe** in Haskell: program skips `foo z` and **hits** divide-by-zero!
 
 Problem: Divergence
 -------------------
 
 <div class="fragment">
-What is denoted by `e :: {v:Int | 0 <= v}` ?
+What is denoted by:
+
+`e :: {v:Int | P}`
+
 </div>
 
 <br>
 
 <div class="fragment">
-`e` evaluates to a `Nat`  
+`e` evaluates to `Int` satisfying `P`  
 </div>
 
 <div class="fragment">
@@ -165,54 +174,56 @@ Classical Floyd-Hoare notion of [partial correctness](http://en.wikipedia.org/wi
 Problem: Divergence
 -------------------
 
-Suppose `e :: {v:Int | 0 <= v}`
+\begin{code} **Consider** <div/> 
+        {-@ e :: {v : Int | P} @-}
 
-<br>
-
-**Consider**
-
-`let x = e in body`
-
-With Eager Evaluation 
----------------------
-
-Suppose `e :: {v:Int | 0 <= v}`
-
-<br>
-
-**Consider**
-
-`let x = e in body`
+        let x = e in body 
+\end{code}
 
 <br>
 
 <div class="fragment">
-**Can** assume `x` is a `Nat` when checking `body`
+**Eager Evaluation** 
+
+*Can* assume `P(x)` when checking `body`
 </div>
-
-But With Lazy Evaluation 
-------------------------
-
-Suppose `e :: {v:Int | 0 <= v}`
-
-<br>
-
-**Consider**
-
-`let x = e in body`
 
 <br>
 
 <div class="fragment">
-**Cannot** assume `x` is a `Nat` when checking e!
+**Lazy Evaluation** 
+
+*Cannot* assume `P(x)` when checking `body`
 </div>
 
-Oops. Now what?
+Eager vs. Lazy Binders 
+----------------------
+
+\begin{code} <div/>
+{-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
+foo n   
+  | n > 0     = n - 1
+  | otherwise = foo n
+
+explode = let z = 0     -- :: {v:Int| v = 0}
+              a = foo z -- :: {v:Nat| v < z}
+          in  
+              (\x -> 2013 `safeDiv` z) a 
+\end{code}
+
+<br>
+
+Inconsistent refinement for `a` is sound for **eager**, unsound for **lazy**
+
+
+Panic! Now what?
 ---------------
 
+<div class="fragment">
 **Solution** 
 
-Only assign *non-trivial* refinements to *non-diverging* terms!
+Assign *non-trivial* refinements to *non-diverging* terms!
+</div>
 
 <br>
 
@@ -220,20 +231,29 @@ Only assign *non-trivial* refinements to *non-diverging* terms!
 
 **Require A Termination Analysis**
 
-(Oh dear...)
+Don't worry, its easy...
 
 </div>
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a>Disable `"--no-termination" and see what happens!
+<br>
 
+<div class="fragment">
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a> &nbsp; Disable `"--no-termination"` and see what happens!
+</div>
 
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
-3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:** Decouple Invariants 
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. Abstract: Refinements over functions and data
 5. **Lazy Evaluation:** Requires Termination
-6. <div class="fragment">**Termination:** Via Refinements!</div>
+6. <div class="fragment">**Termination:** via Refinements!</div>
+
+<br>
+<br>
+
+<div class="fragment">[[continue...]](10_Termination.lhs.slides.html)</div>
+
 

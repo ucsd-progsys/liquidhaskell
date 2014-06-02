@@ -527,4 +527,9 @@ Recap
 2. Subtyping: SMT Implication
 3. Measures: Strengthened Constructors
 4. **Abstract:** Refinements over functions and data
-5. <div class="fragment">Er, what about [lazy evaluation](09_Laziness.lhs.slides.html)?</div>
+5. <div class="fragment">Er, what about Haskell's **lazy evaluation**?</div>
+
+<br>
+<br>
+
+<div class="fragment">[[continue...]](09_Laziness.lhs.slides.html)</div>
