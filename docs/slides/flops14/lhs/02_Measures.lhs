@@ -33,11 +33,6 @@ Recap
 2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
 
----   -----------------------   ---  -------------------------
- 1.      **Refinement Types**    :   Types + Predicates
- 2.             **Subtyping**    :   SMT / Logical Implication 
----   -----------------------   ---  -------------------------
-
 Example: Length of a List 
 -------------------------
 
@@ -52,7 +47,7 @@ data L a = N | C a (L a)
 <div class="fragment">
 <br>
 
-We can define the *length* as:
+We can define the **length** as:
 
 <br>
 
@@ -75,7 +70,7 @@ Example: Length of a List
 
 <br>
 
-LiquidHaskell *strengthens* data constructor types
+LiquidHaskell **strengthens** data constructor types
 
 <br>
 
@@ -96,7 +91,7 @@ data L a where
 
 <br>
 
-`llen` is an *uninterpreted function* in SMT logic
+`llen` is an **uninterpreted function** in SMT logic
 
 Measures Are Uninterpreted
 --------------------------
@@ -157,8 +152,6 @@ length (C _ xs) = 1 + length xs
 <br>
 
 Where `EqLen` is a type alias:
-
-<br>
 
 \begin{code}
 {-@ type EqLen Xs = {v:Nat | v = (llen Xs)} @-}
@@ -224,8 +217,6 @@ Ex: List Emptiness
 
 Measure describing whether a `List` is empty 
 
-<br> 
-
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
     isNull (N)      = true
@@ -235,10 +226,9 @@ Measure describing whether a `List` is empty
 <br>
 
 <div class="fragment">
-
 LiquidHaskell **strengthens** data constructors
 
-\begin{code} <br> 
+\begin{code} <div/> 
 data L a where 
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
@@ -261,16 +251,110 @@ data L a where
               && not (isNull v)          }
 \end{code}
 
-Ex: Red-Black Trees
--------------------
+Multiple Measures: Red-Black Trees
+==================================
 
-+ FIXTHIS
+ {#asdad}
+---------
 
-+ HEREHERE
+<img src="../img/RedBlack.png" height=300px>
 
-+ TODO
++ <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
++ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on **all paths**</div>
+<br>
+
+[[Skip...]](#/4)
+
+Basic Type 
+----------
+
+\begin{code} <br>
+data Tree a = Leaf 
+            | Node Color a (Tree a) (Tree a)
+
+data Color  = Red 
+            | Black
+\end{code}
+
+Color Invariant 
+---------------
+
+`Red` nodes have `Black` children
+
+<div class="fragment">
+\begin{code} <br>
+measure isRB        :: Tree a -> Prop
+isRB (Leaf)         =  true
+isRB (Node c x l r) =  c=R => (isB l && isB r)
+                    && isRB l && isRB r
+\end{code}
+</div>
+
+<div class="fragment">
+\begin{code} where <br>
+measure isB         :: Tree a -> Prop 
+isB (Leaf)          = true
+isB (Node c x l r)  = c == Black 
+\end{code}
+</div>
+
+*Almost* Color Invariant 
+------------------------
+
+Color Invariant **except** at root. 
+
+<div class="fragment">
+\begin{code} <br>
+measure isAlmost    :: Tree a -> Prop
+isRB (Leaf)         = true
+isRB (Node c x l r) = isRB l && isRB r
+\end{code}
+</div>
+
+
+Height Invariant
+----------------
+
+Number of `Black` nodes equal on **all paths**
+
+<div class="fragment">
+\begin{code} <br>
+measure isBH        :: RBTree a -> Prop
+isBH (Leaf)         =  true
+isBH (Node c x l r) =  bh l = bh r 
+                    && isBH l && isBH r 
+\end{code}
+</div>
+
+<div class="fragment">
+\begin{code} where <br>
+measure bh        :: RBTree a -> Int
+bh (Leaf)         = 0
+bh (Node c x l r) = bh l 
+                  + if c == Red then 0 else 1
+\end{code}
+</div>
+
+Refined Type 
+------------
+
+\begin{code} <br>
+-- Red-Black Trees
+type RBT a  = {v:Tree a | isRB v && isBH v}
+
+-- Almost Red-Black Trees
+type ARBT a = {v:Tree a | isAlmost v && isBH v}
+\end{code}
+
+<br>
+
+[Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
+
 
 Measures vs. Index Types
+========================
+
+Decouple Property & Type 
 ------------------------
 
 Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
@@ -283,7 +367,7 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 + Support **multiple** properties over structures 
 
-+ Enable  **reuse** of structures                 
++ Enable  **reuse** of structures in different contexts                 
 
 </div>
 
@@ -297,7 +381,7 @@ Refined Data Constructors
  {#asd}
 -------
 
-Can encode invariants *inside constructors*
+Can encode invariants **inside constructors**
 
 <div class="fragment">
 
