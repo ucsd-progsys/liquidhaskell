@@ -44,19 +44,21 @@ Refinements & Termination
 ----------------------------
 
 <div class="fragment">
-Fortunately, we can ensure termination *using refinements*
+Fortunately, we can ensure termination **using refinements**
 </div>
 
 
 Main Idea
 ---------
 
-Recursive calls must be on *smaller* inputs
+Recursive calls must be on **smaller** inputs
 
 <br>
 
 + [Turing](http://classes.soe.ucsc.edu/cmps210/Winter11/Papers/turing-1936.pdf)
 + [Sized Types](http://dl.acm.org/citation.cfm?id=240882)
++ [DML](http://dl.acm.org/citation.cfm?id=609232)
++ [Size Change Principle](http://dl.acm.org/citation.cfm?id=360210)
 
 Recur On *Smaller* `Nat` 
 ------------------------
@@ -81,7 +83,7 @@ foo x =  body
 
 <br>
 
-*i.e.* require recursive calls have inputs *smaller* than `x`
+*i.e.* require recursive calls have `Nat` inputs *smaller than* `x`
 </div>
 
 
@@ -105,7 +107,7 @@ Terminates, as both `n-1` and `n-2` are `< n`
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a>What if we drop the `fib 1` case?
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=GCD.hs" target="_blank">Demo:</a> &nbsp; What if we drop the `fib 1` equation? 
 </div>
 
 Refinements Are Essential!
@@ -184,12 +186,15 @@ map f (C x xs) = (f x) `C` (map f xs)
 
 <br>
 
-Terminates using **default** measure `llen`
+Terminates using **default** measure `llen` 
+
+<br>
 
 <div class="fragment">
 \begin{code}
 {-@ data L [llen] a = N 
-                    | C (x::a) (xs :: L a) @-}
+                    | C { x::a, xs :: L a} @-}
+
 {-@ measure llen :: L a -> Int
     llen (N)      = 0
     llen (C x xs) = 1 + (llen xs)   @-}
@@ -200,7 +205,7 @@ Terminates using **default** measure `llen`
 Recur On *Smaller* Inputs
 -------------------------
 
-What of *smallness* spread across inputs?
+What of smallness spread across **multiple inputs**?
 
 <br>
 
@@ -213,13 +218,13 @@ merge xs@(x `C` xs') ys@(y `C` ys')
 <br>
 
 <div class="fragment">
-Neither input decreases, but their *sum* does.
+Neither input decreases, but their **sum** does.
 </div>
 
 Recur On *Smaller* Inputs
 -------------------------
 
-Neither input decreases, but their *sum* does.
+Neither input decreases, but their **sum** does.
 
 <br>
 
@@ -232,7 +237,7 @@ Neither input decreases, but their *sum* does.
 
 <div class="fragment">
 
-Synthesize *ghost* parameter equal to `[...]`
+Synthesize **ghost** parameter equal to `[...]`
 
 </div>
 
@@ -240,27 +245,37 @@ Synthesize *ghost* parameter equal to `[...]`
 
 <div class="fragment">
 
-Reduces to single-parameter-decrease case. 
+... thereby reducing to decreasing **single parameter** case. 
 
 </div>
 
 Important Extensions 
 --------------------
 
-- <div class="fragment">Mutual recursion</div>
+<br>
 
-- <div class="fragment">Lexicographic ordering...</div>
+<div class="fragment">**Mutual** recursion</div>
+
+<br>
+
+<div class="fragment">**Lexicographic** ordering</div>
+
+<br>
+
+<div class="fragment">Fit easily into our framework ...</div>
 
 Recap
 -----
 
-Main idea: Recursive calls on *smaller inputs*
+Main idea: Recursive calls on **smaller** inputs
 
 <br>
 
-- <div class="fragment">Use refinements to *check* smaller</div>
+<div class="fragment">Use refinements to **check** smaller</div>
 
-- <div class="fragment">Use refinements to *establish* smaller</div>
+<br>
+
+<div class="fragment">Use refinements to **establish** smaller</div>
 
 
 A Curious Circularity
@@ -274,18 +289,22 @@ A Curious Circularity
 
 <br>
 
-<div class="fragment"> (Meta-theory is tricky, but all ends well.)</div>
-
+<div class="fragment"> Meta-theory is tricky, but all ends well.</div>
 
 Recap
 -----
 
-1. **Refinements:** Types + Predicates
-2. **Subtyping:** SMT Implication
-3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
-5. **Lazy Evaluation:** Requires Termination
-6. **Termination:** Via Refinements!
-7. <div class="fragment">**Evaluation** </div>
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. Abstract: Refinements over functions and data
+5. Lazy Evaluation: Requires Termination
+6. **Termination:** via Refinements!
+7. <div class="fragment">**Evaluation:** How good is this in practice?</div>
+
+<br>
+<br>
+
+<div class="fragment">[[continue...]](10_Termination.lhs.slides.html)</div>
 
 

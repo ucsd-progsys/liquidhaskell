@@ -1,18 +1,27 @@
-Refinement Types For Haskell
-============================
+ {#ASD}
+-------
 
- {#berg} 
---------
+Liquid Types For Haskell
+------------------------
 
-<br>
-
-+ Niki Vazou
-+ Eric Seidel
-+ *Ranjit Jhala*
 
 <br>
+<br>
+<br>
 
-**UC San Diego**
+**Ranjit Jhala**
+
+University of California, San Diego
+
+<br>
+<br>
+<br>
+
+
+Joint work with: 
+
+N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
+
 
 <div class="hidden">
 
