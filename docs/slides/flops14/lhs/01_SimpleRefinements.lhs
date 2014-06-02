@@ -313,15 +313,19 @@ abs x
 \end{code}
 
 
-
  {#dependentfunctions}
 ======================
 
 Dependent Function Types
 ------------------------
 
-+ Outputs *refer to* inputs
-+ *Relational* invariants
+<br>
+
+Outputs **refer to** inputs
+
+<br>
+
+**Relational** invariants
 
 
 Dependent Function Types
@@ -341,8 +345,9 @@ Example: `range`
 <br>
 
 \begin{code}
-{-@ type Btwn I J = {v:_ | (I <= v && v < J)} @-}
+{-@ type Btwn I J = {v:_ | (I<=v && v<J)} @-}
 \end{code}
+
 
 Example: `range`
 ----------------
@@ -353,17 +358,16 @@ Example: `range`
 
 \begin{code}
 {-@ range :: i:Int -> j:Int -> L (Btwn i j) @-}
-range i j         = go i
+range i j            = go i
   where
-    go n
-      | n < j     = n `C` go (n + 1)  
-      | otherwise = N
+    go n | n < j     = n `C` go (n + 1)  
+         | otherwise =  N
 \end{code}
 
 <br>
 
 <div class="fragment">
-**Question:** What is the type of `go` ?
+**Note:** Type of `go` is automatically inferred
 </div>
 
 
@@ -377,13 +381,14 @@ Example: Indexing Into List
 _        ! _ = liquidError "Oops!"
 \end{code}
 
+<br>
+
 <div class="fragment">(Mouseover to view type of `liquidError`)</div>
 
 <br>
 
-- <div class="fragment">**Q:** How to ensure safety? </div>
-- <div class="fragment">**A:** Precondition: `i` between `0` and list **length**.
+<div class="fragment">To ensure safety, *require* `i` between `0` and list **length**</div>
 
-<div class="fragment">Need way to [measure](02_Measures.lhs.slides.html) the *length* of a list ...</div>
+<div class="fragment">Need way to **measure** the length of a list [[continue...]](02_Measures.lhs.slides.html)</div>
 
 
