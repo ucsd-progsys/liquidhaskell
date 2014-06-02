@@ -80,9 +80,11 @@ like this with LiquidHaskell.
 {-# LANGUAGE BangPatterns, MagicHash, Rank2Types,
     RecordWildCards, UnboxedTuples, ExistentialQuantification #-}
 {-@ LIQUID "--no-termination" @-}
-module TextInternal (test, charAt, charAt') where
+module TextInternal (test, goodMain, badMain, charAt, charAt') where
 
 import qualified Control.Exception as Ex
+import Control.Applicative     ((<$>))
+import Control.Monad           (when)
 import Control.Monad.ST.Unsafe (unsafeIOToST)
 import Data.Bits (shiftR, xor, (.&.))
 import Data.Char
@@ -93,6 +95,7 @@ import GHC.Base (Int(..), ByteArray#, MutableByteArray#, newByteArray#,
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 
+import qualified Data.Text.Lazy.IO as TIO
 import qualified Data.Text as T
 import qualified Data.Text.Internal as T
 
@@ -131,6 +134,9 @@ assert b a = Ex.assert b a
 
 
 data Text = Text Array Int Int
+
+{-@ tLength :: t:Text -> {v:_ | v = (tLen t)} @-}
+tLength (Text _ _ n)  =  n
 \end{code}
 
 </div>
@@ -415,5 +421,47 @@ test = [good,bad]
 \end{code}
 
 we see that LiquidHaskell verifies the `good` call, but flags `bad` as
-**unsafe**, thereby blocking, at compile time, any serious bleeding
+**unsafe**.
+
+Enforcing Sanitization
+----------------------
+
+EDIT: As several folks have pointed out, the #heartbleed error was
+due to inputs not being properly sanitized. The above approach 
+**ensures, at compile time**, that proper sanitization has been 
+performed. 
+
+To see this in action, lets write a little function that just shows the 
+character at a given position:
+
+\begin{code}
+{-@ showCharAt :: t:_ -> {v:Nat | v < (tLen t)} -> _ @-}
+showCharAt t i = putStrLn $ show $ charAt t i
+\end{code}
+
+Now, the following function, that correctly sanitizes is **accepted**
+
+\begin{code}
+goodMain :: IO ()
+goodMain 
+  = do txt <- pack <$> getLine
+       i   <- readLn
+       if 0 <= i && i < tLength txt 
+         then showCharAt txt i 
+         else putStrLn "Bad Input!"
+\end{code}
+
+but this function, which has insufficient sanitization, is **rejected**
+
+\begin{code}
+badMain :: IO ()
+badMain 
+  = do txt <- pack <$> getLine 
+       i   <- readLn
+       if 0 <= i 
+         then showCharAt txt i 
+         else putStrLn "Bad Input!"
+\end{code}
+
+Thus, we can use LiquidHaskell to block, at compile time, any serious bleeding
 from pointers gone wild.
