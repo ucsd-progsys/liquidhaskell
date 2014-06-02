@@ -8,7 +8,7 @@ import Language.Haskell.Liquid.Prelude
 
 {-@ LIQUID "--no-termination" @-}
 
-divide :: Int -> Int -> Int
+safeDiv :: Int -> Int -> Int
 foo     :: Int -> Int
 -- zero    :: Int 
 -- diverge :: a -> b
@@ -25,7 +25,7 @@ Lazy Evaluation
 SMT based Verification
 ----------------------
 
-Techniques developed for *strict* languages
+Techniques developed for **strict** languages
 
 <br>
 
@@ -34,7 +34,7 @@ Techniques developed for *strict* languages
 -----------------------   ---   ------------------------------------------
         **Floyd-Hoare**    :    `ESCJava`, `SpecSharp` ...
      **Model Checkers**    :    `Slam`, `Blast` ...
-   **Refinement Types**    :    `DML`, `Stardust`, `F7`, `F*`, `Sage` ...
+   **Refinement Types**    :    `DML`, `Stardust`, `Sage`, `F7`, `F*`, ...
 -----------------------   ---   ------------------------------------------
 
 </div>
@@ -50,21 +50,21 @@ Back To the Beginning
 ---------------------
 
 \begin{code}
-{-@ divide :: Int -> {v:Int| v /= 0} -> Int @-}
-divide n 0 = liquidError "div-by-zero!"
-divide n d = n `div` d
+{-@ safeDiv :: Int -> {v:Int| v /= 0} -> Int @-}
+safeDiv n 0 = liquidError "div-by-zero!"
+safeDiv n d = n `div` d
 \end{code}
 
 <br>
 
 <div class="fragment">
-Should only try to `divide` by non-zero values
+Should only call `safeDiv` with **non-zero** values
 </div>
 
 An Innocent Function
 --------------------
 
-`foo` returns a value *strictly less than* input.
+`foo` returns a value **strictly less than** input.
 
 <br>
 
@@ -80,19 +80,20 @@ LiquidHaskell Lies!
 
 \begin{code}
 explode = let z = 0
-          in  (\x -> (2013 `divide` z)) (foo z)
+              a = foo z
+          in  (\x -> 2013 `safeDiv` z) a 
 \end{code}
 
 <br>
 
 <div class="fragment">
-Why is this deemed *safe*? 
+Why is this program deemed **safe**? 
 </div>
 
 <br>
 
 <div class="fragment">
-(Where's the *red* highlight when you want it?)
+(Where's the *red* highlight when you want it?!)
 </div>
 
 
@@ -106,13 +107,14 @@ foo n
   | otherwise = foo n
 
 explode = let z = 0
-          in  (\x -> (2013 `divide` z)) (foo z)
+              a = foo z
+          in  (\x -> 2013 `safeDiv` z) a 
 \end{code}
 
 <br>
 
 <div class="fragment">
-In Java, ML, etc: program spins away, *never hits* divide-by-zero 
+Java, ML *are safe*: program spins away, **never hits** divide-by-zero 
 </div>
 
 Unsafe With Lazy Eval
@@ -125,7 +127,7 @@ foo n
   | otherwise = foo n
 
 explode = let z = 0
-          in  (\x -> (2013 `divide` z)) (foo z)
+          in  (\x -> (2013 `safeDiv` z)) (foo z)
 \end{code}
 
 <br>
@@ -218,7 +220,7 @@ Only assign *non-trivial* refinements to *non-diverging* terms!
 
 **Require A Termination Analysis**
 
-(Oh dear.)
+(Oh dear...)
 
 </div>
 
@@ -231,7 +233,7 @@ Recap
 1. **Refinements:** Types + Predicates
 2. **Subtyping:** SMT Implication
 3. **Measures:** Strengthened Constructors
-4. **Abstract Refinements:* Decouple Invariants 
+4. **Abstract Refinements:** Decouple Invariants 
 5. **Lazy Evaluation:** Requires Termination
 6. <div class="fragment">**Termination:** Via Refinements!</div>
 

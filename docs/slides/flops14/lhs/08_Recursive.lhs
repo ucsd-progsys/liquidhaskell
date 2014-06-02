@@ -384,6 +384,13 @@ Phew!
 
 Lets see one last example...
 
+<br>
+<br>
+<br>
+<br>
+
+[[Skip]](#/1/32)
+
 
 Example: Binary Trees
 ---------------------
@@ -470,11 +477,15 @@ Example: Data.Map
 
 Standard Key-Value container
 
+<br>
+
 - <div class="fragment">1300+ non-comment lines</div>
 
 - <div class="fragment">`insert`, `split`, `merge`,...</div>
 
 - <div class="fragment">Rotation, Rebalance,...</div>
+
+<br>
 
 <div class="fragment">
 SMT & inference crucial for [verification](https://github.com/ucsd-progsys/liquidhaskell/blob/master/benchmarks/esop2013-submission/Base.hs)
