@@ -64,7 +64,6 @@ Thank You!
 
 <br>
 
-
 `cabal install liquidhaskell`
 
 <br>
