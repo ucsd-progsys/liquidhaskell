@@ -107,9 +107,9 @@ Segmentation Faults
 
 \begin{code} <div/>
 λ> :m + Data.Text Data.Text.Unsafe 
-λ> let t = pack "kamakura"
+λ> let t = pack "Kanazawa"
 λ> takeWord16 5 t
-"kamak"
+"Kanaz"
 \end{code}
 
 <br>
