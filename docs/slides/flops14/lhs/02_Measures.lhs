@@ -187,23 +187,6 @@ Where `LtLen` is a type alias:
 
 </div>
 
-List Indexing Redux
--------------------
-
-Now we can type list indexed lookup:
-
-\begin{code} <br>
-{-@ (!)      :: xs:L a -> (LtLen xs) -> a @-}
-(C x _)  ! 0 = x
-(C _ xs) ! i = xs ! (i - 1)
-_        ! _ = liquidError "never happens!"
-\end{code}
-
-<br>
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
-What if we *remove* the precondition?
-
 Multiple Measures
 =================
 
@@ -285,9 +268,9 @@ Color Invariant
 <div class="fragment">
 \begin{code} <br>
 measure isRB        :: Tree a -> Prop
-isRB (Leaf)         =  true
-isRB (Node c x l r) =  c=Red => (isB l && isB r)
-                    && isRB l && isRB r
+isRB (Leaf)         = true
+isRB (Node c x l r) = c=Red => (isB l && isB r)
+                      && isRB l && isRB r
 \end{code}
 </div>
 
@@ -336,7 +319,7 @@ isBH (Node c x l r) =  bh l = bh r
 measure bh        :: RBTree a -> Int
 bh (Leaf)         = 0
 bh (Node c x l r) = bh l 
-                  + if c == Red then 0 else 1
+                  + if c = Red then 0 else 1
 \end{code}
 </div>
 
@@ -449,7 +432,7 @@ Recap
 
 1. Refinements: Types + Predicates
 2. Subtyping: SMT Implication
-3. <div class="fragment">**Measures:** Strengthened Constructors</div>
+3. **Measures:** Strengthened Constructors
     - <div class="fragment">**Decouple** property from structure</div>
     - <div class="fragment">**Reuse** structure across *different* properties</div>
 
