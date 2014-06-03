@@ -1,5 +1,7 @@
+
+
  {#ASD}
--------
+=======
 
 Liquid Types For Haskell
 ------------------------
@@ -7,13 +9,11 @@ Liquid Types For Haskell
 
 <br>
 <br>
-<br>
 
 **Ranjit Jhala**
 
 University of California, San Diego
 
-<br>
 <br>
 <br>
 
@@ -136,11 +136,15 @@ Liquid Types for Haskell
 LiquidHaskell
 -------------
 
-<div class="fragment">Refine *types* with *predicates*</div>
-
+<br>
 <br>
 
-<div class="fragment">*Expressive* specification & *Automatic* verification</div>
+<div class="fragment">Refine **types** with **predicates**</div>
+
+<br>
+<br>
+
+<div class="fragment">**Expressive** specification & **Automatic** verification</div>
 
 
 
@@ -158,7 +162,10 @@ Automatic
 Expressive
 ----------
 
-+ This talk ...
+<br>
+<br>
+
+This talk ...
 
 Try Yourself
 ------------

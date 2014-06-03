@@ -34,26 +34,14 @@ Types + Predicates
 ------------------
 
 
-Example
--------
-
-Integers equal to `0`
+Ex: `Int`egers equal to `0`
+---------------------------
 
 <br>
 
 \begin{code}
 {-@ type EqZero = {v:Int | v = 0} @-}
-\end{code}
 
-
-Example
--------
-
-Integers equal to `0`
-
-<br>
-
-\begin{code}
 {-@ zero :: EqZero @-}
 zero     =  0
 \end{code}
@@ -61,16 +49,14 @@ zero     =  0
 <br>
 
 <div class="fragment">
-Refinement types via special comments `{-@ ... @-}`
-</div>
-
+Refinement types via special comments `{-@ ... @-}` 
 
 <br>
 
-<div class="fragment">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo</a> 
-Lets take a look.
 </div>
+
+
 
 Refinements Are Predicates
 ==========================
@@ -86,17 +72,21 @@ From A Decidable Logic
 Expressions
 -----------
 
+<br>
+
 \begin{code} <div/> 
 e := x, y, z,...      -- variable
    | 0, 1, 2,...      -- constant
    | (e + e)          -- addition
    | (e - e)          -- subtraction
-   | (c * e)          -- linear mult.
-   | (v e1 e2 ... en) -- uninterpreted func. 
+   | (c * e)          -- linear multiplication
+   | (v e1 e2 ... en) -- uninterpreted function
 \end{code}
 
 Predicates
 ----------
+
+<br>
 
 \begin{code} <div/>
 p := e           -- atom 
@@ -114,63 +104,66 @@ Subtyping is Implication
 [PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
 
-Subtyping is Implication
-------------------------
-
-<br>
-
---------  ---  ---------------------------------------------
-  **If**   :   Refinement of `S` *implies* refinement of `T` 
-
-**Then**   :   `S` is a *subtype* of `T`
---------  ---  ---------------------------------------------
-
-<br>
-
-
-Subtyping is Implication
-------------------------
-
-
-<br>
-
---------   ---     ----------------------------
-  **If**    :      `p` *implies* `q`
-                
-**Then**    :      `{v : t | p} <: {v : t | q}`
---------   ---     ----------------------------
-
+<!--
 
 Subtyping is Implication
 ------------------------
 
 <br>
+<br>
 
---------    ---  ---------------------------------------------------
-  **As**     :   `(v = 0)` *implies* `(0 <= v)` ... via SMT
-                 
-  **So**     :   `{v:Int| v = 0} <: {v:Int| 0 <= v}`
---------    ---  ---------------------------------------------------
+--------  ---  ------------------   ---------   ------------------
+  **If**   :   Refinement of `S`    *implies*   Refinement of `T` 
+
+**Then**   :   `S`                  *subtype*   `T`
+--------  ---  ------------------   ---------   ------------------
+
+<br>
+
+-->
+
+Subtyping is Implication
+------------------------
+
+
+<br>
+<br>
+
+---------   ------------   --------------------------   
+  **If:**            `P`   `=> Q` 
+            
+**Then:**    `{v:t | P}`   `<: {v:t | Q}`
+---------   ------------   --------------------------   
 
 
 Example: Natural Numbers
 ------------------------
 
-\begin{code} <br> 
-type Nat = {v : Int | 0 <= v}
+\begin{code} <div/> 
+        type Nat = {v:Int | 0 <= v}
 \end{code}
 
 <br>
+
 <div class="fragment">
-Via SMT, &nbsp; `EqZero <: Nat`, &nbsp; hence:
+
+-------------    ---------  ----------------
+  **By SMT:**      `v = 0`  `=>`  `0 <= v` 
+             
+      **So:**     `EqZero`  `<:`  `Nat`
+-------------    ---------  ----------------
+
 </div>
 
 <br>
 
 <div class="fragment">
+
+Hence, we can type:
+
 \begin{code}
 {-@ zero' :: Nat @-}
-zero'     =  zero
+zero'     =  zero   -- zero :: EqZero <: Nat
 \end{code}
 </div>
 
@@ -239,6 +232,8 @@ evens     =  0 `C` 2 `C` 4 `C` N
 odds      =  1 `C` 3 `C` 5 `C` N 
 \end{code}
 </div>
+
+<br>
 
 <div class="fragment">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
