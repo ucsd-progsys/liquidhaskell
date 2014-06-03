@@ -179,11 +179,13 @@ Where `LtLen` is a type alias:
 \begin{code}
 {-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
 \end{code}
-</div>
+
+<br>
 
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellMeasure.hs" target= "_blank">Demo:</a> 
 &nbsp; What if we *remove* the precondition?
 
+</div>
 
 List Indexing Redux
 -------------------
