@@ -9,13 +9,13 @@ Timing
                         <------------------ 20 
 [8]  Higher-Order Functions
                         <------------------ 28 
-[3/5] Abstract Refinements: 
-[5/8]   Code, 
-[5/8]   Data,...,...
-                        <------------------ 41/49
+[5] Abstract Refinements: 
+[8]   Code, 
+[8]   Data,...,...
+                        <------------------ 49
 [4] Lazy Evaluation
 [5] Termination
-                        <------------------ 50/58 
+                        <------------------ 58 
 [3] Evaluation
-                        <------------------ 53/61 
+                        <------------------ 61 
 

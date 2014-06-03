@@ -22,6 +22,21 @@ foo     :: Int -> Int
 Lazy Evaluation?
 ----------------
 
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+[[Skip]](11_Evaluation.lhs.slides.html)
+
 Lazy Evaluation
 ===============
 

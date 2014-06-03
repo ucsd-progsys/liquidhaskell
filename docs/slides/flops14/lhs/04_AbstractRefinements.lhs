@@ -254,7 +254,7 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-<div class="fragment">i.e., Abstract Refinement is an **uninterpreted function** in SMT logic</div>
+i.e., Abstract Refinement is an **uninterpreted function** in SMT logic
 
 Parametric Refinements 
 ----------------------
