@@ -10,7 +10,9 @@ module Language.Fixpoint.Config (
   , Command (..)
   , SMTSolver (..)
   , GenQualifierSort (..)
+  , UeqAllSorts (..)
   , withTarget 
+  , withUEqAllSorts
 ) where  
   
 import Language.Fixpoint.Files
@@ -32,18 +34,20 @@ withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
 data Config 
   = Config { 
-      inFile   :: FilePath         -- target fq-file 
-    , outFile  :: FilePath         -- output file
-    , solver   :: SMTSolver        -- which SMT solver to use 
-    , genSorts :: GenQualifierSort -- generalize qualifier sorts
-    , native   :: Bool             -- use haskell solver
+      inFile      :: FilePath         -- target fq-file
+    , outFile     :: FilePath         -- output file
+    , solver      :: SMTSolver        -- which SMT solver to use
+    , genSorts    :: GenQualifierSort -- generalize qualifier sorts
+    , ueqAllSorts :: UeqAllSorts      -- use UEq on all sorts
+    , native      :: Bool             -- use haskell solver
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def
+  def = Config "" def def def def def
 
 instance Command Config where 
   command c =  command (genSorts c)    
+            ++ command (ueqAllSorts c) 
             ++ command (solver c) 
             ++ " -out " 
             ++ (outFile c) ++ " " ++ (inFile c)
@@ -67,6 +71,18 @@ instance Default GenQualifierSort where
 instance Command GenQualifierSort where
   command (GQS True)  = ""
   command (GQS False) = "-no-gen-qual-sorts" 
+
+newtype UeqAllSorts = UAS Bool 
+    deriving (Eq, Data,Typeable,Show)
+
+instance Default UeqAllSorts where
+  def = UAS False
+
+instance Command UeqAllSorts where
+  command (UAS True)  = " -ueq-all-sorts "
+  command (UAS False) = "" 
+
+withUEqAllSorts c b = c { ueqAllSorts = UAS b }
 
 ---------------------------------------------------------------------------------------
 
