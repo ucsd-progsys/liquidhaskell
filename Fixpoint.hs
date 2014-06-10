@@ -19,11 +19,12 @@ main = do cfg <- getOpts
             else solveFile   cfg
 
 config = Config { 
-    inFile   = def   &= typ "TARGET"       &= args    &= typFile 
-  , outFile  = "out" &= help "Output file"  
-  , solver   = def   &= help "Name of SMT Solver" 
-  , genSorts = def   &= help "Generalize qualifier sorts"
-  , native   = False &= help "Use (new, non-working) Haskell Solver"
+    inFile      = def   &= typ "TARGET"       &= args    &= typFile 
+  , outFile     = "out" &= help "Output file"  
+  , solver      = def   &= help "Name of SMT Solver" 
+  , genSorts    = def   &= help "Generalize qualifier sorts"
+  , ueqAllSorts = def   &= help "use UEq on all sorts"
+  , native      = False &= help "Use (new, non-working) Haskell Solver"
   }  
   &= verbosity
   &= program "fixpoint" 
