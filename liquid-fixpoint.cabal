@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
 license:             BSD3
@@ -99,7 +99,7 @@ Executable fixpoint.native
                , process
                , syb
                , text
-               , hashable<1.2
+               , hashable
                , unordered-containers
                , text-format
                , liquid-fixpoint
@@ -126,7 +126,7 @@ Executable fixpoint
                , process
                , syb
                , text
-               , hashable<1.2
+               , hashable
                , unordered-containers
                , text-format
                , liquid-fixpoint
@@ -166,6 +166,6 @@ Library
                , syb
                , text
                , transformers
-               , hashable<1.2
+               , hashable
                , unordered-containers
                , text-format
