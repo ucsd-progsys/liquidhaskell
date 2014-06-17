@@ -1,4 +1,4 @@
-module Class1 where
+module Class5 where
 
 {-@ class Foo a where
       foo :: a -> Nat
