@@ -43,7 +43,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Files
 import Language.Fixpoint.Names                  (dropModuleNames)
 import Language.Fixpoint.Types hiding           (config)
-import Language.Fixpoint.Config hiding          (config, Config)
+import Language.Fixpoint.Config hiding          (config, Config, real)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
@@ -76,6 +76,10 @@ config = Config {
  , diffcheck 
     = def 
           &= help "Incremental Checking: only check changed binders" 
+
+ , real
+    = def 
+          &= help "Supports real number arithmetic" 
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -185,10 +189,11 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 
   
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def 2 def def def
+  mempty        = Config def def def def def def def def def def def def def 2 def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2  
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2 
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2  
+                         , real           = real      c1         ||     real           c2  
                          , diffcheck      = diffcheck c1         ||     diffcheck      c2  
                          , binders        = sortNub $ binders c1 ++     binders        c2  
                          , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2  

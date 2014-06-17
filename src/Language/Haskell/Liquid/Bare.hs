@@ -45,7 +45,7 @@ import Data.Function            (on)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
-import Language.Fixpoint.Types                  hiding (Def, Predicate)
+import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
@@ -127,7 +127,7 @@ makeGhcSpec' cfg vars defVars' exports specs
        let (tcs', dcs') = wiredTyDataCons
        let tycons       = tcs ++ tcs'
        let datacons     = concat dcs ++ dcs'
-       let dcSelectors  = [] -- concat $ map makeMeasureSelectors (concat dcs)
+       let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
        modify $ \be -> be { tcEnv = makeTyConInfo tycons }
        measures'       <- mconcat <$> mapM makeMeasureSpec specs
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
