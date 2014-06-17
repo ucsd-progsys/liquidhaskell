@@ -113,8 +113,11 @@ exitFq _ _ (ExitFailure n) | (n /= 1)
   = return (Crash [] "Unknown Error", M.empty)
 exitFq fn cm _ 
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
-       let (x, y) = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
+       let (x, y) = parseFixpointOutput str -- {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
        return  $ (plugC cm x, y) 
+
+parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
+parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
 
 plugC = fmap . mlookup
 

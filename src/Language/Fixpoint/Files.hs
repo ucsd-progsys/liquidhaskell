@@ -63,8 +63,10 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Html   -- ^ HTML file with inferred type annotations 
          | Annot  -- ^ Text file with inferred types 
          | Vim    -- ^ Vim annotation file 
-         | Hs     -- ^ Target source 
-         | LHs    -- ^ Literate Haskell target source file
+         | Hs     -- ^ Haskell source 
+         | LHs    -- ^ Literate Haskell source 
+         | Js     -- ^ JavaScript source
+         | Ts     -- ^ Typescript source
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec)
          | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
          | Result -- ^ Final result: SAFE/UNSAFE
@@ -93,6 +95,8 @@ extMap e = go e
     go Vim    = ".vim.annot"
     go Hs     = ".hs"
     go LHs    = ".lhs"
+    go Js     = ".js"
+    go Ts     = ".ts"
     go Mkdn   = ".markdown"
     go Json   = ".json"
     go Spec   = ".spec"

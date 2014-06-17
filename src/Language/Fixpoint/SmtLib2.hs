@@ -52,6 +52,8 @@ import System.Process
 import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose)
 import Control.Applicative  ((<$>), (<|>), (*>), (<*))
 
+import Encoding (zEncodeString, zDecodeString)
+
 import Text.Parsec.Text.Lazy ()
 import Text.Parsec.Char
 import Text.Parsec.Combinator
@@ -332,12 +334,12 @@ class SMTLIB2 a where
 instance SMTLIB2 Sort where
   smt2 FInt        = "Int"
   smt2 (FApp t []) | t == propFTyCon = "Bool"
-  smt2 (FObj s)    = T.pack $ symbolString s
+  smt2 (FObj s)    = smt2 s
   smt2 (FFunc _ _) = error "smt2 FFunc"
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 s = T.pack $ takeWhile (/= '#') $ symbolString s
+  smt2 s = T.pack . zEncodeString . takeWhile (/='#') . symbolString $ s
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = T.pack s
@@ -394,15 +396,15 @@ mkRel r   e1 e2         = format "({} {} {})"      (smt2 r, smt2 e1, smt2 e2)
 mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where
-  smt2 (Declare x ts t) = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
-  smt2 (Define t)       = format "(declare-sort {})"         (Only $ smt2 t)
-  smt2 (Assert Nothing p) = format "(assert {})"               (Only $ smt2 p)
+  smt2 (Declare x ts t)    = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
+  smt2 (Define t)          = format "(declare-sort {})"         (Only $ smt2 t)
+  smt2 (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 p)
   smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
-  smt2 (Distinct az)    = format "(assert (distinct {}))"    (Only $ smt2s az)
-  smt2 (Push)           = "(push 1)"
-  smt2 (Pop)            = "(pop 1)"
-  smt2 (CheckSat)       = "(check-sat)"
-  smt2 (GetValue xs)    = T.unwords $ ["(get-value ("] ++ map smt2 xs ++ ["))"]
+  smt2 (Distinct az)       = format "(assert (distinct {}))"    (Only $ smt2s az)
+  smt2 (Push)              = "(push 1)"
+  smt2 (Pop)               = "(pop 1)"
+  smt2 (CheckSat)          = "(check-sat)"
+  smt2 (GetValue xs)       = T.unwords $ ["(get-value ("] ++ map smt2 xs ++ ["))"]
 
 smt2s = T.intercalate " " . fmap smt2
 

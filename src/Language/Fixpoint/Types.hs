@@ -1,6 +1,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE DeriveTraversable         #-}
+{-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
@@ -886,7 +888,7 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft
 
 newtype IBindEnv   = FB (S.HashSet BindId)
-newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable, Generic)
+newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft)
                         }
