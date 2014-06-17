@@ -45,7 +45,7 @@ import Data.Function            (on)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
-import Language.Fixpoint.Types                  hiding (Def, Predicate)
+import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
@@ -145,7 +145,7 @@ makeGhcSpec' cfg vars defVars exports specs
                           | (m, x, t) <- sigs'++mts++dms ]
        let asms         = [ (x, (txRefSort tcEnv embs . txExpToBind) <$> t)
                           | (m, x, t) <- asms' ]
-       let cs'          = mapSnd (Loc dummyPos) <$> meetDataConSpec cs ((mapSnd val <$> datacons)++cls)
+       let cs'          = (mapSnd (Loc dummyPos . txRefSort tcEnv embs) <$> meetDataConSpec cs ((mapSnd val <$> datacons)++cls))
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms
                                          , isNothing $ lookup x cms' ]
