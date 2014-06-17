@@ -7,10 +7,10 @@ import Language.Haskell.Liquid.Prelude
 
 class Frog a where
   mkInt :: a -> Int
-  mkInt _ = liquidAssert (1 < 0) 10
+  mkInt _ = 0 - 10
 
 {-@ class Frog a where
-      mkInt :: a -> Int
+      mkInt :: a -> Nat
   @-}
 
 -- If we put this in ANOTHER file (e.g. Class4Instance) then there is no error

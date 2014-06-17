@@ -79,7 +79,7 @@ import Text.Parsec.Pos  (SourcePos)
 
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Fixpoint.Types hiding (Predicate)
-import Language.Haskell.Liquid.Types hiding (DataConP (..), sort)
+import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)
@@ -890,9 +890,12 @@ literalConst tce l         = (sort, mkLit l)
     mkLit (MachInt64  n)   = mkI n
     mkLit (MachWord   n)   = mkI n
     mkLit (MachWord64 n)   = mkI n
+    mkLit (MachFloat  n)   = mkR n
+    mkLit (MachDouble n)   = mkR n
     mkLit (LitInteger n _) = mkI n
     mkLit _                = Nothing -- ELit sym sort
     mkI                    = Just . ECon . I  
+    mkR                    = Just . ECon . R . fromRational
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------

@@ -43,8 +43,6 @@ liquidOne target info =
      whenLoud  $ do putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
-     -- putStrLn ("Fun = " ++ show (length $ cbs info))
-     -- putStrLn $ error "" 
      let cbs' = transformScope (cbs info)
      whenLoud  $ do donePhase Loud "transformRecExpr"
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************" 
@@ -89,7 +87,7 @@ solveCs cfg target cgi info dc
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
     where 
-       fx = def { FC.solver = smtsolver cfg }
+       fx = def { FC.solver = smtsolver cfg, FC.real = real cfg }
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
