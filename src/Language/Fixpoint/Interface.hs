@@ -99,12 +99,15 @@ solveFile cfg
   = do fp  <- getFixpointPath
        z3  <- getZ3LibPath
        v   <- (\b -> if b then "-v 1" else "") <$> isLoud
-       ec  <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3 v
+       ec  <- {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3 v rf
        return ec
- 
-fixCommand cfg fp z3 verbosity 
-  = printf "LD_LIBRARY_PATH=%s %s %s -no-uif-multiply -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s" 
-           z3 fp verbosity (command cfg)
+  where realFlags =  "-no-uif-multiply " 
+                  ++ "-no-uif-divide "
+        rf        = if (real cfg) then realFlags else ""
+
+fixCommand cfg fp z3 verbosity realFlags 
+  = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s" 
+           z3 fp verbosity realFlags (command cfg)
 
 exitFq _ _ (ExitFailure n) | (n /= 1) 
   = return (Crash [] "Unknown Error", M.empty)
