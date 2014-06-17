@@ -10,7 +10,7 @@ import GHC.Word
 import Data.Maybe
 import GHC.Exts
 
-GHC.Exts.D# :: x:_ -> {v:Double | v = x}
+GHC.Exts.D# :: x:_ -> {v:_ | v = x}
 
 assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
                                          , q :: yy:a -> b -> Prop>.
@@ -24,7 +24,7 @@ assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
 assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 
-embed Double as real
+embed GHC.Types.Double as real
 embed GHC.Integer.Type.Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
