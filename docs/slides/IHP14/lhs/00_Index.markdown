@@ -1,56 +1,48 @@
-
-
  {#ASD}
-=======
 
 Liquid Types For Haskell
 ------------------------
 
-
-<br>
-<br>
+<br> <br>
 
 **Ranjit Jhala**
 
 University of California, San Diego
 
-<br>
-<br>
+<br> <br>
 
-
-Joint work with: 
+Joint work with:
 
 N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 
-
 <div class="hidden">
 
-\begin{code}
+``` {.sourceCode .literate .haskell}
 main = putStrLn "Easter Egg: to force Makefile"
-\end{code}
+```
 
 </div>
-
 
 Well-Typed Programs Can Go Wrong
 ================================
 
  {#asd}
--------
 
 Division By Zero
 ----------------
 
-<div class="fragment"> 
+<div class="fragment">
+
 \begin{code} <div/> 
 λ> let average xs = sum xs `div` length xs
 
 λ> average [1,2,3]
 2
 \end{code}
+
 </div>
 
-<div class="fragment"> 
+<div class="fragment">
 
 \begin{code} <br> 
 λ> average []
@@ -62,7 +54,8 @@ Division By Zero
 Missing Keys
 ------------
 
-<div class="fragment"> 
+<div class="fragment">
+
 \begin{code} <div/> 
 λ> :m +Data.Map 
 λ> let m = fromList [ ("haskell", "lazy")
@@ -71,36 +64,42 @@ Missing Keys
 λ> m ! "haskell"
 "lazy"
 \end{code}
+
 </div>
 
-<div class="fragment"> 
+<div class="fragment">
+
 \begin{code} <br> 
 λ> m ! "javascript"
 "*** Exception: key is not in the map
 \end{code}
+
 </div>
 
 Segmentation Faults
 -------------------
 
-<div class="fragment"> 
+<div class="fragment">
+
 \begin{code} <div/> 
 λ> :m +Data.Vector 
 λ> let v = fromList ["haskell", "ocaml"]
 λ> unsafeIndex v 0
 "haskell"
 \end{code}
+
 </div>
 
-<div class="fragment"> 
+<div class="fragment">
+
 \begin{code} <br> 
 λ> V.unsafeIndex v 3
 
 
 'ghci' terminated by signal SIGSEGV ...
 \end{code}
-</div>
 
+</div>
 
 "HeartBleeds"
 -------------
@@ -111,10 +110,10 @@ Segmentation Faults
 λ> takeWord16 5 t
 "Kanaz"
 \end{code}
-
 <br>
 
-<div class="fragment"> 
+<div class="fragment">
+
 Memory overflows **leaking secrets**...
 
 <br>
@@ -123,6 +122,7 @@ Memory overflows **leaking secrets**...
 λ> takeWord16 20 t
 "kamakura\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
 \end{code}
+
 </div>
 
 Goal
@@ -136,34 +136,38 @@ Liquid Types for Haskell
 LiquidHaskell
 -------------
 
-<br>
-<br>
+<br> <br>
 
-<div class="fragment">Refine **types** with **predicates**</div>
+<div class="fragment">
 
-<br>
-<br>
+Refine **types** with **predicates**
 
-<div class="fragment">**Expressive** specification & **Automatic** verification</div>
+</div>
 
+<br> <br>
 
+<div class="fragment">
+
+**Expressive** specification & **Automatic** verification
+
+</div>
 
 Automatic
 ---------
 
-[Liquid Types, PLDI 08](http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf)
+[Liquid Types, PLDI
+08](http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf)
 
 <br>
 
-+ Abstract Interpretation 
+-   Abstract Interpretation
 
-+ SMT Solvers 
+-   SMT Solvers
 
 Expressive
 ----------
 
-<br>
-<br>
+<br> <br>
 
 This talk ...
 
@@ -172,27 +176,57 @@ Try Yourself
 
 <br>
 
-**google: ** `"liquidhaskell demo"` 
+**google: ** `"liquidhaskell demo"`
 
- {#zog} 
---------
+ {#zog}
 
-<br>
-<br>
-<br>
-<br>
+<br> <br> <br> <br>
 
 [[continue]](01_SimpleRefinements.lhs.slides.html)
 
-
-Plan 
+Plan
 ----
 
-1. <a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements
-2. <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
-3. <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
-4. <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>, <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">...</a>,<a href="05_Composition.lhs.slides.html" target= "_blank">...</a></div>
-5. <div class="fragment"><a href="09_Laziness.lhs.slides.html" target="_blank">Lazy Evaluation</a></div>
-6. <div class="fragment"><a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
-7. <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
+1.  <a href="01_SimpleRefinements.lhs.slides.html" target= "_blank">Refinements
+2.  <div class="fragment">
+
+    <a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a>
+
+    </div>
+
+3.  <div class="fragment">
+
+    <a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order
+    Functions</a>
+
+    </div>
+
+4.  <div class="fragment">
+
+    <a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract
+    Refinements:</a>
+    <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>,
+    <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">...</a>,<a href="05_Composition.lhs.slides.html" target= "_blank">...</a>
+
+    </div>
+
+5.  <div class="fragment">
+
+    <a href="09_Laziness.lhs.slides.html" target="_blank">Lazy
+    Evaluation</a>
+
+    </div>
+
+6.  <div class="fragment">
+
+    <a href="10_Termination.lhs.slides.html" target="_blank">Termination</a>
+
+    </div>
+
+7.  <div class="fragment">
+
+    <a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a>
+
+    </div>
+
 
