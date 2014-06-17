@@ -44,7 +44,7 @@ data Config
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def
+  def = Config "" def def def def def def
 
 instance Command Config where 
   command c =  command (genSorts c)    
