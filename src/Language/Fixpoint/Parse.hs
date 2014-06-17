@@ -136,6 +136,17 @@ braces        = Token.braces        lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+double :: Parser Double 
+double = liftM toDouble isDouble
+  where
+    isDouble = do e1 <- digits
+                  reserved "."
+                  e2 <- digits
+                  return $ e1 ++ ['.'] ++ e2
+    digits   = many1 digit
+    toDouble :: String -> Double
+    toDouble = read
+
 integer =   try (liftM toInt is) 
        <|>  liftM (negate . toInt) (char '-' >> is)
   where 
@@ -169,7 +180,7 @@ symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
 
 constantP :: Parser Constant
-constantP = liftM I integer
+constantP = try (liftM R double) <|> liftM I integer
 
 symconstP :: Parser SymConst
 symconstP = SL <$> stringLiteral 
@@ -301,6 +312,7 @@ condP f bodyP
 fTyConP
   =   (reserved "int"  >> return intFTyCon)
   <|> (reserved "bool" >> return boolFTyCon)
+  <|> (reserved "real" >> return realFTyCon)
   <|> (stringFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]

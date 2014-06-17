@@ -26,6 +26,7 @@ module Language.Fixpoint.Types (
   , Sort (..), FTycon, TCEmb
   , intFTyCon
   , boolFTyCon
+  , realFTyCon
   , strFTyCon
   , propFTyCon
   -- , appFTyCon
@@ -288,6 +289,7 @@ newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 intFTyCon  = TC $ dummyLoc (S "int")
 boolFTyCon = TC $ dummyLoc (S "bool")
+realFTyCon = TC $ dummyLoc (S "real")
 strFTyCon  = TC $ dummyLoc (S strConName)
 propFTyCon = TC $ dummyLoc (S propConName)
 appFTyCon  = TC $ dummyLoc (S "FAppTy")
@@ -312,6 +314,7 @@ stringFTycon c
 fApp                  :: Either FTycon Sort -> [Sort] -> Sort
 fApp (Left c) ts
   | c == intFTyCon    = FInt
+  | c == realFTyCon   = FReal
   | otherwise         = fAppSorts (fTyconSort c) ts
 fApp (Right t) ts     = fAppSorts t ts
 
@@ -327,6 +330,7 @@ fObj = fTyconSort . TC
 ----------------------------------------------------------------------
 
 data Sort = FInt
+          | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
@@ -343,6 +347,7 @@ instance Fixpoint Sort where
 
 toFix_sort (FVar i)     = text "@"   <> parens (toFix i)
 toFix_sort FInt         = text "int"
+toFix_sort FReal        = text "real"
 toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
@@ -490,7 +495,7 @@ intKvar             = intSymbol "k_"
 data SymConst = SL !String
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Constant = I  !Integer
+data Constant = I  !Integer | R !Double
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
@@ -514,8 +519,12 @@ data Expr = ESym !SymConst
 instance Fixpoint Integer where
   toFix = integer
 
+instance Fixpoint Double where
+  toFix = double
+
 instance Fixpoint Constant where
   toFix (I i)  = toFix i
+  toFix (R i)  = toFix i
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
@@ -1223,6 +1232,7 @@ instance NFData BindEnv where
 
 instance NFData Constant where
   rnf (I x) = rnf x
+  rnf (R x) = rnf x
 
 instance NFData SymConst where
   rnf (SL x) = rnf x
