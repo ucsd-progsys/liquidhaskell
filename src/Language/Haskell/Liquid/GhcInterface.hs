@@ -116,16 +116,10 @@ getGhcInfo' cfg0 target
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
-      let coreBinds'      = filter (foo derVs) coreBinds
       (spec, imps, incs) <- moduleSpec cfg (impVs ++ defVs) letVs name' modguts tgtSpec impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
       return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
-
-foo ids (NonRec x xs) = not  (x `elem` ids)
-foo ids (Rec xes) = not (any (`elem` ids) xs')
-  where xs' = fst <$> xes
-                      
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
