@@ -101,6 +101,7 @@ Refinement Types
 ----------------
 
 
+
 \begin{code}<div/>
 b := Int 
    | Bool 
