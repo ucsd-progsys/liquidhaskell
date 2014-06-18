@@ -100,6 +100,7 @@ p := e           -- atom
 Refinement Types
 ----------------
 
+
 \begin{code}<div/>
 b := Int 
    | Bool 
@@ -136,7 +137,6 @@ Subtyping Is Implication
 
 Subtyping is Implication
 ------------------------
-
 
 <br>
 <br>
