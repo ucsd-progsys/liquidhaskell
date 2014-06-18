@@ -120,7 +120,8 @@ $$\boxed{\Gamma \vdash t_1 \preceq t_2}$$
 
 <div class="fragment">
 
-Where **environment** is *sequence* of binders
+Where **environment** $\Gamma$ is *sequence* of binders
+
 
 $$\Gamma \defeq \overline{\bindx{x_i}{t_i}}$$
 
@@ -133,32 +134,40 @@ Subtyping Is Implication
 
 <br>
 
-(For **Base** Types...)
+(For *Base Types* ...)
 
 
 Subtyping is Implication
 ------------------------
 
 <br>
-<br>
 
+<!--
 $$
 \inferrule[]
-          {\forall x_i, v. \wedge_i p_i \Rightarrow p_1 \Rightarrow p_2}
-          {\bind{x_i}{t_i} \vdash \reft{v}{b}{p_1} \preceq \reft{v}{b}{p_2}} 
+          {\forall \overline{x_i}, v. \bigwedge_i P_i \Rightarrow Q \Rightarrow R}
+          {\overline{\bindx{x_i}{P_i}} \vdash \reft{v}{\Int}{Q} \preceq \reft{v}{\Int}{R}} 
 $$
 
+-->
+
 $$
-\begin{array}{rrrcl}
-{\mathbf{If}}   & \vdash & P              & \Rightarrow & Q              \\
-                &        &                &             &                \\
-{\mathbf{Then}} & \vdash & \reft{v}{\Int}{P} & \preceq & \reft{v}{\Int}{Q} \\
+\begin{array}{rl}
+{\mathbf{If\ by\ SMT}}   & \bigwedge_i P_i \Rightarrow  Q  \Rightarrow R \\
+                & \\
+{\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash \reft{v}{b}{Q} \subty \reft{v}{v}{R} \\
 \end{array}
 $$ 
 
+<!--
+$$
+\begin{array}{rrrcl}
+{\mathbf{If}}   & \bigwedge_i P_i \Rightarrow        & P              & \Rightarrow & Q              \\
+                &                                    &                &             &                \\
+{\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash & \reft{v}{\Int}{P} & \preceq & \reft{v}{\Int}{Q} \\
+\end{array}
+$$ 
 
-{x1:P1},...,{xn:Pn} |- {v:t|P} <: 
-<!-- 
 
 Subtyping is Implication
 ------------------------
@@ -183,19 +192,15 @@ Example: Natural Numbers
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
-<br>
-
 <div class="fragment">
-
--------------    ---------  ----------------
-  **By SMT:**      `v = 0`  `=>`  `0 <= v` 
-             
-      **So:**     `EqZero`  `<:`  `Nat`
--------------    ---------  ----------------
-
+$$
+\begin{array}{rcrccl}
+\mathbf{By\ SMT} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
+%                 &           &             &          &             &           \\
+\mathbf{So}      & \emptyset & \vdash      & \EqZero  & \subty      & \Nat      \\
+\end{array}
+$$
 </div>
-
-<br>
 
 <div class="fragment">
 
