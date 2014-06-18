@@ -32,17 +32,16 @@
 </head>
 <body>
 
-\(
+$$
+\newcommand{\defeq}{\ \doteq\ }
+\newcommand{\subty}{\preceq}
 \newcommand{\foo}[4]{{#1}^{#4} + {#2}^{#4} = {#3}^{#4}}
 \newcommand{\reft}[3]{\{{#1}:{#2} \mid {#3}\}}
 \newcommand{\bindx}[2]{{#1}\:\{#2}}
 \newcommand{\reftx}[2]{\{\bindx{#1}{#2}\}}
-\newcommand{\subty}{\preceq}
 \newcommand{\Int}{\mathtt{Int}}
-\newcommand{\defeq}{\ \doteq\ }
 \newcommand{\inferrule}[3][]{\frac{#2}{#3}\;{#1}}
-
-\)
+$$
 
 
 <div class="reveal">
@@ -87,6 +86,44 @@ $body$
 <script src="$reveal$/lib/js/head.min.js"></script>
 <script src="$reveal$/js/reveal.js"></script>
 <script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+<script type='text/x-mathjax-config'> 
+  //
+  //  This script call initializes MathJax
+  //
+  MathJax.Hub.Config({
+    jax: ["input/TeX","output/HTML-CSS"],    // input is TeX and output is HTML-CSS format
+    extensions: ["tex2jax.js", "TeX/newcommand.js", "TeX/AMSmath.js", "TeX/AMSsymbols.js"],              // use the tex2jax preprocessor
+    tex2jax: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']], // uncomment to use $...$ for inline math
+      processEscapes: 1                      // set to 1 to allow \$ to produce a dollar sign
+    }
+  });
+
+// Add some default macros for proof rules
+MathJax.Hub.Register.StartupHook("TeX Jax Ready",function () {
+  var TEX = MathJax.InputJax.TeX;
+  TEX.Macro("bnfalt","{\\;\\;|\\;\\;}");
+  TEX.Macro("fst","{\\pi_1\\;{#1}}", 1);
+  TEX.Macro("snd","{\\pi_2\\;{#1}}", 1);
+  TEX.Macro("inl", "{\\mathsf{inl}}", 0);
+  TEX.Macro("inr", "{\\mathsf{inr}}", 0);
+  TEX.Macro("abort", "{\\mathsf{abort}}", 0); 
+  TEX.Macro("case", "{\\mathsf{case}({#1}, {#2}.\\;{#3}, {#4}.\\;{#5})}", 5);
+  TEX.Macro("fun","{\\lambda {#1}.\\;{#2}}", 2);
+  TEX.Macro("Fun","{\\Lambda {#1}.\\;{#2}}", 2);
+  TEX.Macro("rule","{\\frac{\\array{#1}}{#2}}",2);
+  TEX.Macro("judge","{{#1} \\vdash {#2} : {#3}}",3);
+  TEX.Macro("interp","[\\![{#1}]\\!]",1);
+  TEX.Macro("setof", "\\left\\{{#1}\\right\\}", 1);
+  TEX.Macro("monad", "\\bigcirc\\;{#1}",1);
+  TEX.Macro("setof", "\\{ {#1} \\}", 1);
+  TEX.Macro("letv", "\\mathsf{let}\\;{#1} = {#2}\\;\\mathsf{in}\\;{#3}", 3);
+  TEX.Macro("comprehend", "\\setof{{#1}\\bnfalt{#2}}", 2);
+  TEX.Macro("N", "\\mathbb{N}");
+});
+</script>
+
 
 
 <script>		
