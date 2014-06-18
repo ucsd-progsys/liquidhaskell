@@ -28,8 +28,6 @@ pdfObjects  := $(patsubst %.lhs,%.lhs.slides.pdf,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
-pdfOne: lhs/00_Index.lhs.slides.pdf
-
 all: slides 
 
 one: $(mdObjects)
