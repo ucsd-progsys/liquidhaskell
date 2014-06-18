@@ -80,7 +80,7 @@ e := x, y, z,...      -- variable
    | (e + e)          -- addition
    | (e - e)          -- subtraction
    | (c * e)          -- linear multiplication
-   | (v e1 e2 ... en) -- uninterpreted function
+   | (f e1 e2 ... en) -- uninterpreted function
 \end{code}
 
 Predicates
@@ -97,30 +97,67 @@ p := e           -- atom
    | (not p)     -- negation
 \end{code}
 
+Refinement Types
+----------------
 
-Subtyping is Implication
+\begin{code}<div/>
+b := Int 
+   | Bool 
+   | ...         -- base types
+   | a, b, c     -- type variables
+
+t := {x:b | p}   -- refined base type 
+   | x:t -> t    -- dependent function 
+\end{code}
+
+
+Subtyping Judgment 
+------------------
+
+$$\boxed{\Gamma \vdash t_1 \preceq t_2}$$
+
+<div class="fragment">
+
+Where **environment** is *sequence* of binders
+
+$$\Gamma \defeq \overline{\bindx{x_i}{t_i}}$$
+
+</div>
+
+Subtyping Is Implication
 ------------------------
 
 [PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
+<br>
 
-<!--
+(For **Base** Types...)
+
 
 Subtyping is Implication
 ------------------------
 
-<br>
-<br>
-
---------  ---  ------------------   ---------   ------------------
-  **If**   :   Refinement of `S`    *implies*   Refinement of `T` 
-
-**Then**   :   `S`                  *subtype*   `T`
---------  ---  ------------------   ---------   ------------------
 
 <br>
+<br>
 
--->
+$$
+\inferrule[]
+          {\forall x_i, v. \wedge_i p_i \Rightarrow p_1 \Rightarrow p_2}
+          {\bind{x_i}{t_i} \vdash \reft{v}{b}{p_1} \preceq \reft{v}{b}{p_2}} 
+$$
+
+$$
+\begin{array}{rrrcl}
+{\mathbf{If}}   & \vdash & P              & \Rightarrow & Q              \\
+                &        &                &             &                \\
+{\mathbf{Then}} & \vdash & \reft{v}{\Int}{P} & \preceq & \reft{v}{\Int}{Q} \\
+\end{array}
+$$ 
+
+
+{x1:P1},...,{xn:Pn} |- {v:t|P} <: 
+<!-- 
 
 Subtyping is Implication
 ------------------------
@@ -134,6 +171,8 @@ Subtyping is Implication
             
 **Then:**    `{v:t | P}`   `<: {v:t | Q}`
 ---------   ------------   --------------------------   
+
+-->
 
 
 Example: Natural Numbers

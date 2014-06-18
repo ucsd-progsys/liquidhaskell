@@ -3,9 +3,11 @@
  {#ASD}
 =======
 
+
 Liquid Types For Haskell
 ------------------------
 
+$$\foo{x}{y}{z}{n}$$
 
 <br>
 <br>
@@ -42,7 +44,6 @@ Division By Zero
 ----------------
 
 
-$$x^n + y^n = z^n$$
 
 
 <div class="fragment"> 
@@ -151,7 +152,6 @@ LiquidHaskell
 <div class="fragment">**Expressive** specification & **Automatic** verification</div>
 
 
-
 Automatic
 ---------
 
@@ -159,7 +159,7 @@ Automatic
 
 <br>
 
-+ Abstract Interpretation 
++ Abstract Interpretation (covered briefly...) 
 
 + SMT Solvers 
 
