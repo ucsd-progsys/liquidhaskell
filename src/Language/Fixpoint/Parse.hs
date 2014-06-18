@@ -130,28 +130,14 @@ comma         = Token.comma         lexer
 whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
 braces        = Token.braces        lexer
+double        = Token.float         lexer
+integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-double :: Parser Double 
-double = liftM toDouble isDouble
-  where
-    isDouble = do e1 <- digits
-                  reserved "."
-                  e2 <- digits
-                  return $ e1 ++ ['.'] ++ e2
-    digits   = many1 digit
-    toDouble :: String -> Double
-    toDouble = read
-
-integer =   try (liftM toInt is) 
-       <|>  liftM (negate . toInt) (char '-' >> is)
-  where 
-    is      = liftM2 (\is _ -> is) (many1 digit) blanks 
-    toInt s = (read s) :: Integer 
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
