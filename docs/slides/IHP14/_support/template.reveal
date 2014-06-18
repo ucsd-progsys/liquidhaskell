@@ -17,7 +17,6 @@
 <link rel="stylesheet" href="$reveal$/css/main.css">
 <link rel="stylesheet" href="$reveal$/css/theme/seminar.css" id="theme">
 <link rel="stylesheet" href="$reveal$/css/liquidhaskell.css">
-<link rel="stylesheet" href="$reveal$/css/print/pdf.css">
 
 <!-- For syntax highlighting -->
 <link rel="stylesheet" href="$reveal$/lib/css/zenburn.css">
@@ -74,6 +73,9 @@ $body$
 <!-- Initialize reveal.js :: make settings changes here -->
 <script src="$reveal$/lib/js/head.min.js"></script>
 <script src="$reveal$/js/reveal.js"></script>
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+
 <script>		
 	// Full list of configuration options available here:
 	// https://github.com/hakimel/reveal.js#configuration

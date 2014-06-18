@@ -41,6 +41,10 @@ Well-Typed Programs Can Go Wrong
 Division By Zero
 ----------------
 
+
+$$x^n + y^n = z^n$$
+
+
 <div class="fragment"> 
 \begin{code} <div/> 
 λ> let average xs = sum xs `div` length xs
