@@ -196,11 +196,12 @@ Example: Natural Numbers
 $$
 \begin{array}{rcrccl}
 \mathbf{By\ SMT} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
-%                 &           &             &          &             &           \\
+%                &           &             &          &             &           \\
 \mathbf{So}      & \emptyset & \vdash      & \EqZero  & \subty      & \Nat      \\
 \end{array}
 $$
 </div>
+
 
 <div class="fragment">
 
@@ -232,22 +233,78 @@ infixr `C`
 \end{code}
 </div>
 
+<br>
+<br>
+<br>
+
 \begin{code}
-data L a = N | C a (L a)
+data L a = N          -- Empty 
+         | C a (L a)  -- Cons 
 \end{code}
 
 <br>
 
 <div class="fragment">
-*Every element* in `nats` is non-negative:
 
-<br>
+How to **specify** every element in `nats` is non-negative?
 
 \begin{code}
-{-@ nats :: L Nat @-}
 nats     =  0 `C` 1 `C` 3 `C` N
 \end{code}
 </div>
+
+
+Example: Lists
+--------------
+
+How to **specify** every element in `nats` is non-negative?
+
+\begin{code} <div/>
+nats     =  0 `C` 1 `C` 2 `C` N
+\end{code}
+
+**Logic**
+
+$$\forall x \in \mathtt{nats}. 0 \leq x$$
+
++ <div class="fragment">Verification: Implications over **quantified formulas**</div>
++ <div class="fragment">Quantified formulas not efficiently decidable by SMT</div>
++ <div class="fragment">**Verification** is brittle</div>
+
+
+Example: Lists
+--------------
+
+How to **specify** every element in `nats` is non-negative?
+
+\begin{code} <div/>
+nats     =  0 `C` 1 `C` 2 `C` N
+\end{code}
+
+**Types + Logic**
+
+\begin{code}
+{-@ nats :: L Nat @-}
+\end{code}
+
++ <div class="fragment">Type *implicitly* has quantification</div>
++ <div class="fragment">Sub-typing *eliminates* quantifiers</div>
++ <div class="fragment">Robust verification via efficiently decidable *quantifier-free* formulas</div>
+
+Example: Lists
+--------------
+
+How to **verify** ? 
+
+\begin{code} <div/>
+{-@ nats :: L Nat @-}
+nats     = l0
+  where
+    l0   = 0 `C` l1     -- Nat `C` L Nat ~~> L Nat
+    l1   = 1 `C` l2     -- Nat `C` L Nat ~~> L Nat
+    l2   = 2 `C` l3     -- Nat `C` L Nat ~~> L Nat  
+    l3   = N            -- L Nat
+\end{code}
 
 <br>
 
@@ -257,6 +314,8 @@ nats     =  0 `C` 1 `C` 3 `C` N
 What if `nats` contained `-2`? 
 
 </div>
+
+<!--
 
 Example: Even/Odd Lists
 -----------------------
@@ -285,6 +344,7 @@ odds      =  1 `C` 3 `C` 5 `C` N
 What if `evens` contained `1`? 
 </div>
 
+-->
 
 
 Contracts: Function Types
@@ -401,7 +461,7 @@ Example: `range`
 range i j            = go i
   where
     go n | n < j     = n `C` go (n + 1)  
-         | otherwise =  N
+         | otherwise = N
 \end{code}
 
 <br>
