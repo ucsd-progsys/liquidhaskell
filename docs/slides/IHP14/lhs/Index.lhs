@@ -1,7 +1,6 @@
  {#ASD}
 =======
 
-
 Liquid Types For Haskell
 ------------------------
 

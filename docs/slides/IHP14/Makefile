@@ -3,16 +3,14 @@ SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
 RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 ####################################################################
 
-# REVEAL=$(PANDOC) -t revealjs -V revealjs-url=../_support/reveal -V theme=serif
-
 REVEAL=pandoc \
 	   --from=markdown+simple_tables 		\
 	   --to=html5                           \
 	   --standalone                         \
 	   --mathjax \
 	   --section-divs                       \
-	   --template=_support/template.reveal  \
-	   --variable reveal=../_support/reveal
+	   --template=_support/template2.reveal  \
+	   --variable reveal=../_support/reveal.js
 
 PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2
 SLIDY=$(PANDOC) -t slidy

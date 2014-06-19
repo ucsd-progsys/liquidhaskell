@@ -14,7 +14,7 @@
 
 <link href='http://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic' rel='stylesheet' type='text/css'>
 
-<link rel="stylesheet" href="$reveal$/css/main.css">
+<link rel="stylesheet" href="$reveal$/css/reveal.css">
 <link rel="stylesheet" href="$reveal$/css/theme/seminar.css" id="theme">
 <link rel="stylesheet" href="$reveal$/css/liquidhaskell.css">
 
