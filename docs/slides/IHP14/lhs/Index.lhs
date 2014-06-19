@@ -1,12 +1,10 @@
-
-<section data-transition="zoom">
-
  {#ASD}
 =======
 
 
 Liquid Types For Haskell
 ------------------------
+
 
 <br>
 <br>
@@ -23,7 +21,6 @@ Joint work with:
 
 N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 
-
 <div class="hidden">
 
 \begin{code}
@@ -36,6 +33,8 @@ main = putStrLn "Easter Egg: to force Makefile"
 
 Plan 
 ----
+
+<section data-transition="zoom">
 
 + <a href="00_Motivation_Logic.lhs.slides.html" target="_blank">Motivation</a>
 + <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a></div>

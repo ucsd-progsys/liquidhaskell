@@ -1,147 +1,40 @@
-Motivation
-==========
+ {#asds}
+========
 
-Algorithmic Program Verification 
---------------------------------
+Goal: Algorithmic Verification 
+------------------------------
 
-
-Division By Zero
-----------------
+Proving properties without writing proofs!
 
 
+<div class="hidden">
 
-
-<div class="fragment"> 
-\begin{code} <div/> 
-λ> let average xs = sum xs `div` length xs
-
-λ> average [1,2,3]
-2
-\end{code}
-</div>
-
-<div class="fragment"> 
-
-\begin{code} <br> 
-λ> average []
-*** Exception: divide by zero
+\begin{code}
+main = putStrLn "Easter Egg: to force Makefile"
 \end{code}
 
 </div>
 
-Missing Keys
-------------
-
-<div class="fragment"> 
-\begin{code} <div/> 
-λ> :m +Data.Map 
-λ> let m = fromList [ ("haskell", "lazy")
-                    , ("ocaml"  , "eager")]
-
-λ> m ! "haskell"
-"lazy"
-\end{code}
-</div>
-
-<div class="fragment"> 
-\begin{code} <br> 
-λ> m ! "javascript"
-"*** Exception: key is not in the map
-\end{code}
-</div>
-
-Segmentation Faults
--------------------
-
-<div class="fragment"> 
-\begin{code} <div/> 
-λ> :m +Data.Vector 
-λ> let v = fromList ["haskell", "ocaml"]
-λ> unsafeIndex v 0
-"haskell"
-\end{code}
-</div>
-
-<div class="fragment"> 
-\begin{code} <br> 
-λ> V.unsafeIndex v 3
-
-
-'ghci' terminated by signal SIGSEGV ...
-\end{code}
-</div>
-
-
-"HeartBleeds"
--------------
-
-\begin{code} <div/>
-λ> :m + Data.Text Data.Text.Unsafe 
-λ> let t = pack "Kanazawa"
-λ> takeWord16 5 t
-"Kanaz"
-\end{code}
-
-<br>
-
-<div class="fragment"> 
-Memory overflows **leaking secrets**...
-
-<br>
-
-\begin{code} <div/>
-λ> takeWord16 20 t
-"kamakura\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
-\end{code}
-</div>
-
-Goal
-----
-
-Extend Hindley-Milner To Prevent More Errors
-
-Liquid Types for Haskell
+Algorithmic Verification
 ========================
 
-LiquidHaskell
--------------
+Tension
+-------
 
-<br>
-<br>
-
-<div class="fragment">Refine **types** with **predicates**</div>
-
-<br>
-<br>
-
-<div class="fragment">**Expressive** specification & **Automatic** verification</div>
+Automatic (ML) vs. Expressive (coq)
 
 
-Automatic
----------
+<div class="fragment">
 
-[Liquid Types, PLDI 08](http://goto.ucsd.edu/~rjhala/liquid/liquid_types.pdf)
+Is there a sweet spot?
 
-<br>
+</div>
 
-+ Abstract Interpretation (covered briefly...) 
 
-+ SMT Solvers 
 
-Expressive
-----------
 
-<br>
-<br>
 
-This talk ...
 
-Try Yourself
-------------
-
-<br>
-
-**google: ** `"liquidhaskell demo"` 
 
  {#zog} 
 --------

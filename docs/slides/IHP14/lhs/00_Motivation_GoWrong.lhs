@@ -4,6 +4,15 @@ Well-Typed Programs Can Go Wrong
  {#asd}
 -------
 
+<div class="hidden">
+
+\begin{code}
+main = putStrLn "Easter Egg: to force Makefile"
+\end{code}
+
+</div>
+
+
 Division By Zero
 ----------------
 
