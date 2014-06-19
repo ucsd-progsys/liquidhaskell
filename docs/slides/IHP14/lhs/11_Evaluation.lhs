@@ -88,31 +88,5 @@ Proving termination is **easy in practice**.
 - <div class="fragment">`8`   currently *outside scope* of LiquidHaskell</div>
 
 
-Future Work
------------
+<div class="fragment">[[continue...]](12_Conclusion.lhs.slides.html)</div>
 
-<br>
-<br>
-
-- <div class="fragment">Speed</div>
-
-- <div class="fragment">Case Studies</div>
-
-- <div class="fragment">**Error Messages**</div>
-
- {#asd}
-=======
-
-
-Thank You!
-----------
-
-<br>
-
-`cabal install liquidhaskell`
-
-<br>
-
-`https://github.com/ucsd-progsys/liquidhaskell`
-
-<br>
