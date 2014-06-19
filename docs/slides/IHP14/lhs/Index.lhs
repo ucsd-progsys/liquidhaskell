@@ -1,3 +1,13 @@
+<div class="hidden">
+
+\begin{code}
+main = putStrLn "Easter Egg: to force Makefile"
+\end{code}
+
+</div>
+
+
+
  {#ASD}
 =======
 
@@ -16,19 +26,20 @@ University of California, San Diego
 <br>
 
 
+
+
+
+
 Joint work with: 
 
 N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 
-<div class="hidden">
+<br>
+<br>
 
-\begin{code}
-main = putStrLn "Easter Egg: to force Makefile"
-\end{code}
-
-</div>
-
+<div class="fragment">
 [[continue]](00_Motivation_Logic.lhs.slides.html)
+</div>
 
 Plan 
 ----
