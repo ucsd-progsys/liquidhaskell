@@ -1,0 +1,301 @@
+/**
+ * The default theme for reveal.js presentations.
+ * 
+ * Copyright (C) 2011-2012 Hakim El Hattab, http://hakim.se
+ */
+
+/*********************************************
+ * FONT-FACE DEFINITIONS
+ *********************************************/
+
+@font-face {
+	font-family: 'League Gothic';
+	src: url('../../lib/font/league_gothic-webfont.ttf') format('truetype');
+	font-weight: normal;
+	font-style: normal;
+}
+
+@font-face {
+		font-family: 'PTSansNarrow';
+        src: url('../../lib/font/PT_Sans-Narrow-Web-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+}
+
+@font-face {
+		font-family: 'OpenSans';
+        src: url('../../lib/font/OpenSans-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+}
+
+
+/*********************************************
+ * GLOBAL STYLES
+ *********************************************/
+
+body {
+	font-family: 'OpenSans', Times, 'Times New Roman', serif;
+	font-size: 36;
+	font-weight: 200;
+	letter-spacing: -0.02em;
+	color: #eee;
+
+	background-image: url(data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiA/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgdmlld0JveD0iMCAwIDEgMSIgcHJlc2VydmVBc3BlY3RSYXRpbz0ibm9uZSI+CiAgPHJhZGlhbEdyYWRpZW50IGlkPSJncmFkLXVjZ2ctZ2VuZXJhdGVkIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgY3g9IjUwJSIgY3k9IjUwJSIgcj0iNzUlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM1NTVhNWYiIHN0b3Atb3BhY2l0eT0iMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMWMxZTIwIiBzdG9wLW9wYWNpdHk9IjEiLz4KICA8L3JhZGlhbEdyYWRpZW50PgogIDxyZWN0IHg9Ii01MCIgeT0iLTUwIiB3aWR0aD0iMTAxIiBoZWlnaHQ9IjEwMSIgZmlsbD0idXJsKCNncmFkLXVjZ2ctZ2VuZXJhdGVkKSIgLz4KPC9zdmc+);
+	background-color: #2b2b2b;
+	background: -moz-radial-gradient(center, ellipse cover,  rgba(85,90,95,1) 0%, rgba(28,30,32,1) 100%);
+	background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,rgba(85,90,95,1)), color-stop(100%,rgba(28,30,32,1)));
+	background: -webkit-radial-gradient(center, ellipse cover,  rgba(85,90,95,1) 0%,rgba(28,30,32,1) 100%);
+	background: -o-radial-gradient(center, ellipse cover,  rgba(85,90,95,1) 0%,rgba(28,30,32,1) 100%);
+	background: -ms-radial-gradient(center, ellipse cover,  rgba(85,90,95,1) 0%,rgba(28,30,32,1) 100%);
+	background: radial-gradient(center, ellipse cover,  rgba(85,90,95,1) 0%,rgba(28,30,32,1) 100%);
+}
+
+
+/*********************************************
+ * main.css OVERIDES
+ *********************************************/
+
+
+/*--DW-- uncomment below to undo globally centered text from main.css*/
+
+/*.reveal .slides {
+	text-align: left;
+}
+
+.reveal li {
+	padding-bottom: 0.7em;
+	line-height: 1em;
+}
+.reveal ul ul {
+	padding-left: 8%;
+	padding-top: 0.7em;
+	font-size: 85%;
+}*/
+
+/*--DW--
+* override list width to make multiline list items
+* a bit more manageable
+*/
+.reveal ul {
+	max-width: 80%;
+}
+
+.reveal li {
+	padding-bottom: 0.3em;
+}
+
+/*--DW-- uncenter pararagraph blocks*/
+.reveal .slides p {
+	text-align: left
+}
+
+
+/*********************************************
+ * HEADERS
+ *********************************************/
+
+.reveal h1, 
+.reveal h2 {
+	margin: 0 0 20px 0;
+	color: #eee;
+	font-family: 'League Gothic', Impact, sans-serif;
+	line-height: 0.9em;
+	letter-spacing: 0.02em;
+	
+	text-align: center;
+	text-transform: uppercase;
+	text-shadow: 0px 1px 0px rgba(0,0,0,1);
+}
+
+.reveal h2 {
+	font-family: 'PTSansNarrow';
+	font-size: 130%;
+}
+
+/*pandoc*/
+.reveal .level1 h1 {
+	padding-top: 3%;
+	padding-bottom: 0.3em;
+	border-bottom: 1px solid #8e8e8e;
+	font-size: 100%;
+	color: rgba(255,255,255,0.5);
+}
+
+/*pandoc*/
+.reveal .titlepage h1 {
+	font-size: 3em;
+	color: rgba(255,255,255,0.9);
+	padding-top: 30%;
+	padding-bottom: 1em;
+	border: none;
+	text-shadow: 0.1em 0.1em 0.1em black;
+}
+
+/*pandoc*/
+.reveal .titlepage h2 {
+	font-size: 1em;
+	color: rgba(255,255,255,0.5);
+}
+
+/*pandoc*/
+.reveal .titlepage h3 {
+	font-size: 0.75em;
+	color: rgba(255,255,255,0.5);
+	text-align: center;
+}
+
+/*pandoc*/
+.reveal .topic h1 {
+	font-size: 2.11em;
+	color: rgba(255,255,255,0.9);
+	padding-top: 30%;
+	padding-bottom: 1em;
+	border: none;
+	text-shadow: 0.1em 0.1em 0.1em black;
+}
+
+.reveal .placeholder h1,
+.reveal .placeholder h2 {
+	border: none;
+}
+
+
+
+
+
+/*********************************************
+ * BLOCKQUOTES
+ *********************************************/
+
+/*--DW--*/
+.reveal blockquote
+{   background: rgba(255,255,255, .2);
+    font-size: 75%;
+    text-align: justify;
+    width: 70%;
+    padding: 0.5em 5% 0.2em;
+    margin: 0 10%;
+    border: 2px solid rgba(255, 255, 255, .1);
+    -webkit-box-shadow: .1em .1em .5em black inset;
+    -moz-box-shadow: .1em .1em .5em black inset;
+    box-shadow: .1em .1em .5em black inset;
+}
+
+
+/*********************************************
+ * LINKS
+ *********************************************/
+
+.reveal a:not(.image) {
+	color: hsl(185, 85%, 50%);
+	text-decoration: none;
+
+	-webkit-transition: color .15s ease;
+	   -moz-transition: color .15s ease;
+	    -ms-transition: color .15s ease;
+	     -o-transition: color .15s ease;
+	        transition: color .15s ease;
+}
+.reveal a:not(.image):hover {
+	color: hsl(185, 85%, 70%);
+	
+	text-shadow: none;
+	border: none;
+	border-radius: 2px;
+}
+
+.reveal .roll span:after {
+	color: #fff;
+	background: hsl(185, 60%, 35%);
+}
+
+
+/*********************************************
+ * IMAGES AND FIGURES
+ *********************************************/
+
+/*--DW-- added figures; changed img styling*/
+/*pandoc*/
+.reveal figure {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/*pandoc*/
+.reveal figcaption {
+	text-align: center;
+	font-size: 75%;
+	font-style: italic;
+}
+.reveal section img,
+.reveal section embed {
+/*	width: 80%;
+	height: 80%;
+*/	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 15px;
+	background: rgba(255,255,255, .75);
+    border: 2px solid rgba(255, 255, 255, .1);
+    -webkit-box-shadow: .1em .1em .5em black inset;
+       -moz-box-shadow: .1em .1em .5em black inset;
+            box-shadow: .1em .1em .5em black inset;
+
+/*--DW-- original image box styling*/
+/*
+-webkit-box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+   -moz-box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+
+-webkit-transition: all .2s linear;
+   -moz-transition: all .2s linear;
+    -ms-transition: all .2s linear;
+     -o-transition: all .2s linear;
+        transition: all .2s linear;
+*/
+}
+
+.reveal a:hover img {
+	background: rgba(255,255,255,0.2);
+	border-color: #13DAEC;
+	
+	-webkit-box-shadow: 0 0 20px rgba(0, 0, 0, 0.55);
+	   -moz-box-shadow: 0 0 20px rgba(0, 0, 0, 0.55);
+	        box-shadow: 0 0 20px rgba(0, 0, 0, 0.55);
+}
+
+
+/*********************************************
+ * NAVIGATION CONTROLS
+ *********************************************/
+
+.reveal .controls a {
+	color: #fff;
+}
+	.reveal .controls a.enabled {
+		/*color: hsl(185, 85%, 70%);*/
+		color: rgba(138, 201, 85, 0.60);
+		text-shadow: 0px 0px 2px hsla(185, 45%, 70%, 0.3);
+	}
+
+
+/*********************************************
+ * PROGRESS BAR
+ *********************************************/
+
+.reveal .progress {
+	background: rgba(0,0,0,0.2);
+}
+	.reveal .progress span {
+		/*background: hsl(185, 85%, 50%);*/
+		background: rgba(138, 201, 85, 0.60);
+
+		-webkit-transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
+		   -moz-transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
+		    -ms-transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
+		     -o-transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
+		        transition: width 800ms cubic-bezier(0.260, 0.860, 0.440, 0.985);
+	}
+
+
