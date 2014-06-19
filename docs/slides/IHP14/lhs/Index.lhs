@@ -25,26 +25,20 @@ University of California, San Diego
 <br>
 <br>
 
-
-
-
-
-
 Joint work with: 
 
 N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 
-<br>
 <br>
 
 <div class="fragment">
 [[continue]](00_Motivation_Logic.lhs.slides.html)
 </div>
 
+
 Plan 
 ----
 
-<section data-transition="zoom">
 
 + <a href="00_Motivation_Logic.lhs.slides.html" target="_blank">Motivation</a>
 + <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a></div>
@@ -56,4 +50,3 @@ Plan
 + <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 + <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
 
-</section>

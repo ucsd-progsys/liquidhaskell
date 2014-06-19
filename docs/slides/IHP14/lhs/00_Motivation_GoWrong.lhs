@@ -99,7 +99,7 @@ Memory overflows **leaking secrets**...
 
 \begin{code} <div/>
 λ> takeWord16 20 t
-"kamakura\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
+"Kanazawa\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
 \end{code}
 </div>
 

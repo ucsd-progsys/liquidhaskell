@@ -1,10 +1,18 @@
  {#asds}
 ========
 
-Goal: Algorithmic Verification 
-------------------------------
+Algorithmic Verification 
+------------------------
 
-Proving properties without writing proofs!
+
+<br>
+<br>
+
+**Goal**
+
+<br>
+
+Proving program properties *without* writing proofs!
 
 
 <div class="hidden">
@@ -21,30 +29,92 @@ Algorithmic Verification
 Tension
 -------
 
-Automatic (ML) vs. Expressive (coq)
+<img src="../img/tension0.png" height=300px>
+
+Automation vs. Expressiveness
+
+Tension
+-------
+
+<img src="../img/tension1.png" height=300px>
+
+Extremes: Hindley-Milner vs. CoC
+
+Tension
+-------
+
+<img src="../img/tension2.png" height=300px>
+
+Trading off Automation for Expressiveness
+
+Tension
+-------
+
+<img src="../img/tension3.png" height=300px>
+
+**Goal:** Find a sweet spot?
+
+Program Logics
+--------------
+
+<br>
+
+**Floyd-Hoare** (ESC, Dafny, SLAM/BLAST,...)
+
+<br>
+
++ **Properties:**   Assertions & Pre- and Post-conditions
+
++ **Proofs:**   Verification Conditions proved by SMT
+
++ **Inference:**   Abstract Interpretation
+
+<!--
+----------------   --------------------------------------
+ **Properties:**   Assertions & Pre- and Post-conditions
+
+     **Proofs:**   Verification Conditions proved by SMT
+
+  **Inference:**   Abstract Interpretation
+----------------   --------------------------------------
+-->
 
 
-<div class="fragment">
+Program Logics
+--------------
 
-Is there a sweet spot?
+<br>
 
+Automatic but not Expressive
+
+<br>
+
++ Rich Data Types ?
+
++ Higher-order functions ?
+
++ Polymorphism ?
+
+
+Liquid Types
+------------
+
+Generalize Floyd-Hoare Logic with Types
+
+---------------   -----------------------------------------------------
+ **Properties**   Types + Predicates
+
+     **Proofs**   Subtyping + Verification Conditions
+
+  **Inference**   Hindley-Milner + Abstract Interpretation
+---------------   -----------------------------------------------------
+
+<div class="fragment"> 
+  Towards reconciling Automation and Expressiveness
+  
+  [[continue]](01_SimpleRefinements.lhs.slides.html)
 </div>
 
-
-
-
-
-
-
- {#zog} 
---------
-
-<br>
-<br>
-<br>
-<br>
-
-[[continue]](01_SimpleRefinements.lhs.slides.html)
 
 
 Plan 
