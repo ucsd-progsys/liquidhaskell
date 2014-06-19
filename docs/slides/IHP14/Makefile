@@ -9,7 +9,7 @@ REVEAL=pandoc \
 	   --standalone                         \
 	   --mathjax \
 	   --section-divs                       \
-	   --template=_support/template2.reveal  \
+	   --template=_support/template.reveal  \
 	   --variable reveal=../_support/reveal.js
 
 PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2

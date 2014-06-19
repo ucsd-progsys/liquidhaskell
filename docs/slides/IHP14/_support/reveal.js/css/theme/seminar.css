@@ -20,6 +20,10 @@ body {
   letter-spacing: -0.02em;
   color: black; }
 
+.reveal a {
+  color: #8b7c69;
+  text-decoration: none;
+}
 ::selection {
   color: white;
   background: #26351c;
