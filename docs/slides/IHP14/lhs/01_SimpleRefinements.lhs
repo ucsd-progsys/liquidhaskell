@@ -392,6 +392,16 @@ $$\begin{array}{rll}
 \end{array}$$
 
 
+ {#inference}
+=============
+
+From Checking To Inference
+--------------------------
+
+HERE.
+
+
+
 
  {#universalinvariants}
 =======================
