@@ -34,15 +34,15 @@ Types + Predicates
 ------------------
 
 
-Ex: `Int`egers equal to `0`
----------------------------
+Example: Integers equal to `0`
+------------------------------
 
 <br>
 
 \begin{code}
-{-@ type EqZero = {v:Int | v = 0} @-}
+{-@ type Zero = {v:Int | v = 0} @-}
 
-{-@ zero :: EqZero @-}
+{-@ zero :: Zero @-}
 zero     =  0
 \end{code}
 
@@ -75,12 +75,12 @@ Expressions
 <br>
 
 \begin{code} <div/> 
-e := x, y, z,...      -- variable
-   | 0, 1, 2,...      -- constant
-   | (e + e)          -- addition
-   | (e - e)          -- subtraction
-   | (c * e)          -- linear multiplication
-   | (f e1 e2 ... en) -- uninterpreted function
+e := x, y, z,...    -- variable
+   | 0, 1, 2,...    -- constant
+   | (e + e)        -- addition
+   | (e - e)        -- subtraction
+   | (c * e)        -- linear multiplication
+   | (f e1 ... en)  -- uninterpreted function
 \end{code}
 
 Predicates
@@ -101,6 +101,7 @@ Refinement Types
 ----------------
 
 
+<br>
 
 \begin{code}<div/>
 b := Int 
@@ -108,33 +109,40 @@ b := Int
    | ...         -- base types
    | a, b, c     -- type variables
 
-t := {x:b | p}   -- refined base type 
-   | x:t -> t    -- dependent function 
+t := {x:b | p}   -- refined base 
+   | x:t -> t    -- refined function  
 \end{code}
 
 
 Subtyping Judgment 
 ------------------
 
+<br>
+
 $$\boxed{\Gamma \vdash t_1 \preceq t_2}$$
 
 <div class="fragment">
 
-Where **environment** $\Gamma$ is *sequence* of binders
+<br>
 
+Where **environment** $\Gamma$ is a sequence of binders
+
+<br>
 
 $$\Gamma \defeq \overline{\bindx{x_i}{t_i}}$$
 
 </div>
 
-Subtyping Is Implication
+Subtyping is Implication
 ------------------------
 
 [PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
 <br>
 
-(For *Base Types* ...)
+(For **Base** Types ...)
+
+
 
 
 Subtyping is Implication
@@ -142,66 +150,38 @@ Subtyping is Implication
 
 <br>
 
-<!--
-$$
-\inferrule[]
-          {\forall \overline{x_i}, v. \bigwedge_i P_i \Rightarrow Q \Rightarrow R}
-          {\overline{\bindx{x_i}{P_i}} \vdash \reft{v}{\Int}{Q} \preceq \reft{v}{\Int}{R}} 
-$$
-
--->
-
 $$
 \begin{array}{rl}
-{\mathbf{If\ by\ SMT}}   & \bigwedge_i P_i \Rightarrow  Q  \Rightarrow R \\
+{\mathbf{If\ VC\ is\ Valid}}   & \bigwedge_i P_i \Rightarrow  Q  \Rightarrow R \\
                 & \\
 {\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash \reft{v}{b}{Q} \subty \reft{v}{v}{R} \\
 \end{array}
 $$ 
 
-<!--
-$$
-\begin{array}{rrrcl}
-{\mathbf{If}}   & \bigwedge_i P_i \Rightarrow        & P              & \Rightarrow & Q              \\
-                &                                    &                &             &                \\
-{\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash & \reft{v}{\Int}{P} & \preceq & \reft{v}{\Int}{Q} \\
-\end{array}
-$$ 
-
-
-Subtyping is Implication
-------------------------
-
-
-<br>
-<br>
-
----------   ------------   --------------------------   
-  **If:**            `P`   `=> Q` 
-            
-**Then:**    `{v:t | P}`   `<: {v:t | Q}`
----------   ------------   --------------------------   
-
--->
-
 
 Example: Natural Numbers
 ------------------------
 
-\begin{code} <div/> 
+<br>
+
+\begin{code} .  
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
+<br>
+
 <div class="fragment">
+
 $$
 \begin{array}{rcrccl}
-\mathbf{By\ SMT} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
+\mathbf{By\ SMT:} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
 %                &           &             &          &             &           \\
-\mathbf{So}      & \emptyset & \vdash      & \EqZero  & \subty      & \Nat      \\
+\mathbf{So:}      & \emptyset & \vdash      & \Zero  & \subty      & \Nat      \\
 \end{array}
 $$
 </div>
 
+<br>
 
 <div class="fragment">
 
@@ -209,9 +189,107 @@ Hence, we can type:
 
 \begin{code}
 {-@ zero' :: Nat @-}
-zero'     =  zero   -- zero :: EqZero <: Nat
+zero'     =  zero   -- zero :: Zero <: Nat
 \end{code}
 </div>
+
+Contracts: Function Types
+=========================
+
+ {#as}
+------
+
+Pre-Conditions
+--------------
+
+<br>
+
+\begin{code}
+safeDiv n d = n `div` d
+\end{code}
+
+<br>
+
+<div class="fragment">
+Require non-zero input divisor `d`
+
+\begin{code}
+{-@ type NonZero = {v:Int | v /= 0} @-}
+\end{code}
+</div>
+
+<br>
+
+
+<div class="fragment">
+Specify pre-condition as **input type** 
+
+\begin{code}
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
+
+</div>
+
+
+Example: `safeDiv`
+------------------
+
+<br>
+
++ **Pre-condition** divisor is *non-zero*.
++ **Input type** specifies *pre-condition*
+
+<br>
+
+<br>
+
+<div class="fragment">
+
+<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
+What if precondition does not hold?
+
+</div>
+
+Example: `abs`
+--------------
+
+<br>
+
++ **Postcondition** result is non-negative
++ **Output type** specifies *post-condition*
+
+<br>
+
+\begin{code}
+{-@ abs       :: x:Int -> {v:Nat | x <= v} @-}
+abs x 
+  | 0 <= x    = x 
+  | otherwise = 0 - x
+\end{code}
+
+
+
+ {#dependentfunctions}
+======================
+
+Dependent Function Types
+------------------------
+
+<br>
+
+Outputs **refer to** inputs
+
+<br>
+
+**Relational** invariants
+
+
+Dependent Function Types
+========================
+
+
+
+
 
  {#universalinvariants}
 =======================
@@ -346,90 +424,6 @@ What if `evens` contained `1`?
 
 -->
 
-
-Contracts: Function Types
-=========================
-
- {#as}
-------
-
-Example: `safeDiv`
-------------------
-
-<br>
-
-**Precondition** divisor is *non-zero*.
-
-<br>
-
-<div class="fragment">
-
-\begin{code}
-{-@ type NonZero = {v:Int | v /= 0} @-}
-\end{code}
-
-</div>
-
-
-Example: `safeDiv`
-------------------
-
-<br>
-
-+ **Pre-condition** divisor is *non-zero*.
-+ **Input type** specifies *pre-condition*
-
-<br>
-
-\begin{code}
-{-@ safeDiv :: Int -> NonZero -> Int @-}
-safeDiv x y = x `div` y
-\end{code}
-
-<br>
-
-<div class="fragment">
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if precondition does not hold?
-
-</div>
-
-Example: `abs`
---------------
-
-<br>
-
-+ **Postcondition** result is non-negative
-+ **Output type** specifies *post-condition*
-
-<br>
-
-\begin{code}
-{-@ abs       :: x:Int -> Nat @-}
-abs x 
-  | 0 <= x    = x 
-  | otherwise = 0 - x
-\end{code}
-
-
- {#dependentfunctions}
-======================
-
-Dependent Function Types
-------------------------
-
-<br>
-
-Outputs **refer to** inputs
-
-<br>
-
-**Relational** invariants
-
-
-Dependent Function Types
-========================
 
 Example: `range`
 ----------------
