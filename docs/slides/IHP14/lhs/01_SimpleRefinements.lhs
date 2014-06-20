@@ -721,10 +721,10 @@ How to **verify** ?
 {-@ nats :: L Nat @-}
 nats     = l0
   where
-    l0   = 0 `C` l1     -- Nat `C` L Nat ~~> L Nat
-    l1   = 1 `C` l2     -- Nat `C` L Nat ~~> L Nat
-    l2   = 2 `C` l3     -- Nat `C` L Nat ~~> L Nat  
-    l3   = N            -- L Nat
+    l0   = 0 `C` l1  -- Nat `C` L Nat ~~> L Nat
+    l1   = 1 `C` l2  -- Nat `C` L Nat ~~> L Nat
+    l2   = 2 `C` l3  -- Nat `C` L Nat ~~> L Nat  
+    l3   = N         -- L Nat
 \end{code}
 
 <br>
