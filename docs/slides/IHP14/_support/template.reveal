@@ -43,7 +43,7 @@
 \newcommand{\foo}[4]{{#1}^{#4} + {#2}^{#4} = {#3}^{#4}}
 \newcommand{\reft}[3]{\{\bindx{#1}{#2} \mid {#3}\}}
 \newcommand{\bindx}[2]{{#1}\!:\!{#2}}
-\newcommand{\reftx}[2]{\{\bindx{#1}{#2}\}}
+\newcommand{\reftx}[2]{\{{#1}\mid{#2}\}}
 \newcommand{\inferrule}[3][]{\frac{#2}{#3}\;{#1}}
 \)
 

@@ -173,10 +173,10 @@ Example: Natural Numbers
 <div class="fragment">
 
 $$
-\begin{array}{rcrccl}
-\mathbf{By\ SMT:} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
+\begin{array}{rcrccll}
+\mathbf{VC\ is\ Valid:} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v & \mbox{(by SMT)} \\
 %                &           &             &          &             &           \\
-\mathbf{So:}      & \emptyset & \vdash      & \Zero  & \subty      & \Nat      \\
+\mathbf{So:}      & \emptyset & \vdash      & \Zero  & \subty      & \Nat   &   \\
 \end{array}
 $$
 </div>
@@ -205,13 +205,13 @@ Pre-Conditions
 <br>
 
 \begin{code}
-safeDiv n d = n `div` d
+safeDiv n d = n `div` d   -- crashes if d==0
 \end{code}
 
 <br>
 
 <div class="fragment">
-Require non-zero input divisor `d`
+**Requires** non-zero input divisor `d`
 
 \begin{code}
 {-@ type NonZero = {v:Int | v /= 0} @-}
@@ -231,63 +231,165 @@ Specify pre-condition as **input type**
 </div>
 
 
-Example: `safeDiv`
-------------------
+Precondition: `safeDiv`
+-----------------------
+
+Specify pre-condition as **input type** 
+
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
 
 <br>
 
-+ **Pre-condition** divisor is *non-zero*.
-+ **Input type** specifies *pre-condition*
+Precondition is checked at **call-site**
+
+\begin{code}
+{-@ bad :: Nat -> Int @-}
+bad n   = 10 `safeDiv` n
+\end{code}
+
+
+Precondition: `safeDiv`
+-----------------------
+
+Specify pre-condition as **input type** 
+
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
 
 <br>
+
+Precondition is checked at **call-site**
+
+\begin{code}
+{-@ ok  :: Nat -> Int @-}
+ok n    = 10 `safeDiv` (n+1)
+\end{code}
 
 <br>
 
 <div class="fragment">
+**Verifies As** 
 
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if precondition does not hold?
-
+$\bindx{n}{\Nat} \vdash \reftx{v}{v = n+1} \subty \reftx{v}{v \not = 0}$
 </div>
 
-Example: `abs`
---------------
+Precondition: `safeDiv`
+-----------------------
 
-<br>
+Specify pre-condition as **input type** 
 
-+ **Postcondition** result is non-negative
-+ **Output type** specifies *post-condition*
-
-<br>
-
-\begin{code}
-{-@ abs       :: x:Int -> {v:Nat | x <= v} @-}
-abs x 
-  | 0 <= x    = x 
-  | otherwise = 0 - x
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
 \end{code}
 
+<br>
 
+Precondition is checked at **call-site**
 
- {#dependentfunctions}
-======================
-
-Dependent Function Types
-------------------------
+\begin{code}
+{-@ ok  :: Nat -> Int @-}
+ok n    = 10 `safeDiv` (n+1)
+\end{code}
 
 <br>
 
-Outputs **refer to** inputs
+**Verifies As**
+
+$$(0 \leq n) \Rightarrow (v = n+1) \Rightarrow (v \not = 0)$$
+
+
+
+Post-Conditions
+---------------
+
+**Ensures** output is a `Nat` greater than input `x`.
+
+\begin{code}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
 
 <br>
 
-**Relational** invariants
+<div class="fragment">
+Specify post-condition as **output type**
 
+\begin{code}
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+\end{code}
+</div>
 
-Dependent Function Types
-========================
+<br>
 
+<div class="fragment">
+**Dependent Function Types**
 
+Outputs *refer to* inputs
+</div>
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+Postcondition is checked at **return-site**
+
+<br>
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+**Verified As**
+
+<br>
+
+$$\begin{array}{rll}
+\bindx{x}{\Int},\bindx{\_}{0 \leq x}      & \vdash \reftx{v}{v = x}     & \subty \reftx{v}{0 \leq v \wedge x \leq v} \\
+\bindx{x}{\Int},\bindx{\_}{0 \not \leq x} & \vdash \reftx{v}{v = 0 - x} & \subty \reftx{v}{0 \leq v \wedge x \leq v} \\
+\end{array}$$
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+**Verified As**
+
+<br>
+
+$$\begin{array}{rll}
+(0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow (0 \leq v \wedge x \leq v) \\
+(0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow (0 \leq v \wedge x \leq v) \\
+\end{array}$$
 
 
 

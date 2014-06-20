@@ -23,9 +23,6 @@ FREVEAL=pandoc \
 	   --template=_support/template.reveal  \
 	   --variable reveal=../_support/reveal.js
 
-
-
-
 PANDOC=pandoc --columns=80  -s --mathjax --slide-level=2
 SLIDY=$(PANDOC) -t slidy
 DZSLIDES=$(PANDOC) --highlight-style tango --css=slides.css -w dzslides
@@ -41,7 +38,10 @@ fhtmlObjects := $(patsubst %.lhs,%.fast.html,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
-all: slides 
+
+all: fast 
+
+fast: $(fhtmlObjects)
 
 one: $(mdObjects)
 	$(REVEAL) lhs/.liquid/00_Index.lhs.markdown > lhs/index.html
@@ -49,10 +49,8 @@ one: $(mdObjects)
 tut: $(mdObjects)
 	$(REVEAL) lhs/.liquid/*.markdown > lhs/tutorial.html 
 
-
 slides: $(htmlObjects)
 
-fast: $(fhtmlObjects)
 
 pdfslides: $(pdfObjects)
 
@@ -65,7 +63,6 @@ lhs/.liquid/%.lhs.markdown: lhs/%.lhs
 
 lhs/%.fast: lhs/%.lhs
 	$(STRIPCODE) $? > $@ 
-
 
 lhs/%.fast.html: lhs/%.fast
 	$(FREVEAL) $? -o $@ 
