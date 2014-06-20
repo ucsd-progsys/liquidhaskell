@@ -170,7 +170,7 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Predicate, Def)
+import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 -- import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Names      (symSepName)
 import CoreSyn (CoreBind)
@@ -183,6 +183,7 @@ data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check 
+  , real           :: Bool       -- ^ supports real number arithmetic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values

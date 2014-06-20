@@ -102,7 +102,7 @@ getGhcInfo' cfg0 target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs (totality cfg) target paths impNames [Spec, Hs, LHs]
+      impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
       impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
         when (not $ isSpecImport n) $
           addTarget =<< guessTarget f Nothing
@@ -289,12 +289,15 @@ targetName     = dropExtension  . takeFileName
 -- starName fn    = combine dir ('*':f) where (dir, f) = splitFileName fn
 starName       = ("*" ++)
 
-patErrorName = "PatErr"
+patErrorName    = "PatErr"
+realSpecName    = "Real"
+notRealSpecName = "NotReal"
 
-getSpecs tflag target paths names exts
+getSpecs rflag tflag target paths names exts
   = do fs'     <- sortNub <$> moduleImports exts paths names 
        patSpec <- getPatSpec paths tflag
-       let fs  = patSpec ++ fs'
+       rlSpec  <- getRealSpec paths rflag
+       let fs  = patSpec ++ rlSpec ++ fs'
        liftIO  $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
 
@@ -303,6 +306,12 @@ getPatSpec paths totalitycheck
   = (map (patErrorName, )) . maybeToList <$> moduleFile paths patErrorName Spec
   | otherwise
   = return []
+
+getRealSpec paths freal
+  | freal
+  = (map (realSpecName, )) . maybeToList <$> moduleFile paths realSpecName Spec
+  | otherwise
+  = (map (notRealSpecName, )) . maybeToList <$> moduleFile paths notRealSpecName Spec
 
 transParseSpecs _ _ _ specs []
   = return specs
