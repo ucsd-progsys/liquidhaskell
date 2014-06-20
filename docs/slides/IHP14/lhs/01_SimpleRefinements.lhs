@@ -64,9 +64,21 @@ Refinements Are Predicates
 From A Decidable Logic
 ----------------------
 
+<br> 
+
 1. Expressions
 
 2. Predicates
+
+<br>
+
+<div class="fragment">
+
+**Refinement Logic: QF-UFLIA**
+
+Quant.-Free. Uninterpreted Functions and Linear Arithmetic 
+
+</div>
 
 
 Expressions
@@ -96,6 +108,9 @@ p := e           -- atom
    | (p || p)    -- or
    | (not p)     -- negation
 \end{code}
+
+<br>
+
 
 Refinement Types
 ----------------
@@ -398,46 +413,220 @@ $$\begin{array}{rll}
 From Checking To Inference
 --------------------------
 
+**So far**
+
+How to **check** code against given signature
+
+<br>
+
+<div class="fragment">
+
+**Next**
+
+How to **synthesize** signatures from code
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+**2-Phase Process**
+
+1. H-M to synthesize *types*
+2. A-I to synthesize *refinements*  
+
+</div>
+
+<br>
+
+<div class="fragment">Lets quickly look at 2. </div>
+
+
+
 From Checking To Inference
 ==========================
+
 
 Recipe
 ------
 
-TODO
+<br>
 
-Step 1. Templates
-TEXT
+<div class="fragment">
 
-Step 2. Constraints
-TEXT
+**Step 1. Templates**
 
-Step 3. Solve
-TEXT
+Types with variables $\kvar{}$ for *unknown* refinements
 
-Inference: `abs`
-----------------
+</div>
 
-Step 1. Templates 
-EXAMPLE
+<br>
 
-Step 2. Constraints
-EXAMPLE
+<div class="fragment">
 
-Step 3. Solve
-EXAMPLE
+**Step 2. Constraints**
+
+Typecheck templates: VCs $\rightarrow$ Horn constraints over $\kvar{}$
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+**Step 3. Solve**
+
+Via least-fixpoint over suitable abstract domain
+
+</div>
+
+Step 1. Templates (`abs`)
+-------------------------
+
+<br>
+
+<div class="fragment">
+**Type**
+
+$$\bindx{x}{\Int} \rightarrow \Int$$
+</div>
+
+<br>
+
+<div class="fragment">
+**Template**
+
+$$\ereft{x}{\Int}{\kvar{1}} \rightarrow \reft{v}{\Int}{\kvar{2}}$$
+</div>
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Subtyping Queries**
+
+<br>
+
+$$
+\begin{array}{rll}
+\bindx{x}{\kvar{1}},\bindx{\_}{0 \leq x}      & \vdash \reftx{v}{v = x}     & \subty \reftx{v}{\kvar{2}} \\
+\bindx{x}{\kvar{1}},\bindx{\_}{0 \not \leq x} & \vdash \reftx{v}{v = 0 - x} & \subty \reftx{v}{\kvar{2}} \\
+\end{array}
+$$
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Verification Conditions**
+
+<br>
+
+$$\begin{array}{rll}
+{\kvar{1}} \wedge (0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow \kvar{2} \\
+{\kvar{1}} \wedge (0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow \kvar{2} \\
+\end{array}$$
+
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Horn Constraints** over $\kvar{}$
+
+<br>
+
+$$\begin{array}{rll}
+{\kvar{1}} \wedge (0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow \kvar{2} \\
+{\kvar{1}} \wedge (0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow \kvar{2} \\
+\end{array}$$
+
+<br>
+<br>
+
+**Note:** $\kvar{}$ occur positively, hence constraints are monotone.
+
+Step 3. Solve (`abs`)
+---------------------
+
+Least-fixpoint over abstract domain 
+
+<br>
+
+
+<div class="fragment">
+**Predicate Abstraction**
+
+Conjunction of predicates from (finite) ground set $\quals$, e.g.
+</div>
+
+<br>
+
+<div class="fragment">
+$$\quals \defeq \{ c \sim X \}$$
+
+<br>
+
+$$\begin{array}{ccll}
+  c     & \in & \{0,1,\ldots   \}                & \mbox{program constants} \\
+  X     & \in & \{n,x,v,\ldots \}                & \mbox{program variables} \\
+  \sim  & \in & \{<, \leq, >, \geq, =, \not =\}  & \mbox{comparisons}       \\
+  \end{array}$$
+
+</div>
+
+Step 3. Solve (`abs`)
+---------------------
+
+Least-fixpoint over abstract domain 
+
+<br>
+
+**Predicate Abstraction**
+
+Conjunction of predicates from (finite) ground set $\quals$
+
+<br>
+
++ Obtain $\quals$ via CEGAR
++ Or use other domains
+
+<br>
+
+[[Rybalchenko et al., CAV 2011]](http://goto.ucsd.edu/~rjhala/papers/hmc.html)
 
 
 Recipe Scales Up
 ----------------
 
-Define refinement type **checker**, get inference for free.
+<br>
 
-+ Data types
+**1. Templates** $\rightarrow$ **2. Horn Constraints** $\rightarrow$ **3. Fixpoint**
 
-+ Higher-Order Functions
+<br>
 
-+ Polymorphism
+<div class="fragment">
++ Define type checker, get inference for free 
+
++ Scales to Data types, HO functions, Polymorphism
+
+</div>
+<br>
+
+<div class="fragment">
+**Key Requirement** 
+
+Refinements belong in abstract domain, e.g. QF-UFLIA
+</div>
 
 
 
@@ -455,20 +644,24 @@ Types Yield Universal Invariants
 Example: Lists
 --------------
 
+
 <div class="hidden">
 \begin{code}
 infixr `C`
 \end{code}
 </div>
 
+
 <br>
 <br>
 <br>
+
 
 \begin{code}
 data L a = N          -- Empty 
          | C a (L a)  -- Cons 
 \end{code}
+
 
 <br>
 
