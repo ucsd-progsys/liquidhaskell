@@ -39,7 +39,7 @@
 \newcommand{\True}{\mathit{True}}
 \newcommand{\Int}{\mathtt{Int}}
 \newcommand{\Nat}{\mathtt{Nat}}
-\newcommand{\EqZero}{\mathtt{EqZero}}
+\newcommand{\Zero}{\mathtt{Zero}}
 \newcommand{\foo}[4]{{#1}^{#4} + {#2}^{#4} = {#3}^{#4}}
 \newcommand{\reft}[3]{\{\bindx{#1}{#2} \mid {#3}\}}
 \newcommand{\bindx}[2]{{#1}\!:\!{#2}}
