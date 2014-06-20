@@ -398,8 +398,46 @@ $$\begin{array}{rll}
 From Checking To Inference
 --------------------------
 
-HERE.
+From Checking To Inference
+==========================
 
+Recipe
+------
+
+TODO
+
+Step 1. Templates
+TEXT
+
+Step 2. Constraints
+TEXT
+
+Step 3. Solve
+TEXT
+
+Inference: `abs`
+----------------
+
+Step 1. Templates 
+EXAMPLE
+
+Step 2. Constraints
+EXAMPLE
+
+Step 3. Solve
+EXAMPLE
+
+
+Recipe Scales Up
+----------------
+
+Define refinement type **checker**, get inference for free.
+
++ Data types
+
++ Higher-Order Functions
+
++ Polymorphism
 
 
 
