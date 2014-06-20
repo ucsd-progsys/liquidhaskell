@@ -120,7 +120,8 @@ instance Checkable SortedReft where
 checkExpr                  :: Env -> Expr -> CheckM Sort 
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
-checkExpr _ (ECon _)       = return FInt 
+checkExpr _ (ECon (I _))   = return FInt 
+checkExpr _ (ECon (R _))   = return FReal 
 checkExpr f (EVar x)       = checkSym f x
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
@@ -184,6 +185,9 @@ checkOp f e1 o e2
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
+checkOpTy f _ FReal FReal        
+  = return FReal
+
 checkOpTy f _ FInt FInt          
   = return FInt
 
@@ -234,6 +238,8 @@ checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l') 
 checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
 checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
+checkRelTy f _ _ FReal (FObj l)    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
+checkRelTy f _ _ (FObj l) FReal    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
 checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
 checkRelTy _ e Ueq t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)

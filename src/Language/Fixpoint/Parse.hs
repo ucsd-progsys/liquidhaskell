@@ -130,17 +130,14 @@ comma         = Token.comma         lexer
 whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
 braces        = Token.braces        lexer
+double        = Token.float         lexer
+integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer =   try (liftM toInt is) 
-       <|>  liftM (negate . toInt) (char '-' >> is)
-  where 
-    is      = liftM2 (\is _ -> is) (many1 digit) blanks 
-    toInt s = (read s) :: Integer 
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -169,7 +166,7 @@ symbolP :: Parser Symbol
 symbolP = liftM stringSymbol symCharsP 
 
 constantP :: Parser Constant
-constantP = liftM I integer
+constantP = try (liftM R double) <|> liftM I integer
 
 symconstP :: Parser SymConst
 symconstP = SL <$> stringLiteral 
@@ -301,6 +298,7 @@ condP f bodyP
 fTyConP
   =   (reserved "int"  >> return intFTyCon)
   <|> (reserved "bool" >> return boolFTyCon)
+  <|> (reserved "real" >> return realFTyCon)
   <|> (stringFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]

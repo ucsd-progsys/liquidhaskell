@@ -40,10 +40,11 @@ data Config
     , genSorts    :: GenQualifierSort -- generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- use UEq on all sorts
     , native      :: Bool             -- use haskell solver
+    , real        :: Bool             -- interpret div and mul in SMT
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def
+  def = Config "" def def def def def def
 
 instance Command Config where 
   command c =  command (genSorts c)    
