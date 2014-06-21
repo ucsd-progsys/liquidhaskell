@@ -1,5 +1,12 @@
-Failed 4 tests: 
- neg/Class4Import.hs,
-  neg/ClassI.hs,
-  pos/Class2.hs,
-  pos/inccheck0.hs 
+Failed 9 tests: 
+ ../benchmarks/text-0.11.2.3/Data/Text.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Encoding.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Fusion.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Builder.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Encoding.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Fusion.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Internal.hs,
+  ../benchmarks/text-0.11.2.3/Data/Text/Lazy/Search.hs,
+  ../benchmarks/text-0.11.2.3/Data/Uncons.hs 
+

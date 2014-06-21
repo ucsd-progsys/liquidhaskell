@@ -8,6 +8,9 @@ import GHC.Real
 import GHC.Word
 
 import Data.Maybe
+import GHC.Exts
+
+GHC.Exts.D# :: x:_ -> {v:_ | v = x}
 
 assume GHC.Base..               :: forall< p :: xx:b -> c -> Prop
                                          , q :: yy:a -> b -> Prop>.
@@ -20,10 +23,8 @@ assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
                                      v = (x :: int) }
 assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
-assume GHC.Num.*                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | ((((x = 0) || (y = 0)) => (v = 0))
-                                                                         && (((x > 0) && (y > 0)) => ((v >= x) && (v >= y)))
-                                                                         && (((x > 1) && (y > 1)) => ((v > x) && (v > y)))) }
 
+embed GHC.Types.Double as real
 embed GHC.Integer.Type.Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
