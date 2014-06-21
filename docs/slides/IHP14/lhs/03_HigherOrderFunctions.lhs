@@ -57,7 +57,7 @@ loop lo hi base f = go lo base
 
 <br>
 
-LiquidHaskell infers `f` called with values `(Btwn lo hi)`
+By subtyping, we infer `f` called with values `(Btwn lo hi)`
 
 
 Example: Summing Lists
@@ -80,6 +80,8 @@ listSum xs  = loop 0 n 0 body
 
 + Hence, indexing with `!!` is safe.
 </div>
+
+<br>
 
 <div class="fragment">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
@@ -160,7 +162,7 @@ foldl :: (α -> β -> α) -> α -> [β] -> α
 <br>
 
 <div class="fragment">
-`sumNats` verified by **instantiating** `α,β := Nat`
+Hence, `sumNats` verified by **instantiating** `α,β := Nat`
 </div>
 
 <br>
@@ -172,19 +174,33 @@ foldl :: (α -> β -> α) -> α -> [β] -> α
 Instantiation And Inference
 ---------------------------
 
-Polymorphic instantiation happens *everywhere*...
+Polymorphism ubiquitous, so inference is critical!
 
 <br>
 
-... so *automatic inference* is crucial
+<div class="fragment">
+**Step 1. Templates** 
+Instantiate with unknown refinements
+
+$$
+\begin{array}{rcl}
+\alpha & \defeq & \reft{v}{\Int}{\kvar{\alpha}}\\
+\beta  & \defeq & \reft{v}{\Int}{\kvar{\beta}}\\
+\end{array}
+$$
+</div>
 
 <br>
-
-Cannot use *unification* (unlike indexed approaches)
+<div class="fragment">
+**Step 2. Horn-Constraints** 
+By type checking the templates
+</div>
 
 <br>
-
-LiquidHaskell uses [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)
+<div class="fragment">
+**Step 3. Fixpoint** 
+Abstract interpretatn. to get solution for $\kvar{}$
+</div>
 
 
 Iteration Dependence
@@ -204,12 +220,14 @@ add n m = loop 0 m n (\_ i -> i + 1)
 <div class="fragment">
 As property only holds after **last iteration** ...
 
-... cannot instantiate `α := {v:Int | v = n + m}`
+<br>
+
+... cannot instantiate $\alpha \defeq \reft{v}{\Int}{v = n + m}$
 </div>
 
 <br>
 
 <div class="fragment">
-**Problem:** Need *iteration-dependent* invariants...&nbsp; &nbsp; [[Continue]](04_AbstractRefinements.lhs.slides.html)
+**Problem:** *Iteration-dependent* invariants...? &nbsp; &nbsp; [[Continue]](04_AbstractRefinements.lhs.slides.html)
 </div>
 

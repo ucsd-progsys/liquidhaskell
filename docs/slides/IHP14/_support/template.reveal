@@ -53,6 +53,7 @@
 \newcommand{\reftx}[2]{\{{#1}\mid{#2}\}}
 \newcommand{\inferrule}[3][]{\frac{#2}{#3}\;{#1}}
 \newcommand{\kvar}[1]{\color{kvcol}{\mathbf{\kappa_{#1}}}}
+\newcommand{\llen}[1]{\mathtt{llen}(#1)}
 \)
 
 <div class="reveal">
