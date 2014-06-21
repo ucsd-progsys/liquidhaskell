@@ -70,7 +70,7 @@ Example: Length of a List
 
 <br>
 
-LiquidHaskell **strengthens** data constructor types
+We **strengthen** data constructor types
 
 <br>
 
@@ -98,22 +98,29 @@ Measures Are Uninterpreted
 
 <br>
 
-In SMT, [uninterpreted function](http://fm.csl.sri.com/SSFT12/smt-euf-arithmetic.pdf) `f` obeys *congruence* axiom:
+In SMT, [uninterpreted function](http://fm.csl.sri.com/SSFT12/smt-euf-arithmetic.pdf) $f$ obeys **congruence** axiom:
 
 <br>
 
-`forall x y. (x = y) => (f x) = (f y)`
+$$\forall \overline{x}, \overline{y}. \overline{x} = \overline{y} \Rightarrow
+f(\overline{x}) = f(\overline{y})$$
 
 <br>
 
 <div class="fragment">
-All other facts about `llen` asserted at **fold** and **unfold**
+Other properties of `llen` asserted when typing **fold** & **unfold**
+</div>
+
+<br>
+
+<div class="fragment">
+Crucial for *efficient*, *decidable* and *predictable* verification.
 </div>
 
 Measures Are Uninterpreted
 --------------------------
 
-Facts about `llen` asserted at *syntax-directed* **fold** and **unfold**
+Other properties of `llen` asserted when typing **fold** & **unfold**
 
 <br>
 
@@ -188,13 +195,30 @@ Where `LtLen` is a type alias:
 </div>
 
 Multiple Measures
+-----------------
+
+<br>
+
+Support **many** measures on a type ...
+
+<br>
+
+<div class="fragment">
+... by **conjoining** the constructor refinements.
+</div>
+
+[[Skip...]](#/refined-data-cons)
+
+
+<!--
+
+Multiple Measures
 =================
 
  {#adasd}
 ---------
 
-LiquidHaskell allows *many* measures for a type
-
+We allow *many* measures for a type
 
 Ex: List Emptiness 
 ------------------
@@ -210,7 +234,7 @@ Measure describing whether a `List` is empty
 <br>
 
 <div class="fragment">
-LiquidHaskell **strengthens** data constructors
+We **strengthen** data constructors
 
 \begin{code} <div/> 
 data L a where 
@@ -235,19 +259,21 @@ data L a where
               && not (isNull v)          }
 \end{code}
 
+-->
+
 Multiple Measures: Red-Black Trees
 ==================================
 
- {#asdad}
----------
+ {#rbtree}
+----------
 
 <img src="../img/RedBlack.png" height=300px>
 
-+ <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
-+ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on *all paths*</div>
++ <div class="fragment">**Color:** `Red` nodes have `Black` children</div>
++ <div class="fragment">**Height:** Number of `Black` nodes equal on *all paths*</div>
 <br>
 
-[[Skip...]](#/4)
+[[Skip...]](#/refined-data-cons)
 
 Basic Type 
 ----------
@@ -338,6 +364,7 @@ type ARBT a = {v:Tree a | isAlmost v && isBH v}
 
 [Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
 
+<!--
 
 Measures vs. Index Types
 ========================
@@ -363,11 +390,13 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <div class="fragment">Invaluable in practice!</div>
 
+-->
+
 Refined Data Constructors
 =========================
 
- {#asd}
--------
+ {#refined-data-cons}
+---------------------
 
 Can encode invariants **inside constructors**
 
@@ -404,8 +433,8 @@ data L a where
 
 <br>
 
-- <div class="fragment">LiquidHaskell **checks** property when **folding** `C`</div>
-- <div class="fragment">LiquidHaskell **assumes** property when **unfolding** `C`</div>
+- <div class="fragment">We **check** property when **folding** `C`</div>
+- <div class="fragment">We **assume** property when **unfolding** `C`</div>
 
 Increasing Lists 
 ----------------
@@ -425,7 +454,7 @@ insert y N    = y `C` N
 
 <br>
 
-<div class="fragment">**Problem 1:** What if we need *both* [increasing and decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
+<div class="fragment">**Problem 1:** What if we need [increasing & decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
 
 Recap
 -----
@@ -434,7 +463,7 @@ Recap
 2. Subtyping: SMT Implication
 3. **Measures:** Strengthened Constructors
     - <div class="fragment">**Decouple** property from structure</div>
-    - <div class="fragment">**Reuse** structure across *different* properties</div>
+    <!-- - <div class="fragment">**Reuse** structure across *different* properties</div> -->
 
 <br>
 
