@@ -414,6 +414,8 @@ We can now verify <br>
 xs ++ ys = foldr (\_ -> C) ys xs 
 \end{code}
 
+<br>
+
 <div class="fragment">
 where 
 
