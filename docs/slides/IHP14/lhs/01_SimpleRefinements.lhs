@@ -179,7 +179,7 @@ Example: Natural Numbers
 
 <br>
 
-\begin{code} .  
+\begin{code} <div/>  
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
@@ -216,6 +216,7 @@ Contracts: Function Types
 
 Pre-Conditions
 --------------
+
 
 <br>
 
@@ -304,7 +305,7 @@ Specify pre-condition as **input type**
 
 Precondition is checked at **call-site**
 
-\begin{code}
+\begin{code} <div/>
 {-@ ok  :: Nat -> Int @-}
 ok n    = 10 `safeDiv` (n+1)
 \end{code}
@@ -566,13 +567,13 @@ Least-fixpoint over abstract domain
 <div class="fragment">
 **Predicate Abstraction**
 
-Conjunction of predicates from (finite) ground set $\quals$, e.g.
+Conjunction of predicates from (finite) ground set $\quals$
 </div>
 
 <br>
 
 <div class="fragment">
-$$\quals \defeq \{ c \sim X \}$$
+$$\mbox{e.g.}\ \quals \defeq \{ c \sim X \}$$
 
 <br>
 
@@ -684,13 +685,17 @@ How to **specify** every element in `nats` is non-negative?
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{code}
 
+<br>
+
 **Logic**
 
 $$\forall x \in \mathtt{nats}. 0 \leq x$$
 
-+ <div class="fragment">Verification: Implications over **quantified formulas**</div>
-+ <div class="fragment">Quantified formulas not efficiently decidable by SMT</div>
-+ <div class="fragment">**Verification** is brittle</div>
+<br>
+
+<div class="fragment">
+VCs over **quantified formulas** ... *terrible* for SMT
+</div>
 
 
 Example: Lists
@@ -702,15 +707,19 @@ How to **specify** every element in `nats` is non-negative?
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{code}
 
-**Types + Logic**
+<br>
+
+**Refinement Types**
 
 \begin{code}
 {-@ nats :: L Nat @-}
 \end{code}
 
+<br>
+
 + <div class="fragment">Type *implicitly* has quantification</div>
 + <div class="fragment">Sub-typing *eliminates* quantifiers</div>
-+ <div class="fragment">Robust verification via efficiently decidable *quantifier-free* formulas</div>
++ <div class="fragment">Robust verification via *quantifier-free* VCs</div>
 
 Example: Lists
 --------------
@@ -719,12 +728,12 @@ How to **verify** ?
 
 \begin{code} <div/>
 {-@ nats :: L Nat @-}
-nats     = l0
+nats   = l0
   where
-    l0   = 0 `C` l1  -- Nat `C` L Nat ~~> L Nat
-    l1   = 1 `C` l2  -- Nat `C` L Nat ~~> L Nat
-    l2   = 2 `C` l3  -- Nat `C` L Nat ~~> L Nat  
-    l3   = N         -- L Nat
+    l0 = 0 `C` l1  -- Nat `C` L Nat >>> L Nat
+    l1 = 1 `C` l2  -- Nat `C` L Nat >>> L Nat
+    l2 = 2 `C` l3  -- Nat `C` L Nat >>> L Nat
+    l3 = N         -- L Nat
 \end{code}
 
 <br>

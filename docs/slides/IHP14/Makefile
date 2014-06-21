@@ -39,7 +39,7 @@ fhtmlObjects := $(patsubst %.lhs,%.fast.html,$(wildcard lhs/*.lhs))
 ####################################################################
 
 
-all: fast 
+all: slides 
 
 fast: $(fhtmlObjects)
 
