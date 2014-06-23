@@ -1392,7 +1392,7 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
 --   symbol       = stringSymbol . dropModuleNames . showpp
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
-checkTy mkE emb env t = mkE <$> checkRType emb env t
+checkTy mkE emb env t = mkE <$> checkRType emb env (txRefSort M.empty emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
 checkDupIntersect xts mxts = concatMap mkWrn dups
