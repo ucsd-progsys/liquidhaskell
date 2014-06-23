@@ -289,6 +289,7 @@ data GhcSpec = SP {
   , config     :: !Config                        -- ^ Configuration Options
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
+  , tyconEnv   :: M.HashMap TyCon RTyCon
   }
 
 
