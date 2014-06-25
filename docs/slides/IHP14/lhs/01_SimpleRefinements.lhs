@@ -265,6 +265,14 @@ Precondition is checked at **call-site**
 bad n   = 10 `safeDiv` n
 \end{code}
 
+<br>
+
+<div class="fragment">
+**Rejected As** 
+
+$$\bindx{n}{\Nat} \vdash \reftx{v}{v = n} \not \subty \reftx{v}{v \not = 0}$$
+
+</div>
 
 Precondition: `safeDiv`
 -----------------------
