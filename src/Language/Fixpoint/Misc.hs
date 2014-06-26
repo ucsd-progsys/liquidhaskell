@@ -136,7 +136,7 @@ boxStrCat sep = ("[" ++) . (++ "]") . L.intercalate sep
 tryIgnore :: String -> IO () -> IO ()
 tryIgnore s a = Ex.catch a $ \e -> 
                 do let err = show (e :: Ex.IOException)
-                   putStrLn ("Warning: Couldn't do " ++ s ++ ": " ++ err)
+                   whenLoud $ putStrLn ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
 traceShow     ::  Show a => String -> a -> a
