@@ -151,7 +151,7 @@ updateDynFlags cfg
                     , hscTarget    = HscInterpreted
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
-                      `dopt_set` Opt_ImplicitImportQualified
+                      `gopt_set` Opt_ImplicitImportQualified
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags df''
 
@@ -237,13 +237,14 @@ removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
 
+desugarModuleWithLoc :: TypecheckedModule -> Ghc DesugaredModule
 desugarModuleWithLoc tcm = do
   let ms = pm_mod_summary $ tm_parsed_module tcm 
   -- let ms = modSummary tcm
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- hscDesugar -- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  guts <- liftIO $ hscDesugar {-WithLoc-} hsc_env_tmp ms tcg
   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
