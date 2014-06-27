@@ -25,7 +25,6 @@ data-files: include/*.hquals
           , include/Foreign/*.spec
           , include/Foreign/C/*.spec
           , include/Foreign/Marshal/*.spec
-          , include/GHC/List.lhs
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
