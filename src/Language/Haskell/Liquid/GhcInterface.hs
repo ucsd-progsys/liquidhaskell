@@ -34,7 +34,7 @@ import DataCon
 import qualified TyCon as TC
 import HscMain
 import Module
-import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
+-- import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
@@ -138,9 +138,9 @@ derivedVs cbs fd = concatMap bindersOf cbf ++ deps
         dep (DFunUnfolding _ _ e) = concatMap grapDep  e
         dep _                     = []
 
-        grapDep :: DFunArg CoreExpr -> [Id]
-        grapDep (DFunPolyArg (Var x)) = [x]
-        grapDep _                     = []
+        grapDep :: CoreExpr -> [Id]
+        grapDep (Var x)     = [x]
+        grapDep _           = []
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
@@ -168,7 +168,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 -- | Extracting CoreBindings From File ---------------------------
 ------------------------------------------------------------------
-
+getGhcModGuts1 :: FilePath -> Ghc MGIModGuts
 getGhcModGuts1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
@@ -187,7 +187,7 @@ getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns
         tyClD    = [d  | TyClD  d <- decls]
         tyDec    = filter isDataDecl tyClD
         inst     = mkInst <$> tyDec
-        mkInst x = (tcdLName x, td_derivs $ tcdTyDefn x)
+        mkInst x = (tcdLName x, dd_derivs $ tcdDataDefn x)
         mkDic    = \(x, y) -> "$f" ++ showPpr y ++ showPpr x
 
         pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
@@ -243,7 +243,7 @@ desugarModuleWithLoc tcm = do
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  guts <- hscDesugar -- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
@@ -555,5 +555,5 @@ instance Result SourceError where
          . bagToList 
          . srcErrorMessages
      
-errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
+errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)] 
 

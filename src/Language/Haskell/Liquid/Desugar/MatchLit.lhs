@@ -80,7 +80,7 @@ dsLit (HsDoublePrim d) = return (Lit (MachDouble (fl_value d)))
 dsLit (HsChar c)       = return (mkCharExpr c)
 dsLit (HsString str)   = mkStringExprFS str
 dsLit (HsInteger i _)  = mkIntegerExpr i
-dsLit (HsInt i)	       = return (mkIntExpr i)
+dsLit (HsInt i)	       = return undefined -- (mkIntExpr i)
 
 dsLit (HsRat r ty) = do
    num   <- mkIntegerExpr (numerator (fl_value r))
@@ -98,9 +98,10 @@ dsOverLit :: HsOverLit Id -> DsM CoreExpr
 -- (an expression for) the literal value itself
 dsOverLit (OverLit { ol_val = val, ol_rebindable = rebindable 
 		   , ol_witness = witness, ol_type = ty })
-  | not rebindable
-  , Just expr <- shortCutLit val ty = dsExpr expr	-- Note [Literal short cut]
-  | otherwise			    = dsExpr witness
+  = undefined      
+--   | not rebindable
+--   , Just expr <- undefined -- shortCutLit undefined undefined {- val ty-} = dsExpr expr	-- Note [Literal short cut]
+--   | otherwise			    = undefined -- dsExpr witness
 \end{code}
 
 Note [Literal short cut]
@@ -118,15 +119,15 @@ hsLitKey :: HsLit -> Literal
 --	(and doesn't for strings)
 -- It only works for primitive types and strings; 
 -- others have been removed by tidy
-hsLitKey (HsIntPrim     i) = mkMachInt  i
-hsLitKey (HsWordPrim    w) = mkMachWord w
+hsLitKey (HsIntPrim     i) = mkMachInt  undefined undefined -- i
+hsLitKey (HsWordPrim    w) = mkMachWord undefined undefined -- w
 hsLitKey (HsInt64Prim   i) = mkMachInt64  i
 hsLitKey (HsWord64Prim  w) = mkMachWord64 w
 hsLitKey (HsCharPrim    c) = MachChar   c
 hsLitKey (HsStringPrim  s) = MachStr    s
 hsLitKey (HsFloatPrim   f) = MachFloat  (fl_value f)
 hsLitKey (HsDoublePrim  d) = MachDouble (fl_value d)
-hsLitKey (HsString s)	   = MachStr    s
+hsLitKey (HsString s)	   = MachStr    undefined -- s
 hsLitKey l                 = pprPanic "hsLitKey" (ppr l)
 
 hsOverLitKey :: OutputableBndr a => HsOverLit a -> Bool -> Literal
@@ -138,7 +139,7 @@ litValKey (HsIntegral i)   False = MachInt i
 litValKey (HsIntegral i)   True  = MachInt (-i)
 litValKey (HsFractional r) False = MachFloat (fl_value r)
 litValKey (HsFractional r) True  = MachFloat (negate (fl_value r))
-litValKey (HsIsString s)   neg   = {- ASSERT( not neg) -} MachStr s
+litValKey (HsIsString s)   neg   = {- ASSERT( not neg) -} MachStr undefined -- s
 \end{code}
 
 %************************************************************************
@@ -253,7 +254,7 @@ matchLiterals (var:vars) ty sub_groups
     wrap_str_guard :: Id -> (Literal,MatchResult) -> DsM MatchResult
 	-- Equality check for string literals
     wrap_str_guard eq_str (MachStr s, mr)
-	= do { lit    <- mkStringExprFS s
+	= do { lit    <- mkStringExprFS undefined -- s
 	     ; let pred = mkApps (Var eq_str) [Var var, lit]
 	     ; return (mkGuardedMatchResult pred mr) }
     wrap_str_guard _ (l, _) = pprPanic "matchLiterals/wrap_str_guard" (ppr l)

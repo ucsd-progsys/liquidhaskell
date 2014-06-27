@@ -236,9 +236,9 @@ sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
-showPpr      = Out.showPpr tracingDynFlags
-showSDoc     = Out.showSDoc tracingDynFlags
-showSDocDump = Out.showSDocDump tracingDynFlags
+showPpr      = Out.showPpr unsafeGlobalDynFlags
+showSDoc     = Out.showSDoc unsafeGlobalDynFlags
+showSDocDump = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 

@@ -26,6 +26,7 @@ import           TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
+import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           Control.Monad.Trans              (lift)
@@ -43,7 +44,7 @@ anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
   = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
        -- putStrLn $ showPpr orig_cbs
-       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
+       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act {-tEnv act -}
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts

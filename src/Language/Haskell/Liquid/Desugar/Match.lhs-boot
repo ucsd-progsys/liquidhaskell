@@ -13,6 +13,7 @@ import DsMonad	( DsM, EquationInfo, MatchResult )
 import CoreSyn	( CoreExpr )
 import HsSyn	( LPat, HsMatchContext, MatchGroup )
 import Name	( Name )
+import HsExpr
 
 match 	:: [Id]
         -> Type
@@ -21,7 +22,7 @@ match 	:: [Id]
 
 matchWrapper
 	:: HsMatchContext Name
-        -> MatchGroup Id
+        -> MatchGroup Id (LHsExpr Id)
 	-> DsM ([Id], CoreExpr)
 
 matchSimply
