@@ -43,6 +43,8 @@ You can use one of several SMTLIB2 compliant solvers, by:
 Currently, we support
     
     * z3
+    * CVC4
+    * MathSat
 
 Building With Z3 (Optional)
 ---------------------------
