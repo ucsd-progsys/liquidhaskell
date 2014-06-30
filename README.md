@@ -24,7 +24,7 @@ In addition to the .cabal dependencies you require
 
 One of:
 
-- [Z3 Binary](http://z3.codeplex.com/)
+- [Z3 Binary](http://z3.codeplex.com/) Version >= 4.3.2
 
 Make sure that the `z3` executable is available on your $PATH
 
