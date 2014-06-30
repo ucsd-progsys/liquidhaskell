@@ -1053,7 +1053,7 @@ wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where 
     (tcs, dcs)  = unzip l
-    l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
+    l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
