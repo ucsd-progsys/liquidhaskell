@@ -109,8 +109,8 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan z                 = traceShow (showPpr z) $ noSrcSpan -- errorstar msg
-  where msg = "tickSrcSpan: unhandled tick: " ++ showPpr z
+tickSrcSpan z                 = noSrcSpan -- errorstar msg
+--   where msg = "tickSrcSpan: unhandled tick: " ++ showPpr z
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
