@@ -14,6 +14,6 @@ import DsMonad	( DsM )
 import CoreSyn	( CoreExpr )
 
 dsExpr  :: HsExpr  Id -> DsM CoreExpr
--- dsLExprWithLoc :: LHsExpr Id -> DsM CoreExpr
+dsLExpr :: LHsExpr Id -> DsM CoreExpr
 dsLocalBinds :: HsLocalBinds Id -> CoreExpr -> DsM CoreExpr
 \end{code}

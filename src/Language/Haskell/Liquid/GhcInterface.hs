@@ -151,10 +151,10 @@ updateDynFlags cfg
                     , hscTarget    = HscInterpreted
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
-                      `gopt_set` Opt_Hpc
+                  --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
-       setSessionDynFlags $ df''{profAuto = ProfAutoAll}
+       setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
