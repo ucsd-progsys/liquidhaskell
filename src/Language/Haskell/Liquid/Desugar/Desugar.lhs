@@ -6,9 +6,7 @@
 The Desugarer: turning HsSyn into Core.
 
 \begin{code}
-{-# LANGUAGE CPP #-}
-
-module Language.Haskell.Liquid.Desugar.Desugar ( deSugarWithLoc, deSugar, deSugarExpr ) where
+module Desugar ( deSugar, deSugarExpr ) where
 
 import DynFlags
 import HscTypes
@@ -28,8 +26,8 @@ import CoreSyn
 import CoreSubst
 import PprCore
 import DsMonad
-import Language.Haskell.Liquid.Desugar.DsExpr
-import Language.Haskell.Liquid.Desugar.DsBinds
+import DsExpr
+import DsBinds
 import DsForeign
 import Module
 import NameSet
@@ -60,10 +58,8 @@ import UniqFM
 
 \begin{code}
 -- | Main entry point to the desugarer.
-deSugarWithLoc, deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
+deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 -- Can modify PCS by faulting in more declarations
-
-deSugarWithLoc = deSugar
 
 deSugar hsc_env
         mod_loc
@@ -123,7 +119,7 @@ deSugar hsc_env
                           ; let hpc_init
                                   | gopt Opt_Hpc dflags = hpcInitCode mod ds_hpc_info
                                   | otherwise = empty
-                          ; let patsyn_defs = [(patSynId ps, ps) | ps <- patsyns]        
+                          ; let patsyn_defs = [(patSynId ps, ps) | ps <- patsyns]
                           ; return ( ds_ev_binds
                                    , foreign_prs `appOL` core_prs `appOL` spec_prs
                                    , spec_rules ++ ds_rules, ds_vects

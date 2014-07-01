@@ -6,20 +6,19 @@
 Desugaring arrow commands
 
 \begin{code}
-{-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fno-warn-tabs #-}
+{-# OPTIONS -fno-warn-tabs #-}
 -- The above warning supression flag is a temporary kludge.
 -- While working on this module you are encouraged to remove it and
 -- detab the module (please do the detabbing in a separate patch). See
 --     http://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module Language.Haskell.Liquid.Desugar.DsArrows ( dsProcExpr ) where
+module DsArrows ( dsProcExpr ) where
 
--- #include "HsVersions.h"
+#include "HsVersions.h"
 
-import Language.Haskell.Liquid.Desugar.Match
-import Language.Haskell.Liquid.Desugar.DsUtils
+import Match
+import DsUtils
 import DsMonad
 
 import HsSyn	hiding (collectPatBinders, collectPatsBinders, collectLStmtsBinders, collectLStmtBinders, collectStmtBinders )
@@ -30,7 +29,7 @@ import TcHsSyn
 --     So WATCH OUT; check each use of split*Ty functions.
 -- Sigh.  This is a pain.
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds )
+import {-# SOURCE #-} DsExpr ( dsExpr, dsLExpr, dsLocalBinds )
 
 import TcType
 import TcEvidence
@@ -38,7 +37,7 @@ import CoreSyn
 import CoreFVs
 import CoreUtils
 import MkCore
-import Language.Haskell.Liquid.Desugar.DsBinds (dsHsWrapper)
+import DsBinds (dsHsWrapper)
 
 import Name
 import Var
