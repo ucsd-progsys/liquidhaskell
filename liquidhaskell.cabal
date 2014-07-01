@@ -48,6 +48,10 @@ Executable liquid
   Build-Depends: base >= 4 && < 5
                , ghc>=7.8.2
                , ansi-terminal
+               , template-haskell
+               , time
+               , array
+               , hpc
                , bifunctors
                , cmdargs
                , containers
@@ -117,6 +121,10 @@ Library
    Build-Depends: base
                 , ghc>=7.8.2
                 , ansi-terminal
+                , template-haskell
+                , time
+                , array
+                , hpc
                 , bifunctors
                 , cmdargs
                 , containers
@@ -174,6 +182,10 @@ Library
  
    other-modules:   Language.Haskell.Liquid.Desugar.Desugar
                     Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.Coverage,
+                    Language.Haskell.Liquid.Desugar.Check,
+                    Language.Haskell.Liquid.Desugar.DsForeign,
+                    Language.Haskell.Liquid.Desugar.DsMeta,
                     Language.Haskell.Liquid.Desugar.DsListComp,
                     Language.Haskell.Liquid.Desugar.MatchCon,
                     Language.Haskell.Liquid.Desugar.MatchLit,

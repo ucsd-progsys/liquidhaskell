@@ -3,7 +3,7 @@
 % (c) University of Glasgow, 2007
 %
 \begin{code}
-module Coverage (addTicksToBinds, hpcInitCode) where
+module Language.Haskell.Liquid.Desugar.Coverage (addTicksToBinds, hpcInitCode) where
 
 import Type
 import HsSyn

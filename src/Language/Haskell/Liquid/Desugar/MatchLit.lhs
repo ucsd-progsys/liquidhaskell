@@ -6,19 +6,21 @@
 Pattern-matching literal patterns
 
 \begin{code}
-module MatchLit ( dsLit, dsOverLit, hsLitKey, hsOverLitKey
+{-# LANGUAGE RankNTypes #-}
+
+module Language.Haskell.Liquid.Desugar.MatchLit ( dsLit, dsOverLit, hsLitKey, hsOverLitKey
                 , tidyLitPat, tidyNPat
                 , matchLiterals, matchNPlusKPats, matchNPats
                 , warnAboutIdentities, warnAboutEmptyEnumerations 
                 ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-# SOURCE #-} Match  ( match )
-import {-# SOURCE #-} DsExpr ( dsExpr )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match  ( match )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr )
 
 import DsMonad
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsUtils
 
 import HsSyn
 
@@ -94,7 +96,7 @@ dsLit (HsRat r ty) = do
   where
     (ratio_data_con, integer_ty)
         = case tcSplitTyConApp ty of
-                (tycon, [i_ty]) -> ASSERT(isIntegerTy i_ty && tycon `hasKey` ratioTyConKey)
+                (tycon, [i_ty]) -> -- ASSERT(isIntegerTy i_ty && tycon `hasKey` ratioTyConKey)
                                    (head (tyConDataCons tycon), i_ty)
                 x -> pprPanic "dsLit" (ppr x)
 
@@ -154,38 +156,38 @@ conversionNames
 
 \begin{code}
 warnAboutOverflowedLiterals :: DynFlags -> HsOverLit Id -> DsM ()
-warnAboutOverflowedLiterals dflags lit
- | wopt Opt_WarnOverflowedLiterals dflags
- , Just (i, tc) <- getIntegralLit lit
-  = if      tc == intTyConName    then check i tc (undefined :: Int)
-    else if tc == int8TyConName   then check i tc (undefined :: Int8)
-    else if tc == int16TyConName  then check i tc (undefined :: Int16)
-    else if tc == int32TyConName  then check i tc (undefined :: Int32)
-    else if tc == int64TyConName  then check i tc (undefined :: Int64)
-    else if tc == wordTyConName   then check i tc (undefined :: Word)
-    else if tc == word8TyConName  then check i tc (undefined :: Word8)
-    else if tc == word16TyConName then check i tc (undefined :: Word16)
-    else if tc == word32TyConName then check i tc (undefined :: Word32)
-    else if tc == word64TyConName then check i tc (undefined :: Word64)
-    else return ()
-
-  | otherwise = return ()
-  where
-    check :: forall a. (Bounded a, Integral a) => Integer -> Name -> a -> DsM ()
-    check i tc _proxy
-      = when (i < minB || i > maxB) $ do
-        warnDs (vcat [ ptext (sLit "Literal") <+> integer i
-                       <+> ptext (sLit "is out of the") <+> ppr tc <+> ptext (sLit "range")
-                       <+> integer minB <> ptext (sLit "..") <> integer maxB
-                     , sug ])
-      where
-        minB = toInteger (minBound :: a)
-        maxB = toInteger (maxBound :: a)
-        sug | minB == -i   -- Note [Suggest NegativeLiterals]
-            , i > 0
-            , not (xopt Opt_NegativeLiterals dflags)
-            = ptext (sLit "If you are trying to write a large negative literal, use NegativeLiterals")
-            | otherwise = empty
+warnAboutOverflowedLiterals dflags lit = return ()
+--  | wopt Opt_WarnOverflowedLiterals dflags
+--  , Just (i, tc) <- getIntegralLit lit
+--   = if      tc == intTyConName    then check i tc (undefined :: Int)
+--     else if tc == int8TyConName   then check i tc (undefined :: Int8)
+--     else if tc == int16TyConName  then check i tc (undefined :: Int16)
+--     else if tc == int32TyConName  then check i tc (undefined :: Int32)
+--     else if tc == int64TyConName  then check i tc (undefined :: Int64)
+--     else if tc == wordTyConName   then check i tc (undefined :: Word)
+--     else if tc == word8TyConName  then check i tc (undefined :: Word8)
+--     else if tc == word16TyConName then check i tc (undefined :: Word16)
+--     else if tc == word32TyConName then check i tc (undefined :: Word32)
+--     else if tc == word64TyConName then check i tc (undefined :: Word64)
+--     else return ()
+-- 
+--   | otherwise = return ()
+--   where
+--     check :: forall a. (Bounded a, Integral a) => Integer -> Name -> a -> DsM ()
+--     check i tc _proxy
+--       = when (i < minB || i > maxB) $ do
+--         warnDs (vcat [ ptext (sLit "Literal") <+> integer i
+--                        <+> ptext (sLit "is out of the") <+> ppr tc <+> ptext (sLit "range")
+--                        <+> integer minB <> ptext (sLit "..") <> integer maxB
+--                      , sug ])
+--       where
+--         minB = toInteger (minBound :: (Integral a, Bounded a) => a)
+--         maxB = toInteger (maxBound :: (Integral a, Bounded a) => a)
+--         sug | minB == -i   -- Note [Suggest NegativeLiterals]
+--             , i > 0
+--             , not (xopt Opt_NegativeLiterals dflags)
+--             = ptext (sLit "If you are trying to write a large negative literal, use NegativeLiterals")
+--             | otherwise = empty
 \end{code}
 
 Note [Suggest NegativeLiterals]
@@ -203,32 +205,32 @@ warnAboutEmptyEnumerations :: DynFlags -> LHsExpr Id -> Maybe (LHsExpr Id) -> LH
 -- Warns about [2,3 .. 1] which returns the empty list
 -- Only works for integral types, not floating point
 warnAboutEmptyEnumerations dflags fromExpr mThnExpr toExpr
-  | wopt Opt_WarnEmptyEnumerations dflags
-  , Just (from,tc) <- getLHsIntegralLit fromExpr
-  , Just mThn      <- traverse getLHsIntegralLit mThnExpr
-  , Just (to,_)    <- getLHsIntegralLit toExpr
-  , let check :: forall a. (Enum a, Num a) => a -> DsM ()
-        check _proxy
-          = when (null enumeration) $
-            warnDs (ptext (sLit "Enumeration is empty"))
-          where
-            enumeration :: [a]
-            enumeration = case mThn of
-                            Nothing      -> [fromInteger from                    .. fromInteger to]
-                            Just (thn,_) -> [fromInteger from, fromInteger thn   .. fromInteger to]
-
-  = if      tc == intTyConName    then check (undefined :: Int)
-    else if tc == int8TyConName   then check (undefined :: Int8)
-    else if tc == int16TyConName  then check (undefined :: Int16)
-    else if tc == int32TyConName  then check (undefined :: Int32)
-    else if tc == int64TyConName  then check (undefined :: Int64)
-    else if tc == wordTyConName   then check (undefined :: Word)
-    else if tc == word8TyConName  then check (undefined :: Word8)
-    else if tc == word16TyConName then check (undefined :: Word16)
-    else if tc == word32TyConName then check (undefined :: Word32)
-    else if tc == word64TyConName then check (undefined :: Word64)
-    else return ()
-
+--   | wopt Opt_WarnEmptyEnumerations dflags
+--   , Just (from,tc) <- getLHsIntegralLit fromExpr
+--   , Just mThn      <- traverse getLHsIntegralLit mThnExpr
+--   , Just (to,_)    <- getLHsIntegralLit toExpr
+--   , let check :: forall a. (Enum a, Num a) => a -> DsM ()
+--         check _proxy
+--           = when (null enumeration) $
+--             warnDs (ptext (sLit "Enumeration is empty"))
+--           where
+--             enumeration :: [a]
+--             enumeration = case mThn of
+--                             Nothing      -> [fromInteger from                    .. fromInteger to]
+--                             Just (thn,_) -> [fromInteger from, fromInteger thn   .. fromInteger to]
+-- 
+--   = if      tc == intTyConName    then check (undefined :: Int)
+--     else if tc == int8TyConName   then check (undefined :: Int8)
+--     else if tc == int16TyConName  then check (undefined :: Int16)
+--     else if tc == int32TyConName  then check (undefined :: Int32)
+--     else if tc == int64TyConName  then check (undefined :: Int64)
+--     else if tc == wordTyConName   then check (undefined :: Word)
+--     else if tc == word8TyConName  then check (undefined :: Word8)
+--     else if tc == word16TyConName then check (undefined :: Word16)
+--     else if tc == word32TyConName then check (undefined :: Word32)
+--     else if tc == word64TyConName then check (undefined :: Word64)
+--     else return ()
+-- 
   | otherwise = return ()
 
 getLHsIntegralLit :: LHsExpr Id -> Maybe (Integer, Name)
@@ -336,7 +338,7 @@ matchLiterals :: [Id]
               -> DsM MatchResult
 
 matchLiterals (var:vars) ty sub_groups
-  = ASSERT( notNull sub_groups && all notNull sub_groups )
+  = -- ASSERT( notNull sub_groups && all notNull sub_groups )
     do  {       -- Deal with each group
         ; alts <- mapM match_group sub_groups
 
@@ -400,7 +402,7 @@ litValKey (HsIntegral i)   False = MachInt i
 litValKey (HsIntegral i)   True  = MachInt (-i)
 litValKey (HsFractional r) False = MachFloat (fl_value r)
 litValKey (HsFractional r) True  = MachFloat (negate (fl_value r))
-litValKey (HsIsString s)   neg   = ASSERT( not neg) MachStr (fastStringToByteString s)
+litValKey (HsIsString s)   neg   = {-ASSERT( not neg)-} MachStr (fastStringToByteString s)
 \end{code}
 
 %************************************************************************

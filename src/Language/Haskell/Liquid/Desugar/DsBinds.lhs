@@ -17,18 +17,18 @@ lower levels it is preserved with @let@/@letrec@s).
 --     http://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
+module Language.Haskell.Liquid.Desugar.DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
                  dsHsWrapper, dsTcEvBinds, dsEvBinds
   ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-# SOURCE #-}	DsExpr( dsLExpr )
-import {-# SOURCE #-}	Match( matchWrapper )
+import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.DsExpr( dsLExpr )
+import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.Match( matchWrapper )
 
 import DsMonad
-import DsGRHSs
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsUtils
 
 import HsSyn		-- lots of things
 import CoreSyn		-- lots of things
@@ -517,7 +517,7 @@ dsSpec mb_poly_rhs (L loc (SpecPrag poly_id spec_co spec_inl))
 
 specUnfolding :: [Var] -> [CoreExpr] -> Unfolding -> Unfolding
 specUnfolding new_bndrs new_args df@(DFunUnfolding { df_bndrs = bndrs, df_args = args })
-  = ASSERT2( equalLength new_args bndrs, ppr df $$ ppr new_args $$ ppr new_bndrs )
+  = -- ASSERT2( equalLength new_args bndrs, ppr df $$ ppr new_args $$ ppr new_bndrs )
     df { df_bndrs = new_bndrs, df_args = map (substExpr (text "specUnfolding") subst) args }
   where
     subst = mkOpenSubst (mkInScopeSet fvs) (bndrs `zip` new_args)
@@ -711,7 +711,7 @@ dsHsWrapper (WpTyApp ty)      e = return $ App e (Type ty)
 dsHsWrapper (WpLet ev_binds)  e = do bs <- dsTcEvBinds ev_binds
                                      return (mkCoreLets bs e)
 dsHsWrapper (WpCompose c1 c2) e = dsHsWrapper c1 =<< dsHsWrapper c2 e
-dsHsWrapper (WpCast co)       e = ASSERT(tcCoercionRole co == Representational)
+dsHsWrapper (WpCast co)       e = -- ASSERT(tcCoercionRole co == Representational)
                                   dsTcCoercion co (mkCast e)
 dsHsWrapper (WpEvLam ev)      e = return $ Lam ev e 
 dsHsWrapper (WpTyLam tv)      e = return $ Lam tv e 
@@ -763,7 +763,7 @@ dsEvTerm (EvTupleSel v n)
     	      Just [dc] = tyConDataCons_maybe tc
     	      xs = mkTemplateLocals tys
               the_x = getNth xs n
-        ; ASSERT( isTupleTyCon tc )
+        ; -- ASSERT( isTupleTyCon tc )
           return $
           Case tm' (mkWildValBinder scrut_ty) (idType the_x) [(DataAlt dc, xs, Var the_x)] }
 

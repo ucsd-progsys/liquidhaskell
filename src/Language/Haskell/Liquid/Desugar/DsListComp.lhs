@@ -8,11 +8,11 @@ Desugaring list comprehensions, monad comprehensions and array comprehensions
 \begin{code}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module DsListComp ( dsListComp, dsPArrComp, dsMonadComp ) where
+module Language.Haskell.Liquid.Desugar.DsListComp ( dsListComp, dsPArrComp, dsMonadComp ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-# SOURCE #-} DsExpr ( dsExpr, dsLExpr, dsLocalBinds )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds )
 
 import HsSyn
 import TcHsSyn
@@ -20,14 +20,14 @@ import CoreSyn
 import MkCore
 
 import DsMonad          -- the monadery used in the desugarer
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsUtils
 
 import DynFlags
 import CoreUtils
 import Id
 import Type
 import TysWiredIn
-import Match
+import Language.Haskell.Liquid.Desugar.Match
 import PrelNames
 import SrcLoc
 import Outputable
@@ -211,7 +211,7 @@ deListComp [] _ = panic "deListComp"
 
 deListComp (LastStmt body _ : quals) list
   =     -- Figure 7.4, SLPJ, p 135, rule C above
-    ASSERT( null quals )
+    -- ASSERT( null quals )
     do { core_body <- dsLExpr body
        ; return (mkConsExpr (exprType core_body) core_body list) }
 
@@ -317,7 +317,7 @@ dfListComp :: Id -> Id      -- 'c' and 'n'
 dfListComp _ _ [] = panic "dfListComp"
 
 dfListComp c_id n_id (LastStmt body _ : quals)
-  = ASSERT( null quals )
+  = -- ASSERT( null quals )
     do { core_body <- dsLExpr body
        ; return (mkApps (Var c_id) [core_body, Var n_id]) }
 
@@ -517,7 +517,7 @@ dePArrComp [] _ _ = panic "dePArrComp"
 --  <<[:e' | :]>> pa ea = mapP (\pa -> e') ea
 --
 dePArrComp (LastStmt e' _ : quals) pa cea
-  = ASSERT( null quals )
+  = -- ASSERT( null quals )
     do { mapP <- dsDPHBuiltin mapPVar
        ; let ty = parrElemType cea
        ; (clam, ty'e') <- deLambda ty pa e'
@@ -675,7 +675,7 @@ dsMcStmts (L loc stmt : lstmts) = putSrcSpanDs loc (dsMcStmt stmt lstmts)
 dsMcStmt :: ExprStmt Id -> [ExprLStmt Id] -> DsM CoreExpr
 
 dsMcStmt (LastStmt body ret_op) stmts
-  = ASSERT( null stmts )
+  = -- ASSERT( null stmts )
     do { body' <- dsLExpr body
        ; ret_op' <- dsExpr ret_op
        ; return (App ret_op' body') }

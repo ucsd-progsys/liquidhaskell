@@ -13,11 +13,11 @@ Pattern-matching constructors
 --     http://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module MatchCon ( matchConFamily, matchPatSyn ) where
+module Language.Haskell.Liquid.Desugar.MatchCon ( matchConFamily, matchPatSyn ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-# SOURCE #-} Match	( match )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match	( match )
 
 import HsSyn
 import DsBinds
@@ -26,7 +26,7 @@ import DataCon
 import PatSyn
 import TcType
 import DsMonad
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsUtils
 import MkCore   ( mkCoreLets )
 import Util
 import ListSetOps ( runs )
@@ -165,7 +165,7 @@ matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
     match_group :: [Id] -> [(ConArgPats, EquationInfo)] -> DsM MatchResult
     -- All members of the group have compatible ConArgPats
     match_group arg_vars arg_eqn_prs
-      = ASSERT( notNull arg_eqn_prs )
+      = -- ASSERT( notNull arg_eqn_prs )
         do { (wraps, eqns') <- liftM unzip (mapM shift arg_eqn_prs)
     	   ; let group_arg_vars = select_arg_vars arg_vars arg_eqn_prs
     	   ; match_result <- match (group_arg_vars ++ vars) ty eqns'
@@ -188,8 +188,8 @@ matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
       | RecCon flds <- arg_pats
       , let rpats = rec_flds flds  
       , not (null rpats)     -- Treated specially; cf conArgPats
-      = ASSERT2( length fields1 == length arg_vars, 
-                 ppr con1 $$ ppr fields1 $$ ppr arg_vars )
+      = -- ASSERT2( length fields1 == length arg_vars, 
+         --         ppr con1 $$ ppr fields1 $$ ppr arg_vars )
         map lookup_fld rpats
       | otherwise
       = arg_vars

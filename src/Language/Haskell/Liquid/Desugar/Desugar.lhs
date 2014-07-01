@@ -6,7 +6,7 @@
 The Desugarer: turning HsSyn into Core.
 
 \begin{code}
-module Desugar ( deSugar, deSugarExpr ) where
+module Language.Haskell.Liquid.Desugar.Desugar ( deSugarWithLoc, deSugar, deSugarExpr ) where
 
 import DynFlags
 import HscTypes
@@ -26,9 +26,9 @@ import CoreSyn
 import CoreSubst
 import PprCore
 import DsMonad
-import DsExpr
-import DsBinds
-import DsForeign
+import Language.Haskell.Liquid.Desugar.DsExpr
+import Language.Haskell.Liquid.Desugar.DsBinds
+import Language.Haskell.Liquid.Desugar.DsForeign
 import Module
 import NameSet
 import NameEnv
@@ -58,8 +58,10 @@ import UniqFM
 
 \begin{code}
 -- | Main entry point to the desugarer.
-deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
+deSugarWithLoc, deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 -- Can modify PCS by faulting in more declarations
+deSugarWithLoc = deSugar
+
 
 deSugar hsc_env
         mod_loc
@@ -148,10 +150,6 @@ deSugar hsc_env
         -- You might think it doesn't matter, but the simplifier brings all top-level
         -- things into the in-scope set before simplifying; so we get no unfolding for F#!
 
-#ifdef DEBUG
-          -- Debug only as pre-simple-optimisation program may be really big
-        ; endPass hsc_env CoreDesugar final_pgm rules_for_imps
-#endif
         ; (ds_binds, ds_rules_for_imps, ds_vects)
             <- simpleOptPgm dflags mod final_pgm rules_for_imps vects0
                          -- The simpleOptPgm gets rid of type
