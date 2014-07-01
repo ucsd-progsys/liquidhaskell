@@ -46,7 +46,7 @@ Source-Repository head
 
 Executable liquid
   Build-Depends: base >= 4 && < 5
-               , ghc>=7.6.3
+               , ghc>=7.8.2
                , ansi-terminal
                , bifunctors
                , cmdargs
@@ -115,7 +115,7 @@ Executable liquid
 
 Library
    Build-Depends: base
-                , ghc>=7.6.3
+                , ghc>=7.8.2
                 , ansi-terminal
                 , bifunctors
                 , cmdargs
