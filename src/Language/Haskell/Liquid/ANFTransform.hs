@@ -44,7 +44,7 @@ anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
   = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
        -- putStrLn $ showPpr orig_cbs
-       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act {-tEnv act -}
+       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
