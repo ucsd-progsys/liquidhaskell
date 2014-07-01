@@ -6,7 +6,7 @@
 Desugaring foreign declarations (see also DsCCall).
 
 \begin{code}
-module DsForeign ( dsForeigns
+module Language.Haskell.Liquid.Desugar.DsForeign ( dsForeigns
                  , dsForeigns'
                  , dsFImport, dsCImport, dsFCall, dsPrimCall
                  , dsFExport, dsFExportDynamic, mkFExportCBits
@@ -14,7 +14,7 @@ module DsForeign ( dsForeigns
                  , foreignExportInitialiser
                  ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 import TcRnMonad        -- temp
 
 import TypeRep
@@ -160,13 +160,11 @@ dsCImport id co (CLabel cid) cconv _ _ = do
                  IsFunction
              _ -> IsData
    (resTy, foRhs) <- resultWrapper ty
-   ASSERT(fromJust resTy `eqType` addrPrimTy)    -- typechecker ensures this
-    let
-        rhs = foRhs (Lit (MachLabel cid stdcall_info fod))
-        rhs' = Cast rhs co
-        stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
-    in
-    return ([(id, rhs')], empty, empty)
+   -- ASSERT(fromJust resTy `eqType` addrPrimTy)    -- typechecker ensures this
+   let rhs = let x = x in x  -- foRhs (Lit (MachLabel cid stdcall_info fod))
+   let rhs' = Cast rhs co
+   let stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
+   return ([(id, rhs')], empty, empty)
 
 dsCImport id co (CFunction target) cconv@PrimCallConv safety _
   = dsPrimCall id co (CCall (CCallSpec target cconv safety))
@@ -779,8 +777,8 @@ getPrimTyOf ty
   | otherwise =
   case splitDataProductType_maybe rep_ty of
      Just (_, _, data_con, [prim_ty]) ->
-        ASSERT(dataConSourceArity data_con == 1)
-        ASSERT2(isUnLiftedType prim_ty, ppr prim_ty)
+        -- ASSERT(dataConSourceArity data_con == 1)
+        -- ASSERT2(isUnLiftedType prim_ty, ppr prim_ty)
         prim_ty
      _other -> pprPanic "DsForeign.getPrimTyOf" (ppr ty)
   where

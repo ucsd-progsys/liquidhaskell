@@ -6,26 +6,22 @@
 Desugaring exporessions.
 
 \begin{code}
-module DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
+module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import Match
-import MatchLit
-import DsBinds
-import DsGRHSs
-import DsListComp
-import DsUtils
-import DsArrows
+import Language.Haskell.Liquid.Desugar.Match
+import Language.Haskell.Liquid.Desugar.MatchLit
+import Language.Haskell.Liquid.Desugar.DsBinds
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsListComp
+import Language.Haskell.Liquid.Desugar.DsUtils
+import Language.Haskell.Liquid.Desugar.DsArrows
 import DsMonad
 import Name
 import NameEnv
 import FamInstEnv( topNormaliseType )
 
-#ifdef GHCI
-        -- Template Haskell stuff iff bootstrapped
-import DsMeta
-#endif
 
 import HsSyn
 
@@ -110,7 +106,7 @@ ds_val_bind (NonRecursive, hsbinds) body
 -- Ordinary case for bindings; none should be unlifted
 ds_val_bind (_is_rec, binds) body
   = do  { prs <- dsLHsBinds binds
-        ; ASSERT2( not (any (isUnLiftedType . idType . fst) prs), ppr _is_rec $$ ppr binds )
+        ; -- ASSERT2( not (any (isUnLiftedType . idType . fst) prs), ppr _is_rec $$ ppr binds )
           case prs of
             [] -> return body
             _  -> return (Let (Rec prs) body) }
@@ -143,8 +139,8 @@ dsStrictBind (FunBind { fun_id = L _ fun, fun_matches = matches, fun_co_fn = co_
                 -- Can't be a bang pattern (that looks like a PatBind)
                 -- so must be simply unboxed
   = do { (args, rhs) <- matchWrapper (FunRhs (idName fun ) inf) matches
-       ; MASSERT( null args ) -- Functions aren't lifted
-       ; MASSERT( isIdHsWrapper co_fn )
+--        ; MASSERT( null args ) -- Functions aren't lifted
+--        ; MASSERT( isIdHsWrapper co_fn )
        ; let rhs' = mkOptTickBox tick rhs
        ; return (bindNonRec fun rhs' body) }
 
@@ -421,7 +417,7 @@ dsExpr (RecordCon (L _ data_con_id) con_expr rbinds) = do
 
         mk_arg (arg_ty, lbl)    -- Selector id has the field label as its name
           = case findField (rec_flds rbinds) lbl of
-              (rhs:rhss) -> ASSERT( null rhss )
+              (rhs:rhss) -> -- ASSERT( null rhss )
                             dsLExpr rhs
               []         -> mkErrorAppDs rEC_CON_ERROR_ID arg_ty (ppr lbl)
         unlabelled_bottom arg_ty = mkErrorAppDs rEC_CON_ERROR_ID arg_ty empty
@@ -475,7 +471,7 @@ dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
   | null fields
   = dsLExpr record_expr
   | otherwise
-  = ASSERT2( notNull cons_to_upd, ppr expr )
+  = -- ASSERT2( notNull cons_to_upd, ppr expr )
 
     do  { record_expr' <- dsLExpr record_expr
         ; field_binds' <- mapM ds_field fields
@@ -562,11 +558,7 @@ Here is where we desugar the Template Haskell brackets and escapes
 -- Template Haskell stuff
 
 dsExpr (HsRnBracketOut _ _) = panic "dsExpr HsRnBracketOut"
-#ifdef GHCI
-dsExpr (HsTcBracketOut x ps) = dsBracket x ps
-#else
 dsExpr (HsTcBracketOut _ _) = panic "dsExpr HsBracketOut"
-#endif
 dsExpr (HsSpliceE _ s)      = pprPanic "dsExpr:splice" (ppr s)
 
 -- Arrow notation extension
@@ -589,7 +581,7 @@ dsExpr (HsTick tickish e) = do
 
 dsExpr (HsBinTick ixT ixF e) = do
   e2 <- dsLExpr e
-  do { ASSERT(exprType e2 `eqType` boolTy)
+  do { -- ASSERT(exprType e2 `eqType` boolTy)
        mkBinaryTickBox ixT ixF e2
      }
 \end{code}
@@ -746,7 +738,7 @@ dsDo stmts
     goL (L loc stmt:lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
   
     go _ (LastStmt body _) stmts
-      = ASSERT( null stmts ) dsLExpr body
+      = {-ASSERT( null stmts )-} dsLExpr body
         -- The 'return' op isn't used for 'do' expressions
 
     go _ (BodyStmt rhs then_expr _ _) stmts

@@ -6,11 +6,11 @@
 The @match@ function
 
 \begin{code}
-module Match ( match, matchEquations, matchWrapper, matchSimply, matchSinglePat ) where
+module Language.Haskell.Liquid.Desugar.Match ( match, matchEquations, matchWrapper, matchSimply, matchSinglePat ) where
 
-#include "HsVersions.h"
+-- #include "HsVersions.h"
 
-import {-#SOURCE#-} DsExpr (dsLExpr, dsExpr)
+import {-#SOURCE#-} Language.Haskell.Liquid.Desugar.DsExpr (dsLExpr, dsExpr)
 
 import DynFlags
 import HsSyn
@@ -23,15 +23,15 @@ import Literal
 import CoreUtils
 import MkCore
 import DsMonad
-import DsBinds
-import DsGRHSs
-import DsUtils
+import Language.Haskell.Liquid.Desugar.DsBinds
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsUtils
 import Id
 import ConLike
 import DataCon
 import PatSyn
-import MatchCon
-import MatchLit
+import Language.Haskell.Liquid.Desugar.MatchCon
+import Language.Haskell.Liquid.Desugar.MatchLit
 import Type
 import TysWiredIn
 import ListSetOps
@@ -281,10 +281,10 @@ match :: [Id]             -- Variables rep\'ing the exprs we\'re matching with
       -> DsM MatchResult  -- Desugared result!
 
 match [] ty eqns
-  = ASSERT2( not (null eqns), ppr ty )
+  = -- ASSERT2( not (null eqns), ppr ty )
     return (foldr1 combineMatchResults match_results)
   where
-    match_results = [ ASSERT( null (eqn_pats eqn) )
+    match_results = [ -- ASSERT( null (eqn_pats eqn) )
                       eqn_rhs eqn
                     | eqn <- eqns ]
 
