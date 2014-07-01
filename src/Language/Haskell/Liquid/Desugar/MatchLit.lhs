@@ -267,7 +267,7 @@ tidyLitPat (HsChar c) = unLoc (mkCharLitPat c)
 tidyLitPat (HsString s)
   | lengthFS s <= 1     -- Short string literals only
   = unLoc $ foldr (\c pat -> mkPrefixConPat consDataCon [mkCharLitPat c, pat] stringTy)
-                  (mkNilPat charTy) (unpackFS s)
+                  (mkNilPat stringTy) (unpackFS s)
         -- The stringTy is the type of the whole pattern, not
         -- the type to instantiate (:) or [] with!
 tidyLitPat lit = LitPat lit

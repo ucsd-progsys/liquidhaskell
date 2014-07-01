@@ -562,7 +562,7 @@ dsCmd ids local_vars stack_ty res_ty
         in_ty = envStackType env_ids stack_ty
 
     core_body <- dsExpr (HsCase exp (MG { mg_alts = matches', mg_arg_tys = arg_tys
-                                        , mg_res_ty = sum_ty}))
+                                        , mg_res_ty = sum_ty }))
         -- Note that we replace the HsCase result type by sum_ty,
         -- which is the type of matches'
 
