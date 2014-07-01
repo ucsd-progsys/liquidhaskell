@@ -6,28 +6,27 @@
 Pattern-matching constructors
 
 \begin{code}
-{-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fno-warn-tabs #-}
+{-# OPTIONS -fno-warn-tabs #-}
 -- The above warning supression flag is a temporary kludge.
 -- While working on this module you are encouraged to remove it and
 -- detab the module (please do the detabbing in a separate patch). See
 --     http://ghc.haskell.org/trac/ghc/wiki/Commentary/CodingStyle#TabsvsSpaces
 -- for details
 
-module Language.Haskell.Liquid.Desugar.MatchCon ( matchConFamily, matchPatSyn ) where
+module MatchCon ( matchConFamily, matchPatSyn ) where
 
--- #include "HsVersions.h"
+#include "HsVersions.h"
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match	( match )
+import {-# SOURCE #-} Match	( match )
 
 import HsSyn
-import Language.Haskell.Liquid.Desugar.DsBinds
+import DsBinds
 import ConLike
 import DataCon
 import PatSyn
 import TcType
 import DsMonad
-import Language.Haskell.Liquid.Desugar.DsUtils
+import DsUtils
 import MkCore   ( mkCoreLets )
 import Util
 import ListSetOps ( runs )
@@ -125,7 +124,7 @@ matchOneConLike :: [Id]
                 -> [EquationInfo]
                 -> DsM (CaseAlt ConLike)
 matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
-  = do	{ arg_vars <- selectConMatchVars val_arg_tys args1
+  = do	{ arg_vars <- selectConMatchVars arg_tys args1
 	 	-- Use the first equation as a source of 
 		-- suggestions for the new variables
 
@@ -145,29 +144,28 @@ matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
 	        pat_tvs = tvs1, pat_dicts = dicts1, pat_args = args1 }
 	      = firstPat eqn1
     fields1 = case con1 of
-        	RealDataCon dcon1 -> dataConFieldLabels dcon1
-        	PatSynCon{}       -> []
+        RealDataCon dcon1 -> dataConFieldLabels dcon1
+	PatSynCon{} -> []
 
-    val_arg_tys = case con1 of
-                    RealDataCon dcon1 -> dataConInstOrigArgTys dcon1 inst_tys
-                    PatSynCon psyn1   -> patSynInstArgTys      psyn1 inst_tys
-    inst_tys = -- ASSERT( tvs1 `equalLength` ex_tvs )
-               arg_tys ++ mkTyVarTys tvs1
-	-- dataConInstOrigArgTys takes the univ and existential tyvars
-	-- and returns the types of the *value* args, which is what we want
-    arg_tys = inst inst_tys
+    arg_tys  = inst inst_tys
       where
         inst = case con1 of
             RealDataCon dcon1 -> dataConInstOrigArgTys dcon1
-            PatSynCon psyn1   -> patSynInstArgTys psyn1
-    ex_tvs = case con1 of
-               RealDataCon dcon1 -> dataConExTyVars dcon1
-               PatSynCon psyn1   -> patSynExTyVars psyn1
+            PatSynCon psyn1 -> patSynInstArgTys psyn1
+    inst_tys = tcTyConAppArgs pat_ty1 ++ 
+	       mkTyVarTys (takeList exVars tvs1)
+	-- Newtypes opaque, hence tcTyConAppArgs
+	-- dataConInstOrigArgTys takes the univ and existential tyvars
+	-- and returns the types of the *value* args, which is what we want
+      where
+        exVars = case con1 of
+            RealDataCon dcon1 -> dataConExTyVars dcon1
+            PatSynCon psyn1 -> patSynExTyVars psyn1
 
     match_group :: [Id] -> [(ConArgPats, EquationInfo)] -> DsM MatchResult
     -- All members of the group have compatible ConArgPats
     match_group arg_vars arg_eqn_prs
-      = -- ASSERT( notNull arg_eqn_prs )
+      = ASSERT( notNull arg_eqn_prs )
         do { (wraps, eqns') <- liftM unzip (mapM shift arg_eqn_prs)
     	   ; let group_arg_vars = select_arg_vars arg_vars arg_eqn_prs
     	   ; match_result <- match (group_arg_vars ++ vars) ty eqns'
@@ -180,7 +178,7 @@ matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
            return ( wrapBinds (tvs `zip` tvs1)
                   . wrapBinds (ds  `zip` dicts1)
                   . mkCoreLets ds_bind
-                  , eqn { eqn_pats = conArgPats val_arg_tys args ++ pats }
+                  , eqn { eqn_pats = conArgPats arg_tys args ++ pats }
                   )
     shift (_, (EqnInfo { eqn_pats = ps })) = pprPanic "matchOneCon/shift" (ppr ps)
 
@@ -190,8 +188,8 @@ matchOneConLike vars ty (eqn1 : eqns)	-- All eqns for a single constructor
       | RecCon flds <- arg_pats
       , let rpats = rec_flds flds  
       , not (null rpats)     -- Treated specially; cf conArgPats
-      = -- ASSERT2( length fields1 == length arg_vars, 
-        --          ppr con1 $$ ppr fields1 $$ ppr arg_vars )
+      = ASSERT2( length fields1 == length arg_vars, 
+                 ppr con1 $$ ppr fields1 $$ ppr arg_vars )
         map lookup_fld rpats
       | otherwise
       = arg_vars

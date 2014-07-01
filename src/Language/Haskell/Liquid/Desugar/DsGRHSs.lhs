@@ -6,14 +6,12 @@
 Matching guarded right-hand-sides (GRHSs)
 
 \begin{code}
-{-# LANGUAGE CPP #-}
+module DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS ) where
 
-module Language.Haskell.Liquid.Desugar.DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS ) where
+#include "HsVersions.h"
 
--- #include "HsVersions.h"
-
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr  ( dsLExpr, dsLocalBinds )
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match   ( matchSinglePat )
+import {-# SOURCE #-} DsExpr  ( dsLExpr, dsLocalBinds )
+import {-# SOURCE #-} Match   ( matchSinglePat )
 
 import HsSyn
 import MkCore
@@ -22,7 +20,7 @@ import Var
 import Type
 
 import DsMonad
-import Language.Haskell.Liquid.Desugar.DsUtils
+import DsUtils
 import TysWiredIn
 import PrelNames
 import Module
@@ -60,11 +58,13 @@ dsGRHSs :: HsMatchContext Name -> [Pat Id]      -- These are to build a MatchCon
         -> Type                                 -- Type of RHS
         -> DsM MatchResult
 dsGRHSs hs_ctx _ (GRHSs grhss binds) rhs_ty 
-  = -- ASSERT( notNull grhss )
+  = ASSERT( notNull grhss )
     do { match_results <- mapM (dsGRHS hs_ctx rhs_ty) grhss
        ; let match_result1 = foldr1 combineMatchResults match_results
-             match_result2 = adjustMatchResultDs (dsLocalBinds binds) match_result1
-                             -- NB: nested dsLet inside matchResult
+             match_result2 = adjustMatchResultDs
+                                 (\e -> dsLocalBinds binds e)
+                                 match_result1
+                -- NB: nested dsLet inside matchResult
        ; return match_result2 }
 
 dsGRHS :: HsMatchContext Name -> Type -> LGRHS Id (LHsExpr Id) -> DsM MatchResult

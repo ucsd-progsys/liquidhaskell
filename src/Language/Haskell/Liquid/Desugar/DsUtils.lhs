@@ -8,8 +8,7 @@ Utilities for desugaring
 This module exports some utility functions of no great interest.
 
 \begin{code}
-{-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fno-warn-tabs #-}
+{-# OPTIONS -fno-warn-tabs #-}
 -- The above warning supression flag is a temporary kludge.
 -- While working on this module you are encouraged to remove it and
 -- detab the module (please do the detabbing in a separate patch). See
@@ -17,7 +16,7 @@ This module exports some utility functions of no great interest.
 -- for details
 
 -- | Utility functions for constructing Core syntax, principally for desugaring
-module Language.Haskell.Liquid.Desugar.DsUtils (
+module DsUtils (
 	EquationInfo(..), 
 	firstPat, shiftEqns,
 
@@ -44,16 +43,16 @@ module Language.Haskell.Liquid.Desugar.DsUtils (
         mkOptTickBox, mkBinaryTickBox
     ) where
 
--- #include "HsVersions.h"
+#include "HsVersions.h"
 
-import {-# SOURCE #-}	Language.Haskell.Liquid.Desugar.Match ( matchSimply )
+import {-# SOURCE #-}	Match ( matchSimply )
 
 import HsSyn
 import TcHsSyn
 import TcType( tcSplitTyConApp )
 import CoreSyn
 import DsMonad
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr ( dsLExpr )
+import {-# SOURCE #-} DsExpr ( dsLExpr )
 
 import CoreUtils
 import MkCore
@@ -65,6 +64,7 @@ import ConLike
 import DataCon
 import PatSyn
 import Type
+import Coercion
 import TysPrim
 import TysWiredIn
 import BasicTypes
@@ -178,7 +178,7 @@ worthy of a type synonym and a few handy functions.
 
 \begin{code}
 firstPat :: EquationInfo -> Pat Id
-firstPat eqn = head (eqn_pats eqn)
+firstPat eqn = ASSERT( notNull (eqn_pats eqn) ) head (eqn_pats eqn)
 
 shiftEqns :: [EquationInfo] -> [EquationInfo]
 -- Drop the first pattern in each equation
@@ -273,7 +273,7 @@ mkCoPrimCaseMatchResult var ty match_alts
 
     sorted_alts = sortWith fst match_alts	-- Right order for a Case
     mk_alt fail (lit, MatchResult _ body_fn)
-       = -- ASSERT( not (litIsLifted lit) )
+       = ASSERT( not (litIsLifted lit) )
          do body <- body_fn fail
             return (LitAlt lit, [], body)
 
@@ -290,7 +290,7 @@ mkCoAlgCaseMatchResult
   -> MatchResult
 mkCoAlgCaseMatchResult dflags var ty match_alts 
   | isNewtype  -- Newtype case; use a let
-  = -- ASSERT( null (tail match_alts) && null (tail arg_ids1) )
+  = ASSERT( null (tail match_alts) && null (tail arg_ids1) )
     mkCoLetMatchResult (NonRec arg_id1 newtype_rhs) match_result1
 
   | isPArrFakeAlts match_alts
@@ -304,9 +304,9 @@ mkCoAlgCaseMatchResult dflags var ty match_alts
 	--  the scrutinised Id to be sufficiently refined to have a TyCon in it]
 
     alt1@MkCaseAlt{ alt_bndrs = arg_ids1, alt_result = match_result1 }
-      = head match_alts
+      = ASSERT( notNull match_alts ) head match_alts
     -- Stuff for newtype
-    arg_id1       = head arg_ids1
+    arg_id1       = ASSERT( notNull arg_ids1 ) head arg_ids1
     var_ty        = idType var
     (tc, ty_args) = tcSplitTyConApp var_ty	-- Don't look through newtypes
     	 	    		    		-- (not that splitTyConApp does, these days)
@@ -638,13 +638,12 @@ mkSelectorBinds ticks pat val_expr
         -- efficient too.
 
         -- For the error message we make one error-app, to avoid duplication.
-        -- But we need it at different types, so we make it polymorphic:
-        --     err_var = /\a. iRREFUT_PAT_ERR a "blah blah blah"
-       ; err_app <- mkErrorAppDs iRREFUT_PAT_ERROR_ID alphaTy (ppr pat)
-       ; err_var <- newSysLocalDs (mkForAllTy alphaTyVar alphaTy)
-       ; binds   <- zipWithM (mk_bind val_var err_var) ticks' binders
-       ; return ( (val_var, val_expr) :
-                  (err_var, Lam alphaTyVar err_app) :
+        -- But we need it at different types... so we use coerce for that
+       ; err_expr <- mkErrorAppDs iRREFUT_PAT_ERROR_ID  unitTy (ppr pat)
+       ; err_var <- newSysLocalDs unitTy
+       ; binds <- zipWithM (mk_bind val_var err_var) ticks' binders
+       ; return ( (val_var, val_expr) : 
+                  (err_var, err_expr) :
                   binds ) }
 
   | otherwise
@@ -666,13 +665,14 @@ mkSelectorBinds ticks pat val_expr
 
     mk_bind scrut_var err_var tick bndr_var = do
     -- (mk_bind sv err_var) generates
-    --          bv = case sv of { pat -> bv; other -> err_var @ type-of-bv }
+    --          bv = case sv of { pat -> bv; other -> coerce (type-of-bv) err_var }
     -- Remember, pat binds bv
         rhs_expr <- matchSimply (Var scrut_var) PatBindRhs pat
                                 (Var bndr_var) error_expr
         return (bndr_var, mkOptTickBox tick rhs_expr)
       where
-        error_expr = Var err_var `App` Type (idType bndr_var)
+        error_expr = mkCast (Var err_var) co
+        co         = mkUnsafeCo (exprType (Var err_var)) (idType bndr_var)
 
     is_simple_lpat p = is_simple_pat (unLoc p)
 
