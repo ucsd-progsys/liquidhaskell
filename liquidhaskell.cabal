@@ -172,6 +172,9 @@ Library
                     Language.Haskell.Liquid.Fresh,
                     Paths_liquidhaskell
  
+   other-modules:   Language.Haskell.Liquid.Desugar.HscMain,
+                    Language.Haskell.Liquid.Desugar.Desugar
+                    Language.Haskell.Liquid.Desugar.DsExpr
 --    other-modules:   Language.Haskell.Liquid.Desugar.Desugar
 --                     Language.Haskell.Liquid.Desugar.DsExpr,
 --                     Language.Haskell.Liquid.Desugar.DsListComp,
