@@ -7,19 +7,18 @@ Desugaring exporessions.
 
 \begin{code}
 {-# LANGUAGE CPP #-}
+
 module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
 
 -- #include "HsVersions.h"
 
-import Language.Haskell.Liquid.GhcMisc (srcSpanTick) 
-
-import Match
-import MatchLit
-import DsBinds
-import DsGRHSs
-import DsListComp
-import DsUtils
-import DsArrows
+import Language.Haskell.Liquid.Desugar.Match
+import Language.Haskell.Liquid.Desugar.MatchLit
+import Language.Haskell.Liquid.Desugar.DsBinds
+import Language.Haskell.Liquid.Desugar.DsGRHSs
+import Language.Haskell.Liquid.Desugar.DsListComp
+import Language.Haskell.Liquid.Desugar.DsUtils
+import Language.Haskell.Liquid.Desugar.DsArrows
 import DsMonad
 import Name
 import NameEnv
@@ -112,11 +111,11 @@ ds_val_bind (NonRecursive, hsbinds) body
 
 -- Ordinary case for bindings; none should be unlifted
 ds_val_bind (_is_rec, binds) body
-  = do  { prs <- dsLHsBinds binds;
---         ; ASSERT2( not (any (isUnLiftedType . idType . fst) prs), ppr _is_rec $$ ppr binds )
+  = do  { prs <- dsLHsBinds binds
+        ; -- ASSERT2( not (any (isUnLiftedType . idType . fst) prs), ppr _is_rec $$ ppr binds )
           case prs of
-          [] -> return body
-          _  -> return (Let (Rec prs) body) }
+            [] -> return body
+            _  -> return (Let (Rec prs) body) }
         -- Use a Rec regardless of is_rec. 
         -- Why? Because it allows the binds to be all
         -- mixed up, which is what happens in one rare case
@@ -133,11 +132,11 @@ dsStrictBind :: HsBind Id -> CoreExpr -> DsM CoreExpr
 dsStrictBind (AbsBinds { abs_tvs = [], abs_ev_vars = []
                , abs_exports = exports
                , abs_ev_binds = ev_binds
-               , abs_binds = binds }) body
+               , abs_binds = lbinds }) body
   = do { let body1 = foldr bind_export body exports
              bind_export export b = bindNonRec (abe_poly export) (Var (abe_mono export)) b
-       ; body2 <- foldlBagM (\body (_, bind) -> dsStrictBind (unLoc bind) body)
-                            body1 binds 
+       ; body2 <- foldlBagM (\body (_, lbind) -> dsStrictBind (unLoc lbind) body)
+                            body1 lbinds 
        ; ds_binds <- dsTcEvBinds ev_binds
        ; return (mkCoreLets ds_binds body2) }
 
@@ -166,8 +165,8 @@ dsStrictBind bind body = pprPanic "dsLet: unlifted" (ppr bind $$ ppr body)
 
 ----------------------
 strictMatchOnly :: HsBind Id -> Bool
-strictMatchOnly (AbsBinds { abs_binds = binds })
-  = anyBag (strictMatchOnly . unLoc . snd) binds
+strictMatchOnly (AbsBinds { abs_binds = lbinds })
+  = anyBag (strictMatchOnly . unLoc . snd) lbinds
 strictMatchOnly (PatBind { pat_lhs = lpat, pat_rhs_ty = rhs_ty })
   =  isUnLiftedType rhs_ty
   || isStrictLPat lpat
@@ -187,10 +186,7 @@ strictMatchOnly _ = False -- I hope!  Checked immediately by caller in fact
 \begin{code}
 dsLExpr :: LHsExpr Id -> DsM CoreExpr
 
-dsLExpr (L loc e) 
-  = do ce <- putSrcSpanDs loc $ dsExpr e
-       m  <- getModule
-       return $ Tick (srcSpanTick m loc) ce
+dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
 dsExpr (HsPar e)              = dsLExpr e
@@ -494,7 +490,7 @@ dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
         -- constructor aguments.
         ; alts <- mapM (mk_alt upd_fld_env) cons_to_upd
         ; ([discrim_var], matching_code) 
-                <- matchWrapper RecUpd (MG { mg_alts = alts, mg_arg_tys = [in_ty], mg_res_ty = out_ty })
+                <- matchWrapper RecUpd (MG { mg_alts = alts, mg_arg_tys = [in_ty], mg_res_ty = out_ty})
 
         ; return (add_field_binds field_binds' $
                   bindNonRec discrim_var record_expr' matching_code) }
@@ -752,7 +748,7 @@ dsDo stmts
     goL (L loc stmt:lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
   
     go _ (LastStmt body _) stmts
-      = {-ASSERT( null stmts )-} dsLExpr body
+      = {- ASSERT( null stmts ) -} dsLExpr body
         -- The 'return' op isn't used for 'do' expressions
 
     go _ (BodyStmt rhs then_expr _ _) stmts
@@ -795,7 +791,7 @@ dsDo stmts
         rets         = map noLoc rec_rets
         mfix_app     = nlHsApp (noLoc mfix_op) mfix_arg
         mfix_arg     = noLoc $ HsLam (MG { mg_alts = [mkSimpleMatch [mfix_pat] body]
-                                         , mg_arg_tys = [tup_ty], mg_res_ty = body_ty })
+                                         , mg_arg_tys = [tup_ty], mg_res_ty = body_ty})
         mfix_pat     = noLoc $ LazyPat $ mkBigLHsPatTup rec_tup_pats
         body         = noLoc $ HsDo DoExpr (rec_stmts ++ [ret_stmt]) body_ty
         ret_app      = nlHsApp (noLoc return_op) (mkBigLHsTup rets)

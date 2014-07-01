@@ -172,20 +172,17 @@ Library
                     Language.Haskell.Liquid.Fresh,
                     Paths_liquidhaskell
  
-   other-modules:   Language.Haskell.Liquid.Desugar.HscMain,
-                    Language.Haskell.Liquid.Desugar.Desugar
-                    Language.Haskell.Liquid.Desugar.DsExpr
---    other-modules:   Language.Haskell.Liquid.Desugar.Desugar
---                     Language.Haskell.Liquid.Desugar.DsExpr,
---                     Language.Haskell.Liquid.Desugar.DsListComp,
---                     Language.Haskell.Liquid.Desugar.MatchCon,
---                     Language.Haskell.Liquid.Desugar.MatchLit,
---                     Language.Haskell.Liquid.Desugar.DsArrows,
---                     Language.Haskell.Liquid.Desugar.DsUtils,
---                     Language.Haskell.Liquid.Desugar.Match,
---                     Language.Haskell.Liquid.Desugar.DsBinds,
---                     Language.Haskell.Liquid.Desugar.DsGRHSs,
---                     Language.Haskell.Liquid.Desugar.HscMain
+   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
+                    Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.DsListComp,
+                    Language.Haskell.Liquid.Desugar.MatchCon,
+                    Language.Haskell.Liquid.Desugar.MatchLit,
+                    Language.Haskell.Liquid.Desugar.DsArrows,
+                    Language.Haskell.Liquid.Desugar.DsUtils,
+                    Language.Haskell.Liquid.Desugar.Match,
+                    Language.Haskell.Liquid.Desugar.DsBinds,
+                    Language.Haskell.Liquid.Desugar.DsGRHSs,
+                    Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
    Extensions: PatternGuards
 

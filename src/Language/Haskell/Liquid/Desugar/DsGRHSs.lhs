@@ -6,11 +6,13 @@
 Matching guarded right-hand-sides (GRHSs)
 
 \begin{code}
+{-# LANGUAGE CPP #-}
+
 module Language.Haskell.Liquid.Desugar.DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS ) where
 
 -- #include "HsVersions.h"
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr  ( dsLExprWithLoc, dsLocalBinds )
+import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr  ( dsLExpr, dsLocalBinds )
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match   ( matchSinglePat )
 
 import HsSyn
@@ -23,7 +25,9 @@ import DsMonad
 import Language.Haskell.Liquid.Desugar.DsUtils
 import TysWiredIn
 import PrelNames
+import Module
 import Name
+import Util
 import SrcLoc
 import Outputable
 \end{code}
@@ -40,7 +44,7 @@ producing an expression with a runtime error in the corner if
 necessary.  The type argument gives the type of the @ei@.
 
 \begin{code}
-dsGuarded :: GRHSs Id -> Type -> DsM CoreExpr
+dsGuarded :: GRHSs Id (LHsExpr Id) -> Type -> DsM CoreExpr
 
 dsGuarded grhss rhs_ty = do
     match_result <- dsGRHSs PatBindRhs [] grhss rhs_ty
@@ -52,21 +56,18 @@ In contrast, @dsGRHSs@ produces a @MatchResult@.
 
 \begin{code}
 dsGRHSs :: HsMatchContext Name -> [Pat Id]      -- These are to build a MatchContext from
-        -> GRHSs Id                             -- Guarded RHSs
+        -> GRHSs Id (LHsExpr Id)                -- Guarded RHSs
         -> Type                                 -- Type of RHS
         -> DsM MatchResult
-dsGRHSs hs_ctx _ (GRHSs grhss binds) rhs_ty = do
-    match_results <- mapM (dsGRHS hs_ctx rhs_ty) grhss
-    let
-        match_result1 = foldr1 combineMatchResults match_results
-        match_result2 = adjustMatchResultDs
-                                 (\e -> dsLocalBinds binds e)
-                                 match_result1
-                -- NB: nested dsLet inside matchResult
-    --
-    return match_result2
+dsGRHSs hs_ctx _ (GRHSs grhss binds) rhs_ty 
+  = -- ASSERT( notNull grhss )
+    do { match_results <- mapM (dsGRHS hs_ctx rhs_ty) grhss
+       ; let match_result1 = foldr1 combineMatchResults match_results
+             match_result2 = adjustMatchResultDs (dsLocalBinds binds) match_result1
+                             -- NB: nested dsLet inside matchResult
+       ; return match_result2 }
 
-dsGRHS :: HsMatchContext Name -> Type -> LGRHS Id -> DsM MatchResult
+dsGRHS :: HsMatchContext Name -> Type -> LGRHS Id (LHsExpr Id) -> DsM MatchResult
 dsGRHS hs_ctx rhs_ty (L _ (GRHS guards rhs))
   = matchGuards (map unLoc guards) (PatGuard hs_ctx) rhs rhs_ty
 \end{code}
@@ -79,33 +80,33 @@ dsGRHS hs_ctx rhs_ty (L _ (GRHS guards rhs))
 %************************************************************************
 
 \begin{code}
-matchGuards :: [Stmt Id]                -- Guard
-            -> HsStmtContext Name       -- Context
-            -> LHsExpr Id               -- RHS
-            -> Type                     -- Type of RHS of guard
+matchGuards :: [GuardStmt Id]       -- Guard
+            -> HsStmtContext Name   -- Context
+            -> LHsExpr Id           -- RHS
+            -> Type                 -- Type of RHS of guard
             -> DsM MatchResult
 
--- See comments with HsExpr.Stmt re what an ExprStmt means
+-- See comments with HsExpr.Stmt re what a BodyStmt means
 -- Here we must be in a guard context (not do-expression, nor list-comp)
 
 matchGuards [] _ rhs _
-  = do  { core_rhs <- dsLExprWithLoc rhs
+  = do  { core_rhs <- dsLExpr rhs
         ; return (cantFailMatchResult core_rhs) }
 
-        -- ExprStmts must be guards
+        -- BodyStmts must be guards
         -- Turn an "otherwise" guard is a no-op.  This ensures that
         -- you don't get a "non-exhaustive eqns" message when the guards
         -- finish in "otherwise".
         -- NB:  The success of this clause depends on the typechecker not
         --      wrapping the 'otherwise' in empty HsTyApp or HsWrap constructors
         --      If it does, you'll get bogus overlap warnings
-matchGuards (ExprStmt e _ _ _ : stmts) ctx rhs rhs_ty
+matchGuards (BodyStmt e _ _ _ : stmts) ctx rhs rhs_ty
   | Just addTicks <- isTrueLHsExpr e = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
     return (adjustMatchResultDs addTicks match_result)
-matchGuards (ExprStmt expr _ _ _ : stmts) ctx rhs rhs_ty = do
+matchGuards (BodyStmt expr _ _ _ : stmts) ctx rhs rhs_ty = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
-    pred_expr <- dsLExprWithLoc expr
+    pred_expr <- dsLExpr expr
     return (mkGuardedMatchResult pred_expr match_result)
 
 matchGuards (LetStmt binds : stmts) ctx rhs rhs_ty = do
@@ -118,7 +119,7 @@ matchGuards (LetStmt binds : stmts) ctx rhs rhs_ty = do
 
 matchGuards (BindStmt pat bind_rhs _ _ : stmts) ctx rhs rhs_ty = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
-    core_rhs <- dsLExprWithLoc bind_rhs
+    core_rhs <- dsLExpr bind_rhs
     matchSinglePat core_rhs (StmtCtxt ctx) pat rhs_ty match_result
 
 matchGuards (LastStmt  {} : _) _ _ _ = panic "matchGuards LastStmt"
@@ -146,7 +147,7 @@ isTrueLHsExpr (L _ (HsTick tickish e))
 isTrueLHsExpr (L _ (HsBinTick ixT _ e))
     | Just ticks <- isTrueLHsExpr e
     = Just (\x -> do e <- ticks x
-                     this_mod <- getModuleDs
+                     this_mod <- getModule
                      return (Tick (HpcTick this_mod ixT) e))
 
 isTrueLHsExpr (L _ (HsPar e))         = isTrueLHsExpr e
