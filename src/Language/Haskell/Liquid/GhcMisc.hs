@@ -109,7 +109,7 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan z                 = noSrcSpan -- errorstar msg
+tickSrcSpan z                 = traceShow (showPpr z) $ noSrcSpan -- errorstar msg
   where msg = "tickSrcSpan: unhandled tick: " ++ showPpr z
 
 -----------------------------------------------------------------------

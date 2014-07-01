@@ -11,6 +11,8 @@ module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, d
 
 -- #include "HsVersions.h"
 
+import Language.Haskell.Liquid.GhcMisc (srcSpanTick) 
+
 import Match
 import MatchLit
 import DsBinds
@@ -185,7 +187,10 @@ strictMatchOnly _ = False -- I hope!  Checked immediately by caller in fact
 \begin{code}
 dsLExpr :: LHsExpr Id -> DsM CoreExpr
 
-dsLExpr (L loc e) = putSrcSpanDs loc $ dsExpr e
+dsLExpr (L loc e) 
+  = do ce <- putSrcSpanDs loc $ dsExpr e
+       m  <- getModule
+       return $ Tick (srcSpanTick m loc) ce
 
 dsExpr :: HsExpr Id -> DsM CoreExpr
 dsExpr (HsPar e)              = dsLExpr e

@@ -34,7 +34,7 @@ import DataCon
 import qualified TyCon as TC
 import HscMain
 import Module
--- import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
+import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
@@ -151,9 +151,10 @@ updateDynFlags cfg
                     , hscTarget    = HscInterpreted
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
+                      `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
-       setSessionDynFlags df''
+       setSessionDynFlags $ df''{profAuto = ProfAutoAll}
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -244,7 +245,7 @@ desugarModuleWithLoc tcm = do
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugar {-WithLoc-} hsc_env_tmp ms tcg
+  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
