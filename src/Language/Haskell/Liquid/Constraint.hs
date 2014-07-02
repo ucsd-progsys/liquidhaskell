@@ -1608,6 +1608,7 @@ instance Show CoreExpr where
   show = showPpr
 
 checkTyCon _ t@(RApp _ _ _ _) = t
+checkTyCon _ t@(RCls cl ts)   = classToRApp t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 -- checkRPred _ t@(RAll _ _)     = t
