@@ -56,6 +56,7 @@ Executable liquid
                , cmdargs
                , containers
                , cpphs
+               , data-default
                , deepseq
                , directory
                , Diff
@@ -129,6 +130,7 @@ Library
                 , cmdargs
                 , containers
                 , cpphs
+                , data-default
                 , deepseq
                 , directory
                 , Diff
