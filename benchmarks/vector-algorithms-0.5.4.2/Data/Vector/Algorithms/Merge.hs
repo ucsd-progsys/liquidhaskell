@@ -53,18 +53,26 @@ sortBy cmp vec
 
 mergeSortWithBuf :: (PrimMonad m, MVector v e)
                  => Comparison e -> v (PrimState m) e -> v (PrimState m) e -> m ()
-mergeSortWithBuf cmp src  buf = loop (length src) 0 (length src)
+mergeSortWithBuf cmp src  buf = loop cmp src buf (length src) 0 (length src)
  where
   {- LIQUID WITNESS -}
- loop (twit :: Int) l u
-   | len < threshold = I.sortByBounds cmp src l u
-   | otherwise       = do loop (mid - l) l mid
-                          loop (u - mid) mid u
-                          merge cmp (unsafeSlice l len src) buf (mid - l)
-  where len = u - l
-        mid = (u + l) `shiftRI` 1
+loop :: (PrimMonad m, MVector v e) 
+     => Comparison e
+     -> v (PrimState m) e
+     -> v (PrimState m) e
+     -> Int 
+     -> Int 
+     -> Int
+     -> m ()
+loop cmp src buf (twit :: Int) l u
+  | len < threshold = I.sortByBounds cmp src l u
+  | otherwise       = do loop cmp src buf (mid - l) l mid
+                         loop cmp src buf (u - mid) mid u
+                         merge cmp (unsafeSlice l len src) buf (mid - l)
+ where len = u - l
+       mid = (u + l) `shiftRI` 1
 {-# INLINE mergeSortWithBuf #-}
-{-@
+{-
 merge :: (PrimMonad m, MVector v e)
       => Comparison e 
       -> src:(v (PrimState m) e)
