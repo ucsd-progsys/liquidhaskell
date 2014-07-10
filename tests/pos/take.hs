@@ -28,8 +28,8 @@ take (I# n#) xs = takeUInt n# xs
 
 takeUInt :: Int# -> [a] -> [a]
 takeUInt n xs
-  | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  liquidAssert False []
+  | isTrue# (n >=# 0#) =  take_unsafe_UInt n xs
+  | otherwise          =  liquidAssert False []
 
 take_unsafe_UInt :: Int# -> [a] -> [a]
 take_unsafe_UInt 0#  _     = []

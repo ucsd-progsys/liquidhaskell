@@ -1,4 +1,5 @@
 \begin{code}
+
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, MagicHash #-}
 {-# OPTIONS_HADDOCK hide #-}
@@ -42,9 +43,15 @@ module GHC.List (
 
 import Data.Maybe
 import GHC.Base
+import GHC.Num
+import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
 infixl 9  !!
 infix  4 `elem`, `notElem`
+
+
+
+
 \end{code}
 
 %*********************************************************
@@ -55,36 +62,39 @@ infix  4 `elem`, `notElem`
 
 \begin{code}
 -- | Extract the first element of a list, which must be non-empty.
+{-@ assert head         :: xs:{v: [a] | len(v) > 0} -> a @-}
 head                    :: [a] -> a
 head (x:_)              =  x
-head []                 =  badHead
+head []                 =  errorEmptyList "head"
 
 badHead :: a
-badHead = errorEmptyList "head"
+badHead = error "errorEmptyList head" -- errorEmptyList "head"
 
 -- This rule is useful in cases like 
 --      head [y | (x,y) <- ps, x==t]
-{-# RULES
+{- RULES
 "head/build"    forall (g::forall b.(a->b->b)->b->b) .
                 head (build g) = g (\x _ -> x) badHead
 "head/augment"  forall xs (g::forall b. (a->b->b) -> b -> b) . 
                 head (augment g xs) = g (\x _ -> x) (head xs)
- #-}
+ -}
 
 -- | Extract the elements after the head of a list, which must be non-empty.
+{-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1)}  @-}
 tail                    :: [a] -> [a]
 tail (_:xs)             =  xs
-tail []                 =  errorEmptyList "tail"
+tail []                 =  liquidError "tail" -- errorEmptyList "tail"
 
 -- | Extract the last element of a list, which must be finite and non-empty.
+{-@ assert last         :: xs:{v: [a] | len(v) > 0} -> a @-}
 last                    :: [a] -> a
 #ifdef USE_REPORT_PRELUDE
 last [x]                =  x
 last (_:xs)             =  last xs
-last []                 =  errorEmptyList "last"
+last []                 =  liquidError "last" -- errorEmptyList "last"
 #else
 -- eliminate repeated cases
-last []                 =  errorEmptyList "last"
+last []                 =  liquidError "last" -- errorEmptyList "last"
 last (x:xs)             =  last' x xs
   where last' y []     = y
         last' _ (y:ys) = last' y ys
@@ -92,20 +102,22 @@ last (x:xs)             =  last' x xs
 
 -- | Return all the elements of a list except the last one.
 -- The list must be non-empty.
+{-@ assert init         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
 init                    :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 init [x]                =  []
 init (x:xs)             =  x : init xs
-init []                 =  errorEmptyList "init"
+init []                 =  liquidError "init" -- errorEmptyList "init"
 #else
 -- eliminate repeated cases
-init []                 =  errorEmptyList "init"
+init []                 =  liquidError "init" --errorEmptyList "init"
 init (x:xs)             =  init' x xs
   where init' _ []     = []
         init' y (z:zs) = y : init' z zs
 #endif
 
 -- | Test whether a list is empty.
+{-@ assert null :: xs:[a] -> {v: Bool | (Prop(v) <=> len(xs) = 0) }  @-}
 null                    :: [a] -> Bool
 null []                 =  True
 null (_:_)              =  False
@@ -113,10 +125,12 @@ null (_:_)              =  False
 -- | /O(n)/. 'length' returns the length of a finite list as an 'Int'.
 -- It is an instance of the more general 'Data.List.genericLength',
 -- the result type of which may be any kind of number.
+{-@ assert length :: xs:[a] -> {v: GHC.Types.Int | v = len(xs)}  @-}
 length                  :: [a] -> Int
 length l                =  len l 0#
   where
-    len :: [a] -> Int# -> Int
+    --LIQUID FIXME: leaving the type signature causes this to compile to very strange core
+    --LIQUID len :: [a] -> Int# -> Int
     len []     a# = I# a#
     len (_:xs) a# = len xs (a# +# 1#)
 
@@ -125,6 +139,7 @@ length l                =  len l 0#
 --
 -- > filter p xs = [ x | x <- xs, p x]
 
+{-@ assert filter :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 filter :: (a -> Bool) -> [a] -> [a]
 filter _pred []    = []
 filter pred (x:xs)
@@ -136,11 +151,11 @@ filterFB :: (a -> b -> b) -> (a -> Bool) -> a -> b -> b
 filterFB c p x r | p x       = x `c` r
                  | otherwise = r
 
-{-# RULES
+{- RULES
 "filter"     [~1] forall p xs.  filter p xs = build (\c n -> foldr (filterFB c p) n xs)
 "filterList" [1]  forall p.     foldr (filterFB (:) p) [] = filter p
 "filterFB"        forall c p q. filterFB (filterFB c p) q = filterFB c (\x -> q x && p x)
- #-}
+ -}
 
 -- Note the filterFB rule, which has p and q the "wrong way round" in the RHS.
 --     filterFB (filterFB c p) q a b
@@ -167,7 +182,7 @@ filterFB c p x r | p x       = x `c` r
 foldl        :: (a -> b -> a) -> a -> [b] -> a
 foldl f z0 xs0 = lgo z0 xs0
              where
-                lgo z []     =  z
+                lgo z []     = z
                 lgo z (x:xs) = lgo (f z x) xs
 
 -- | 'scanl' is similar to 'foldl', but returns a list of successive
@@ -178,7 +193,7 @@ foldl f z0 xs0 = lgo z0 xs0
 -- Note that
 --
 -- > last (scanl f z xs) == foldl f z xs.
-
+{-@ assert scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) } @-}
 scanl                   :: (a -> b -> a) -> a -> [b] -> [a]
 scanl f q ls            =  q : (case ls of
                                 []   -> []
@@ -188,6 +203,7 @@ scanl f q ls            =  q : (case ls of
 --
 -- > scanl1 f [x1, x2, ...] == [x1, x1 `f` x2, ...]
 
+{-@ assert scanl1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
 scanl1                  :: (a -> a -> a) -> [a] -> [a]
 scanl1 f (x:xs)         =  scanl f x xs
 scanl1 _ []             =  []
@@ -198,16 +214,18 @@ scanl1 _ []             =  []
 -- | 'foldr1' is a variant of 'foldr' that has no starting value argument,
 -- and thus must be applied to non-empty lists.
 
+{-@ assert foldr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> a @-}
 foldr1                  :: (a -> a -> a) -> [a] -> a
 foldr1 _ [x]            =  x
-foldr1 f (x:xs)         =  f x (foldr1 f xs)
-foldr1 _ []             =  errorEmptyList "foldr1"
+foldr1 f (x:xs@(_:_))   =  f x (foldr1 f xs)
+foldr1 _ []             =  liquidError "foldr1" -- errorEmptyList "foldr1"
 
 -- | 'scanr' is the right-to-left dual of 'scanl'.
 -- Note that
 --
 -- > head (scanr f z xs) == foldr f z xs.
 
+{-@ assert scanr        :: (a -> b -> b) -> b -> xs:[a] -> {v: [b] | len(v) = 1 + len(xs) } @-}
 scanr                   :: (a -> b -> b) -> b -> [a] -> [b]
 scanr _ q0 []           =  [q0]
 scanr f q0 (x:xs)       =  f x q : qs
@@ -215,10 +233,11 @@ scanr f q0 (x:xs)       =  f x q : qs
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
 
+{-@ assert scanr1       :: (a -> a -> a) -> xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) } @-}
 scanr1                  :: (a -> a -> a) -> [a] -> [a]
 scanr1 _ []             =  []
 scanr1 _ [x]            =  [x]
-scanr1 f (x:xs)         =  f x q : qs
+scanr1 f (x:xs@(_:_))   =  f x q : qs
                            where qs@(q:_) = scanr1 f xs 
 
 -- | 'iterate' @f x@ returns an infinite list of repeated applications
@@ -226,49 +245,65 @@ scanr1 f (x:xs)         =  f x q : qs
 --
 -- > iterate f x == [x, f x, f (f x), ...]
 
+{-@ Strict GHC.List.iterate @-}
+{-@ iterate :: (a -> a) -> a -> [a] @-}
 iterate :: (a -> a) -> a -> [a]
 iterate f x =  x : iterate f (f x)
 
+{-@ Strict GHC.List.iterateFB @-}
+{-@ iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b @-}
 iterateFB :: (a -> b -> b) -> (a -> a) -> a -> b
 iterateFB c f x = x `c` iterateFB c f (f x)
 
 
-{-# RULES
+{- RULES
 "iterate"    [~1] forall f x.   iterate f x = build (\c _n -> iterateFB c f x)
 "iterateFB"  [1]                iterateFB (:) = iterate
- #-}
+ -}
 
 
 -- | 'repeat' @x@ is an infinite list, with @x@ the value of every element.
+{- measure inf :: Int @-}
+{- invariant {v:Int | v < inf} @-}
+{- repeat :: a -> {v:[a] | (len v) = inf} @-}
+{-@ repeat :: a -> [a] @-}
+{-@ Strict GHC.List.repeat @-}
 repeat :: a -> [a]
 {-# INLINE [0] repeat #-}
 -- The pragma just gives the rules more chance to fire
 repeat x = xs where xs = x : xs
 
 {-# INLINE [0] repeatFB #-}     -- ditto
+{-@ Strict GHC.List.repeatFB @-}
+{-@ repeatFB :: (a -> b -> b) -> a -> b @-}
 repeatFB :: (a -> b -> b) -> a -> b
 repeatFB c x = xs where xs = x `c` xs
 
 
-{-# RULES
+{- RULES
 "repeat"    [~1] forall x. repeat x = build (\c _n -> repeatFB c x)
 "repeatFB"  [1]  repeatFB (:)       = repeat
- #-}
+ -}
 
 -- | 'replicate' @n x@ is a list of length @n@ with @x@ the value of
 -- every element.
 -- It is an instance of the more general 'Data.List.genericReplicate',
 -- in which @n@ may be of any integral type.
 {-# INLINE replicate #-}
+{-@ assert replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | len(v) = n} @-}
 replicate               :: Int -> a -> [a]
-replicate n x           =  take n (repeat x)
+--LIQUID replicate n x           =  take n (repeat x)
+replicate 0 _ = []
+replicate n x = x : replicate (n-1) x
 
 -- | 'cycle' ties a finite list into a circular one, or equivalently,
 -- the infinite repetition of the original list.  It is the identity
 -- on infinite lists.
 
+{-@ assert cycle        :: {v: [a] | len(v) > 0 } -> [a] @-}
+{-@ Lazy cycle @-}
 cycle                   :: [a] -> [a]
-cycle []                = error "Prelude.cycle: empty list"
+cycle []                = liquidError {- error -} "Prelude.cycle: empty list"
 cycle xs                = xs' where xs' = xs ++ xs'
 
 -- | 'takeWhile', applied to a predicate @p@ and a list @xs@, returns the
@@ -279,6 +314,7 @@ cycle xs                = xs' where xs' = xs ++ xs'
 -- > takeWhile (< 0) [1,2,3] == []
 --
 
+{-@ assert takeWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 takeWhile               :: (a -> Bool) -> [a] -> [a]
 takeWhile _ []          =  []
 takeWhile p (x:xs) 
@@ -292,6 +328,7 @@ takeWhile p (x:xs)
 -- > dropWhile (< 0) [1,2,3] == [1,2,3]
 --
 
+{-@ assert dropWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)} @-}
 dropWhile               :: (a -> Bool) -> [a] -> [a]
 dropWhile _ []          =  []
 dropWhile p xs@(x:xs')
@@ -310,6 +347,12 @@ dropWhile p xs@(x:xs')
 --
 -- It is an instance of the more general 'Data.List.genericTake',
 -- in which @n@ may be of any integral type.
+
+
+{-@ take :: n:Int
+         -> xs:[a] 
+         -> {v:[a] | (if (n >=0) then ((len v) = ((len(xs) < n) ? len(xs):n)) else ((len v) = 0))} 
+  @-}
 take                   :: Int -> [a] -> [a]
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
@@ -324,6 +367,9 @@ take                   :: Int -> [a] -> [a]
 --
 -- It is an instance of the more general 'Data.List.genericDrop',
 -- in which @n@ may be of any integral type.
+{-@ drop  :: n: Int 
+          -> xs:[a] 
+          -> {v:[a] | (if (n >= 0) then (len(v) = ((len(xs) <  n) ? 0 : len(xs) - n)) else ((len v) = (len xs)))} @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
@@ -341,6 +387,8 @@ drop                   :: Int -> [a] -> [a]
 -- (@splitAt _|_ xs = _|_@).
 -- 'splitAt' is an instance of the more general 'Data.List.genericSplitAt',
 -- in which @n@ may be of any integral type.
+-- Liquid: TODO
+{-@ splitAt :: n:Int -> x:[a] -> ({v:[a] | (if (n >= 0) then (Min (len v) (len x) n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}> @-}
 splitAt                :: Int -> [a] -> ([a],[a])
 
 #ifdef USE_REPORT_PRELUDE
@@ -355,10 +403,10 @@ drop n (_:xs)          =  drop (n-1) xs
 splitAt n xs           =  (take n xs, drop n xs)
 
 #else /* hack away */
-{-# RULES
+{- RULES
 "take"     [~1] forall n xs . take n xs = takeFoldr n xs 
 "takeList"  [1] forall n xs . foldr (takeFB (:) []) (takeConst []) xs n = takeUInt n xs
- #-}
+ -}
 
 {-# INLINE takeFoldr #-}
 takeFoldr :: Int -> [a] -> [a]
@@ -377,7 +425,7 @@ takeFB :: (a -> b -> b) -> b -> a -> (Int# -> b) -> Int# -> b
 takeFB c n x xs m | m <=# 1#  = x `c` n
                   | otherwise = x `c` xs (m -# 1#)
 
-{-# INLINE [0] take #-}
+{-- INLINE [0] take #-}
 take (I# n#) xs = takeUInt n# xs
 
 -- The general code for take, below, checks n <= maxInt
@@ -439,8 +487,13 @@ splitAt (I# n#) ls
 -- > span (< 0) [1,2,3] == ([],[1,2,3])
 -- 
 -- 'span' @p xs@ is equivalent to @('takeWhile' p xs, 'dropWhile' p xs)@
-
-span                    :: (a -> Bool) -> [a] -> ([a],[a])
+-- Liquid: TODO
+{-@
+span    :: (a -> Bool) 
+        -> xs:[a] 
+        -> ({v:[a]|((len v)<=(len xs))}, {v:[a]|((len v)<=(len xs))})
+@-}
+span                    :: (a -> Bool) -> [a] -> ([a], [a])
 span _ xs@[]            =  (xs, xs)
 span p xs@(x:xs')
          | p x          =  let (ys,zs) = span p xs' in (x:ys,zs)
@@ -455,7 +508,8 @@ span p xs@(x:xs')
 -- > break (> 9) [1,2,3] == ([1,2,3],[])
 --
 -- 'break' @p@ is equivalent to @'span' ('not' . p)@.
-
+-- liquid:TODO
+{-@ break :: (a -> Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}> @-}
 break                   :: (a -> Bool) -> [a] -> ([a],[a])
 #ifdef USE_REPORT_PRELUDE
 break p                 =  span (not . p)
@@ -469,6 +523,8 @@ break p xs@(x:xs')
 
 -- | 'reverse' @xs@ returns the elements of @xs@ in reverse order.
 -- @xs@ must be finite.
+{-@ assert reverse      :: xs:[a] -> {v: [a] | len(v) = len(xs)} @-}
+{-@ include <len.hquals> @-}
 reverse                 :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 reverse                 =  foldl (flip (:)) []
@@ -497,12 +553,12 @@ and (x:xs)      =  x && and xs
 or []           =  False
 or (x:xs)       =  x || or xs
 
-{-# RULES
+{- RULES
 "and/build"     forall (g::forall b.(Bool->b->b)->b->b) . 
                 and (build g) = g (&&) True
 "or/build"      forall (g::forall b.(Bool->b->b)->b->b) . 
                 or (build g) = g (||) False
- #-}
+ -}
 #endif
 
 -- | Applied to a predicate and a list, 'any' determines if any element
@@ -525,12 +581,12 @@ any p (x:xs)    = p x || any p xs
 
 all _ []        =  True
 all p (x:xs)    =  p x && all p xs
-{-# RULES
+{- RULES
 "any/build"     forall p (g::forall b.(a->b->b)->b->b) . 
                 any p (build g) = g ((||) . p) False
 "all/build"     forall p (g::forall b.(a->b->b)->b->b) . 
                 all p (build g) = g ((&&) . p) True
- #-}
+ -}
 #endif
 
 -- | 'elem' is the list membership predicate, usually written in infix form,
@@ -566,10 +622,10 @@ concatMap f             =  foldr ((++) . f) []
 concat :: [[a]] -> [a]
 concat = foldr (++) []
 
-{-# RULES
+{- RULES
   "concat" forall xs. concat xs = build (\c n -> foldr (\x y -> foldr c y x) n xs)
 -- We don't bother to turn non-fusible applications of concat back into concat
- #-}
+ -}
 
 \end{code}
 
@@ -578,10 +634,12 @@ concat = foldr (++) []
 -- | List index (subscript) operator, starting from 0.
 -- It is an instance of the more general 'Data.List.genericIndex',
 -- which takes an index of any integral type.
+
+{-@ assert GHC.List.!!         :: xs:[a] -> {v: Int | ((0 <= v) && (v < len(xs)))} -> a @-}
 (!!)                    :: [a] -> Int -> a
 #ifdef USE_REPORT_PRELUDE
-xs     !! n | n < 0 =  error "Prelude.!!: negative index"
-[]     !! _         =  error "Prelude.!!: index too large"
+xs     !! n | n < 0 =  liquidError {- error -} "Prelude.!!: negative index"
+[]     !! _         =  liquidError {- error -} "Prelude.!!: index too large"
 (x:_)  !! 0         =  x
 (_:xs) !! n         =  xs !! (n-1)
 #else
@@ -589,11 +647,11 @@ xs     !! n | n < 0 =  error "Prelude.!!: negative index"
 -- The semantics is not quite the same for error conditions
 -- in the more efficient version.
 --
-xs !! (I# n0) | n0 <# 0#   =  error "Prelude.(!!): negative index\n"
+xs !! (I# n0) | n0 <# 0#   =  liquidError {- error -} "Prelude.(!!): negative index\n"
                | otherwise =  sub xs n0
                          where
                             sub :: [a] -> Int# -> a
-                            sub []     _ = error "Prelude.(!!): index too large\n"
+                            sub []     _ = liquidError {- error -} "Prelude.(!!): index too large\n"
                             sub (y:ys) n = if n ==# 0#
                                            then y
                                            else sub ys (n -# 1#)
@@ -623,13 +681,13 @@ foldr2_right  k _z  y  r (x:xs) = k x y (r xs)
 
 -- foldr2 k z xs ys = foldr (foldr2_left k z)  (\_ -> z) xs ys
 -- foldr2 k z xs ys = foldr (foldr2_right k z) (\_ -> z) ys xs
-{-# RULES
+{- RULES
 "foldr2/left"   forall k z ys (g::forall b.(a->b->b)->b->b) . 
                   foldr2 k z (build g) ys = g (foldr2_left  k z) (\_ -> z) ys
 
 "foldr2/right"  forall k z xs (g::forall b.(a->b->b)->b->b) . 
                   foldr2 k z xs (build g) = g (foldr2_right k z) (\_ -> z) xs
- #-}
+ -}
 \end{code}
 
 The foldr2/right rule isn't exactly right, because it changes
@@ -649,6 +707,11 @@ Zips for larger tuples are in the List module.
 -- | 'zip' takes two lists and returns a list of corresponding pairs.
 -- If one input list is short, excess elements of the longer list are
 -- discarded.
+
+{-@ zip :: xs : [a] -> ys:[b] 
+            -> {v : [(a, b)] | ((((len v) <= (len xs)) && ((len v) <= (len ys)))
+            && (((len xs) = (len ys)) => ((len v) = (len xs))) )} @-}
+
 zip :: [a] -> [b] -> [(a,b)]
 zip (a:as) (b:bs) = (a,b) : zip as bs
 zip _      _      = []
@@ -657,10 +720,10 @@ zip _      _      = []
 zipFB :: ((a, b) -> c -> d) -> a -> b -> c -> d
 zipFB c = \x y r -> (x,y) `c` r
 
-{-# RULES
+{- RULES
 "zip"      [~1] forall xs ys. zip xs ys = build (\c n -> foldr2 (zipFB c) n xs ys)
 "zipList"  [1]  foldr2 (zipFB (:)) []   = zip
- #-}
+ -}
 \end{code}
 
 \begin{code}
@@ -684,6 +747,11 @@ zip3 _      _      _      = []
 -- as the first argument, instead of a tupling function.
 -- For example, @'zipWith' (+)@ is applied to two lists to produce the
 -- list of corresponding sums.
+
+
+{-@ zipWith :: (a -> b -> c) 
+            -> xs : [a] -> ys:[b] 
+            -> {v : [c] | (((len v) <= (len xs)) && ((len v) <= (len ys)))} @-}
 zipWith :: (a->b->c) -> [a]->[b]->[c]
 zipWith f (a:as) (b:bs) = f a b : zipWith f as bs
 zipWith _ _      _      = []
@@ -694,10 +762,10 @@ zipWith _ _      _      = []
 zipWithFB :: (a -> b -> c) -> (d -> e -> a) -> d -> e -> b -> c
 zipWithFB c f = \x y r -> (x `f` y) `c` r
 
-{-# RULES
+{- RULES
 "zipWith"       [~1] forall f xs ys.    zipWith f xs ys = build (\c n -> foldr2 (zipWithFB c f) n xs ys)
 "zipWithList"   [1]  forall f.  foldr2 (zipWithFB (:) f) [] = zipWith f
-  #-}
+  -}
 \end{code}
 
 \begin{code}
@@ -734,9 +802,10 @@ Common up near identical calls to `error' to reduce the number
 constant strings created when compiled:
 
 \begin{code}
+{-@ assert errorEmptyList :: {v: String | (0 = 1)} -> a @-}
 errorEmptyList :: String -> a
 errorEmptyList fun =
-  error (prel_list_str ++ fun ++ ": empty list")
+  liquidError {- error -} (prel_list_str ++ fun ++ ": empty list")
 
 prel_list_str :: String
 prel_list_str = "Prelude."
