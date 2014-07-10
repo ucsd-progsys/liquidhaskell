@@ -17,6 +17,7 @@
 
 <link rel="stylesheet" href="$reveal$/css/reveal.css">
 <link rel="stylesheet" href="$reveal$/css/theme/seminar.css" id="theme">
+<!-- <link rel="stylesheet" href="$reveal$/css/print/pdf.css"> -->
 <link rel="stylesheet" href="../_support/liquidhaskell.css">
 
 <!-- For syntax highlighting -->

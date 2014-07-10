@@ -78,7 +78,7 @@ makeGhcSpec cfg name vars defVars exports env specs
 
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
-checkMeasure :: M.HashMap TyCon FTycon-> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
 checkMeasure emb γ (M name@(Loc src n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where 
@@ -200,6 +200,7 @@ makeGhcSpec' cfg vars defVars exports specs
                             , config     = cfg
                             , exports    = exports
                             , measures   = subst su <$> M.elems $ Ms.measMap measures
+                            , tyconEnv   = tcEnv
                             }
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
@@ -599,8 +600,10 @@ type BareM a = WriterT [Warn] (ErrorT Error (StateT BareEnv IO)) a
 
 type Warn    = String
 
+type TCEnv   = M.HashMap TyCon RTyCon
+
 data BareEnv = BE { modName  :: !ModName
-                  , tcEnv    :: !(M.HashMap TyCon RTyCon)
+                  , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv }
@@ -1050,7 +1053,7 @@ wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where 
     (tcs, dcs)  = unzip l
-    l           = [listTyDataCons] ++ map tupleTyDataCons [1..maxArity]
+    l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
@@ -1326,12 +1329,12 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
-    errors           =  mapMaybe (checkBind "variable"    emb env) sigs
-                     ++ mapMaybe (checkBind "constructor" emb env) (dcons      sp)
-                     ++ mapMaybe (checkBind "measure"     emb env) (measSpec   sp)
+    errors           =  mapMaybe (checkBind "variable"    emb tcEnv env) sigs
+                     ++ mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
+                     ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
                      ++ mapMaybe (checkExpr "measure"     emb env sigs) (texprs sp)
-                     ++ mapMaybe (checkInv  emb env)               (invariants sp)
-                     ++ (checkIAl  emb env) (ialiases   sp)
+                     ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
+                     ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
@@ -1342,21 +1345,22 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
     emb              =  tcEmbeds sp
     env              =  ghcSpecEnv sp
+    tcEnv            =  tyconEnv sp
     ms               =  measures sp
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
 
-checkInv :: TCEmb TyCon -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkInv emb env t   = checkTy err emb env (val t) 
+checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
+checkInv emb tcEnv env t   = checkTy err emb tcEnv env (val t) 
   where 
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t) 
 
-checkIAl :: TCEmb TyCon -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
-checkIAl emb env ials = catMaybes $ concatMap (checkIAlOne emb env) ials
+checkIAl :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
+checkIAl emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne emb tcEnv env) ials
 
-checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where 
-    tcheck t = checkTy (err t) emb env (val t)
+    tcheck t = checkTy (err t) emb tcEnv env (val t)
     err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t) 
     t1'      :: RSort 
     t1'      = toRSort $ val t1
@@ -1367,8 +1371,8 @@ checkIAlOne emb env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
     emsg     = pprint t1 <+> text "does not match with" <+> pprint t2 
 
 
-checkBind :: (PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
-checkBind s emb env (v, Loc l t) = checkTy msg emb env' t
+checkBind :: (PPrint v) => String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
+checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
   where 
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
@@ -1391,8 +1395,8 @@ checkExpr s emb env vts (v, es) = mkErr <$> go es
 --   lookup v vts = (symbol v) `L.lookup` (mapFst symbol <$> vts)
 --   symbol       = stringSymbol . dropModuleNames . showpp
 
-checkTy :: (Doc -> Error) -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Error
-checkTy mkE emb env t = mkE <$> checkRType emb env t
+checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
+checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
 checkDupIntersect xts mxts = concatMap mkWrn dups
