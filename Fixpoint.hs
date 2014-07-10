@@ -25,6 +25,7 @@ config = Config {
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "use UEq on all sorts"
   , native      = False &= help "Use (new, non-working) Haskell Solver"
+  , real        = False &= help "Experimental support for the theory of real numbers"
   }  
   &= verbosity
   &= program "fixpoint" 
