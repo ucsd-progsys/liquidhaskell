@@ -1082,8 +1082,8 @@ ppError' dSp (ErrAssType _ OInv s r)
 ppError' dSp (ErrSubType _ s tA tE) 
   = dSp <+> text "Liquid Type Mismatch"
 --     DO NOT DELETE EVER! 
---     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
---     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
+        $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
+        $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
 
 ppError' dSp (ErrParse _ _ e)       
   = dSp <+> text "Cannot parse specification:" 
