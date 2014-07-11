@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances  #-}
 
 -- | This module contains the functions related to @Error@ type, 
--- in particular, to @tidy@ errors using a solution, and @pprint@ errors.
+-- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
 module Language.Haskell.Liquid.Errors (tidyError) where
 
@@ -17,16 +17,14 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Tidy
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError = tidyErrorTy -- error "TODO: tidyError"
-
-
-tidyErrorTy :: FixSolution -> Error -> Error
-tidyErrorTy = applySolution
+tidyError sol = fmap (tidySpecType Full)
+              . applySolution sol 
 
 -- HEREHEREHERE
 -- 1. apply solution
@@ -41,7 +39,9 @@ tidyErrorTy = applySolution
 -- printer for SpecTypes, which lives in this module.
 
 instance PPrint Error where
-  pprint = ppError
+  pprint = ppError . fmap (rtypeDoc Lossy)
+            -- undefined 
+            -- ppError . ppr_rtype 
 
 instance Show Error where
   show = showpp
@@ -50,11 +50,15 @@ instance Exception Error
 instance Exception [Error]
 
 ------------------------------------------------------------------------
-ppError :: Error -> Doc
+ppError :: (PPrint a) => TError a -> Doc
 ------------------------------------------------------------------------
 
 ppError e = ppError' (pprintE $ errSpan e) e
 pprintE l = pprint l <> text ": Error:"
+
+------------------------------------------------------------------------
+ppError' :: (PPrint a) => Doc -> TError a -> Doc
+------------------------------------------------------------------------
 
 ppError' dSp (ErrAssType _ OTerm s r) 
   = dSp <+> text "Termination Check"

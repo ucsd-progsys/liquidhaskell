@@ -16,7 +16,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Options
     Config (..)
-
+  
   -- * Ghc Information
   , GhcInfo (..)
   , GhcSpec (..)
@@ -87,7 +87,10 @@ module Language.Haskell.Liquid.Types (
   , showpp
    
   -- * Printer Configuration 
-  , PPEnv (..), ppEnv, ppEnvShort
+  , PPEnv (..)
+  , Tidy  (..)
+  , configTidy
+  , ppEnv, ppEnvShort
 
   -- * Import handling
   , ModName (..), ModType (..), isSrcImport, isSpecImport
@@ -206,6 +209,13 @@ data Config = Config {
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
+
+data Tidy = Lossy | Full deriving (Eq, Ord)
+
+configTidy c 
+  | shortNames c = Lossy
+  | otherwise    = Full 
+
 
 class PPrint a where
   pprint :: a -> Doc
@@ -1266,7 +1276,7 @@ instance Ord Error where
 instance Ex.Error Error where
   strMsg = errOther . pprint
 
-errSpan :: Error -> SrcSpan
+errSpan :: TError a -> SrcSpan
 errSpan = pos 
 
 errOther :: Doc -> Error

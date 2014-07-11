@@ -1,4 +1,7 @@
-module Language.Haskell.Liquid.Tidy (tidySpecType) where
+module Language.Haskell.Liquid.Tidy (
+    -- * Tidying function
+  tidySpecType
+  ) where
 
 import Outputable   (showPpr) -- hiding (empty)
 import Control.Applicative
@@ -13,18 +16,19 @@ import Language.Fixpoint.Names              (symSepName)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType
 
 ---------------------------------------------------------------------
 -- | Tidy SpecType befor rendering ----------------------------------
 ---------------------------------------------------------------------
 
-tidySpecType :: SpecType -> SpecType  
-tidySpecType = tidyDSymbols
-             . tidySymbols 
-             . tidyLocalRefas 
-             . tidyFunBinds
-             . tidyTyVars 
+tidySpecType :: Tidy -> SpecType -> SpecType  
+tidySpecType k = tidyDSymbols
+               . tidySymbols 
+               . tidyLocalRefas k 
+               . tidyFunBinds
+               . tidyTyVars 
 
 tidySymbols :: SpecType -> SpecType
 tidySymbols t = substa dropSuffix $ mapBind dropBind t  
@@ -33,17 +37,22 @@ tidySymbols t = substa dropSuffix $ mapBind dropBind t
     dropBind x = if x `S.member` xs then dropSuffix x else nonSymbol  
     dropSuffix = S . takeWhile (/= symSepName) . symbolString
 
-tidyLocalRefas :: SpecType -> SpecType
-tidyLocalRefas t = mapReft (txReft) t
-  where 
-    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p (txStrata (syms t) l)
-    dropLocals = filter (not . any isTmp . syms) . flattenRefas
-    isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
+tidyLocalRefas   :: Tidy -> SpecType -> SpecType
+tidyLocalRefas k = mapReft (txStrata . txReft' k)
+  where
+    txReft' Full                  = id 
+    txReft' Lossy                 = txReft
+    txStrata (U r p l)            = U r p (txStr l) 
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l -- (txStrata (syms t) l)
+    dropLocals                    = filter (not . any isTmp . syms) . flattenRefas
+    isTmp x                       = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
+    txStr                         = filter (not . isSVar) 
+
+
 
 isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
   where str    = symbolString x
 
-txStrata syms s = filter (not . isSVar) s
 
 tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ substa tx t

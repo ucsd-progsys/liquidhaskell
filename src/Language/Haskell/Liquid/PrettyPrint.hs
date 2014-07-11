@@ -8,14 +8,16 @@
 
 module Language.Haskell.Liquid.PrettyPrint (
   
+  -- * Tidy level
+  Tidy (..)
+ 
   -- * Printing RType
-    ppr_rtype
-
-  -- * Converting To String
-  -- , showpp
+  , rtypeDoc 
+  , ppr_rtype
 
   -- * Printing an Orderable List
   , pprManyOrdered 
+
   -- * Printing a List with many large items
   , pprintLongList
   , ppSpine
@@ -45,6 +47,7 @@ import Data.Monoid   (mempty)
 import Data.Aeson    
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as M
+
 
 instance PPrint SrcSpan where
   pprint = pprDoc
@@ -92,6 +95,12 @@ pprManyOrdered msg = map ((text msg <+>) . pprint) . sort -- By (compare `on` po
 ---------------------------------------------------------------
 -- | Pretty Printing RefType ----------------------------------
 ---------------------------------------------------------------
+
+rtypeDoc k      = ppr_rtype (tidyPPEnv k) TopPrec
+
+tidyPPEnv Lossy = ppEnvShort ppEnv
+tidyPPEnv Full  = ppEnv
+
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
