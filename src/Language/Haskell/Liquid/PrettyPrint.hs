@@ -46,6 +46,9 @@ import Data.Aeson
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as M
 
+instance PPrint SrcSpan where
+  pprint = pprDoc
+
 instance PPrint Doc where
   pprint x = x 
 

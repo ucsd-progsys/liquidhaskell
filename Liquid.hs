@@ -83,11 +83,13 @@ solveCs cfg target cgi info dc
        let names = checkedNames dc
        let warns = logWarn cgi
        let annm  = annotMap cgi
-       let res   = result $ sinfo <$> r
+       let res   = appSolResult sol $ result $ sinfo <$> r
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
     where 
-       fx = def { FC.solver = smtsolver cfg, FC.real = real cfg }
+       fx        = def { FC.solver = smtsolver cfg, FC.real = real cfg }
+      
+appSolResult     = error "TODO: appSolResult"
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
