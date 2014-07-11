@@ -7,11 +7,13 @@
 
 module Language.Haskell.Liquid.Errors (tidyError) where
 
+import Data.Maybe (maybeToList)
 import Data.Monoid                              hiding ((<>))
 import Control.Exception                        (Exception (..)) 
 import Control.Applicative                      ((<$>), (<*>))
 import Text.PrettyPrint.HughesPJ    
 import Data.Aeson    
+import qualified  Data.HashMap.Strict as M
 import SrcLoc                                   (SrcSpan)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types
@@ -23,8 +25,21 @@ import Language.Haskell.Liquid.Tidy
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError sol = fmap (tidySpecType Full)
-              . applySolution sol 
+tidyError sol = tidyContext sol
+              . fmap (tidySpecType Full) . applySolution sol 
+
+tidyContext s err@(ErrSubType {}) 
+  = err { ctx = shrinkREnv xs $ ctx err }
+    where 
+      xs = syms tA ++ syms tE
+      tA = tact err
+      tE = texp err 
+
+tidyContext _ err 
+  = err
+
+shrinkREnv xs m 
+  = M.fromList $ [(x, t) | x <- xs, t <- maybeToList (M.lookup x m)]
 
 -- HEREHEREHERE
 -- 1. apply solution
@@ -56,9 +71,11 @@ ppError :: (PPrint a) => TError a -> Doc
 ppError e = ppError' (pprintE $ errSpan e) e
 pprintE l = pprint l <> text ": Error:"
 
+
 ------------------------------------------------------------------------
 ppError' :: (PPrint a) => Doc -> TError a -> Doc
-------------------------------------------------------------------------
+-----------------------------------------------------------------------
+
 
 ppError' dSp (ErrAssType _ OTerm s r) 
   = dSp <+> text "Termination Check"
@@ -66,11 +83,12 @@ ppError' dSp (ErrAssType _ OTerm s r)
 ppError' dSp (ErrAssType _ OInv s r) 
   = dSp <+> text "Invariant Check"
 
-ppError' dSp (ErrSubType _ s _ tA tE) 
+ppError' dSp (ErrSubType _ s c tA tE) 
   = dSp <+> text "Liquid Type Mismatch"
 --     DO NOT DELETE EVER! 
      $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
      $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
+     $+$ (nest 4 $ text "Context: "      <+> pprint c)
 
 ppError' dSp (ErrParse _ _ e)       
   = dSp <+> text "Cannot parse specification:" 

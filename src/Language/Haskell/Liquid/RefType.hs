@@ -609,6 +609,11 @@ instance PPrint RTyCon where
 instance Show RTyCon where
   show = showpp  
 
+instance PPrint REnv where
+  pprint (REnv m)  = vcat $ map pprxt $ M.toList m
+    where 
+      pprxt (x, t) = pprint x <> dcolon <> pprint t  
+
 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable

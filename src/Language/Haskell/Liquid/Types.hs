@@ -1188,11 +1188,11 @@ type Error = TError SpecType
 
 -- | INVARIANT : all Error constructors should hava a pos field
 data TError t = 
-    ErrSubType  { pos :: !SrcSpan
-                , msg :: !Doc 
-                , ctx :: !REnv
-                , act :: !t
-                , exp :: !t
+    ErrSubType  { pos  :: !SrcSpan
+                , msg  :: !Doc 
+                , ctx  :: !(M.HashMap Symbol t) 
+                , tact :: !t
+                , texp :: !t
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
@@ -1248,10 +1248,10 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos :: !SrcSpan
-                , var :: !Doc
-                , hs  :: !Type
-                , exp :: !t
+  | ErrMismatch { pos  :: !SrcSpan
+                , var  :: !Doc
+                , hs   :: !Type
+                , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrSaved    { pos :: !SrcSpan 

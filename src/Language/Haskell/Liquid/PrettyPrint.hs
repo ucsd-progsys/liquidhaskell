@@ -83,13 +83,12 @@ instance Show Predicate where
   show = showpp
 
 
-
 -- | Printing an Ordered List
 
 ---------------------------------------------------------------
 pprManyOrdered :: (PPrint a, Ord a) => String -> [a] -> [Doc]
 ---------------------------------------------------------------
-pprManyOrdered msg = map ((text msg <+>) . pprint) . sort -- By (compare `on` pos) 
+pprManyOrdered msg = map ((text msg <+>) . pprint) . sort
 
 
 ---------------------------------------------------------------
@@ -311,5 +310,12 @@ pprXOT (x, v) = (xd, pprint v)
 
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
+
+instance (PPrint k, PPrint v) => PPrint (M.HashMap k v) where
+  pprint m  = vcat $ map pprxt $ M.toList m
+    where 
+      pprxt (x, t) = pprint x <> dcolon <> pprint t  
+
 
 
