@@ -93,6 +93,7 @@ module Language.Haskell.Liquid.Types (
   , getModName, getModString
 
   -- * Refinement Type Aliases
+  , REnv (..)
   , RTEnv (..), mapRT, mapRP, RTBareOrSpec
 
   -- * Final Result
@@ -1156,24 +1157,26 @@ instance PPrint SortedReft where
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
+-- | The type used during constraint generation, used also to define contexts
+-- for errors, hence in this file, and NOT in Constraint.hs
+newtype REnv = REnv  (M.HashMap Symbol SpecType)
 
 type ErrorResult = FixResult Error
 
 newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
 
-
 instance PPrint EMsg where
   pprint (EMsg s) = text s
 
--- | In the below, we use EMsg instead of, say, SpecType because the latter is
--- impossible to serialize, as it contains GHC internals like TyCon and Class
--- inside it.
+-- | In the below, we use EMsg instead of, say, SpecType because 
+--   the latter is impossible to serialize, as it contains GHC 
+--   internals like TyCon and Class inside it.
 
 -- | INVARIANT : all Error constructors should hava a pos field
-
 data Error = 
     ErrSubType  { pos :: !SrcSpan
                 , msg :: !Doc 
+                , ctx :: !REnv
                 , act :: !SpecType
                 , exp :: !SpecType
                 } -- ^ liquid type error

@@ -616,7 +616,7 @@ bsplitC' γ t1 t2 pflag
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ ErrSubType src (text "subtype") t1 t2 
+    err = Just $ ErrSubType src (text "subtype") (renv γ) t1 t2 
     src = loc γ 
 
 
@@ -1872,8 +1872,6 @@ conjoinInvariant t _
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
 ---------------------------------------------------------------
-
-newtype REnv = REnv  (M.HashMap F.Symbol SpecType) -- deriving (Data, Typeable)
 
 instance PPrint REnv where
   pprint (REnv m)  = vcat $ map pprxt $ M.toList m
