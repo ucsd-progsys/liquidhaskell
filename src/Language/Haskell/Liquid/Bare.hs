@@ -63,6 +63,7 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 
+
 import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashSet        as S

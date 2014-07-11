@@ -22,7 +22,12 @@ import Language.Haskell.Liquid.Tidy
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError = error "TODO: tidyError"
+tidyError = tidyErrorTy -- error "TODO: tidyError"
+
+
+tidyErrorTy :: FixSolution -> Error -> Error
+tidyErrorTy = applySolution
+
 -- HEREHEREHERE
 -- 1. apply solution
 -- 2. gather and filter binders

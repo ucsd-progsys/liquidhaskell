@@ -1,5 +1,6 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -100,7 +101,8 @@ module Language.Haskell.Liquid.Types (
   , Result (..)
 
   -- * Different kinds of errors
-  , Error (..)
+  , Error
+  , TError (..)
   , EMsg (..)
   , LParseError (..)
   , ErrorResult
@@ -1172,13 +1174,15 @@ instance PPrint EMsg where
 --   the latter is impossible to serialize, as it contains GHC 
 --   internals like TyCon and Class inside it.
 
+type Error = TError SpecType
+
 -- | INVARIANT : all Error constructors should hava a pos field
-data Error = 
+data TError t = 
     ErrSubType  { pos :: !SrcSpan
                 , msg :: !Doc 
                 , ctx :: !REnv
-                , act :: !SpecType
-                , exp :: !SpecType
+                , act :: !t
+                , exp :: !t
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
@@ -1194,7 +1198,7 @@ data Error =
 
   | ErrTySpec   { pos :: !SrcSpan
                 , var :: !Doc
-                , typ :: !SpecType  
+                , typ :: !t
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
@@ -1210,18 +1214,18 @@ data Error =
                 } -- ^ multiple specs for same binder error 
 
   | ErrInvt     { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !t
                 , msg :: !Doc
                 } -- ^ Invariant sort error
 
   | ErrIAl      { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !t
                 , msg :: !Doc
                 } -- ^ Using  sort error
 
   | ErrIAlMis   { pos :: !SrcSpan
-                , t1  :: !SpecType
-                , t2  :: !SpecType
+                , t1  :: !t
+                , t2  :: !t
                 , msg :: !Doc
                 } -- ^ Incompatible using error
 
@@ -1237,7 +1241,7 @@ data Error =
   | ErrMismatch { pos :: !SrcSpan
                 , var :: !Doc
                 , hs  :: !Type
-                , exp :: !SpecType
+                , exp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrSaved    { pos :: !SrcSpan 
@@ -1247,7 +1251,7 @@ data Error =
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
-  deriving (Typeable)
+  deriving (Typeable, Functor)
 
 data LParseError = LPE !SourcePos [String] 
                    deriving (Data, Typeable, Generic)
@@ -1265,6 +1269,7 @@ instance Ex.Error Error where
 errSpan :: Error -> SrcSpan
 errSpan = pos 
 
+errOther :: Doc -> Error
 errOther = ErrOther noSrcSpan
 
 ------------------------------------------------------------------------
