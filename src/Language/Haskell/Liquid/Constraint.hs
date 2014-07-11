@@ -611,13 +611,14 @@ bsplitC' γ t1 t2 pflag
   | otherwise
   = []
   where 
-    γ'  = fe_binds $ fenv γ
-    r1' = rTypeSortedReft' pflag γ t1
-    r2' = rTypeSortedReft' pflag γ t2
-    ci  = Ci src err
-    tag = getTag γ
-    err = Just $ ErrSubType src (text "subtype") (renv γ) t1 t2 
-    src = loc γ 
+    γ'     = fe_binds $ fenv γ
+    r1'    = rTypeSortedReft' pflag γ t1
+    r2'    = rTypeSortedReft' pflag γ t2
+    ci     = Ci src err
+    tag    = getTag γ
+    err    = Just $ ErrSubType src (text "subtype") g t1 t2 
+    src    = loc γ
+    REnv g = renv γ 
 
 
 
@@ -1872,11 +1873,6 @@ conjoinInvariant t _
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
 ---------------------------------------------------------------
-
-instance PPrint REnv where
-  pprint (REnv m)  = vcat $ map pprxt $ M.toList m
-    where 
-      pprxt (x, t) = pprint x <> dcolon <> pprint t  
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
