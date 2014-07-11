@@ -75,9 +75,10 @@ mkOutput cfg res sol anna
       }
   where
     annTmpl      = closeAnnots anna
-    annTy        = tidySpecType <$> applySolution sol annTmpl 
-    toDoc        = ppr_rtype env TopPrec
-    env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
+    annTy        = tidySpecType Lossy <$> applySolution sol annTmpl 
+    toDoc        = rtypeDoc $ configTidy cfg 
+    -- toDoc        = ppr_rtype env TopPrec
+    -- env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
 
 
 -- | @annotate@ actually renders the output to files 
@@ -218,24 +219,8 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
-    bindStr (x, v) = (maybe "_" varStr x, render v) -- $ ppr_rtype env TopPrec v)
-    short          = shortNames cfg
-    shorten        = if short then dropModuleNames  else id
-    varStr         = shorten -- . showPpr
-
-mkAnnMapBindersOLD cfg (AI m)
-  = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
-  $ groupWith (lineCol . fst)
-    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
-  where
-    bindStr (x, v) = (maybe "_" varStr x, render $ ppr_rtype env TopPrec v)
-    short          = shortNames cfg
-    env            = if short then ppEnvShort ppEnv else ppEnv
-    shorten        = if short then dropModuleNames  else id
-    varStr         = shorten . showPpr
-
-
-
+    bindStr (x, v) = (maybe "_" shorten x, render v)
+    shorten        = if shortNames cfg then dropModuleNames else id
 
 closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
