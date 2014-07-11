@@ -1,7 +1,11 @@
 
-{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE FlexibleInstances  #-}
 
-module Language.Haskell.Liquid.Errors (applySolution) where
+-- | This module contains the functions related to @Error@ type, 
+-- in particular, to @tidy@ errors using a solution, and @pprint@ errors.
+
+module Language.Haskell.Liquid.Errors (tidyError) where
 
 import Data.Monoid                              hiding ((<>))
 import Control.Exception                        (Exception (..)) 
@@ -10,8 +14,20 @@ import Text.PrettyPrint.HughesPJ
 import Data.Aeson    
 import SrcLoc                                   (SrcSpan)
 import Language.Fixpoint.Misc
+import Language.Fixpoint.Types
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Tidy
+
+------------------------------------------------------------------------
+tidyError :: FixSolution -> Error -> Error
+------------------------------------------------------------------------
+tidyError = error "TODO: tidyError"
+-- HEREHEREHERE
+-- 1. apply solution
+-- 2. gather and filter binders
+-- 3. modify ppError to show context 
+
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
 ------------------------------------------------------------------------
