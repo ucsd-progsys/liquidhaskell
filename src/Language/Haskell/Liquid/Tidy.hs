@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Tidy (tidySpecType, tidyError) where
+module Language.Haskell.Liquid.Tidy (tidySpecType) where
 
 import Outputable   (showPpr) -- hiding (empty)
 import Control.Applicative
@@ -14,14 +14,6 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
-
----------------------------------------------------------------------
--- | Tidy Error befor rendering -------------------------------------
----------------------------------------------------------------------
-
-tidyError :: Error -> Error
-tidyError = error "TODO: tidyError"
-
 
 ---------------------------------------------------------------------
 -- | Tidy SpecType befor rendering ----------------------------------

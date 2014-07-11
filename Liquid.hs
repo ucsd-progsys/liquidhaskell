@@ -20,6 +20,7 @@ import Language.Fixpoint.Types (sinfo)
 
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.CmdLine
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.Constraint       
@@ -83,13 +84,12 @@ solveCs cfg target cgi info dc
        let names = checkedNames dc
        let warns = logWarn cgi
        let annm  = annotMap cgi
-       let res   = appSolResult sol $ result $ sinfo <$> r
+       let res   = ferr sol r -- fmap (tidyError sol) $ result $ sinfo <$> r
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
     where 
        fx        = def { FC.solver = smtsolver cfg, FC.real = real cfg }
-      
-appSolResult     = error "TODO: appSolResult"
+       ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
