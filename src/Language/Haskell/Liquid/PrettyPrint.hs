@@ -41,7 +41,7 @@ import Text.Parsec.Error (ParseError)
 import Var              (Var)
 import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
-import Data.List    (sort)
+import Data.List    (sort, sortBy)
 import Data.Function (on)
 import Data.Monoid   (mempty)
 import Data.Aeson    
@@ -311,9 +311,17 @@ pprXOT (x, v) = (xd, pprint v)
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
 
+instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
+  pprint = ppTable
+    
+ppTable m = vcat $ pprxt <$> xts
+  where 
+    pprxt (x,t) = pprint x $$ nest n (dcolon <+> pprint t)  
+    -- n           = 1 + min thresh kn
+    n          = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
+    keySize     = length . render . pprint
+    xts         = sortBy (compare `on` fst) $ M.toList m
+    thresh      = 6
 
-instance (PPrint k, PPrint v) => PPrint (M.HashMap k v) where
-  pprint m  = vcat $ map pprxt $ M.toList m
-    where 
-      pprxt (x, t) = pprint x <> dcolon <> pprint t  
+
 

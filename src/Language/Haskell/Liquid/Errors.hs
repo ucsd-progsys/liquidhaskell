@@ -27,6 +27,8 @@ import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import           Control.Arrow                       (second)
 
+type Ctx = M.HashMap Symbol SpecType
+
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
@@ -36,27 +38,46 @@ tidyError sol
   . applySolution sol
 
 tidyErrContext s err@(ErrSubType {})
-  = err { ctx = tidyCtx xs $ ctx err }
+  = err { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
-      xs = syms tA ++ syms tE
-      tA = tact err
-      tE = texp err
+      (θ, c') = tidyCtx xs $ ctx err 
+      xs      = syms tA ++ syms tE
+      tA      = tact err
+      tE      = texp err
 
 tidyErrContext _ err
   = err
 
 ---------------------------------------------------------------------------------
-tidyCtx       :: [Symbol] -> M.HashMap Symbol SpecType -> M.HashMap Symbol SpecType
+tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx) 
 ---------------------------------------------------------------------------------
-tidyCtx xs m  = M.fromList $ tidyTemps $ second stripReft <$> tidyREnv xs m
+tidyCtx xs m  = (θ, M.fromList yts) 
+  where
+    yts       = [(tidySymbol x, t) | (x, t) <- xts]
+    (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
+
 
 stripReft     :: SpecType -> SpecType
 stripReft t   = maybe t' (strengthen t') $ stripRTypeBase t
   where
     t'        = ofType $ toType t
 
-tidyTemps     :: [(Symbol, SpecType)] -> [(Symbol, SpecType)]
-tidyTemps xts = [(txB x, txTy t) | (x, t) <- xts]
+tidyREnv        :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
+tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m)]
+  where
+    xs'       = expandFix deps xs
+    deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
+
+expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
+expandFix f xs            = S.toList $ go S.empty xs
+  where
+    go seen []            = seen
+    go seen (x:xs)
+      | x `S.member` seen = go seen xs
+      | otherwise         = go (S.insert x seen) (f x ++ xs)
+
+tidyTemps     :: (Subable t) => [(Symbol, t)] -> (Subst, [(Symbol, t)])
+tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
   where
     txB  x    = M.lookupDefault x x m
     txTy      = subst θ
@@ -72,19 +93,6 @@ niceTemps     = mkSymbol <$> xs ++ ys
     xs        = single   <$> ['a' .. 'z'] 
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 
-tidyREnv        :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
-tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m)]
-  where
-    xs'       = expandFix deps xs
-    deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
-
-expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
-expandFix f xs          = S.toList $ go S.empty xs
-  where
-    go seen []          = seen
-    go seen (x:xs)
-      | x `S.member` seen = go seen xs
-      | otherwise         = go (S.insert x seen) (f x ++ xs)
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------

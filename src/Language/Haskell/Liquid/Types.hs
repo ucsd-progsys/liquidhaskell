@@ -1101,7 +1101,7 @@ instance PPrint Sort where
   pprint = toFix  
 
 instance PPrint Symbol where
-  pprint = toFix
+  pprint = pprint . symbolString
 
 instance PPrint Expr where
   pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 

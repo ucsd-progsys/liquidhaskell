@@ -5,10 +5,12 @@
 
 
 module Language.Haskell.Liquid.Tidy (
-    -- * Tidying function
-    tidySpecType
 
-    -- * Predicate for temp symbols
+    -- * Tidying functions
+    tidySpecType
+  , tidySymbol
+
+    -- * Tidyness tests
   , isTmpSymbol
   ) where
 
@@ -29,6 +31,12 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType
 
 -------------------------------------------------------------------------
+tidySymbol :: Symbol -> Symbol
+-------------------------------------------------------------------------
+tidySymbol = S . takeWhile (/= symSepName) . symbolString
+
+
+-------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
 isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
@@ -46,11 +54,11 @@ tidySpecType k = tidyDSymbols
                . tidyTyVars 
 
 tidySymbols :: SpecType -> SpecType
-tidySymbols t = substa dropSuffix $ mapBind dropBind t  
+tidySymbols t = substa tidySymbol $ mapBind dropBind t  
   where 
     xs         = S.fromList (syms t)
-    dropBind x = if x `S.member` xs then dropSuffix x else nonSymbol  
-    dropSuffix = S . takeWhile (/= symSepName) . symbolString
+    dropBind x = if x `S.member` xs then tidySymbol x else nonSymbol  
+
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
 tidyLocalRefas k = mapReft (txStrata . txReft' k)
