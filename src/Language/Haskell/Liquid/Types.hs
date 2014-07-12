@@ -1016,6 +1016,7 @@ insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
 rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
 rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
+
 rTypeReft :: (Reftable r) => RType p c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase 
 
