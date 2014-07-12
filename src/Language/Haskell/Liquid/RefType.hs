@@ -613,8 +613,8 @@ instance PPrint RTyCon where
 instance Show RTyCon where
   show = showpp  
 
--- instance PPrint REnv where
---   pprint (REnv m)  = pprint m
+instance PPrint REnv where
+  pprint (REnv m)  = pprint m
  
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
