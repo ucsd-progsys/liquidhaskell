@@ -1,6 +1,15 @@
+---------------------------------------------------------------------
+-- | This module contains functions for cleaning up types before
+--   they are rendered, e.g. in error messages or annoations.
+---------------------------------------------------------------------
+
+
 module Language.Haskell.Liquid.Tidy (
     -- * Tidying function
-  tidySpecType
+    tidySpecType
+
+    -- * Predicate for temp symbols
+  , isTmpSymbol
   ) where
 
 import Outputable   (showPpr) -- hiding (empty)
@@ -19,11 +28,17 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType
 
----------------------------------------------------------------------
--- | Tidy SpecType befor rendering ----------------------------------
----------------------------------------------------------------------
+-------------------------------------------------------------------------
+isTmpSymbol    :: Symbol -> Bool
+-------------------------------------------------------------------------
+isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
+  where 
+    str        = symbolString x
 
+
+-------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType  
+-------------------------------------------------------------------------
 tidySpecType k = tidyDSymbols
                . tidySymbols 
                . tidyLocalRefas k 
@@ -43,15 +58,11 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     txReft' Full                  = id 
     txReft' Lossy                 = txReft
     txStrata (U r p l)            = U r p (txStr l) 
-    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l -- (txStrata (syms t) l)
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l
     dropLocals                    = filter (not . any isTmp . syms) . flattenRefas
     isTmp x                       = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
     txStr                         = filter (not . isSVar) 
 
-
-
-isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
-  where str    = symbolString x
 
 
 tidyDSymbols :: SpecType -> SpecType  

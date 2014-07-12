@@ -25,27 +25,58 @@ import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
+import           Control.Arrow                       (second)
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError sol = tidyContext sol
-              . fmap (tidySpecType Full) . applySolution sol
+tidyError sol 
+  = fmap (tidySpecType Full) 
+  . tidyErrContext sol
+  . applySolution sol
 
-tidyContext s err@(ErrSubType {})
-  = err { ctx = shrinkREnv xs $ ctx err }
+tidyErrContext s err@(ErrSubType {})
+  = err { ctx = tidyCtx xs $ ctx err }
     where
       xs = syms tA ++ syms tE
       tA = tact err
       tE = texp err
 
-tidyContext _ err
+tidyErrContext _ err
   = err
 
-shrinkREnv xs m = M.fromList $ [(x, t) | x <- xs', t <- maybeToList (M.lookup x m)]
-    where
-      xs'       = expandFix deps xs
-      deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
+---------------------------------------------------------------------------------
+tidyCtx       :: [Symbol] -> M.HashMap Symbol SpecType -> M.HashMap Symbol SpecType
+---------------------------------------------------------------------------------
+tidyCtx xs m  = M.fromList $ tidyTemps $ second stripReft <$> tidyREnv xs m
+
+stripReft     :: SpecType -> SpecType
+stripReft t   = maybe t' (strengthen t') $ stripRTypeBase t
+  where
+    t'        = ofType $ toType t
+
+tidyTemps     :: [(Symbol, SpecType)] -> [(Symbol, SpecType)]
+tidyTemps xts = [(txB x, txTy t) | (x, t) <- xts]
+  where
+    txB  x    = M.lookupDefault x x m
+    txTy      = subst θ
+    m         = M.fromList yzs
+    θ         = mkSubst [(y, EVar z) | (y, z) <- yzs]
+    yzs       = zip ys niceTemps
+    ys        = [ x | (x,_) <- xts, isTmpSymbol x]
+
+niceTemps     :: [Symbol]
+niceTemps     = mkSymbol <$> xs ++ ys 
+  where
+    mkSymbol  = symbol . ('?' :)
+    xs        = single   <$> ['a' .. 'z'] 
+    ys        = ("a" ++) <$> [show n | n <- [0 ..]]
+
+tidyREnv        :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
+tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m)]
+  where
+    xs'       = expandFix deps xs
+    deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
 expandFix f xs          = S.toList $ go S.empty xs
@@ -54,7 +85,6 @@ expandFix f xs          = S.toList $ go S.empty xs
     go seen (x:xs)
       | x `S.member` seen = go seen xs
       | otherwise         = go (S.insert x seen) (f x ++ xs)
-
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
