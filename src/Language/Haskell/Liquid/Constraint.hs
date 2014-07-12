@@ -816,24 +816,6 @@ normalizeVV idx t@(RApp _ _ _ _)
 normalizeVV _ t 
   = t 
 
-shiftVV t@(RApp _ ts _ r) vv' 
-  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RFun _ _ _ r) vv' 
-  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RAppTy _ _ r) vv' 
-  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RVar _ r) vv'
-  = t { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t _ 
-  = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
-
 
 addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
 addBind x r 

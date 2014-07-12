@@ -42,12 +42,15 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , rTypeSortedReft, rTypeSort
   , dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
   , classBinds
-  
-  
+ 
+  -- * Manipulating Refinements in RTypes 
+  , rTypeSortedReft
+  , rTypeSort
+  , shiftVV
+
   , mkDataConIdsTy
   , mkTyConInfo 
   ) where
@@ -81,7 +84,8 @@ import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Fixpoint.Types hiding (Predicate)
+import qualified Language.Fixpoint.Types as F
+import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
 import Language.Fixpoint.Misc
@@ -609,8 +613,8 @@ instance PPrint RTyCon where
 instance Show RTyCon where
   show = showpp  
 
-instance PPrint REnv where
-  pprint (REnv m)  = pprint m
+-- instance PPrint REnv where
+--   pprint (REnv m)  = pprint m
  
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
@@ -912,14 +916,35 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
--- applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
+-------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType 
+-------------------------------------------------------------------------------
 applySolution = fmap . fmap . mapReft . map . appSolRefa 
   where 
     appSolRefa _ ra@(RConc _)        = ra 
     -- appSolRefa _ p@(RPvar _)  = p  
     appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s  
     mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
+
+-------------------------------------------------------------------------------
+shiftVV :: SpecType -> Symbol -> SpecType
+-------------------------------------------------------------------------------
+
+shiftVV t@(RApp _ ts _ r) vv' 
+  = t { rt_args = subst1 ts (rTypeValueVar t, EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RFun _ _ _ r) vv' 
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RAppTy _ _ r) vv' 
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RVar _ r) vv'
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t _ 
+  = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
 
 ------------------------------------------------------------------------

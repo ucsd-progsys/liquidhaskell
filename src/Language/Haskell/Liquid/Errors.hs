@@ -14,11 +14,12 @@ import           Data.Aeson
 import           Data.Hashable
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
-import           Data.List                           (intersperse)
+import           Data.List                           (sortBy, intersperse)
+import           Data.Function                       (on)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              hiding (intersperse)
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types             hiding (shiftVV)
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
 import           Language.Haskell.Liquid.Tidy
@@ -53,14 +54,21 @@ tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
 ---------------------------------------------------------------------------------
 tidyCtx xs m  = (θ, M.fromList yts) 
   where
-    yts       = [(tidySymbol x, t) | (x, t) <- xts]
+    yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
+    tBind x t = (x', shiftVV t x') where x' = tidySymbol x
 
 
 stripReft     :: SpecType -> SpecType
-stripReft t   = maybe t' (strengthen t') $ stripRTypeBase t
+stripReft t   = maybe t' (strengthen t') ro 
+  where
+    (t', ro)  = stripRType t                
+
+stripRType    :: SpecType -> (SpecType, Maybe RReft)
+stripRType t  = (t', ro)
   where
     t'        = ofType $ toType t
+    ro        = stripRTypeBase  t 
 
 tidyREnv        :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
 tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m)]
@@ -98,13 +106,22 @@ niceTemps     = mkSymbol <$> xs ++ ys
 -- | Pretty Printing Error Messages ------------------------------------
 ------------------------------------------------------------------------
 
--- Need to put this here intead of in Types, because it depends on the
--- printer for SpecTypes, which lives in this module.
+-- | Need to put @PPrint Error@ instance here (instead of in Types), 
+--   as it depends on @PPrint SpecTypes@, which lives in this module.
 
 instance PPrint Error where
-  pprint = ppError . fmap (rtypeDoc Lossy)
-            -- undefined
-            -- ppError . ppr_rtype
+  pprint = ppError . fmap ppSpecTypeErr -- (rtypeDoc Lossy)
+
+ppSpecTypeErr   :: SpecType -> Doc
+ppSpecTypeErr t 
+  | isTrivial t = dt
+  | otherwise   = dt <+> dr 
+    where
+      dt        = rtypeDoc Lossy t'
+      dr        = maybe empty ((text "|" <+>) . pprint) ro 
+      (t', ro)  = stripRType t
+
+-- full = isNontrivialVV $ rTypeValueVar t = 
 
 instance Show Error where
   show = showpp
@@ -128,7 +145,6 @@ blankLine    = sizedText 5 " "
 ppError' :: (PPrint a) => Doc -> TError a -> Doc
 -----------------------------------------------------------------------
 
-
 ppError' dSp (ErrAssType _ OTerm s r)
   = dSp <+> text "Termination Check"
 
@@ -139,9 +155,9 @@ ppError' dSp (ErrSubType _ s c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
 --      DO NOT DELETE EVER!
         $+$ sepVcat blankLine
-              [ nests 2 [text "Required Type", pprint tE]
-              , nests 2 [text "Actual Type"  , pprint tA]
-              , nests 2 [text "In Context"   , pprint c ]]
+              [ nests 2 [text "Required Type", text "VV :" <+> pprint tE]
+              , nests 2 [text "Actual Type"  , text "VV :" <+> pprint tA]
+              , nests 2 [text "In Context"   , pprint c                 ]]
 
 
 ppError' dSp (ErrParse _ _ e)
@@ -195,6 +211,20 @@ ppError' _ (ErrOther _ s)
 
 
 ppVar v = text "`" <> pprint v <> text "'"
+
+
+-- instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
+--   pprint = ppTable
+
+-- ppXTS xts'      = vcat $ ppXT n <$> xts
+--   where 
+--     n           = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
+--     keySize     = length . render . pprint
+--     xts         = sortBy (compare `on` fst) xts' -- $ M.toList m
+--     thresh      = 6
+--     
+-- ppXT n (x,t)    = pprint x $$ nest n (colon <+> pprint t)  
+--   where x       = rTypeValueVar t
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)
