@@ -43,7 +43,7 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo (..), Error (..), Output (..))
+import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
