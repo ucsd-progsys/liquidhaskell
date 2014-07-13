@@ -110,7 +110,8 @@ niceTemps     = mkSymbol <$> xs ++ ys
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
 instance PPrint Error where
-  pprint = ppError . fmap ppSpecTypeErr -- (rtypeDoc Lossy)
+  pprint       = pprintTidy Full
+  pprintTidy k = ppError k . fmap ppSpecTypeErr 
 
 ppSpecTypeErr   :: SpecType -> Doc
 ppSpecTypeErr t 
@@ -130,83 +131,84 @@ instance Exception Error
 instance Exception [Error]
 
 ------------------------------------------------------------------------
-ppError :: (PPrint a) => TError a -> Doc
+ppError :: (PPrint a) => Tidy -> TError a -> Doc
 ------------------------------------------------------------------------
 
-ppError e = ppError' (pprintE $ errSpan e) e
-pprintE l = pprint l <> text ": Error:"
+ppError k e  = ppError' k (pprintE $ errSpan e) e
+pprintE l    = pprint l <> text ": Error:"
 
-nests n    = foldr (\d acc -> nest n (d $+$ acc)) empty
+nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 
 sepVcat d ds = vcat $ intersperse d ds
 blankLine    = sizedText 5 " "
 
 ------------------------------------------------------------------------
-ppError' :: (PPrint a) => Doc -> TError a -> Doc
+ppError' :: (PPrint a) => Tidy -> Doc -> TError a -> Doc
 -----------------------------------------------------------------------
 
-ppError' dSp (ErrAssType _ OTerm s r)
+ppError' _ dSp (ErrAssType _ OTerm s r)
   = dSp <+> text "Termination Check"
 
-ppError' dSp (ErrAssType _ OInv s r)
+ppError' _ dSp (ErrAssType _ OInv s r)
   = dSp <+> text "Invariant Check"
 
-ppError' dSp (ErrSubType _ s c tA tE)
+ppError' Lossy dSp (ErrSubType _ s c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
---      DO NOT DELETE EVER!
+
+ppError' Full  dSp (ErrSubType _ s c tA tE)
+  = dSp <+> text "Liquid Type Mismatch"
         $+$ sepVcat blankLine
               [ nests 2 [text "Required Type", text "VV :" <+> pprint tE]
               , nests 2 [text "Actual Type"  , text "VV :" <+> pprint tA]
               , nests 2 [text "In Context"   , pprint c                 ]]
 
-
-ppError' dSp (ErrParse _ _ e)
+ppError' _ dSp (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
     $+$ (nest 4 $ pprint e)
 
-ppError' dSp (ErrTySpec _ v t s)
+ppError' _ dSp (ErrTySpec _ v t s)
   = dSp <+> text "Bad Type Specification"
     $+$ (pprint v <+> dcolon <+> pprint t)
     $+$ (nest 4 $ pprint s)
 
-ppError' dSp (ErrInvt _ t s)
+ppError' _ dSp (ErrInvt _ t s)
   = dSp <+> text "Bad Invariant Specification"
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
 
-ppError' dSp (ErrIAl _ t s)
+ppError' _ dSp (ErrIAl _ t s)
   = dSp <+> text "Bad Using Specification"
     $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
 
-ppError' dSp (ErrIAlMis _ t1 t2 s)
+ppError' _ dSp (ErrIAlMis _ t1 t2 s)
   = dSp <+> text "Incompatible Using Specification"
     $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
-ppError' dSp (ErrMeas _ t s)
+ppError' _ dSp (ErrMeas _ t s)
   = dSp <+> text "Bad Measure Specification"
     $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
-ppError' dSp (ErrDupSpecs _ v ls)
+ppError' _ dSp (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
     $+$ (nest 4 $ vcat $ pprint <$> ls)
 
-ppError' dSp (ErrDupAlias _ k v ls)
+ppError' _ dSp (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
     <+> (nest 4 $ vcat $ pprint <$> ls)
 
-ppError' dSp (ErrGhc _ s)
+ppError' _ dSp (ErrGhc _ s)
   = dSp <+> text "GHC Error"
     $+$ (nest 4 $ pprint s)
 
-ppError' dSp (ErrMismatch _ x τ t)
+ppError' _ dSp (ErrMismatch _ x τ t)
   = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t
 
-ppError' dSp (ErrSaved _ s)
+ppError' _ dSp (ErrSaved _ s)
   = dSp <+> s
 
-ppError' _ (ErrOther _ s)
+ppError' _ _ (ErrOther _ s)
   = text "Panic!" <+> nest 4 (pprint s)
 
 
@@ -228,7 +230,7 @@ ppVar v = text "`" <> pprint v <> text "'"
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)
-                    , "msg" .= (render $ ppError' empty e)
+                    , "msg" .= (render $ ppError' Full empty e)
                     ]
 
 instance FromJSON Error where
