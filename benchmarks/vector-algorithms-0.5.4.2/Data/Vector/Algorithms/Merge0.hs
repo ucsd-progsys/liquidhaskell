@@ -101,11 +101,8 @@ merge cmp src buf mid = do unsafeCopy low lower
 
   {- LIQUID WITNESS -}
  wroteHigh d1 (d2::Int) iLow eLow iHigh iIns
-   | iHigh >= length high = let c1 = unsafeSlice iLow (length low - iLow) src in 
-                            let c2 = unsafeSlice iLow (length low - iLow) low in
-                            unsafeCopy c1 c2
-                            -- unsafeCopy (unsafeSlice iLow (length low - iLow) src)
-                            --            (unsafeSlice iLow (length low - iLow) low)
+   | iHigh >= length high =  unsafeCopy (unsafeSlice iLow (length low - iLow) src)
+                                        (unsafeSlice iLow (length low - iLow) low)
    | otherwise            = do eHigh <- unsafeRead high iHigh
                                loopMerge d1 0 iLow eLow iHigh eHigh iIns
 
