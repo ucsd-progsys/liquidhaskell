@@ -270,8 +270,8 @@ pred0P :: Parser Pred
 pred0P =  try trueP 
       <|> try falseP 
       <|> try predrP 
---      <|> try (reservedOp "&&" >> liftM PAnd predsP)
---      <|> try (reservedOp "||" >> liftM POr  predsP)
+      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+      <|> try (reservedOp "||" >> liftM POr  predsP)
       <|> (qmP >> liftM PBexp exprP)
       <|> try (liftM PBexp funAppP)
       <|> try (parens $ condP pIte predP)
