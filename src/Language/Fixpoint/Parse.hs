@@ -229,6 +229,27 @@ symCharsP  = (condIdP symChars (\_ -> True))
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
+trueP  = reserved "true"  >> return PTrue
+falseP = reserved "false" >> return PFalse
+
+pred0P =  try trueP 
+      <|> try falseP 
+      <|> try predrP 
+      <|> try (liftM PBexp funAppP)
+      <|> try (parens $ condP pIte predP)
+      <|> parens pred3P 
+
+pred3P = buildExpressionParser lops pred0P
+
+funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+  where 
+    exprFunSpacesP = {- parens $ -} liftM2 EApp funSymbolP (sepBy exprP spaces) 
+    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
+    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+    funSymbolP     = locParserP symbolP
+
+
+
 predP :: Parser Pred
 predP =  try (parens pred2P)
      <|> try (parens $ condP pIte predP)
