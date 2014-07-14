@@ -6,7 +6,7 @@ RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 # REVEAL=$(PANDOC) -t revealjs -V revealjs-url=../_support/reveal -V theme=serif
 
 REVEAL=pandoc \
-	   --from=markdown+simple_tables 		\
+	   --from=markdown\
 	   --to=html5                           \
 	   --standalone                         \
 	   --mathjax \
