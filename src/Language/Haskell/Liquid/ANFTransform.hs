@@ -39,6 +39,7 @@ import           Language.Haskell.Liquid.TransformRec
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
+import           Control.Applicative
 
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
@@ -91,7 +92,7 @@ subst msg as as' bt
 
 
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
-   deriving (Functor, Monad, MonadUnique)
+   deriving (Functor, Monad, MonadUnique, Applicative)
 
 data DsST = DsST { st_expandflag :: Bool
                  , st_binds      :: [CoreBind]
@@ -199,7 +200,7 @@ normalize _ e@(Type _)
   = return e
 
 normalize γ (Cast e τ)
-  = do e'    <- normalize γ e
+  = do e'    <- normalizeName γ e
        return $ Cast e' τ
 
 normalize γ (App e1 e2)
