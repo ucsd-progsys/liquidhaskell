@@ -140,7 +140,7 @@ double        = Token.float         lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer =  try (reservedOp "-" >> (negate <$> posInteger))
+integer =  try (char '-' >> (negate <$> posInteger))
        <|> posInteger
 
 posInteger = toI <$> (many1 digit <* spaces)
