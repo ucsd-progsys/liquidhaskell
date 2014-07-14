@@ -28,9 +28,9 @@ returnST :: a -> ST a s
 returnST x = S $ \s -> (x, s)
 
 {-@ bindF0 :: forall < p :: s -> Prop
-                    , w :: b -> s -> Prop
-                    , q :: s -> a -> s -> Prop
-                    , r :: s -> b -> s -> Prop>.
+                     , w :: b -> s -> Prop
+                     , q :: s -> a -> s -> Prop
+                     , r :: s -> b -> s -> Prop>.
             (xm:s<p> -> (a, s)<q xm>) 
          -> (xbind:a -> xk:s -> (b, s)<r xk>) 
          -> (xr:s<p> -> exists[xa:a].exists[xs:s<q xr xa>].(b, s)<r xs>)

@@ -230,7 +230,7 @@ bareAllS
 
 bareAllP 
   = do reserved "forall"
-       as <- many tyVarIdP -- sepBy1 tyVarIdP comma
+       as <- many tyVarIdP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
@@ -350,11 +350,24 @@ monoPredicate1P
   <|> try (liftM pdVar (parens predVarUseP))
   <|> liftM pdVar predVarUseP 
 
-predVarUseP 
- = do p  <- predVarIdP
-      xs <- sepBy exprP spaces
-      return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+-- HEREHEREHEREHEREHERE FIXME. SIGH.
+-- predVarUseP 
+--  = do p  <- predVarIdP
+--       xs <- sepBy exprP spaces
+--       return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
+predVarUseP 
+  = do (p, xs) <- funArgsP 
+       return   $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+
+
+funArgsP  = try realP <|> empP
+  where
+    empP  = (,[]) <$> predVarIdP
+    realP = do EApp lp xs <- funAppP
+               return (val lp, xs) 
+
+  
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
@@ -700,6 +713,7 @@ dataSizeP
   <|> return Nothing
   where mkFun s = \x -> EApp (stringSymbol <$> s) [EVar x]
 
+dataDeclP :: Parser DataDecl 
 dataDeclP 
    =  try dataDeclFullP
   <|> dataDeclSizeP
