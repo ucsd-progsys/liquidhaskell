@@ -57,6 +57,7 @@ import           Language.Fixpoint.Types hiding (Def (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
+import           Language.Haskell.Liquid.Errors
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
@@ -74,10 +75,9 @@ mkOutput cfg res sol anna
       }
   where
     annTmpl      = closeAnnots anna
-    annTy        = tidySpecType <$> applySolution sol annTmpl 
-    toDoc        = ppr_rtype env TopPrec
-    env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
-
+    annTy        = tidySpecType Lossy <$> applySolution sol annTmpl 
+    toDoc        = rtypeDoc tidy
+    tidy         = if shortNames cfg then Lossy else Full
 
 -- | @annotate@ actually renders the output to files 
 -------------------------------------------------------------------
@@ -217,24 +217,8 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
-    bindStr (x, v) = (maybe "_" varStr x, render v) -- $ ppr_rtype env TopPrec v)
-    short          = shortNames cfg
-    shorten        = if short then dropModuleNames  else id
-    varStr         = shorten -- . showPpr
-
-mkAnnMapBindersOLD cfg (AI m)
-  = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
-  $ groupWith (lineCol . fst)
-    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
-  where
-    bindStr (x, v) = (maybe "_" varStr x, render $ ppr_rtype env TopPrec v)
-    short          = shortNames cfg
-    env            = if short then ppEnvShort ppEnv else ppEnv
-    shorten        = if short then dropModuleNames  else id
-    varStr         = shorten . showPpr
-
-
-
+    bindStr (x, v) = (maybe "_" shorten x, render v)
+    shorten        = if shortNames cfg then dropModuleNames else id
 
 closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 
 closeAnnots = closeA . filterA . collapseA
@@ -322,14 +306,6 @@ chopAltDBG y = {- traceShow ("chopAlts: " ++ y) $ -}
 
 
 
-
-applySolution :: FixSolution -> AnnInfo SpecType -> AnnInfo SpecType 
-applySolution = fmap . fmap . mapReft . map . appSolRefa 
-  where 
-    appSolRefa _ ra@(RConc _)        = ra 
-    -- appSolRefa _ p@(RPvar _)  = p  
-    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s  
-    mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
 
 ------------------------------------------------------------------------
 -- | JSON: Annotation Data Types ---------------------------------------

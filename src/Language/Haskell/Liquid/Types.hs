@@ -1,5 +1,6 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -15,7 +16,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Options
     Config (..)
-
+  
   -- * Ghc Information
   , GhcInfo (..)
   , GhcSpec (..)
@@ -86,20 +87,25 @@ module Language.Haskell.Liquid.Types (
   , showpp
    
   -- * Printer Configuration 
-  , PPEnv (..), ppEnv, ppEnvShort
+  , PPEnv (..)
+  , Tidy  (..)
+  -- , configTidy
+  , ppEnv, ppEnvShort
 
   -- * Import handling
   , ModName (..), ModType (..), isSrcImport, isSpecImport
   , getModName, getModString
 
   -- * Refinement Type Aliases
+  , REnv (..)
   , RTEnv (..), mapRT, mapRP, RTBareOrSpec
 
   -- * Final Result
   , Result (..)
 
   -- * Different kinds of errors
-  , Error (..)
+  , Error
+  , TError (..)
   , EMsg (..)
   , LParseError (..)
   , ErrorResult
@@ -195,7 +201,8 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]
-  , shortNames     :: Bool       -- ^ whether to drop module qualifers from pretty-printed names
+  , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
+  , shortErrors    :: Bool       -- ^ don't show subtyping errors and contexts. 
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   } deriving (Data, Typeable, Show, Eq)
 
@@ -204,17 +211,19 @@ data Config = Config {
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
+data Tidy = Lossy | Full deriving (Eq, Ord)
+
 class PPrint a where
-  pprint :: a -> Doc
+  pprint     :: a -> Doc
+
+  pprintTidy :: Tidy -> a -> Doc
+  pprintTidy _ = pprint
 
 showpp :: (PPrint a) => a -> String 
 showpp = render . pprint 
 
 showEMsg :: (PPrint a) => a -> EMsg 
 showEMsg = EMsg . showpp 
-
--- pshow :: PPrint a => a -> String
--- pshow = render . pprint
 
 instance PPrint a => PPrint (Maybe a) where
   pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
@@ -1003,6 +1012,7 @@ insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
 rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
 rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
+
 rTypeReft :: (Reftable r) => RType p c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase 
 
@@ -1087,7 +1097,7 @@ instance PPrint Sort where
   pprint = toFix  
 
 instance PPrint Symbol where
-  pprint = toFix
+  pprint = pprint . symbolString
 
 instance PPrint Expr where
   pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 
@@ -1156,26 +1166,30 @@ instance PPrint SortedReft where
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
+-- | The type used during constraint generation, used also to define contexts
+-- for errors, hence in this file, and NOT in Constraint.hs
+newtype REnv = REnv  (M.HashMap Symbol SpecType)
 
 type ErrorResult = FixResult Error
 
 newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
 
-
 instance PPrint EMsg where
   pprint (EMsg s) = text s
 
--- | In the below, we use EMsg instead of, say, SpecType because the latter is
--- impossible to serialize, as it contains GHC internals like TyCon and Class
--- inside it.
+-- | In the below, we use EMsg instead of, say, SpecType because 
+--   the latter is impossible to serialize, as it contains GHC 
+--   internals like TyCon and Class inside it.
+
+type Error = TError SpecType
 
 -- | INVARIANT : all Error constructors should hava a pos field
-
-data Error = 
-    ErrSubType  { pos :: !SrcSpan
-                , msg :: !Doc 
-                , act :: !SpecType
-                , exp :: !SpecType
+data TError t = 
+    ErrSubType  { pos  :: !SrcSpan
+                , msg  :: !Doc 
+                , ctx  :: !(M.HashMap Symbol t) 
+                , tact :: !t
+                , texp :: !t
                 } -- ^ liquid type error
 
    | ErrAssType { pos :: !SrcSpan
@@ -1191,7 +1205,7 @@ data Error =
 
   | ErrTySpec   { pos :: !SrcSpan
                 , var :: !Doc
-                , typ :: !SpecType  
+                , typ :: !t
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
@@ -1207,18 +1221,18 @@ data Error =
                 } -- ^ multiple specs for same binder error 
 
   | ErrInvt     { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !t
                 , msg :: !Doc
                 } -- ^ Invariant sort error
 
   | ErrIAl      { pos :: !SrcSpan
-                , inv :: !SpecType
+                , inv :: !t
                 , msg :: !Doc
                 } -- ^ Using  sort error
 
   | ErrIAlMis   { pos :: !SrcSpan
-                , t1  :: !SpecType
-                , t2  :: !SpecType
+                , t1  :: !t
+                , t2  :: !t
                 , msg :: !Doc
                 } -- ^ Incompatible using error
 
@@ -1231,10 +1245,10 @@ data Error =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos :: !SrcSpan
-                , var :: !Doc
-                , hs  :: !Type
-                , exp :: !SpecType
+  | ErrMismatch { pos  :: !SrcSpan
+                , var  :: !Doc
+                , hs   :: !Type
+                , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrSaved    { pos :: !SrcSpan 
@@ -1244,7 +1258,7 @@ data Error =
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
-  deriving (Typeable)
+  deriving (Typeable, Functor)
 
 data LParseError = LPE !SourcePos [String] 
                    deriving (Data, Typeable, Generic)
@@ -1259,9 +1273,10 @@ instance Ord Error where
 instance Ex.Error Error where
   strMsg = errOther . pprint
 
-errSpan :: Error -> SrcSpan
+errSpan :: TError a -> SrcSpan
 errSpan = pos 
 
+errOther :: Doc -> Error
 errOther = ErrOther noSrcSpan
 
 ------------------------------------------------------------------------

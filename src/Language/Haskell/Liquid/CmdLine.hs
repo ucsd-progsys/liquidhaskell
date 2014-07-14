@@ -95,8 +95,7 @@ config = Config {
  , nocaseexpand
     = def &= help "Disable Termination Check"
           &= name "no-case-expand"
-
-, strata
+ , strata
     = def &= help "Enable Strata Analysis"
 
  , notruetypes
@@ -120,6 +119,10 @@ config = Config {
  , shortNames
     = def &= name "short-names"
           &= help "Print shortened names, i.e. drop all module qualifiers."
+ 
+ , shortErrors 
+    = def &= name "short-errors"
+          &= help "Don't show long error messages, just line numbers."
 
  , ghcOptions
     = def &= name "ghc-option"
@@ -189,7 +192,7 @@ parsePragma s = withArgs [val s] $ cmdArgs config
 
   
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def 2 def def def
+  mempty        = Config def def def def def def def def def def def def def 2 def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2  
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2 
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2  
@@ -206,6 +209,7 @@ instance Monoid Config where
                          , maxParams      = maxParams      c1   `max`   maxParams      c2 
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2 
                          , shortNames     = shortNames c1        ||     shortNames     c2 
+                         , shortErrors    = shortErrors c1       ||     shortErrors    c2 
                          , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2 }
 
 instance Monoid SMTSolver where
@@ -230,7 +234,7 @@ exitWithResult cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        writeWarns     $ o_warns out
-       writeResult (colorResult r) r
+       writeResult cfg (colorResult r) r
        writeFile   (extFileName Result target) rs
        return $ out { o_result = if null (o_warns out) then r else Unsafe [] }
 
@@ -240,19 +244,22 @@ writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unline
 writeCheckVars Nothing   = return ()
 writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
 
-writeResult c            = mapM_ (writeDoc c) . zip [0..] . resDocs 
+writeResult cfg c        = mapM_ (writeDoc c) . zip [0..] . resDocs tidy 
   where 
+    tidy                 = if shortErrors cfg then Lossy else Full
     writeDoc c (i, d)    = writeBlock c i $ lines $ render d
     writeBlock c _ []    = return ()
     writeBlock c 0 ss    = forM_ ss (colorPhaseLn c "")
     writeBlock c _ ss    = forM_ ("\n" : ss) putStrLn
 
-resDocs Safe             = [text "SAFE"]
-resDocs (Crash xs s)     = text ("CRASH: " ++ s) : pprManyOrdered "" {- "CRASH: " -} xs
-resDocs (Unsafe xs)      = text "UNSAFE" : pprManyOrdered "" {- "UNSAFE: " -} (nub xs)
-resDocs (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl]
-reportUrl                = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
+resDocs _ Safe             = [text "SAFE"]
+resDocs k (Crash xs s)     = text ("CRASH: " ++ s) : pprManyOrdered k "" xs
+resDocs k (Unsafe xs)      = text "UNSAFE" : pprManyOrdered k "" (nub xs)
+resDocs _ (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl]
+
+reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
+
 
 instance Fixpoint (FixResult Error) where
-  toFix = vcat . resDocs
+  toFix = vcat . resDocs Full
 
