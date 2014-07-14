@@ -158,9 +158,12 @@ ppError' Lossy dSp (ErrSubType _ s c tA tE)
 ppError' Full  dSp (ErrSubType _ s c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ sepVcat blankLine
-              [ nests 2 [text "Required Type", text "VV :" <+> pprint tE]
-              , nests 2 [text "Actual Type"  , text "VV :" <+> pprint tA]
-              , nests 2 [text "In Context"   , pprint c                 ]]
+              [ nests 2 [text "Required type" 
+                        , text "VV :" <+> pprint tE]
+              , nests 2 [text "Inferred type (not a subtype of Required)" 
+                        , text "VV :" <+> pprint tA]
+              , nests 2 [text "In Context"
+                        , pprint c                 ]]
 
 ppError' _ dSp (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
