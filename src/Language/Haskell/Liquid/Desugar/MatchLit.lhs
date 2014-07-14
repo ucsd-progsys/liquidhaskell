@@ -156,7 +156,7 @@ conversionNames
 
 \begin{code}
 warnAboutOverflowedLiterals :: DynFlags -> HsOverLit Id -> DsM ()
-warnAboutOverflowedLiterals dflags lit = return ()
+warnAboutOverflowedLiterals dflags lit
 --  | wopt Opt_WarnOverflowedLiterals dflags
 --  , Just (i, tc) <- getIntegralLit lit
 --   = if      tc == intTyConName    then check i tc (undefined :: Int)
@@ -171,7 +171,7 @@ warnAboutOverflowedLiterals dflags lit = return ()
 --     else if tc == word64TyConName then check i tc (undefined :: Word64)
 --     else return ()
 -- 
---   | otherwise = return ()
+  | otherwise = return ()
 --   where
 --     check :: forall a. (Bounded a, Integral a) => Integer -> Name -> a -> DsM ()
 --     check i tc _proxy
@@ -181,8 +181,8 @@ warnAboutOverflowedLiterals dflags lit = return ()
 --                        <+> integer minB <> ptext (sLit "..") <> integer maxB
 --                      , sug ])
 --       where
---         minB = toInteger (minBound :: (Integral a, Bounded a) => a)
---         maxB = toInteger (maxBound :: (Integral a, Bounded a) => a)
+--         minB = toInteger (minBound :: a)
+--         maxB = toInteger (maxBound :: a)
 --         sug | minB == -i   -- Note [Suggest NegativeLiterals]
 --             , i > 0
 --             , not (xopt Opt_NegativeLiterals dflags)
@@ -266,8 +266,8 @@ tidyLitPat :: HsLit -> Pat Id
 tidyLitPat (HsChar c) = unLoc (mkCharLitPat c)
 tidyLitPat (HsString s)
   | lengthFS s <= 1     -- Short string literals only
-  = unLoc $ foldr (\c pat -> mkPrefixConPat consDataCon [mkCharLitPat c, pat] stringTy)
-                  (mkNilPat stringTy) (unpackFS s)
+  = unLoc $ foldr (\c pat -> mkPrefixConPat consDataCon [mkCharLitPat c, pat] [charTy])
+                  (mkNilPat charTy) (unpackFS s)
         -- The stringTy is the type of the whole pattern, not
         -- the type to instantiate (:) or [] with!
 tidyLitPat lit = LitPat lit
@@ -299,7 +299,7 @@ tidyNPat tidy_lit_pat (OverLit val False _ ty) mb_neg _
   | isStringTy ty, Just str_lit <- mb_str_lit = tidy_lit_pat (HsString str_lit)
   where
     mk_con_pat :: DataCon -> HsLit -> Pat Id
-    mk_con_pat con lit = unLoc (mkPrefixConPat con [noLoc $ LitPat lit] ty)
+    mk_con_pat con lit = unLoc (mkPrefixConPat con [noLoc $ LitPat lit] [])
 
     mb_int_lit :: Maybe Integer
     mb_int_lit = case (mb_neg, val) of
@@ -402,7 +402,7 @@ litValKey (HsIntegral i)   False = MachInt i
 litValKey (HsIntegral i)   True  = MachInt (-i)
 litValKey (HsFractional r) False = MachFloat (fl_value r)
 litValKey (HsFractional r) True  = MachFloat (negate (fl_value r))
-litValKey (HsIsString s)   neg   = {-ASSERT( not neg)-} MachStr (fastStringToByteString s)
+litValKey (HsIsString s)   neg   = {- ASSERT( not neg) -} MachStr (fastStringToByteString s)
 \end{code}
 
 %************************************************************************

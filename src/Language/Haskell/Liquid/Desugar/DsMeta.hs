@@ -705,12 +705,14 @@ addTyVarBinds :: LHsTyVarBndrs Name                            -- the binders to
 -- the computations passed as the second argument is executed in that extended
 -- meta environment and gets the *new* names on Core-level as an argument
 
-addTyVarBinds tvs m
-  = do { freshNames <- mkGenSyms (hsLKiTyVarNames tvs)
-       ; term <- addBinds freshNames $
-                 do { kbs <- repList tyVarBndrTyConName mk_tv_bndr (hsQTvBndrs tvs `zip` freshNames)
+addTyVarBinds (HsQTvs { hsq_kvs = kvs, hsq_tvs = tvs }) m
+  = do { fresh_kv_names <- mkGenSyms kvs
+       ; fresh_tv_names <- mkGenSyms (map hsLTyVarName tvs)
+       ; let fresh_names = fresh_kv_names ++ fresh_tv_names
+       ; term <- addBinds fresh_names $
+                 do { kbs <- repList tyVarBndrTyConName mk_tv_bndr (tvs `zip` fresh_tv_names)
                     ; m kbs }
-       ; wrapGenSyms freshNames term }
+       ; wrapGenSyms fresh_names term }
   where
     mk_tv_bndr (tv, (_,v)) = repTyVarBndrWithKind tv (coreVar v)
 
@@ -1196,7 +1198,7 @@ rep_binds binds = do { binds_w_locs <- rep_binds' binds
                      ; return (de_loc (sort_by_loc binds_w_locs)) }
 
 rep_binds' :: LHsBinds Name -> DsM [(SrcSpan, Core TH.DecQ)]
-rep_binds' binds = mapM (rep_bind . snd) (bagToList binds)
+rep_binds' = mapM rep_bind . bagToList
 
 rep_bind :: LHsBind Name -> DsM (SrcSpan, Core TH.DecQ)
 -- Assumes: all the binders of the binding are alrady in the meta-env
@@ -1426,7 +1428,7 @@ globalVar name
         ; MkC uni <- coreIntLit (getKey (getUnique name))
         ; rep2 mkNameLName [occ,uni] }
   where
-      mod = {-ASSERT( isExternalName name)-} nameModule name
+      mod = {- ASSERT( isExternalName name) -} nameModule name
       name_mod = moduleNameString (moduleName mod)
       name_pkg = packageIdString (modulePackageId mod)
       name_occ = nameOccName name

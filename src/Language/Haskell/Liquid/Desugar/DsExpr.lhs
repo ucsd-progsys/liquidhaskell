@@ -8,7 +8,7 @@ Desugaring exporessions.
 \begin{code}
 module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
 
--- #include "HsVersions.h"
+import Language.Haskell.Liquid.GhcMisc (srcSpanTick)
 
 import Language.Haskell.Liquid.Desugar.Match
 import Language.Haskell.Liquid.Desugar.MatchLit
@@ -21,8 +21,6 @@ import DsMonad
 import Name
 import NameEnv
 import FamInstEnv( topNormaliseType )
-
-import Language.Haskell.Liquid.GhcMisc (srcSpanTick)
 
 import HsSyn
 
@@ -96,7 +94,7 @@ ds_val_bind :: (RecFlag, LHsBinds Id) -> CoreExpr -> DsM CoreExpr
 -- a tuple and doing selections.
 -- Silently ignore INLINE and SPECIALISE pragmas...
 ds_val_bind (NonRecursive, hsbinds) body
-  | [(_, L loc bind)] <- bagToList hsbinds,
+  | [L loc bind] <- bagToList hsbinds,
         -- Non-recursive, non-overloaded bindings only come in ones
         -- ToDo: in some bizarre case it's conceivable that there
         --       could be dict binds in the 'binds'.  (See the notes
@@ -127,11 +125,11 @@ dsStrictBind :: HsBind Id -> CoreExpr -> DsM CoreExpr
 dsStrictBind (AbsBinds { abs_tvs = [], abs_ev_vars = []
                , abs_exports = exports
                , abs_ev_binds = ev_binds
-               , abs_binds = binds }) body
+               , abs_binds = lbinds }) body
   = do { let body1 = foldr bind_export body exports
              bind_export export b = bindNonRec (abe_poly export) (Var (abe_mono export)) b
-       ; body2 <- foldlBagM (\body (_, bind) -> dsStrictBind (unLoc bind) body)
-                            body1 binds 
+       ; body2 <- foldlBagM (\body lbind -> dsStrictBind (unLoc lbind) body)
+                            body1 lbinds 
        ; ds_binds <- dsTcEvBinds ev_binds
        ; return (mkCoreLets ds_binds body2) }
 
@@ -160,8 +158,8 @@ dsStrictBind bind body = pprPanic "dsLet: unlifted" (ppr bind $$ ppr body)
 
 ----------------------
 strictMatchOnly :: HsBind Id -> Bool
-strictMatchOnly (AbsBinds { abs_binds = binds })
-  = anyBag (strictMatchOnly . unLoc . snd) binds
+strictMatchOnly (AbsBinds { abs_binds = lbinds })
+  = anyBag (strictMatchOnly . unLoc) lbinds
 strictMatchOnly (PatBind { pat_lhs = lpat, pat_rhs_ty = rhs_ty })
   =  isUnLiftedType rhs_ty
   || isStrictLPat lpat
@@ -488,7 +486,7 @@ dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
         -- constructor aguments.
         ; alts <- mapM (mk_alt upd_fld_env) cons_to_upd
         ; ([discrim_var], matching_code) 
-                <- matchWrapper RecUpd (MG { mg_alts = alts, mg_arg_tys = [in_ty], mg_res_ty = out_ty })
+                <- matchWrapper RecUpd (MG { mg_alts = alts, mg_arg_tys = [in_ty], mg_res_ty = out_ty, mg_origin = Generated })
 
         ; return (add_field_binds field_binds' $
                   bindNonRec discrim_var record_expr' matching_code) }
@@ -548,7 +546,7 @@ dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
                                          , pat_dicts = eqs_vars ++ theta_vars
                                          , pat_binds = emptyTcEvBinds
                                          , pat_args = PrefixCon $ map nlVarPat arg_ids
-                                         , pat_ty = in_ty
+                                         , pat_arg_tys = in_inst_tys
                                          , pat_wrap = idHsWrapper }
            ; let wrapped_rhs | null eq_spec = rhs
                              | otherwise    = mkLHsWrap (mkWpCast (mkTcSubCo wrap_co)) rhs
@@ -562,7 +560,11 @@ Here is where we desugar the Template Haskell brackets and escapes
 -- Template Haskell stuff
 
 dsExpr (HsRnBracketOut _ _) = panic "dsExpr HsRnBracketOut"
+-- #ifdef GHCI
+-- dsExpr (HsTcBracketOut x ps) = dsBracket x ps
+-- #else
 dsExpr (HsTcBracketOut _ _) = panic "dsExpr HsBracketOut"
+-- #endif
 dsExpr (HsSpliceE _ s)      = pprPanic "dsExpr:splice" (ppr s)
 
 -- Arrow notation extension
@@ -742,7 +744,7 @@ dsDo stmts
     goL (L loc stmt:lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
   
     go _ (LastStmt body _) stmts
-      = {-ASSERT( null stmts )-} dsLExpr body
+      = {- ASSERT( null stmts ) -} dsLExpr body
         -- The 'return' op isn't used for 'do' expressions
 
     go _ (BodyStmt rhs then_expr _ _) stmts
@@ -785,7 +787,8 @@ dsDo stmts
         rets         = map noLoc rec_rets
         mfix_app     = nlHsApp (noLoc mfix_op) mfix_arg
         mfix_arg     = noLoc $ HsLam (MG { mg_alts = [mkSimpleMatch [mfix_pat] body]
-                                         , mg_arg_tys = [tup_ty], mg_res_ty = body_ty })
+                                         , mg_arg_tys = [tup_ty], mg_res_ty = body_ty
+                                         , mg_origin = Generated })
         mfix_pat     = noLoc $ LazyPat $ mkBigLHsPatTup rec_tup_pats
         body         = noLoc $ HsDo DoExpr (rec_stmts ++ [ret_stmt]) body_ty
         ret_app      = nlHsApp (noLoc return_op) (mkBigLHsTup rets)

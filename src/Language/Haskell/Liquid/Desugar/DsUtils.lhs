@@ -178,7 +178,7 @@ worthy of a type synonym and a few handy functions.
 
 \begin{code}
 firstPat :: EquationInfo -> Pat Id
-firstPat eqn = {-ASSERT( notNull (eqn_pats eqn) )-} head (eqn_pats eqn)
+firstPat eqn = {- ASSERT( notNull (eqn_pats eqn) ) -} head (eqn_pats eqn)
 
 shiftEqns :: [EquationInfo] -> [EquationInfo]
 -- Drop the first pattern in each equation
@@ -304,9 +304,9 @@ mkCoAlgCaseMatchResult dflags var ty match_alts
 	--  the scrutinised Id to be sufficiently refined to have a TyCon in it]
 
     alt1@MkCaseAlt{ alt_bndrs = arg_ids1, alt_result = match_result1 }
-      = {-ASSERT( notNull match_alts )-} head match_alts
+      = {- ASSERT( notNull match_alts ) -} head match_alts
     -- Stuff for newtype
-    arg_id1       = {-ASSERT( notNull arg_ids1 )-} head arg_ids1
+    arg_id1       = {- ASSERT( notNull arg_ids1 ) -} head arg_ids1
     var_ty        = idType var
     (tc, ty_args) = tcSplitTyConApp var_ty	-- Don't look through newtypes
     	 	    		    		-- (not that splitTyConApp does, these days)
@@ -709,8 +709,7 @@ mkLHsVarPatTup bs  = mkLHsPatTup (map nlVarPat bs)
 
 mkVanillaTuplePat :: [OutPat Id] -> Boxity -> Pat Id
 -- A vanilla tuple pattern simply gets its type from its sub-patterns
-mkVanillaTuplePat pats box 
-  = TuplePat pats box (mkTupleTy (boxityNormalTupleSort box) (map hsLPatType pats))
+mkVanillaTuplePat pats box = TuplePat pats box (map hsLPatType pats)
 
 -- The Big equivalents for the source tuple expressions
 mkBigLHsVarTup :: [Id] -> LHsExpr Id
