@@ -232,14 +232,19 @@ symCharsP  = (condIdP symChars (\_ -> True))
 trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
+pred0P :: Parser Pred
 pred0P =  try trueP 
       <|> try falseP 
       <|> try predrP 
+      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+      <|> try (reservedOp "||" >> liftM POr  predsP)
+      <|> (qmP >> liftM PBexp exprP)
       <|> try (liftM PBexp funAppP)
       <|> try (parens $ condP pIte predP)
-      <|> parens pred3P 
+      <|> parens predP 
 
-pred3P = buildExpressionParser lops pred0P
+predP :: Parser Pred
+predP = buildExpressionParser lops pred0P
 
 funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where 
@@ -248,27 +253,27 @@ funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
-
-
-predP :: Parser Pred
-predP =  try (parens pred2P)
-     <|> try (parens $ condP pIte predP)
-     <|> try (reservedOp "not" >> liftM PNot predP)
-     <|> try (reservedOp "&&" >> liftM PAnd predsP)
-     <|> try (reservedOp "||" >> liftM POr  predsP)
-     <|> (qmP >> liftM PBexp exprP)
-     <|> (reserved "true"  >> return PTrue)
-     <|> (reserved "false" >> return PFalse)
-     <|> (try predrP)
-     <|> (try (liftM PBexp exprFunP))
-
 qmP    = reserved "?" <|> reserved "Bexp"
 
-pred2P = buildExpressionParser lops predP 
+
+-- ORIG predP =  try (parens pred2P)
+-- ORIG      <|> try (parens $ condP pIte predP)
+-- ORIG      <|> try (reservedOp "not" >> liftM PNot predP)
+-- ORIG      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+-- ORIG      <|> try (reservedOp "||" >> liftM POr  predsP)
+-- ORIG      <|> (qmP >> liftM PBexp exprP)
+-- ORIG      <|> trueP   --  (reserved "true"  >> return PTrue)
+-- ORIG      <|> falseP  --  (reserved "false" >> return PFalse)
+-- ORIG      <|> (try predrP)
+-- ORIG      <|> (try (liftM PBexp exprFunP))
+
+
+-- ORIG pred2P = buildExpressionParser lops predP 
 
 predsP = brackets $ sepBy predP semi
 
 lops = [ [Prefix (reservedOp "~"   >> return PNot)]
+       , [Prefix (reservedOp "not" >> return PNot)]
        , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
        , [Infix  (reservedOp "||"  >> return (\x y -> POr  [x,y])) AssocRight]
        , [Infix  (reservedOp "=>"  >> return PImp) AssocRight]
