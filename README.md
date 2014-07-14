@@ -8,12 +8,6 @@ LiquidHaskell requires (in addition to the Hackage dependencies)
 
 - a recent OCaml compiler
 
-If you *optionally* want to link against Z3 (**only on Linux**)
-
-- the GNU multiprecision library
-- the CamlIDL library
-
-
 How To Clone, Build and Install
 -------------------------------
 
@@ -121,29 +115,6 @@ How to Get Stack Traces On Exceptions
 
     $ liquid +RTS -xc -RTS foo.hs
 
-How to deploy Web Demo
-----------------------
-
-1. Set $packagedir in web/liquid.php to a suitable package directory, e.g.
-    
-    $packagedir = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";`
-
-2. Name target directory $(SERVERHOME) in Makefile
-
-3. Create target directory
-
-    mkdir $(SERVERHOME)
-
-3. Build and copy files
-
-    make site
-
-4. Set permissions to allow www-data to write to relevant directories
-
-    make siteperms 
-
-The last step requires sudo access which is tedious and should be fixed.
-
 
 Command Line Options
 ====================
@@ -248,6 +219,27 @@ You can also build and link against the Z3 API (faster but requires more
 dependencies). If you do so, you can use that interface with:
 
     $ liquid --smtsolver=z3mem foo.hs
+
+     
+Short Error Messages
+--------------------
+
+By default, subtyping error messages will contain the inferred type, the 
+expected type -- which is **not** a super-type, hence the error -- and a 
+context containing relevant variables and their type to help you understand
+the error. If you don't want the above and instead, want only the 
+**source position** of the error use:
+
+    --short-errors
+    
+Short (Unqualified) Module Names
+-------------------------------
+
+By default, the inferred types will have fully qualified module names.
+To use unqualified names, much easier to read, use:
+
+    --short-names
+
 
 Totality Check
 --------------
@@ -383,6 +375,8 @@ use the `no-prune-unsorted` flag.
  
     liquid --no-prune-unsorted test.hs
 
+
+
 Ignore False Predicates
 -----------------------
 
@@ -393,6 +387,7 @@ To ignore false predicates use the nofalse option
     liquid --nofalse test.hs
 
 See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
+
 
 
 

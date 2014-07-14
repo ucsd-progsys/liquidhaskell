@@ -35,7 +35,7 @@ Two Problems
 
 **Problem 1:** 
 
-How do we specify *both* increasing and decreasing lists?
+How to specify increasing *and* decreasing lists?
 
 </div>
 
@@ -45,7 +45,7 @@ How do we specify *both* increasing and decreasing lists?
 
 **Problem 2:** 
 
-How do we specify *iteration-dependence* in higher-order functions?
+How to specify *iteration-dependence* in higher-order functions?
 
 </div>
 
@@ -250,11 +250,12 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-[Key idea: ](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html) &nbsp; `Int<p>`  &nbsp; is just  &nbsp; `{v:Int | (p v)}`
+[Key idea: ](http://goto.ucsd.edu/~rjhala/papers/abstract_refinement_types.html)
+&nbsp; `Int<p>` &nbsp; is just  &nbsp; $\reft{v}{\Int}{p(v)}$ 
 
 <br>
 
-i.e., Abstract Refinement is an **uninterpreted function** in SMT logic
+Abstract Refinement is **uninterpreted function** in SMT logic
 
 Parametric Refinements 
 ----------------------
@@ -268,9 +269,49 @@ maxInt x y = if x <= y then y else x
 
 <br>
 
-**Check** and **Instantiate** 
+**Check Implementation via SMT**
 
-Using [SMT and Abstract Interpretation.](http://goto.ucsd.edu/~rjhala/papers/liquid_types.html)
+Parametric Refinements 
+----------------------
+
+\begin{code}<br>
+{-@ maxInt :: forall <p :: Int -> Prop>. 
+                Int<p> -> Int<p> -> Int<p>  @-}
+
+maxInt x y = if x <= y then y else x 
+\end{code}
+
+<br>
+
+**Check Implementation via SMT**
+
+<br>
+
+$$\begin{array}{rll}
+\ereft{x}{\Int}{p(x)},\ereft{y}{\Int}{p(y)} & \vdash \reftx{v}{v = y} & \subty \reftx{v}{p(v)} \\
+\ereft{x}{\Int}{p(x)},\ereft{y}{\Int}{p(y)} & \vdash \reftx{v}{v = x} & \subty \reftx{v}{p(v)} \\
+\end{array}$$
+
+Parametric Refinements 
+----------------------
+
+\begin{code}<br>
+{-@ maxInt :: forall <p :: Int -> Prop>. 
+                Int<p> -> Int<p> -> Int<p>  @-}
+
+maxInt x y = if x <= y then y else x 
+\end{code}
+
+<br>
+
+**Check Implementation via SMT**
+
+<br>
+
+$$\begin{array}{rll}
+{p(x)} \wedge {p(y)} & \Rightarrow {v = y} & \Rightarrow {p(v)} \\
+{p(x)} \wedge {p(y)} & \Rightarrow {v = x} & \Rightarrow {p(v)} \\
+\end{array}$$
 
 
 Using Abstract Refinements
@@ -281,6 +322,8 @@ Using Abstract Refinements
 - <div class="fragment">**Then** `p` instantiated with *same* refinement,</div>
 
 - <div class="fragment">**Result** of call will also have *same* concrete refinement.</div>
+
+<br>
 
 <div class="fragment">
 
@@ -293,6 +336,17 @@ e' = maxInt 2 8     -- p := \v -> Even v
 \end{code}
 
 </div>
+
+<br>
+
+<div class="fragment">
+Infer **Instantiation** by Liquid Typing 
+
+At call-site, instantiate `p` with unknown $\kvar{p}$ and solve!
+</div>
+
+
+<!--
 
 Using Abstract Refinements
 --------------------------
@@ -312,6 +366,7 @@ rgb = maxInt 56 8   -- p := \v -> 0 <= v < 256
 
 </div>
 
+-->
 
 Recap
 -----

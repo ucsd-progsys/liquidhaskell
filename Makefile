@@ -1,17 +1,9 @@
-#include config.make
 
-#SERVERHOME=$(ROOTHOME)/_site/
-SERVERHOME=/home/rjhala/public_html/liquid/haskell/demo
 ##############################################################################
 ##############################################################################
 ##############################################################################
 
-API=ghc-7.4.1
 THREADS=1
-GHC=$(GHCHOME)/ghc
-GPG=$(GHCHOME)/ghc-pkg
-
-#OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
 
 FOPTS=""
 OPTS="-W -O2 -XStandaloneDeriving"
@@ -32,27 +24,6 @@ fast:
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
 
-rebuild:
-	cd external/fixpoint/ && make clean && make && cd ../../
-	make
-
-site: all web
-	cp dist_liquid/build/liquid/liquid $(SERVERHOME)/liquid
-	cp -rf external $(SERVERHOME)/
-	cp -rf include $(SERVERHOME)/
-	cp -rf syntax $(SERVERHOME)/
-
-web:
-	cp -rf web/* $(SERVERHOME)/
-
-
-siteperms:
-	sudo chgrp -R www-data $(SERVERHOME)
-	sudo chmod -R g+rx $(SERVERHOME)
-	sudo chmod    g+rwx $(SERVERHOME)/
-	sudo chmod -R g+rwx $(SERVERHOME)/include/
-	sudo chmod -R g+rwx $(SERVERHOME)/saved/
-
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 
 
@@ -60,29 +31,8 @@ goto:
 	$(CABAL) build --ghc-options=$(OPTS) 
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
-
 clean:
 	cabal clean
-
-vector:
-	$(CABAL) install vector
-
-ansi-terminal:
-	$(CABAL) install ansi-terminal 
-
-
-bytestring:
-	$(CABAL) install bytestring 
-	$(CABAL) install bytestring-lexing
-
-hscolour:
-	$(CABAL) install --with-ghc=$(GHC) hscolour 
-
-hsannot:
-	$(GHC) --make HsAnnot
-
-dexpose:
-	$(GPG) expose $(API)
 
 docs:
 	$(CABAL) hscolour
@@ -102,3 +52,6 @@ test:
 
 lint:
 	hlint --colour --report .
+
+tags:
+	hasktags -c src/

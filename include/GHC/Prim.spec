@@ -4,6 +4,8 @@ embed GHC.Prim.Int#  as int
 embed GHC.Prim.Word# as int
 embed GHC.Prim.Addr# as int
 
+embed GHC.Prim.Double#  as real
+
 measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
 
 assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }

@@ -27,7 +27,7 @@ import Text.PrettyPrint.HughesPJ    (text)
 
 import Language.Preprocessor.Unlit (unlit)
 
-import Language.Fixpoint.Types hiding (Def)
+import Language.Fixpoint.Types hiding (Def, R)
 
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types

@@ -14,7 +14,6 @@ cmp (GHC.Types.GT) = { v | v = GHC.Types.GT }
 GHC.Types.True  :: {v:GHC.Types.Bool | (Prop(v))}
 GHC.Types.False :: {v:GHC.Types.Bool | (~ (Prop(v)))}
 
-embed GHC.Types.Double as int
 
 
 

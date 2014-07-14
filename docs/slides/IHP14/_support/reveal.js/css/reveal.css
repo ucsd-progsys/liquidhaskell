@@ -82,7 +82,7 @@ body {
 }
 
 .reveal h1 { font-size: 3.77em; }
-.reveal h2 { font-size: 2.11em;	}
+.reveal h2 { font-size: 1.85em;	}
 .reveal h3 { font-size: 1.55em;	}
 .reveal h4 { font-size: 1em;	}
 
@@ -322,7 +322,7 @@ body {
 	margin: 10px auto;
 
 	text-align: left;
-	font-size: 0.85em;
+	font-size: 0.81em;
 	font-family: monospace;
 	line-height: 1.2em;
 
@@ -332,6 +332,7 @@ body {
 }
 .reveal code {
 	font-family: monospace;
+	font-size: 0.81em;
 }
 .reveal pre code {
 	padding: 5px;
@@ -525,7 +526,8 @@ body {
 
 .reveal .slides {
 	position: absolute;
-	width: 100%;
+    max-width: 1024px;
+	width: 120%;
 	height: 100%;
 	left: 50%;
 	top: 50%;

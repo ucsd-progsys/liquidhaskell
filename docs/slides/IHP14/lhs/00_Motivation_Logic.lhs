@@ -65,19 +65,13 @@ Program Logics
 
 + **Properties:**   Assertions & Pre- and Post-conditions
 
-+ **Proofs:**   Verification Conditions proved by SMT
++ **Proofs:**       Verification Conditions proved by SMT
 
-+ **Inference:**   Abstract Interpretation
++ **Inference:**    Abstract Interpretation
 
-<!--
-----------------   --------------------------------------
- **Properties:**   Assertions & Pre- and Post-conditions
+<br>
 
-     **Proofs:**   Verification Conditions proved by SMT
-
-  **Inference:**   Abstract Interpretation
-----------------   --------------------------------------
--->
+<div class="fragment"> Automatic but **not** Expressive </div>
 
 
 Program Logics
@@ -85,7 +79,7 @@ Program Logics
 
 <br>
 
-Automatic but not Expressive
+Automatic but **not** Expressive
 
 <br>
 
@@ -99,22 +93,33 @@ Automatic but not Expressive
 Liquid Types
 ------------
 
+<br>
+
 Generalize Floyd-Hoare Logic with Types
 
----------------   -----------------------------------------------------
- **Properties**   Types + Predicates
-
-     **Proofs**   Subtyping + Verification Conditions
-
-  **Inference**   Hindley-Milner + Abstract Interpretation
----------------   -----------------------------------------------------
-
 <div class="fragment"> 
-  Towards reconciling Automation and Expressiveness
-  
-  [[continue]](01_SimpleRefinements.lhs.slides.html)
+<br>
+
++ **Properties:**  Types + Predicates
+
++ **Proofs:**      Subtyping + Verification Conditions
+
++ **Inference:**   Hindley-Milner + Abstract Interpretation
+
 </div>
 
+<div class="fragment"> 
+  <br>
+  Towards reconciling Automation and Expressiveness
+</div>
+
+Liquid Types
+------------
+
+<br>
+<br>
+
+[[continue]](01_SimpleRefinements.lhs.slides.html)
 
 
 Plan 
