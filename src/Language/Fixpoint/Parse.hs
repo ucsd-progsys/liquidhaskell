@@ -184,14 +184,26 @@ symconstP = SL <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P 
-  =  try (liftM (EVar . stringSymbol) upperIdP)
- <|> liftM expr symbolP 
- <|> liftM ESym symconstP
- <|> try (liftM ECon constantP)
- <|> (reserved "_|_" >> return EBot)
- <|> try (parens exprP)
- <|> try (parens exprCastP)
- <|> try (parens $ condP EIte exprP)
+  =  try (liftM (EVar . stringSymbol) upperIdP)   -- SPEED: remove try 
+ <|> try (liftM expr symbolP) 
+ <|> try (liftM ESym symconstP)
+ <|> try (liftM ECon constantP)                   -- SPEED: drop try
+ <|> (reserved "_|_" >> return EBot)      
+ <|> try fastIfP
+ <|> try (parens exprP)                           -- SPEED: move to END
+ <|> try (parens exprCastP)                       -- SPEED: remove try 
+ <|> try (parens $ condQmP EIte exprP)
+
+--  <|> try (parens $ condP EIte exprP)
+
+fastIfP 
+  = do reserved "if" 
+       p <- predP
+       reserved "then"
+       b1 <- exprP 
+       reserved "else"
+       b2 <- exprP 
+       return $ EIte p b1 b2
 
 
 expr1P :: Parser Expr
@@ -250,7 +262,15 @@ bops = [ [ Prefix (reservedOp "-"   >> return eMinus)]
 
 eMinus = EBin Minus (expr (0 :: Integer)) 
 
-myTest3 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
+-- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
+-- 
+-- myTest2 = "len x = len y - 1"
+-- myTest3 = "len x y z = len a b c - 1"
+-- myTest4 = "len x y z = len a b (c - 1)"
+-- myTest5 = "x >= -1"
+-- myTest6 = "(bLength v) = if n > 0 then n else 0"
+-- myTest7 = "(bLength v) = (if n > 0 then n else 0)"
+-- myTest8 = "(bLength v) = (n > 0 ? n : 0)"
 
 
 
@@ -271,7 +291,7 @@ sortP
 
 symCharsP   = condIdP symChars (`notElem` keyWordSyms)
 
-keyWordSyms = ["mod"]
+keyWordSyms = ["if", "then", "else", "mod"]
 
 ---------------------------------------------------------------------
 -------------------------- Predicates -------------------------------
@@ -338,6 +358,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
 
+condP f bodyP 
+   =   try (condIteP f bodyP)
+   <|> (condQmP f bodyP)
+
+condI = condIteP EIte 
+
+
 condIteP f bodyP 
   = do reserved "if" 
        p <- predP
@@ -354,10 +381,6 @@ condQmP f bodyP
        colon
        b2 <- bodyP 
        return $ f p b1 b2
-
-condP f bodyP 
-   =   try (condIteP f bodyP)
-   <|> (condQmP f bodyP)
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
