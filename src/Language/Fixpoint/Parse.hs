@@ -140,7 +140,10 @@ double        = Token.float         lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer = toI <$> (many1 digit <* spaces)
+integer =  try (reservedOp "-" >> (negate <$> posInteger))
+       <|> posInteger
+
+posInteger = toI <$> (many1 digit <* spaces)
   where
     toI :: String -> Integer 
     toI = read
@@ -203,6 +206,8 @@ funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
+
+myTest = "((((i + 1)+v) >= 0) && (((i + 1)+v) < (i + 1)) && ((numchars (tarr t) (toff t) ((i + 1)+v)) = ((numchars (tarr t) (toff t) (i + 1)) - 1)) && ((numchars (tarr t) (toff t) ((i + 1)+v)) >= 0-1))"
 
 
 -- ORIG exprP :: Parser Expr 
