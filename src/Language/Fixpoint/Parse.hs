@@ -131,13 +131,17 @@ whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
 braces        = Token.braces        lexer
 double        = Token.float         lexer
-integer       = Token.integer       lexer
+-- integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+integer = toI <$> many1 digit  
+  where
+    toI :: String -> Integer 
+    toI = read
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -176,6 +180,7 @@ expr0P
   =  try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM expr symbolP 
  <|> liftM ESym symconstP
+ <|> try (liftM ECon constantP)
  <|> (reserved "_|_" >> return EBot)
  <|> try (parens exprP)
  <|> try (parens exprCastP)
@@ -185,7 +190,6 @@ expr0P
 expr1P :: Parser Expr
 expr1P 
   =  try funAppP 
- <|> try (liftM ECon constantP)
  <|> expr0P 
 
 exprP :: Parser Expr 
