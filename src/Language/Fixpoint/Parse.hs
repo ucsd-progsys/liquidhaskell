@@ -140,8 +140,10 @@ double        = Token.float         lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer =  try (char '-' >> (negate <$> posInteger))
-       <|> posInteger
+integer = posInteger 
+  
+--  try (char '-' >> (negate <$> posInteger))
+--       <|> posInteger
 
 posInteger = toI <$> (many1 digit <* spaces)
   where
@@ -207,7 +209,7 @@ funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
-myTest = "((((i + 1)+v) >= 0) && (((i + 1)+v) < (i + 1)) && ((numchars (tarr t) (toff t) ((i + 1)+v)) = ((numchars (tarr t) (toff t) (i + 1)) - 1)) && ((numchars (tarr t) (toff t) ((i + 1)+v)) >= 0-1))"
+
 
 
 -- ORIG exprP :: Parser Expr 
@@ -236,7 +238,8 @@ parenBrackets  = parens . brackets
 
 -- ORIG expr2P = buildExpressionParser bops lexprP
 
-bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
+bops = [ [ Prefix (reservedOp "-"   >> return eMinus)]
+       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
          ]
        , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
@@ -244,6 +247,11 @@ bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          ]
        , [Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
+
+eMinus = EBin Minus (expr (0 :: Integer)) 
+
+myTest3 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
+
 
 
 exprCastP
