@@ -231,7 +231,7 @@ bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
        , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
-       , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
+       , [Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
 
 
@@ -250,7 +250,9 @@ sortP
   <|> try (FObj . stringSymbol <$> lowerIdP)
   <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
 
-symCharsP  = (condIdP symChars (\_ -> True))
+symCharsP   = condIdP symChars (`notElem` keyWordSyms)
+
+keyWordSyms = ["mod"]
 
 ---------------------------------------------------------------------
 -------------------------- Predicates -------------------------------
