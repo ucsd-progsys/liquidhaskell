@@ -31,6 +31,7 @@ module Language.Fixpoint.Parse (
   -- * Parsing recursive entities
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
+  , funAppP     -- Function Applications
   , qualifierP  -- Qualifiers
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
@@ -198,7 +199,7 @@ exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where 
-    exprFunSpacesP = {- parens $ -} liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
+    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
@@ -300,12 +301,12 @@ qmP    = reserved "?" <|> reserved "Bexp"
 -- ORIG pred2P = buildExpressionParser lops predP 
 
 
-lops = [ [Prefix (reservedOp "~"   >> return PNot)]
-       , [Prefix (reservedOp "not" >> return PNot)]
-       , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
-       , [Infix  (reservedOp "||"  >> return (\x y -> POr  [x,y])) AssocRight]
-       , [Infix  (reservedOp "=>"  >> return PImp) AssocRight]
-       , [Infix  (reservedOp "<=>" >> return PIff) AssocRight]]
+lops = [ [Prefix (reservedOp "~"    >> return PNot)]
+       , [Prefix (reservedOp "not " >> return PNot)]
+       , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+       , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
+       , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
+       , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
        
 predrP = do e1    <- exprP
             r     <- brelP
