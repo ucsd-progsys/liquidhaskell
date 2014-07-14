@@ -16,7 +16,8 @@ module Language.Fixpoint.Parse (
   , parens  , brackets, angles, braces
   , semi    , comma     
   , colon   , dcolon 
-  , whiteSpace, blanks
+  , whiteSpace
+  , blanks
 
   -- * Parsing basic entities
   , fTyConP     -- Type constructors
@@ -138,7 +139,7 @@ double        = Token.float         lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer = toI <$> many1 digit  
+integer = toI <$> (many1 digit <* spaces)
   where
     toI :: String -> Integer 
     toI = read
@@ -269,18 +270,20 @@ pred0P :: Parser Pred
 pred0P =  try trueP 
       <|> try falseP 
       <|> try predrP 
-      <|> try (reservedOp "&&" >> liftM PAnd predsP)
-      <|> try (reservedOp "||" >> liftM POr  predsP)
+--      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+--      <|> try (reservedOp "||" >> liftM POr  predsP)
       <|> (qmP >> liftM PBexp exprP)
       <|> try (liftM PBexp funAppP)
       <|> try (parens $ condP pIte predP)
       <|> parens predP 
 
-predP :: Parser Pred
-predP = buildExpressionParser lops pred0P
+predP  :: Parser Pred
+predP  = buildExpressionParser lops pred0P
+
+
+predsP = brackets $ sepBy predP semi
 
 qmP    = reserved "?" <|> reserved "Bexp"
-
 
 -- ORIG predP =  try (parens pred2P)
 -- ORIG      <|> try (parens $ condP pIte predP)
@@ -296,7 +299,6 @@ qmP    = reserved "?" <|> reserved "Bexp"
 
 -- ORIG pred2P = buildExpressionParser lops predP 
 
-predsP = brackets $ sepBy predP semi
 
 lops = [ [Prefix (reservedOp "~"   >> return PNot)]
        , [Prefix (reservedOp "not" >> return PNot)]
@@ -363,7 +365,7 @@ refBindP bp rp kindP
       vv  <- bp
       t   <- kindP
       reserved "|"
-      ras <- rp
+      ras <- rp <* spaces
       return $ t (Reft (vv, ras))
 
 bindP       = liftM stringSymbol (lowerIdP <* colon)
