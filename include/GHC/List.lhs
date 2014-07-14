@@ -80,13 +80,13 @@ badHead = error "errorEmptyList head" -- errorEmptyList "head"
  -}
 
 -- | Extract the elements after the head of a list, which must be non-empty.
-{-@ assert tail         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = (len(xs) - 1)}  @-}
+{-@ assert tail         :: xs:{v: [a] | len v > 0} -> {v: [a] | len v = len xs - 1}  @-}
 tail                    :: [a] -> [a]
 tail (_:xs)             =  xs
 tail []                 =  liquidError "tail" -- errorEmptyList "tail"
 
 -- | Extract the last element of a list, which must be finite and non-empty.
-{-@ assert last         :: xs:{v: [a] | len(v) > 0} -> a @-}
+{-@ assert last         :: xs:{v: [a] | len v > 0} -> a @-}
 last                    :: [a] -> a
 #ifdef USE_REPORT_PRELUDE
 last [x]                =  x
@@ -102,7 +102,7 @@ last (x:xs)             =  last' x xs
 
 -- | Return all the elements of a list except the last one.
 -- The list must be non-empty.
-{-@ assert init         :: xs:{v: [a] | len(v) > 0} -> {v: [a] | len(v) = len(xs) - 1}  @-}
+{-@ assert init         :: xs:{v: [a] | len v > 0} -> {v: [a] | len v = len xs - 1}  @-}
 init                    :: [a] -> [a]
 #ifdef USE_REPORT_PRELUDE
 init [x]                =  []
