@@ -171,32 +171,46 @@ constantP = try (liftM R double) <|> liftM I integer
 symconstP :: Parser SymConst
 symconstP = SL <$> stringLiteral 
 
-exprP :: Parser Expr 
-exprP =  expr2P <|> lexprP
-
-lexprP :: Parser Expr 
-lexprP   
-  =  try (parens exprP)
- <|> try (parens exprCastP)
- <|> try (parens $ condP EIte exprP)
- <|> try exprFunP
+expr0P :: Parser Expr
+expr0P 
+  =  try funAppP
  <|> try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM expr symbolP 
  <|> liftM ECon constantP
  <|> liftM ESym symconstP
  <|> (reserved "_|_" >> return EBot)
+ <|> try (parens exprP)
+ <|> try (parens exprCastP)
+ <|> try (parens $ condP EIte exprP)
 
-exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
-  where 
-    exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
-    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
-    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
-    funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
+exprP :: Parser Expr 
+exprP = buildExpressionParser bops expr0P
 
+-- ORIG exprP :: Parser Expr 
+-- ORIG exprP =  expr2P <|> lexprP
+-- 
+-- ORIG lexprP :: Parser Expr 
+-- ORIG lexprP   
+-- ORIG   =  try (parens exprP)
+-- ORIG  <|> try (parens exprCastP)
+-- ORIG  <|> try (parens $ condP EIte exprP)
+-- ORIG  <|> try exprFunP
+-- ORIG  <|> try (liftM (EVar . stringSymbol) upperIdP)
+-- ORIG  <|> liftM expr symbolP 
+-- ORIG  <|> liftM ECon constantP
+-- ORIG  <|> liftM ESym symconstP
+-- ORIG  <|> (reserved "_|_" >> return EBot)
+-- ORIG 
+-- ORIG exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+-- ORIG   where 
+-- ORIG     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
+-- ORIG     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
+-- ORIG     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+-- ORIG     funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
 
 parenBrackets  = parens . brackets 
 
-expr2P = buildExpressionParser bops lexprP
+-- ORIG expr2P = buildExpressionParser bops lexprP
 
 bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
@@ -279,9 +293,9 @@ lops = [ [Prefix (reservedOp "~"   >> return PNot)]
        , [Infix  (reservedOp "=>"  >> return PImp) AssocRight]
        , [Infix  (reservedOp "<=>" >> return PIff) AssocRight]]
        
-predrP = do e1    <- expr2P
+predrP = do e1    <- exprP
             r     <- brelP
-            e2    <- expr2P 
+            e2    <- exprP 
             return $ r e1 e2
 
 brelP ::  Parser (Expr -> Expr -> Pred)
