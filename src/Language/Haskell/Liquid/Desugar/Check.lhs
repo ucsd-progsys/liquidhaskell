@@ -21,7 +21,6 @@ import Name
 import TysWiredIn
 import PrelNames
 import TyCon
-import Type
 import SrcLoc
 import UniqSet
 import Util
@@ -144,7 +143,7 @@ untidy b (L loc p) = L loc (untidy' b p)
     untidy' _ p@(ConPatIn _ (PrefixCon [])) = p
     untidy' b (ConPatIn name ps)     = pars b (L loc (ConPatIn name (untidy_con ps)))
     untidy' _ (ListPat pats ty Nothing)     = ListPat (map untidy_no_pars pats) ty Nothing   
-    untidy' _ (TuplePat pats box ty) = TuplePat (map untidy_no_pars pats) box ty
+    untidy' _ (TuplePat pats box tys) = TuplePat (map untidy_no_pars pats) box tys
     untidy' _ (ListPat _ _ (Just _)) = panic "Check.untidy: Overloaded ListPat"    
     untidy' _ (PArrPat _ _)          = panic "Check.untidy: Shouldn't get a parallel array here!"
     untidy' _ (SigPatIn _ _)         = panic "Check.untidy: SigPat"
@@ -236,7 +235,7 @@ check' qs
   where
      -- Note: RecPats will have been simplified to ConPats
      --       at this stage.
-    first_pats        = {-ASSERT2( okGroup qs, pprGroup qs )-} map firstPatN qs
+    first_pats        = {- ASSERT2( okGroup qs, pprGroup qs ) -} map firstPatN qs
     some_constructors = any is_con first_pats
     some_literals     = any is_lit first_pats
     only_vars         = all is_var first_pats
@@ -273,7 +272,7 @@ must be one Variable to be complete.
 
 process_literals :: [HsLit] -> [(EqnNo, EquationInfo)] -> ([ExhaustivePat],EqnSet)
 process_literals used_lits qs
-  | null default_eqns  = {-ASSERT( not (null qs) )-} ([make_row_vars used_lits (head qs)] ++ pats,indexs)
+  | null default_eqns  = {- ASSERT( not (null qs) ) -} ([make_row_vars used_lits (head qs)] ++ pats,indexs)
   | otherwise          = (pats_default,indexs_default)
      where
        (pats,indexs)   = process_explicit_literals used_lits qs
@@ -356,7 +355,7 @@ need_default_case used_cons unused_cons qs
        (pats',indexs') = check' default_eqns
        pats_default    = [(make_whole_con c:ps,constraints) |
                           c <- unused_cons, (ps,constraints) <- pats'] ++ pats
-       new_wilds       = {-ASSERT( not (null qs) )-} make_row_vars_for_constructor (head qs)
+       new_wilds       = {- ASSERT( not (null qs) ) -} make_row_vars_for_constructor (head qs)
        pats_default_no_eqns =  [(make_whole_con c:new_wilds,[]) | c <- unused_cons] ++ pats
        indexs_default  = unionUniqSets indexs' indexs
 
@@ -386,7 +385,7 @@ remove_first_column :: Pat Id                -- Constructor
                     -> [(EqnNo, EquationInfo)]
                     -> [(EqnNo, EquationInfo)]
 remove_first_column (ConPatOut{ pat_con = L _ con, pat_args = PrefixCon con_pats }) qs
-  = -- ASSERT2( okGroup qs, pprGroup qs )
+  = --  ASSERT2( okGroup qs, pprGroup qs )
     [(n, shift_var eqn) | q@(n, eqn) <- qs, is_var_con con (firstPatN q)]
   where
      new_wilds = [WildPat (hsLPatType arg_pat) | arg_pat <- con_pats]
@@ -464,12 +463,12 @@ mb_neg _      Nothing  v = v
 mb_neg negate (Just _) v = negate v
 
 get_unused_cons :: [Pat Id] -> [DataCon]
-get_unused_cons used_cons = {-ASSERT( not (null used_cons) )-} unused_cons
+get_unused_cons used_cons = {- ASSERT( not (null used_cons) ) -} unused_cons
      where
        used_set :: UniqSet DataCon
        used_set = mkUniqSet [d | ConPatOut{ pat_con = L _ (RealDataCon d) } <- used_cons]
-       (ConPatOut { pat_ty = ty }) = head used_cons
-       Just (ty_con, inst_tys) = splitTyConApp_maybe ty
+       (ConPatOut { pat_con = L _ (RealDataCon con1), pat_arg_tys = inst_tys }) = head used_cons
+       ty_con      = dataConTyCon con1
        unused_cons = filterOut is_used (tyConDataCons ty_con)
        is_used con = con `elementOfUniqSet` used_set
                      || dataConCannotMatch inst_tys con
@@ -593,9 +592,9 @@ make_con (ConPatOut{ pat_con = L _ (RealDataCon id) }) (lp:lq:ps, constraints)
      | isInfixCon id    = (nlInfixConPat (getName id) lp lq : ps, constraints)
    where q  = unLoc lq
 
-make_con (ConPatOut{ pat_con = L _ (RealDataCon id), pat_args = PrefixCon pats, pat_ty = ty }) (ps, constraints)
-      | isTupleTyCon tc  = (noLoc (TuplePat pats_con (tupleTyConBoxity tc) ty) : rest_pats, constraints)
-      | isPArrFakeCon id = (noLoc (PArrPat pats_con placeHolderType)           : rest_pats, constraints)
+make_con (ConPatOut{ pat_con = L _ (RealDataCon id), pat_args = PrefixCon pats, pat_arg_tys = tys }) (ps, constraints)
+      | isTupleTyCon tc  = (noLoc (TuplePat pats_con (tupleTyConBoxity tc) tys) : rest_pats, constraints)
+      | isPArrFakeCon id = (noLoc (PArrPat pats_con placeHolderType)            : rest_pats, constraints)
       | otherwise        = (nlConPat name pats_con      : rest_pats, constraints)
     where
         name                  = getName id
@@ -696,17 +695,16 @@ tidy_pat (CoPat _ pat _)  = tidy_pat pat
 tidy_pat (NPlusKPat id _ _ _) = WildPat (idType (unLoc id))
 tidy_pat (ViewPat _ _ ty)     = WildPat ty
 tidy_pat (ListPat _ _ (Just (ty,_))) = WildPat ty
-tidy_pat (ConPatOut { pat_con = L _ PatSynCon{}, pat_ty = ty })
-  = WildPat ty
+tidy_pat (ConPatOut { pat_con = L _ (PatSynCon syn), pat_arg_tys = tys })
+  = WildPat (patSynInstResTy syn tys)
 
 tidy_pat pat@(ConPatOut { pat_con = L _ con, pat_args = ps })
   = pat { pat_args = tidy_con con ps }
 
 tidy_pat (ListPat ps ty Nothing)
-  = unLoc $ foldr (\ x y -> mkPrefixConPat consDataCon [x,y] list_ty)
-                                  (mkNilPat list_ty)
+  = unLoc $ foldr (\ x y -> mkPrefixConPat consDataCon [x,y] [ty])
+                                  (mkNilPat ty)
                                   (map tidy_lpat ps)
-  where list_ty = mkListTy ty
 
 -- introduce fake parallel array constructors to be able to handle parallel
 -- arrays with the existing machinery for constructor pattern
@@ -714,11 +712,11 @@ tidy_pat (ListPat ps ty Nothing)
 tidy_pat (PArrPat ps ty)
   = unLoc $ mkPrefixConPat (parrFakeCon (length ps))
                            (map tidy_lpat ps)
-                           (mkPArrTy ty)
+                           [ty]
 
-tidy_pat (TuplePat ps boxity ty)
+tidy_pat (TuplePat ps boxity tys)
   = unLoc $ mkPrefixConPat (tupleCon (boxityNormalTupleSort boxity) arity)
-                           (map tidy_lpat ps) ty
+                           (map tidy_lpat ps) tys
   where
     arity = length ps
 
@@ -735,8 +733,8 @@ tidy_lit_pat :: HsLit -> Pat Id
 -- overlap with each other, or even explicit lists of Chars.
 tidy_lit_pat lit
   | HsString s <- lit
-  = unLoc $ foldr (\c pat -> mkPrefixConPat consDataCon [mkCharLitPat c, pat] stringTy)
-                  (mkPrefixConPat nilDataCon [] stringTy) (unpackFS s)
+  = unLoc $ foldr (\c pat -> mkPrefixConPat consDataCon [mkCharLitPat c, pat] [charTy])
+                  (mkPrefixConPat nilDataCon [] [charTy]) (unpackFS s)
   | otherwise
   = tidyLitPat lit
 

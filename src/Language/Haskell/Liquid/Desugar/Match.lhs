@@ -40,7 +40,7 @@ import Maybes
 import Util
 import Name
 import Outputable
-import BasicTypes ( boxityNormalTupleSort )
+import BasicTypes ( boxityNormalTupleSort, isGenerated )
 import FastString
 
 import Control.Monad( when )
@@ -552,9 +552,8 @@ tidy1 v (LazyPat pat)
 tidy1 _ (ListPat pats ty Nothing)
   = return (idDsWrapper, unLoc list_ConPat)
   where
-    list_ty     = mkListTy ty
-    list_ConPat = foldr (\ x y -> mkPrefixConPat consDataCon [x, y] list_ty)
-                        (mkNilPat list_ty)
+    list_ConPat = foldr (\ x y -> mkPrefixConPat consDataCon [x, y] [ty])
+                        (mkNilPat ty)
                         pats
 
 -- Introduce fake parallel array constructors to be able to handle parallel
@@ -563,13 +562,13 @@ tidy1 _ (PArrPat pats ty)
   = return (idDsWrapper, unLoc parrConPat)
   where
     arity      = length pats
-    parrConPat = mkPrefixConPat (parrFakeCon arity) pats (mkPArrTy ty)
+    parrConPat = mkPrefixConPat (parrFakeCon arity) pats [ty]
 
-tidy1 _ (TuplePat pats boxity ty)
+tidy1 _ (TuplePat pats boxity tys)
   = return (idDsWrapper, unLoc tuple_ConPat)
   where
     arity = length pats
-    tuple_ConPat = mkPrefixConPat (tupleCon (boxityNormalTupleSort boxity) arity) pats ty
+    tuple_ConPat = mkPrefixConPat (tupleCon (boxityNormalTupleSort boxity) arity) pats tys
 
 -- LitPats: we *might* be able to replace these w/ a simpler form
 tidy1 _ (LitPat lit)
@@ -752,18 +751,24 @@ JJQC 30-Nov-1997
 \begin{code}
 matchWrapper ctxt (MG { mg_alts = matches
                       , mg_arg_tys = arg_tys
-                      , mg_res_ty = rhs_ty })
+                      , mg_res_ty = rhs_ty
+                      , mg_origin = origin })
   = do  { eqns_info   <- mapM mk_eqn_info matches
         ; new_vars    <- case matches of
                            []    -> mapM newSysLocalDs arg_tys
                            (m:_) -> selectMatchVars (map unLoc (hsLMatchPats m))
-        ; result_expr <- matchEquations ctxt new_vars eqns_info rhs_ty
+        ; result_expr <- handleWarnings $
+                         matchEquations ctxt new_vars eqns_info rhs_ty
         ; return (new_vars, result_expr) }
   where
     mk_eqn_info (L _ (Match pats _ grhss))
       = do { let upats = map unLoc pats
            ; match_result <- dsGRHSs ctxt upats grhss rhs_ty
            ; return (EqnInfo { eqn_pats = upats, eqn_rhs  = match_result}) }
+
+    handleWarnings = if isGenerated origin
+                     then discardWarningsDs
+                     else id
 
 
 matchEquations  :: HsMatchContext Name

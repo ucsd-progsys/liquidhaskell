@@ -161,7 +161,7 @@ dsCImport id co (CLabel cid) cconv _ _ = do
              _ -> IsData
    (resTy, foRhs) <- resultWrapper ty
    -- ASSERT(fromJust resTy `eqType` addrPrimTy)    -- typechecker ensures this
-   let rhs = let x = x in x  -- foRhs (Lit (MachLabel cid stdcall_info fod))
+   let rhs = let x = x in x -- foRhs (Lit (MachLabel cid stdcall_info fod))
    let rhs' = Cast rhs co
    let stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
    return ([(id, rhs')], empty, empty)

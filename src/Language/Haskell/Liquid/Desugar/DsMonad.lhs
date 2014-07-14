@@ -6,8 +6,6 @@
 @DsMonad@: monadery used in desugaring
 
 \begin{code}
-{-# LANGUAGE FlexibleInstances #-}
-
 module Language.Haskell.Liquid.Desugar.DsMonad (
         DsM, mapM, mapAndUnzipM,
         initDs, initDsTc, fixDs,
