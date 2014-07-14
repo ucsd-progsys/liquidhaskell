@@ -4,7 +4,7 @@ RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 ####################################################################
 
 REVEAL=pandoc \
-	   --from=markdown+simple_tables 		\
+	   --from=markdown\
 	   --to=html5                           \
 	   --standalone                         \
 	   --mathjax \
