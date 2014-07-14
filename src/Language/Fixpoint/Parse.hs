@@ -173,18 +173,31 @@ symconstP = SL <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P 
-  =  try funAppP
- <|> try (liftM (EVar . stringSymbol) upperIdP)
+  =  try (liftM (EVar . stringSymbol) upperIdP)
  <|> liftM expr symbolP 
- <|> liftM ECon constantP
  <|> liftM ESym symconstP
  <|> (reserved "_|_" >> return EBot)
  <|> try (parens exprP)
  <|> try (parens exprCastP)
  <|> try (parens $ condP EIte exprP)
 
+
+expr1P :: Parser Expr
+expr1P 
+  =  try funAppP 
+ <|> try (liftM ECon constantP)
+ <|> expr0P 
+
 exprP :: Parser Expr 
-exprP = buildExpressionParser bops expr0P
+exprP = buildExpressionParser bops expr1P
+
+funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+  where 
+    exprFunSpacesP = {- parens $ -} liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
+    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
+    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+    funSymbolP     = locParserP symbolP
+
 
 -- ORIG exprP :: Parser Expr 
 -- ORIG exprP =  expr2P <|> lexprP
@@ -259,13 +272,6 @@ pred0P =  try trueP
 
 predP :: Parser Pred
 predP = buildExpressionParser lops pred0P
-
-funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
-  where 
-    exprFunSpacesP = {- parens $ -} liftM2 EApp funSymbolP (sepBy exprP spaces) 
-    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
-    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
-    funSymbolP     = locParserP symbolP
 
 qmP    = reserved "?" <|> reserved "Bexp"
 
