@@ -20,7 +20,10 @@ module Language.Haskell.Liquid.RefType (
 
   -- * Functions for lifting Reft-values to Spec-values
     uTop, uReft, uRType, uRType', uRTypeGen, uPVar
- 
+  
+  -- * Applying a solution to a SpecType 
+  , applySolution
+
   -- * Functions for decreasing arguments
   , isDecreasing, makeDecrType
   , makeLexRefa
@@ -39,12 +42,15 @@ module Language.Haskell.Liquid.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , rTypeSortedReft, rTypeSort
   , dataConSymbol, dataConMsReft, dataConReft  
   , literalFRefType, literalFReft, literalConst
   , classBinds
-  
-  
+ 
+  -- * Manipulating Refinements in RTypes 
+  , rTypeSortedReft
+  , rTypeSort
+  , shiftVV
+
   , mkDataConIdsTy
   , mkTyConInfo 
   ) where
@@ -78,7 +84,8 @@ import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos  (SourcePos)
 
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Fixpoint.Types hiding (Predicate)
+import qualified Language.Fixpoint.Types as F
+import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
 import Language.Fixpoint.Misc
@@ -606,7 +613,9 @@ instance PPrint RTyCon where
 instance Show RTyCon where
   show = showpp  
 
-
+instance PPrint REnv where
+  pprint (REnv m)  = pprint m
+ 
 ------------------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
 ------------------------------------------------------------------------------------------
@@ -907,6 +916,36 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
+-------------------------------------------------------------------------------
+applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType 
+-------------------------------------------------------------------------------
+applySolution = fmap . fmap . mapReft . map . appSolRefa 
+  where 
+    appSolRefa _ ra@(RConc _)        = ra 
+    -- appSolRefa _ p@(RPvar _)  = p  
+    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s  
+    mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
+
+-------------------------------------------------------------------------------
+shiftVV :: SpecType -> Symbol -> SpecType
+-------------------------------------------------------------------------------
+
+shiftVV t@(RApp _ ts _ r) vv' 
+  = t { rt_args = subst1 ts (rTypeValueVar t, EVar vv') } 
+      { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RFun _ _ _ r) vv' 
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RAppTy _ _ r) vv' 
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t@(RVar _ r) vv'
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
+
+shiftVV t _ 
+  = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
+
 
 ------------------------------------------------------------------------
 ---------------- Auxiliary Stuff Used Elsewhere ------------------------
@@ -1042,111 +1081,6 @@ makeLexReft old acc (e:es) (e':es')
                 ++ [PAtom Ge o' zero | (o,o') <- old] 
     zero = ECon $ I 0
 
-
-------------------------------------------------------------------------
--- | Pretty Printing Error Messages ------------------------------------
-------------------------------------------------------------------------
-
--- Need to put this here intead of in Types, because it depends on the 
--- printer for SpecTypes, which lives in this module.
-
-instance PPrint Error where
-  pprint = ppError
-
-instance PPrint SrcSpan where
-  pprint = pprDoc
-
-instance Show Error where
-  show = showpp
-
-instance Exception Error
-instance Exception [Error]
-
-
-------------------------------------------------------------------------
-ppError :: Error -> Doc
-------------------------------------------------------------------------
-
-ppError e = ppError' (pprintE $ errSpan e) e
-pprintE l = pprint l <> text ": Error:"
-
-ppError' dSp (ErrAssType _ OTerm s r) 
-  = dSp <+> text "Termination Check"
-
-ppError' dSp (ErrAssType _ OInv s r) 
-  = dSp <+> text "Invariant Check"
-
-ppError' dSp (ErrSubType _ s tA tE) 
-  = dSp <+> text "Liquid Type Mismatch"
---     DO NOT DELETE EVER! 
---     $+$ (nest 4 $ text "Required Type:" <+> pprint tE)
---     $+$ (nest 4 $ text "Actual   Type:" <+> pprint tA)
-
-ppError' dSp (ErrParse _ _ e)       
-  = dSp <+> text "Cannot parse specification:" 
-    $+$ (nest 4 $ pprint e)
-
-ppError' dSp (ErrTySpec _ v t s)       
-  = dSp <+> text "Bad Type Specification"
-    $+$ (pprint v <+> dcolon <+> pprint t) 
-    $+$ (nest 4 $ pprint s)
-
-ppError' dSp (ErrInvt _ t s)
-  = dSp <+> text "Bad Invariant Specification" 
-    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
-
-ppError' dSp (ErrIAl _ t s)
-  = dSp <+> text "Bad Using Specification" 
-    $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
-
-ppError' dSp (ErrIAlMis _ t1 t2 s)
-  = dSp <+> text "Incompatible Using Specification" 
-    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
-
-ppError' dSp (ErrMeas _ t s)
-  = dSp <+> text "Bad Measure Specification" 
-    $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
-
-ppError' dSp (ErrDupSpecs _ v ls)
-  = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
-    $+$ (nest 4 $ vcat $ pprint <$> ls) 
-
-ppError' dSp (ErrDupAlias _ k v ls)
-  = dSp <+> text "Multiple Declarations! " 
-    $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    <+> (nest 4 $ vcat $ pprint <$> ls) 
-
-ppError' dSp (ErrGhc _ s)       
-  = dSp <+> text "GHC Error"
-    $+$ (nest 4 $ pprint s)
-
-ppError' dSp (ErrMismatch _ x τ t) 
-  = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
-    $+$ text "Haskell:" <+> pprint τ
-    $+$ text "Liquid :" <+> pprint t 
-     
-ppError' dSp (ErrSaved _ s)       
-  = dSp <+> s
-
-ppError' _ (ErrOther _ s)       
-  = text "Panic!" <+> nest 4 (pprint s)
-
-
-ppVar v = text "`" <> pprint v <> text "'"
-
-instance ToJSON Error where
-  toJSON e = object [ "pos" .= (errSpan e)
-                    , "msg" .= (render $ ppError' empty e)
-                    ]
-
-instance FromJSON Error where
-  parseJSON (Object v) = errSaved <$> v .: "pos" 
-                                  <*> v .: "msg"
-  parseJSON _          = mempty
-
-
-errSaved :: SrcSpan -> String -> Error
-errSaved x = ErrSaved x . text
 -------------------------------------------------------------------------------
 
 mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo

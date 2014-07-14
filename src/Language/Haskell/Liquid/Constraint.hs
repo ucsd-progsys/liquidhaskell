@@ -611,13 +611,14 @@ bsplitC' γ t1 t2 pflag
   | otherwise
   = []
   where 
-    γ'  = fe_binds $ fenv γ
-    r1' = rTypeSortedReft' pflag γ t1
-    r2' = rTypeSortedReft' pflag γ t2
-    ci  = Ci src err
-    tag = getTag γ
-    err = Just $ ErrSubType src (text "subtype") t1 t2 
-    src = loc γ 
+    γ'     = fe_binds $ fenv γ
+    r1'    = rTypeSortedReft' pflag γ t1
+    r2'    = rTypeSortedReft' pflag γ t2
+    ci     = Ci src err
+    tag    = getTag γ
+    err    = Just $ ErrSubType src (text "subtype") g t1 t2 
+    src    = loc γ
+    REnv g = renv γ 
 
 
 
@@ -814,24 +815,6 @@ normalizeVV idx t@(RApp _ _ _ _)
 
 normalizeVV _ t 
   = t 
-
-shiftVV t@(RApp _ ts _ r) vv' 
-  = t { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RFun _ _ _ r) vv' 
-  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RAppTy _ _ r) vv' 
-  = t -- { rt_args = F.subst1 ts (rTypeValueVar t, F.EVar vv') } 
-      { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t@(RVar _ r) vv'
-  = t { rt_reft = (`F.shiftVV` vv') <$> r }
-
-shiftVV t _ 
-  = t -- errorstar $ "shiftVV: cannot handle " ++ showpp t
 
 
 addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
@@ -1872,13 +1855,6 @@ conjoinInvariant t _
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
 ---------------------------------------------------------------
-
-newtype REnv = REnv  (M.HashMap F.Symbol SpecType) -- deriving (Data, Typeable)
-
-instance PPrint REnv where
-  pprint (REnv m)  = vcat $ map pprxt $ M.toList m
-    where 
-      pprxt (x, t) = pprint x <> dcolon <> pprint t  
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
