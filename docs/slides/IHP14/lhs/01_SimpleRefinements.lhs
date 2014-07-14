@@ -34,15 +34,15 @@ Types + Predicates
 ------------------
 
 
-Ex: `Int`egers equal to `0`
----------------------------
+Example: Integers equal to `0`
+------------------------------
 
 <br>
 
 \begin{code}
-{-@ type EqZero = {v:Int | v = 0} @-}
+{-@ type Zero = {v:Int | v = 0} @-}
 
-{-@ zero :: EqZero @-}
+{-@ zero :: Zero @-}
 zero     =  0
 \end{code}
 
@@ -64,9 +64,21 @@ Refinements Are Predicates
 From A Decidable Logic
 ----------------------
 
+<br> 
+
 1. Expressions
 
 2. Predicates
+
+<br>
+
+<div class="fragment">
+
+**Refinement Logic: QF-UFLIA**
+
+Quant.-Free. Uninterpreted Functions and Linear Arithmetic 
+
+</div>
 
 
 Expressions
@@ -75,12 +87,12 @@ Expressions
 <br>
 
 \begin{code} <div/> 
-e := x, y, z,...      -- variable
-   | 0, 1, 2,...      -- constant
-   | (e + e)          -- addition
-   | (e - e)          -- subtraction
-   | (c * e)          -- linear multiplication
-   | (f e1 e2 ... en) -- uninterpreted function
+e := x, y, z,...    -- variable
+   | 0, 1, 2,...    -- constant
+   | (e + e)        -- addition
+   | (e - e)        -- subtraction
+   | (c * e)        -- linear multiplication
+   | (f e1 ... en)  -- uninterpreted function
 \end{code}
 
 Predicates
@@ -97,10 +109,14 @@ p := e           -- atom
    | (not p)     -- negation
 \end{code}
 
+<br>
+
+
 Refinement Types
 ----------------
 
 
+<br>
 
 \begin{code}<div/>
 b := Int 
@@ -108,33 +124,40 @@ b := Int
    | ...         -- base types
    | a, b, c     -- type variables
 
-t := {x:b | p}   -- refined base type 
-   | x:t -> t    -- dependent function 
+t := {x:b | p}   -- refined base 
+   | x:t -> t    -- refined function  
 \end{code}
 
 
 Subtyping Judgment 
 ------------------
 
+<br>
+
 $$\boxed{\Gamma \vdash t_1 \preceq t_2}$$
 
 <div class="fragment">
 
-Where **environment** $\Gamma$ is *sequence* of binders
+<br>
 
+Where **environment** $\Gamma$ is a sequence of binders
+
+<br>
 
 $$\Gamma \defeq \overline{\bindx{x_i}{t_i}}$$
 
 </div>
 
-Subtyping Is Implication
+Subtyping is Implication
 ------------------------
 
 [PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
 <br>
 
-(For *Base Types* ...)
+(For **Base** Types ...)
+
+
 
 
 Subtyping is Implication
@@ -142,66 +165,38 @@ Subtyping is Implication
 
 <br>
 
-<!--
-$$
-\inferrule[]
-          {\forall \overline{x_i}, v. \bigwedge_i P_i \Rightarrow Q \Rightarrow R}
-          {\overline{\bindx{x_i}{P_i}} \vdash \reft{v}{\Int}{Q} \preceq \reft{v}{\Int}{R}} 
-$$
-
--->
-
 $$
 \begin{array}{rl}
-{\mathbf{If\ by\ SMT}}   & \bigwedge_i P_i \Rightarrow  Q  \Rightarrow R \\
+{\mathbf{If\ VC\ is\ Valid}}   & \bigwedge_i P_i \Rightarrow  Q  \Rightarrow R \\
                 & \\
 {\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash \reft{v}{b}{Q} \subty \reft{v}{v}{R} \\
 \end{array}
 $$ 
 
-<!--
-$$
-\begin{array}{rrrcl}
-{\mathbf{If}}   & \bigwedge_i P_i \Rightarrow        & P              & \Rightarrow & Q              \\
-                &                                    &                &             &                \\
-{\mathbf{Then}} & \overline{\bindx{x_i}{P_i}} \vdash & \reft{v}{\Int}{P} & \preceq & \reft{v}{\Int}{Q} \\
-\end{array}
-$$ 
-
-
-Subtyping is Implication
-------------------------
-
-
-<br>
-<br>
-
----------   ------------   --------------------------   
-  **If:**            `P`   `=> Q` 
-            
-**Then:**    `{v:t | P}`   `<: {v:t | Q}`
----------   ------------   --------------------------   
-
--->
-
 
 Example: Natural Numbers
 ------------------------
 
-\begin{code} <div/> 
+<br>
+
+\begin{code} <div/>  
         type Nat = {v:Int | 0 <= v}
 \end{code}
 
+<br>
+
 <div class="fragment">
+
 $$
-\begin{array}{rcrccl}
-\mathbf{By\ SMT} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v \\
+\begin{array}{rcrccll}
+\mathbf{VC\ is\ Valid:} & \True     & \Rightarrow &  v = 0   & \Rightarrow &  0 \leq v & \mbox{(by SMT)} \\
 %                &           &             &          &             &           \\
-\mathbf{So}      & \emptyset & \vdash      & \EqZero  & \subty      & \Nat      \\
+\mathbf{So:}      & \emptyset & \vdash      & \Zero  & \subty      & \Nat   &   \\
 \end{array}
 $$
 </div>
 
+<br>
 
 <div class="fragment">
 
@@ -209,9 +204,440 @@ Hence, we can type:
 
 \begin{code}
 {-@ zero' :: Nat @-}
-zero'     =  zero   -- zero :: EqZero <: Nat
+zero'     =  zero   -- zero :: Zero <: Nat
 \end{code}
 </div>
+
+Contracts: Function Types
+=========================
+
+ {#as}
+------
+
+Pre-Conditions
+--------------
+
+
+<br>
+
+\begin{code}
+safeDiv n d = n `div` d   -- crashes if d==0
+\end{code}
+
+<br>
+
+<div class="fragment">
+**Requires** non-zero input divisor `d`
+
+\begin{code}
+{-@ type NonZero = {v:Int | v /= 0} @-}
+\end{code}
+</div>
+
+<br>
+
+
+<div class="fragment">
+Specify pre-condition as **input type** 
+
+\begin{code}
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
+
+</div>
+
+
+Precondition: `safeDiv`
+-----------------------
+
+Specify pre-condition as **input type** 
+
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
+
+<br>
+
+Precondition is checked at **call-site**
+
+\begin{code}
+{-@ bad :: Nat -> Int @-}
+bad n   = 10 `safeDiv` n
+\end{code}
+
+<br>
+
+<div class="fragment">
+**Rejected As** 
+
+$$\bindx{n}{\Nat} \vdash \reftx{v}{v = n} \not \subty \reftx{v}{v \not = 0}$$
+
+</div>
+
+Precondition: `safeDiv`
+-----------------------
+
+Specify pre-condition as **input type** 
+
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
+
+<br>
+
+Precondition is checked at **call-site**
+
+\begin{code}
+{-@ ok  :: Nat -> Int @-}
+ok n    = 10 `safeDiv` (n+1)
+\end{code}
+
+<br>
+
+<div class="fragment">
+**Verifies As** 
+
+$\bindx{n}{\Nat} \vdash \reftx{v}{v = n+1} \subty \reftx{v}{v \not = 0}$
+</div>
+
+Precondition: `safeDiv`
+-----------------------
+
+Specify pre-condition as **input type** 
+
+\begin{code} <div/>
+{-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
+\end{code}
+
+<br>
+
+Precondition is checked at **call-site**
+
+\begin{code} <div/>
+{-@ ok  :: Nat -> Int @-}
+ok n    = 10 `safeDiv` (n+1)
+\end{code}
+
+<br>
+
+**Verifies As**
+
+$$(0 \leq n) \Rightarrow (v = n+1) \Rightarrow (v \not = 0)$$
+
+
+
+Post-Conditions
+---------------
+
+**Ensures** output is a `Nat` greater than input `x`.
+
+\begin{code}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+<div class="fragment">
+Specify post-condition as **output type**
+
+\begin{code}
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+\end{code}
+</div>
+
+<br>
+
+<div class="fragment">
+**Dependent Function Types**
+
+Outputs *refer to* inputs
+</div>
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+Postcondition is checked at **return-site**
+
+<br>
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+**Verified As**
+
+<br>
+
+$$\begin{array}{rll}
+\bindx{x}{\Int},\bindx{\_}{0 \leq x}      & \vdash \reftx{v}{v = x}     & \subty \reftx{v}{0 \leq v \wedge x \leq v} \\
+\bindx{x}{\Int},\bindx{\_}{0 \not \leq x} & \vdash \reftx{v}{v = 0 - x} & \subty \reftx{v}{0 \leq v \wedge x \leq v} \\
+\end{array}$$
+
+Postcondition: `abs`
+--------------------
+
+Specify post-condition as **output type** 
+
+\begin{code} <div/>
+{-@ abs :: x:Int -> {v:Nat | x <= v} @-}
+abs x | 0 <= x    = x 
+      | otherwise = 0 - x
+\end{code}
+
+<br>
+
+**Verified As**
+
+<br>
+
+$$\begin{array}{rll}
+(0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow (0 \leq v \wedge x \leq v) \\
+(0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow (0 \leq v \wedge x \leq v) \\
+\end{array}$$
+
+
+ {#inference}
+=============
+
+From Checking To Inference
+--------------------------
+
+**So far**
+
+How to **check** code against given signature
+
+<br>
+
+<div class="fragment">
+
+**Next**
+
+How to **synthesize** signatures from code
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+**2-Phase Process**
+
+1. H-M to synthesize *types*
+2. A-I to synthesize *refinements*  
+
+</div>
+
+<br>
+
+<div class="fragment">Lets quickly look at 2. </div>
+
+
+
+From Checking To Inference
+==========================
+
+
+Recipe
+------
+
+<br>
+
+<div class="fragment">
+
+**Step 1. Templates**
+
+Types with variables $\kvar{}$ for *unknown* refinements
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+**Step 2. Constraints**
+
+Typecheck templates: VCs $\rightarrow$ Horn constraints over $\kvar{}$
+
+</div>
+
+<br>
+
+<div class="fragment">
+
+**Step 3. Solve**
+
+Via least-fixpoint over suitable abstract domain
+
+</div>
+
+Step 1. Templates (`abs`)
+-------------------------
+
+<br>
+
+<div class="fragment">
+**Type**
+
+$$\bindx{x}{\Int} \rightarrow \Int$$
+</div>
+
+<br>
+
+<div class="fragment">
+**Template**
+
+$$\ereft{x}{\Int}{\kvar{1}} \rightarrow \reft{v}{\Int}{\kvar{2}}$$
+</div>
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Subtyping Queries**
+
+<br>
+
+$$
+\begin{array}{rll}
+\bindx{x}{\kvar{1}},\bindx{\_}{0 \leq x}      & \vdash \reftx{v}{v = x}     & \subty \reftx{v}{\kvar{2}} \\
+\bindx{x}{\kvar{1}},\bindx{\_}{0 \not \leq x} & \vdash \reftx{v}{v = 0 - x} & \subty \reftx{v}{\kvar{2}} \\
+\end{array}
+$$
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Verification Conditions**
+
+<br>
+
+$$\begin{array}{rll}
+{\kvar{1}} \wedge (0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow \kvar{2} \\
+{\kvar{1}} \wedge (0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow \kvar{2} \\
+\end{array}$$
+
+
+Step 2. Constraints (`abs`)
+-------------------------
+
+<br>
+
+**Horn Constraints** over $\kvar{}$
+
+<br>
+
+$$\begin{array}{rll}
+{\kvar{1}} \wedge (0 \leq x)      & \Rightarrow (v = x)     & \Rightarrow \kvar{2} \\
+{\kvar{1}} \wedge (0 \not \leq x) & \Rightarrow (v = 0 - x) & \Rightarrow \kvar{2} \\
+\end{array}$$
+
+<br>
+<br>
+
+**Note:** $\kvar{}$ occur positively, hence constraints are monotone.
+
+Step 3. Solve (`abs`)
+---------------------
+
+Least-fixpoint over abstract domain 
+
+<br>
+
+
+<div class="fragment">
+**Predicate Abstraction**
+
+Conjunction of predicates from (finite) ground set $\quals$
+</div>
+
+<br>
+
+<div class="fragment">
+$$\mbox{e.g.}\ \quals \defeq \{ c \sim X \}$$
+
+<br>
+
+$$\begin{array}{ccll}
+  c     & \in & \{0,1,\ldots   \}                & \mbox{program constants} \\
+  X     & \in & \{n,x,v,\ldots \}                & \mbox{program variables} \\
+  \sim  & \in & \{<, \leq, >, \geq, =, \not =\}  & \mbox{comparisons}       \\
+  \end{array}$$
+
+</div>
+
+Step 3. Solve (`abs`)
+---------------------
+
+Least-fixpoint over abstract domain 
+
+<br>
+
+**Predicate Abstraction**
+
+Conjunction of predicates from (finite) ground set $\quals$
+
+<br>
+
++ Obtain $\quals$ via CEGAR
++ Or use other domains
+
+<br>
+
+[[Rybalchenko et al., CAV 2011]](http://goto.ucsd.edu/~rjhala/papers/hmc.html)
+
+
+Recipe Scales Up
+----------------
+
+<br>
+
+**1. Templates** $\rightarrow$ **2. Horn Constraints** $\rightarrow$ **3. Fixpoint**
+
+<br>
+
+<div class="fragment">
++ Define type checker, get inference for free 
+
++ Scales to Data types, HO functions, Polymorphism
+
+</div>
+<br>
+
+<div class="fragment">
+**Key Requirement** 
+
+Refinements belong in abstract domain, e.g. QF-UFLIA
+</div>
+
+
 
  {#universalinvariants}
 =======================
@@ -227,20 +653,24 @@ Types Yield Universal Invariants
 Example: Lists
 --------------
 
+
 <div class="hidden">
 \begin{code}
 infixr `C`
 \end{code}
 </div>
 
+
 <br>
 <br>
 <br>
+
 
 \begin{code}
 data L a = N          -- Empty 
          | C a (L a)  -- Cons 
 \end{code}
+
 
 <br>
 
@@ -263,13 +693,17 @@ How to **specify** every element in `nats` is non-negative?
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{code}
 
+<br>
+
 **Logic**
 
 $$\forall x \in \mathtt{nats}. 0 \leq x$$
 
-+ <div class="fragment">Verification: Implications over **quantified formulas**</div>
-+ <div class="fragment">Quantified formulas not efficiently decidable by SMT</div>
-+ <div class="fragment">**Verification** is brittle</div>
+<br>
+
+<div class="fragment">
+VCs over **quantified formulas** ... *terrible* for SMT
+</div>
 
 
 Example: Lists
@@ -281,15 +715,19 @@ How to **specify** every element in `nats` is non-negative?
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{code}
 
-**Types + Logic**
+<br>
+
+**Refinement Types**
 
 \begin{code}
 {-@ nats :: L Nat @-}
 \end{code}
 
+<br>
+
 + <div class="fragment">Type *implicitly* has quantification</div>
 + <div class="fragment">Sub-typing *eliminates* quantifiers</div>
-+ <div class="fragment">Robust verification via efficiently decidable *quantifier-free* formulas</div>
++ <div class="fragment">Robust verification via *quantifier-free* VCs</div>
 
 Example: Lists
 --------------
@@ -298,12 +736,12 @@ How to **verify** ?
 
 \begin{code} <div/>
 {-@ nats :: L Nat @-}
-nats     = l0
+nats   = l0
   where
-    l0   = 0 `C` l1     -- Nat `C` L Nat ~~> L Nat
-    l1   = 1 `C` l2     -- Nat `C` L Nat ~~> L Nat
-    l2   = 2 `C` l3     -- Nat `C` L Nat ~~> L Nat  
-    l3   = N            -- L Nat
+    l0 = 0 `C` l1  -- Nat `C` L Nat >>> L Nat
+    l1 = 1 `C` l2  -- Nat `C` L Nat >>> L Nat
+    l2 = 2 `C` l3  -- Nat `C` L Nat >>> L Nat
+    l3 = N         -- L Nat
 \end{code}
 
 <br>
@@ -346,90 +784,6 @@ What if `evens` contained `1`?
 
 -->
 
-
-Contracts: Function Types
-=========================
-
- {#as}
-------
-
-Example: `safeDiv`
-------------------
-
-<br>
-
-**Precondition** divisor is *non-zero*.
-
-<br>
-
-<div class="fragment">
-
-\begin{code}
-{-@ type NonZero = {v:Int | v /= 0} @-}
-\end{code}
-
-</div>
-
-
-Example: `safeDiv`
-------------------
-
-<br>
-
-+ **Pre-condition** divisor is *non-zero*.
-+ **Input type** specifies *pre-condition*
-
-<br>
-
-\begin{code}
-{-@ safeDiv :: Int -> NonZero -> Int @-}
-safeDiv x y = x `div` y
-\end{code}
-
-<br>
-
-<div class="fragment">
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if precondition does not hold?
-
-</div>
-
-Example: `abs`
---------------
-
-<br>
-
-+ **Postcondition** result is non-negative
-+ **Output type** specifies *post-condition*
-
-<br>
-
-\begin{code}
-{-@ abs       :: x:Int -> Nat @-}
-abs x 
-  | 0 <= x    = x 
-  | otherwise = 0 - x
-\end{code}
-
-
- {#dependentfunctions}
-======================
-
-Dependent Function Types
-------------------------
-
-<br>
-
-Outputs **refer to** inputs
-
-<br>
-
-**Relational** invariants
-
-
-Dependent Function Types
-========================
 
 Example: `range`
 ----------------

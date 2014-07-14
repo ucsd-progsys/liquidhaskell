@@ -1,5 +1,0 @@
-Failed 4 tests: 
- neg/Class4Import.hs,
-  neg/ClassI.hs,
-  pos/Class2.hs,
-  pos/inccheck0.hs 

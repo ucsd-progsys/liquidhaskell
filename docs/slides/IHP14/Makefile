@@ -3,8 +3,19 @@ SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
 RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 ####################################################################
 
+STRIPCODE=./MkCode.hs
+
 REVEAL=pandoc \
 	   --from=markdown\
+	   --to=html5                           \
+	   --standalone                         \
+	   --mathjax \
+	   --section-divs                       \
+	   --template=_support/template.reveal  \
+	   --variable reveal=../_support/reveal.js
+
+FREVEAL=pandoc \
+ 	   --from=markdown+lhs\
 	   --to=html5                           \
 	   --standalone                         \
 	   --mathjax \
@@ -23,17 +34,20 @@ LIQUID=liquid --short-names
 mdObjects   := $(patsubst %.lhs,%.lhs.markdown,$(wildcard lhs/*.lhs))
 htmlObjects := $(patsubst %.lhs,%.lhs.slides.html,$(wildcard lhs/*.lhs))
 pdfObjects  := $(patsubst %.lhs,%.lhs.slides.pdf,$(wildcard lhs/*.lhs))
+fhtmlObjects := $(patsubst %.lhs,%.fast.html,$(wildcard lhs/*.lhs))
 
 ####################################################################
 
+
 all: slides 
+
+fast: $(fhtmlObjects)
 
 one: $(mdObjects)
 	$(REVEAL) lhs/.liquid/00_Index.lhs.markdown > lhs/index.html
 
 tut: $(mdObjects)
 	$(REVEAL) lhs/.liquid/*.markdown > lhs/tutorial.html 
-
 
 slides: $(htmlObjects)
 
@@ -45,6 +59,13 @@ plpv: slides
 
 lhs/.liquid/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?
+
+
+lhs/%.fast: lhs/%.lhs
+	$(STRIPCODE) $? > $@ 
+
+lhs/%.fast.html: lhs/%.fast
+	$(FREVEAL) $? -o $@ 
 
 lhs/%.lhs.slides.html: lhs/.liquid/%.lhs.markdown
 	$(REVEAL) $? -o $@ 

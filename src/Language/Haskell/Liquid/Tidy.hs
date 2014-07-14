@@ -1,4 +1,18 @@
-module Language.Haskell.Liquid.Tidy (tidySpecType) where
+---------------------------------------------------------------------
+-- | This module contains functions for cleaning up types before
+--   they are rendered, e.g. in error messages or annoations.
+---------------------------------------------------------------------
+
+
+module Language.Haskell.Liquid.Tidy (
+
+    -- * Tidying functions
+    tidySpecType
+  , tidySymbol
+
+    -- * Tidyness tests
+  , isTmpSymbol
+  ) where
 
 import Outputable   (showPpr) -- hiding (empty)
 import Control.Applicative
@@ -13,36 +27,51 @@ import Language.Fixpoint.Names              (symSepName)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType
----------------------------------------------------------------------
----------- SYB Magic: Cleaning Reftypes Up Before Rendering ---------
----------------------------------------------------------------------
 
-tidySpecType :: SpecType -> SpecType  
-tidySpecType = tidyDSymbols
-             . tidySymbols 
-             . tidyLocalRefas 
-             . tidyFunBinds
-             . tidyTyVars 
+-------------------------------------------------------------------------
+tidySymbol :: Symbol -> Symbol
+-------------------------------------------------------------------------
+tidySymbol = S . takeWhile (/= symSepName) . symbolString
+
+
+-------------------------------------------------------------------------
+isTmpSymbol    :: Symbol -> Bool
+-------------------------------------------------------------------------
+isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
+  where 
+    str        = symbolString x
+
+
+-------------------------------------------------------------------------
+tidySpecType :: Tidy -> SpecType -> SpecType  
+-------------------------------------------------------------------------
+tidySpecType k = tidyDSymbols
+               . tidySymbols 
+               . tidyLocalRefas k 
+               . tidyFunBinds
+               . tidyTyVars 
 
 tidySymbols :: SpecType -> SpecType
-tidySymbols t = substa dropSuffix $ mapBind dropBind t  
+tidySymbols t = substa tidySymbol $ mapBind dropBind t  
   where 
     xs         = S.fromList (syms t)
-    dropBind x = if x `S.member` xs then dropSuffix x else nonSymbol  
-    dropSuffix = S . takeWhile (/= symSepName) . symbolString
+    dropBind x = if x `S.member` xs then tidySymbol x else nonSymbol  
 
-tidyLocalRefas :: SpecType -> SpecType
-tidyLocalRefas t = mapReft (txReft) t
-  where 
-    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p (txStrata (syms t) l)
-    dropLocals = filter (not . any isTmp . syms) . flattenRefas
-    isTmp x    = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
 
-isTmpSymbol x  = any (`L.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
-  where str    = symbolString x
+tidyLocalRefas   :: Tidy -> SpecType -> SpecType
+tidyLocalRefas k = mapReft (txStrata . txReft' k)
+  where
+    txReft' Full                  = id 
+    txReft' Lossy                 = txReft
+    txStrata (U r p l)            = U r p (txStr l) 
+    txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l
+    dropLocals                    = filter (not . any isTmp . syms) . flattenRefas
+    isTmp x                       = any (`L.isPrefixOf` (symbolString x)) [anfPrefix, "ds_"] 
+    txStr                         = filter (not . isSVar) 
 
-txStrata syms s = filter (not . isSVar) s
+
 
 tidyDSymbols :: SpecType -> SpecType  
 tidyDSymbols t = mapBind tx $ substa tx t

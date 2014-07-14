@@ -155,6 +155,7 @@ Library
                     Language.Haskell.Liquid.Parse, 
                     Language.Haskell.Liquid.GhcInterface, 
                     Language.Haskell.Liquid.RefType, 
+                    Language.Haskell.Liquid.Errors, 
                     Language.Haskell.Liquid.PredType, 
                     Language.Haskell.Liquid.Predicates, 
                     Language.Haskell.Liquid.ACSS, 

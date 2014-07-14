@@ -8,14 +8,16 @@
 
 module Language.Haskell.Liquid.PrettyPrint (
   
+  -- * Tidy level
+  Tidy (..)
+ 
   -- * Printing RType
-    ppr_rtype
-
-  -- * Converting To String
-  -- , showpp
+  , rtypeDoc 
+  , ppr_rtype
 
   -- * Printing an Orderable List
   , pprManyOrdered 
+
   -- * Printing a List with many large items
   , pprintLongList
   , ppSpine
@@ -39,12 +41,16 @@ import Text.Parsec.Error (ParseError)
 import Var              (Var)
 import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
-import Data.List    (sort)
+import Data.List    (sort, sortBy)
 import Data.Function (on)
 import Data.Monoid   (mempty)
 import Data.Aeson    
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as M
+
+
+instance PPrint SrcSpan where
+  pprint = pprDoc
 
 instance PPrint Doc where
   pprint x = x 
@@ -77,18 +83,25 @@ instance Show Predicate where
   show = showpp
 
 
-
 -- | Printing an Ordered List
 
 ---------------------------------------------------------------
-pprManyOrdered :: (PPrint a, Ord a) => String -> [a] -> [Doc]
+pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
 ---------------------------------------------------------------
-pprManyOrdered msg = map ((text msg <+>) . pprint) . sort -- By (compare `on` pos) 
+pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . sort
 
 
 ---------------------------------------------------------------
 -- | Pretty Printing RefType ----------------------------------
 ---------------------------------------------------------------
+
+-- Should just make this a @Pretty@ instance but its too damn tedious
+-- to figure out all the constraints.
+
+rtypeDoc k    = ppr_rtype (ppE k) TopPrec
+  where 
+    ppE Lossy = ppEnvShort ppEnv
+    ppE Full  = ppEnv
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
@@ -299,5 +312,17 @@ pprXOT (x, v) = (xd, pprint v)
 
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m 
+
+instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
+  pprint = ppTable
+    
+ppTable m = vcat $ pprxt <$> xts
+  where 
+    pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)  
+    n          = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
+    keySize     = length . render . pprint
+    xts         = sortBy (compare `on` fst) $ M.toList m
+    thresh      = 6
+
 
 

@@ -428,6 +428,8 @@ Two Abstract Refinements
 - `l` : relates root `key` with `left`-subtree keys
 - `r` : relates root `key` with `right`-subtree keys
 
+<br>
+
 \begin{code}
 {-@ data Map k a < l :: k -> k -> Prop
                  , r :: k -> k -> Prop >
