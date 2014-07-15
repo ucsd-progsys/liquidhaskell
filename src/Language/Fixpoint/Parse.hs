@@ -16,7 +16,8 @@ module Language.Fixpoint.Parse (
   , parens  , brackets, angles, braces
   , semi    , comma     
   , colon   , dcolon 
-  , whiteSpace, blanks
+  , whiteSpace
+  , blanks
 
   -- * Parsing basic entities
   , fTyConP     -- Type constructors
@@ -30,6 +31,7 @@ module Language.Fixpoint.Parse (
   -- * Parsing recursive entities
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
+  , funAppP     -- Function Applications
   , qualifierP  -- Qualifiers
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
@@ -131,13 +133,22 @@ whiteSpace    = Token.whiteSpace    lexer
 stringLiteral = Token.stringLiteral lexer
 braces        = Token.braces        lexer
 double        = Token.float         lexer
-integer       = Token.integer       lexer
+-- integer       = Token.integer       lexer
 
 -- identifier = Token.identifier lexer
 
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
+integer = posInteger 
+  
+--  try (char '-' >> (negate <$> posInteger))
+--       <|> posInteger
+
+posInteger = toI <$> (many1 digit <* spaces)
+  where
+    toI :: String -> Integer 
+    toI = read
 
 ----------------------------------------------------------------
 ------------------------- Expressions --------------------------
@@ -163,7 +174,7 @@ locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
 symbolP :: Parser Symbol
-symbolP = liftM stringSymbol symCharsP 
+symbolP = stringSymbol <$> symCharsP 
 
 constantP :: Parser Constant
 constantP = try (liftM R double) <|> liftM I integer
@@ -171,41 +182,90 @@ constantP = try (liftM R double) <|> liftM I integer
 symconstP :: Parser SymConst
 symconstP = SL <$> stringLiteral 
 
+expr0P :: Parser Expr
+expr0P 
+  =  (fastIfP EIte exprP)
+-- <|> try (EVar . stringSymbol <$> upperIdP)   -- SPEED: remove try 
+-- <|> try (expr <$> symbolP) 
+ <|> {- try -} (ESym <$> symconstP)
+ <|> {- try -} (ECon <$> constantP)                   -- SPEED: drop try
+ <|> (reserved "_|_" >> return EBot)      
+ <|> try (parens  exprP)                          -- SPEED: move to END
+ <|> try (parens  exprCastP)                      -- SPEED: remove try 
+ -- <|> try (parens $ condQmP EIte exprP)
+ <|> (charsExpr <$> symCharsP)
+
+charsExpr cs@(c:_) 
+  | isLower c = expr $ stringSymbol cs
+  | otherwise = EVar $ stringSymbol cs
+
+--  <|> try (parens $ condP EIte exprP)
+
+fastIfP f bodyP 
+  = do reserved "if" 
+       p <- predP
+       reserved "then"
+       b1 <- bodyP 
+       reserved "else"
+       b2 <- bodyP 
+       return $ f p b1 b2
+
+
+expr1P :: Parser Expr
+expr1P 
+  =  try funAppP 
+ <|> expr0P 
+
 exprP :: Parser Expr 
-exprP =  expr2P <|> lexprP
+exprP = buildExpressionParser bops expr1P
 
-lexprP :: Parser Expr 
-lexprP   
-  =  try (parens exprP)
- <|> try (parens exprCastP)
- <|> try (parens $ condP EIte exprP)
- <|> try exprFunP
- <|> try (liftM (EVar . stringSymbol) upperIdP)
- <|> liftM expr symbolP 
- <|> liftM ECon constantP
- <|> liftM ESym symconstP
- <|> (reserved "_|_" >> return EBot)
-
-exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where 
-    exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
+    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
-    funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
+    funSymbolP     = locParserP symbolP
 
+
+
+
+-- ORIG exprP :: Parser Expr 
+-- ORIG exprP =  expr2P <|> lexprP
+-- 
+-- ORIG lexprP :: Parser Expr 
+-- ORIG lexprP   
+-- ORIG   =  try (parens exprP)
+-- ORIG  <|> try (parens exprCastP)
+-- ORIG  <|> try (parens $ condP EIte exprP)
+-- ORIG  <|> try exprFunP
+-- ORIG  <|> try (liftM (EVar . stringSymbol) upperIdP)
+-- ORIG  <|> liftM expr symbolP 
+-- ORIG  <|> liftM ECon constantP
+-- ORIG  <|> liftM ESym symconstP
+-- ORIG  <|> (reserved "_|_" >> return EBot)
+-- ORIG 
+-- ORIG exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+-- ORIG   where 
+-- ORIG     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
+-- ORIG     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
+-- ORIG     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+-- ORIG     funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
 
 parenBrackets  = parens . brackets 
 
-expr2P = buildExpressionParser bops lexprP
+-- ORIG expr2P = buildExpressionParser bops lexprP
 
-bops = [ [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
+bops = [ [ Prefix (reservedOp "-"   >> return eMinus)]
+       , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
          ]
        , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
-       , [Infix  (reservedOp "mod" >> return (EBin Mod  )) AssocLeft]
+       , [Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
+
+eMinus = EBin Minus (expr (0 :: Integer)) 
 
 
 exprCastP
@@ -223,39 +283,45 @@ sortP
   <|> try (FObj . stringSymbol <$> lowerIdP)
   <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
 
-symCharsP  = (condIdP symChars (\_ -> True))
+symCharsP   = condIdP symChars (`notElem` keyWordSyms)
+
+keyWordSyms = ["if", "then", "else", "mod"]
 
 ---------------------------------------------------------------------
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
-predP :: Parser Pred
-predP =  try (parens pred2P)
-     <|> try (parens $ condP pIte predP)
-     <|> try (reservedOp "not" >> liftM PNot predP)
-     <|> try (reservedOp "&&" >> liftM PAnd predsP)
-     <|> try (reservedOp "||" >> liftM POr  predsP)
-     <|> (qmP >> liftM PBexp exprP)
-     <|> (reserved "true"  >> return PTrue)
-     <|> (reserved "false" >> return PFalse)
-     <|> (try predrP)
-     <|> (try (liftM PBexp exprFunP))
+trueP  = reserved "true"  >> return PTrue
+falseP = reserved "false" >> return PFalse
 
-qmP    = reserved "?" <|> reserved "Bexp"
+pred0P :: Parser Pred
+pred0P =  trueP 
+      <|> falseP 
+      <|> try (fastIfP pIte predP)
+      <|> try predrP 
+      <|> try (parens predP)
+      <|> try (liftM PBexp funAppP)
+      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+      <|> try (reservedOp "||" >> liftM POr  predsP)
 
-pred2P = buildExpressionParser lops predP 
+predP  :: Parser Pred
+predP  = buildExpressionParser lops pred0P
+
 
 predsP = brackets $ sepBy predP semi
 
-lops = [ [Prefix (reservedOp "~"   >> return PNot)]
-       , [Infix  (reservedOp "&&"  >> return (\x y -> PAnd [x,y])) AssocRight]
-       , [Infix  (reservedOp "||"  >> return (\x y -> POr  [x,y])) AssocRight]
-       , [Infix  (reservedOp "=>"  >> return PImp) AssocRight]
-       , [Infix  (reservedOp "<=>" >> return PIff) AssocRight]]
+qmP    = reserved "?" <|> reserved "Bexp"
+
+lops = [ [Prefix (reservedOp "~"    >> return PNot)]
+       , [Prefix (reservedOp "not " >> return PNot)]
+       , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
+       , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
+       , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
+       , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
        
-predrP = do e1    <- expr2P
+predrP = do e1    <- exprP
             r     <- brelP
-            e2    <- expr2P 
+            e2    <- exprP 
             return $ r e1 e2
 
 brelP ::  Parser (Expr -> Expr -> Pred)
@@ -269,6 +335,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp "<=" >> return (PAtom Le))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
+
+condP f bodyP 
+   =   try (condIteP f bodyP)
+   <|> (condQmP f bodyP)
+
+condI = condIteP EIte 
+
 
 condIteP f bodyP 
   = do reserved "if" 
@@ -286,10 +359,6 @@ condQmP f bodyP
        colon
        b2 <- bodyP 
        return $ f p b1 b2
-
-condP f bodyP 
-   =   try (condIteP f bodyP)
-   <|> (condQmP f bodyP)
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -311,7 +380,7 @@ refBindP bp rp kindP
       vv  <- bp
       t   <- kindP
       reserved "|"
-      ras <- rp
+      ras <- rp <* spaces
       return $ t (Reft (vv, ras))
 
 bindP       = liftM stringSymbol (lowerIdP <* colon)
@@ -532,6 +601,18 @@ instance Inputable [Command] where
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------
 ---------------------------------------------------------------
+
+-- A few tricky predicates for parsing
+-- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
+-- 
+-- myTest2 = "len x = len y - 1"
+-- myTest3 = "len x y z = len a b c - 1"
+-- myTest4 = "len x y z = len a b (c - 1)"
+-- myTest5 = "x >= -1"
+-- myTest6 = "(bLength v) = if n > 0 then n else 0"
+-- myTest7 = "(bLength v) = (if n > 0 then n else 0)"
+-- myTest8 = "(bLength v) = (n > 0 ? n : 0)"
+
 
 sa  = "0"
 sb  = "x"

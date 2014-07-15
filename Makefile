@@ -43,3 +43,6 @@ pdeps:
 
 lint:
 	hlint --colour --report .
+
+tags:
+	hasktags -c src/

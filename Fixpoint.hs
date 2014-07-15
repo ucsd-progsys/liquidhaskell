@@ -12,11 +12,16 @@ import Language.Fixpoint.Types
 import Text.PrettyPrint.HughesPJ
 
 
+
+
+
 main = do cfg <- getOpts 
           whenLoud $ putStrLn $ "Options: " ++ show cfg
           if (native cfg) 
             then solveNative (inFile cfg) 
             else solveFile   cfg
+
+
 
 config = Config { 
     inFile      = def   &= typ "TARGET"       &= args    &= typFile 
