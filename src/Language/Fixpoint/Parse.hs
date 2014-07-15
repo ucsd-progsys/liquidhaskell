@@ -267,17 +267,6 @@ bops = [ [ Prefix (reservedOp "-"   >> return eMinus)]
 
 eMinus = EBin Minus (expr (0 :: Integer)) 
 
--- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
--- 
--- myTest2 = "len x = len y - 1"
--- myTest3 = "len x y z = len a b c - 1"
--- myTest4 = "len x y z = len a b (c - 1)"
--- myTest5 = "x >= -1"
--- myTest6 = "(bLength v) = if n > 0 then n else 0"
--- myTest7 = "(bLength v) = (if n > 0 then n else 0)"
--- myTest8 = "(bLength v) = (n > 0 ? n : 0)"
-
-
 
 exprCastP
   = do e  <- exprP 
@@ -612,6 +601,18 @@ instance Inputable [Command] where
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------
 ---------------------------------------------------------------
+
+-- A few tricky predicates for parsing
+-- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
+-- 
+-- myTest2 = "len x = len y - 1"
+-- myTest3 = "len x y z = len a b c - 1"
+-- myTest4 = "len x y z = len a b (c - 1)"
+-- myTest5 = "x >= -1"
+-- myTest6 = "(bLength v) = if n > 0 then n else 0"
+-- myTest7 = "(bLength v) = (if n > 0 then n else 0)"
+-- myTest8 = "(bLength v) = (n > 0 ? n : 0)"
+
 
 sa  = "0"
 sb  = "x"
