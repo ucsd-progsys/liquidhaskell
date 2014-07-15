@@ -174,7 +174,7 @@ locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
 symbolP :: Parser Symbol
-symbolP = liftM stringSymbol symCharsP 
+symbolP = stringSymbol <$> symCharsP 
 
 constantP :: Parser Constant
 constantP = try (liftM R double) <|> liftM I integer
@@ -184,27 +184,31 @@ symconstP = SL <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P 
-  =  try (liftM (EVar . stringSymbol) upperIdP)   -- SPEED: remove try 
- <|> try (liftM expr symbolP) 
- <|> try (liftM ESym symconstP)
- <|> try (liftM ECon constantP)                   -- SPEED: drop try
+  =  (fastIfP EIte exprP)
+-- <|> try (EVar . stringSymbol <$> upperIdP)   -- SPEED: remove try 
+-- <|> try (expr <$> symbolP) 
+ <|> {- try -} (ESym <$> symconstP)
+ <|> {- try -} (ECon <$> constantP)                   -- SPEED: drop try
  <|> (reserved "_|_" >> return EBot)      
- <|> try fastIfP
- <|> try (parens exprP)                           -- SPEED: move to END
- <|> try (parens exprCastP)                       -- SPEED: remove try 
- <|> try (parens $ condQmP EIte exprP)
+ <|> try (parens  exprP)                          -- SPEED: move to END
+ <|> try (parens  exprCastP)                      -- SPEED: remove try 
+ -- <|> try (parens $ condQmP EIte exprP)
+ <|> (charsExpr <$> symCharsP)
+
+charsExpr cs@(c:_) 
+  | isLower c = expr $ stringSymbol cs
+  | otherwise = EVar $ stringSymbol cs
 
 --  <|> try (parens $ condP EIte exprP)
 
-fastIfP 
+fastIfP f bodyP 
   = do reserved "if" 
        p <- predP
        reserved "then"
-       b1 <- exprP 
+       b1 <- bodyP 
        reserved "else"
-       b2 <- exprP 
-       return $ EIte p b1 b2
-
+       b2 <- bodyP 
+       return $ f p b1 b2
 
 expr1P :: Parser Expr
 expr1P 
@@ -301,15 +305,16 @@ trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
 pred0P :: Parser Pred
-pred0P =  try trueP 
-      <|> try falseP 
+pred0P =  trueP 
+      <|> falseP 
+      <|> try (fastIfP pIte predP)
       <|> try predrP 
-      <|> try (reservedOp "&&" >> liftM PAnd predsP)
-      <|> try (reservedOp "||" >> liftM POr  predsP)
-      <|> (qmP >> liftM PBexp exprP)
+-- DEPRECATE <|> try (reservedOp "&&" >> liftM PAnd predsP)
+-- DEPRECATE <|> try (reservedOp "||" >> liftM POr  predsP)
+-- DEPRECATE <|> (qmP >> liftM PBexp exprP)
+      <|> try (parens predP)
       <|> try (liftM PBexp funAppP)
-      <|> try (parens $ condP pIte predP)
-      <|> parens predP 
+--    <|> try (parens $ condP pIte predP)
 
 predP  :: Parser Pred
 predP  = buildExpressionParser lops pred0P
@@ -318,21 +323,6 @@ predP  = buildExpressionParser lops pred0P
 predsP = brackets $ sepBy predP semi
 
 qmP    = reserved "?" <|> reserved "Bexp"
-
--- ORIG predP =  try (parens pred2P)
--- ORIG      <|> try (parens $ condP pIte predP)
--- ORIG      <|> try (reservedOp "not" >> liftM PNot predP)
--- ORIG      <|> try (reservedOp "&&" >> liftM PAnd predsP)
--- ORIG      <|> try (reservedOp "||" >> liftM POr  predsP)
--- ORIG      <|> (qmP >> liftM PBexp exprP)
--- ORIG      <|> trueP   --  (reserved "true"  >> return PTrue)
--- ORIG      <|> falseP  --  (reserved "false" >> return PFalse)
--- ORIG      <|> (try predrP)
--- ORIG      <|> (try (liftM PBexp exprFunP))
-
-
--- ORIG pred2P = buildExpressionParser lops predP 
-
 
 lops = [ [Prefix (reservedOp "~"    >> return PNot)]
        , [Prefix (reservedOp "not " >> return PNot)]
