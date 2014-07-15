@@ -351,7 +351,7 @@ dropWhile p xs@(x:xs')
 
 {-@ take :: n:Int
          -> xs:[a] 
-         -> {v:[a] | (if (n >=0) then ((len v) = ((len(xs) < n) ? len(xs):n)) else ((len v) = 0))} 
+         -> {v:[a] | if n >= 0 then (len v = (if (len xs) < n then (len xs) else n)) else (len v = 0) } 
   @-}
 take                   :: Int -> [a] -> [a]
 
@@ -369,7 +369,7 @@ take                   :: Int -> [a] -> [a]
 -- in which @n@ may be of any integral type.
 {-@ drop  :: n: Int 
           -> xs:[a] 
-          -> {v:[a] | (if (n >= 0) then (len(v) = ((len(xs) <  n) ? 0 : len(xs) - n)) else ((len v) = (len xs)))} @-}
+          -> {v:[a] | (if (n >= 0) then (len(v) = (if (len(xs) <  n) then 0 else len(xs) - n)) else ((len v) = (len xs)))} @-}
 drop                   :: Int -> [a] -> [a]
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
