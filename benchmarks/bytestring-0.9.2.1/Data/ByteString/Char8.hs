@@ -1050,9 +1050,9 @@ combine1 _ [n] = n
 combine1 b ns  = combine1 (b*b) $ combine2 b ns
 
 {-@ combine2 :: Integer -> x:[Integer]
-             -> {v:[Integer] | (((len x) > 1)
-                             ? (((len v) <  (len x)) && ((len v) > 0))
-                             : ((len v) <= (len x)))}
+             -> {v:[Integer] | if len x > 1
+                               then (len v <  len x && len v > 0)
+                               else (len v <= len x)}
   @-}
 {-@ Decrease combine2 2 @-}
 combine2 :: Integer -> [Integer] -> [Integer]
