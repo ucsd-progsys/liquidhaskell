@@ -1,4 +1,3 @@
-
 {-@ LIQUID "--no-termination"   @-}
 
 module RedBlackTree where
