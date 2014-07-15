@@ -103,7 +103,7 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ qualif MinTLength(v:Text, n:Int, t:Text):
-        tlength(v) = (tlength(t) > n ? n : tlength(t))
+        tlength(v) = if tlength(t) > n then n else (tlength t)
   @-}
 
 {-@ qualif TLengthAcc(v:int, t:Text, l:int):
