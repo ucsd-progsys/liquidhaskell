@@ -1,4 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
+
 module LambdaEvalMini () where
 
 ---------------------------------------------------------------------
@@ -36,7 +37,7 @@ data Expr [elen]
      isValue (App e1 e2)  = false
   @-}
 
-{-@ type Value = {v: Expr | ? (isValue v) } @-}
+{-@ type Value = {v: Expr | (isValue v) } @-}
 {-@ type Store = LL (Pair Bndr Value)       @-}
 
 ---------------------------------------------------------------------
