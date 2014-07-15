@@ -35,7 +35,7 @@ type Even    = {v: GHC.Types.Int | (v mod 2) = 0 }
 type Odd     = {v: GHC.Types.Int | (v mod 2) = 1 }
 type BNat N  = {v: Nat           | v <= N }    
 
-predicate Max V X Y = ((X > Y) ? (V = X) : (V = Y))
-predicate Min V X Y = ((X < Y) ? (V = X) : (V = Y))
+predicate Max V X Y = if X > Y then V = X else V = Y
+predicate Min V X Y = if X < Y then V = X else V = Y
 
 type IncrListD a D = [a]<{\x y -> (x+D) <= y}>
