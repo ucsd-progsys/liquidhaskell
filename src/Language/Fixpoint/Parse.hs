@@ -210,6 +210,7 @@ fastIfP f bodyP
        b2 <- bodyP 
        return $ f p b1 b2
 
+
 expr1P :: Parser Expr
 expr1P 
   =  try funAppP 
@@ -309,12 +310,10 @@ pred0P =  trueP
       <|> falseP 
       <|> try (fastIfP pIte predP)
       <|> try predrP 
--- DEPRECATE <|> try (reservedOp "&&" >> liftM PAnd predsP)
--- DEPRECATE <|> try (reservedOp "||" >> liftM POr  predsP)
--- DEPRECATE <|> (qmP >> liftM PBexp exprP)
       <|> try (parens predP)
       <|> try (liftM PBexp funAppP)
---    <|> try (parens $ condP pIte predP)
+      <|> try (reservedOp "&&" >> liftM PAnd predsP)
+      <|> try (reservedOp "||" >> liftM POr  predsP)
 
 predP  :: Parser Pred
 predP  = buildExpressionParser lops pred0P
