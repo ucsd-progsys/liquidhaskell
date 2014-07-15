@@ -615,6 +615,12 @@ data DataDecl   = D { tycName   :: LocString
                     }
      --              deriving (Show) 
 
+-- | For debugging.
+instance Show DataDecl where
+  show dd = printf "DataDecl: data = %s, tyvars = %s" 
+              (show $ tycName   dd) 
+              (show $ tycTyVars dd) 
+
 -- | Refinement Type Aliases
 
 data RTAlias tv ty 

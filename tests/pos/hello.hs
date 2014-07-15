@@ -1,3 +1,5 @@
+{-@ LIQUID "-v" @-}
+
 module Hello () where
 
 {-@ abz :: (Num a, Ord a) => x:a -> {v: a | v >= x} @-}

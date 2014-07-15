@@ -8,7 +8,7 @@ import Data.Set
   @-}
 
 {-@ measure keys :: [(k, v)] -> (Set k) 
-    keys ([])   = {v | (? Set_emp(v))}
+    keys ([])   = {v | Set_emp v }
     keys (x:xs) = {v | (v = (Set_cup (Set_sng (getfst x)) (keys xs))) }
   @-}
 
