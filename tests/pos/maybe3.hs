@@ -11,6 +11,8 @@ module Foo () where
 foo :: Maybe a -> Maybe a -> Maybe a -> Maybe a -> Bool
 foo lo0 lo hi0 hi = bar (id hi) (id lo)
 
+
+
 {-@ bar :: hi: Maybe a 
         -> lo:Maybe {v: a | ((isJust(hi)) => (v <= fromJust(hi))) }  
         -> Bool @-}

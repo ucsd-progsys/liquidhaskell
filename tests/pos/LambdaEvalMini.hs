@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--no-termination" @-}
 
 module LambdaEvalMini () where
 
@@ -36,7 +36,7 @@ data Expr [elen]
      isValue (App e1 e2)  = false
   @-}
 
-{-@ type Value = {v: Expr | (? (isValue([v]))) } @-}
+{-@ type Value = {v: Expr | isValue v } @-}
 
 ---------------------------------------------------------------------
 -------------------------- The Evaluator ----------------------------
@@ -51,8 +51,7 @@ evalVar x ((y, v):sto)
 evalVar x []      
   = error "unbound variable"
 
--- A "value" is simply: {v: Expr | (? (isValue v)) } *)
-{- assert eval :: [(Bndr, {v: Expr | (? (isValue([v])))})] -> Expr -> {v: Expr | (? (isValue([v])))} -}
+-- A "value" is simply: {v: Expr | isValue v } *)
 
 {-@ Decrease eval 2 @-}
 {-@ eval :: [(Bndr, Value)] -> Expr -> ([(Bndr, Value)], Value) @-}
