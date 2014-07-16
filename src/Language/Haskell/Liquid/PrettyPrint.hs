@@ -86,20 +86,22 @@ instance Show Predicate where
 -- | Printing an Ordered List
 
 ---------------------------------------------------------------
-pprManyOrdered :: (PPrint a, Ord a) => String -> [a] -> [Doc]
+pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
 ---------------------------------------------------------------
-pprManyOrdered msg = map ((text msg <+>) . pprint) . sort
+pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . sort
 
 
 ---------------------------------------------------------------
 -- | Pretty Printing RefType ----------------------------------
 ---------------------------------------------------------------
 
-rtypeDoc k      = ppr_rtype (tidyPPEnv k) TopPrec
+-- Should just make this a @Pretty@ instance but its too damn tedious
+-- to figure out all the constraints.
 
-tidyPPEnv Lossy = ppEnvShort ppEnv
-tidyPPEnv Full  = ppEnv
-
+rtypeDoc k    = ppr_rtype (ppE k) TopPrec
+  where 
+    ppE Lossy = ppEnvShort ppEnv
+    ppE Full  = ppEnv
 
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t

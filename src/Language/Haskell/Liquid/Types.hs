@@ -91,7 +91,7 @@ module Language.Haskell.Liquid.Types (
   -- * Printer Configuration 
   , PPEnv (..)
   , Tidy  (..)
-  , configTidy
+  -- , configTidy
   , ppEnv, ppEnvShort
 
   -- * Import handling
@@ -206,7 +206,8 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]
-  , shortNames     :: Bool       -- ^ whether to drop module qualifers from pretty-printed names
+  , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
+  , shortErrors    :: Bool       -- ^ don't show subtyping errors and contexts. 
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   } deriving (Data, Typeable, Show, Eq)
 
@@ -217,22 +218,17 @@ data Config = Config {
 
 data Tidy = Lossy | Full deriving (Eq, Ord)
 
-configTidy c 
-  | shortNames c = Lossy
-  | otherwise    = Full 
-
-
 class PPrint a where
-  pprint :: a -> Doc
+  pprint     :: a -> Doc
+
+  pprintTidy :: Tidy -> a -> Doc
+  pprintTidy _ = pprint
 
 showpp :: (PPrint a) => a -> String 
 showpp = render . pprint 
 
 showEMsg :: (PPrint a) => a -> EMsg 
 showEMsg = EMsg . showpp 
-
--- pshow :: PPrint a => a -> String
--- pshow = render . pprint
 
 instance PPrint a => PPrint (Maybe a) where
   pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
@@ -628,6 +624,12 @@ data DataDecl   = D { tycName   :: LocString
                                 -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
+
+-- | For debugging.
+instance Show DataDecl where
+  show dd = printf "DataDecl: data = %s, tyvars = %s" 
+              (show $ tycName   dd) 
+              (show $ tycTyVars dd) 
 
 -- | Refinement Type Aliases
 

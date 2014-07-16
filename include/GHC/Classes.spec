@@ -25,5 +25,5 @@ compare :: (GHC.Classes.Ord a) => x:a -> y:a
                                     ((v = GHC.Types.LT) <=> (x < y)) &&
                                     ((v = GHC.Types.GT) <=> (x > y))) }
 
-max :: (GHC.Classes.Ord a) => x:a -> y:a -> {v:a | v = ((x > y) ? x : y) }
-min :: (GHC.Classes.Ord a) => x:a -> y:a -> {v:a | v = ((x < y) ? x : y) }
+max :: (GHC.Classes.Ord a) => x:a -> y:a -> {v:a | v = (if x > y then x else y) }
+min :: (GHC.Classes.Ord a) => x:a -> y:a -> {v:a | v = (if x < y then x else y) }

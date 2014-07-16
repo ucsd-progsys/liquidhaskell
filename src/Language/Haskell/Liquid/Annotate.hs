@@ -76,10 +76,8 @@ mkOutput cfg res sol anna
   where
     annTmpl      = closeAnnots anna
     annTy        = tidySpecType Lossy <$> applySolution sol annTmpl 
-    toDoc        = rtypeDoc $ configTidy cfg 
-    -- toDoc        = ppr_rtype env TopPrec
-    -- env          = if shortNames cfg then ppEnvShort ppEnv else ppEnv
-
+    toDoc        = rtypeDoc tidy
+    tidy         = if shortNames cfg then Lossy else Full
 
 -- | @annotate@ actually renders the output to files 
 -------------------------------------------------------------------

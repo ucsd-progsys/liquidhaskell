@@ -684,9 +684,7 @@ reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 -- the 'ByteString'.  It is analogous to the intersperse function on
 -- Lists.
 {-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((bLength b) > 0) ? ((bLength v) = (2 * (bLength b)) - 1)
-                                          : ((bLength v) = 0)) }
+                -> {v:ByteString | bLength v = if bLength b > 0 then (2 * bLength b - 1) else 0 }
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse c ps@(PS x s l)
