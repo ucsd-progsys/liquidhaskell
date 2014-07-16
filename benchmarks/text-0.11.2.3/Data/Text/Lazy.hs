@@ -983,8 +983,8 @@ mapAccumR f = go
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
 {-@ replicate :: n:Nat64 -> t:Text
-              -> {v:Text | ((n = 0) ? ((ltlength v) = 0)
-                                    : ((ltlength v) >= (ltlength t)))}
+              -> {v:Text | if (n = 0) then (ltlength v = 0)
+                                      else (ltlength v >= ltlength t)}
   @-}
 replicate :: Int64 -> Text -> Text
 replicate n t

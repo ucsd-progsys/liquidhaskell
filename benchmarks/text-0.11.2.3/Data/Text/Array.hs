@@ -246,13 +246,13 @@ unsafeIndexFQ :: Word16 -> Array -> Int -> Int -> Int -> Bool
 unsafeIndexFQ = undefined
 
 {-@ unsafeIndexB :: a:Array -> o:AValidO a -> l:AValidL o a
-                 -> i:{v:Int | (Btwn (v) (o) (o + l))}
-                 -> {v:Word16 | (((v >= 56320) && (v <= 57343))
-                                 ? ((numchars(a, o, (i-o)+1)
+                 -> i:{v:Int | Btwn v o (o + l)}
+                 -> {v:Word16 | (if (v >= 56320 && v <= 57343)
+                                 then ((numchars(a, o, (i - o )+1)
                                      = (1 + numchars(a, o, (i-o)-1)))
                                     && (numchars(a, o, (i-o-1)) >= 0)
                                     && (((i-o)-1) >= 0))
-                                 : ((numchars(a, o, (i-o)+1)
+                                 else ((numchars(a, o, (i-o)+1)
                                      = (1 + numchars(a, o, i-o)))
                                     && (numchars(a, o, (i-o)) >= 0)))}
   @-}
@@ -262,12 +262,12 @@ unsafeIndexB a o l i = let x = unsafeIndex a i
 
 {-@ unsafeIndexBQ :: x:Word16 -> a:Array -> o:Int -> i:Int
                   -> {v:Bool | ((Prop v) <=>
-                                (((x >= 56320) && (x <= 57343))
-                                 ? ((numchars(a, o, (i-o)+1)
+                                (if ((x >= 56320) && (x <= 57343))
+                                 then ((numchars(a, o, (i-o)+1)
                                      = (1 + numchars(a, o, (i-o)-1)))
                                     && (numchars(a, o, (i-o-1)) >= 0)
                                     && (((i-o)-1) >= 0))
-                                 : ((numchars(a, o, (i-o)+1)
+                                 else ((numchars(a, o, (i-o)+1)
                                      = (1 + numchars(a, o, i-o)))
                                     && (numchars(a, o, (i-o)) >= 0))))}
   @-}

@@ -618,9 +618,7 @@ reverse cs0 = rev Empty cs0
 -- \`intersperses\' that byte between the elements of the 'ByteString'.
 -- It is analogous to the intersperse function on Lists.
 {-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((lbLength b) > 0) ? ((lbLength v) = (2 * (lbLength b)) - 1)
-                                         : ((lbLength v) = 0)) }
+                -> {v:ByteString | if (lbLength b > 0) then (lbLength v = (2 * lbLength b) - 1) else (lbLength v = 0) }
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
@@ -918,8 +916,7 @@ take i cs0         = take' i cs0
 -- elements, or @[]@ if @n > 'length' xs@.
 {-@ drop :: n:Nat64
          -> b:ByteString
-         -> {v:ByteString | ((lbLength v) = (((lbLength b) <= n)
-                                          ? 0 : ((lbLength b) - n)))}
+         -> {v:ByteString | lbLength v = (if lbLength b <= n then 0 else (lbLength b - n))}
   @-}
 drop  :: Int64 -> ByteString -> ByteString
 drop i p | i <= 0 = p

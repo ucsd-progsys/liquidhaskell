@@ -14,8 +14,8 @@ import qualified Data.Set
        ((listElts X) = (listElts Y)) @-}
 {-@
   measure listDup :: [a] -> (Data.Set.Set a)
-  listDup([])   = {v | (? Set_emp (v))}
-  listDup(x:xs) = {v | v = ((Set_mem x (listElts xs))?(Set_cup (Set_sng x) (listDup xs)):(listDup xs)) }
+  listDup([])   = {v | Set_emp v }
+  listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}
 
 {-@ foo :: xs:(UList a)
