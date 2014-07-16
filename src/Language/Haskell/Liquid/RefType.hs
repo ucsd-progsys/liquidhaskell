@@ -55,6 +55,8 @@ module Language.Haskell.Liquid.RefType (
   , mkTyConInfo 
   ) where
 
+import WwLib
+import FamInstEnv (emptyFamInstEnv)
 import Var
 import Literal
 import GHC              hiding (Located)
@@ -62,7 +64,7 @@ import DataCon
 import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Type             (splitFunTys, expandTypeSynonyms, isPredTy, substTyWith, classifyPredType, PredTree(..), predTreePredType, isClassPred)
+import Type             (mkClassPred, splitFunTys, expandTypeSynonyms, isPredTy, substTyWith, classifyPredType, PredTree(..), isClassPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import qualified        Data.Text as T
@@ -88,6 +90,7 @@ import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
+import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
@@ -767,11 +770,10 @@ ofType_ τ
   | Just t <- ofPredTree (classifyPredType τ)
   = t
 ofType_ (TyConApp c τs)
-  | TC.isClosedSynTyCon c
+  | Just (αs, τ) <- TC.synTyConDefn_maybe c
   = ofType_ $ substTyWith αs τs τ
   | otherwise
   = rApp c (ofType_ <$> τs) [] mempty 
-  where (αs, τ) = TC.synTyConDefn c
 ofType_ (AppTy t1 t2)
   = RAppTy (ofType_ t1) (ofType t2) mempty             
 -- ofType_ τ               
@@ -853,7 +855,7 @@ toType (RVar (RTV α) _)
 toType (RApp (RTyCon {rTyCon = c}) ts _ _)   
   = TyConApp c (toType <$> ts)
 toType (RCls c ts)   
-  = predTreePredType $ ClassPred c (toType <$> ts)
+  = mkClassPred c (toType <$> ts)
 toType (RAllE _ _ t)
   = toType t
 toType (REx _ _ t)
@@ -1019,8 +1021,9 @@ expandProductType x t
            trep       = toRTypeRep t
            (xs', ts') = unzip $ concatMap mkProductTy $ zip3 τs (ty_binds trep) (ty_args trep)
           
-mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe τ
-  where f = ((<$>) ((,) dummySymbol . ofType)) . forth4
+mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe menv τ
+  where f    = ((<$>) ((,) dummySymbol . ofType)) . third4
+        menv = (emptyFamInstEnv, emptyFamInstEnv)
           
 -- Move to misc
 forth4 (_, _, _, x)     = x

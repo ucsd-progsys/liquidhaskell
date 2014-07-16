@@ -138,9 +138,9 @@ derivedVs cbs fd = concatMap bindersOf cbf ++ deps
         dep (DFunUnfolding _ _ e) = concatMap grapDep  e
         dep _                     = []
 
-        grapDep :: DFunArg CoreExpr -> [Id]
-        grapDep (DFunPolyArg (Var x)) = [x]
-        grapDep _                     = []
+        grapDep :: CoreExpr -> [Id]
+        grapDep (Var x)     = [x]
+        grapDep _           = []
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
@@ -151,9 +151,10 @@ updateDynFlags cfg
                     , hscTarget    = HscInterpreted
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
-                      `dopt_set` Opt_ImplicitImportQualified
+                  --     `gopt_set` Opt_Hpc
+                      `gopt_set` Opt_ImplicitImportQualified
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
-       setSessionDynFlags df''
+       setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
@@ -168,7 +169,7 @@ definedVars           = concatMap defs
 ------------------------------------------------------------------
 -- | Extracting CoreBindings From File ---------------------------
 ------------------------------------------------------------------
-
+getGhcModGuts1 :: FilePath -> Ghc MGIModGuts
 getGhcModGuts1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
@@ -187,7 +188,7 @@ getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns
         tyClD    = [d  | TyClD  d <- decls]
         tyDec    = filter isDataDecl tyClD
         inst     = mkInst <$> tyDec
-        mkInst x = (tcdLName x, td_derivs $ tcdTyDefn x)
+        mkInst x = (tcdLName x, dd_derivs $ tcdDataDefn x)
         mkDic    = \(x, y) -> "$f" ++ showPpr y ++ showPpr x
 
         pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
@@ -237,6 +238,7 @@ removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
 
+desugarModuleWithLoc :: TypecheckedModule -> Ghc DesugaredModule
 desugarModuleWithLoc tcm = do
   let ms = pm_mod_summary $ tm_parsed_module tcm 
   -- let ms = modSummary tcm
@@ -555,5 +557,5 @@ instance Result SourceError where
          . bagToList 
          . srcErrorMessages
      
-errMsgErrors e = [ ErrGhc l (pprint e) | l <- errMsgSpans e ] 
+errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)] 
 

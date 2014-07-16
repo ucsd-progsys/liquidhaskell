@@ -39,6 +39,9 @@ import Language.Haskell.Liquid.GhcMisc
 import Control.Applicative  ((<$>))
 import Control.Monad.State
 import Data.List (nub)
+
+import Data.Default
+
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
@@ -389,9 +392,8 @@ predType = TyVarTy $ stringTyVar predName
 rpredType    :: (PPrint r, Reftable r) => [RRType r] -> RRType r
 rpredType ts = RApp tyc ts [] mempty
   where 
-    tyc      = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
+    tyc      = RTyCon (stringTyCon 'x' 42 predName) [] def
 
-defaultTyConInfo = TyConInfo [] [] [] [] Nothing
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type

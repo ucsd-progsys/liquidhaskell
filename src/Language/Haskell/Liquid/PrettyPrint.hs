@@ -23,11 +23,11 @@ module Language.Haskell.Liquid.PrettyPrint (
   , ppSpine
   ) where
 
+import Type                             (tidyType)
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
 import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
 import GHC                              (Name, Class)
-import TcType                           (tidyType)
 import VarEnv                           (emptyTidyEnv)
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ

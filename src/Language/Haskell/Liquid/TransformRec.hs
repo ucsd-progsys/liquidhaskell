@@ -38,7 +38,7 @@ transformRecExpr cbs
   | otherwise 
   = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
   where pg     = evalState (transPg cbs) initEnv
-        (_, e) = lintCoreBindings pg
+        (_, e) = lintCoreBindings [] pg
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
