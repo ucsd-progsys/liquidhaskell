@@ -26,6 +26,7 @@ import           TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
+import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           Control.Monad.Trans              (lift)
@@ -38,12 +39,13 @@ import           Language.Haskell.Liquid.TransformRec
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
+import           Control.Applicative
 
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
   = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
        -- putStrLn $ showPpr orig_cbs
-       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv act 
+       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where m        = mgi_module modGuts
           grEnv    = mgi_rdr_env modGuts
           tEnv     = modGutsTypeEnv modGuts
@@ -90,7 +92,7 @@ subst msg as as' bt
 
 
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
-   deriving (Functor, Monad, MonadUnique)
+   deriving (Functor, Monad, MonadUnique, Applicative)
 
 data DsST = DsST { st_expandflag :: Bool
                  , st_binds      :: [CoreBind]
@@ -198,7 +200,7 @@ normalize _ e@(Type _)
   = return e
 
 normalize γ (Cast e τ)
-  = do e'    <- normalize γ e
+  = do e'    <- normalizeName γ e
        return $ Cast e' τ
 
 normalize γ (App e1 e2)
