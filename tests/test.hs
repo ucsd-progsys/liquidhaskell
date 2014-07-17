@@ -48,22 +48,23 @@ main
 
 mkTest :: FilePath -> FilePath -> ExitCode -> TestTree
 mkTest dir file code
-  = testCase file $ withFile log WriteMode $ \h -> do
-      let proc    = (shell $ mkCmd dir file) {std_out = UseHandle h, std_err = UseHandle h}
-      (_,_,_,ph) <- createProcess proc
-      c          <- waitForProcess ph
-      assertEqual "Wrong exit code" code c
+  = testCase rel $ do
+      createDirectoryIfMissing True $ takeDirectory log
+      withFile log WriteMode $ \h -> do
+        let proc    = (shell $ mkCmd dir rel) {std_out = UseHandle h, std_err = UseHandle h}
+        (_,_,_,ph) <- createProcess proc
+        c          <- waitForProcess ph
+        assertEqual "Wrong exit code" code c
   where
+    rel = makeRelative dir file
     log = let (d,f) = splitFileName file in d </> ".liquid" </> f <.> "log"
 
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 dirTests root ignored code
   = do fs    <- walkDirectory root
-       let hs = [rel | f <- fs, let rel = makeRelative root f
-                              , isHaskellFile rel
-                              , rel `notElem` ignored
-                              ]
-       forM_ hs $ \f -> createDirectoryIfMissing True $ takeDirectory f </> ".liquid"
+       let hs = [f | f <- fs, isHaskellFile f
+                            , f `notElem` ignored
+                            ]
        return [mkTest root f code | f <- hs]
 
 walkDirectory :: FilePath -> IO [FilePath]
