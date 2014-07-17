@@ -553,13 +553,15 @@ e.g. about stuff in `IO` ? For example, to read files, this
 is the API:
 
     open  :: FilePath -> IO Handle
-    read  :: Handle -> IO String
-    write :: Handle -> String -> IO ()
-    close :: Handle -> IO ()
+    read  :: Handle   -> IO String
+    write :: Handle   -> String -> IO ()
+    close :: Handle   -> IO ()
 
-The catch is that `read` and `write` require the `Handle` to be 
-in an "open" state (which is the state of the `Handle` returned by `open`)
-while `close` presumably puts the `Handle` in a "closed" state.
+The catch is that:
+
++ `read` and `write` require the `Handle` to be in an "open" state,
++ which is the state of the `Handle` returned by `open`,
++ while `close` presumably puts the `Handle` in a "closed" state.
 
 So, suppose we parameterize IO with two predicates a `Pre` and `Post` condition
 
@@ -568,7 +570,7 @@ So, suppose we parameterize IO with two predicates a `Pre` and `Post` condition
 where `World` is some abstract type denoting the global machine state.
 Now, it should be possible to give types like:
 
-   (>>=)  :: IO a <P, Q> -> (a -> IO b<Q, R>) -> IO b<P, R>
+   (>>=)  :: IO a <P, Q> -> (x:a -> IO b<Q x, R>) -> IO b<P, R>
    return :: a -> IO a <P, P>
 
 which basically state whats going on with connecting the conditions, and then,
@@ -579,6 +581,79 @@ give types to the File API:
    close :: h:Handle -> IO ()     <\w -> (IsOpen h w)> <\_ _ w -> not (IsOpen h w)>
 
 Wonder if something like this would work?
+
+Niki:
+My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop) 
+to a pre-condition.
+I guess you need to apply a value x :: a and a w :: Word to write (a -> IO b<Q x w, R>).
+
+I think the problem is that the "correct" values x and w are not "in scope"
+ 
+
+So assume
+data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> = IO (x:Word<P> -> (y:a, Word<Q y x>))
+
+and you want to type
+
+bind :: IO a <P,Q> -> (a -> IO b <Q x w, R>) -> IO b <P,R>
+bind (IO m) k = IO $ \s -> case m s of (a, s') -> (unIO (k a)) s'
+
+You have
+
+IO m :: IO a <P. Q>  
+             => m :: xx:Word <P> -> (y:a, Word <Q y xx>)
+
+you can assume
+s:: Word <P>
+
+so 
+m s :: (y:a, Word <Q y s>)
+
+k a :: IO b <Q x w, R>
+
+uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
+
+and we want 
+(uniIO k a) s :: (xx:b , Word <R xx s>) 
+
+so basically we need 
+P  => Q x w
+to be able to make the final application
+
+**Ranjit**
+You are right. We need to convert the "post" of the first action into the "pre"
+of the second, which is a problem since the former takes three, parameters while
+the latter takes only one.
+
+BUT, how about this (basically, all you need is an EXISTS).
+
+   -- | the type for `return` says that the output world satisfies 
+   --   whatever predicate the input world satisfied.
+   
+   return :: a -> IO a <P, {\_ _ w' -> (P w')}>
+ 
+   -- | the type for `bind` says that its action requires as input a world that satisfies 
+   --   Q (for SOME input world w0) and produces as output an R world.
+   (>>=)  :: IO a <P, Q> 
+          -> (x:a -> \exists w0:World. IO b<{\w -> (Q x w0 w)}, R>) 
+          -> IO b<P, {\xb w w' -> \exists xa:a w0:World<Q xa w>.(R xb w0 w')}>
+
+
+
+Basically, I am using exists in the same way as in the "compose" 
+
+https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/funcomposition.hs
+
+to name the intermediate worlds and results (after all, this seems
+like a super fancy version of `.` ) -- may have not put them in the
+right place...
+
+Btw, the existential is also how the HOARE rule for strongest postcondition works,
+if you recall:
+
+   {P} x := e {exists x'. P[x'/x] /\ x = e[x'/x]}
+
+
 
 
 One of the hardest steps seem to type the monad function (>>=):
