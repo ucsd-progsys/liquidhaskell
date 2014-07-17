@@ -2,6 +2,7 @@ module Main where
 
 import Control.Applicative
 import Control.Monad
+import Data.Proxy
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -11,20 +12,21 @@ import System.Process
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
+import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
 
 main :: IO ()
 main
-  = do pos <- dirTests "tests/pos" [] ExitSuccess
-       neg <- dirTests "tests/neg" [] (ExitFailure 1)
+  = do pos   <- dirTests "tests/pos"   [] ExitSuccess
+       neg   <- dirTests "tests/neg"   [] (ExitFailure 1)
        crash <- dirTests "tests/crash" [] (ExitFailure 2)
        -- benchmarks
-       text <- dirTests "benchmarks/text-0.11.2.3" textIgnored ExitSuccess
-       bs <- dirTests "benchmarks/bytestring-0.9.2.1" [] ExitSuccess
-       esop <- dirTests "benchmarks/esop2013-submission" ["Base0.hs"] ExitSuccess
-       vector_algs <- dirTests "benchmarks/vector-algorithms-0.5.4.2" [] ExitSuccess
-       hscolour <- dirTests "benchmarks/hscolour-1.20.0.0" [] ExitSuccess
+       text        <- dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
+       bs          <- dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
+       esop        <- dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
+       vector_algs <- dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
+       hscolour    <- dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
        -- TestTrees
        let unit = testGroup "Unit"
                     [ testGroup "pos" pos
@@ -39,33 +41,30 @@ main
                      , testGroup "hscolour" hscolour
                      ]
        defaultMainWithIngredients
-         [ rerunningTests [listingTests, consoleTestReporter] ]
-         $ testGroup "Tests" [unit, bench]
+         [ rerunningTests [ listingTests, consoleTestReporter ]
+         , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
+         ] $ testGroup "Tests" [ unit, bench ]
 
 
 mkTest :: FilePath -> FilePath -> ExitCode -> TestTree
 mkTest dir file code
-  = testCase rel $ withFile log WriteMode $ \h -> do
-      let proc    = (shell $ mkCmd dir rel) {std_out = UseHandle h, std_err = UseHandle h}
+  = testCase file $ withFile log WriteMode $ \h -> do
+      let proc    = (shell $ mkCmd dir file) {std_out = UseHandle h, std_err = UseHandle h}
       (_,_,_,ph) <- createProcess proc
-      c          <-  waitForProcess ph
+      c          <- waitForProcess ph
       assertEqual "Wrong exit code" code c
-  where rel = makeRelative dir file
-        log = let (d,f) = splitFileName file in d </> ".liquid" </> f <.> "log"
+  where
+    log = let (d,f) = splitFileName file in d </> ".liquid" </> f <.> "log"
 
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 dirTests root ignored code
-  = do cleanup root
-       fs    <- walkDirectory root
-       let hs = [f | f <- fs, isHaskellFile f, f `notElem` ignored]
+  = do fs    <- walkDirectory root
+       let hs = [rel | f <- fs, let rel = makeRelative root f
+                              , isHaskellFile rel
+                              , rel `notElem` ignored
+                              ]
+       forM_ hs $ \f -> createDirectoryIfMissing True $ takeDirectory f </> ".liquid"
        return [mkTest root f code | f <- hs]
-
-cleanup :: FilePath -> IO ()
-cleanup dir
-  = do b <- doesDirectoryExist lq
-       when b $ removeDirectoryRecursive lq
-       createDirectory lq
-  where lq = dir </> ".liquid"
 
 walkDirectory :: FilePath -> IO [FilePath]
 walkDirectory root
