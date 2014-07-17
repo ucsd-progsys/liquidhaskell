@@ -22,14 +22,14 @@ take_unsafe_UInt0 0#  _     = []
 take_unsafe_UInt0 n  (x:xs) = x : take_unsafe_UInt0 (n -# 1#) xs
 take_unsafe_UInt0 _   _     = error "unsafe take"
 
-{-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len(v) = ((len(xs) < n) ? len(xs) : n) } @-}
+{-@ assert take  :: n: {v: Int | v >= 0 } -> xs:[a] -> {v:[a] | len v = if len xs < n then (len xs) else n } @-}
 take (I# n#) xs = takeUInt n# xs
 -- take (I# n#) xs = take_unsafe_UInt n# xs
 
 takeUInt :: Int# -> [a] -> [a]
 takeUInt n xs
-  | n >=# 0#  =  take_unsafe_UInt n xs
-  | otherwise =  liquidAssert False []
+  | isTrue# (n >=# 0#) =  take_unsafe_UInt n xs
+  | otherwise          =  liquidAssert False []
 
 take_unsafe_UInt :: Int# -> [a] -> [a]
 take_unsafe_UInt 0#  _     = []

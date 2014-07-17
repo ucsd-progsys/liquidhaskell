@@ -6,13 +6,10 @@
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate 
--- 1. HTMLized source with Inferred Types
+-- 1. HTMLized source with Inferred Types in mouseover annotations.
 -- 2. Annotations files (e.g. for vim/emacs)
 -- 3. JSON files for the web-demo etc.
 ---------------------------------------------------------------------------
-
--- | This module contains the code that uses the inferred types to generate
--- htmlized source with mouseover annotations.
 
 module Language.Haskell.Liquid.Annotate (mkOutput, annotate) where
 

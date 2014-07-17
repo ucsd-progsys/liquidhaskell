@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.2.0.0
+Version:             0.2.2.0
 Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -25,7 +25,6 @@ data-files: include/*.hquals
           , include/Foreign/*.spec
           , include/Foreign/C/*.spec
           , include/Foreign/Marshal/*.spec
-          , include/GHC/List.lhs
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
@@ -47,12 +46,17 @@ Source-Repository head
 
 Executable liquid
   Build-Depends: base >= 4 && < 5
-               , ghc==7.6.3
+               , ghc>=7.8.3
                , ansi-terminal
+               , template-haskell
+               , time
+               , array
+               , hpc
                , bifunctors
                , cmdargs
                , containers
                , cpphs
+               , data-default
                , deepseq
                , directory
                , Diff
@@ -116,12 +120,17 @@ Executable liquid
 
 Library
    Build-Depends: base
-                , ghc==7.6.3
+                , ghc>=7.8.3
                 , ansi-terminal
+                , template-haskell
+                , time
+                , array
+                , hpc
                 , bifunctors
                 , cmdargs
                 , containers
                 , cpphs
+                , data-default
                 , deepseq
                 , directory
                 , Diff
@@ -176,6 +185,10 @@ Library
  
    other-modules:   Language.Haskell.Liquid.Desugar.Desugar
                     Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.Coverage,
+                    Language.Haskell.Liquid.Desugar.Check,
+                    Language.Haskell.Liquid.Desugar.DsForeign,
+                    Language.Haskell.Liquid.Desugar.DsMeta,
                     Language.Haskell.Liquid.Desugar.DsListComp,
                     Language.Haskell.Liquid.Desugar.MatchCon,
                     Language.Haskell.Liquid.Desugar.MatchLit,
@@ -188,4 +201,18 @@ Library
    --ghc-options: -O -W
    Extensions: PatternGuards
 
-
+test-suite test
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests
+  ghc-options:       -O2 -threaded
+  main-is:           test.hs
+  build-depends:     base,
+                     directory,
+                     filepath,
+                     process,
+                     tagged,
+                     unix,
+                     liquidhaskell,
+                     tasty >= 0.8,
+                     tasty-hunit >= 0.8,
+                     tasty-rerun >= 0.8
