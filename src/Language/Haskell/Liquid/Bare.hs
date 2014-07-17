@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare (
   -- , varSpecType
   ) where
 
+import ConLike                  
 import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first)
 import Var
@@ -29,7 +30,7 @@ import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe, eqType)
 import DataCon                  (dataConImplicitIds, dataConWorkId, dataConStupidTheta)
-import TyCon                    (tyConArity, tcExpandTyCon_maybe)
+import TyCon                    (synTyConRhs_maybe, SynTyConRhs(SynonymTyCon), tyConArity, tcExpandTyCon_maybe)
 import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
@@ -916,9 +917,9 @@ lookupGhcVar x
          Nothing -> lookupGhcThing "variable" fv x
          Just v  -> return v
   where
-    fv (AnId x)     = Just x
-    fv (ADataCon x) = Just $ dataConWorkId x
-    fv _            = Nothing
+    fv (AnId x)                   = Just x
+    fv (AConLike (RealDataCon x)) = Just $ dataConWorkId x
+    fv _                          = Nothing
 
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
@@ -946,7 +947,7 @@ isTupleDC _              = Nothing
 
 lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
   where 
-    fdc (ADataCon x) = Just x
+    fdc (AConLike (RealDataCon x)) = Just x
     fdc _            = Nothing
 
 wiredIn :: M.HashMap String Name
@@ -1184,10 +1185,9 @@ ofSyms (x, t)
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
 
-bareTCApp _ r c rs ts | (not (isFamilyTyCon c)) && isSynTyCon c
+bareTCApp _ r c rs ts | Just (SynonymTyCon rhs) <- synTyConRhs_maybe c
    = tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r 
    where tvs = tyConTyVars  c
-         rhs = synTyConType c  -- this is not defined for FamilyTyCon
          su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
          nts = length tvs
 

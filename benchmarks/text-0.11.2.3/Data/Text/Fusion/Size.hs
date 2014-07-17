@@ -155,7 +155,7 @@ larger _             _                     = Unknown
 {-# INLINE larger #-}
 
 -- | Compute the maximum size from a size hint, if possible.
-{-@ upperBound :: k:Nat -> s:Size -> {v:Nat | v = ((isUnknown s) ? k : (getSize s))} @-}
+{-@ upperBound :: k:Nat -> s:Size -> {v:Nat | v = if (isUnknown s) then k else (getSize s) } @-}
 upperBound :: Int -> Size -> Int
 upperBound _ (Exact n) = n
 upperBound _ (Max   n) = n
@@ -163,7 +163,7 @@ upperBound k _         = k
 {-# INLINE upperBound #-}
 
 {-@ isEmpty :: s:Size
-            -> {v:Bool | ((Prop v) <=> ((not (isUnknown s) && ((getSize s) = 0))))}
+            -> {v:Bool | Prop v <=> ((not (isUnknown s) && (getSize s = 0))) }
   @-}
 isEmpty :: Size -> Bool
 isEmpty (Exact n) = n <= 0

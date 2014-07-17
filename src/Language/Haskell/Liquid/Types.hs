@@ -69,6 +69,8 @@ module Language.Haskell.Liquid.Types (
   -- * Refinement Hole
   , hole, isHole
 
+  , classToRApp
+
   -- * Traversing `RType` 
   , efoldReft, foldReft
   , mapReft, mapReftM
@@ -127,10 +129,10 @@ module Language.Haskell.Liquid.Types (
   , RClass (..)
 
   -- * KV Profiling
-  , KVKind (..)   -- ^ types of kvars
-  , KVProf        -- ^ profile table
-  , emptyKVProf   -- ^ empty profile
-  , updKVProf     -- ^ extend profile
+  , KVKind (..)   -- types of kvars
+  , KVProf        -- profile table
+  , emptyKVProf   -- empty profile
+  , updKVProf     -- extend profile
 
   , pappSym, pToRef, pApp
 
@@ -145,6 +147,7 @@ import SrcLoc                                   (noSrcSpan, mkGeneralSrcSpan, Sr
 import TyCon
 import DataCon
 import NameSet
+import Class                                    (classTyCon)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
 import Var
 import Unique
@@ -180,6 +183,8 @@ import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 -- import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Names      (symSepName)
 import CoreSyn (CoreBind)
+
+import Data.Default
 -----------------------------------------------------------------------------
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
@@ -414,6 +419,12 @@ data RTyCon = RTyCon
   }
   deriving (Generic, Data, Typeable)
 
+defaultTyConInfo = TyConInfo [] [] [] [] Nothing
+
+instance Default TyConInfo where
+  def = defaultTyConInfo
+
+
 -----------------------------------------------------------------------
 ----------- TyCon get CoVariance - ContraVariance Info ----------------
 -----------------------------------------------------------------------
@@ -428,8 +439,7 @@ data RTyCon = RTyCon
 --  contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
 --  covariantPsArgs     = [0, 2], for predicate arguments p and r
 --  contravariantPsArgs = [1, 2], for predicate arguments q and r
---  
---  Note, d does not appear in the data definition, we enforce BOTH
+--  does not appear in the data definition, we enforce BOTH
 --  con - contra variance
 
 data TyConInfo = TyConInfo
@@ -614,6 +624,12 @@ data DataDecl   = D { tycName   :: LocString
                                 -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
+
+-- | For debugging.
+instance Show DataDecl where
+  show dd = printf "DataDecl: data = %s, tyvars = %s" 
+              (show $ tycName   dd) 
+              (show $ tycTyVars dd) 
 
 -- | Refinement Type Aliases
 
@@ -1524,6 +1540,11 @@ hole = RKvar (S "HOLE") mempty
 
 isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
 isHole _                                            = False
+
+
+classToRApp :: SpecType -> SpecType
+classToRApp (RCls cl ts) 
+  = RApp (RTyCon (classTyCon cl) def def) ts mempty mempty
 
 instance Symbolic DataCon where
   symbol = symbol . dataConWorkId

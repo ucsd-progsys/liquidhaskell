@@ -142,13 +142,6 @@ stringLiteral = Token.stringLiteral lexer
 
 bareTypeP :: Parser BareType 
 
--- bareTypeP   
---   =  try bareFunP
---  <|> bareAllP
---  <|> bareAllExprP
---  <|> bareExistsP
---  <|> bareAtomP 
- 
 bareTypeP
   =  try bareAllP
  <|> bareAllS
@@ -158,8 +151,7 @@ bareTypeP
  <|> bareAtomP (refBindP bindP)
  <|> try (angles (do t <- parens $ bareTypeP
                      p <- monoPredicateP
-                     return $ t `strengthen` (U mempty p mempty))
-        )
+                     return $ t `strengthen` (U mempty p mempty)))
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
@@ -170,9 +162,9 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
-holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
-refasHoleP = refasP <|> (reserved "_" >> return [hole])
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
+holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
+refasHoleP  = refasP <|> (reserved "_" >> return [hole])
 
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
@@ -180,7 +172,6 @@ bbaseP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
---  <|> try (liftM2 bAppTy lowerIdP bareTyArgP)
  <|> try (liftM3 bRVar lowerIdP stratumP monoPredicateP)
  <|> liftM4 bCon locUpperIdP stratumP predicatesP (sepBy bareTyArgP blanks)
 
@@ -239,7 +230,7 @@ bareAllS
 
 bareAllP 
   = do reserved "forall"
-       as <- many tyVarIdP -- sepBy1 tyVarIdP comma
+       as <- many tyVarIdP
        ps <- predVarDefsP
        dot
        t  <- bareTypeP
@@ -297,11 +288,9 @@ bareFunP
        t2 <- bareTypeP
        return $ bareArrow b t1 a t2 
 
-dummyBindP 
-  = tempSymbol "db" <$> freshIntP
-  -- = stringSymbol <$> positionNameP 
+dummyBindP = tempSymbol "db" <$> freshIntP
 
-bbindP = lowerIdP <* dcolon 
+bbindP     = lowerIdP <* dcolon 
 
 bareArrow b t1 ArrowFun t2
   = rFun b t1 t2
@@ -326,17 +315,6 @@ getClass t
 dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
   = fm `ap` return dummyReft 
-
--- Moved into liquid-fixpoint
--- refP :: Parser (Reft -> a) -> Parser a
--- refP kindP
---   = braces $ do
---       v   <- symbolP 
---       colon
---       t   <- kindP
---       reserved "|"
---       ras <- refasP 
---       return $ t (Reft (v, ras))
 
 symsP
   = do reserved "\\"
@@ -372,11 +350,24 @@ monoPredicate1P
   <|> try (liftM pdVar (parens predVarUseP))
   <|> liftM pdVar predVarUseP 
 
-predVarUseP 
- = do p  <- predVarIdP
-      xs <- sepBy exprP spaces
-      return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+-- HEREHEREHEREHEREHERE FIXME. SIGH.
+-- predVarUseP 
+--  = do p  <- predVarIdP
+--       xs <- sepBy exprP spaces
+--       return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
+predVarUseP 
+  = do (p, xs) <- funArgsP 
+       return   $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+
+
+funArgsP  = try realP <|> empP
+  where
+    empP  = (,[]) <$> predVarIdP
+    realP = do EApp lp xs <- funAppP
+               return (val lp, xs) 
+
+  
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
@@ -440,6 +431,32 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
   | Class   (RClass ty)
+
+-- | For debugging
+instance Show (Pspec a b) where
+  show (Meas   _) = "Meas"   
+  show (Assm   _) = "Assm"   
+  show (Asrt   _) = "Asrt"   
+  show (LAsrt  _) = "LAsrt"  
+  show (Asrts  _) = "Asrts"  
+  show (Impt   _) = "Impt"   
+  show (DDecl  _) = "DDecl"  
+  show (Incl   _) = "Incl"   
+  show (Invt   _) = "Invt"   
+  show (IAlias _) = "IAlias" 
+  show (Alias  _) = "Alias"  
+  show (PAlias _) = "PAlias" 
+  show (Embed  _) = "Embed"  
+  show (Qualif _) = "Qualif" 
+  show (Decr   _) = "Decr"   
+  show (LVars  _) = "LVars"  
+  show (Lazy   _) = "Lazy"   
+  show (Pragma _) = "Pragma" 
+  show (CMeas  _) = "CMeas"  
+  show (IMeas  _) = "IMeas"  
+  show (Class  _) = "Class" 
+
+
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
@@ -539,7 +556,7 @@ invaliasP
        return (t, ta)
 
 genBareTypeP
-  = bareTypeP -- liftM generalize bareTypeP 
+  = bareTypeP
 
 embedP 
   = xyP locUpperIdP (reserved "as") fTyConP
@@ -602,7 +619,7 @@ rawBodyP
   = braces $ do
       v <- symbolP 
       reserved "|"
-      p <- predP
+      p <- predP <* spaces
       return $ R v p
 
 tyBodyP :: BareType -> Parser Body
@@ -696,6 +713,7 @@ dataSizeP
   <|> return Nothing
   where mkFun s = \x -> EApp (stringSymbol <$> s) [EVar x]
 
+dataDeclP :: Parser DataDecl 
 dataDeclP 
    =  try dataDeclFullP
   <|> dataDeclSizeP
