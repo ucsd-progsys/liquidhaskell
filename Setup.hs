@@ -24,7 +24,7 @@ buildFixpoint _ _ pkg lbi
     allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
     binDir      = bindir allDirs ++ "/"
     flags       = configConfigurationsFlags $ configFlags lbi
-    z3mem       = fromJust $ lookup (FlagName "z3mem") flags
+    z3mem       = fromMaybe False $ lookup (FlagName "z3mem") flags
 
 copyFixpoint _ _ pkg lbi
   = do executeShellCommand $ "cp external/fixpoint/fixpoint.native " ++ binDir
@@ -34,7 +34,7 @@ copyFixpoint _ _ pkg lbi
     allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
     binDir      = bindir allDirs ++ "/"
     flags       = configConfigurationsFlags $ configFlags lbi
-    z3mem       = fromJust $ lookup (FlagName "z3mem") flags
+    z3mem       = fromMaybe False $ lookup (FlagName "z3mem") flags
 
 executeShellCommand cmd   = putStrLn ("EXEC: " ++ cmd) >> system cmd >>= check
   where
