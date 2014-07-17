@@ -201,4 +201,17 @@ Library
    --ghc-options: -O -W
    Extensions: PatternGuards
 
-
+test-suite test
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests
+  ghc-options:       -O2
+  main-is:           test.hs
+  build-depends:     base,
+                     directory,
+                     filepath,
+                     process,
+                     unix,
+                     liquidhaskell,
+                     tasty >= 0.8,
+                     tasty-hunit >= 0.8,
+                     tasty-rerun >= 0.8

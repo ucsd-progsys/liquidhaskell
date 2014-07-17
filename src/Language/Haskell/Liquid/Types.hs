@@ -129,10 +129,10 @@ module Language.Haskell.Liquid.Types (
   , RClass (..)
 
   -- * KV Profiling
-  , KVKind (..)   -- ^ types of kvars
-  , KVProf        -- ^ profile table
-  , emptyKVProf   -- ^ empty profile
-  , updKVProf     -- ^ extend profile
+  , KVKind (..)   -- types of kvars
+  , KVProf        -- profile table
+  , emptyKVProf   -- empty profile
+  , updKVProf     -- extend profile
 
   , pappSym, pToRef, pApp
 
