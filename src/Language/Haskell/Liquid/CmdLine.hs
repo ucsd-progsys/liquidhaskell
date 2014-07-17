@@ -147,8 +147,7 @@ getOpts :: IO Config
 getOpts = do cfg0    <- envCfg 
              cfg1    <- mkOpts =<< cmdArgs config 
              let cfg  = fixCfg $ mconcat [cfg0, cfg1]
-             putStrLn copyright
-             whenLoud $ putStrLn $ "liquid " ++ show cfg ++ "\n"
+             whenNormal $ putStrLn copyright
              return cfg
 
 fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) } 

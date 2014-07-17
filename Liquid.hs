@@ -41,6 +41,8 @@ liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
 liquidOne target info = 
   do donePhase Loud "Extracted Core From GHC"
      let cfg   = config $ spec info 
+     whenLoud  $ do putStrLn "**** Config **************************************************"
+                    print cfg
      whenLoud  $ do putStrLn $ showpp info 
                     putStrLn "*************** Original CoreBinds ***************************" 
                     putStrLn $ showpp (cbs info)
