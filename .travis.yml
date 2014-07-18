@@ -20,6 +20,7 @@ before_install:
  - git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
  - pushd /tmp/fixpoint && cabal install && popd
  - curl http://goto.ucsd.edu/~gridaphobe/z3 -o "$HOME/.cabal/bin/z3"
+ - chmod a+x "$HOME/.cabal/bin/z3"
 
 install:
  - cabal install --only-dependencies --enable-tests
