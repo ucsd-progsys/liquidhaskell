@@ -215,4 +215,4 @@ test-suite test
                      liquidhaskell,
                      tasty >= 0.8,
                      tasty-hunit >= 0.8,
-                     tasty-rerun >= 0.8
+                     tasty-rerun >= 1.1
