@@ -1,5 +1,6 @@
 module Main where
 
+import Distribution.Simple.Utils (getDirectoryContentsRecursive)
 import Control.Applicative
 import Control.Monad
 import Data.Proxy
@@ -67,26 +68,28 @@ dirTests root ignored code
        return [mkTest root f code | f <- hs]
 
 walkDirectory :: FilePath -> IO [FilePath]
-walkDirectory root
-  = do (ds,fs) <- partitionM isDirectory . candidates =<< getDirectoryContents root
-       (fs++) <$> concatMapM walkDirectory ds
-  where
-    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+walkDirectory = getDirectoryContentsRecursive
 
-partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
-partitionM f = go [] []
-  where
-    go ls rs []     = return (ls,rs)
-    go ls rs (x:xs) = do b <- f x
-                         if b then go (x:ls) rs xs
-                              else go ls (x:rs) xs
-
-isDirectory :: FilePath -> IO Bool
-isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
-
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f []     = pure []
-concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
+-- walkDirectory root
+--   = do (ds,fs) <- partitionM isDirectory . candidates =<< getDirectoryContents root
+--        (fs++) <$> concatMapM walkDirectory ds
+--   where
+--     candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+-- 
+-- partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
+-- partitionM f = go [] []
+--   where
+--     go ls rs []     = return (ls,rs)
+--     go ls rs (x:xs) = do b <- f x
+--                          if b then go (x:ls) rs xs
+--                               else go ls (x:rs) xs
+--
+-- isDirectory :: FilePath -> IO Bool
+-- isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
+-- 
+-- concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
+-- concatMapM f []     = pure []
+-- concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
 
 isHaskellFile :: FilePath -> Bool
 isHaskellFile f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
