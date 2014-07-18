@@ -11,7 +11,7 @@ Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
 Category:            Language
 Build-Type:          Simple
-Cabal-version:       >=1.8
+Cabal-version:       >=1.18
 
 data-files: include/*.hquals
           , include/*.hs

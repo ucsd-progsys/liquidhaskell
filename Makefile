@@ -44,25 +44,25 @@ deps:
 pdeps:
 	$(CABALP) $(DEPS)
 
-all-test:
+all-test-py:
 	cd tests && ./regrtest.py -a -t $(THREADS) && cd ../
 
-test:
+test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
-tasty:
+test:
 	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-rerun:
+retest:
 	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-all:
+all-test:
 	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-rerun-all:
+all-retest:
 	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
