@@ -16,84 +16,95 @@ import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
 
+-- main
+--   = do pos         <- dirTests "tests/pos"   [] ExitSuccess
+--        neg         <- dirTests "tests/neg"   [] (ExitFailure 1)
+--        crash       <- dirTests "tests/crash" [] (ExitFailure 2)
+--        -- benchmarks
+--        text        <- dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
+--        bs          <- dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
+--        esop        <- dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
+--        vector_algs <- dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
+--        hscolour    <- dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
+--        -- TestTrees
+--        let unit = testGroup "Unit"
+--                     [ testGroup "pos" pos
+--                     , testGroup "neg" neg
+--                     , testGroup "crash" crash
+--                     ]
+--        let bench = testGroup "Benchmarks"
+--                      [ testGroup "text" text
+--                      , testGroup "bytestring" bs
+--                      , testGroup "esop" esop
+--                      , testGroup "vector-algorithms" vector_algs
+--                      , testGroup "hscolour" hscolour
+--                      ]
+--        defaultMainWithIngredients
+--          [ rerunningTests [ listingTests, consoleTestReporter ]
+--          , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
+--          ] $ testGroup "Tests" [ unit, bench ]
+
 main :: IO ()
-main
-  = do pos   <- dirTests "tests/pos"   [] ExitSuccess
-       neg   <- dirTests "tests/neg"   [] (ExitFailure 1)
-       crash <- dirTests "tests/crash" [] (ExitFailure 2)
-       -- benchmarks
-       text        <- dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
-       bs          <- dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
-       esop        <- dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
-       vector_algs <- dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
-       hscolour    <- dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
-       -- TestTrees
-       let unit = testGroup "Unit"
-                    [ testGroup "pos" pos
-                    , testGroup "neg" neg
-                    , testGroup "crash" crash
-                    ]
-       let bench = testGroup "Benchmarks"
-                     [ testGroup "text" text
-                     , testGroup "bytestring" bs
-                     , testGroup "esop" esop
-                     , testGroup "vector-algorithms" vector_algs
-                     , testGroup "hscolour" hscolour
-                     ]
-       defaultMainWithIngredients
-         [ rerunningTests [ listingTests, consoleTestReporter ]
-         , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
-         ] $ testGroup "Tests" [ unit, bench ]
+main = run =<< tests 
+  where
+    run   = defaultMainWithIngredients [ 
+                rerunningTests   [ listingTests, consoleTestReporter ]
+              , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
+              ]
+    
+    tests = group "Tests" [ unitTests, benchTests ]
+
+unitTests  
+  = group "Unit" [ 
+      testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
+    , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
+    , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2) 
+    ]
+
+benchTests
+  = group "Benchmarks" [ 
+      testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
+    , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
+    , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
+    , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
+    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
+
+    ]
+
+---------------------------------------------------------------------------
+dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+---------------------------------------------------------------------------
+dirTests root ignored code
+  = do files    <- walkDirectory root
+       let tests = [f | f <- files, isTest f, f `notElem` ignored ]
+       return    $ mkTest code root <$> tests --  hs f code | f <- hs]
+
+isTest   :: FilePath -> Bool
+isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
 
 
-mkTest :: FilePath -> FilePath -> ExitCode -> TestTree
-mkTest dir file code
+
+---------------------------------------------------------------------------
+mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
+---------------------------------------------------------------------------
+mkTest code dir file 
   = testCase rel $ do
       createDirectoryIfMissing True $ takeDirectory log
       withFile log WriteMode $ \h -> do
-        let proc    = (shell $ mkCmd dir rel) {std_out = UseHandle h, std_err = UseHandle h}
-        (_,_,_,ph) <- createProcess proc
+        let cmd     = testCmd dir rel
+        (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
         c          <- waitForProcess ph
         assertEqual "Wrong exit code" code c
   where
     rel = makeRelative dir file
     log = let (d,f) = splitFileName file in d </> ".liquid" </> f <.> "log"
 
-dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
-dirTests root ignored code
-  = do fs    <- walkDirectory root
-       let hs = [f | f <- fs, isHaskellFile f
-                            , f `notElem` ignored
-                            ]
-       return [mkTest root f code | f <- hs]
 
-walkDirectory :: FilePath -> IO [FilePath]
-walkDirectory root
-  = do (ds,fs) <- partitionM isDirectory . candidates =<< getDirectoryContents root
-       (fs++) <$> concatMapM walkDirectory ds
-  where
-    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+---------------------------------------------------------------------------
+testCmd :: FilePath -> FilePath -> String
+---------------------------------------------------------------------------
+testCmd dir file = printf "cd %s && liquid --verbose %s" dir file
 
-partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
-partitionM f = go [] []
-  where
-    go ls rs []     = return (ls,rs)
-    go ls rs (x:xs) = do b <- f x
-                         if b then go (x:ls) rs xs
-                              else go ls (x:rs) xs
-
-isDirectory :: FilePath -> IO Bool
-isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
-
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f []     = pure []
-concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
-
-isHaskellFile :: FilePath -> Bool
-isHaskellFile f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
-
-mkCmd :: FilePath -> FilePath -> String
-mkCmd dir file = printf "cd %s && liquid --verbose %s" dir file
 
 textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Encoding/Error.hs"
@@ -122,6 +133,7 @@ textIgnored = [ "Data/Text/Axioms.hs"
               , "Data/Text/Util.hs"
               ]
 
+
 demosIgnored = [ "Composition.hs"
                , "Eval.hs"
                , "Inductive.hs"
@@ -129,4 +141,35 @@ demosIgnored = [ "Composition.hs"
                , "TalkingAboutSets.hs"
                , "refinements101reax.hs"
                ]
+
+----------------------------------------------------------------------------------------
+-- Generic Helpers
+----------------------------------------------------------------------------------------
+
+group n xs = testGroup n <$> sequence xs
+
+----------------------------------------------------------------------------------------
+walkDirectory :: FilePath -> IO [FilePath]
+----------------------------------------------------------------------------------------
+walkDirectory root
+  = do (ds,fs) <- partitionM isDirectory . candidates =<< getDirectoryContents root
+       (fs++) <$> concatMapM walkDirectory ds
+  where
+    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+
+partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
+partitionM f = go [] []
+  where
+    go ls rs []     = return (ls,rs)
+    go ls rs (x:xs) = do b <- f x
+                         if b then go (x:ls) rs xs
+                              else go ls (x:rs) xs
+
+isDirectory :: FilePath -> IO Bool
+isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
+
+concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
+concatMapM f []     = pure []
+concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
+
 

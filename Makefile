@@ -13,6 +13,10 @@ CABAL=cabal
 CABALI=$(CABAL) install --ghc-options=$(OPTS)
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
+# to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
+TASTY=find dist -type f -name test | head -n1
+
+
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
 all:
@@ -44,28 +48,25 @@ deps:
 pdeps:
 	$(CABALP) $(DEPS)
 
-all-test:
+all-test-py:
 	cd tests && ./regrtest.py -a -t $(THREADS) && cd ../
 
-test:
+test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
-# to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
-TASTY=find dist -type f -name test | head -n1
-
-tasty:
+test:
 	cabal install --enable-tests
 	$$($(TASTY)) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-rerun:
+retest:
 	cabal install --enable-tests
 	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-all:
+all-test:
 	cabal install --enable-tests
 	$$($(TASTY)) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-tasty-rerun-all:
+all-retest:
 	cabal install --enable-tests
 	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
