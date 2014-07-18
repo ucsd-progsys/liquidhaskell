@@ -31,7 +31,6 @@ script:
  - cabal build
  - cabal copy
  - cabal register
- - liquid --verbose tests/pos/meas1.hs
  - ./dist/build/test/test --pattern "$TESTS/"
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
