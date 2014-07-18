@@ -50,21 +50,24 @@ all-test:
 test:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
+# to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
+TASTY=find dist -type f -name test | head -n1
+
 tasty:
 	cabal install --enable-tests
-	./dist/build/test/test --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$$($(TASTY)) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-rerun:
 	cabal install --enable-tests
-	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-all:
 	cabal install --enable-tests
-	./dist/build/test/test --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$$($(TASTY)) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-rerun-all:
 	cabal install --enable-tests
-	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
 	hlint --colour --report .
