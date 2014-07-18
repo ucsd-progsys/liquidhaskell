@@ -76,7 +76,7 @@ dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
 dirTests root ignored code
   = do files    <- walkDirectory root
-       let tests = [f | f <- files, isTest f, f `notElem` ignored ]
+       let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
        return    $ mkTest code root <$> tests --  hs f code | f <- hs]
 
 isTest   :: FilePath -> Bool
@@ -87,17 +87,16 @@ isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
 ---------------------------------------------------------------------------
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
-mkTest code dir file 
-  = testCase rel $ do
+mkTest code dir file
+  = testCase file $ do
       createDirectoryIfMissing True $ takeDirectory log
       withFile log WriteMode $ \h -> do
-        let cmd     = testCmd dir rel
+        let cmd     = testCmd dir file
         (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
         c          <- waitForProcess ph
         assertEqual "Wrong exit code" code c
   where
-    rel = makeRelative dir file
-    log = let (d,f) = splitFileName file in d </> ".liquid" </> f <.> "log"
+    log = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
 
 ---------------------------------------------------------------------------
