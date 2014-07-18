@@ -56,19 +56,19 @@ test-py:
 
 test:
 	cabal install --enable-tests
-	$$($(TASTY)) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 retest:
 	cabal install --enable-tests
-	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-test:
 	cabal install --enable-tests
-	$$($(TASTY)) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-retest:
 	cabal install --enable-tests
-	$$($(TASTY)) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
 	hlint --colour --report .
