@@ -51,23 +51,19 @@ test:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
 tasty:
-	cabal configure --enable-tests
-	cabal build
+	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-rerun:
-	cabal configure --enable-tests
-	cabal build
+	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-all:
-	cabal configure --enable-tests
-	cabal build
+	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 tasty-rerun-all:
-	cabal configure --enable-tests
-	cabal build
+	cabal install --enable-tests
 	./dist/build/test/test --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
