@@ -45,6 +45,7 @@ Source-Repository head
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
 
 Executable liquid
+  default-language: Haskell98
   Build-Depends: base >= 4 && < 5
                , ghc>=7.8.3
                , ansi-terminal
@@ -81,7 +82,7 @@ Executable liquid
 
   Main-is: Liquid.hs
   --ghc-options: -O -W
-  Extensions: PatternGuards
+  Default-Extensions: PatternGuards
 
 -- Executable liquid-count-binders
 --   Build-Depends: base >= 4 && < 5
@@ -119,6 +120,7 @@ Executable liquid
 
 
 Library
+   Default-Language: Haskell98
    Build-Depends: base
                 , ghc>=7.8.3
                 , ansi-terminal
@@ -199,9 +201,10 @@ Library
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
-   Extensions: PatternGuards
+   Default-Extensions: PatternGuards
 
 test-suite test
+  default-language: Haskell98
   type:              exitcode-stdio-1.0
   hs-source-dirs:    tests
   ghc-options:       -O2 -threaded
