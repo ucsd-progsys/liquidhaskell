@@ -548,6 +548,166 @@ value of `f` (c.f. tests/pos/cont1.hs)
 PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 ------------------------------------------------------------
 
+
+1. Introduce a new sort of refinement `HProp`
+
+2. Index `IO` or `State` by `HProp`
+
+3. Suitable signatures for monadic operators
+
+
+**Heap Propositions** `HProp`
+
+```haskell
+CP := l :-> T * CP  -- Concrete Heap
+    | emp
+
+HP := CP       
+    | CP * H        -- Heap Variable 
+```
+
+That is, an `HProp` is of the form:
+
+    H * l1 |-> T1 * ... * ln |-> Tn 
+
+or 
+
+    l1 |-> T1 * ... * ln |-> Tn 
+
+I am disallowing multiple variables because it causes problems...
+
+
+**Abstractly Refined ST/IO**
+
+```haskell
+data IO a <Pre :: HProp, Post :: a -> HProp>
+```
+
+**Refined Monadic Operators**
+
+```haskell
+return :: forall a, <H :: HProp>. 
+            a -> IO <H, \_ -> H> a
+
+(>>=)  :: forall a, b, <P :: HProp, Q :: a -> HProp, R :: b -> HProp>. 
+            IO<P, Q> a -> (x:a -> IO<Q x, R> b) -> IO<P, R> b
+```
+
+**Q1.** How does LH *reason* about `HProp`?
+
+Via subtyping as always, so:
+
+         forall i. Γ |- Ti <: Ti'
+    -----------------------------------
+    Γ |- *_i li :-> Ti <: *_i li -> Ti' 
+
+For this, we need to put in explicit `HProp` instantiations, just like
+tyvar (α) and  predvar (π) instinstatntiations. This is doable with a 
+pre-pass that generates and solves `HProp` constraints as follows:
+
+1. At each instantiation, make up _fresh_ variables `h`
+2. Treat _bound_ heap-variables as **constants**
+3. Instantiation yields a set of constraints over `h` 
+4. Solve constraints via algorithm below.
+
+**Q2.** Can you _name_ values inside `HProp`?
+
+Nope. There's no reason for this, but its tedious to have to make up 
+new heap binders and what not. Clutters stuff. This is _slightly_ 
+problematic. For example, how do you write a function of the form:
+
+```haskell
+incr :: p:IORef Int -> IO Int
+```
+
+which _increments_ the value stored at the reference? Solution is slightly
+clunky: rather than the _implicit_ heap binder, add an explicit pure parameter:
+
+```haskell
+incr :: p:IORef Int -> i:Int -> IO {v:Int| v = i} <p |-> {v = i}, p |-> {v = i + 1}>
+```
+
+**Q3.** How to relate `Post`-condition to the `Pre`-conditions?
+
+Note that the `Post`-condition is a unary predicate -- i.e. _does not_ 
+refer to the input world. How then do we relate the input and output heaps? 
+As above: _name_ the values of the input heap that you care about, and then 
+relate `Post` to `Pre` via the name.
+
+**Q4.** How to _read_ values off the heap?
+
+Given that we don't have heap binders, this might seem like a problem? Not
+really. Just write signatures like:
+
+    read :: IORef a -> IO a
+
+aha, but there's a problem: the `a` is too _coarse_ or flow-insensitive: it
+holds a supertype of all the values written at the location, as opposed to the
+_current_ value. No matter, abstract refinements to the rescue:
+
+    read :: forall <I :: a -> Prop>.
+              p:IORef a -> IO <p |-> a<I>, p |-> a<I>> a<I>
+
+**Q5.** How do you do _subtyping_ on heaps/frame rule?
+
+Wait, how do I write _compositional_ signatures that only talk about a
+particular part of the state but allow me to say _other_ parts are unmodified
+etc? Don't you need heap subtyping? No: we can make the frame rule explicit by
+abstracting over heaps:
+
+    read :: forall <I :: a -> Prop, H :: HProp>.
+              p:IORef a -> IO <p |-> a<I> * H, p |-> a<I> * H> a<I>
+
+**Q6.** How to solve heap constraints?
+
+Heap constraints are of the form:
+
++ (C0)  `ch1      = ch2`        -- constants
++ (C1)  `H1 * ch1 = ch2`        -- 1-variable
++ (C2)  `H1 * ch1 = H2 * ch2`   -- 2-variable
+
+Here, each `ch` is of the form:
+
+    l1 |-> τ1 * ... * ln -> τn * A1 * ... * An
+
+where each `Ai` is a _rigid_ or quantified heap var that is atomic, 
+i.e. cannot be further solved for. For solving, we throw away _all_ 
+refinements, and just use the shape τ. 
+
+```haskell
+solve :: Sol -> [Constraint] -> Maybe Sol
+solve σ []     
+  = Just σ
+solve σ (c:cs) 
+  = case c of
+      C0 ch1 ch2 -> 
+        if ch1 `equals` ch2  then
+          -- c is trivially SAT,
+          solve σ cs 
+        else 
+          -- c and hence all constraints are unsat
+          Nothing
+                  
+      C1 (H1 * ch1) ch2 -> 
+        if ch1 `subset` ch2 then 
+          let σ' = [H1 := c2 `minus` c1]
+          solve (σ . σ') (σ' <$> cs)
+        else 
+          -- c and hence all constraints are unsat
+          Nothing
+                  
+      C2 (H1 * ch1) (H2 * ch2) ->
+        let H = fresh heap variable 
+        let σ'  = [H1 := H * ch2, H2 := H * ch1]
+        solve (σ . σ') (σ' <$> cs)
+```
+
+
+
+PROJECT: (OLD) HTT style ST/IO reasoning with Abstract Refinements
+------------------------------------------------------------------
+
+
 Can we use abstract refinements to do "stateful reasoning", 
 e.g. about stuff in `IO` ? For example, to read files, this 
 is the API:
