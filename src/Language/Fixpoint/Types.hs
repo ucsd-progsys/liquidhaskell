@@ -32,7 +32,7 @@ module Language.Fixpoint.Types (
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , symbolText
+  , symbolText, symbolString
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
@@ -42,8 +42,8 @@ module Language.Fixpoint.Types (
   , strFTyCon
   , propFTyCon
   -- , appFTyCon
-  , fTyconText
-  , textFTycon
+  , fTyconSymbol
+  , symbolFTycon
   , fApp
   , fObj
 
@@ -303,14 +303,14 @@ appFTyCon  = TC $ dummyLoc "FAppTy"
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
 
-fTyconText (TC s) = symbolText <$> s
+fTyconSymbol (TC s) = val s
 
-textFTycon :: LocText -> FTycon
-textFTycon c
-  | val c == symbolText listConName
+symbolFTycon :: LocSymbol -> FTycon
+symbolFTycon c
+  | val c == listConName
   = TC $ fmap (const listConName) c
   | otherwise
-  = TC $ fmap symbol c
+  = TC c
 
 -- stringSort   :: String -> Sort
 -- stringSort s = FApp (stringFTycon s) []
@@ -1254,7 +1254,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 ------------------------------------------------------------------------
 
 
-data Qualifier = Q { q_name   :: Text           -- ^ Name
+data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    }
@@ -1266,7 +1266,7 @@ instance Fixpoint Qualifier where
 instance NFData Qualifier where
   rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
-pprQual (Q n xts p) = text "qualif" <+> text (T.unpack n) <> parens args  <> colon <+> toFix p
+pprQual (Q n xts p) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
                -- fixpoint encoding is deferred until calling `toFix`, but we
                -- don't want the q_params encoded
   where args = intersperse comma (toFix . mapFst symbolText <$> xts)

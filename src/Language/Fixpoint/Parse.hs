@@ -159,17 +159,17 @@ posInteger = toI <$> (many1 digit <* spaces)
 locParserP :: Parser a -> Parser (Located a)
 locParserP p = liftM2 Loc getPosition p
 
-condIdP  :: [Char] -> (String -> Bool) -> Parser Text
+condIdP  :: [Char] -> (String -> Bool) -> Parser Symbol
 condIdP chars f 
   = do c  <- letter
        cs <- many (satisfy (`elem` chars))
        blanks
-       if f (c:cs) then return (T.pack $ c:cs) else parserZero
+       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
 
-upperIdP :: Parser Text
+upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isLower . head)
 
-lowerIdP :: Parser Text
+lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isLower . head)
 
 locLowerIdP = locParserP lowerIdP 
@@ -198,9 +198,9 @@ expr0P
  <|> (charsExpr <$> symCharsP)
 
 charsExpr cs
-  | isLower (T.head cs) = expr $ symbol cs
-  | otherwise           = EVar $ symbol cs
-
+  | isLower (T.head t) = expr cs
+  | otherwise          = EVar cs
+  where t = symbolText cs
 --  <|> try (parens $ condP EIte exprP)
 
 fastIfP f bodyP 
@@ -370,7 +370,7 @@ fTyConP
   =   (reserved "int"  >> return intFTyCon)
   <|> (reserved "bool" >> return boolFTyCon)
   <|> (reserved "real" >> return realFTyCon)
-  <|> (textFTycon   <$> locUpperIdP)
+  <|> (symbolFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 

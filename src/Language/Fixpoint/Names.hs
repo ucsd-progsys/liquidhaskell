@@ -18,7 +18,7 @@ module Language.Fixpoint.Names (
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , symbolText
+  , symbolText, symbolString
   , encode, vvCon
 
   -- * Creating Symbols
@@ -87,6 +87,7 @@ instance NFData InternedText where
 instance Show Symbol where
   show (S x) = show x
 
+symbolString = T.unpack . symbolText
 
 ---------------------------------------------------------------------------
 ------ Converting Strings To Fixpoint -------------------------------------
