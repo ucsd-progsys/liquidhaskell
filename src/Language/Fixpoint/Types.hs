@@ -27,6 +27,13 @@ module Language.Fixpoint.Types (
   , traceFix
   , resultDoc
 
+  -- * Symbols
+  , Symbol(..)
+  , anfPrefix, tempPrefix, vv, intKvar
+  , symChars, isNonSymbol, nonSymbol
+  , isNontrivialVV
+  , symbolText
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon
@@ -39,18 +46,6 @@ module Language.Fixpoint.Types (
   , textFTycon
   , fApp
   , fObj
-
-  -- * Symbols
-  , Symbol(..)
-  , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol
-  , isNontrivialVV
-  , symbolText
-
-  -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol
-  , qualifySymbol
-  , suffixSymbol
 
   -- * Expressions and Predicates
   , SymConst (..), Constant (..)
@@ -163,8 +158,6 @@ import Data.Hashable
 import qualified Data.Foldable as F
 import Data.Traversable
 import Data.Interned
-import Data.Interned.Internal.Text
-import Data.Interned.Text
 import Data.String
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -297,25 +290,25 @@ toFix_constant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon  = TC $ dummyLoc (S "int")
-boolFTyCon = TC $ dummyLoc (S "bool")
-realFTyCon = TC $ dummyLoc (S "real")
-strFTyCon  = TC $ dummyLoc (S strConName)
-propFTyCon = TC $ dummyLoc (S propConName)
-appFTyCon  = TC $ dummyLoc (S "FAppTy")
+intFTyCon  = TC $ dummyLoc "int"
+boolFTyCon = TC $ dummyLoc "bool"
+realFTyCon = TC $ dummyLoc "real"
+strFTyCon  = TC $ dummyLoc strConName
+propFTyCon = TC $ dummyLoc propConName
+appFTyCon  = TC $ dummyLoc "FAppTy"
 
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
-isListTC (TC (Loc _ (S c))) = c == listConName
-isTupTC  (TC (Loc _ (S c))) = c == tupConName
+isListTC (TC (Loc _ c)) = c == listConName
+isTupTC  (TC (Loc _ c)) = c == tupConName
 
 fTyconText (TC s) = symbolText <$> s
 
 textFTycon :: LocText -> FTycon
 textFTycon c
-  | val c == unintern listConName
-  = TC $ fmap (S . const listConName) c
+  | val c == symbolText listConName
+  = TC $ fmap (const listConName) c
   | otherwise
   = TC $ fmap symbol c
 
@@ -384,37 +377,6 @@ sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
 sortSubst _  t           = t
 
 
----------------------------------------------------------------
----------------------------- Symbols --------------------------
----------------------------------------------------------------
-
-symChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '%', '.', '#']
-
-deriving instance Data InternedText
-deriving instance Typeable InternedText
-deriving instance Generic InternedText
-
-newtype Symbol = S InternedText deriving (Eq, Ord, Data, Typeable, Generic, IsString)
-
-instance Hashable InternedText where
-  hashWithSalt s it = hashWithSalt s (unintern it)
-
-instance NFData InternedText where
-  rnf (InternedText id t) = rnf id `seq` rnf t
-
-instance Fixpoint Symbol where
-  toFix (S s) = text . encode . T.unpack $ unintern s
-
-instance Fixpoint Text where
-  toFix = text . T.unpack
-
-instance Show Symbol where
-  show (S x) = show x
-
 instance Show Subst where
   show = showFix
 
@@ -423,97 +385,6 @@ instance Fixpoint Subst where
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
-
----------------------------------------------------------------------------
------- Converting Strings To Fixpoint -------------------------------------
----------------------------------------------------------------------------
-
--- stringSymbolRaw :: String -> Symbol
--- stringSymbolRaw = S
-
-encode :: String -> String
-encode s
-  | isFixKey  s = encodeSym s
-  | isFixSym' s = s
-  | otherwise   = encodeSym s -- S $ fixSymPrefix ++ concatMap encodeChar s
-
-encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
-
-symbolText :: Symbol -> Text
-symbolText (S s) = unintern s
-
--- symbolString :: Symbol -> String
--- symbolString (S str)
---   = case chopPrefix fixSymPrefix str of
---       Just s  -> concat $ zipWith tx indices $ chunks s
---       Nothing -> str
---     where
---       chunks = unIntersperse symSepName
---       tx i s = if even i then s else [decodeStr s]
-
-indices :: [Integer]
-indices = [0..]
-
-okSymChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '.'  ]
-
-fixSymPrefix = "fix" ++ [symSepName]
-
-suffixSymbol (S s) suf = symbol $ (unintern s) `mappend` suf
-
-isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSepName:okSymChars)) chs
-isFixSym' _        = False
-
-isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
-
-encodeChar c
-  | c `elem` okSymChars
-  = [c]
-  | otherwise
-  = [symSepName] ++ (show $ ord c) ++ [symSepName]
-
-decodeStr s
-  = chr ((read s) :: Int)
-
-qualifySymbol :: Text -> Symbol -> Symbol
-qualifySymbol x (S sy)
-  | isQualified x' = S sy
-  | isParened x'   = symbol (wrapParens (x `mappend` "." `mappend` stripParens x'))
-  | otherwise      = symbol (x `mappend` "." `mappend` x')
-  where x' = unintern sy
-
-isQualified y         = "." `T.isInfixOf` y
-wrapParens x          = "(" `mappend` x `mappend` ")"
-isParened xs          = xs /= stripParens xs
-
----------------------------------------------------------------------
-
-vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = symbol $ unintern vvName `T.snoc` symSepName `mappend` T.pack (show i) --  S (vvName ++ [symSepName] ++ show i)
-vv Nothing          = S vvName
-
-vvCon               = symbol $ unintern vvName `T.snoc` symSepName `mappend` "F" --  S (vvName ++ [symSepName] ++ "F")
-
-isNontrivialVV      = not . (vv_ ==)
-
-
-dummySymbol         = S dummyName
-intSymbol x i       = symbol $ x `mappend` T.pack (show i)
-
-tempSymbol          :: Text -> Integer -> Symbol
-tempSymbol prefix n = intSymbol (tempPrefix `mappend` prefix) n
-
-tempPrefix          = "lq_tmp_"
-anfPrefix           = "lq_anf_"
-nonSymbol           = S ""
-isNonSymbol         = (== nonSymbol)
-
-intKvar             :: Integer -> Symbol
-intKvar             = intSymbol "k_"
 
 ---------------------------------------------------------------
 ------------------------- Expressions -------------------------
@@ -557,6 +428,13 @@ instance Fixpoint Constant where
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
+
+instance Fixpoint Symbol where
+  toFix = text . encode . T.unpack . symbolText
+
+instance Fixpoint Text where
+  toFix = text . T.unpack
+
 
 instance Fixpoint Brel where
   toFix Eq  = text "="
@@ -689,7 +567,7 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
 
-mkProp        = PBexp . EApp (dummyLoc $ S propConName) . (: [])
+mkProp        = PBexp . EApp (dummyLoc propConName) . (: [])
 
 ppr_reft (Reft (v, ras)) d
   | all isTautoRa ras
@@ -709,11 +587,6 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 -- | Generalizing Symbol, Expression, Predicate into Classes -----------
 ------------------------------------------------------------------------
 
--- | Values that can be viewed as Symbols
-
-class Symbolic a where
-  symbol :: a -> Symbol
-
 -- | Values that can be viewed as Expressions
 
 class Expression a where
@@ -723,15 +596,6 @@ class Expression a where
 
 class Predicate a where
   prop   :: a -> Pred
-
-instance Symbolic Text where
-  symbol = S . intern
-
-instance Symbolic InternedText where
-  symbol = S
-
-instance Symbolic Symbol where
-  symbol = id
 
 instance Expression Expr where
   expr = id
