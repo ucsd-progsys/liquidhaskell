@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, TupleSections, NoMonomorphismRestriction, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Misc where
 
@@ -8,9 +9,10 @@ import qualified Control.Exception     as Ex
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
 import qualified Data.ByteString       as B
+import qualified Data.Text             as T
 import Data.ByteString.Char8    (pack, unpack)
 import Control.Applicative      ((<$>))
-import Control.Monad            (forM_)
+import Control.Monad            (forM_, (>=>))
 import Data.Maybe               (fromJust)
 import Data.Maybe               (catMaybes, fromMaybe)
 
@@ -322,10 +324,10 @@ testM f x = do b <- f x
 -- unions = foldl' S.union S.empty
 -- Just S.unions!
 
-stripParens ('(':xs)  = stripParens xs
-stripParens xs        = stripParens' (reverse xs)
-stripParens' (')':xs) = stripParens' xs
-stripParens' xs       = reverse xs
+stripParens :: T.Text -> T.Text
+stripParens t = fromMaybe t (strip t)
+  where
+    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 ifM :: (Monad m) => m Bool -> m a -> m a -> m a
 ifM bm xm ym 

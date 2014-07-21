@@ -45,6 +45,7 @@ import Control.Monad.IO.Class
 import qualified Data.List as L
 import Data.Monoid
 import Data.Text.Format
+import qualified Data.Text          as ST
 import qualified Data.Text.Lazy     as T
 import qualified Data.Text.Lazy.IO  as TIO
 import System.Exit
@@ -93,7 +94,7 @@ data Response     = Ok
                   | Sat
                   | Unsat
                   | Unknown
-                  | Values [(Symbol, String)]
+                  | Values [(Symbol, Raw)]
                   | Error Raw
                   deriving (Eq, Show)
 
@@ -154,17 +155,17 @@ responseP =  try (string "(error")  *> errorP
 valuesP :: Parser Response
 valuesP = Values <$> many1 (spaces *> valueP)
 
-valueP :: Parser (Symbol, String)
+valueP :: Parser (Symbol, Raw)
 valueP
   = do (x,v) <- parens $ do
-         x <- symbol <$> many1 (alphaNum <|> oneOf "_.-#%")
+         x <- symbol . ST.pack <$> many1 (alphaNum <|> oneOf "_.-#%")
          spaces
          v <-  parens (many1 (satisfy (/=')')) >>= \s -> return $ "("<>s<>")")
            <|> many1 alphaNum
          return (x,v)
        -- get next line
        try (char ')' >> return ()) <|> getNextLine
-       return (x,v)
+       return (x,T.pack v)
 
 getNextLine
   = do ln <- liftIO . smtReadRaw =<< getState
@@ -185,8 +186,6 @@ pairs = go
     go xs = case L.splitAt 2 xs of
               ([],b)        -> []
               ((x:y:[]),zs) -> (x,y) : pairs zs
-
-textSymbol = symbol . T.unpack
 
 smtWriteRaw      :: Context -> Raw -> IO ()
 smtWriteRaw me s = hPutStrNow (cOut me) s >>  hPutStrNow (cLog me) s
@@ -337,10 +336,10 @@ instance SMTLIB2 Sort where
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 s = T.pack . symbolString $ s
+  smt2 s = T.fromStrict $ symbolText s
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s) = T.pack s
+  smt2 (SL s) = T.fromStrict $ s
 
 instance SMTLIB2 Constant where
   smt2 (I n) = format "{}" (Only n)

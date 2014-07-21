@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -22,13 +23,17 @@ module Language.Fixpoint.Names (
   , takeModuleNames
 ) where
 
-import Data.List                (intercalate)
-import Language.Fixpoint.Misc   (errorstar, safeLast, stripParens)
+import qualified Data.Text      as T
+import Data.Interned
+import Data.Interned.Text
+
+import Language.Fixpoint.Misc   (errorstar, stripParens)
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
 
+preludeName, dummyName, boolConName, funConName, listConName, tupConName, propConName, strConName, vvName :: InternedText
 preludeName  = "Prelude"
 dummyName    = "_LIQUID_dummy"
 boolConName  = "Bool"
@@ -52,13 +57,20 @@ symSepName   = '#'
 dropModuleNames          = mungeModuleNames safeLast "dropModuleNames: "
 takeModuleNames          = mungeModuleNames safeInit "takeModuleNames: "
 
-safeInit _ xs@(_:_)      = intercalate "." $ init xs
+safeInit :: String -> [T.Text] -> T.Text
+safeInit _ xs@(_:_)      = T.intercalate "." $ init xs
 safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
 
-mungeModuleNames _ _ []  = []
+safeLast :: String -> [T.Text] -> T.Text
+safeLast _ xs@(_:_)      = T.intercalate "." $ init xs
+safeLast msg _           = errorstar $ "safeInit with empty list " ++ msg
+
+mungeModuleNames :: (String -> [T.Text] -> T.Text) -> String -> T.Text -> T.Text
+mungeModuleNames _ _ ""  = ""
 mungeModuleNames f msg s  
-  | s == tupConName      = tupConName 
-  | otherwise            = f (msg ++ s) $ words $ dotWhite `fmap` stripParens s
+  | s == unintern tupConName
+   = unintern tupConName
+  | otherwise            = f (msg ++ T.unpack s) $ T.words $ dotWhite `T.map` stripParens s
   where 
     dotWhite '.'         = ' '
     dotWhite c           = c

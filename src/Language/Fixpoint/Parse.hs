@@ -38,7 +38,7 @@ module Language.Fixpoint.Parse (
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
 
   -- * Some Combinators
-  , condIdP     -- condIdP  :: [Char] -> (String -> Bool) -> Parser String
+  , condIdP     -- condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
 
   -- * Add a Location to a parsed value
   , locParserP
@@ -65,6 +65,8 @@ import Text.Printf  (printf)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
@@ -76,7 +78,7 @@ import Data.Maybe(maybe, fromJust)
 
 import Data.Monoid (mempty)
 
-type Parser = Parsec String Integer 
+type Parser = Parsec String Integer
 
 --------------------------------------------------------------------
 
@@ -157,30 +159,30 @@ posInteger = toI <$> (many1 digit <* spaces)
 locParserP :: Parser a -> Parser (Located a)
 locParserP p = liftM2 Loc getPosition p
 
-condIdP  :: [Char] -> (String -> Bool) -> Parser String
+condIdP  :: [Char] -> (String -> Bool) -> Parser Text
 condIdP chars f 
   = do c  <- letter
        cs <- many (satisfy (`elem` chars))
        blanks
-       if f (c:cs) then return (c:cs) else parserZero
+       if f (c:cs) then return (T.pack $ c:cs) else parserZero
 
-upperIdP :: Parser String
+upperIdP :: Parser Text
 upperIdP = condIdP symChars (not . isLower . head)
 
-lowerIdP :: Parser String
+lowerIdP :: Parser Text
 lowerIdP = condIdP symChars (isLower . head)
 
 locLowerIdP = locParserP lowerIdP 
 locUpperIdP = locParserP upperIdP
 
 symbolP :: Parser Symbol
-symbolP = stringSymbol <$> symCharsP 
+symbolP = symbol <$> symCharsP
 
 constantP :: Parser Constant
 constantP = try (liftM R double) <|> liftM I integer
 
 symconstP :: Parser SymConst
-symconstP = SL <$> stringLiteral 
+symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P 
@@ -195,9 +197,9 @@ expr0P
  -- <|> try (parens $ condQmP EIte exprP)
  <|> (charsExpr <$> symCharsP)
 
-charsExpr cs@(c:_) 
-  | isLower c = expr $ stringSymbol cs
-  | otherwise = EVar $ stringSymbol cs
+charsExpr cs
+  | isLower (T.head cs) = expr $ symbol cs
+  | otherwise           = EVar $ symbol cs
 
 --  <|> try (parens $ condP EIte exprP)
 
@@ -280,7 +282,7 @@ sortP
   =   try (string "Integer" >>  return FInt)
   <|> try (string "Int"     >>  return FInt)
   <|> try (string "int"     >>  return FInt)
-  <|> try (FObj . stringSymbol <$> lowerIdP)
+  <|> try (FObj . symbol <$> lowerIdP)
   <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
 
 symCharsP   = condIdP symChars (`notElem` keyWordSyms)
@@ -368,7 +370,7 @@ fTyConP
   =   (reserved "int"  >> return intFTyCon)
   <|> (reserved "bool" >> return boolFTyCon)
   <|> (reserved "real" >> return realFTyCon)
-  <|> (stringFTycon   <$> locUpperIdP)
+  <|> (textFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
@@ -383,7 +385,7 @@ refBindP bp rp kindP
       ras <- rp <* spaces
       return $ t (Reft (vv, ras))
 
-bindP       = liftM stringSymbol (lowerIdP <* colon)
+bindP       = liftM symbol (lowerIdP <* colon)
 optBindP vv = try bindP <|> return vv
 
 refP       = refBindP bindP refasP
@@ -409,9 +411,9 @@ mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
     yts        = mapFst mkParam <$> zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts 
                        
-mkParam s      = stringSymbolRaw ('~' : toUpper c : cs) 
+mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
   where 
-    (c:cs)     = symbolString s 
+    Just (c,cs)= T.uncons $ symbolText s
 
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------
