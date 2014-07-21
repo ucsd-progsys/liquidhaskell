@@ -34,6 +34,11 @@ module Language.Fixpoint.Types (
   , isNontrivialVV
   , symbolText, symbolString
 
+  -- * Creating Symbols
+  , dummySymbol, intSymbol, tempSymbol
+  , qualifySymbol
+  , suffixSymbol
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon
@@ -303,7 +308,7 @@ appFTyCon  = TC $ dummyLoc "FAppTy"
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
 
-fTyconSymbol (TC s) = val s
+fTyconSymbol (TC s) = s
 
 symbolFTycon :: LocSymbol -> FTycon
 symbolFTycon c

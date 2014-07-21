@@ -173,9 +173,12 @@ intSymbol x i       = symbol $ x `mappend` T.pack (show i)
 tempSymbol          :: Text -> Integer -> Symbol
 tempSymbol prefix n = intSymbol (tempPrefix `mappend` prefix) n
 
+tempPrefix, anfPrefix :: Text
 tempPrefix          = "lq_tmp_"
 anfPrefix           = "lq_anf_"
-nonSymbol           = S ""
+
+nonSymbol :: Symbol
+nonSymbol           = ""
 isNonSymbol         = (== nonSymbol)
 
 intKvar             :: Integer -> Symbol
