@@ -875,7 +875,12 @@ P  => Q x w
 to be able to make the final application
 
 
-
+bind :: ST a <P,Q> -> (a -> ST b <Q x w, R>) -> ST b <P,R>
+bind (ST f1) k = ST $ \s0 -> let (x, s1) = f1 s0  
+                                 ST f2   = k x 
+                                 (y, s2) = f2 s1
+                             in 
+                                 (y, s2)
 
 
 PROJECT: Using `Dynamic` + Refinements for Mixed Records
