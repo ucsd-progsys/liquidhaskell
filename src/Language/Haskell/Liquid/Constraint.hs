@@ -674,21 +674,21 @@ instance PPrint CGInfo where
 
 ppr_CGInfo cgi 
   =  (text "*********** Constraint Information ***********")
-  -- $$ (text "*********** Haskell SubConstraints ***********")
-  -- $$ (pprintLongList $ hsCs  cgi)
-  -- $$ (text "*********** Haskell WFConstraints ************")
-  -- $$ (pprintLongList $ hsWfs cgi)
-  -- $$ (text "*********** Fixpoint SubConstraints **********")
-  -- $$ (F.toFix  $ fixCs cgi)
-  -- $$ (text "*********** Fixpoint WFConstraints ************")
-  -- $$ (F.toFix  $ fixWfs cgi)
-  -- $$ (text "*********** Fixpoint Kut Variables ************")
-  -- $$ (F.toFix  $ kuts cgi)
-  -- $$ (text "*********** Literals in Source     ************")
-  -- $$ (pprint $ lits cgi)
-  -- $$ (text "*********** KVar Distribution *****************")
-  -- $$ (pprint $ kvProf cgi)
-  -- $$ (text "Recursive binders:" <+> pprint (recCount cgi))
+  -- -$$ (text "*********** Haskell SubConstraints ***********")
+  -- -$$ (pprintLongList $ hsCs  cgi)
+  -- -$$ (text "*********** Haskell WFConstraints ************")
+  -- -$$ (pprintLongList $ hsWfs cgi)
+  -- -$$ (text "*********** Fixpoint SubConstraints **********")
+  -- -$$ (F.toFix  $ fixCs cgi)
+  -- -$$ (text "*********** Fixpoint WFConstraints ************")
+  -- -$$ (F.toFix  $ fixWfs cgi)
+  -- -$$ (text "*********** Fixpoint Kut Variables ************")
+  -- -$$ (F.toFix  $ kuts cgi)
+  -- -$$ (text "*********** Literals in Source     ************")
+  -- -$$ (pprint $ lits cgi)
+  -- -$$ (text "*********** KVar Distribution *****************")
+  -- -$$ (pprint $ kvProf cgi)
+  -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 type CG = State CGInfo
 
@@ -914,11 +914,11 @@ addA _ _ _ !a
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_type k e τ  = do t <- freshTy_reftype k $ ofType τ
-                         return t -- $ traceShow ("freshTy_type: " ++ showPpr e) t
+                         return t -- -$ traceShow ("freshTy_type: " ++ showPpr e) t
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
-                         return t -- $ traceShow ("freshTy_expr: " ++ showPpr e) t
+                         return t -- -$ traceShow ("freshTy_expr: " ++ showPpr e) t
                 
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
