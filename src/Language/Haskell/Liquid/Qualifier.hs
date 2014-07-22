@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
@@ -14,6 +15,7 @@ import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
+import qualified Data.Text    as T
 import Data.Bifunctor           (second) 
 
 -----------------------------------------------------------------------------------
@@ -118,7 +120,7 @@ mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
   where 
     yts            = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
     p'             = subst (mkSubst (second EVar <$> xys)) p
-    xys            = zipWith (\x i -> (x, S ("~A" ++ show i))) xs [0..] 
+    xys            = zipWith (\x i -> (x, symbol $ T.pack ("~A" ++ show i))) xs [0..]
     xs             = delete v $ orderedFreeVars γ p
 
 lookupSort t0 x γ  = fromMaybe (errorstar msg) $ lookupSEnv x γ 

@@ -14,6 +14,7 @@ import           Data.Aeson
 import           Data.Hashable
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import qualified Data.Text                           as T
 import           Data.List                           (sortBy, intersperse)
 import           Data.Function                       (on)
 import           Data.Maybe                          (fromMaybe, maybeToList)
@@ -97,7 +98,7 @@ tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
 niceTemps     :: [Symbol]
 niceTemps     = mkSymbol <$> xs ++ ys 
   where
-    mkSymbol  = symbol . ('?' :)
+    mkSymbol  = symbol . T.pack . ('?' :)
     xs        = single   <$> ['a' .. 'z'] 
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 

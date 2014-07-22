@@ -8,6 +8,7 @@
 {-# LANGUAGE OverlappingInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
 {-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 -- | This module (should) contain all the global type definitions and basic
 -- instances. Need to gradually pull things into here, especially from @RefType@
@@ -28,7 +29,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Symbols
   , LocSymbol
-  , LocString
+  , LocText
 
   -- * Data Constructors
   , BDataCon (..)
@@ -173,6 +174,8 @@ import            Data.Function                (on)
 import            Data.Maybe                   (maybeToList, fromMaybe)
 import            Data.Traversable             hiding (mapM)
 import            Data.List                    (isSuffixOf, nub, union, unionBy)
+import            Data.Text                    (Text)
+import qualified  Data.Text                    as T
 import            Data.Aeson        hiding     (Result)      
 import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error            (ParseError) 
@@ -412,6 +415,9 @@ instance NFData RTyVar where
 -- MOVE TO TYPES
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
+instance Symbolic RTyVar where
+  symbol (RTV tv) = symbol . T.pack . showPpr $ tv
+
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
   , rTyConPs   :: ![RPVar]          -- Predicate Parameters
@@ -522,7 +528,7 @@ data RType p c tv r
     , rt_obl   :: !Oblig 
     , rt_ty    :: !(RType p c tv r)
     }
-  | ROth  !String 
+  | ROth  !Symbol
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
@@ -554,7 +560,7 @@ data UReft r
     deriving (Generic, Data, Typeable)
 
 -- MOVE TO TYPES
-type BRType     = RType LocString LocString String
+type BRType     = RType LocSymbol LocSymbol Symbol
 type RRType     = RType Class     RTyCon    RTyVar
 
 type BSort      = BRType    ()
@@ -608,15 +614,15 @@ class ( TyConable c
 --------------------------------------------------------------------------
 
 -- | Data type refinements
-data DataDecl   = D { tycName   :: LocString
+data DataDecl   = D { tycName   :: LocSymbol
                                 -- ^ Type  Constructor Name
-                    , tycTyVars :: [String]
+                    , tycTyVars :: [Symbol]
                                 -- ^ Tyvar Parameters
                     , tycPVars  :: [PVar BSort]
                                 -- ^ PVar  Parameters
-                    , tycTyLabs :: [String]
+                    , tycTyLabs :: [Symbol]
                                 -- ^ PLabel  Parameters
-                    , tycDCons  :: [(LocString, [(String, BareType)])]
+                    , tycDCons  :: [(LocSymbol, [(Symbol, BareType)])]
                                 -- ^ [DataCon, [(fieldName, fieldType)]]
                     , tycSrcPos :: !SourcePos
                                 -- ^ Source Position
@@ -634,7 +640,7 @@ instance Show DataDecl where
 -- | Refinement Type Aliases
 
 data RTAlias tv ty 
-  = RTA { rtName  :: String
+  = RTA { rtName  :: Symbol
         , rtTArgs :: [tv]
         , rtVArgs :: [tv] 
         , rtBody  :: ty  
@@ -729,7 +735,7 @@ addInvCond t r'
         tbd  = ty_res trep
         r    = r'{ur_reft = Reft (v, rx)}
         su   = (v, EVar x')
-        x'   = stringSymbol "xInv"
+        x'   = "xInv"
         rx   = [RConc $ PIff (PBexp $ EVar v) $ subst1 r su | RConc r <- rv]
 
         Reft(v, rv) = ur_reft r'
@@ -840,7 +846,7 @@ pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 pApp      :: Symbol -> [Expr] -> Pred
 pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
-pappSym n  = S $ "papp" ++ show n
+pappSym n  = symbol $ T.pack $ "papp" ++ show n
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -1089,6 +1095,9 @@ instance PPrint () where
 instance PPrint String where 
   pprint = text 
 
+instance PPrint Text where
+  pprint = text . T.unpack
+
 instance PPrint a => PPrint (Located a) where
   pprint = pprint . val 
 
@@ -1113,7 +1122,7 @@ instance PPrint Sort where
   pprint = toFix  
 
 instance PPrint Symbol where
-  pprint = pprint . symbolString
+  pprint = pprint . symbolText
 
 instance PPrint Expr where
   pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 
@@ -1127,7 +1136,7 @@ instance PPrint Expr where
   pprint (ESym s)        = pprint s
 
 instance PPrint SymConst where
-  pprint (SL s)          = text s
+  pprint (SL s)          = text $ T.unpack s
 
 instance PPrint Pred where
   pprint PTop            = text "???"
@@ -1157,9 +1166,7 @@ pprintBin _ o xs     = intersperse o $ pprint <$> xs
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
     where 
-      dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= nexpr y)
-      nexpr (EVar (S ss)) = EVar $ stringSymbol ss
-      nexpr e             = e
+      dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y)
 
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
@@ -1350,14 +1357,14 @@ getModString = moduleNameString . getModName
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-type RTBareOrSpec = Either (ModName, (RTAlias String BareType))
+type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
                            (RTAlias RTyVar SpecType)
 
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
 
-data RTEnv   = RTE { typeAliases :: M.HashMap String RTBareOrSpec
-                   , predAliases :: M.HashMap String RTPredAlias
+data RTEnv   = RTE { typeAliases :: M.HashMap Symbol RTBareOrSpec
+                   , predAliases :: M.HashMap Symbol RTPredAlias
                    }
 
 instance Monoid RTEnv where
@@ -1437,7 +1444,7 @@ instance Subable Body where
 data RClass ty
   = RClass { rcName    :: LocSymbol
            , rcSupers  :: [ty]
-           , rcTyVars  :: [String]
+           , rcTyVars  :: [Symbol]
            , rcMethods :: [(LocSymbol,ty)]
            } deriving (Show)
 
@@ -1449,7 +1456,7 @@ instance Functor RClass where
 -- | Annotations -------------------------------------------------------
 ------------------------------------------------------------------------
 
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe String, a)]) deriving (Generic)
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Text, a)]) deriving (Generic)
 
 data Annot t      = AnnUse t 
                   | AnnDef t
@@ -1477,7 +1484,7 @@ instance NFData (Annot a) where
 -- | Output ------------------------------------------------------------
 ------------------------------------------------------------------------
 
-data Output a = O { o_vars   :: Maybe [String] 
+data Output a = O { o_vars   :: Maybe [String]
                   , o_warns  :: [String]
                   , o_types  :: !(AnnInfo a)
                   , o_templs :: !(AnnInfo a)
@@ -1536,10 +1543,10 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` () 
 
-hole = RKvar (S "HOLE") mempty
+hole = RKvar "HOLE" mempty
 
-isHole (toReft -> (Reft (_, [RKvar (S "HOLE") _]))) = True
-isHole _                                            = False
+isHole (toReft -> (Reft (_, [RKvar "HOLE" _]))) = True
+isHole _                                        = False
 
 
 classToRApp :: SpecType -> SpecType
@@ -1554,8 +1561,8 @@ instance Symbolic Var where
 
 varSymbol ::  Var -> Symbol
 varSymbol v 
-  | us `isSuffixOf` vs = stringSymbol vs  
-  | otherwise          = stringSymbol $ vs ++ [symSepName] ++ us
+  | us `isSuffixOf` vs = symbol $ T.pack vs
+  | otherwise          = symbol $ T.pack $ vs ++ [symSepName] ++ us
   where us  = showPpr $ getDataConVarUnique v
         vs  = showPpr v
 

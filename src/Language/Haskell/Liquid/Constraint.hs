@@ -9,6 +9,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and 
 -- the code for syntax-directed constraint generation. 
@@ -53,6 +54,7 @@ import Data.Maybe               (fromJust, isJust, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
+import qualified Data.Text           as T
 import Data.Bifunctor
 import Data.List (foldl')
 
@@ -576,7 +578,7 @@ splitC (SubR γ o r)
     γ'  = fe_binds $ fenv γ
     r1  = F.RR s $ F.toReft r
     r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
-    vv  = F.S "vvRec"
+    vv  = "vvRec"
     s   = F.FApp F.boolFTyCon []
     ci  = Ci src err
     err = Just $ ErrAssType src o (text $ show o ++ "type error") r
@@ -894,12 +896,12 @@ addLocA !xo !l !t
 updateLocA (_:_)  (Just l) t = addLocA Nothing l (AnnUse t)
 updateLocA _      _        _ = return () 
 
-addA !l !xo@(Just _)  !t !(AI m) 
+addA !l xo@(Just _) !t (AI m)
   | isGoodSrcSpan l 
-  = AI $ inserts l (showPpr <$> xo, t) m
-addA !l !xo@(Nothing) !t !(AI m) 
+  = AI $ inserts l (T.pack . showPpr <$> xo, t) m
+addA !l xo@Nothing  !t (AI m)
   | l `M.member` m                  -- only spans known to be variables
-  = AI $ inserts l (showPpr <$> xo, t) m
+  = AI $ inserts l (T.pack . showPpr <$> xo, t) m
 addA _ _ _ !a 
   = a
 
