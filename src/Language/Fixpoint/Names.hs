@@ -79,10 +79,10 @@ instance Monoid Symbol where
   mappend x y = S . intern $ mappend (symbolText x) (symbolText y)
 
 instance Hashable InternedText where
-  hashWithSalt s it = hashWithSalt s (unintern it)
+  hashWithSalt s (InternedText i t) = hashWithSalt s i
 
 instance NFData InternedText where
-  rnf (InternedText id t) = rnf id `seq` rnf t
+  rnf (InternedText id t) = rnf id `seq` rnf t `seq` ()
 
 instance Show Symbol where
   show (S x) = show x
