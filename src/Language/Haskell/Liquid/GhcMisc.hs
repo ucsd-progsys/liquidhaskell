@@ -119,13 +119,13 @@ tickSrcSpan z                 = noSrcSpan -- errorstar msg
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
-        occ  = mkTcOcc s
+        occ  = mkTyVarOcc s -- $ assert (validTyVar s) s
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon c n s = TC.mkKindTyCon name superKind
   where 
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
-    occ           = mkTyVarOcc $ assert (validTyVar s) s
+    occ           = mkTcOcc s -- $ assert (validTyVar s) s
 
 hasBaseTypeVar = isBaseType . varType
 
@@ -245,7 +245,7 @@ instance Fixpoint Var where
   toFix = pprDoc 
 
 instance Fixpoint Name where
-  toFix = pprDoc 
+  toFix = pprDoc
 
 instance Fixpoint Type where
   toFix = pprDoc
@@ -357,3 +357,12 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
   where go  x = x {hsmodDecls = filter go' $ hsmodDecls x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
+
+symbolTyCon x i n = stringTyCon x i (symbolString n)
+symbolTyVar n = stringTyVar (symbolString n)
+
+instance Symbolic TyCon where
+  symbol = symbol . getName
+
+instance Symbolic Name where
+  symbol = symbol . T.pack . showPpr

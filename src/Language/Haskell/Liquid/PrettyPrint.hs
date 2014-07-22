@@ -29,6 +29,7 @@ import HscTypes                         (SourceError)
 import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
 import GHC                              (Name, Class)
 import VarEnv                           (emptyTidyEnv)
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
@@ -46,6 +47,7 @@ import Data.Function (on)
 import Data.Monoid   (mempty)
 import Data.Aeson    
 import qualified Data.Text as T
+import Data.Interned
 import qualified Data.HashMap.Strict as M
 
 
@@ -132,7 +134,7 @@ ppr_rtype bb p (RApp c ts rs r)
   where
     rsDoc            = ppReftPs bb rs
     tsDoc            = hsep (ppr_rtype bb p <$> ts)
-    ppT | ppShort bb = text . dropModuleNames . render . ppTycon
+    ppT | ppShort bb = text . T.unpack . dropModuleNames . T.pack . render . ppTycon
         | otherwise  = ppTycon
 
 
@@ -154,7 +156,7 @@ ppr_rtype _ _ (RExprArg e)
 ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
 ppr_rtype _ _ (ROth s)
-  = text $ "???-" ++ s 
+  = text $ "???-" ++ symbolString s
 ppr_rtype bb p (RRTy e r o t)         
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
   where ppe = (hsep $ punctuate comma (pprint <$> e)) <+> colon <> colon
@@ -173,7 +175,7 @@ ppSpine (RCls c ts)      = text "RCls" <+> parens (ppCls c ts)
 ppSpine (RApp c ts rs _) = text "RApp" <+> parens (pprint c)
 ppSpine (RVar v _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
-ppSpine (ROth s)         = text "ROth" <+> text s
+ppSpine (ROth s)         = text "ROth" <+> text (symbolString s)
 ppSpine (RRTy _ _ _ _)   = text "RRTy"
 
 -- | From GHC: TypeRep 
@@ -247,13 +249,13 @@ ppr_forall bb p t
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
   where
-    pp | ppShort bb = text . dropModuleNames . render . pprint
+    pp | ppShort bb = text . T.unpack . dropModuleNames . T.pack . render . pprint
        | otherwise  = pprint
 
 
 ppr_pvar_def pprv (PV s t _ xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
   where 
-    dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text boolConName]
+    dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text . symbolString $ boolConName]
 
 
 

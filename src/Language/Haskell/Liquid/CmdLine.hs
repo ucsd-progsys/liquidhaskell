@@ -33,6 +33,8 @@ import           Data.List                                (foldl', nub)
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.HashMap.Strict as M
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 import           System.FilePath                          (dropFileName)
 import           System.Environment                       (lookupEnv, withArgs)
@@ -241,7 +243,7 @@ writeWarns []            = return ()
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 writeCheckVars Nothing   = return ()
-writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
+writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (TIO.putStrLn . dropModuleNames . T.pack)
 
 writeResult cfg c        = mapM_ (writeDoc c) . zip [0..] . resDocs tidy 
   where 

@@ -5,6 +5,7 @@
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Language.Haskell.Liquid.Fresh (
   Freshable(..), TCInfo(..)

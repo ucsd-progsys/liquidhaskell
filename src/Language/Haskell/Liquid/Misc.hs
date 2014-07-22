@@ -4,8 +4,10 @@ module Language.Haskell.Liquid.Misc where
 
 import Control.Applicative
 import System.FilePath
+import qualified Data.Text as T
 
 import Language.Fixpoint.Misc (errorstar)
+import Language.Fixpoint.Types
 
 import Paths_liquidhaskell
 
@@ -59,5 +61,3 @@ mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 mapN 0 f (x:xs) = f x : xs
 mapN n f (x:xs) = x : mapN (n-1) f xs
 mapN _ _ []     = []
-
-
