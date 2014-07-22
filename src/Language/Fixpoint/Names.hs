@@ -232,8 +232,8 @@ safeInit _ xs@(_:_)      = T.intercalate "." $ init xs
 safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
 
 safeLast :: String -> [T.Text] -> T.Text
-safeLast _ xs@(_:_)      = T.intercalate "." $ init xs
-safeLast msg _           = errorstar $ "safeInit with empty list " ++ msg
+safeLast _ xs@(_:_)      = last xs
+safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
 
 mungeModuleNames :: (String -> [T.Text] -> T.Text) -> String -> T.Text -> T.Text
 mungeModuleNames _ _ ""  = ""

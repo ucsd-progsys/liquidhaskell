@@ -307,6 +307,7 @@ appFTyCon  = TC $ dummyLoc "FAppTy"
 -- isListTC   = (listFTyCon ==)
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
+isFAppTyTC = (== appFTyCon)
 
 fTyconSymbol (TC s) = s
 
@@ -362,12 +363,18 @@ toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t])
-  | isListTC c          = brackets $ toFix_sort t
+  | isListTC c
+  = brackets $ toFix_sort t
+toFix_sort (FApp c [FApp c' [],t])
+  | isFAppTyTC c && isListTC c'
+  = brackets $ toFix_sort t
 toFix_sort (FApp c ts)
-  | isTupTC  c          = parens $ intersperse comma $ toFix_sort <$> ts
-  | otherwise           = toFix c <+> intersperse space (fp <$> ts)
-                          where fp s@(FApp _ (_:_)) = parens $ toFix_sort s
-                                fp s                = toFix_sort s
+  -- | isTupTC  c
+  -- = parens $ intersperse comma $ toFix_sort <$> ts
+  | otherwise
+  = toFix c <+> intersperse space (fp <$> ts)
+    where fp s@(FApp _ (_:_)) = parens $ toFix_sort s
+          fp s                = toFix_sort s
 
 
 instance Fixpoint FTycon where
@@ -1274,7 +1281,7 @@ instance NFData Qualifier where
 pprQual (Q n xts p) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
                -- fixpoint encoding is deferred until calling `toFix`, but we
                -- don't want the q_params encoded
-  where args = intersperse comma (toFix . mapFst symbolText <$> xts)
+  where args = intersperse comma (toFix <$> xts)
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , ws    :: ![WfC a]
