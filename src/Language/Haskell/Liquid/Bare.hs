@@ -730,7 +730,7 @@ makeLocalSpec cfg mod vs lvs xbs
 
         fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
 
-        modElem n x = (takeModuleNames $ T.pack $ show $ val x) == (T.pack $ show n)
+        modElem n x = (takeModuleNames $ symbolText $ val x) == (T.pack $ getModString n)
 
 makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
