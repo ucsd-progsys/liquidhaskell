@@ -149,7 +149,9 @@ updateDynFlags cfg
                     , libraryPaths = idirs cfg ++ libraryPaths df
                     , profAuto     = ProfAutoCalls
                     , ghcLink      = NoLink
-                    , hscTarget    = HscInterpreted
+                    --FIXME: this *should* be HscNothing, but that prevents us from
+                    -- looking up *unexported* names in another source module..
+                    , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
