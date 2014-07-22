@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which 
 --   is either: `SAFE` or `WARNING` with some reasonable error message when 
@@ -61,7 +62,7 @@ import Text.Parsec.Pos                          (newPos)
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-config = Config { 
+config = cmdArgsMode $ Config { 
    files    
     = def &= typ "TARGET" 
           &= args 
@@ -147,7 +148,7 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do cfg0    <- envCfg 
-             cfg1    <- mkOpts =<< cmdArgs config 
+             cfg1    <- mkOpts =<< cmdArgsRun config 
              let cfg  = fixCfg $ mconcat [cfg0, cfg1]
              whenNormal $ putStrLn copyright
              return cfg
@@ -185,7 +186,7 @@ withPragma :: Config -> Located String -> IO Config
 withPragma c s = (c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
-parsePragma s = withArgs [val s] $ cmdArgs config
+parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 ---------------------------------------------------------------------------------------
 -- | Monoid instances for updating options
