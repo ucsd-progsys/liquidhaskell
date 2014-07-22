@@ -369,8 +369,6 @@ toFix_sort (FApp c [FApp c' [],t])
   | isFAppTyTC c && isListTC c'
   = brackets $ toFix_sort t
 toFix_sort (FApp c ts)
-  -- | isTupTC  c
-  -- = parens $ intersperse comma $ toFix_sort <$> ts
   | otherwise
   = toFix c <+> intersperse space (fp <$> ts)
     where fp s@(FApp _ (_:_)) = parens $ toFix_sort s
@@ -1279,8 +1277,6 @@ instance NFData Qualifier where
   rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
 pprQual (Q n xts p) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
-               -- fixpoint encoding is deferred until calling `toFix`, but we
-               -- don't want the q_params encoded
   where args = intersperse comma (toFix <$> xts)
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
