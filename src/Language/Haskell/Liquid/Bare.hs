@@ -443,7 +443,7 @@ makeTExpr vs (_,spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f n vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
-        sym        = dropModuleNames . symbol
+        sym        = dropModuleNames . symbol . showPpr
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
@@ -632,7 +632,7 @@ inModule m act = do
 
 withVArgs vs act = do
   old <- gets rtEnv
-  mapM (mkExprAlias . symbol) vs
+  mapM (mkExprAlias . symbol . showpp) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res

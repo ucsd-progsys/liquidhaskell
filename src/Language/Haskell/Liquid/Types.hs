@@ -418,7 +418,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol $ getName tv -- don't want the Unique included so we don't use the Var instance
+  symbol (RTV tv) = symbol . T.pack . showPpr $ tv
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
