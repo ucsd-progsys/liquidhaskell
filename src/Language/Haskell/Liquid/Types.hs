@@ -1257,6 +1257,10 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
+  | ErrUnbound  { pos :: !SrcSpan
+                , var :: !Doc
+                } -- ^ Unbound symbol in specification 
+
   | ErrGhc      { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking

@@ -2,14 +2,17 @@
 
 module AlphaConvert () where
 
-import Data.List        (lookup)
-import Prelude hiding ((++))
-import Language.Haskell.Liquid.Prelude   
+import Prelude hiding ((++), elem)
+-- import Language.Haskell.Liquid.Prelude   
 
 maxs    :: [Int] -> Int 
 lemma1  :: Int -> [Int] -> Bool
 fresh   :: [Bndr] -> Bndr
 free    :: Expr -> [Bndr]
+
+liquidError  = undefined
+liquidAssert = undefined
+liquidAssume = undefined
 
 ---------------------------------------------------------------------
 -- | Datatype Definition --------------------------------------------
@@ -26,17 +29,19 @@ data Expr
 {-@ measure fv       :: Expr -> (Set Bndr)
     fv (Var x)       = (Set_sng v)
     fv (Abs x e)     = (Set_dif (freeVars e) (Set_sng v))
-    fv (App e e')    = (Set_cup (freeVars x) (freeVars y)) @-}
+    fv (App e a)     = (Set_cup (freeVars e) (freeVars a)) 
+  @-}
 
 {-@ measure isAbs    :: Expr -> Prop
     isAbs (Var v)    = false
     isAbs (Abs v e)  = true
-    isAbs (App e e') = false                               @-}
+    isAbs (App e a)  = false             
+  @-}
 
 {-@ predicate AddV E E2 X E1  = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
 {-@ predicate EqV E1 E2       = fv E1 = fv E2                                        @-}
 {-@ predicate Occ X E         = Set_mem X (fv E)                                     @-}
-{-@ predicate Subst V E1 X E2 = if Occ X E2 then (AddV E E2 X E1) else (EqV E E2)    @-}
+{-@ predicate Subst V E1 X E2 = if (Occ X E2) then (AddV E E2 X E1) else (EqV E E2)  @-}
 
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
@@ -69,13 +74,13 @@ alpha ys (Abs x e) = Abs x' (subst (Var x') x e)
     xs             = free e
     x'             = fresh (x : ys ++ xs)
 
-alpha _            = error "liquidError: never"
+alpha _  _         = liquidError "never"
 
 
 ----------------------------------------------------------------------------
 -- | Part 3: Fresh Variables -----------------------------------------------
 ----------------------------------------------------------------------------
-{-@ fresh :: xs:[Bndr] -> {v:Bndr | NotElem v xs)} @-}
+{-@ fresh :: xs:[Bndr] -> {v:Bndr | NotElem v xs} @-}
 ----------------------------------------------------------------------------
 fresh bs = liquidAssert (lemma1 n bs) n
   where 
@@ -88,7 +93,7 @@ maxs (x:xs) = if x > maxs xs then x else (maxs xs)
  
 {-@ measure maxs :: [Int] -> Int 
     maxs ([])   = 0
-    maxs (x:xs) = if x > maxs xs then x else (maxs xs) 
+    maxs (x:xs) = if (x > maxs xs) then x else (maxs xs) 
   @-}
 
 {-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | Prop v && NotElem x xs} @-}

@@ -16,7 +16,6 @@
 module Language.Haskell.Liquid.Bare (
     GhcSpec (..)
   , makeGhcSpec
-  -- , varSpecType
   ) where
 
 import ConLike                  
@@ -50,7 +49,7 @@ import qualified Control.Exception as Ex
 -- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
 import Data.Function            (on)
-
+import Text.Parsec.Pos
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
@@ -72,6 +71,7 @@ import qualified Data.HashMap.Strict as M
 import TypeRep
 
 import Debug.Trace (trace)
+
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
@@ -82,7 +82,7 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
 makeGhcSpec cfg name vars defVars exports env specs
   = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
   where
-    act = makeGhcSpec' cfg vars defVars exports specs
+    act     = makeGhcSpec' cfg vars defVars exports specs
     throwOr = either Ex.throw
     initEnv = BE name mempty mempty mempty env
 
@@ -124,9 +124,9 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
 
 
-makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet
-             -> [(ModName,Ms.BareSpec)]
-             -> BareM GhcSpec
+------------------------------------------------------------------------------------------------
+makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName,Ms.BareSpec)] -> BareM GhcSpec
+------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg vars defVars exports specs
   = do name <- gets modName
        makeRTEnv (concat [map (mod,) $ Ms.aliases  sp | (mod,sp) <- specs])
@@ -147,7 +147,7 @@ makeGhcSpec' cfg vars defVars exports specs
        ialias          <- mconcat <$> mapM makeIAliases   specs
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        targetVars      <- makeTargetVars name defVars $ binders cfg
-       (cls,mts)       <- second mconcat . unzip . mconcat
+       (cls, mts)      <- second mconcat . unzip . mconcat
                           <$> mapM (makeClasses cfg vars) specs
        let dms          = makeDefaultMethods vars mts
        tcEnv           <- gets tcEnv
@@ -228,8 +228,8 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 makeRTEnv rts pts  = do initRTEnv
                         makeRPAliases dummyPos pts
                         makeRTAliases rts
-  where initRTEnv   = do forM_ rts $ \(mod,rta) -> setRTAlias (rtName rta) $ Left (mod,rta)
-                         forM_ pts $ \(mod,pta) -> setRPAlias (rtName pta) $ Left (mod,pta)
+  where initRTEnv  = do forM_ rts $ \(mod,rta) -> setRTAlias (rtName rta) $ Left (mod,rta)
+                        forM_ pts $ \(mod,pta) -> setRPAlias (rtName pta) $ Left (mod,pta)
 
 
 makeRTAliases xts = mapM_ expBody xts
@@ -238,11 +238,12 @@ makeRTAliases xts = mapM_ expBody xts
                              setRTAlias (rtName xt)
                                $ Right $ mapRTAVars stringRTyVar $ xt { rtBody = body }
 
-makeRPAliases l xts = mapM_ expBody xts
-  where expBody (mod,xt) = inModule mod $ do
-                             env  <- gets $ predAliases . rtEnv
-                             body <- withVArgs (rtVArgs xt) $ (expandRPAliasE l) $ rtBody xt
-                             setRPAlias (rtName xt) $ Right $ xt { rtBody = body }
+makeRPAliases l xts   = mapM_ expBody xts
+  where 
+    expBody (mod, xt) = inModule mod $ do
+                          env  <- gets $ predAliases . rtEnv
+                          body <- withVArgs (rtVArgs xt) $ (expandRPAliasE l) $ rtBody xt
+                          setRPAlias (rtName xt) $ Right $ xt { rtBody = body }
 
 -- | Using the Alias Environment to Expand Definitions
 expandRTAliasMeasure m
@@ -256,10 +257,10 @@ expandRTAliasDef d
        body <- expandRTAliasBody (loc $ measure d) env $ body d
        return $ d { body = body }
 
-expandRTAliasBody :: Show p => p -> RTEnv -> Body -> BareM Body
+-- expandRTAliasBody :: Show p => p -> RTEnv -> Body -> BareM Body
 expandRTAliasBody l env (P p)   = P   <$> (expPAlias l p)
 expandRTAliasBody l env (R x p) = R x <$> (expPAlias l p)
-expandRTAliasBody l _   (E e)   = E   <$> resolve e
+expandRTAliasBody l _   (E e)   = E   <$> resolve l e
 
 expPAlias :: Show p => p -> Pred -> BareM Pred
 expPAlias l = expandPAlias l []
@@ -734,8 +735,7 @@ makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
 makeSpec cfg vs xbs
   = do vbs <- map (joinVar vs) <$> lookupIds xbs
        env@(BE { modName = mod}) <- get
-       unless (noCheckUnknown cfg) $
-         checkDefAsserts env vbs xbs
+       unless (noCheckUnknown cfg) $ checkDefAsserts env vbs xbs
        map (addFst3 mod) <$> mapM mkVarSpec vbs
 
 -- the Vars we lookup in GHC don't always have the same tyvars as the Vars
@@ -807,7 +807,7 @@ makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
   where 
     tx (c, y) = (, y) <$> lookupGhcTyCon c
 
-makeIAliases (mod,spec)
+makeIAliases (mod, spec)
   = inModule mod $ makeIAliases' $ Ms.ialiases spec
 
 makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecType, Located SpecType)]
@@ -973,36 +973,35 @@ fixpointPrims = [ "Pred"
                 ]
 
 class Resolvable a where
-  resolve :: a -> BareM a
+  resolve     :: SourcePos -> a -> BareM a
+
 
 instance Resolvable Qualifier where
-  resolve (Q n ps b) = Q n <$> mapM (secondM resolve) ps <*> resolve b
+  resolve l (Q n ps b) = Q n <$> mapM (secondM (resolve l)) ps <*> resolve l b
 
 instance Resolvable Pred where
-  resolve (PAnd ps)       = PAnd <$> mapM resolve ps
-  resolve (POr  ps)       = POr  <$> mapM resolve ps
-  resolve (PNot p)        = PNot <$> resolve p
-  resolve (PImp p q)      = PImp <$> resolve p <*> resolve q
-  resolve (PIff p q)      = PIff <$> resolve p <*> resolve q
-  resolve (PBexp b)       = PBexp <$> resolve b
-  resolve (PAtom r e1 e2) = PAtom r <$> resolve e1 <*> resolve e2
-  resolve (PAll vs p)     = PAll <$> mapM (secondM resolve) vs
-                                 <*> resolve p
-  resolve p               = return p
+  resolve l (PAnd ps)       = PAnd    <$> mapM (resolve l) ps
+  resolve l (POr  ps)       = POr     <$> mapM (resolve l) ps
+  resolve l (PNot p)        = PNot    <$> resolve l p
+  resolve l (PImp p q)      = PImp    <$> resolve l p  <*> resolve l q
+  resolve l (PIff p q)      = PIff    <$> resolve l p  <*> resolve l q
+  resolve l (PBexp b)       = PBexp   <$> resolve l b
+  resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
+  resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
+  resolve _ p               = return p
 
 instance Resolvable Expr where
-  resolve (EVar s)       = EVar <$> resolve s
-  resolve (EApp s es)    = EApp <$> resolve s <*> es'
-      where es'          = mapM resolve es
-  resolve (EBin o e1 e2) = EBin o <$> resolve e1 <*> resolve e2
-  resolve (EIte p e1 e2) = EIte <$> resolve p <*> resolve e1 <*> resolve e2
-  resolve (ECst x s)     = ECst <$> resolve x <*> resolve s
-  resolve x              = return x
+  resolve l (EVar s)       = EVar   <$> resolve l s
+  resolve l (EApp s es)    = EApp   <$> resolve l s  <*> mapM (resolve l) es
+  resolve l (EBin o e1 e2) = EBin o <$> resolve l e1 <*> resolve l e2
+  resolve l (EIte p e1 e2) = EIte   <$> resolve l p  <*> resolve l e1 <*> resolve l e2
+  resolve l (ECst x s)     = ECst   <$> resolve l x  <*> resolve l s
+  resolve l x              = return x
 
 instance Resolvable LocSymbol where
-  resolve ls@(Loc l (S s))
+  resolve _ ls@(Loc l (S s))
       | s `elem` fixpointPrims = return ls
-      | otherwise = do env <- gets (typeAliases.rtEnv)
+      | otherwise = do env <- gets (typeAliases . rtEnv)
                        case M.lookup s env of
                          Nothing | isCon s
                            -> do v <- lookupGhcVar $ Loc l s
@@ -1011,10 +1010,14 @@ instance Resolvable LocSymbol where
                                  return $ Loc l qs
                          _ -> return ls
 
+isCon (c:_)  = isUpper c
+isCon []     = False
+
+
 --FIXME: probably need to add a Location to `EVar` so we don't need
 --this instance..
 instance Resolvable Symbol where
-  resolve = fmap val . resolve . dummyLoc
+  resolve l x = fmap val $ resolve l $ Loc l x 
 
 instance Resolvable Sort where
   -- resolve = return
@@ -1048,9 +1051,6 @@ instance (Resolvable t) => Resolvable (PVar t) where
 
 instance Resolvable () where
   resolve () = return ()
-
-isCon (c:cs) = isUpper c
-isCon []     = False
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------
@@ -1341,7 +1341,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind "variable"    emb tcEnv env) sigs
                      ++ mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
-                     ++ mapMaybe (checkExpr "measure"     emb env sigs) (texprs sp)
+                     ++ mapMaybe (checkExpr "measure"     emb env sigs)  (texprs sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -1349,8 +1349,13 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkDuplicate                             (tySigs sp)
                      ++ checkDuplicate                             (asmSigs sp)
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
-                     ++ checkDuplicateRTAlias "Type Alias"         (concat [Ms.aliases sp  | (_, sp) <- specs])
-                     ++ checkDuplicateRTAlias "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
+                     ++ checkRTAliases "Type Alias" env            tAliases
+                     ++ checkRTAliases "Pred Alias" env            pAliases 
+                  -- ++ checkDuplicateRTAlias "Predicate Alias"    pAliases  
+                  --   ++ checkRTAliasSyms      "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
+
+    tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
+    pAliases         =  concat [Ms.paliases sp | (_, sp) <- specs]
     dcons spec       =  mapSnd (Loc dummyPos) <$> dataConSpec (dconsP spec) 
     emb              =  tcEmbeds sp
     env              =  ghcSpecEnv sp
@@ -1380,6 +1385,22 @@ checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
     emsg     = pprint t1 <+> text "does not match with" <+> pprint t2 
 
 
+checkRTAliases msg env as = err1s ++ err2s
+  where 
+    err1s                  = checkDuplicateRTAlias msg as
+    err2s                  = concatMap (checkRTAliasWF env) as
+
+checkRTAliasWF env a       = trace ("checkRTAliasWF: " ++ rtName a) 
+                           $ map mkErr $ filter (not . ok)  aSyms 
+  where
+    aSyms                  = traceShow ("RTAWF: " ++ aName) $ (syms $ rtBody a)
+    ok x                   = memberSEnv x env || x `elem` params 
+    params                 = symbol <$> rtVArgs a
+    mkErr                  = ErrUnbound sp . pprint 
+    sp                     = sourcePosSrcSpan (srcPos a)
+    aName                  = rtName a
+
+
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error 
 checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
   where 
@@ -1389,20 +1410,15 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
 checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
 checkExpr s emb env vts (v, es) = mkErr <$> go es
   where 
-  mkErr = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
-  go    = foldl (\err e -> err <|> checkSorted env' e) Nothing  
-
-  (Loc l t) = safeFromJust msg $ L.lookup v vts
-
-  env'' = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
-  env'  = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
-  xss   = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
-  rSort = rTypeSortedReft emb 
-  msg   = "Bare.checkExpr " ++ showpp v ++ " not found\n"
-          ++ "\t Try give a haskell type signature to the recursive function"
-
---   lookup v vts = (symbol v) `L.lookup` (mapFst symbol <$> vts)
---   symbol       = stringSymbol . dropModuleNames . showpp
+    Loc l t = safeFromJust msg $ L.lookup v vts
+    mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
+    go      = foldl (\err e -> err <|> checkSorted env' e) Nothing  
+    env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
+    env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+    xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
+    rSort   = rTypeSortedReft emb 
+    msg     = "Bare.checkExpr " ++ showpp v ++ " not found\n"
+              ++ "\t Try give a haskell type signature to the recursive function"
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)
@@ -1428,6 +1444,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
                                  (pprint $ rtName x) 
                                  (sourcePosSrcSpan . srcPos <$> xs)
     dups  = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
+
 
 
 checkMismatch        :: (Var, Located SpecType) -> Maybe Error

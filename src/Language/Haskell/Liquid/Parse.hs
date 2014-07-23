@@ -350,16 +350,9 @@ monoPredicate1P
   <|> try (liftM pdVar (parens predVarUseP))
   <|> liftM pdVar predVarUseP 
 
--- HEREHEREHEREHEREHERE FIXME. SIGH.
--- predVarUseP 
---  = do p  <- predVarIdP
---       xs <- sepBy exprP spaces
---       return $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
-
 predVarUseP 
   = do (p, xs) <- funArgsP 
        return   $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
-
 
 funArgsP  = try realP <|> empP
   where
@@ -565,6 +558,7 @@ embedP
 aliasP  = rtAliasP id           bareTypeP
 paliasP = rtAliasP stringSymbol predP
 
+rtAliasP :: (String -> tv) -> Parser ty -> Parser (RTAlias tv ty) 
 rtAliasP f bodyP
   = do pos  <- getPosition
        name <- upperIdP
