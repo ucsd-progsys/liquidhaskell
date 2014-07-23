@@ -1,4 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--fullcheck"      @-}
 
 module AlphaConvert () where
 

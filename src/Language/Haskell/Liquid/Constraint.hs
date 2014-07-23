@@ -1613,13 +1613,13 @@ varAnn γ x t
 
 getSrcSpan' x 
   | loc == noSrcSpan
-  = traceShow ("myGetSrcSpan: No Location for: " ++ showPpr x) $ loc
+  = {- traceShow ("myGetSrcSpan: No Location for: " ++ showPpr x) $ -} loc
   | otherwise
   = loc
   where loc = getSrcSpan x
 
 -----------------------------------------------------------------------
----------- Helpers: Creating Fresh Refinement ------------------ ------
+-- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
 
 truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
