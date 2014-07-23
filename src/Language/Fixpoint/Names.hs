@@ -1,8 +1,11 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module contains Haskell variables representing globally visible names.
@@ -13,13 +16,16 @@
 module Language.Fixpoint.Names (
 
   -- * Symbols
-    Symbol(..)
+    Symbol
   , Symbolic (..)
-  , anfPrefix, tempPrefix, vv, intKvar
+  , anfPrefix, tempPrefix, vv, intKvar, isPrefixOfSym, isSuffixOfSym, stripParensSym
+  , consSym, unconsSym, dropSym, singletonSym, headSym, takeWhileSym, lengthSym
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
   , symbolText, symbolString
   , encode, vvCon
+  , dropModuleNames
+  , takeModuleNames
 
   -- * Creating Symbols
   , dummySymbol, intSymbol, tempSymbol
@@ -37,8 +43,6 @@ module Language.Fixpoint.Names (
   , strConName
   , vvName
   , symSepName
-  , dropModuleNames 
-  , takeModuleNames
 ) where
 
 import GHC.Generics         (Generic)
@@ -54,9 +58,10 @@ import Data.Interned.Internal.Text
 import Data.Interned.Text
 import Data.Hashable
 import qualified Data.HashSet        as S
+import Control.Applicative
 import Control.DeepSeq
 
-import Language.Fixpoint.Misc   (errorstar, stripParens)
+import Language.Fixpoint.Misc   (errorstar, stripParens, mapSnd)
 
 ---------------------------------------------------------------
 ---------------------------- Symbols --------------------------
@@ -86,6 +91,12 @@ instance NFData InternedText where
 
 instance Show Symbol where
   show (S x) = show x
+
+instance NFData Symbol where
+  rnf (S x) = rnf x
+
+instance Hashable Symbol where
+  hashWithSalt i (S s) = hashWithSalt i s
 
 symbolString = T.unpack . symbolText
 
@@ -128,6 +139,24 @@ okSymChars
 
 fixSymPrefix = "fix" ++ [symSepName]
 
+isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
+isSuffixOfSym (symbolText -> p) (symbolText -> x) = p `T.isSuffixOf` x
+takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
+
+headSym (symbolText -> t) = T.head t
+consSym c (symbolText -> s) = symbol $ T.cons c s
+singletonSym = (`consSym` "")
+
+lengthSym (symbolText -> t) = T.length t
+
+unconsSym :: Symbol -> Maybe (Char, Symbol)
+unconsSym (symbolText -> s) = mapSnd symbol <$> T.uncons s
+
+dropSym :: Int -> Symbol -> Symbol
+dropSym n (symbolText -> t) = symbol $ T.drop n t
+
+stripParensSym (symbolText -> t) = symbol $ stripParens t
+
 suffixSymbol (S s) suf = symbol $ (unintern s) `mappend` suf
 
 isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymChars)) chs
@@ -145,12 +174,11 @@ encodeChar c
 decodeStr s
   = chr ((read s) :: Int)
 
-qualifySymbol :: Text -> Symbol -> Symbol
-qualifySymbol x (S sy)
-  | isQualified x' = S sy
-  | isParened x'   = symbol (wrapParens (x `mappend` "." `mappend` stripParens x'))
-  | otherwise      = symbol (x `mappend` "." `mappend` x')
-  where x' = unintern sy
+qualifySymbol :: Symbol -> Symbol -> Symbol
+qualifySymbol m'@(symbolText -> m) x'@(symbolText -> x)
+  | isQualified x  = x'
+  | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
+  | otherwise      = symbol (m `mappend` "." `mappend` x)
 
 isQualified y         = "." `T.isInfixOf` y
 wrapParens x          = "(" `mappend` x `mappend` ")"
@@ -168,12 +196,12 @@ isNontrivialVV      = not . (vv Nothing ==)
 
 
 dummySymbol         = dummyName
-intSymbol x i       = symbol $ x `mappend` T.pack (show i)
+intSymbol x i       = x `mappend` symbol (show i)
 
-tempSymbol          :: Text -> Integer -> Symbol
+tempSymbol          :: Symbol -> Integer -> Symbol
 tempSymbol prefix n = intSymbol (tempPrefix `mappend` prefix) n
 
-tempPrefix, anfPrefix :: Text
+tempPrefix, anfPrefix :: Symbol
 tempPrefix          = "lq_tmp_"
 anfPrefix           = "lq_anf_"
 
@@ -188,6 +216,9 @@ intKvar             = intSymbol "k_"
 
 class Symbolic a where
   symbol :: a -> Symbol
+
+instance Symbolic String where
+  symbol = symbol . T.pack
 
 instance Symbolic Text where
   symbol = S . intern
@@ -227,21 +258,17 @@ symSepName   = '#'
 dropModuleNames          = mungeModuleNames safeLast "dropModuleNames: "
 takeModuleNames          = mungeModuleNames safeInit "takeModuleNames: "
 
-safeInit :: String -> [T.Text] -> T.Text
-safeInit _ xs@(_:_)      = T.intercalate "." $ init xs
+safeInit :: String -> [T.Text] -> Symbol
+safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
 safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
 
-safeLast :: String -> [T.Text] -> T.Text
-safeLast _ xs@(_:_)      = last xs
+safeLast :: String -> [T.Text] -> Symbol
+safeLast _ xs@(_:_)      = symbol $ last xs
 safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
 
-mungeModuleNames :: (String -> [T.Text] -> T.Text) -> String -> T.Text -> T.Text
+mungeModuleNames :: (String -> [T.Text] -> Symbol) -> String -> Symbol -> Symbol
 mungeModuleNames _ _ ""  = ""
-mungeModuleNames f msg s  
-  | s == symbolText tupConName
-   = symbolText tupConName
-  | otherwise            = f (msg ++ T.unpack s) $ T.words $ dotWhite `T.map` stripParens s
-  where 
-    dotWhite '.'         = ' '
-    dotWhite c           = c
-
+mungeModuleNames f msg s'@(symbolText -> s)
+  | s' == tupConName
+  = tupConName
+  | otherwise            = f (msg ++ T.unpack s) $ T.splitOn "." $ stripParens s

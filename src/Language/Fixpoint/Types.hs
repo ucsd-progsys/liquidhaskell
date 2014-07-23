@@ -769,9 +769,9 @@ instance Fixpoint BindEnv where
 toFix_bind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
 
 insertFEnv   = insertSEnv . lower
-  where lower (S s) = case T.uncons (unintern s) of
-                        Nothing    -> S s
-                        Just (c,t) -> symbol $ T.cons (toLower c) t
+  where lower s = case unconsSym s of
+                    Nothing     -> s
+                    Just (c,s') -> consSym (toLower c) s'
 
 instance (Fixpoint a) => Fixpoint (SEnv a) where
   toFix (SE e) = vcat $ map pprxt $ hashMapToAscList e
@@ -1108,9 +1108,6 @@ conjuncts p | isTautoPred p  = []
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
 
-instance NFData Symbol where
-  rnf (S x) = rnf x
-
 instance NFData FTycon where
   rnf (TC c)       = rnf c
 
@@ -1191,9 +1188,6 @@ instance (NFData a) => NFData (WfC a) where
 -------------- Hashable Instances -----------------------------------------
 ---------------------------------------------------------------------------
 
-instance Hashable Symbol where
-  hashWithSalt i (S s) = hashWithSalt i s
-
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
 
@@ -1234,7 +1228,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (S v, _)) = shiftVV r (symbol $ unintern v `mappend` T.pack (show i))
+    shiftR i r@(Reft (v, _)) = shiftVV r (v `mappend` symbol (show i))
 
 
 -- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
@@ -1377,7 +1371,7 @@ instance Reftable Reft where
   top (Reft(v,_)) = Reft(v,[])
 
 instance Monoid Sort where
-  mempty            = FObj (S "any")
+  mempty            = FObj "any"
   mappend t1 t2
     | t1 == mempty  = t2
     | t2 == mempty  = t1
