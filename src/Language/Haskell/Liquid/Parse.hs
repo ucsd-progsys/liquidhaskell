@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (listConName, propConName, tupConName)
+import Language.Fixpoint.Names (listConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse hiding (angles)
 
@@ -167,7 +167,7 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", [hole]))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = refasP <|> (reserved "_" >> return [hole])
 
@@ -344,7 +344,7 @@ predicate1P
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
                       return $ zip ss fs
-    refreshSym s = liftM (intSymbol (symbolText s)) freshIntP
+    refreshSym s = liftM (intSymbol s) freshIntP
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -465,7 +465,7 @@ instance Show (Pspec a b) where
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
-                       $ Measure.qualifySpec (T.pack $ getModString name)
+                       $ Measure.qualifySpec (symbol name)
                        $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
@@ -577,7 +577,7 @@ rtAliasP f bodyP
        args <- sepBy aliasIdP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
-       let (tArgs, vArgs) = partition (isLower . T.head . symbolText) args
+       let (tArgs, vArgs) = partition (isLower . headSym) args
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos
 
 aliasIdP :: Parser Symbol
@@ -639,8 +639,8 @@ tyBodyP ty
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP    =  try $ symbol . T.pack <$> idP badc
-          <|> pwr . T.pack <$> parens (idP bad)
+binderP    =  try $ symbol <$> idP badc
+          <|> pwr <$> parens (idP bad)
   where 
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
@@ -683,7 +683,7 @@ mkTupPat zs     = (tupDataCon (length zs), zs)
 mkNilPat _      = (dummyLoc "[]", []    )
 mkConsPat x c y = (dummyLoc ":" , [x, y])
 
-tupDataCon n    = dummyLoc $ symbol $ "(" <> T.replicate (n - 1) "," <> ")"
+tupDataCon n    = dummyLoc $ symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 {- len (Cons x1 x2 ...) = e -}
 
@@ -710,7 +710,7 @@ dataConNameP
   =  try upperIdP
  <|> pwr <$> parens (idP bad)
   where 
-     idP p  = symbol . T.pack <$> many1 (satisfy (not . p))
+     idP p  = symbol <$> many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` "(,)"
      pwr s  = "(" <> s <> ")"
 

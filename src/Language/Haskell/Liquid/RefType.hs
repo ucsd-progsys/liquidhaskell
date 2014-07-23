@@ -795,7 +795,7 @@ instance Expression Var where
 
 
 
-pprShort    =  T.unpack . dropModuleNames . T.pack . showPpr
+pprShort    =  symbolString . dropModuleNames . symbol
 
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = symbol . dataConWorkId
@@ -897,7 +897,6 @@ literalFReft tce = maybe mempty exprReft . snd . literalConst tce
 literalConst tce l         = (sort, mkLit l)
   where 
     sort                   = typeSort tce $ literalType l 
-    -- sym                    = symbol . T.pack $ "$$" ++ showPpr l
     mkLit (MachInt    n)   = mkI n
     mkLit (MachInt64  n)   = mkI n
     mkLit (MachWord   n)   = mkI n
@@ -967,7 +966,7 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 
 
 typeUniqueSymbol :: Type -> Symbol 
-typeUniqueSymbol = symbol . T.pack . typeUniqueString
+typeUniqueSymbol = symbol . typeUniqueString
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce τ@(ForAllTy _ _) 
@@ -1000,7 +999,7 @@ typeSortForAll tce τ
 tyConName c 
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = symbol . T.pack $ showPpr c
+  | otherwise         = symbol c
 
 typeSortFun tce t -- τ1 τ2
   = FFunc 0  sos

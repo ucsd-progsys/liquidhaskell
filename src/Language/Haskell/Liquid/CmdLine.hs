@@ -244,7 +244,7 @@ writeWarns []            = return ()
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 writeCheckVars Nothing   = return ()
-writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (TIO.putStrLn . dropModuleNames . T.pack)
+writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 writeResult cfg c        = mapM_ (writeDoc c) . zip [0..] . resDocs tidy 
   where 

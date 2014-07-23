@@ -214,7 +214,7 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
-    bindStr (x, v) = (maybe "_" (T.unpack . shorten) x, render v)
+    bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 
 closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 
