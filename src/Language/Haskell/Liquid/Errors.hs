@@ -199,6 +199,10 @@ ppError' _ dSp (ErrDupAlias _ k v ls)
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
     <+> (nest 4 $ vcat $ pprint <$> ls)
 
+ppError' _ dSp (ErrUnbound _ x)
+  = dSp <+> text "Unbound variable"
+    $+$ (nest 4 $ pprint x)
+
 ppError' _ dSp (ErrGhc _ s)
   = dSp <+> text "GHC Error"
     $+$ (nest 4 $ pprint s)
