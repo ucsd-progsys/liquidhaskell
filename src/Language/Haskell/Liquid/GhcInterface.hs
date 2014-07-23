@@ -197,7 +197,7 @@ getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns
         pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
         dFuns    = is_dfun <$> (instEnvElts $ mg_inst_env cm)
    
-        shortPpr = T.unpack . dropModuleNames . T.pack . showPpr
+        shortPpr = symbolString . dropModuleNames . symbol
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do

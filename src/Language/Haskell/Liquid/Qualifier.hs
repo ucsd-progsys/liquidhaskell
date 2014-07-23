@@ -68,8 +68,8 @@ pAppQual tce p args (v, expr) =  Q "Auto" freeVars pred
   where 
     freeVars                  = (vv, tyvv) : (predv, typred) : args
     pred                      = pApp predv $ EVar vv:predArgs
-    vv                        = S "v"
-    predv                     = S "~P"
+    vv                        = "v"
+    predv                     = "~P"
     tyvv                      = rTypeSort tce $ ptype p
     typred                    = rTypeSort tce (toPredType p :: RRType ())
     predArgs                  = mkexpr <$> (snd3 <$> pargs p)
@@ -111,7 +111,7 @@ refTopQuals tce t0 γ t
 
 mkPQual tce t0 γ t e = mkQual t0 γ' v so pa
   where 
-    v                = S "vv"
+    v                = "vv"
     so               = rTypeSort tce t
     γ'               = insertSEnv v so γ
     pa               = PAtom Eq (EVar v) e   
@@ -120,7 +120,7 @@ mkQual t0 γ v so p = Q "Auto" ((v, so) : yts) p'
   where 
     yts            = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
     p'             = subst (mkSubst (second EVar <$> xys)) p
-    xys            = zipWith (\x i -> (x, symbol $ T.pack ("~A" ++ show i))) xs [0..]
+    xys            = zipWith (\x i -> (x, symbol ("~A" ++ show i))) xs [0..]
     xs             = delete v $ orderedFreeVars γ p
 
 lookupSort t0 x γ  = fromMaybe (errorstar msg) $ lookupSEnv x γ 

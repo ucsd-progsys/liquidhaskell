@@ -25,7 +25,7 @@ import Data.Maybe (fromMaybe)
 
 
 import Language.Fixpoint.Misc 
-import Language.Fixpoint.Names              (symSepName)
+import Language.Fixpoint.Names              (symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
@@ -35,15 +35,13 @@ import Language.Haskell.Liquid.RefType
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = symbol . T.takeWhile (/= symSepName) . symbolText
+tidySymbol = takeWhileSym (/= symSepName)
 
 
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
-isTmpSymbol x  = any (`T.isPrefixOf` str) [anfPrefix, tempPrefix, "ds_"]
-  where 
-    str        = symbolText x
+isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 
 
 -------------------------------------------------------------------------
@@ -70,7 +68,7 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     txStrata (U r p l)            = U r p (txStr l) 
     txReft (U (Reft (v,ras)) p l) = U (Reft (v, dropLocals ras)) p l
     dropLocals                    = filter (not . any isTmp . syms) . flattenRefas
-    isTmp x                       = any (`T.isPrefixOf` (symbolText x)) [anfPrefix, "ds_"]
+    isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
     txStr                         = filter (not . isSVar) 
 
 
@@ -79,7 +77,7 @@ tidyDSymbols :: SpecType -> SpecType
 tidyDSymbols t = mapBind tx $ substa tx t
   where 
     tx         = bindersTx [x | x <- syms t, isTmp x]
-    isTmp      = (tempPrefix `T.isPrefixOf`) . symbolText
+    isTmp      = (tempPrefix `isPrefixOfSym`)
 
 tidyFunBinds :: SpecType -> SpecType
 tidyFunBinds t = mapBind tx $ substa tx t
@@ -99,7 +97,7 @@ tidyTyVars t = subsTyVarsAll αβs t
 bindersTx ds   = \y -> M.lookupDefault y y m  
   where 
     m          = M.fromList $ zip ds $ var <$> [1..]
-    var        = symbol . T.pack . ('x' :) . show
+    var        = symbol . ('x' :) . show
  
 
 tyVars (RAllP _ t)     = tyVars t

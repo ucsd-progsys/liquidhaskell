@@ -28,7 +28,8 @@ import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcS
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
-import           Name                         (mkInternalName, getSrcSpan)
+import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
@@ -60,6 +61,8 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
 import           Data.Aeson                 
 import qualified Data.Text                    as T
+import qualified Data.Text.Encoding           as T
+import qualified Data.Text.Unsafe             as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
@@ -365,4 +368,15 @@ instance Symbolic TyCon where
   symbol = symbol . getName
 
 instance Symbolic Name where
-  symbol = symbol . T.pack . showPpr
+  symbol = qualifiedNameSymbol
+
+qualifiedNameSymbol n = symbol $
+  case nameModule_maybe n of
+    Nothing -> occNameFS (getOccName n)
+    Just m  -> concatFS [moduleNameFS (moduleName m), fsLit ".", occNameFS (getOccName n)]
+
+instance Symbolic FastString where
+  symbol = symbol . fastStringText
+
+fastStringText = T.decodeUtf8 . fastStringToByteString
+symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText

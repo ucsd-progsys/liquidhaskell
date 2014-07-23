@@ -98,7 +98,7 @@ tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
 niceTemps     :: [Symbol]
 niceTemps     = mkSymbol <$> xs ++ ys 
   where
-    mkSymbol  = symbol . T.pack . ('?' :)
+    mkSymbol  = symbol . ('?' :)
     xs        = single   <$> ['a' .. 'z'] 
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 

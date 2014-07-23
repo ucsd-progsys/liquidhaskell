@@ -134,7 +134,7 @@ ppr_rtype bb p (RApp c ts rs r)
   where
     rsDoc            = ppReftPs bb rs
     tsDoc            = hsep (ppr_rtype bb p <$> ts)
-    ppT | ppShort bb = text . T.unpack . dropModuleNames . T.pack . render . ppTycon
+    ppT | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
         | otherwise  = ppTycon
 
 
@@ -249,7 +249,7 @@ ppr_forall bb p t
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
   where
-    pp | ppShort bb = text . T.unpack . dropModuleNames . T.pack . render . pprint
+    pp | ppShort bb = text . symbolString . dropModuleNames . symbol . render . pprint
        | otherwise  = pprint
 
 
@@ -274,8 +274,8 @@ instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType a
 ppRefArgs [] = empty
 ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
 
-ppRefSym (S "") = text "_"
-ppRefSym s      = pprint s
+ppRefSym "" = text "_"
+ppRefSym s  = pprint s
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprint (U r p s)

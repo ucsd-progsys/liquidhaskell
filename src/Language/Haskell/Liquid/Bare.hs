@@ -55,7 +55,7 @@ import qualified Data.Text as T
 import Text.Parsec.Pos (SourcePos)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames)
+import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, unconsSym, headSym, stripParensSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -225,7 +225,7 @@ makeMeasureSelectors (dc, (Loc loc (DataConP vs _ _ _ xts r))) = go <$> (zip (re
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
-        mkx j = symbol $ T.pack ("xx" ++ show j)
+        mkx j = symbol ("xx" ++ show j)
         
 --- Refinement Type Aliases
 makeRTEnv rts pts  = do initRTEnv
@@ -443,7 +443,7 @@ makeTExpr vs (_,spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f n vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
-        sym        = symbol . dropModuleNames . T.pack . showPpr
+        sym        = dropModuleNames . symbol
         locVar v   = (getSourcePos v, v)
         go (s, ns) = case M.lookup (val s) lvs of 
                      Just lvs -> return ((, ns) <$> varsAfter f s lvs)
@@ -632,7 +632,7 @@ inModule m act = do
 
 withVArgs vs act = do
   old <- gets rtEnv
-  mapM (mkExprAlias . symbol . T.pack . showpp) vs
+  mapM (mkExprAlias . symbol) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res
@@ -682,7 +682,7 @@ makeTargetVars name vs ss = do
   ns <- liftIO $ concatMapM (lookupName env name . dummyLoc . prefix) ss
   return $ filter ((`elem` ns) . varName) vs
  where
-  prefix s = symbol . T.pack $ getModString name ++ "." ++ s
+  prefix s = qualifySymbol (symbol name) (symbol s)
 
 
 makeAssertSpec cmod cfg vs lvs (mod,spec)
@@ -702,11 +702,11 @@ makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
 makeDefaultMethods defVs sigs
   = [ (m,dmv,t)
     | dmv <- defVs
-    , let dm = T.pack $ showpp dmv
-    , "$dm" `T.isPrefixOf` (dropModuleNames dm)
+    , let dm = symbol dmv
+    , "$dm" `isPrefixOfSym` (dropModuleNames dm)
     , let mod = takeModuleNames dm
-    , let method = mod <> "." <> T.drop 3 (dropModuleNames dm)
-    , let mb = L.find ((method `T.isPrefixOf`) . T.pack . showpp . snd3) sigs
+    , let method = qualifySymbol mod $ dropSym 3 (dropModuleNames dm)
+    , let mb = L.find ((method `isPrefixOfSym`) . symbol . snd3) sigs
     , isJust mb
     , let Just (m,_,t) = mb
     ]
@@ -726,11 +726,11 @@ makeLocalSpec cfg mod vs lvs xbs
         dupSnd (x, y)       = (dropMod x, (x, y))
         expand3 (x, (y, w)) = (x, y, w)
 
-        dropMod  = fmap (symbol . dropModuleNames . symbolText)
+        dropMod  = fmap (dropModuleNames . symbol)
 
         fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
 
-        modElem n x = (takeModuleNames $ symbolText $ val x) == (T.pack $ getModString n)
+        modElem n x = (takeModuleNames $ val x) == (symbol n)
 
 makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
@@ -759,9 +759,8 @@ checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
     assertSigs                = filter isTarget xbs
     definedSigs               = S.fromList $ snd3 <$> vbs
     grumble                   = mapM_ (warn . berrUnknownVar)
-    moduleName                = T.pack $ getModString $ modName env
-    isTarget                  = T.isPrefixOf moduleName . dropParens . val . fst
-    dropParens                = stripParens . symbolText
+    moduleName                = symbol $ modName env
+    isTarget                  = isPrefixOfSym moduleName . stripParensSym . val . fst
 
 warn x = tell [x]
 
@@ -944,8 +943,8 @@ lookupGhcDataCon dc  = case isTupleDC $ val dc of
                          Nothing -> lookupGhcDataCon' dc 
 
 isTupleDC zs
-  | "(," `T.isPrefixOf` symbolText zs
-  = Just $ T.length (symbolText zs) - 1
+  | "(," `isPrefixOfSym` zs
+  = Just $ lengthSym zs - 1
   | otherwise
   = Nothing
 
@@ -1053,7 +1052,7 @@ instance (Resolvable t) => Resolvable (PVar t) where
 instance Resolvable () where
   resolve () = return ()
 
-isCon c | Just (c,cs) <- T.uncons $ symbolText c
+isCon c | Just (c,cs) <- unconsSym c
         = isUpper c
         | otherwise
         = False
@@ -1087,7 +1086,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
           xt     = rVar tyv
           xst    = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] mempty
           cargs  = [(xs, xst), (x, xt)]
-          fsize  = \x -> EApp (dummyLoc $ S "len") [EVar x]
+          fsize  = \x -> EApp (dummyLoc "len") [EVar x]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
@@ -1107,8 +1106,8 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
         xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
         cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
         pnames        = mks_ "p"
-        mks  x        = (\i -> symbol $ T.pack (x++ show i)) <$> [1..n]
-        mks_ x        = (\i -> symbol $ T.pack (x++ show i)) <$> [2..n]
+        mks  x        = (\i -> symbol (x++ show i)) <$> [1..n]
+        mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
 pdVarReft = (\p -> U mempty p mempty) . pdVar 
@@ -1570,7 +1569,7 @@ expToBindParg :: (((), Symbol, Expr), RSort) -> State ExSt ((), Symbol, Expr)
 expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
 
 expToBindExpr :: Expr ->  RRType () -> State ExSt Expr
-expToBindExpr e@(EVar s) _ | isLower $ T.head $ symbolText s
+expToBindExpr e@(EVar s) _ | isLower $ headSym $ symbol s
   = return e
 expToBindExpr e t         
   = do s <- freshSymbol
@@ -1581,7 +1580,7 @@ freshSymbol :: State ExSt Symbol
 freshSymbol 
   = do n <- fresh <$> get
        modify $ \s -> s{fresh = n+1}
-       return $ symbol . T.pack $ "ex#" ++ show n
+       return $ symbol $ "ex#" ++ show n
 
 maybeTrue x target exports r
   | not (isHole r) || isInternalName name || inTarget && notExported

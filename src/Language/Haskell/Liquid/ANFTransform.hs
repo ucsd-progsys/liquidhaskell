@@ -35,7 +35,7 @@ import           Control.Monad
 import           Control.Applicative              ((<$>))
 import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Types (anfPrefix)
-import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr)
+import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
@@ -166,7 +166,7 @@ normalizeLiteral e =
      return $ Var x
 
 freshNormalVar :: Type -> DsM Id
-freshNormalVar = mkSysLocalM (fsLit $ T.unpack anfPrefix)
+freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
 
 ---------------------------------------------------------------------
 normalize :: VarEnv Id -> CoreExpr -> DsMW CoreExpr

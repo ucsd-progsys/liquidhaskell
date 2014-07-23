@@ -148,6 +148,7 @@ import SrcLoc                                   (noSrcSpan, mkGeneralSrcSpan, Sr
 import TyCon
 import DataCon
 import NameSet
+import Module                                   (moduleNameFS)
 import Class                                    (classTyCon)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
 import Var
@@ -184,7 +185,7 @@ import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 -- import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Names      (symSepName)
+import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
 import CoreSyn (CoreBind)
 
 import Data.Default
@@ -416,7 +417,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol . T.pack . showPpr $ tv
+  symbol (RTV tv) = symbol tv
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
@@ -846,7 +847,7 @@ pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 pApp      :: Symbol -> [Expr] -> Pred
 pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
-pappSym n  = symbol $ T.pack $ "papp" ++ show n
+pappSym n  = symbol $ "papp" ++ show n
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -1340,6 +1341,12 @@ data ModName = ModName !ModType !ModuleName deriving (Eq,Ord)
 instance Show ModName where
   show = getModString
 
+instance Symbolic ModName where
+  symbol (ModName t m) = symbol m
+
+instance Symbolic ModuleName where
+  symbol = symbol . moduleNameFS
+
 data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord)
 
 isSrcImport (ModName SrcImport _) = True
@@ -1561,10 +1568,10 @@ instance Symbolic Var where
 
 varSymbol ::  Var -> Symbol
 varSymbol v 
-  | us `isSuffixOf` vs = symbol $ T.pack vs
-  | otherwise          = symbol $ T.pack $ vs ++ [symSepName] ++ us
-  where us  = showPpr $ getDataConVarUnique v
-        vs  = showPpr v
+  | us `isSuffixOfSym` vs = vs
+  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
+  where us  = symbol $ showPpr $ getDataConVarUnique v
+        vs  = symbol v
 
 instance PPrint DataCon where
   pprint = text . showPpr

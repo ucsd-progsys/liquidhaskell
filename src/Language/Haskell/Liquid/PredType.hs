@@ -27,7 +27,7 @@ import DataCon
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
-import Data.Monoid      (mempty)
+import Data.Monoid      (mempty, mappend)
 import qualified Data.Text as T
 
 import Language.Fixpoint.Misc
@@ -53,7 +53,7 @@ mkRTyCon tc (TyConP αs' ps ls cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
 dataConPSpecType dc (DataConP vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
   where (xs, ts) = unzip $ reverse yts
-        mkDSym   = symbol . T.pack . (++ ('_':(showPpr dc))) . show
+        mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
         ys       = mkDSym <$> xs
         tx _  []     []     []     = []
         tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
