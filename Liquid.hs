@@ -86,12 +86,13 @@ solveCs cfg target cgi info dc
        let names = checkedNames dc
        let warns = logWarn cgi
        let annm  = annotMap cgi
-       let res   = ferr sol r -- fmap (tidyError sol) $ result $ sinfo <$> r
+       let res   = ferr sol r
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
     where 
        fx        = def { FC.solver = smtsolver cfg, FC.real = real cfg }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
+
 
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 

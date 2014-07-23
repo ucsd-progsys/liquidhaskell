@@ -896,6 +896,9 @@ isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
 isBase (RRTy _ _ _ t)   = isBase t
 isBase _                = False
 
+isFunTy (RAllE _ _ t)    = isFunTy t
+isFunTy (RAllS _ t)      = isFunTy t
+isFunTy (RAllT _ t)      = isFunTy t
 isFunTy (RAllP _ t)      = isFunTy t
 isFunTy (RFun _ t1 t2 _) = True
 isFunTy _                = False
