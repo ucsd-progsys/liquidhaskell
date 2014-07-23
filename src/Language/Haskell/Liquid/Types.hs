@@ -42,7 +42,9 @@ module Language.Haskell.Liquid.Types (
   , addTermCond
   , addInvCond
 
+  -- * Some predicates on RTypes
   , isBase
+  , isFunTy
 
   , RTypeRep(..), fromRTypeRep, toRTypeRep
 
@@ -318,7 +320,8 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
                      }
 
-data DataConP = DataConP { freeTyVars :: ![RTyVar]
+data DataConP = DataConP { dc_loc     :: !SourcePos
+                         , freeTyVars :: ![RTyVar]
                          , freePred   :: ![PVar RSort]
                          , freeLabels :: ![Symbol]
                          , tyConsts   :: ![SpecType]
@@ -644,7 +647,7 @@ data RTAlias tv ty
         , rtTArgs :: [tv]
         , rtVArgs :: [tv] 
         , rtBody  :: ty  
-        , srcPos  :: SourcePos 
+        , rtPos   :: SourcePos 
         }
 
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
@@ -898,6 +901,13 @@ isBase (RFun _ t1 t2 _) = isBase t1 && isBase t2
 isBase (RAppTy t1 t2 _) = isBase t1 && isBase t2
 isBase (RRTy _ _ _ t)   = isBase t
 isBase _                = False
+
+isFunTy (RAllE _ _ t)    = isFunTy t
+isFunTy (RAllS _ t)      = isFunTy t
+isFunTy (RAllT _ t)      = isFunTy t
+isFunTy (RAllP _ t)      = isFunTy t
+isFunTy (RFun _ t1 t2 _) = True
+isFunTy _                = False
 
 
 mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
@@ -1263,6 +1273,10 @@ data TError t =
                 , ms  :: !Symbol
                 , msg :: !Doc
                 } -- ^ Measure sort error
+
+  | ErrUnbound  { pos :: !SrcSpan
+                , var :: !Doc
+                } -- ^ Unbound symbol in specification 
 
   | ErrGhc      { pos :: !SrcSpan
                 , msg :: !Doc
