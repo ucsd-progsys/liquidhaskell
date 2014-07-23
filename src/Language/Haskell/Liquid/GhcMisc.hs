@@ -273,7 +273,7 @@ sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
     col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
-srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos" 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe

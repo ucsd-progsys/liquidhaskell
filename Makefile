@@ -5,7 +5,7 @@
 
 THREADS=1
 
-FOPTS=""
+#OPTS=""
 OPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
