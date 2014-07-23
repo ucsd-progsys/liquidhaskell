@@ -147,6 +147,7 @@ import FastString                               (fsLit)
 import SrcLoc                                   (noSrcSpan, mkGeneralSrcSpan, SrcSpan)
 import TyCon
 import DataCon
+import Name                                     (getName)
 import NameSet
 import Module                                   (moduleNameFS)
 import Class                                    (classTyCon)
@@ -417,7 +418,7 @@ instance NFData RTyVar where
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
 instance Symbolic RTyVar where
-  symbol (RTV tv) = symbol tv
+  symbol (RTV tv) = symbol $ getName tv -- don't want the Unique included so we don't use the Var instance
 
 data RTyCon = RTyCon 
   { rTyCon     :: !TyCon            -- GHC Type Constructor
@@ -1571,7 +1572,7 @@ varSymbol v
   | us `isSuffixOfSym` vs = vs
   | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
   where us  = symbol $ showPpr $ getDataConVarUnique v
-        vs  = symbol v
+        vs  = symbol $ getName v
 
 instance PPrint DataCon where
   pprint = text . showPpr
