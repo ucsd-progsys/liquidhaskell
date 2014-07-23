@@ -54,7 +54,7 @@ tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
 ---------------------------------------------------------------------------------
 tidyCtx xs m  = (θ, M.fromList yts) 
   where
-    yts       = [tBind x t | (x, t) <- xts]
+    yts       = [tBind x t | (x, t) <- xts, not (isFunTy t)]
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
 

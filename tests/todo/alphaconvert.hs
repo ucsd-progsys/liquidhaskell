@@ -3,6 +3,7 @@
 module AlphaConvert () where
 
 import Prelude hiding ((++), elem)
+import Data.Set (Set (..))
 -- import Language.Haskell.Liquid.Prelude   
 
 maxs    :: [Int] -> Int 
@@ -27,9 +28,9 @@ data Expr
   | App Expr Expr
 
 {-@ measure fv       :: Expr -> (Set Bndr)
-    fv (Var x)       = (Set_sng v)
-    fv (Abs x e)     = (Set_dif (freeVars e) (Set_sng v))
-    fv (App e a)     = (Set_cup (freeVars e) (freeVars a)) 
+    fv (Var x)       = (Set_sng x)
+    fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
+    fv (App e a)     = (Set_cup (fv e) (fv a)) 
   @-}
 
 {-@ measure isAbs    :: Expr -> Prop
@@ -41,7 +42,7 @@ data Expr
 {-@ predicate AddV E E2 X E1  = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
 {-@ predicate EqV E1 E2       = fv E1 = fv E2                                        @-}
 {-@ predicate Occ X E         = Set_mem X (fv E)                                     @-}
-{-@ predicate Subst V E1 X E2 = if (Occ X E2) then (AddV E E2 X E1) else (EqV E E2)  @-}
+{-@ predicate Subst V E1 X E2 = if (Occ X E2) then (AddV V E2 X E1) else (EqV V E2)  @-}
 
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
@@ -123,7 +124,7 @@ free (Abs x e)   = free e \\ x
 {-@ predicate Elem  X Ys   = Set_mem X (elts Ys)                   @-}
 {-@ predicate NotElem X Ys = not (Elem X Ys)                       @-}
 
-{-@ (++)      :: xs:[a] -> ys:[a] -> {v:[a] | IsCup v x y}  @-}
+{-@ (++)      :: xs:[a] -> ys:[a] -> {v:[a] | IsCup v xs ys}  @-}
 []     ++ ys  = ys
 (x:xs) ++ ys  = x : (xs ++ ys)
 
@@ -133,3 +134,8 @@ xs   \\ y     = [x | x <- xs, x /= y]
 {-@ elem      :: (Eq a) => x:a -> ys:[a] -> {v:Bool | Prop v <=> Elem x ys} @-}
 elem x []     = False
 elem x (y:ys) = x == y || elem x ys
+ 
+{-@ measure elts :: [a] -> (Set a) 
+    elts ([])    = {v | Set_emp v}
+    elts (x:xs)  = {v | v = Set_cup (Set_sng x) (elts xs) }
+  @-}

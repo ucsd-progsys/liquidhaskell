@@ -670,10 +670,8 @@ nilPatP  = mkNilPat  <$> brackets whiteSpace
 mkTupPat zs     = (tupDataCon (length zs), zs)
 mkNilPat _      = (dummyLoc "[]", []    )
 mkConsPat x c y = (dummyLoc ":" , [x, y])
-
 tupDataCon n    = dummyLoc $ "(" ++ replicate (n - 1) ',' ++ ")"
 
-{- len (Cons x1 x2 ...) = e -}
 
 
 -------------------------------------------------------------------------------
