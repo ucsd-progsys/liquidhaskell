@@ -1261,6 +1261,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
+                   , q_pos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -1268,9 +1269,9 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance NFData Qualifier where
-  rnf (Q x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
+  rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3 
 
-pprQual (Q n xts p) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
+pprQual (Q n xts p _) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
   where args = intersperse comma (toFix <$> xts)
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
@@ -1524,10 +1525,10 @@ type LocSymbol = Located Symbol
 type LocText   = Located Text
 
 dummyLoc :: a -> Located a
-dummyLoc = Loc dummyPos
+dummyLoc = Loc (dummyPos "Fixpoint.Types.dummyLoc")
 
-dummyPos :: SourcePos
-dummyPos = newPos "?" 0 0
+dummyPos   :: String -> SourcePos
+dummyPos s = newPos s 0 0
 
 isDummy :: (Symbolic a) => a -> Bool
 isDummy a = symbol a == symbol dummyName

@@ -15,6 +15,9 @@ import Text.PrettyPrint.HughesPJ
 
 
 
+
+
+
 main = do cfg <- getOpts 
           whenLoud $ putStrLn $ "Options: " ++ show cfg
           if (native cfg) 

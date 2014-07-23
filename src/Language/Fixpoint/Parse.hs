@@ -397,19 +397,20 @@ refDefP vv = refBindP (optBindP vv)
 
 -- qualifierP = mkQual <$> upperIdP <*> parens $ sepBy1 sortBindP comma <*> predP
 
-qualifierP = do n      <- upperIdP 
+qualifierP = do pos    <- getPosition 
+                n      <- upperIdP 
                 params <- parens $ sepBy1 sortBindP comma
                 _      <- colon
                 body   <- predP
-                return  $ mkQual n params body
+                return  $ mkQual n params body pos
 
 sortBindP  = (,) <$> symbolP <* colon <*> sortP
 
-mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
+mkQual n xts p pos = Q n ((vv, t) : yts) (subst su p) pos
   where 
-    (vv,t):zts = xts
-    yts        = mapFst mkParam <$> zts
-    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts 
+    (vv,t):zts     = xts
+    yts            = mapFst mkParam <$> zts
+    su             = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts 
                        
 mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
   where 
