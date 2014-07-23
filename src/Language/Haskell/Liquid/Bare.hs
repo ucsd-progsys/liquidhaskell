@@ -1449,11 +1449,11 @@ checkDuplicate xts   = mkErr <$> dups
 checkDuplicateRTAlias :: String -> [RTAlias s a] -> [Error]
 checkDuplicateRTAlias s tas = mkErr <$> dups
   where
-    mkErr xs@(x:_) = ErrDupAlias (sourcePosSrcSpan $ rtPos x) 
-                                 (text s) 
-                                 (pprint $ rtName x) 
-                                 (sourcePosSrcSpan . rtPos <$> xs)
-    dups  = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
+    mkErr xs@(x:_)          = ErrDupAlias (sourcePosSrcSpan $ rtPos x) 
+                                          (text s) 
+                                          (pprint $ rtName x) 
+                                          (sourcePosSrcSpan . rtPos <$> xs)
+    dups                    = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
 
 
