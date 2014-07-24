@@ -751,33 +751,39 @@ I think the problem is that the "correct" values x and w are not "in scope"
  
 
 So assume
-data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> = IO (x:Word<P> -> (y:a, Word<Q y x>))
+    
+    data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> 
+      = IO (x:Word<P> -> (y:a, Word<Q y x>))
 
 and you want to type
 
-bind :: IO a <P,Q> -> (a -> IO b <Q x w, R>) -> IO b <P,R>
-bind (IO m) k = IO $ \s -> case m s of (a, s') -> (unIO (k a)) s'
+    bind :: IO a <P,Q> -> (a -> IO b <Q x w, R>) -> IO b <P,R>
+    bind (IO m) k = IO $ \s -> case m s of 
+                                 (a, s') -> unIO (k a) s'
+
 
 You have
 
-IO m :: IO a <P. Q>  
-             => m :: xx:Word <P> -> (y:a, Word <Q y xx>)
+    IO m :: IO a <P. Q> => m :: xx:Word <P> -> (y:a, Word <Q y xx>)
 
 you can assume
-s:: Word <P>
+
+    s:: Word <P>
 
 so 
-m s :: (y:a, Word <Q y s>)
 
-k a :: IO b <Q x w, R>
-
-uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
+    m s         :: (y:a, Word <Q y s>)
+    k a         :: IO b <Q x w, R>
+    uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
 
 and we want 
-(uniIO k a) s :: (xx:b , Word <R xx s>) 
+
+    (uniIO k a) s :: (xx:b , Word <R xx s>) 
 
 so basically we need 
-P  => Q x w
+
+    P  => Q x w
+
 to be able to make the final application
 
 **Ranjit**
@@ -869,7 +875,12 @@ P  => Q x w
 to be able to make the final application
 
 
-
+bind :: ST a <P,Q> -> (a -> ST b <Q x w, R>) -> ST b <P,R>
+bind (ST f1) k = ST $ \s0 -> let (x, s1) = f1 s0  
+                                 ST f2   = k x 
+                                 (y, s2) = f2 s1
+                             in 
+                                 (y, s2)
 
 
 PROJECT: Using `Dynamic` + Refinements for Mixed Records
