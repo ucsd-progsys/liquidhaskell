@@ -153,6 +153,7 @@ updateDynFlags cfg
                     -- looking up *unexported* names in another source module..
                     , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
+                    , log_action   = \_ _ _ _ _ -> return () -- don't let GHC print anything
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified

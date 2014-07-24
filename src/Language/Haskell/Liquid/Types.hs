@@ -320,7 +320,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
                      , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
-                     }
+                     } deriving (Data, Typeable)
 
 data DataConP = DataConP { dc_loc     :: !SourcePos
                          , freeTyVars :: ![RTyVar]
@@ -329,7 +329,7 @@ data DataConP = DataConP { dc_loc     :: !SourcePos
                          , tyConsts   :: ![SpecType]
                          , tyArgs     :: ![(Symbol, SpecType)]
                          , tyRes      :: !SpecType
-                         }
+                         } deriving (Data, Typeable)
 
 
 -- | Which Top-Level Binders Should be Verified
@@ -1408,7 +1408,7 @@ data Measure ty ctor = M {
     name :: LocSymbol
   , sort :: ty
   , eqns :: [Def ctor]
-  }
+  } deriving (Data, Typeable)
 
 data CMeasure ty
   = CM { cName :: LocSymbol
@@ -1422,7 +1422,7 @@ data Def ctor
   , ctor    :: ctor 
   , binds   :: [Symbol]
   , body    :: Body
-  } deriving (Show)
+  } deriving (Show, Data, Typeable)
   
 deriving instance (Eq ctor) => Eq (Def ctor)
 
@@ -1431,7 +1431,7 @@ data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
-  deriving (Show, Eq)
+  deriving (Show, Eq, Data, Typeable)
 
 instance Subable (Measure ty ctor) where
   syms (M _ _ es)      = concatMap syms es
