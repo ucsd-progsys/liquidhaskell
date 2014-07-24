@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which 
 --   is either: `SAFE` or `WARNING` with some reasonable error message when 
@@ -33,6 +34,8 @@ import           Data.List                                (foldl', nub)
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.HashMap.Strict as M
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 import           System.FilePath                          (dropFileName)
 import           System.Environment                       (lookupEnv, withArgs)
@@ -59,7 +62,7 @@ import Text.Parsec.Pos                          (newPos)
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-config = Config { 
+config = cmdArgsMode $ Config { 
    files    
     = def &= typ "TARGET" 
           &= args 
@@ -145,7 +148,7 @@ config = Config {
 
 getOpts :: IO Config 
 getOpts = do cfg0    <- envCfg 
-             cfg1    <- mkOpts =<< cmdArgs config 
+             cfg1    <- mkOpts =<< cmdArgsRun config 
              let cfg  = fixCfg $ mconcat [cfg0, cfg1]
              whenNormal $ putStrLn copyright
              return cfg
@@ -183,7 +186,7 @@ withPragma :: Config -> Located String -> IO Config
 withPragma c s = (c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
-parsePragma s = withArgs [val s] $ cmdArgs config
+parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 ---------------------------------------------------------------------------------------
 -- | Monoid instances for updating options
@@ -241,7 +244,7 @@ writeWarns []            = return ()
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 writeCheckVars Nothing   = return ()
-writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . dropModuleNames . showpp)
+writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 writeResult cfg c        = mapM_ (writeDoc c) . zip [0..] . resDocs tidy 
   where 

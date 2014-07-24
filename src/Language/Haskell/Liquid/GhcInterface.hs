@@ -56,6 +56,7 @@ import Data.List (partition, intercalate, foldl', find, (\\), delete, nub)
 import Data.Maybe (fromMaybe, catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
+import qualified Data.Text           as T
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Directory (removeFile, createDirectory, doesFileExist)
@@ -148,7 +149,9 @@ updateDynFlags cfg
                     , libraryPaths = idirs cfg ++ libraryPaths df
                     , profAuto     = ProfAutoCalls
                     , ghcLink      = NoLink
-                    , hscTarget    = HscInterpreted
+                    --FIXME: this *should* be HscNothing, but that prevents us from
+                    -- looking up *unexported* names in another source module..
+                    , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
@@ -194,7 +197,7 @@ getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns
         pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
         dFuns    = is_dfun <$> (instEnvElts $ mg_inst_env cm)
    
-        shortPpr = dropModuleNames . showPpr
+        shortPpr = symbolString . dropModuleNames . symbol
 
 -- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
 getGhcModGutsSimpl1 fn = do
@@ -372,7 +375,7 @@ isJust (Just a) = True
 
 specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
 specIncludes ext paths reqs 
-  = do let libFile  = extFileNameR ext preludeName
+  = do let libFile  = extFileNameR ext $ symbolString preludeName
        let incFiles = catMaybes $ reqFile ext <$> reqs 
        liftIO $ forM (libFile : incFiles) (`findFileInDirs` paths)
 

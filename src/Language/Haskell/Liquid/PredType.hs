@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections, OverloadedStrings #-}
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
@@ -27,7 +27,8 @@ import DataCon
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
-import Data.Monoid      (mempty)
+import Data.Monoid      (mempty, mappend)
+import qualified Data.Text as T
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
@@ -53,15 +54,15 @@ dataConPSpecType :: DataCon -> DataConP -> SpecType
 dataConPSpecType dc (DataConP _ vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
   where 
     (xs, ts) = unzip $ reverse yts
-    mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
+    mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t) : tx ((x, F.EVar y):su) xs ys ts
+    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                               : tx ((x, F.EVar y):su) xs ys ts
     yts'     = tx [] xs ys ts
-    ts'      = map (S "",) cs ++ yts'
+    ts'      = map ("" ,) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = subst su rt
-
 
 instance PPrint TyConP where
   pprint (TyConP vs ps ls _ _ _) 
@@ -383,16 +384,16 @@ meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
 ---------- Interface: Modified CoreSyn.exprType due to predApp -------------
 ----------------------------------------------------------------------------
 
-predName :: String 
+predName :: Symbol
 predName = "Pred"
 
 predType :: Type 
-predType = TyVarTy $ stringTyVar predName
+predType = TyVarTy $ symbolTyVar predName
 
 rpredType    :: (PPrint r, Reftable r) => [RRType r] -> RRType r
 rpredType ts = RApp tyc ts [] mempty
   where 
-    tyc      = RTyCon (stringTyCon 'x' 42 predName) [] def
+    tyc      = RTyCon (stringTyCon 'x' 42 $ symbolString predName) [] def
 
 
 ----------------------------------------------------------------------------
@@ -472,7 +473,7 @@ pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
  
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
-predFTyCon = stringFTycon $ dummyLoc predName
+predFTyCon = symbolFTycon $ dummyLoc predName
 
 -- pApp :: Symbol -> [F.Expr] -> Pred
 -- pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)

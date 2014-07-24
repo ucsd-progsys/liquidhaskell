@@ -146,6 +146,7 @@ Library
                 , process
                 , syb
                 , text
+                , intern
                 , vector
                 , hashable
                 , unordered-containers
