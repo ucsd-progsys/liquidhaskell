@@ -33,6 +33,8 @@ module Language.Fixpoint.SmtLib2 (
     -- * Execute Queries
     , command
     , smtWrite
+
+    , smt_set_funs
     ) where
 
 import Language.Fixpoint.Config (SMTSolver (..))
@@ -43,9 +45,9 @@ import Control.Arrow
 import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.List as L
+import qualified Data.HashMap.Strict as M
 import Data.Monoid
 import Data.Text.Format
-import qualified Data.Text          as ST
 import qualified Data.Text.Lazy     as T
 import qualified Data.Text.Lazy.IO  as TIO
 import System.Exit
@@ -65,7 +67,7 @@ runFile f
 runString str
   = runCommands $ rr str
 
-runCommands cmds 
+runCommands cmds
   = do me   <- makeContext Z3
        mapM_ (T.putStrLn . smt2) cmds
        zs   <- mapM (command me) cmds
@@ -158,14 +160,14 @@ valuesP = Values <$> many1 (spaces *> valueP)
 valueP :: Parser (Symbol, Raw)
 valueP
   = do (x,v) <- parens $ do
-         x <- symbol . ST.pack <$> many1 (alphaNum <|> oneOf "_.-#%")
+         x <- symbol <$> many1 (alphaNum <|> oneOf "_.-#%")
          spaces
          v <-  parens (many1 (satisfy (/=')')) >>= \s -> return $ "("<>s<>")")
            <|> many1 alphaNum
-         return (x,v)
+         return (x, T.pack v)
        -- get next line
        try (char ')' >> return ()) <|> getNextLine
-       return (x,T.pack v)
+       return (x,v)
 
 getNextLine
   = do ln <- liftIO . smtReadRaw =<< getState
@@ -275,6 +277,11 @@ dif = "smt_set_dif"
 sub = "smt_set_sub"
 com = "smt_set_com"
 
+smt_set_funs :: M.HashMap Symbol Raw
+smt_set_funs = M.fromList [("Set_emp",emp),("Set_add",add),("Set_cup",cup)
+                          ,("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
+                          ,("Set_sub",sub),("Set_com",com)]
+
 z3Preamble
   = [ format "(define-sort {} () Int)"
         (Only elt)
@@ -336,10 +343,12 @@ instance SMTLIB2 Sort where
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
+  smt2 s | Just t <- M.lookup s smt_set_funs
+         = t
   smt2 s = T.fromStrict $ symbolText s
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s) = T.fromStrict $ s
+  smt2 (SL s) = T.fromStrict s
 
 instance SMTLIB2 Constant where
   smt2 (I n) = format "{}" (Only n)
@@ -369,6 +378,10 @@ instance SMTLIB2 Expr where
   smt2 (EVar x)         = smt2 x
   smt2 (ELit x _)       = smt2 x
   smt2 (EApp f [])      = smt2 f
+  smt2 (EApp f [e])     | val f == "Set_emp"
+                        = format "(= {} {})"      (emp, smt2 e)
+  smt2 (EApp f [e])     | val f == "Set_sng"
+                        = format "({} {} {})"     (add, emp, smt2 e)
   smt2 (EApp f es)      = format "({} {})"        (smt2 f, smt2s es)
   smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
