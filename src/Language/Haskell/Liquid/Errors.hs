@@ -14,6 +14,7 @@ import           Data.Aeson
 import           Data.Hashable
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import qualified Data.Text                           as T
 import           Data.List                           (sortBy, intersperse)
 import           Data.Function                       (on)
 import           Data.Maybe                          (fromMaybe, maybeToList)

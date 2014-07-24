@@ -1,4 +1,4 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
+{-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Parse
   (hsSpecificationP, lhsSpecificationP, specSpecificationP)
@@ -16,6 +16,10 @@ import Text.Parsec.Pos   (newPos)
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Interned
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Char (toLower, isLower, isSpace, isAlpha)
@@ -30,10 +34,11 @@ import Language.Preprocessor.Unlit (unlit)
 import Language.Fixpoint.Types hiding (Def, R)
 
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (listConName, propConName, tupConName)
+import Language.Fixpoint.Names (listConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse hiding (angles)
 
@@ -46,10 +51,10 @@ hsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareS
 -------------------------------------------------------------------------------
 
 hsSpecificationP = parseWithError $ do
-    S name <-  try (lookAhead $ skipMany (commentP >> spaces)
-                             >> reserved "module" >> symbolP)
-           <|> return (S "Main")
-    liftM (mkSpec (ModName SrcImport $ mkModuleName name)) $ specWraps specP
+    name <-  try (lookAhead $ skipMany (commentP >> spaces)
+                           >> reserved "module" >> symbolP)
+         <|> return "Main"
+    liftM (mkSpec (ModName SrcImport $ mkModuleName $ symbolString name)) $ specWraps specP
 
 -------------------------------------------------------------------------------
 lhsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
@@ -78,10 +83,10 @@ specificationP :: Parser (ModName, Measure.BareSpec)
 specificationP 
   = do reserved "module"
        reserved "spec"
-       S name <- symbolP
+       name   <- symbolP
        reserved "where"
        xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec (ModName SpecImport $ mkModuleName name) xs
+       return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
 
 ---------------------------------------------------------------------------
 parseWithError :: Parser a -> SourceName -> String -> Either Error a 
@@ -162,7 +167,7 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft (S "VV", [hole]))
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", [hole]))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = refasP <|> (reserved "_" >> return [hole])
 
@@ -236,8 +241,8 @@ bareAllP
        t  <- bareTypeP
        return $ foldr RAllT (foldr RAllP t ps) as
 
-tyVarIdP :: Parser String
-tyVarIdP = condIdP alphanums (isLower . head) 
+tyVarIdP :: Parser Symbol
+tyVarIdP = symbol <$> condIdP alphanums (isLower . head)
            where alphanums = ['a'..'z'] ++ ['0'..'9']
 
 predVarDefsP 
@@ -248,7 +253,7 @@ predVarDefP
   = liftM3 bPVar predVarIdP dcolon predVarTypeP
 
 predVarIdP 
-  = stringSymbol <$> tyVarIdP
+  = symbol <$> tyVarIdP
 
 bPVar p _ xts  = PV p τ dummySymbol τxs
   where (_, τ) = safeLast "bPVar last" xts
@@ -339,7 +344,7 @@ predicate1P
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
                       return $ zip ss fs
-    refreshSym s = liftM (intSymbol (symbolString s)) freshIntP
+    refreshSym s = liftM (intSymbol s) freshIntP
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -413,9 +418,9 @@ data Pspec ty ctor
   | Incl    FilePath
   | Invt    (Located ty)
   | IAlias  (Located ty, Located ty)
-  | Alias   (RTAlias String BareType)
+  | Alias   (RTAlias Symbol BareType)
   | PAlias  (RTAlias Symbol Pred)
-  | Embed   (Located String, FTycon)
+  | Embed   (LocSymbol, FTycon)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
@@ -453,7 +458,7 @@ instance Show (Pspec a b) where
 
 -- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
-                       $ Measure.qualifySpec (getModString name)
+                       $ Measure.qualifySpec (symbol name)
                        $ Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
   , Measure.asmSigs    = [a | Assm   a <- xs]
@@ -505,7 +510,7 @@ specP
     <|> ({- DEFAULT -}           liftM Asrts  tyBindsP  )
 
 pragmaP :: Parser (Located String)
-pragmaP = locParserP $ stringLiteral 
+pragmaP = locParserP stringLiteral
 
 lazyP :: Parser Symbol
 lazyP = binderP
@@ -555,10 +560,10 @@ embedP
   = xyP locUpperIdP (reserved "as") fTyConP
 
 
-aliasP  = rtAliasP id           bareTypeP
-paliasP = rtAliasP stringSymbol predP
+aliasP  = rtAliasP id     bareTypeP
+paliasP = rtAliasP symbol predP
 
-rtAliasP :: (String -> tv) -> Parser ty -> Parser (RTAlias tv ty) 
+rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty) 
 rtAliasP f bodyP
   = do pos  <- getPosition
        name <- upperIdP
@@ -566,10 +571,10 @@ rtAliasP f bodyP
        args <- sepBy aliasIdP spaces
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
-       let (tArgs, vArgs) = partition (isLower . head) args
+       let (tArgs, vArgs) = partition (isLower . headSym) args
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos
 
-aliasIdP :: Parser String
+aliasIdP :: Parser Symbol
 aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head) 
 
 measureP :: Parser (Measure BareType LocSymbol)
@@ -619,21 +624,22 @@ rawBodyP
 tyBodyP :: BareType -> Parser Body
 tyBodyP ty 
   = case outTy ty of
-      Just bt | isPropBareType bt -> P <$> predP
-      _                           -> E <$> exprP
+      Just bt | isPropBareType bt
+                -> P <$> predP
+      _         -> E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
 binderP :: Parser Symbol
-binderP    =  try $ stringSymbol <$> idP badc
+binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
   where 
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
     bad c  = isSpace c || c `elem` "(,)"
-    pwr s  = stringSymbol $ "(" ++ s ++ ")" 
+    pwr s  = symbol $ "(" `mappend` s `mappend` ")"
              
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
@@ -645,8 +651,8 @@ measureDefP bodyP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body    <- bodyP 
        whiteSpace
-       let xs'  = (stringSymbol . val) <$> xs
-       return   $ Def mname (stringSymbol <$> c) xs' body
+       let xs'  = (symbol . val) <$> xs
+       return   $ Def mname (symbol <$> c) xs' body
 
 -- ORIGINAL
 -- measurePatP :: Parser (String, [LocString])
@@ -655,7 +661,7 @@ measureDefP bodyP
 --  <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
 --  <|> (brackets whiteSpace  >> return ("[]",[])) 
 
-measurePatP :: Parser (LocString, [LocString])
+measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP 
   =  try tupPatP 
  <|> try (parens conPatP)
@@ -670,8 +676,7 @@ nilPatP  = mkNilPat  <$> brackets whiteSpace
 mkTupPat zs     = (tupDataCon (length zs), zs)
 mkNilPat _      = (dummyLoc "[]", []    )
 mkConsPat x c y = (dummyLoc ":" , [x, y])
-tupDataCon n    = dummyLoc $ "(" ++ replicate (n - 1) ',' ++ ")"
-
+tupDataCon n    = dummyLoc $ symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 
 -------------------------------------------------------------------------------
@@ -696,14 +701,14 @@ dataConNameP
   =  try upperIdP
  <|> pwr <$> parens (idP bad)
   where 
-     idP p  = many1 (satisfy (not . p))
+     idP p  = symbol <$> many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` "(,)"
-     pwr s  = "(" ++ s ++ ")" 
+     pwr s  = "(" <> s <> ")"
 
 dataSizeP 
   = (brackets $ (Just . mkFun) <$> locLowerIdP)
   <|> return Nothing
-  where mkFun s = \x -> EApp (stringSymbol <$> s) [EVar x]
+  where mkFun s = \x -> EApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl 
 dataDeclP 

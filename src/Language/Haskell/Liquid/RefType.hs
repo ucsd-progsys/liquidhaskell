@@ -68,10 +68,11 @@ import Type             (mkClassPred, splitFunTys, expandTypeSynonyms, isPredTy,
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
 
 import qualified        Data.Text as T
+import Data.Interned
 import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust)
 import           Data.Hashable
-import           Data.Aeson    
+import           Data.Aeson
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S 
 import qualified Data.List as L
@@ -239,17 +240,17 @@ instance TyConable RTyCon where
   ppTycon = toFix 
 
 -- MOVE TO TYPES
-instance TyConable String where
-  isFun   = (funConName ==)
-  isList  = (listConName ==)
-  isTuple = (tupConName ==)
-  ppTycon = text
+instance TyConable Symbol where
+  isFun   s = funConName == s
+  isList  s = listConName == s
+  isTuple s = tupConName == s
+  ppTycon = text . symbolString
 
-instance TyConable LocString where
-  isFun   = (funConName ==) . val
-  isList  = (listConName ==) . val
-  isTuple = (tupConName ==) . val
-  ppTycon = text . val
+instance TyConable LocSymbol where
+  isFun   = isFun . val
+  isList  = isList . val
+  isTuple = isTuple . val
+  ppTycon = ppTycon . val
 
 
 -- RefTypable Instances -------------------------------------------------------
@@ -263,8 +264,8 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c String r where
-  ppCls   = ppClassString
+instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c Symbol r where
+  ppCls   = ppClassSymbol
   ppRType = ppr_rtype ppEnv
 
 -- MOVE TO TYPES
@@ -281,10 +282,10 @@ instance FreeVar RTyCon RTyVar where
   freeVars = (RTV <$>) . tyConTyVars . rTyCon
 
 -- MOVE TO TYPES
-instance FreeVar LocString String where
+instance FreeVar LocSymbol Symbol where
   freeVars _ = []
 
-ppClassString    c _  = pprint c <+> text "..."
+ppClassSymbol    c _  = pprint c <+> text "..."
 ppClassClassPred c ts = sDocDoc $ pprClassPred c (toType <$> ts)
 
 -- Eq Instances ------------------------------------------------------
@@ -504,7 +505,7 @@ appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
         rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
 isNumeric tce c 
-  =  fromMaybe (stringFTycon . dummyLoc $ tyConName (rTyCon c))
+  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rTyCon c))
        (M.lookup (rTyCon c) tce) == intFTyCon
 
 addNumSizeFun c 
@@ -739,10 +740,10 @@ instance SubsTy RTyVar RSort RSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 -- Here the "String" is a Bare-TyCon. TODO: wrap in newtype 
-instance SubsTy String BSort LocString where
+instance SubsTy Symbol BSort LocSymbol where
   subt _ t = t
 
-instance SubsTy String BSort BSort where
+instance SubsTy Symbol BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType p c tv ())) => SubsTy tv ty (Ref (RType p c tv ()) (UReft r) (RType p c tv (UReft r)))  where
@@ -794,7 +795,7 @@ instance Expression Var where
 
 
 
-pprShort    =  dropModuleNames . showPpr 
+pprShort    =  symbolString . dropModuleNames . symbol
 
 dataConSymbol ::  DataCon -> Symbol
 dataConSymbol = symbol . dataConWorkId
@@ -896,7 +897,6 @@ literalFReft tce = maybe mempty exprReft . snd . literalConst tce
 literalConst tce l         = (sort, mkLit l)
   where 
     sort                   = typeSort tce $ literalType l 
-    sym                    = stringSymbol $ "$$" ++ showPpr l
     mkLit (MachInt    n)   = mkI n
     mkLit (MachInt64  n)   = mkI n
     mkLit (MachWord   n)   = mkI n
@@ -955,7 +955,7 @@ shiftVV t _
 
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
-  show (RTA n as xs t p) = printf "type %s %s %s = %s -- defined at %s" n 
+  show (RTA n as xs t p) = printf "type %s %s %s = %s -- defined at %s" (symbolString n)
                            (L.intercalate " " (show <$> as)) 
                            (L.intercalate " " (show <$> xs))
                            (show t) (show p) 
@@ -966,7 +966,7 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 
 
 typeUniqueSymbol :: Type -> Symbol 
-typeUniqueSymbol = stringSymbol . typeUniqueString 
+typeUniqueSymbol = symbol . typeUniqueString
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
 typeSort tce τ@(ForAllTy _ _) 
@@ -980,7 +980,7 @@ typeSort tce (AppTy t1 t2)
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 
-tyConFTyCon tce c    = fromMaybe (stringFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
+tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.lookup c tce)
 
 typeSortForAll tce τ 
   = genSort $ typeSort tce tbody
@@ -999,7 +999,7 @@ typeSortForAll tce τ
 tyConName c 
   | listTyCon == c    = listConName
   | TC.isTupleTyCon c = tupConName
-  | otherwise         = showPpr c
+  | otherwise         = symbol c
 
 typeSortFun tce t -- τ1 τ2
   = FFunc 0  sos
@@ -1055,7 +1055,7 @@ mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))]
         r      = cmpLexRef xvs (v', vv, f)
         v'     = symbol v
         Just f = sizeFunction $ rTyConInfo c
-        vv     = stringSymbol "vvRec"
+        vv     = "vvRec"
 
 mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
   = mkDType ((v', x, f):xvs) (r:acc) vxts
@@ -1071,7 +1071,7 @@ cmpLexRef vxs (v, x, g)
 
 makeLexRefa es' es = uTop $ Reft (vv, [RConc $ PIff (PBexp $ EVar vv) $ pOr rs])
   where rs = makeLexReft [] [] es es'
-        vv = stringSymbol "vvRec"
+        vv = "vvRec"
 
 makeLexReft old acc [] [] 
   = acc

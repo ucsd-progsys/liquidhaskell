@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -------------------------------------------------------------------------------------
 ------------ Code to convert Core to Administrative Normal Form ---------------------
@@ -34,12 +35,13 @@ import           Control.Monad
 import           Control.Applicative              ((<$>))
 import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Types (anfPrefix)
-import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr)
+import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Control.Applicative
+import qualified Data.Text as T
 
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
@@ -164,7 +166,7 @@ normalizeLiteral e =
      return $ Var x
 
 freshNormalVar :: Type -> DsM Id
-freshNormalVar = mkSysLocalM (fsLit anfPrefix)
+freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
 
 ---------------------------------------------------------------------
 normalize :: VarEnv Id -> CoreExpr -> DsMW CoreExpr

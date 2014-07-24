@@ -47,7 +47,7 @@ import qualified Data.HashMap.Strict    as M
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Files
-import           Language.Fixpoint.Names
+import           Language.Fixpoint.Names hiding (encode)
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Fixpoint.Types hiding (Def (..), Located (..))
@@ -214,7 +214,7 @@ mkAnnMapBinders cfg (AI m)
   $ groupWith (lineCol . fst)
     [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
   where
-    bindStr (x, v) = (maybe "_" shorten x, render v)
+    bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 
 closeAnnots :: AnnInfo (Annot SpecType) -> AnnInfo SpecType 

@@ -28,7 +28,8 @@ import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcS
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
-import           Name                         (mkInternalName, getSrcSpan)
+import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
@@ -60,6 +61,8 @@ import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
 import           Data.Aeson                 
 import qualified Data.Text                    as T
+import qualified Data.Text.Encoding           as T
+import qualified Data.Text.Unsafe             as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
@@ -119,13 +122,13 @@ tickSrcSpan z                 = noSrcSpan -- errorstar msg
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
-        occ  = mkTcOcc s
+        occ  = mkTyVarOcc s -- $ assert (validTyVar s) s
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon c n s = TC.mkKindTyCon name superKind
   where 
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
-    occ           = mkTyVarOcc $ assert (validTyVar s) s
+    occ           = mkTcOcc s -- $ assert (validTyVar s) s
 
 hasBaseTypeVar = isBaseType . varType
 
@@ -245,7 +248,7 @@ instance Fixpoint Var where
   toFix = pprDoc 
 
 instance Fixpoint Name where
-  toFix = pprDoc 
+  toFix = pprDoc
 
 instance Fixpoint Type where
   toFix = pprDoc
@@ -357,3 +360,23 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
   where go  x = x {hsmodDecls = filter go' $ hsmodDecls x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
+
+symbolTyCon x i n = stringTyCon x i (symbolString n)
+symbolTyVar n = stringTyVar (symbolString n)
+
+instance Symbolic TyCon where
+  symbol = symbol . getName
+
+instance Symbolic Name where
+  symbol = symbol . showPpr -- qualifiedNameSymbol
+
+qualifiedNameSymbol n = symbol $
+  case nameModule_maybe n of
+    Nothing -> occNameFS (getOccName n)
+    Just m  -> concatFS [moduleNameFS (moduleName m), fsLit ".", occNameFS (getOccName n)]
+
+instance Symbolic FastString where
+  symbol = symbol . fastStringText
+
+fastStringText = T.decodeUtf8 . fastStringToByteString
+symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText

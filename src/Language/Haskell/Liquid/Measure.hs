@@ -25,6 +25,7 @@ import Data.Monoid hiding ((<>))
 import Data.List (foldl1', union, nub)
 import Data.Either (partitionEithers)
 import Data.Bifunctor
+import Data.Text (Text)
 import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
@@ -47,9 +48,9 @@ data Spec ty bndr  = Spec {
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
-  , aliases    :: ![RTAlias String BareType]    -- ^ RefType aliases
+  , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
-  , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(TCEmb (LocSymbol))          -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used

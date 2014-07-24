@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
@@ -16,6 +17,7 @@ import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
+import qualified Data.Text    as T
 import Data.Bifunctor           (second) 
 
 -----------------------------------------------------------------------------------
@@ -66,8 +68,8 @@ pAppQual l tce p args (v, expr) =  Q "Auto" freeVars pred l
   where 
     freeVars                  = (vv, tyvv) : (predv, typred) : args
     pred                      = pApp predv $ EVar vv:predArgs
-    vv                        = S "v"
-    predv                     = S "~P"
+    vv                        = "v"
+    predv                     = "~P"
     tyvv                      = rTypeSort tce $ ptype p
     typred                    = rTypeSort tce (toPredType p :: RRType ())
     predArgs                  = mkexpr <$> (snd3 <$> pargs p)
@@ -109,7 +111,7 @@ refTopQuals l tce t0 γ t
 
 mkPQual l tce t0 γ t e = mkQual l t0 γ' v so pa
   where 
-    v                  = S "vv"
+    v                  = "vv"
     so                 = rTypeSort tce t
     γ'                 = insertSEnv v so γ
     pa                 = PAtom Eq (EVar v) e   
@@ -118,7 +120,7 @@ mkQual l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
   where 
     yts                = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
     p'                 = subst (mkSubst (second EVar <$> xys)) p
-    xys                = zipWith (\x i -> (x, S ("~A" ++ show i))) xs [0..] 
+    xys                = zipWith (\x i -> (x, symbol ("~A" ++ show i))) xs [0..]
     xs                 = delete v $ orderedFreeVars γ p
 
 lookupSort t0 x γ  = fromMaybe (errorstar msg) $ lookupSEnv x γ 
