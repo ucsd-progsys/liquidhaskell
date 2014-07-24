@@ -51,18 +51,18 @@ mkRTyCon tc (TyConP αs' ps ls cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
-dataConPSpecType dc (DataConP vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
-  where (xs, ts) = unzip $ reverse yts
-        mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
-        ys       = mkDSym <$> xs
-        tx _  []     []     []     = []
-        tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
-                                   : tx ((x, F.EVar y):su) xs ys ts
-        yts'     = tx [] xs ys ts
-        ts'      = map ("",) cs ++ yts'
-        su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
-        rt'      = subst su rt
-
+dataConPSpecType dc (DataConP _ vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
+  where 
+    (xs, ts) = unzip $ reverse yts
+    mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
+    ys       = mkDSym <$> xs
+    tx _  []     []     []     = []
+    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                               : tx ((x, F.EVar y):su) xs ys ts
+    yts'     = tx [] xs ys ts
+    ts'      = map ("" ,) cs ++ yts'
+    su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
+    rt'      = subst su rt
 
 instance PPrint TyConP where
   pprint (TyConP vs ps ls _ _ _) 
@@ -74,7 +74,7 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP vs ps ls cs yts t)
+  pprint (DataConP _ vs ps ls cs yts t)
      = (parens $ hsep (punctuate comma (map pprint vs))) <+>
        (parens $ hsep (punctuate comma (map pprint ps))) <+>
        (parens $ hsep (punctuate comma (map pprint ls))) <+>

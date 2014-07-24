@@ -276,7 +276,7 @@ sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
     col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
-srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos" 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
@@ -368,7 +368,7 @@ instance Symbolic TyCon where
   symbol = symbol . getName
 
 instance Symbolic Name where
-  symbol = qualifiedNameSymbol
+  symbol = symbol . showPpr -- qualifiedNameSymbol
 
 qualifiedNameSymbol n = symbol $
   case nameModule_maybe n of
