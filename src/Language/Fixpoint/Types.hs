@@ -46,7 +46,7 @@ module Language.Fixpoint.Types (
   , realFTyCon
   , strFTyCon
   , propFTyCon
-  -- , appFTyCon
+  , appFTyCon
   , fTyconSymbol
   , symbolFTycon
   , fApp

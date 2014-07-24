@@ -337,7 +337,9 @@ class SMTLIB2 a where
 
 instance SMTLIB2 Sort where
   smt2 FInt        = "Int"
-  smt2 (FApp t []) | t == propFTyCon = "Bool"
+  smt2 (FApp t []) | t == intFTyCon = "Int"
+  smt2 (FApp t []) | t == boolFTyCon = "Bool"
+  smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
   smt2 (FObj s)    = smt2 s
   smt2 (FFunc _ _) = error "smt2 FFunc"
   smt2 _           = "Int"
