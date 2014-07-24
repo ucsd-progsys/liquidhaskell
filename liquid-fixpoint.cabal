@@ -156,6 +156,7 @@ Library
                , filemanip
                , filepath
                , ghc-prim
+               , intern
                , mtl
                , parsec
                , pretty

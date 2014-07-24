@@ -9,6 +9,7 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 import Control.Applicative      ((<$>))
 import Text.Parsec
+import qualified Data.Text as T
 
 class PPrint a where
   pprint :: a -> Doc
@@ -62,7 +63,7 @@ instance PPrint Symbol where
   pprint = toFix
 
 instance PPrint SymConst where
-  pprint (SL x)          = doubleQuotes $ text x
+  pprint (SL x)          = doubleQuotes $ text $ T.unpack x
 
 instance PPrint Expr where
   pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 

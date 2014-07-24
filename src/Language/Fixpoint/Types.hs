@@ -5,6 +5,9 @@
 {-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
 -- | This module contains the data types, operations and serialization functions
@@ -24,6 +27,18 @@ module Language.Fixpoint.Types (
   , traceFix
   , resultDoc
 
+  -- * Symbols
+  , Symbol(..)
+  , anfPrefix, tempPrefix, vv, intKvar
+  , symChars, isNonSymbol, nonSymbol
+  , isNontrivialVV
+  , symbolText, symbolString
+
+  -- * Creating Symbols
+  , dummySymbol, intSymbol, tempSymbol
+  , qualifySymbol
+  , suffixSymbol
+
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , intFTyCon
@@ -32,23 +47,10 @@ module Language.Fixpoint.Types (
   , strFTyCon
   , propFTyCon
   -- , appFTyCon
-  , fTyconString
-  , stringFTycon
+  , fTyconSymbol
+  , symbolFTycon
   , fApp
   , fObj
-
-  -- * Symbols
-  , Symbol(..)
-  , anfPrefix, tempPrefix, vv, intKvar
-  , symChars, isNonSymbol, nonSymbol
-  , isNontrivialVV
-  , stringSymbol
-  , symbolString
-
-  -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol
-  , qualifySymbol, stringSymbolRaw
-  , suffixSymbol
 
   -- * Expressions and Predicates
   , SymConst (..), Constant (..)
@@ -144,7 +146,7 @@ module Language.Fixpoint.Types (
 
   -- * Located Values
   , Located (..)
-  , LocSymbol, LocString
+  , LocSymbol, LocText
   , dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
@@ -160,6 +162,10 @@ import Data.List            (nub, foldl', sort, stripPrefix, intersect)
 import Data.Hashable
 import qualified Data.Foldable as F
 import Data.Traversable
+import Data.Interned
+import Data.String
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Data.Maybe           (fromMaybe)
 import Text.Printf          (printf)
@@ -289,25 +295,28 @@ toFix_constant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon  = TC $ dummyLoc (S "int")
-boolFTyCon = TC $ dummyLoc (S "bool")
-realFTyCon = TC $ dummyLoc (S "real")
-strFTyCon  = TC $ dummyLoc (S strConName)
-propFTyCon = TC $ dummyLoc (S propConName)
-appFTyCon  = TC $ dummyLoc (S "FAppTy")
+intFTyCon  = TC $ dummyLoc "int"
+boolFTyCon = TC $ dummyLoc "bool"
+realFTyCon = TC $ dummyLoc "real"
+strFTyCon  = TC $ dummyLoc strConName
+propFTyCon = TC $ dummyLoc propConName
+appFTyCon  = TC $ dummyLoc "FAppTy"
 
 -- listFTyCon = TC (S listConName)
 
 -- isListTC   = (listFTyCon ==)
-isListTC (TC (Loc _ (S c))) = c == listConName
-isTupTC  (TC (Loc _ (S c))) = c == tupConName
+isListTC (TC (Loc _ c)) = c == listConName
+isTupTC  (TC (Loc _ c)) = c == tupConName
+isFAppTyTC = (== appFTyCon)
 
-fTyconString (TC s) = symbolString <$> s
+fTyconSymbol (TC s) = s
 
-stringFTycon :: LocString -> FTycon
-stringFTycon c
-  | val c == listConName = TC $ fmap (S . const listConName) c
-  | otherwise            = TC $ fmap stringSymbol c
+symbolFTycon :: LocSymbol -> FTycon
+symbolFTycon c
+  | val c == listConName
+  = TC $ fmap (const listConName) c
+  | otherwise
+  = TC c
 
 -- stringSort   :: String -> Sort
 -- stringSort s = FApp (stringFTycon s) []
@@ -354,12 +363,16 @@ toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))
 toFix_sort (FApp c [t])
-  | isListTC c          = brackets $ toFix_sort t
+  | isListTC c
+  = brackets $ toFix_sort t
+toFix_sort (FApp c [FApp c' [],t])
+  | isFAppTyTC c && isListTC c'
+  = brackets $ toFix_sort t
 toFix_sort (FApp c ts)
-  | isTupTC  c          = parens $ intersperse comma $ toFix_sort <$> ts
-  | otherwise           = toFix c <+> intersperse space (fp <$> ts)
-                          where fp s@(FApp _ (_:_)) = parens $ toFix_sort s
-                                fp s                = toFix_sort s
+  | otherwise
+  = toFix c <+> intersperse space (fp <$> ts)
+    where fp s@(FApp _ (_:_)) = parens $ toFix_sort s
+          fp s                = toFix_sort s
 
 
 instance Fixpoint FTycon where
@@ -374,24 +387,6 @@ sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
 sortSubst _  t           = t
 
 
----------------------------------------------------------------
----------------------------- Symbols --------------------------
----------------------------------------------------------------
-
-symChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '%', '.', '#']
-
-data Symbol = S !String deriving (Eq, Ord, Data, Typeable, Generic)
-
-instance Fixpoint Symbol where
-  toFix (S x) = text x
-
-instance Show Symbol where
-  show (S x) = x
-
 instance Show Subst where
   show = showFix
 
@@ -401,100 +396,13 @@ instance Fixpoint Subst where
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
 
 
----------------------------------------------------------------------------
------- Converting Strings To Fixpoint -------------------------------------
----------------------------------------------------------------------------
-
-stringSymbolRaw :: String -> Symbol
-stringSymbolRaw = S
-
-stringSymbol :: String -> Symbol
-stringSymbol s
-  | isFixKey  s = encodeSym s
-  | isFixSym' s = S s
-  | otherwise   = encodeSym s -- S $ fixSymPrefix ++ concatMap encodeChar s
-
-encodeSym s     = S $ fixSymPrefix ++ concatMap encodeChar s
-
-symbolString :: Symbol -> String
-symbolString (S str)
-  = case chopPrefix fixSymPrefix str of
-      Just s  -> concat $ zipWith tx indices $ chunks s
-      Nothing -> str
-    where
-      chunks = unIntersperse symSepName
-      tx i s = if even i then s else [decodeStr s]
-
-indices :: [Integer]
-indices = [0..]
-
-okSymChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '.'  ]
-
-fixSymPrefix = "fix" ++ [symSepName]
-
-suffixSymbol s suf = stringSymbol (symbolString s ++ suf)
-
-isFixSym' (c:chs)  = isAlpha c && all (`elem` (symSepName:okSymChars)) chs
-isFixSym' _        = False
-
-isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
-
-encodeChar c
-  | c `elem` okSymChars
-  = [c]
-  | otherwise
-  = [symSepName] ++ (show $ ord c) ++ [symSepName]
-
-decodeStr s
-  = chr ((read s) :: Int)
-
-qualifySymbol x sy
-  | isQualified x' = sy
-  | isParened x'   = stringSymbol (wrapParens (x ++ "." ++ stripParens x'))
-  | otherwise      = stringSymbol (x ++ "." ++ x')
-  where x' = symbolString sy
-
-isQualified y         = '.' `elem` y
-wrapParens x          = "(" ++ x ++ ")"
-isParened xs          = xs /= stripParens xs
-
----------------------------------------------------------------------
-
-vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = S (vvName ++ [symSepName] ++ show i)
-vv Nothing          = S vvName
-
-vvCon               = S (vvName ++ [symSepName] ++ "F")
-
-isNontrivialVV      = not . (vv_ ==)
-
-
-dummySymbol         = S dummyName
-intSymbol x i       = S $ x ++ show i
-
-tempSymbol          ::  String -> Integer -> Symbol
-tempSymbol prefix n = intSymbol (tempPrefix ++ prefix) n
-
-tempPrefix          = "lq_tmp_"
-anfPrefix           = "lq_anf_"
-nonSymbol           = S ""
-isNonSymbol         = (0 ==) . length . symbolString
-
-intKvar             :: Integer -> Symbol
-intKvar             = intSymbol "k_"
-
 ---------------------------------------------------------------
 ------------------------- Expressions -------------------------
 ---------------------------------------------------------------
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
-data SymConst = SL !String
+data SymConst = SL !Text
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Constant = I  !Integer | R !Double
@@ -530,6 +438,13 @@ instance Fixpoint Constant where
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
+
+instance Fixpoint Symbol where
+  toFix = text . encode . T.unpack . symbolText
+
+instance Fixpoint Text where
+  toFix = text . T.unpack
+
 
 instance Fixpoint Brel where
   toFix Eq  = text "="
@@ -662,7 +577,7 @@ pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
 
-mkProp        = PBexp . EApp (dummyLoc $ S propConName) . (: [])
+mkProp        = PBexp . EApp (dummyLoc propConName) . (: [])
 
 ppr_reft (Reft (v, ras)) d
   | all isTautoRa ras
@@ -682,11 +597,6 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 -- | Generalizing Symbol, Expression, Predicate into Classes -----------
 ------------------------------------------------------------------------
 
--- | Values that can be viewed as Symbols
-
-class Symbolic a where
-  symbol :: a -> Symbol
-
 -- | Values that can be viewed as Expressions
 
 class Expression a where
@@ -697,12 +607,6 @@ class Expression a where
 class Predicate a where
   prop   :: a -> Pred
 
-instance Symbolic String where
-  symbol = stringSymbol
-
-instance Symbolic Symbol where
-  symbol = id
-
 instance Expression Expr where
   expr = id
 
@@ -712,7 +616,7 @@ instance Expression Symbol where
   expr s = maybe (eVar s) ESym (decodeSymConst s)
   -- expr = eVar
 
-instance Expression String where
+instance Expression Text where
   expr = ESym . SL
 
 instance Expression Integer where
@@ -802,10 +706,10 @@ filterSEnv f (SE m)     = SE (M.filter f m)
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of
      Just x  -> Found x
-     Nothing -> Alts $ stringSymbol <$> alts
+     Nothing -> Alts $ symbol . T.pack <$> alts
   where alts    = takeMin $ (zip (editDistance x' <$> ss) ss)
-        ss      = symbolString <$> fst <$> M.toList env
-        x'      = symbolString x
+        ss      = T.unpack . symbolText <$> fst <$> M.toList env
+        x'      = T.unpack $ symbolText x
         takeMin = \xs ->  [x | (d, x) <- xs, d == getMin xs]
         getMin  = minimum . (fst <$>)
 
@@ -865,10 +769,9 @@ instance Fixpoint BindEnv where
 toFix_bind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
 
 insertFEnv   = insertSEnv . lower
-  where lower x@(S (c:chs))
-          | isUpper c = S $ toLower c : chs
-          | otherwise = x
-        lower z       = z
+  where lower s = case unconsSym s of
+                    Nothing     -> s
+                    Just (c,s') -> consSym (toLower c) s'
 
 instance (Fixpoint a) => Fixpoint (SEnv a) where
   toFix (SE e) = vcat $ map pprxt $ hashMapToAscList e
@@ -1205,9 +1108,6 @@ conjuncts p | isTautoPred p  = []
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
 
-instance NFData Symbol where
-  rnf (S x) = rnf x
-
 instance NFData FTycon where
   rnf (TC c)       = rnf c
 
@@ -1288,9 +1188,6 @@ instance (NFData a) => NFData (WfC a) where
 -------------- Hashable Instances -----------------------------------------
 ---------------------------------------------------------------------------
 
-instance Hashable Symbol where
-  hashWithSalt i (S s) = hashWithSalt i s
-
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
 
@@ -1331,7 +1228,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (S v, _)) = shiftVV r (S (v ++ show i))
+    shiftR i r@(Reft (v, _)) = shiftVV r (v `mappend` symbol (show i))
 
 
 -- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
@@ -1361,7 +1258,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
 ------------------------------------------------------------------------
 
 
-data Qualifier = Q { q_name   :: String           -- ^ Name
+data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
                    , q_pos    :: !SourcePos       -- ^ Source Location
@@ -1374,7 +1271,7 @@ instance Fixpoint Qualifier where
 instance NFData Qualifier where
   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3 
 
-pprQual (Q n xts p _) = text "qualif" <+> text n <> parens args  <> colon <+> toFix p
+pprQual (Q n xts p _) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
   where args = intersperse comma (toFix <$> xts)
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
@@ -1475,7 +1372,7 @@ instance Reftable Reft where
   top (Reft(v,_)) = Reft(v,[])
 
 instance Monoid Sort where
-  mempty            = FObj (S "any")
+  mempty            = FObj "any"
   mappend t1 t2
     | t1 == mempty  = t2
     | t2 == mempty  = t1
@@ -1532,16 +1429,16 @@ symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 
 encodeSymConst        :: SymConst -> Symbol
-encodeSymConst (SL s) = stringSymbol $ litPrefix ++ s
+encodeSymConst (SL s) = symbol $ litPrefix `mappend` s
 
 sortSymConst          :: SymConst -> Sort
 sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap SL . stripPrefix litPrefix . symbolString
+decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
 
-litPrefix    :: String
-litPrefix    = "lit" ++ [symSepName]
+litPrefix    :: Text
+litPrefix    = "lit" `T.snoc` symSepName
 
 strSort      :: Sort
 strSort      = FApp strFTyCon []
@@ -1621,8 +1518,11 @@ data Located a = Loc { loc :: !SourcePos
                      , val :: a
                      } deriving (Data, Typeable, Generic)
 
+instance (IsString a) => IsString (Located a) where
+  fromString = dummyLoc . fromString
+
 type LocSymbol = Located Symbol
-type LocString = Located String
+type LocText   = Located Text
 
 dummyLoc :: a -> Located a
 dummyLoc = Loc (dummyPos "Fixpoint.Types.dummyLoc")
@@ -1630,8 +1530,8 @@ dummyLoc = Loc (dummyPos "Fixpoint.Types.dummyLoc")
 dummyPos   :: String -> SourcePos
 dummyPos s = newPos s 0 0
 
-isDummy :: (Show a) => a -> Bool
-isDummy a = show a == dummyName
+isDummy :: (Symbolic a) => a -> Bool
+isDummy a = symbol a == symbol dummyName
 
 instance Fixpoint SourcePos where
   toFix = text . show
