@@ -2,20 +2,18 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--fullcheck"      @-}
 
-module AlphaConvert () where
+module AlphaConvert (subst) where
 
 import Prelude hiding ((++), elem)
 import Data.Set (Set (..))
--- import Language.Haskell.Liquid.Prelude   
+import Language.Haskell.Liquid.Prelude   
 
+alpha   :: [Bndr] -> Expr -> Expr 
+subst   :: Expr -> Bndr -> Expr -> Expr
 maxs    :: [Int] -> Int 
 lemma1  :: Int -> [Int] -> Bool
 fresh   :: [Bndr] -> Bndr
 free    :: Expr -> [Bndr]
-
-liquidError  = undefined
-liquidAssert = undefined
-liquidAssume = undefined
 
 ---------------------------------------------------------------------
 -- | Datatype Definition --------------------------------------------
@@ -41,16 +39,20 @@ data Expr
     isAbs (App e a)  = false             
   @-}
 
-{-@ predicate AddV E E2 X E1  = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
-{-@ predicate EqV E1 E2       = fv E1 = fv E2                                        @-}
-{-@ predicate Occ X E         = Set_mem X (fv E)                                     @-}
-{-@ predicate Subst V E1 X E2 = if (Occ X E2) then (AddV V E2 X E1) else (EqV V E2)  @-}
+{-@ predicate AddV E E2 X E1   = fv E = Set_cup (Set_dif (fv E2) (Set_sng X)) (fv E1) @-}
+{-@ predicate EqV E1 E2        = fv E1 = fv E2                                        @-}
+{-@ predicate Occ X E          = Set_mem X (fv E)                                     @-}
+{-@ predicate Subst E E1 X E2  = if (Occ X E2) then (AddV E E2 X E1) else (EqV E E2)  @-}
+
+{-@ predicate Subst1 E E1 X E2 = Occ X E2         => AddV E E2 X E1  @-}
+{-@ predicate Subst2 E E1 X E2 = (not (Occ X E2)) => EqV E E2        @-}
 
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
 ----------------------------------------------------------------------------
-{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {v:Expr | Subst v e1 x e2} @-} 
+{-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-} 
 ----------------------------------------------------------------------------
+
 subst e' x e@(Var y)
   | x == y                = e' 
   | otherwise             = e
@@ -60,12 +62,14 @@ subst e' x (App ea eb)    = App ea' eb'
     ea'                   = subst e' x ea
     eb'                   = subst e' x eb
 
-subst e' x e@(Abs y e'')   
+subst e' x e@(Abs y e'')  
   | x == y                = e
   | y `elem` xs           = subst e' x (alpha xs e) 
-  | otherwise             = Abs y (subst e' x e'') 
-  where
-    xs                    = free e'  
+  | not (y `elem` xs)     = liquidAssert (free e == (free e'') \\ y) rv
+     where
+      xs                   = free e'  
+      zog                  = subst e' x e''
+      rv                   = Abs y zog
 
 ----------------------------------------------------------------------------
 -- | Part 4: Alpha Conversion ----------------------------------------------
@@ -100,8 +104,8 @@ maxs (x:xs) = if x > maxs xs then x else (maxs xs)
   @-}
 
 {-@ lemma1 :: x:Int -> xs:{[Int] | x > maxs xs} -> {v:Bool | Prop v && NotElem x xs} @-}
-lemma1 x []     = True 
-lemma1 x (y:ys) = lemma1 x ys 
+lemma1 _ []     = True 
+lemma1 x (_:ys) = lemma1 x ys 
 
 
 ----------------------------------------------------------------------------
