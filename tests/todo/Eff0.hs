@@ -4,6 +4,7 @@ module Eff0 (test0) where
 
 import EffSTT
 
+
 {-@ type IntN N = {v:Int | v = N} @-}
 
 {-@ test0 :: STT (IntN {10}) @-}
