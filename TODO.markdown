@@ -535,6 +535,7 @@ value of `f` (c.f. tests/pos/cont1.hs)
 PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 ------------------------------------------------------------
 
+0. Create a test case: `tests/todo/eff0.hs`
 
 1. Introduce a new sort of refinement `HProp`
 
