@@ -60,7 +60,7 @@ import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
--- import Language.Haskell.Liquid.Errors
+import Language.Haskell.Liquid.Errors
 -- import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
