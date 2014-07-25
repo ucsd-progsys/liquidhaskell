@@ -1,6 +1,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--fullcheck"      @-}
+{-@ LIQUID "--maxparams=3"    @-}
 
 module AlphaConvert (subst) where
 
@@ -44,32 +45,27 @@ data Expr
 {-@ predicate Occ X E          = Set_mem X (fv E)                                     @-}
 {-@ predicate Subst E E1 X E2  = if (Occ X E2) then (AddV E E2 X E1) else (EqV E E2)  @-}
 
-{-@ predicate Subst1 E E1 X E2 = Occ X E2         => AddV E E2 X E1  @-}
-{-@ predicate Subst2 E E1 X E2 = (not (Occ X E2)) => EqV E E2        @-}
-
 ----------------------------------------------------------------------------
 -- | Part 5: Capture Avoiding Substitution ---------------------------------
 ----------------------------------------------------------------------------
 {-@ subst :: e1:Expr -> x:Bndr -> e2:Expr -> {e:Expr | Subst e e1 x e2} @-} 
 ----------------------------------------------------------------------------
 
-subst e' x e@(Var y)
-  | x == y                = e' 
-  | otherwise             = e
+subst e1 x e2@(Var y)
+  | x == y                = e1
+  | otherwise             = e2
 
-subst e' x (App ea eb)    = App ea' eb'
+subst e1 x (App ea eb)    = App ea' eb'
   where
-    ea'                   = subst e' x ea
-    eb'                   = subst e' x eb
+    ea'                   = subst e1 x ea
+    eb'                   = subst e1 x eb
 
-subst e' x e@(Abs y e'')  
-  | x == y                = e
-  | y `elem` xs           = subst e' x (alpha xs e) 
-  | not (y `elem` xs)     = liquidAssert (free e == (free e'') \\ y) rv
+subst e1 x e2@(Abs y e)  
+  | x == y                = e2
+  | y `elem` xs           = subst e1 x (alpha xs e2) 
+  | otherwise             = Abs y      (subst e1 x e)
      where
-      xs                   = free e'  
-      zog                  = subst e' x e''
-      rv                   = Abs y zog
+      xs                  = free e1 
 
 ----------------------------------------------------------------------------
 -- | Part 4: Alpha Conversion ----------------------------------------------
@@ -95,7 +91,7 @@ fresh bs = liquidAssert (lemma1 n bs) n
 
 {-@ maxs :: xs:_ -> {v:_ | v = maxs xs} @-}
 maxs ([])   = 0
-maxs (x:xs) = if x > maxs xs then x else (maxs xs) 
+maxs (x:xs) = if (x > maxs xs) then x else (maxs xs) 
  
  
 {-@ measure maxs :: [Int] -> Int 
@@ -125,7 +121,6 @@ free (Abs x e)   = free e \\ x
 ----------------------------------------------------------------------------
 
 {-@ predicate IsCup X Y Z  = elts X = Set_cup (elts Y) (elts Z)    @-}
-{-@ predicate IsEq X Y     = elts X = elts Y                       @-}
 {-@ predicate IsDel X Y Z  = elts X = Set_dif (elts Y) (Set_sng Z) @-}
 {-@ predicate Elem  X Ys   = Set_mem X (elts Ys)                   @-}
 {-@ predicate NotElem X Ys = not (Elem X Ys)                       @-}

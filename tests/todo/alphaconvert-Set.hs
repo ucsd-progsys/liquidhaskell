@@ -1,6 +1,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--fullcheck"      @-}
+{-@ LIQUID "--maxparams=3"    @-}
 
 module AlphaConvert (subst) where
 
