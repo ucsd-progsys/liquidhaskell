@@ -29,18 +29,31 @@ data STT a  = STT (State -> (a, State))
 -- | Accessing State via Ptr
 ----------------------------------------------------------------
 
+{-@ newPtr :: forall <H :: HProp>.
+                 n:Int
+              -> STT <{H}, {\l -> H * l := n}> Ptr
+  @-} 
 newPtr   :: Int -> STT Ptr
 newPtr n = STT $ \m0 ->
   let p  = M.size m0
       m1 = M.insert p n m0
   in
       (Ptr p, m1)
-                           
+
+{-@ readPtr :: forall <p :: Int -> Prop, H :: HProp>.
+                  l:Ptr
+               -> STT <{H * l := Int<p>}, {\_ -> H * l := Int<p>}> Int<p>
+  @-}
 readPtr         :: Ptr -> STT Int
 readPtr (Ptr p) = STT $ \m0 ->
   (M.findWithDefault (error "readPtr DIES") p m0, m0)
 
-  
+
+{-@ writePtr :: forall <p :: Int -> Prop, H :: HProp>.
+                   l:Ptr
+                -> Int<p>
+                -> STT <{H * l := Int}, {\_ -> H * l := Int<p>}> () 
+  @-} 
 writePtr :: Ptr -> Int -> STT () 
 writePtr (Ptr p) n = STT $ \m0 ->
   ((), M.insert p n m0)
