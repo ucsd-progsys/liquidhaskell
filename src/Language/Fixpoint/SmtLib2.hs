@@ -5,6 +5,8 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE PatternGuards             #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -44,21 +46,25 @@ import Language.Fixpoint.Types
 import Control.Arrow
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Char
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import Data.Monoid
 import Data.Text.Format
-import qualified Data.Text.Lazy     as T
-import qualified Data.Text.Lazy.IO  as TIO
+import qualified Data.Text          as T
+import qualified Data.Text.IO       as TIO
+import qualified Data.Text.Lazy     as LT
+import qualified Data.Text.Lazy.IO  as LTIO
 import System.Exit
 import System.Process
-import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose)
+import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose, hReady)
 import Control.Applicative  ((<$>), (<|>), (*>), (<*))
 
 import Text.Parsec.Text.Lazy ()
 import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.Prim (ParsecT, runPT, getState, setInput, try)
+import qualified Data.Attoparsec.Text as A
 
 {- Usage:
 runFile f
@@ -120,82 +126,70 @@ data Context      = Ctx { pId  :: ProcessHandle
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me cmd       = say me cmd >> hear me cmd
+command me !cmd      = {-# SCC command #-} say me cmd >> hear me cmd
   where
-    say me           = smtWrite me . smt2
-    hear me CheckSat = smtRead me
+    say me               = smtWrite me . smt2
+    hear me CheckSat     = smtRead me
     hear me (GetValue _) = smtRead me
-    hear me _        = return Ok
+    hear me _            = return Ok
 
 
 
-smtWrite         :: Context -> Raw -> IO ()
-smtWrite me s    = smtWriteRaw me (T.append s "\n")
+smtWrite         :: Context -> LT.Text -> IO ()
+smtWrite me !s    = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
-smtRead me
-  = do ln <- smtReadRaw me
-       res <- runPT responseP me "" ln
-       case res of
-         Left e  -> error $ show e
+smtRead me = {-# SCC smtRead #-}
+    do ln  <- smtReadRaw me
+       res <- A.parseWith (smtReadRaw me) responseP ln
+       case A.eitherResult res of
+         Left e  -> error e
          Right r -> do
-           hPutStrNow (cLog me) $ format "; SMT Says: {}\n" (Only $ show r)
+           hPutStrLnNow (cLog me) $ format "; SMT Says: {}" (Only $ show r)
            when (verbose me) $
-             TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+             LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
 
-type Parser = ParsecT T.Text Context IO
+responseP = {-# SCC responseP #-} A.char '(' *> sexpP
+         <|> A.string "sat"     *> return Sat
+         <|> A.string "unsat"   *> return Unsat
+         <|> A.string "unknown" *> return Unknown
 
-responseP :: Parser Response
-responseP =  try (string "(error")  *> errorP
-         <|>      char   '('        *> valuesP
-         <|> try (string "success") *> responseP
-         <|>      string "sat"      *> return Sat
-         <|> try (string "unsat")   *> return Unsat
-         <|>      string "unknown"  *> return Unknown
+sexpP = {-# SCC sexpP #-} A.string "error" *> (Error <$> errorP)
+     <|> Values <$> valuesP
 
-valuesP :: Parser Response
-valuesP = Values <$> many1 (spaces *> valueP)
+errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
 
-valueP :: Parser (Symbol, Raw)
-valueP
-  = do (x,v) <- parens $ do
-         x <- symbol <$> many1 (alphaNum <|> oneOf "_.-#%")
-         spaces
-         v <-  parens (many1 (satisfy (/=')')) >>= \s -> return $ "("<>s<>")")
-           <|> many1 alphaNum
-         return (x, T.pack v)
-       -- get next line
-       try (char ')' >> return ()) <|> getNextLine
-       return (x,v)
+valuesP = A.many1' pairP <* (A.char ')')
 
-getNextLine
-  = do ln <- liftIO . smtReadRaw =<< getState
-       setInput ln
+pairP = {-# SCC pairP #-}
+  do A.skipSpace
+     A.char '('
+     !x <- symbolP
+     A.skipSpace
+     !v <- valueP
+     A.char ')'
+     return (x,v)
 
-parens p = char '(' *> p <* char ')'
+symbolP = {-# SCC symbolP #-} symbol <$> A.takeWhile1 (not . isSpace)
 
-errorP = Error . T.pack <$> (spaces *> quotedP anyChar <* char ')')
-  where
-    quotedP p = do string "\""
-                   manyTill p (try $ string "\"")
+valueP = {-# SCC valueP #-} A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
+      <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
 
 
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
-pairs = go
-  where
-    go xs = case L.splitAt 2 xs of
+pairs !xs = case L.splitAt 2 xs of
               ([],b)        -> []
               ((x:y:[]),zs) -> (x,y) : pairs zs
 
-smtWriteRaw      :: Context -> Raw -> IO ()
-smtWriteRaw me s = hPutStrNow (cOut me) s >>  hPutStrNow (cLog me) s
+smtWriteRaw      :: Context -> LT.Text -> IO ()
+smtWriteRaw me !s = {-# SCC smtWriteRaw #-} hPutStrLnNow (cOut me) s >>  hPutStrLnNow (cLog me) s
 
 smtReadRaw       :: Context -> IO Raw
-smtReadRaw me    = TIO.hGetLine (cIn me)
+smtReadRaw me    = {-# SCC smtReadRaw #-} TIO.hGetLine (cIn me)
 
-hPutStrNow h s   = TIO.hPutStr h s >> hFlush h
+hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------
@@ -333,7 +327,7 @@ mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 
 -- | Types that can be serialized
 class SMTLIB2 a where
-  smt2 :: a -> Raw
+  smt2 :: a -> LT.Text
 
 instance SMTLIB2 Sort where
   smt2 FInt        = "Int"
@@ -346,11 +340,11 @@ instance SMTLIB2 Sort where
 
 instance SMTLIB2 Symbol where
   smt2 s | Just t <- M.lookup s smt_set_funs
-         = t
-  smt2 s = T.fromStrict $ symbolText s
+         = LT.fromStrict t
+  smt2 s = LT.fromStrict $ symbolText s
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s) = T.fromStrict s
+  smt2 (SL s) = LT.fromStrict s
 
 instance SMTLIB2 Constant where
   smt2 (I n) = format "{}" (Only n)
@@ -416,9 +410,9 @@ instance SMTLIB2 Command where
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = T.unwords $ ["(get-value ("] ++ map smt2 xs ++ ["))"]
+  smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ map smt2 xs ++ ["))"]
 
-smt2s = T.intercalate " " . fmap smt2
+smt2s = LT.intercalate " " . fmap smt2
 
 {-
 (declare-fun x () Int)
