@@ -537,11 +537,58 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 0. Create a test case: `tests/todo/Eff*.hs`
 
-1. Introduce a new sort of refinement `HProp`
 
+1. Introduce a new sort of refinement `HProp`
+   - Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RBare`] and `RPoly` [---> `RProp`]
+   - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
+   
 2. Index `IO` or `State` by `HProp`
+   
 
 3. Suitable signatures for monadic operators
+
+### RHProp
+
+a. Following RProp we should have
+
+	RHProp := x1:t1,...,xn:tn -> World
+
+b. Where `World` is a _spatial conjunction_ of
+
+	* WPreds : (h v1 ... vn), h2, ...
+	* Wbinds : x1 := T1, x2 := T2, ... 
+
+c. Such that each `World` has _at most one_ `WPred`.
+
+HEREHEREHERE: **Problem** rejigger _inference_ to account for parameters in heap variables.
+
+### RPoly  (---> RProp)
+
+Per Niki:
+
+	RProp := x1:t1,...,xn:tn -> RType
+
+with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
+
+For example, we represent
+
+	[a]<p>
+
+as
+
+	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+
+which is the `RTycon` for lists `[]` applied to:
+
++ Tyvar `a`
+
++ RPoly with:
+	* _params_ `h:a`
+	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+
++ Outer refinement `true`
+
+
 
 
 **Heap Propositions** `HProp`
@@ -662,7 +709,7 @@ where each `Ai` is a _rigid_ or quantified heap var that is atomic,
 i.e. cannot be further solved for. For solving, we throw away _all_ 
 refinements, and just use the shape τ. 
 
-```haskell
+```
 solve :: Sol -> [Constraint] -> Maybe Sol
 solve σ []     
   = Just σ
