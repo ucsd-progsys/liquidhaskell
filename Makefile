@@ -73,4 +73,4 @@ lint:
 	hlint --colour --report .
 
 tags:
-	hasktags -c src/
+	hasktags -b src/

@@ -23,45 +23,45 @@ import ConLike
 import GHC hiding               (lookupName, Located)
 import Text.PrettyPrint.HughesPJ    hiding (first, (<>))
 import Var
-import Name                     (getSrcSpan, isInternalName, isVarName)
+import Name                     (getSrcSpan, isInternalName)
 import NameSet
 import Id                       (isConLikeId)
 import PrelNames
 import PrelInfo                 (wiredInThings)
-import Type                     (expandTypeSynonyms, splitFunTy_maybe, eqType)
-import DataCon                  (dataConImplicitIds, dataConWorkId, dataConStupidTheta)
-import TyCon                    (synTyConRhs_maybe, SynTyConRhs(SynonymTyCon), tyConArity, tcExpandTyCon_maybe)
+import Type                     (expandTypeSynonyms, splitFunTy_maybe)
+import DataCon                  (dataConWorkId, dataConStupidTheta)
+import TyCon                    (SynTyConRhs(SynonymTyCon))
 import HscMain
 import TysWiredIn
 import BasicTypes               (TupleSort (..), Arity)
-import TcRnDriver               (tcRnLookupRdrName, tcRnLookupName)
-import RdrName                  (setRdrNameSpace, mkRdrUnqual)
-import OccName                  (tcName, mkDataOcc)
+import TcRnDriver               (tcRnLookupRdrName) 
+import RdrName                  (setRdrNameSpace)
+import OccName                  (tcName)
 import Data.Char                (isLower, isUpper)
 import Text.Printf
-import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing, fromJust)
-import Control.Monad.State      (put, get, gets, modify, State, evalState, evalStateT, execState, StateT)
+-- import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing, fromJust)
+import Control.Monad.State      (get, gets, modify, State, evalState, evalStateT, execState, StateT)
 import Data.Traversable         (forM)
-import Control.Applicative      ((<$>), (<*>), (<|>), pure)
+import Control.Applicative      ((<$>), (<*>), (<|>))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
 import qualified Control.Exception as Ex 
 -- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
-import Data.Function            (on)
+-- import Data.Function            (on)
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, unconsSym, headSym, stripParensSym)
+import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Errors
-import Language.Haskell.Liquid.PrettyPrint
+-- import Language.Haskell.Liquid.Errors
+-- import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
 
