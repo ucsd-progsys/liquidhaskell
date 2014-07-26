@@ -122,13 +122,13 @@ tickSrcSpan z                 = noSrcSpan -- errorstar msg
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
-        occ  = mkTyVarOcc s -- $ assert (validTyVar s) s
+        occ  = mkTyVarOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon c n s = TC.mkKindTyCon name superKind
   where 
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
-    occ           = mkTcOcc s -- $ assert (validTyVar s) s
+    occ           = mkTcOcc s
 
 hasBaseTypeVar = isBaseType . varType
 
