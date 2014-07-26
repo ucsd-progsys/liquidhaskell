@@ -98,6 +98,7 @@ instance NFData Symbol where
 instance Hashable Symbol where
   hashWithSalt i (S s) = hashWithSalt i s
 
+symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
 
 ---------------------------------------------------------------------------

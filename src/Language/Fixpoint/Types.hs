@@ -35,7 +35,9 @@ module Language.Fixpoint.Types (
   , symbolText, symbolString
 
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol
+  , dummySymbol
+  , intSymbol
+  , tempSymbol
   , qualifySymbol
   , suffixSymbol
 
