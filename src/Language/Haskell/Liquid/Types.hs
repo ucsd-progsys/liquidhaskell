@@ -599,11 +599,23 @@ instance Show Oblig where
 instance PPrint Oblig where
   pprint = text . show
 
-data Ref t s m 
-  = RMono [(Symbol, t)] s
-  | RPoly [(Symbol, t)] m
+-- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
+--   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
+--   * the `RProp`  denoted by `{\h -> v > h}` to 
+--   * the `RTyCon` denoted by `[]`.
+--   Thus, @Ref@ is used for abstract-predicate (arguments) that are associated
+--   with _type constructors_ i.e. whose semantics are _dependent upon_ the data-type.
+--   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
+--   directly to any type and has semantics _independent of_ the data-type.
+  
+data Ref τ r t 
+  = RPropP [(Symbol, τ)] r  -- ^ Pre-parsing RTProp applied to TyCon
+  | RProp  [(Symbol, τ)] t  -- ^ Post-parsing RTProp
+  | RHeap 
   deriving (Generic, Data, Typeable)
 
+-- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
+--   In general, perhaps we need not expose @Ref@ directly at all.
 type RTProp p c tv r = Ref (RType p c tv ()) r (RType p c tv r)
 
 data UReft r
@@ -854,16 +866,16 @@ instance Subable r => Subable (UReft r) where
   substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
 instance (Reftable r, RefTypable p c tv r) => Subable (RTProp p c tv r) where
-  syms (RMono ss r)     = (fst <$> ss) ++ syms r
-  syms (RPoly ss r)     = (fst <$> ss) ++ syms r
+  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
+  syms (RProp ss r)     = (fst <$> ss) ++ syms r
 
-  subst su (RMono ss r) = RMono ss (subst su r)
-  subst su (RPoly ss t) = RPoly ss (subst su <$> t)
+  subst su (RPropP ss r) = RPropP ss (subst su r)
+  subst su (RProp ss t) = RProp ss (subst su <$> t)
 
-  substf f (RMono ss r) = RMono ss (substf f r) 
-  substf f (RPoly ss t) = RPoly ss (substf f <$> t)
-  substa f (RMono ss r) = RMono ss (substa f r) 
-  substa f (RPoly ss t) = RPoly ss (substa f <$> t)
+  substf f (RPropP ss r) = RPropP ss (substf f r) 
+  substf f (RProp ss t) = RProp ss (substf f <$> t)
+  substa f (RPropP ss r) = RPropP ss (substa f r) 
+  substa f (RProp ss t) = RProp ss (substa f <$> t)
 
 instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
@@ -932,8 +944,8 @@ emapReft _ _ (ROth s)            = ROth  s
 emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp p c tv t -> RTProp p c tv s
-emapRef  f γ (RMono s r)         = RMono s $ f γ r
-emapRef  f γ (RPoly s t)         = RPoly s $ emapReft f γ t
+emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
+emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
@@ -971,8 +983,8 @@ mapReftM _ (ROth s)           = return  $ ROth  s
 mapReftM f (RHole r)          = liftM   RHole       (f r)
 
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp p c tv t) -> m (RTProp p c tv s)
-mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
-mapRefM  f (RPoly s t)        = liftM   (RPoly s)      (mapReftM f t)
+mapRefM  f (RPropP s r)        = liftM   (RPropP s)      (f r)
+mapRefM  f (RProp s t)        = liftM   (RProp s)      (mapReftM f t)
 
 -- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv 
@@ -999,8 +1011,8 @@ efoldReft cb g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref 
-    ho  γ z (RMono ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RPoly ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RPropP ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RProp ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
    
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts 
@@ -1019,8 +1031,8 @@ mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f t'                = f t' 
-mapBotRef _ (RMono s r)    = RMono s $ r
-mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
+mapBotRef _ (RPropP s r)    = RPropP s $ r
+mapBotRef f (RProp s t)    = RProp s $ mapBot f t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1037,8 +1049,8 @@ mapBind f (RRTy e r o t)   = RRTy e r o (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
-mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
-mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
+mapBindRef f (RPropP s r)   = RPropP (mapFst f <$> s) r
+mapBindRef f (RProp s t)   = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
@@ -1058,7 +1070,7 @@ stripQuantifiers (RAppTy t t' r)  = RAppTy (stripQuantifiers t) (stripQuantifier
 stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
 stripQuantifiers (RCls c ts)      = RCls c (stripQuantifiers <$> ts)
 stripQuantifiers t                = t
-stripQuantifiersRef (RPoly s t)   = RPoly s $ stripQuantifiers t
+stripQuantifiersRef (RProp s t)   = RProp s $ stripQuantifiers t
 stripQuantifiersRef r             = r
 
 

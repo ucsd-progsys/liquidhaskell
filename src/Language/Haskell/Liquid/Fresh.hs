@@ -86,7 +86,7 @@ trueRefType (RFun _ t t' _)
   = liftM3 rFun fresh (true t) (true t')
 trueRefType (RApp c ts _ r)  
   = liftM2 (\ts -> RApp c ts truerefs) (mapM true ts) (true r)
-		where truerefs = (RPoly []  . ofRSort . ptype) <$> (rTyConPs c)
+		where truerefs = (RProp []  . ofRSort . ptype) <$> (rTyConPs c)
 trueRefType (RAppTy t t' _)    
   = liftM3 RAppTy (true t) (true t') (return mempty)
 trueRefType (RVar a r)
@@ -124,7 +124,7 @@ refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
            => (Ref RSort r (RRType r), PVar RSort)
            -> m (Ref RSort r (RRType r))
 
-refreshRef (RPoly s t, π) = liftM2 RPoly (mapM freshSym (pargs π)) (refreshRefType t)
-refreshRef (RMono _ _, _) = errorstar "refreshRef: unexpected"
+refreshRef (RProp s t, π) = liftM2 RProp (mapM freshSym (pargs π)) (refreshRefType t)
+refreshRef (RPropP _ _, _) = errorstar "refreshRef: unexpected"
 
 freshSym s                = liftM (, fst3 s) fresh

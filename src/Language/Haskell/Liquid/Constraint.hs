@@ -347,9 +347,9 @@ splitW (WfC γ t@(RApp _ ts rs _))
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ showpp t
 
-rsplitW _ (RMono _ _)  
-  = errorstar "Constrains: rsplitW for RMono"
-rsplitW γ (RPoly ss t0) 
+rsplitW _ (RPropP _ _)  
+  = errorstar "Constrains: rsplitW for RPropP"
+rsplitW γ (RProp ss t0) 
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
 
@@ -464,15 +464,15 @@ bsplitS t1 t2
   = return $ [(s1, s2)] 
   where [s1, s2]   = getStrata <$> [t1, t2]
 
-rsplitCS _ (RMono _ _, RMono _ _) 
-  = errorstar "RefTypes.rsplitC on RMono"
+rsplitCS _ (RPropP _ _, RPropP _ _) 
+  = errorstar "RefTypes.rsplitC on RPropP"
 
-rsplitS γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
+rsplitS γ (t1@(RProp s1 r1), t2@(RProp s2 r2))
   = splitS (SubC γ (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
 rsplitS _ _  
-  = errorstar "rspliS Rpoly - RMono"
+  = errorstar "rspliS Rpoly - RPropP"
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -628,16 +628,16 @@ unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
 
-rsplitC _ (RMono _ _, RMono _ _) 
-  = errorstar "RefTypes.rsplitC on RMono"
+rsplitC _ (RPropP _ _, RPropP _ _) 
+  = errorstar "RefTypes.rsplitC on RPropP"
 
-rsplitC γ (t1@(RPoly s1 r1), t2@(RPoly s2 r2))
+rsplitC γ (t1@(RProp s1 r1), t2@(RProp s2 r2))
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
        splitC (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
 rsplitC _ _  
-  = errorstar "rsplit Rpoly - RMono"
+  = errorstar "rsplit Rpoly - RPropP"
 
 
 -----------------------------------------------------------
@@ -725,8 +725,8 @@ initCGI cfg info = CGInfo {
   where 
     tce        = tcEmbeds spc 
     spc        = spec info
-    spec'      = spc {tySigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc]
-                     ,asmSigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs spc]}
+    spec'      = spc { tySigs  = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc]
+                     , asmSigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs spc]}
     tyi        = makeTyConInfo (tconsP spc)
     globs      = F.fromListSEnv . map mkSort $ meas spc
     mkSort     = mapSnd (rTypeSortedReft tce . val)
@@ -1515,12 +1515,12 @@ refreshVV t
   = return t
 
 
-refreshVVRef (RPoly ss t) 
+refreshVVRef (RProp ss t) 
   = do xs    <- mapM (\_ -> fresh) (fst <$> ss)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
-       liftM (RPoly (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
-refreshVVRef (RMono ss r) 
-  = return $ RMono ss r
+       liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
+refreshVVRef (RPropP ss r) 
+  = return $ RPropP ss r
 
 
 
@@ -1636,7 +1636,7 @@ freshPredRef γ e (PV n τ _ as)
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
-       return $ RPoly targs t
+       return $ RProp targs t
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
