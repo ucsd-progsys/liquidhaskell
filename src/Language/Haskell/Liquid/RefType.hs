@@ -149,52 +149,52 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv ()
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
-  mempty                              = RMono [] mempty
-  mappend (RMono s1 r1) (RMono s2 r2) 
-    | isTauto r1 = RMono s2 r2
-    | isTauto r2 = RMono s1 r1
-    | otherwise  = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t) 
-    | isTauto   r = RPoly s2 t
-    | isTrivial t = RMono s1 r
-    | otherwise   = RPoly (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-  mappend (RPoly s1 t) (RMono s2 r) 
-    | isTrivial t = RMono s2 r
-    | isTauto   r = RPoly s1 t
-    | otherwise   = RPoly (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-  mappend (RPoly s1 t1) (RPoly s2 t2) 
-    | isTrivial t1 = RPoly s2 t2
-    | isTrivial t2 = RPoly s1 t1
-    | otherwise    = RPoly (s1 ++ s2) $ t1  `strengthenRefType` t2
+  mempty                              = RPropP [] mempty
+  mappend (RPropP s1 r1) (RPropP s2 r2) 
+    | isTauto r1 = RPropP s2 r2
+    | isTauto r2 = RPropP s1 r1
+    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+  mappend (RPropP s1 r) (RProp s2 t) 
+    | isTauto   r = RProp s2 t
+    | isTrivial t = RPropP s1 r
+    | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+  mappend (RProp s1 t) (RPropP s2 r) 
+    | isTrivial t = RPropP s2 r
+    | isTauto   r = RProp s1 t
+    | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+  mappend (RProp s1 t1) (RProp s2 t2) 
+    | isTrivial t1 = RProp s2 t2
+    | isTrivial t2 = RProp s1 t1
+    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r
          , RefTypable a b c r
          , RefTypable a b c ()
          ) => Monoid (Ref (RType a b c ()) r (RType a b c r)) where
-  mempty                              = RMono [] mempty
-  mappend (RMono s1 r1) (RMono s2 r2) 
-    | isTauto r1 = RMono s2 r2
-    | isTauto r2 = RMono s1 r1
-    | otherwise  = RMono (s1 ++ s2) $ r1 `meet` r2
-  mappend (RMono s1 r) (RPoly s2 t) 
-    | isTauto   r = RPoly s2 t
-    | isTrivial t = RMono s1 r
-    | otherwise   = RPoly (s1 ++ s2) $ t `strengthen` r
-  mappend (RPoly s1 t) (RMono s2 r) 
-    | isTrivial t = RMono s2 r
-    | isTauto   r = RPoly s1 t
-    | otherwise   = RPoly (s1 ++ s2) $ t `strengthen` r
-  mappend (RPoly s1 t1) (RPoly s2 t2) 
-    | isTrivial t1 = RPoly s2 t2
-    | isTrivial t2 = RPoly s1 t1
-    | otherwise    = RPoly (s1 ++ s2) $ t1  `strengthenRefType` t2
+  mempty                              = RPropP [] mempty
+  mappend (RPropP s1 r1) (RPropP s2 r2) 
+    | isTauto r1 = RPropP s2 r2
+    | isTauto r2 = RPropP s1 r1
+    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+  mappend (RPropP s1 r) (RProp s2 t) 
+    | isTauto   r = RProp s2 t
+    | isTrivial t = RPropP s1 r
+    | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  mappend (RProp s1 t) (RPropP s2 r) 
+    | isTrivial t = RPropP s2 r
+    | isTauto   r = RProp s1 t
+    | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  mappend (RProp s1 t1) (RProp s2 t2) 
+    | isTrivial t1 = RProp s2 t2
+    | isTrivial t2 = RProp s1 t1
+    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) 
          => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where
-  isTauto (RMono _ r) = isTauto r
-  isTauto (RPoly _ t) = isTrivial t
-  ppTy (RMono _ r) d  = ppTy r d
-  ppTy (RPoly _ _) _  = errorstar "RefType: Reftable ppTy in RPoly"
+  isTauto (RPropP _ r) = isTauto r
+  isTauto (RProp _ t) = isTrivial t
+  ppTy (RPropP _ r) d  = ppTy r d
+  ppTy (RProp _ _) _  = errorstar "RefType: Reftable ppTy in RProp"
   toReft              = errorstar "RefType: Reftable toReft"
   params              = errorstar "RefType: Reftable params for Ref"
   bot                 = errorstar "RefType: Reftable bot    for Ref"
@@ -203,22 +203,22 @@ instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ())
 -- Subable Instances ----------------------------------------------
 
 instance Subable (Ref RSort Reft RefType) where
-  syms (RMono ss r)     = (fst <$> ss) ++ syms r
-  syms (RPoly ss t)     = (fst <$> ss) ++ syms t
+  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
+  syms (RProp ss t)     = (fst <$> ss) ++ syms t
 
-  subst su (RMono ss r) = RMono (mapSnd (subst su) <$> ss) $ subst su r 
-  subst su (RPoly ss r) = RPoly (mapSnd (subst su) <$> ss) $ subst su r
+  subst su (RPropP ss r) = RPropP (mapSnd (subst su) <$> ss) $ subst su r 
+  subst su (RProp ss r) = RProp (mapSnd (subst su) <$> ss) $ subst su r
 
-  substf f (RMono ss r) = RMono (mapSnd (substf f) <$> ss) $ substf f r
-  substf f (RPoly ss r) = RPoly (mapSnd (substf f) <$> ss) $ substf f r
-  substa f (RMono ss r) = RMono (mapSnd (substa f) <$> ss) $ substa f r
-  substa f (RPoly ss r) = RPoly (mapSnd (substa f) <$> ss) $ substa f r
+  substf f (RPropP ss r) = RPropP (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss r) = RProp (mapSnd (substf f) <$> ss) $ substf f r
+  substa f (RPropP ss r) = RPropP (mapSnd (substa f) <$> ss) $ substa f r
+  substa f (RProp ss r) = RProp (mapSnd (substa f) <$> ss) $ substa f r
 
 -- Reftable Instances -------------------------------------------------------
 
 instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   isTauto     = isTrivial
-  ppTy        = errorstar "ppTy RPoly Reftable" 
+  ppTy        = errorstar "ppTy RProp Reftable" 
   toReft      = errorstar "toReft on RType"
   params      = errorstar "params on RType"
   bot         = errorstar "bot on RType"
@@ -511,16 +511,16 @@ isNumeric tce c
 addNumSizeFun c 
   = c {rTyConInfo=(rTyConInfo c){sizeFunction = Just EVar}}
 
-appRefts rc [] = RPoly [] . ofRSort . ptype <$> rTyConPs rc
+appRefts rc [] = RProp [] . ofRSort . ptype <$> rTyConPs rc
 appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
 
-toPoly (RPoly ss t) rc 
+toPoly (RProp ss t) rc 
   | length (pargs rc) == length ss 
-  = RPoly ss t
+  = RProp ss t
   | otherwise          
-  = RPoly ([(s, t) | (t, s, _) <- pargs rc]) t
-toPoly (RMono ss r) t 
-  = RPoly ss $ (ofRSort $ ptype t) `strengthen` r  
+  = RProp ([(s, t) | (t, s, _) <- pargs rc]) t
+toPoly (RPropP ss r) t 
+  = RProp ss $ (ofRSort $ ptype t) `strengthen` r  
 
 generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t 
@@ -570,8 +570,8 @@ tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show
 ----------------------------------------------------------------
 
 instance (NFData a, NFData b, NFData t) => NFData (Ref t a b) where
-  rnf (RMono s a) = rnf s `seq` rnf a
-  rnf (RPoly s b) = rnf s `seq` rnf b
+  rnf (RPropP s a) = rnf s `seq` rnf a
+  rnf (RProp s b) = rnf s `seq` rnf b
 
 instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) where
   rnf (RVar α r)       = rnf α `seq` rnf r 
@@ -702,10 +702,10 @@ refAppTyToFun r
 
 -- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
 
-subsFreeRef m s (α', τ', t')  (RPoly ss t) 
-  = RPoly (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
-subsFreeRef _ _ (α', τ', _) (RMono ss r) 
-  = RMono (mapSnd (subt (α', τ')) <$> ss) $ {- subt (α', τ') -} r
+subsFreeRef m s (α', τ', t')  (RProp ss t) 
+  = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
+subsFreeRef _ _ (α', τ', _) (RPropP ss r) 
+  = RPropP (mapSnd (subt (α', τ')) <$> ss) $ {- subt (α', τ') -} r
 
 -------------------------------------------------------------------
 ------------------- Type Substitutions ----------------------------
@@ -747,8 +747,8 @@ instance SubsTy Symbol BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType p c tv ())) => SubsTy tv ty (Ref (RType p c tv ()) (UReft r) (RType p c tv (UReft r)))  where
-  subt m (RMono ss p) = RMono ((mapSnd (subt m)) <$> ss) $ subt m p
-  subt m (RPoly ss t) = RPoly ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
+  subt m (RPropP ss p) = RPropP ((mapSnd (subt m)) <$> ss) $ subt m p
+  subt m (RProp ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
  
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (U r p s) = U r (subvPredicate f p) s

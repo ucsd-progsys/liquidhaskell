@@ -336,8 +336,8 @@ lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
         r'  <- resolve l r
         liftM3 (bareTCApp tyi r') (lookupGhcTyCon lc) (mapM (go s) rs) (mapM (expandAlias l s) ts)
   where
-    go s (RMono ss r)    = RMono <$> mapM ofSyms ss <*> resolve l r
-    go s (RPoly ss t)    = RPoly <$> mapM ofSyms ss <*> expandAlias l s t
+    go s (RPropP ss r)    = RPropP <$> mapM ofSyms ss <*> resolve l r
+    go s (RProp ss t)    = RProp <$> mapM ofSyms ss <*> expandAlias l s t
 
 
 expandRTApp :: SourcePos -> [Symbol] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
@@ -473,22 +473,22 @@ addSymSort embs tcenv t@(RApp rc@(RTyCon c _ _) ts rs r)
     ps                = rTyConPs $ appRTyCon embs tcenv rc ts
     (rargs,rrest)     = splitAt (length ps) rs
     r'                = L.foldl' go r rrest
-    go r (RMono _ r') = r' `meet` r
+    go r (RPropP _ r') = r' `meet` r
     go r _            = r
 
 addSymSort _ _ t 
   = t
 
-addSymSortRef (p, RPoly s (RVar v r)) | isDummy v
-  = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
+addSymSortRef (p, RProp s (RVar v r)) | isDummy v
+  = RProp (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
   where t = ofRSort (ptype p) `strengthen` r
-addSymSortRef (p, RPoly s t) 
-  = RPoly (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
+addSymSortRef (p, RProp s t) 
+  = RProp (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
 
-addSymSortRef (p, RMono s r@(U _ (Pr [up]) _)) 
-  = RMono (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
-addSymSortRef (p, RMono s t)
-  = RMono s t
+addSymSortRef (p, RPropP s r@(U _ (Pr [up]) _)) 
+  = RPropP (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
+addSymSortRef (p, RPropP s t)
+  = RPropP s t
 
 varMeasures vars  = [ (symbol v, varSpecType v) 
                     | v <- vars
@@ -1085,9 +1085,9 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
       xs         = "xsListSelector"
       p          = PV "p" t (vv Nothing) [(t, fld, EVar fld)]
       px         = pdVarReft $ PV "p" t (vv Nothing) [(t, fld, EVar x)] 
-      lt         = rApp c [xt] [RMono [] $ pdVarReft p] mempty                 
+      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty                 
       xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) px] [RMono [] $ pdVarReft p] mempty
+      xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
       fsize      = \x -> EApp (dummyLoc "len") [EVar x]
 
@@ -1106,7 +1106,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
     ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
     ups           = uPVar <$> ps
     pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
-    lt            = rApp c (rVar <$> tyvs) (RMono [] . pdVarReft <$> ups) mempty
+    lt            = rApp c (rVar <$> tyvs) (RPropP [] . pdVarReft <$> ups) mempty
     xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
     cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
     pnames        = mks_ "p"
@@ -1183,10 +1183,10 @@ ofBareType (RHole r)
 ofBareType t
   = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 
-ofRef (RPoly ss t)   
-  = liftM2 RPoly (mapM ofSyms ss) (ofBareType t)
-ofRef (RMono ss r) 
-  = liftM (`RMono` r) (mapM ofSyms ss)
+ofRef (RProp ss t)   
+  = liftM2 RProp (mapM ofSyms ss) (ofBareType t)
+ofRef (RPropP ss r) 
+  = liftM (`RPropP` r) (mapM ofSyms ss)
 
 ofSyms (x, t)
   = liftM ((,) x) (ofBareType t)
@@ -1281,8 +1281,8 @@ getPsSig m pos (RFun _ t1 t2 r)
   = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
 
 
-getPsSigPs m pos (RMono _ r) = addps m pos r
-getPsSigPs m pos (RPoly _ t) = getPsSig m pos t
+getPsSigPs m pos (RPropP _ r) = addps m pos r
+getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
@@ -1307,7 +1307,7 @@ ofBDataCon l tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
        let cs   = map ofType (dataConStupidTheta c')
-       let t0   = rApp tc rs (RMono [] . pdVarReft <$> πs) mempty 
+       let t0   = rApp tc rs (RPropP [] . pdVarReft <$> πs) mempty 
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0)
     where 
        (xs, ts) = unzip xts
@@ -1499,7 +1499,7 @@ checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv e
 
 
 checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
-checkReft env emb Nothing _  = Nothing -- RMono / Ref case, not sure how to check these yet.  
+checkReft env emb Nothing _  = Nothing -- RPropP / Ref case, not sure how to check these yet.  
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r 
   where 
     r                        = rTypeSortedReft emb t
@@ -1561,8 +1561,8 @@ expToBindT t
   = return t
 
 expToBindReft :: Ref RSort RReft (SpecType) -> State ExSt (Ref RSort RReft SpecType)
-expToBindReft (RPoly s t) = liftM (RPoly s) (expToBindT t)
-expToBindReft (RMono s r) = liftM (RMono s) (expToBindRef r)
+expToBindReft (RProp s t) = liftM (RProp s) (expToBindT t)
+expToBindReft (RPropP s r) = liftM (RPropP s) (expToBindRef r)
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds 
