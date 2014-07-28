@@ -542,8 +542,8 @@ data RType p c tv r
 
   | RApp  { 
       rt_tycon  :: !c
-    , rt_args   :: ![RType p c tv r]     
-    , rt_pargs  :: ![Ref (RType p c tv ()) r (RType p c tv r)] 
+    , rt_args   :: ![RType  p c tv r]     
+    , rt_pargs  :: ![RTProp p c tv r] 
     , rt_reft   :: !r
     }
 
@@ -604,12 +604,12 @@ data Ref t s m
   | RPoly [(Symbol, t)] m
   deriving (Generic, Data, Typeable)
 
--- MOVE TO TYPES
+type RTProp p c tv r = Ref (RType p c tv ()) r (RType p c tv r)
+
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
     deriving (Generic, Data, Typeable)
 
--- MOVE TO TYPES
 type BRType     = RType LocSymbol LocSymbol Symbol
 type RRType     = RType Class     RTyCon    RTyVar
 
@@ -853,7 +853,7 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z l) = U (substf f r) (substf f z) (substf f l) 
   substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
-instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
+instance (Reftable r, RefTypable p c tv r) => Subable (RTProp p c tv r) where
   syms (RMono ss r)     = (fst <$> ss) ++ syms r
   syms (RPoly ss r)     = (fst <$> ss) ++ syms r
 
@@ -931,7 +931,7 @@ emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r
 emapReft _ _ (ROth s)            = ROth  s 
 emapReft f γ (RHole r)           = RHole (f γ r)
 
-emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)
+emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp p c tv t -> RTProp p c tv s
 emapRef  f γ (RMono s r)         = RMono s $ f γ r
 emapRef  f γ (RPoly s t)         = RPoly s $ emapReft f γ t
 
@@ -970,7 +970,7 @@ mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f
 mapReftM _ (ROth s)           = return  $ ROth  s 
 mapReftM f (RHole r)          = liftM   RHole       (f r)
 
-mapRefM  :: (Monad m) => (t -> m s) -> Ref (RType p c tv ()) t (RType p c tv t) -> m (Ref (RType p c tv ()) s (RType p c tv s))
+mapRefM  :: (Monad m) => (t -> m s) -> (RTProp p c tv t) -> m (RTProp p c tv s)
 mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
 mapRefM  f (RPoly s t)        = liftM   (RPoly s)      (mapReftM f t)
 
