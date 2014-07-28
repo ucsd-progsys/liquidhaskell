@@ -537,30 +537,40 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 0. Create a test case: `tests/todo/Eff*.hs`
 
-
 1. Introduce a new sort of refinement `HProp`
    - Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RBare`] and `RPoly` [---> `RProp`]
    - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
-   
-2. Index `IO` or `State` by `HProp`
-   
+
+2. Allow `PVar` to have the sort `HProp`
+   - Can we reuse `RAllP` to encode `HProp`-quantification? (Or introduce `RAllH`?)
+   - Can we reuse type-application sites for `HProp`-instantiation?
+   - Update consgen to handle the above.
+
+3. Rig constraint solver to eliminate `HProp` constraints prior to subtype splitting.
+
+4. Index `IO` or `State` by `HProp`
+   - Update parser
+   - Update `RTyCon` to store `HProp` vars
+
 
 3. Suitable signatures for monadic operators
 
 ### RHProp
 
-a. Following RProp we should have
-
-	RHProp := x1:t1,...,xn:tn -> World
+a. Following `RProp` we should have
+	
+	* RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
 	* WPreds : (h v1 ... vn), h2, ...
 	* Wbinds : x1 := T1, x2 := T2, ... 
 
-c. Such that each `World` has _at most one_ `WPred`.
+c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
-HEREHEREHERE: **Problem** rejigger _inference_ to account for parameters in heap variables.
+**Problem:** rejigger _inference_ to account for parameters in heap variables.
+
+
 
 ### RPoly  (---> RProp)
 
