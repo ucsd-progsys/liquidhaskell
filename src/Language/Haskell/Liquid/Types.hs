@@ -52,6 +52,12 @@ module Language.Haskell.Liquid.Types (
    -- * Manipulating Predicate
   , pvars
 
+  -- * Refinement Types 
+  , RType (..), Ref(..)
+  , RTyCon(..), TyConInfo(..)
+  , RTyVar (..)
+  , RTAlias (..)
+
   -- * Classes describing operations on `RTypes` 
   , TyConable (..)
   , RefTypable (..)
@@ -59,33 +65,24 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinements
   , PVar (..)
-  , UReft(..)
   , Predicate (..)
+  , UReft(..)
 
   -- * Temporary (not used in Constraint) entities describing refined data types
   , DataDecl (..)
   , DataConP (..)
   , TyConP (..)
 
-    
-  , RTyCon(..)
-  , TyConInfo(..)
-  , RTyVar (..)
-  , RType (..)
-  , Ref(..)
-  , RTAlias (..)
 
-  , RRType, BRType, SpecType
+  -- * Pre-instantiated RType
+  , RRType, BRType
+  , BSort, BPVar
 
-                  
-  , BSort, BPVar, BareType
+  -- * Instantiated RType
+  , BareType, SpecType, RefType, PrType, RSort
 
-  , RSort
-  , UsedPVar, RPVar
-  , RReft
+  , UsedPVar, RPVar, RReft
 
-  , RefType
-  , PrType
 
   -- * Inferred Annotations 
   , AnnInfo (..)
@@ -194,7 +191,8 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Arrow                            (second)
 import Control.Monad                            (liftM, liftM2, liftM3)
-import            qualified Control.Monad.Error as Ex
+-- import qualified Control.Monad.Error as Ex
+import qualified Control.Exception as Ex 
 import Control.DeepSeq
 import Control.Applicative                      ((<$>), (<*>))
 import Data.Typeable                            (Typeable)
@@ -1266,7 +1264,9 @@ instance PPrint EMsg where
 
 type Error = TError SpecType
 
--- | INVARIANT : all Error constructors should hava a pos field
+instance Ex.Exception Error
+
+-- | INVARIANT : all Error constructors should have a pos field
 data TError t = 
     ErrSubType  { pos  :: !SrcSpan
                 , msg  :: !Doc 
@@ -1357,9 +1357,12 @@ instance Eq Error where
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
 
-instance Ex.Error Error where
-  strMsg = errOther . pprint
-
+-- instance Ex.Error Error where
+--   strMsg = errOther . pprint
+  
+instance Show Error where
+  show = showpp
+  
 errSpan :: TError a -> SrcSpan
 errSpan = pos 
 

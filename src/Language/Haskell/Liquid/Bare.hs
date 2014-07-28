@@ -47,8 +47,8 @@ import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
 import qualified Control.Exception as Ex 
--- import Data.Data                hiding (TyCon, tyConName)
 import Data.Bifunctor
+-- import Data.Data                hiding (TyCon, tyConName)
 -- import Data.Function            (on)
 import qualified Data.Text as T
 import Text.Parsec.Pos
