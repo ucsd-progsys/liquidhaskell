@@ -31,34 +31,61 @@ module Language.Haskell.Liquid.Types (
   , LocSymbol
   , LocText
 
-  -- * Data Constructors
-  , BDataCon (..)
-
-  -- * Constructors and Destructors
-  , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
-  , mkUnivs, bkUniv, bkClass
-  , rFun
-  , Oblig(..), ignoreOblig
-  , addTermCond
-  , addInvCond
+-- JUNK  -- * Data Constructors
+-- JUNK , BDataCon (..)
 
   -- * Some predicates on RTypes
   , isBase
   , isFunTy
 
+  -- * Destructing `RTypes` into constituents
   , RTypeRep(..), fromRTypeRep, toRTypeRep
+  , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
+  , mkUnivs, bkUniv, bkClass
+  , rFun
 
-  -- * Manipulating Predicate
+  -- * ???
+  , Oblig(..), ignoreOblig
+  , addTermCond
+  , addInvCond
+
+   -- * Manipulating Predicate
   , pvars
 
-  -- * All these should be MOVE TO TYPES
-  , RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
-  , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
-  , RTAlias (..), mapRTAVars
-  , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
-  , PrType, SpecType
-  , PVar (..) , Predicate (..), UReft(..), DataDecl (..), TyConInfo(..)
-  , TyConP (..), DataConP (..)
+  -- * Classes describing operations on `RTypes` 
+  , TyConable (..)
+  , RefTypable (..)
+  , SubsTy (..)
+
+  -- * Refinements
+  , PVar (..)
+  , UReft(..)
+  , Predicate (..)
+
+  -- * Temporary (not used in Constraint) entities describing refined data types
+  , DataDecl (..)
+  , DataConP (..)
+  , TyConP (..)
+
+    
+  , RTyCon(..)
+  , TyConInfo(..)
+  , RTyVar (..)
+  , RType (..)
+  , Ref(..)
+  , RTAlias (..)
+
+  , RRType, BRType, SpecType
+
+                  
+  , BSort, BPVar, BareType
+
+  , RSort
+  , UsedPVar, RPVar
+  , RReft
+
+  , RefType
+  , PrType
 
   -- * Inferred Annotations 
   , AnnInfo (..)
@@ -69,12 +96,15 @@ module Language.Haskell.Liquid.Types (
 
   -- * Default unknown name
   , dummyName, isDummy
+
   -- * Refinement Hole
   , hole, isHole
 
   , classToRApp
 
-  -- * Traversing `RType` 
+  , mapRTAVars
+
+    -- * Traversing `RType` 
   , efoldReft, foldReft
   , mapReft, mapReftM
   , mapBot, mapBind
@@ -336,8 +366,8 @@ data GhcSpec = SP {
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
-                     , covPs        :: ![Int] -- indexes of covariant predicate arguments
-                     , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
+                     , covPs        :: ![Int]    -- ^ indexes of covariant predicate arguments
+                     , contravPs    :: ![Int]    -- ^ indexes of contravariant predicate arguments
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
                      } deriving (Data, Typeable)
 
@@ -406,7 +436,6 @@ pdTrue         = Pr []
 pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars (Pr pvs) = pvs
 
--- MOVE TO TYPES
 instance Subable UsedPVar where 
   syms pv         = [ y | (_, x, EVar y) <- pargs pv, x /= y ]
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
@@ -414,7 +443,6 @@ instance Subable UsedPVar where
   substa f pv     = pv { pargs = mapThd3 (substa f) <$> pargs pv }  
 
 
--- MOVE TO TYPES
 instance Subable Predicate where
   syms (Pr pvs)     = concatMap syms pvs 
   subst s (Pr pvs)  = Pr (subst s <$> pvs)
@@ -456,19 +484,22 @@ instance Default TyConInfo where
 
 
 -----------------------------------------------------------------------
------------ TyCon get CoVariance - ContraVariance Info ----------------
+-- | Co- and Contra-variance for TyCon -------------------------------- 
 -----------------------------------------------------------------------
 
--- indexes start from 0 and type or predicate arguments can be both
--- covariant and contravaariant
--- eg, for the below Foo dataType
--- data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
---   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
--- there will be 
---  covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
---  contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
---  covariantPsArgs     = [0, 2], for predicate arguments p and r
---  contravariantPsArgs = [1, 2], for predicate arguments q and r
+-- | Indexes start from 0 and type or predicate arguments can be both
+--   covariant and contravaariant e.g., for the below Foo dataType
+-- 
+--     data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
+--       = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
+--
+--  there will be: 
+-- 
+--    covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
+--    contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
+--    covariantPsArgs     = [0, 2], for predicate arguments p and r
+--    contravariantPsArgs = [1, 2], for predicate arguments q and r
+--
 --  does not appear in the data definition, we enforce BOTH
 --  con - contra variance
 
@@ -630,8 +661,6 @@ class ( TyConable c
   where
     ppCls    :: p -> [RType p c tv r] -> Doc
     ppRType  :: Prec -> RType p c tv r -> Doc 
-    -- ppRType  = ppr_rtype True -- False 
-    -- ppBase   :: r -> Doc -> Doc
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -677,18 +706,18 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
 
 -- | Datacons
 
-data BDataCon a 
-  = BDc a       -- ^ Raw named data constructor
-  | BTup Int    -- ^ Tuple constructor + arity
-  deriving (Eq, Ord, Show)
-
-instance Functor BDataCon where
-  fmap f (BDc x)  = BDc (f x)
-  fmap f (BTup i) = BTup i
-
-instance Hashable a => Hashable (BDataCon a) where
-  hashWithSalt i (BDc x)  = hashWithSalt i x
-  hashWithSalt i (BTup j) = hashWithSalt i j
+-- JUNK data BDataCon a 
+-- JUNK   = BDc a       -- ^ Raw named data constructor
+-- JUNK   | BTup Int    -- ^ Tuple constructor + arity
+-- JUNK   deriving (Eq, Ord, Show)
+-- JUNK 
+-- JUNK instance Functor BDataCon where
+-- JUNK   fmap f (BDc x)  = BDc (f x)
+-- JUNK   fmap f (BTup i) = BTup i
+-- JUNK 
+-- JUNK instance Hashable a => Hashable (BDataCon a) where
+-- JUNK   hashWithSalt i (BDc x)  = hashWithSalt i x
+-- JUNK   hashWithSalt i (BTup j) = hashWithSalt i j
 
 ------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ----------------------------
@@ -706,11 +735,11 @@ data RTypeRep p c tv r
 fromRTypeRep rep 
   = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip (ty_binds rep) (ty_args rep)) (ty_res rep)
 
-toRTypeRep :: RType p c tv r -> RTypeRep p c tv r
-toRTypeRep t 
-  = RTypeRep αs πs ls xs ts t''
-  where (αs, πs, ls, t') = bkUniv  t
-        (xs, ts, t'')    = bkArrow t'
+toRTypeRep           :: RType p c tv r -> RTypeRep p c tv r
+toRTypeRep t         = RTypeRep αs πs ls xs ts t''
+  where
+    (αs, πs, ls, t') = bkUniv  t
+    (xs, ts, t'')    = bkArrow t'
 
 mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts 
   where 
