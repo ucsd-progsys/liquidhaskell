@@ -337,9 +337,9 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM2 RPoly symsP (refP bbaseP))
-  <|> liftM (RMono [] . predUReft) monoPredicate1P
-  <|> (braces $ liftM2 bRPoly symsP' refasP)
+   =  try (liftM2 RProp symsP (refP bbaseP))
+  <|> liftM (RPropP [] . predUReft) monoPredicate1P
+  <|> (braces $ liftM2 bRProp symsP' refasP)
    where 
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
@@ -371,8 +371,8 @@ funArgsP  = try realP <|> empP
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bRPoly []    _    = errorstar "Parse.bRPoly empty list"
-bRPoly syms' expr = RPoly ss $ bRVar dummyName mempty mempty r
+bRProp []    _    = errorstar "Parse.bRProp empty list"
+bRProp syms' expr = RProp ss $ bRVar dummyName mempty mempty r
   where (ss, (v, _)) = (init syms, last syms)
         syms = [(y, s) | ((_, s), y) <- syms']
         su   = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
@@ -390,8 +390,8 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
 -- w/o it
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
-bCon b s [RMono _ r1] [] r = RApp b [] [] (r1 `meet` (U r mempty s)) 
-bCon b s rs ts r           = RApp b ts rs (U r mempty s)
+bCon b s [RPropP _ r1] [] r = RApp b [] [] (r1 `meet` (U r mempty s)) 
+bCon b s rs ts r            = RApp b ts rs (U r mempty s)
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
 bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)

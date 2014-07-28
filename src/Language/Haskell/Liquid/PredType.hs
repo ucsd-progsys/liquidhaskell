@@ -163,9 +163,9 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
     where 
        fm       = S.fromList $ concatMap pvars (fp:fps) 
        fp : fps = p : (getR <$> ps)
-       rs'      = zipWithZero unifyRef (RMono [] mempty {- trueReft -}) mempty rs fps
-       getR (RMono _ r) = r
-       getR (RPoly _ _) = mempty 
+       rs'      = zipWithZero unifyRef (RPropP [] mempty {- trueReft -}) mempty rs fps
+       getR (RPropP _ r) = r
+       getR (RProp _ _) = mempty 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
   = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
@@ -184,8 +184,8 @@ unifyS t1 t2
 
 bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
 
-unifyRef (RMono s a) (Pr pvs) = RMono s $ foldl' meet a $ pToReft <$> pvs
-unifyRef (RPoly s a) (Pr pvs) = RPoly s $ foldl' strengthen a $ pToReft <$> pvs
+unifyRef (RPropP s a) (Pr pvs) = RPropP s $ foldl' meet a $ pToReft <$> pvs
+unifyRef (RProp s a) (Pr pvs) = RProp s $ foldl' strengthen a $ pToReft <$> pvs
 
 zipWithZero _ _  _  []     []     = []
 zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
@@ -223,7 +223,7 @@ toPredType (PV _ ptype _ args) = rpredType (ty:tys)
 ----------------------------------------------------------------------------
 
 -- | This is the main function used to substitute an (abstract) predicate
--- with a concrete Ref, of a compound (`RPoly`) type. The substitution is 
+-- with a concrete Ref, of a compound (`RProp`) type. The substitution is 
 -- invoked to obtain the `SpecType` resulting at /predicate application/ 
 -- sites in 'Language.Haskell.Liquid.Constraint'.
 -- The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
@@ -233,8 +233,8 @@ toPredType (PV _ ptype _ args) = rpredType (ty:tys)
 
 replacePreds :: String -> SpecType -> [(RPVar, Ref RSort RReft SpecType)] -> SpecType 
 replacePreds msg       = foldl' go 
-   where go z (π, t@(RPoly _ _)) = substPred msg   (π, t)     z
-         go _ (_, RMono _ _)     = error "replacePreds on RMono" -- replacePVarReft (π, r) <$> z
+   where go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
+         go _ (_, RPropP _ _)     = error "replacePreds on RPropP" -- replacePVarReft (π, r) <$> z
 
 
 -- TODO: replace `replacePreds` with
@@ -243,14 +243,14 @@ replacePreds msg       = foldl' go
 
 -- replacePreds :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
 -- replacePreds msg       = foldl' go 
---   where go z (π, RPoly t) = substPred msg   (π, t)     z
---         go z (π, RMono r) = replacePVarReft (π, r) <$> z
+--   where go z (π, RProp t) = substPred msg   (π, t)     z
+--         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
 substPred :: String -> (RPVar, Ref RSort RReft SpecType) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
-substPred _   (π, RPoly ss (RVar a1 r1)) t@(RVar a2 r2)
+substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
   | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs ss r1 r2'
   | isPredInReft              = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
   | otherwise                 = t
@@ -285,7 +285,7 @@ substPred _   _  t            = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
-substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
+substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
   | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
@@ -294,14 +294,14 @@ substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
-substPredP su@(p, RPoly ss tt) (RPoly s t)       
-  = RPoly ss' $ substPred "substPredP" su t
+substPredP su@(p, RProp ss tt) (RProp s t)       
+  = RProp ss' $ substPred "substPredP" su t
  where ss' = drop n ss ++  s
 -- where ss' = (reverse $ take (length (isFreePredInType p t)) $ reverse ss) ++  s
        n   = length ss - length (freeArgsPs p t)
 
-substPredP _  (RMono _ _)       
-  = error $ "RMono found in substPredP"
+substPredP _  (RPropP _ _)       
+  = error $ "RPropP found in substPredP"
 
 splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
   where (epvs, pvs') = partition (uPVar pv ==) pvs
@@ -370,11 +370,11 @@ meetListWithPSub ss r1 r2 π
   = errorstar $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
-meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
+meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = RPoly s1 $ r2 `meet` r1      
+  = RProp s1 $ r2 `meet` r1      
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
-  = RPoly s2 $ r2 `meet` (subst su r1)
+  = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]

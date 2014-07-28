@@ -92,9 +92,9 @@ refTypeQuals' l tce t0        = go emptySEnv t0
     go γ (REx x t t')         = (go γ t) 
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
     go _ _                    = []
-    goRefs c γ rs             = concat $ zipWith (goRef γ) rs (rTyConPs c)
-    goRef γ (RPoly s t)  _    = go (insertsSEnv γ s) t
-    goRef _ (RMono _ _)  _    = []
+    goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPs c)
+    goRef g (RProp s t)  _    = go (insertsSEnv g s) t
+    goRef _ (RPropP _ _)  _   = []
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 refTopQuals l tce t0 γ t 
