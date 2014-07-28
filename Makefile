@@ -1,8 +1,3 @@
-
-##############################################################################
-##############################################################################
-##############################################################################
-
 THREADS=1
 
 FASTOPTS="-O0"
@@ -17,6 +12,11 @@ CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 TASTY=find dist -type f -name test | head -n1
 
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
+
+##############################################################################
+##############################################################################
+##############################################################################
+
 
 fast:
 	$(CABAL) install --ghc-options=$(FASTOPTS) 
