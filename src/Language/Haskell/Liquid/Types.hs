@@ -10,8 +10,7 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
--- | This module (should) contain all the global type definitions and basic
--- instances. Need to gradually pull things into here, especially from @RefType@
+-- | This module should contain all the global type definitions and basic instances.
 
 module Language.Haskell.Liquid.Types (
 
@@ -31,26 +30,8 @@ module Language.Haskell.Liquid.Types (
   , LocSymbol
   , LocText
 
--- JUNK  -- * Data Constructors
--- JUNK , BDataCon (..)
-
-  -- * Some predicates on RTypes
-  , isBase
-  , isFunTy
-
-  -- * Destructing `RTypes` into constituents
-  , RTypeRep(..), fromRTypeRep, toRTypeRep
-  , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
-  , mkUnivs, bkUniv, bkClass
-  , rFun
-
-  -- * ???
-  , Oblig(..), ignoreOblig
-  , addTermCond
-  , addInvCond
-
-   -- * Manipulating Predicate
-  , pvars
+  -- * Default unknown name
+  , dummyName, isDummy
 
   -- * Refinement Types 
   , RType (..), Ref(..)
@@ -68,11 +49,10 @@ module Language.Haskell.Liquid.Types (
   , Predicate (..)
   , UReft(..)
 
-  -- * Temporary (not used in Constraint) entities describing refined data types
+  -- * Parse-time entities describing refined data types
   , DataDecl (..)
   , DataConP (..)
   , TyConP (..)
-
 
   -- * Pre-instantiated RType
   , RRType, BRType
@@ -80,8 +60,33 @@ module Language.Haskell.Liquid.Types (
 
   -- * Instantiated RType
   , BareType, SpecType, RefType, PrType, RSort
-
   , UsedPVar, RPVar, RReft
+  , REnv (..)
+
+  -- * Constructing & Destructing RTypes
+  , RTypeRep(..), fromRTypeRep, toRTypeRep
+  , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
+  , mkUnivs, bkUniv, bkClass
+  , rFun
+
+  -- * Manipulating `Predicates`
+  , pvars, pappSym, pToRef, pApp
+
+  -- * Some tests on RTypes
+  , isBase
+  , isFunTy
+  , isTrivial
+
+  -- * Traversing `RType` 
+  , efoldReft, foldReft
+  , mapReft, mapReftM
+  , mapBot, mapBind
+ 
+  -- * ???
+  , Oblig(..)
+  , ignoreOblig
+  , addTermCond
+  , addInvCond
 
 
   -- * Inferred Annotations 
@@ -91,23 +96,9 @@ module Language.Haskell.Liquid.Types (
   -- * Overall Output
   , Output (..)
 
-  -- * Default unknown name
-  , dummyName, isDummy
-
   -- * Refinement Hole
   , hole, isHole
 
-  , classToRApp
-
-  , mapRTAVars
-
-    -- * Traversing `RType` 
-  , efoldReft, foldReft
-  , mapReft, mapReftM
-  , mapBot, mapBind
-  
-  , isTrivial
-  
   -- * Converting To and From Sort
   , ofRSort, toRSort
   , rTypeValueVar
@@ -121,36 +112,37 @@ module Language.Haskell.Liquid.Types (
   -- * Printer Configuration 
   , PPEnv (..)
   , Tidy  (..)
-  -- , configTidy
-  , ppEnv, ppEnvShort
+  , ppEnv
+  , ppEnvShort
 
-  -- * Import handling
-  , ModName (..), ModType (..), isSrcImport, isSpecImport
+  -- * Modules and Imports
+  , ModName (..), ModType (..)
+  , isSrcImport, isSpecImport
   , getModName, getModString
 
   -- * Refinement Type Aliases
-  , REnv (..)
-  , RTEnv (..), mapRT, mapRP, RTBareOrSpec
+  , RTEnv (..)
+  , RTBareOrSpec
+  , mapRT
+  , mapRP
 
   -- * Final Result
   , Result (..)
 
-  -- * Different kinds of errors
+  -- * Errors and Error Messages
   , Error
   , TError (..)
   , EMsg (..)
   , LParseError (..)
   , ErrorResult
-  -- , showEMsg 
   , errSpan
   , errOther
 
-  -- * Source information associated with each constraint
+  -- * Source information (associated with constraints)
   , Cinfo (..)
 
   -- * Measures
   , Measure (..)
-  -- , IMeasure (..)
   , CMeasure (..)
   , Def (..)
   , Body (..)
@@ -164,11 +156,17 @@ module Language.Haskell.Liquid.Types (
   , emptyKVProf   -- empty profile
   , updKVProf     -- extend profile
 
-  , pappSym, pToRef, pApp
-
+  -- * Misc 
+  , classToRApp
+  , mapRTAVars
   , insertsSEnv
 
-  , Stratum(..), Strata, isSVar, getStrata, makeDivType, makeFinType
+  -- * Strata
+  , Stratum(..), Strata
+  , isSVar
+  , getStrata
+  , makeDivType, makeFinType
+
   )
   where
 
@@ -191,8 +189,7 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Arrow                            (second)
 import Control.Monad                            (liftM, liftM2, liftM3)
--- import qualified Control.Monad.Error as Ex
-import qualified Control.Exception as Ex 
+import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
 import Control.Applicative                      ((<$>), (<*>))
 import Data.Typeable                            (Typeable)
@@ -1011,29 +1008,6 @@ efoldReft cb g f fp = go
     -- folding over [Ref]
     ho' γ z rs                 = foldr (flip $ ho γ) z rs 
 
--- ORIG delete after regrtest-ing specerror
--- -- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
--- efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
--- efoldReft g f γ z (RAllT _ t)         = efoldReft g f γ z t
--- efoldReft g f γ z (RAllP _ t)         = efoldReft g f γ z t
--- efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t')
--- efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
--- efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
--- efoldReft g f γ z (RAllE x t t')      = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
--- efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
--- efoldReft _ _ _ z (ROth _)            = z 
--- efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
--- efoldReft _ _ _ z (RExprArg _)        = z
--- 
--- -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
--- efoldRefts g f γ z ts                = foldr (flip $ efoldReft g f γ) z ts 
--- 
--- -- efoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
--- efoldRefs g f γ z rs               = foldr (flip $ efoldRef g f γ) z  rs 
--- 
--- -- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
--- efoldRef g f γ z (RMono ss r)         = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
--- efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mepSnd (g . ofRSort)) <$> ss)) z t
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
@@ -1264,7 +1238,6 @@ instance PPrint EMsg where
 
 type Error = TError SpecType
 
-instance Ex.Exception Error
 
 -- | INVARIANT : all Error constructors should have a pos field
 data TError t = 
@@ -1357,12 +1330,9 @@ instance Eq Error where
 instance Ord Error where 
   e1 <= e2 = pos e1 <= pos e2
 
--- instance Ex.Error Error where
---   strMsg = errOther . pprint
-  
-instance Show Error where
-  show = showpp
-  
+instance Ex.Error Error where
+  strMsg = errOther . pprint
+ 
 errSpan :: TError a -> SrcSpan
 errSpan = pos 
 
