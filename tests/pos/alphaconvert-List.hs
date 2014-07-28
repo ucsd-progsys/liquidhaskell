@@ -3,7 +3,10 @@
 {-@ LIQUID "--fullcheck"      @-}
 {-@ LIQUID "--maxparams=3"    @-}
 
-module AlphaConvert (subst) where
+-- | An example from "A Relational Framework for Higher-Order Shape Analysis",
+--   by Gowtham Kaki Suresh Jagannathan, ICFP 2014.
+
+module AlphaConvert (subst, alpha) where
 
 import Prelude hiding ((++), elem)
 import Data.Set (Set (..))
