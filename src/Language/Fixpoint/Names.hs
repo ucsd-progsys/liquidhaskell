@@ -40,9 +40,11 @@ module Language.Fixpoint.Names (
   , listConName
   , tupConName
   , propConName
+  , hpropConName
   , strConName
   , vvName
   , symSepName
+  , prims
 ) where
 
 import GHC.Generics         (Generic)
@@ -243,12 +245,14 @@ funConName   = "->"
 listConName  = "[]" -- "List"
 tupConName   = "()" -- "Tuple"
 propConName  = "Prop"
+hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 
 prims :: [Symbol]
 prims = [ propConName
+        , hpropConName
         , vvName
         , "Pred"
         , "List"
