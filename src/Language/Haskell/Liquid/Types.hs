@@ -37,6 +37,7 @@ module Language.Haskell.Liquid.Types (
   , RTyCon (RTyCon, rtc_tc, rtc_info)
   , TyConInfo(..)
   , rTyConPVs 
+  , rTyConPropVs 
  
   -- * Refinement Types 
   , RType (..), Ref(..), RTProp (..)
@@ -504,10 +505,10 @@ data RTyCon = RTyCon
   deriving (Generic, Data, Typeable)
 
 -- | Accessors for @RTyCon@
-rTyConTc   = rtc_tc
-rTyConPVs  = rtc_pvars
-rTyConPVPs = filter isPropPV . rtc_pvars
-isPropPV   = isProp . ptype
+rTyConTc     = rtc_tc
+rTyConPVs    = rtc_pvars
+rTyConPropVs = filter isPropPV . rtc_pvars
+isPropPV     = isProp . ptype
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 

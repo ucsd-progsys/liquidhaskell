@@ -213,10 +213,12 @@ pVartoRConc p (v, args)
   = RConc $ pApp (pname p) $ EVar v : args'
   where args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
 
-toPredType (PV _ ptype _ args) = rpredType (ty:tys)
-  where ty = uRTypeGen ptype
-        tys = uRTypeGen . fst3 <$> args
+toPredType (PV _ (PVProp ptype) _ args) = rpredType (ty:tys)
+  where
+    ty  = uRTypeGen ptype
+    tys = uRTypeGen . fst3 <$> args
         
+toPredType _ = errorstar "TODO:effects:toPredType"
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
@@ -286,7 +288,7 @@ substPred _   _  t            = t
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
 substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
-  | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
+  | rtc_tc c1 == rtc_tc c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
         strSub r1 r2          = meetListWithPSubs πs ss r1 r2
