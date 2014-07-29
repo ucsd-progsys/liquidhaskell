@@ -1,12 +1,7 @@
-
-##############################################################################
-##############################################################################
-##############################################################################
-
 THREADS=1
 
-#OPTS=""
-OPTS="-W -O2 -XStandaloneDeriving"
+FASTOPTS="-O0"
+DISTOPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
 CABAL=cabal
@@ -16,14 +11,18 @@ CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 # to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
 TASTY=find dist -type f -name test | head -n1
 
-
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
-all:
-	$(CABAL) install --ghc-options=$(OPTS) 
+##############################################################################
+##############################################################################
+##############################################################################
 
-fast: 
-	$(CABAL) build 
+
+fast:
+	$(CABAL) install --ghc-options=$(FASTOPTS) 
+
+dist:
+	$(CABAL) install --ghc-options=$(DISTOPTS) 
 
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
@@ -74,4 +73,4 @@ lint:
 	hlint --colour --report .
 
 tags:
-	hasktags -c src/
+	hasktags -b src/
