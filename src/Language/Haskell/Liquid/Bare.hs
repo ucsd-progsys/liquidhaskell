@@ -53,7 +53,7 @@ import Data.Bifunctor
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
+import Language.Fixpoint.Names                  (prims, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -961,21 +961,21 @@ wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns
         special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
                    , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
-fixpointPrims :: [Symbol]
-fixpointPrims = [ "Pred"
-                , "Prop"
-                , "List"
-                , "Set_Set"
-                , "Set_sng"
-                , "Set_cup"
-                , "Set_cap"
-                , "Set_dif"
-                , "Set_emp"
-                , "Set_mem"
-                , "Set_sub"
-                , "VV"
-                , "FAppTy" 
-                ]
+-- fixpointPrims :: [Symbol]
+-- fixpointPrims = [ "Pred"
+--                 , propConName -- "Prop"
+--                 , "List"
+--                 , "Set_Set"
+--                 , "Set_sng"
+--                 , "Set_cup"
+--                 , "Set_cap"
+--                 , "Set_dif"
+--                 , "Set_emp"
+--                 , "Set_mem"
+--                 , "Set_sub"
+--                 , "VV"
+--                 , "FAppTy" 
+--                 ]
 
 class Resolvable a where
   resolve     :: SourcePos -> a -> BareM a
@@ -1007,15 +1007,16 @@ instance Resolvable Expr where
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l s)
-      | s `elem` fixpointPrims = return ls
-      | otherwise = do env <- gets (typeAliases . rtEnv)
-                       case M.lookup s env of
-                         Nothing | isCon s
-                           -> do v <- lookupGhcVar $ Loc l s
-                                 let qs = symbol v
-                                 addSym (qs,v)
-                                 return $ Loc l qs
-                         _ -> return ls
+    | s `elem` prims 
+    = return ls
+    | otherwise 
+    = do env <- gets (typeAliases . rtEnv)
+         case M.lookup s env of
+           Nothing | isCon s -> do v <- lookupGhcVar $ Loc l s
+                                   let qs = symbol v
+                                   addSym (qs,v)
+                                   return $ Loc l qs
+           _                 -> return ls
 
 isCon c 
   | Just (c,cs) <- T.uncons $ symbolText c = isUpper c

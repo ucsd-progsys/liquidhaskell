@@ -535,22 +535,23 @@ value of `f` (c.f. tests/pos/cont1.hs)
 PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 ------------------------------------------------------------
 
-0. Create a test case: `tests/todo/Eff*.hs`
++ Create a test case: `tests/todo/Eff*.hs`
 
-1. Introduce a new sort of refinement `Prop`
-   - Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RBare`] and `RPoly` [---> `RProp`]
-   - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
++ Introduce a new sort of refinement `Ref` (with alias `RTProp`)
+   + Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RPropP`] and `RPoly` [---> `RProp`]
+   + Types.hs: Add a `World t` for SL formulas...
+   
 
-2. Allow `PVar` to have the sort `HProp`
+- Allow `PVar` to have the sort `HProp`
    - Can we reuse `RAllP` to encode `HProp`-quantification? (Or introduce `RAllH`?)
+   - Update `RTyCon` to store `HProp` vars
    - Can we reuse type-application sites for `HProp`-instantiation?
    - Update consgen to handle the above.
 
-3. Rig constraint solver to eliminate `HProp` constraints prior to subtype splitting.
+- Rig constraint solver to eliminate `HProp` constraints prior to subtype splitting.
 
-4. Index `IO` or `State` by `HProp`
-   - Update parser
-   - Update `RTyCon` to store `HProp` vars
+- Index `IO` or `State` by `HProp`
+   - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
 
 
 3. Suitable signatures for monadic operators
