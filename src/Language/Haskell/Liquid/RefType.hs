@@ -94,7 +94,7 @@ import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)
-import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
+import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName)
 import Data.List (sort, isSuffixOf, foldl')
 
 pdVar v        = Pr [uPVar v]
@@ -819,7 +819,6 @@ isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
 isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 
--- mkProp x = PBexp (EApp (S propConName) [EVar x])
 
 vv_ = vv Nothing
 

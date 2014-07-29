@@ -35,7 +35,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
-import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName, propConName, boolConName)
+import Language.Fixpoint.Names (dropModuleNames, boolConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error (ParseError)
@@ -122,10 +122,6 @@ ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
 
--- BEXPARSER WHY Does this next case kill the parser for BExp? (e.g. LambdaEval.hs)
--- ppr_rtype bb p (RApp c [] [] r)
---   = ppTy r $ {- parens $ -} ppTycon c
-
 ppr_rtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
   = ppTy r $ ppT c
@@ -137,13 +133,6 @@ ppr_rtype bb p (RApp c ts rs r)
     ppT | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
         | otherwise  = ppTycon
 
-
-
--- ppr_rtype bb p (RApp c ts rs r)
---   = ppTy r $ parens $ ppT c <+> ppReftPs bb rs <+> hsep (ppr_rtype bb p <$> ts)
---   where
---     ppT | ppShort bb = text . dropModuleNames . render . ppTycon
---         | otherwise  = ppTycon
 
 ppr_rtype bb p (RCls c ts)
   = ppr_cls bb p c ts
@@ -247,7 +236,7 @@ ppr_forall bb p t
 
 
 ppr_cls bb p c ts
-  = pp c <+> hsep (map (ppr_rtype bb p) ts)  --ppCls c ts
+  = pp c <+> hsep (map (ppr_rtype bb p) ts)
   where
     pp | ppShort bb = text . symbolString . dropModuleNames . symbol . render . pprint
        | otherwise  = pprint

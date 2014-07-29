@@ -53,7 +53,7 @@ import Data.Bifunctor
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (prims, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
+import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -930,11 +930,12 @@ lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
     ftc _            = Nothing
 
 tryPropTyCon s e   
-  | symbol s == propConName
-  = return propTyCon
-  | otherwise
-  = throwError e
-
+  | sx == propConName  = return propTyCon
+  | sx == hpropConName = return hpropTyCon
+  | otherwise          = throwError e
+  where
+    sx                 = symbol s
+    
 lookupGhcClass       = lookupGhcThing "class" ftc
   where 
     ftc (ATyCon x)   = tyConClass_maybe x 
@@ -955,27 +956,12 @@ lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
     fdc (AConLike (RealDataCon x)) = Just x
     fdc _            = Nothing
 
-wiredIn :: M.HashMap Symbol Name
-wiredIn = M.fromList $ {- tracePpr "wiredIn: " $ -} special ++ wiredIns 
-  where wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
-        special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
-                   , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
-
--- fixpointPrims :: [Symbol]
--- fixpointPrims = [ "Pred"
---                 , propConName -- "Prop"
---                 , "List"
---                 , "Set_Set"
---                 , "Set_sng"
---                 , "Set_cup"
---                 , "Set_cap"
---                 , "Set_dif"
---                 , "Set_emp"
---                 , "Set_mem"
---                 , "Set_sub"
---                 , "VV"
---                 , "FAppTy" 
---                 ]
+wiredIn      :: M.HashMap Symbol Name
+wiredIn      = M.fromList $ special ++ wiredIns 
+  where
+    wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
+    special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
+               , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 class Resolvable a where
   resolve     :: SourcePos -> a -> BareM a
@@ -1034,9 +1020,8 @@ instance Resolvable Sort where
   resolve _ s@(FVar _)   = return s
   resolve l (FFunc i ss) = FFunc i <$> resolve l ss
   resolve _ (FApp tc ss)
-      | tcs' `elem` fixpointPrims = FApp tc <$> ss'
-      | otherwise     = FApp <$> (symbolFTycon.Loc l.symbol <$> lookupGhcTyCon tcs)
-                             <*> ss'
+    | tcs' `elem` prims  = FApp tc <$> ss'
+    | otherwise          = FApp <$> (symbolFTycon.Loc l.symbol <$> lookupGhcTyCon tcs) <*> ss'
       where
         tcs@(Loc l tcs') = fTyconSymbol tc
         ss'              = resolve l ss
@@ -1238,11 +1223,12 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 
 
 -----------------------------------------------------------------------
------------------------ Prop TyCon Definition -------------------------
+-- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
-propTyCon   = symbolTyCon 'w' 24 propConName
--- propMeasure = (stringSymbolRaw propConName, FFunc  
+propTyCon, hpropTyCon :: TyCon 
+propTyCon  = symbolTyCon 'w' 24 propConName
+hpropTyCon = symbolTyCon 'w' 24 hpropConName  
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
