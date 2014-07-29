@@ -149,7 +149,8 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv ()
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
-  mempty                              = RPropP [] mempty
+
+  mempty          = RPropP [] mempty
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
@@ -167,11 +168,8 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
-instance ( Monoid r, Reftable r
-         , RefTypable a b c r
-         , RefTypable a b c ()
-         ) => Monoid (Ref (RType a b c ()) r (RType a b c r)) where
-  mempty                              = RPropP [] mempty
+instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
+  mempty         = RPropP [] mempty
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
@@ -189,8 +187,7 @@ instance ( Monoid r, Reftable r
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
-instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) 
-         => Reftable (Ref (RType p c tv ()) r (RType p c tv r)) where
+instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RTProp p c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp _ t) = isTrivial t
   ppTy (RPropP _ r) d  = ppTy r d
@@ -202,7 +199,7 @@ instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ())
 
 -- Subable Instances ----------------------------------------------
 
-instance Subable (Ref RSort Reft RefType) where
+instance Subable (RRProp Reft) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
   syms (RProp ss t)     = (fst <$> ss) ++ syms t
 
@@ -696,12 +693,6 @@ refAppTyToFun r
   | isTauto r = r
   | otherwise = errorstar "RefType.refAppTyToFun"
 
--- refAppTyToApp r
---   | isTauto r = r
---   | otherwise = errorstar "RefType.refAppTyToApp"
-
--- subsFreeRef ::  (Ord tv, SubsTy tv ty r, SubsTy tv ty (PVar ty), SubsTy tv ty c, Reftable r, Monoid r, Subable r, RefTypable p c tv (PVar ty) r) => Bool -> S.Set tv -> (tv, ty, RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r) -> Ref r (RType p c tv (PVar ty) r)
-
 subsFreeRef m s (α', τ', t')  (RProp ss t) 
   = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 subsFreeRef _ _ (α', τ', _) (RPropP ss r) 
@@ -746,7 +737,7 @@ instance SubsTy Symbol BSort LocSymbol where
 instance SubsTy Symbol BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
-instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType p c tv ())) => SubsTy tv ty (Ref (RType p c tv ()) (UReft r) (RType p c tv (UReft r)))  where
+instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType p c tv ())) => SubsTy tv ty (RTProp p c tv (UReft r))  where
   subt m (RPropP ss p) = RPropP ((mapSnd (subt m)) <$> ss) $ subt m p
   subt m (RProp ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
  

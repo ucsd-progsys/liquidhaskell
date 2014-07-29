@@ -231,7 +231,7 @@ toPredType (PV _ ptype _ args) = rpredType (ty:tys)
 
 -------------------------------------------------------------------------------
 
-replacePreds :: String -> SpecType -> [(RPVar, Ref RSort RReft SpecType)] -> SpecType 
+replacePreds :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType 
 replacePreds msg       = foldl' go 
    where go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
          go _ (_, RPropP _ _)     = error "replacePreds on RPropP" -- replacePVarReft (π, r) <$> z
@@ -247,7 +247,7 @@ replacePreds msg       = foldl' go
 --         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
-substPred :: String -> (RPVar, Ref RSort RReft SpecType) -> SpecType -> SpecType
+substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
 substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)

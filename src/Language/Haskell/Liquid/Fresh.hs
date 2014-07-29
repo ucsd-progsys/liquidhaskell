@@ -121,8 +121,8 @@ refreshRefType t
   = return t
 
 refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
-           => (Ref RSort r (RRType r), PVar RSort)
-           -> m (Ref RSort r (RRType r))
+           => (RRProp r, PVar RSort)
+           -> m (RRProp r)
 
 refreshRef (RProp s t, π) = liftM2 RProp (mapM freshSym (pargs π)) (refreshRefType t)
 refreshRef (RPropP _ _, _) = errorstar "refreshRef: unexpected"
