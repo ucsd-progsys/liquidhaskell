@@ -55,7 +55,9 @@ import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
 import qualified Data.Text.Lazy     as LT
 import qualified Data.Text.Lazy.IO  as LTIO
+import System.Directory
 import System.Exit
+import System.FilePath
 import System.Process
 import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose, hReady)
 import Control.Applicative  ((<$>), (<|>), (*>), (<*))
@@ -173,9 +175,12 @@ pairP = {-# SCC pairP #-}
 
 symbolP = {-# SCC symbolP #-} symbol <$> A.takeWhile1 (not . isSpace)
 
-valueP = {-# SCC valueP #-} A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
+valueP = {-# SCC valueP #-} negativeP
       <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
 
+negativeP
+  = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
+       return $ "(" <> v <> ")"
 
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
@@ -205,6 +210,7 @@ makeContext s
 
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
+       createDirectoryIfMissing True $ takeDirectory smtFile
        hLog                <- openFile smtFile WriteMode
        return $ Ctx pid hIn hOut hLog False
 
@@ -341,7 +347,15 @@ instance SMTLIB2 Sort where
 instance SMTLIB2 Symbol where
   smt2 s | Just t <- M.lookup s smt_set_funs
          = LT.fromStrict t
-  smt2 s = LT.fromStrict $ symbolText s
+  smt2 s = LT.fromStrict . encode . symbolText $ s
+
+-- FIXME: this is probably too slow
+encode :: T.Text -> T.Text
+encode t = {-# SCC encode #-}
+  foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                                        ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                                        ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                                        ,("z", "zz"), ("Z", "ZZ")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s
