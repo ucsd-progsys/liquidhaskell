@@ -537,7 +537,7 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 0. Create a test case: `tests/todo/Eff*.hs`
 
-1. Introduce a new sort of refinement `HProp`
+1. Introduce a new sort of refinement `Prop`
    - Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RBare`] and `RPoly` [---> `RProp`]
    - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
 

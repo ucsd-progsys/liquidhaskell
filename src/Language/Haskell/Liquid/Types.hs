@@ -611,10 +611,23 @@ instance PPrint Oblig where
 --   directly to any type and has semantics _independent of_ the data-type.
   
 data Ref τ r t 
-  = RPropP [(Symbol, τ)] r  -- ^ Pre-parsing RTProp applied to TyCon
-  | RProp  [(Symbol, τ)] t  -- ^ Post-parsing RTProp
-  | RHeap 
+  = RPropP {
+      rf_args :: [(Symbol, τ)]
+    , rf_reft :: r
+    }                              -- ^ Parse-time `RProp` 
+
+  | RProp  {
+      rf_args :: [(Symbol, τ)] 
+    , rf_body :: t                 
+    }                              -- ^ Abstract refinement associated with `RTyCon`
+    
+  | RHeap  {
+      rf_args :: [(Symbol, τ)]
+    , rf_heap :: World t           
+  }                                -- ^ Abstract heap-refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
+
+data World t = HEREHEREHEREFIXTHIS deriving (Generic, Data, Typeable) 
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.

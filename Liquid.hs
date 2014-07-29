@@ -38,7 +38,7 @@ checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)
 
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc) 
 liquidOne target info = 
-  do donePhase Loud "Extracted Core From GHC"
+  do donePhase Loud "Extracted Core using GHC"
      let cfg   = config $ spec info 
      whenLoud  $ do putStrLn "**** Config **************************************************"
                     print cfg
