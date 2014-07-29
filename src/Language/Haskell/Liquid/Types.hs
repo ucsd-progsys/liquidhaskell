@@ -46,6 +46,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinements
   , PVar (..)
+  , PVKind (..)
   , Predicate (..)
   , UReft(..)
 
@@ -388,11 +389,15 @@ data TargetVars = AllVars | Only ![Var]
 
 data PVar t
   = PV { pname :: !Symbol
-       , ptype :: !t
+       , ptype :: !(PVKind t)
        , parg  :: !Symbol
        , pargs :: ![(t, Symbol, Expr)]
        }
-	deriving (Generic, Data, Typeable, Show)
+    deriving (Generic, Data, Typeable, Show)
+
+data PVKind t
+  = PVProp t | PVHProp
+    deriving (Generic, Data, Typeable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
