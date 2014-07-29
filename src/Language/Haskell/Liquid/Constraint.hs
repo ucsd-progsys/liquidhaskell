@@ -850,8 +850,9 @@ addC !c@(SubC γ t1 t2) _msg
        if bflag && sflag
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
          else return ()
-  where safeHead a [] = a
-        safeHead _ (x:xs) = x
+  where 
+    safeHead a []     = a
+    safeHead _ (x:xs) = x
 
 
 addC !c _msg 

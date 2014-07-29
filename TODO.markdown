@@ -12,19 +12,6 @@ TODO
 
 * diff-errors
 
-diff-errors
------------
-
-Report OLD error messages for unchanged code unchecked in diff-check mode
-
-grep: error "TODO:extract-old-errors"
-
-- `saveResult` 
-- `loadResult`
-
-- `adjustResult`                  <------ HEREHEREHEREHERE> 
-- `lineDiff` : compute `LMap`
-
 exists-based constraints
 ------------------------
 

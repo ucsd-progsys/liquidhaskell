@@ -4,7 +4,6 @@ import Data.Monoid      (mconcat, mempty)
 import System.Exit 
 import Control.Applicative ((<$>))
 import Control.DeepSeq
-import Control.Monad (when)
 import Text.PrettyPrint.HughesPJ    
 
 import CoreSyn
@@ -68,9 +67,9 @@ liquidOne target info =
 -- checkedNames ::  Maybe DC.DiffCheck -> Maybe [Name.Name]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
-     names (NonRec v _ ) = [showpp $ var v]
-     names (Rec bs)      = map (var . fst) bs
-     var                 = showpp . varName
+     names (NonRec v _ ) = [showpp $ shvar v]
+     names (Rec xs)      = map (shvar . fst) xs
+     shvar               = showpp . varName
 
 
 -- prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe Diff)
@@ -97,4 +96,5 @@ solveCs cfg target cgi info dc
 writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
   where 
     str          = {-# SCC "PPcgi" #-} showpp cgi
+
  

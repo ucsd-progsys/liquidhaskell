@@ -1423,7 +1423,6 @@ data Def ctor
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show, Data, Typeable)
-  
 deriving instance (Eq ctor) => Eq (Def ctor)
 
 -- MOVE TO TYPES
