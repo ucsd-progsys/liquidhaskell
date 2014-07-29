@@ -543,6 +543,8 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    
 
 - Allow `PVar` to have the sort `HProp`
+   - HEREHEREHERE -----> CHANGE `ptype :: PVKind t` where `data PVKind t = PVProp t | PVHProp` 
+
    - Can we reuse `RAllP` to encode `HProp`-quantification? (Or introduce `RAllH`?)
    - Update `RTyCon` to store `HProp` vars
    - Can we reuse type-application sites for `HProp`-instantiation?
