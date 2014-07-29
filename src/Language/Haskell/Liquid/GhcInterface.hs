@@ -1,4 +1,3 @@
-
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-} 
 {-# LANGUAGE FlexibleInstances         #-}
@@ -153,6 +152,8 @@ updateDynFlags cfg
                     -- looking up *unexported* names in another source module..
                     , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
+                    -- prevent GHC from printing anything
+                    , log_action   = \_ _ _ _ _ -> return ()
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
