@@ -344,7 +344,13 @@ instance SMTLIB2 Sort where
 instance SMTLIB2 Symbol where
   smt2 s | Just t <- M.lookup s smt_set_funs
          = LT.fromStrict t
-  smt2 s = LT.fromStrict $ symbolText s
+  smt2 s = LT.fromStrict . encode . symbolText $ s
+
+encode :: T.Text -> T.Text
+encode t = foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                                                 ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                                                 ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                                                 ,("z", "zz"), ("Z", "ZZ")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s
