@@ -55,7 +55,9 @@ import qualified Data.Text          as T
 import qualified Data.Text.IO       as TIO
 import qualified Data.Text.Lazy     as LT
 import qualified Data.Text.Lazy.IO  as LTIO
+import System.Directory
 import System.Exit
+import System.FilePath
 import System.Process
 import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose, hReady)
 import Control.Applicative  ((<$>), (<|>), (*>), (<*))
@@ -208,6 +210,7 @@ makeContext s
 
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
+       createDirectoryIfMissing True $ takeDirectory smtFile
        hLog                <- openFile smtFile WriteMode
        return $ Ctx pid hIn hOut hLog False
 
