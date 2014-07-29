@@ -1560,9 +1560,9 @@ expToBindT (RAppTy t1 t2 r)
 expToBindT t 
   = return t
 
-expToBindReft :: Ref RSort RReft (SpecType) -> State ExSt (Ref RSort RReft SpecType)
-expToBindReft (RProp s t) = liftM (RProp s) (expToBindT t)
-expToBindReft (RPropP s r) = liftM (RPropP s) (expToBindRef r)
+expToBindReft              :: SpecProp -> State ExSt SpecProp
+expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
+expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds 

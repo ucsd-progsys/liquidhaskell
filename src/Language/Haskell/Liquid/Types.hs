@@ -34,7 +34,7 @@ module Language.Haskell.Liquid.Types (
   , dummyName, isDummy
 
   -- * Refinement Types 
-  , RType (..), Ref(..)
+  , RType (..), Ref(..), RTProp (..)
   , RTyCon(..), TyConInfo(..)
   , RTyVar (..)
   , RTAlias (..)
@@ -55,11 +55,13 @@ module Language.Haskell.Liquid.Types (
   , TyConP (..)
 
   -- * Pre-instantiated RType
-  , RRType, BRType
+  , RRType, BRType, RRProp
   , BSort, BPVar
 
   -- * Instantiated RType
-  , BareType, SpecType, RefType, PrType, RSort
+  , BareType, RefType, PrType
+  , SpecType, SpecProp 
+  , RSort
   , UsedPVar, RPVar, RReft
   , REnv (..)
 
@@ -636,6 +638,8 @@ type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
 type RefType    = RRType    Reft
+type SpecProp   = RRProp    RReft
+type RRProp r   = Ref       RSort r (RRType r)
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin 
