@@ -33,9 +33,13 @@ module Language.Haskell.Liquid.Types (
   -- * Default unknown name
   , dummyName, isDummy
 
+  -- * Refined Type Constructors 
+  , RTyCon (RTyCon, rtc_tc, rtc_info)
+  , TyConInfo(..)
+  , rTyConPVs 
+ 
   -- * Refinement Types 
   , RType (..), Ref(..), RTProp (..)
-  , RTyCon(..), TyConInfo(..)
   , RTyVar (..)
   , RTAlias (..)
 
@@ -44,10 +48,12 @@ module Language.Haskell.Liquid.Types (
   , RefTypable (..)
   , SubsTy (..)
 
-  -- * Refinements
-  , PVar (..)
+  -- * Predicate Variables 
+  , PVar (PV, pname, parg, pargs), pvType
   , PVKind (..)
   , Predicate (..)
+
+  -- * Refinements
   , UReft(..)
 
   -- * Parse-time entities describing refined data types
@@ -384,7 +390,7 @@ data TargetVars = AllVars | Only ![Var]
 
 
 --------------------------------------------------------------------
--- | Predicate Variables -------------------------------------------
+-- | Abstract Predicate Variables ----------------------------------
 --------------------------------------------------------------------
 
 data PVar t
@@ -395,6 +401,10 @@ data PVar t
        }
     deriving (Generic, Data, Typeable, Show)
 
+pvType p = case ptype p of
+             PVProp t -> t
+             PVHProp  -> errorstar "pvType on HProp-PVar" 
+             
 data PVKind t
   = PVProp t | PVHProp
     deriving (Generic, Data, Typeable, Show)
@@ -405,14 +415,22 @@ instance Eq (PVar t) where
 instance Ord (PVar t) where
   compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
 
-instance Functor PVar where
-  fmap f (PV x t v txys) = PV x (f t) v (mapFst3 f <$> txys)
+instance Functor PVKind where
+  fmap f (PVProp t) = PVProp (f t)
+  fmap f (PVHProp)  = PVHProp
 
+instance Functor PVar where
+  fmap f (PV x t v txys) = PV x (f <$> t) v (mapFst3 f <$> txys)
+
+instance (NFData a) => NFData (PVKind a) where
+  rnf (PVProp t) = rnf t
+  rnf (PVHProp)  = ()
+  
 instance (NFData a) => NFData (PVar a) where
   rnf (PV n t v txys) = rnf n `seq` rnf v `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hashWithSalt i (PV n _ _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
+  hashWithSalt i (PV n _ _ xys) = hashWithSalt i n
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -471,13 +489,35 @@ newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 instance Symbolic RTyVar where
   symbol (RTV tv) = symbol . T.pack . showPpr $ tv
 
+-- data RTyCon = RTyCon 
+--   { rTyCon      :: !TyCon            -- GHC Type Constructor
+--   , rTyConAllPs :: ![RPVar]          -- Predicate Parameters
+--   , rTyConInfo  :: !TyConInfo        -- TyConInfo
+--   }
+--   deriving (Generic, Data, Typeable)
+
 data RTyCon = RTyCon 
-  { rTyCon     :: !TyCon            -- GHC Type Constructor
-  , rTyConPs   :: ![RPVar]          -- Predicate Parameters
-  , rTyConInfo :: !TyConInfo        -- TyConInfo
+  { rtc_tc    :: !TyCon            -- ^ GHC Type Constructor
+  , rtc_pvars :: ![RPVar]          -- ^ Predicate Parameters
+  , rtc_info  :: !TyConInfo        -- ^ TyConInfo
   }
   deriving (Generic, Data, Typeable)
 
+-- | Accessors for @RTyCon@
+rTyConTc   = rtc_tc
+rTyConPVs  = rtc_pvars
+rTyConPVPs = filter isPropPV . rtc_pvars
+isPropPV   = isProp . ptype
+
+-- rTyConPVHPs = filter isHPropPV . rtc_pvars
+
+-- isHPropPV     = not . isPropPV
+
+isProp (PVProp _) = True
+isProp _          = False
+
+rTyConInfo = rtc_info 
+               
 defaultTyConInfo = TyConInfo [] [] [] [] Nothing
 
 instance Default TyConInfo where
@@ -625,7 +665,7 @@ data Ref τ r t
     , rf_body :: t                 
     }                              -- ^ Abstract refinement associated with `RTyCon`
     
-  | RHeap  {
+  | RHProp {
       rf_args :: [(Symbol, τ)]
     , rf_heap :: World t           
   }                                -- ^ Abstract heap-refinement associated with `RTyCon`
