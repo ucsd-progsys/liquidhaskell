@@ -365,7 +365,7 @@ symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar n = stringTyVar (symbolString n)
 
 instance Symbolic TyCon where
-  symbol = symbol . getName
+  symbol = symbol . qualifiedNameSymbol . getName
 
 instance Symbolic Name where
   symbol = symbol . showPpr -- qualifiedNameSymbol
