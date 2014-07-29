@@ -247,6 +247,22 @@ strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 
+prims :: [Symbol]
+prims = [ propConName
+        , vvName
+        , "Pred"
+        , "List"
+        , "Set_Set"
+        , "Set_sng"
+        , "Set_cup"
+        , "Set_cap"
+        , "Set_dif"
+        , "Set_emp"
+        , "Set_mem"
+        , "Set_sub"
+        , "FAppTy" 
+        ]
+
 -- dropModuleNames []  = []
 -- dropModuleNames s  
 --   | s == tupConName = tupConName 
