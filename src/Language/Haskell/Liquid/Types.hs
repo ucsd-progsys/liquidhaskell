@@ -386,7 +386,6 @@ data TargetVars = AllVars | Only ![Var]
 -- | Predicate Variables -------------------------------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
 data PVar t
   = PV { pname :: !Symbol
        , ptype :: !t
