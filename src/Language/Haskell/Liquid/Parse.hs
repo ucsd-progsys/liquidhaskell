@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (listConName, propConName, tupConName, headSym)
+import Language.Fixpoint.Names (listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
 import Language.Fixpoint.Parse hiding (angles)
 
@@ -260,11 +260,24 @@ bPVar p _ xts  = PV p τ dummySymbol τxs
         τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
-predVarTypeP = do t <- bareTypeP
-                  let trep = toRTypeRep t
-                  if isPropBareType $ ty_res trep
-                    then return $ zip (ty_binds trep) (toRSort <$> (ty_args trep)) 
-                    else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
+predVarTypeP = bareTypeP >>= either parserFail return . mkPredVarType
+      
+mkPredVarType t
+  | isOk      = Right $ zip xs ts
+  | otherwise = Left err 
+  where
+    isOk      = isPropBareType tOut || isHPropBareType tOut
+    tOut      = ty_res trep
+    trep      = toRTypeRep t 
+    xs        = ty_binds trep 
+    ts        = toRSort <$> ty_args trep
+    err       = "Predicate Variable with non-Prop output sort: " ++ showpp t
+
+--   = do t <- bareTypeP
+--        let trep = toRTypeRep t
+--        if isPropBareType $ ty_res trep
+--          then return $ zip (ty_binds trep) (toRSort <$> (ty_args trep)) 
+--          else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
 
 
 xyP lP sepP rP
@@ -303,8 +316,11 @@ bareArrow _ t1 ArrowPred t2
   = foldr (rFun dummySymbol) t2 (getClasses t1)
 
 
-isPropBareType (RApp tc [] _ _) = val tc == propConName
-isPropBareType _                = False
+isPropBareType  = isPrimBareType propConName
+isHPropBareType = isPrimBareType hpropConName
+isPrimBareType n (RApp tc [] _ _) = val tc == n
+isPrimBareType _ _                = False
+
 
 
 getClasses (RApp tc ts _ _) 
