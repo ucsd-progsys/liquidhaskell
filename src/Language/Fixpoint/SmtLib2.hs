@@ -349,11 +349,13 @@ instance SMTLIB2 Symbol where
          = LT.fromStrict t
   smt2 s = LT.fromStrict . encode . symbolText $ s
 
+-- FIXME: this is probably too slow
 encode :: T.Text -> T.Text
-encode t = foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                                                 ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                                                 ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                                 ,("z", "zz"), ("Z", "ZZ")]
+encode t = {-# SCC encode #-}
+  foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                                        ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                                        ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                                        ,("z", "zz"), ("Z", "ZZ")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s
