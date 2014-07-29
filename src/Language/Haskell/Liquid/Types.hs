@@ -595,8 +595,8 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 instance Show Oblig where
- show OTerm = "termination-condition"
- show OInv  = "invariant-obligation"
+  show OTerm = "termination-condition"
+  show OInv  = "invariant-obligation"
 
 instance PPrint Oblig where
   pprint = text . show
@@ -627,11 +627,22 @@ data Ref τ r t
   }                                -- ^ Abstract heap-refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
 
-data World t = HEREHEREHEREFIXTHIS deriving (Generic, Data, Typeable) 
-
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.
 type RTProp p c tv r = Ref (RType p c tv ()) r (RType p c tv r)
+
+
+-- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
+--   that satisfies two invariants (TODO:LIQUID):
+--   1. Each `hs_addr :: Symbol` appears at most once,
+--   2. There is at most one `HVar` in a list.
+
+newtype World t = World [HSeg t]
+                deriving (Generic, Data, Typeable) 
+
+data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
+                | HVar UsedPVar
+                deriving (Generic, Data, Typeable) 
 
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
@@ -780,9 +791,7 @@ bkArrow t               = ([], [], t)
 
 safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
-safeBkArrow (RAllS _ t) = safeBkArrow t -- errorstar "safeBkArrow on RAllS"
--- tmp for unfoldR
--- safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
+safeBkArrow (RAllS _ t) = safeBkArrow t 
 safeBkArrow t           = bkArrow t
 
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs 
@@ -797,8 +806,6 @@ bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t''
 bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' mempty
-
-
 
 addTermCond = addObligation OTerm
 
