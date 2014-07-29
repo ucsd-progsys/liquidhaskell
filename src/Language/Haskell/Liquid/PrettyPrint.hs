@@ -35,7 +35,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
-import Language.Fixpoint.Names (dropModuleNames, boolConName)
+import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error (ParseError)
@@ -121,6 +121,7 @@ ppr_rtype bb p (RApp c [t] rs r)
 ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
+
 
 ppr_rtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
@@ -242,12 +243,16 @@ ppr_cls bb p c ts
        | otherwise  = pprint
 
 
-ppr_pvar_def pprv (PV s t _ xts) = pprint s <+> dcolon <+> intersperse arrow dargs 
+ppr_pvar_def pprv (PV s t _ xts)
+  = pprint s <+> dcolon <+> intersperse arrow dargs <+> ppr_pvar_kind pprv t
+    
   where 
-    dargs = [pprv t | (t,_,_) <- xts] ++ [pprv t, text . symbolString $ boolConName]
+    dargs = [pprv t | (t,_,_) <- xts]
 
-
-
+ppr_pvar_kind pprv (PVProp t) = pprv t <+> arrow <+> ppr_name propConName  
+ppr_pvar_kind pprv (PVHProp)  = ppr_name hpropConName 
+ppr_name                      = text . symbolString 
+    
 instance PPrint RTyVar where
   pprint (RTV α) 
    | ppTyVar ppEnv = ppr_tyvar α

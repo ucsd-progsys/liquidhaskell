@@ -231,9 +231,9 @@ instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
 
 -- MOVE TO TYPES
 instance TyConable RTyCon where
-  isFun   = isFunTyCon . rTyCon
-  isList  = (listTyCon ==) . rTyCon
-  isTuple = TC.isTupleTyCon   . rTyCon 
+  isFun   = isFunTyCon . rtc_tc
+  isList  = (listTyCon ==) . rtc_tc
+  isTuple = TC.isTupleTyCon   . rtc_tc 
   ppTycon = toFix 
 
 -- MOVE TO TYPES
@@ -276,7 +276,7 @@ class FreeVar a v where
 
 -- MOVE TO TYPES
 instance FreeVar RTyCon RTyVar where
-  freeVars = (RTV <$>) . tyConTyVars . rTyCon
+  freeVars = (RTV <$>) . tyConTyVars . rtc_tc
 
 -- MOVE TO TYPES
 instance FreeVar LocSymbol Symbol where
@@ -343,13 +343,13 @@ instance Hashable RTyVar where
 
 
 instance Ord RTyCon where
-  compare x y = compare (rTyCon x) (rTyCon y)
+  compare x y = compare (rtc_tc x) (rtc_tc y)
 
 instance Eq RTyCon where
-  x == y = rTyCon x == rTyCon y
+  x == y = rtc_tc x == rtc_tc y
 
 instance Hashable RTyCon where
-  hashWithSalt i = hashWithSalt i . rTyCon  
+  hashWithSalt i = hashWithSalt i . rtc_tc  
 
 --------------------------------------------------------------------
 ---------------------- Helper Functions ----------------------------
@@ -493,32 +493,40 @@ expandRApp tce tyi (RApp rc ts rs r)
 expandRApp _ _ t
   = t
 
-appRTyCon tce tyi rc@(RTyCon c _ _) ts = RTyCon c ps' (rTyConInfo rc'')
-  where ps' = map (subts (zip (RTV <$> αs) ts')) (rTyConPs rc')
-        ts' = if null ts then rVar <$> βs else toRSort <$> ts
-        rc' = M.lookupDefault rc c tyi
-        αs  = TC.tyConTyVars $ rTyCon rc'
-        βs  = TC.tyConTyVars c
-        rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
+  where
+    c    = rtc_tc rc
+    ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
+    ts'  = if null ts then rVar <$> βs else toRSort <$> ts
+    rc'  = M.lookupDefault rc c tyi
+    αs   = TC.tyConTyVars $ rtc_tc rc'
+    βs   = TC.tyConTyVars c
+    rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
 isNumeric tce c 
-  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rTyCon c))
-       (M.lookup (rTyCon c) tce) == intFTyCon
+  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
+       (M.lookup (rtc_tc c) tce) == intFTyCon
 
 addNumSizeFun c 
-  = c {rTyConInfo=(rTyConInfo c){sizeFunction = Just EVar}}
+  = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
-appRefts rc [] = RProp [] . ofRSort . ptype <$> rTyConPs rc
-appRefts rc rs = safeZipWith ("appRefts" ++ showFix rc) toPoly rs (rTyConPs rc)
+-- EFFECTS: OLD : appRefts rc [] = RProp [] . ofRSort . ptype  <$> rTyConPs rc
+-- EFFECTS: NEW : appRefts rc [] = RProp [] . ofRSort . pvType <$> rTyConPVPs rc
+appRefts rc [] = errorstar "TODO:EFFECTS:appRefts (ask niki about above)"
+appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
-toPoly (RProp ss t) rc 
-  | length (pargs rc) == length ss 
+toPoly (RProp ss t) pv
+  | length (pargs pv) == length ss 
   = RProp ss t
   | otherwise          
-  = RProp ([(s, t) | (t, s, _) <- pargs rc]) t
-toPoly (RPropP ss r) t 
-  = RProp ss $ (ofRSort $ ptype t) `strengthen` r  
+  = RProp ([(s, t) | (t, s, _) <- pargs pv]) t
+    
+toPoly (RPropP ss r) pv 
+  = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
 
+toPoly (RHProp _ _) _ 
+  = errorstar "TODO:effects:toPoly"
+    
 generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t 
          
@@ -710,11 +718,19 @@ instance SubsTy tv ty ()   where
 instance SubsTy tv ty Reft where
   subt _ = id
 
+instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
+  subt su (PVProp t) = PVProp (subt su t)
+  subt su  PVHProp   = PVHProp
+  
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVar ty) where
   subt su (PV n t v xts) = PV n (subt su t) v [(subt su t, x, y) | (t,x,y) <- xts]
 
 instance SubsTy RTyVar RSort RTyCon where  
-   subt z c = c {rTyConPs = subt z <$> rTyConPs c}
+   subt z c = RTyCon tc ps' i
+     where
+       tc   = rtc_tc c
+       ps'  = subt z <$> rTyConPVs c
+       i    = rtc_info c
 
 -- NOTE: This DOES NOT substitute at the binders
 instance SubsTy RTyVar RSort PrType where   
@@ -843,7 +859,7 @@ toType (RAllS _ t)
   = toType t
 toType (RVar (RTV α) _)        
   = TyVarTy α
-toType (RApp (RTyCon {rTyCon = c}) ts _ _)   
+toType (RApp (RTyCon {rtc_tc = c}) ts _ _)   
   = TyConApp c (toType <$> ts)
 toType (RCls c ts)   
   = mkClassPred c (toType <$> ts)
@@ -1033,7 +1049,7 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 -----------------------------------------------------------------------------------------
 
 isDecreasing (RApp c _ _ _) 
-  = isJust (sizeFunction (rTyConInfo c)) 
+  = isJust (sizeFunction (rtc_info c)) 
 isDecreasing _ 
   = False
 
@@ -1044,14 +1060,14 @@ mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))]
   where tr     = uTop $ Reft (vv, [RConc $ pOr (r:acc)])
         r      = cmpLexRef xvs (v', vv, f)
         v'     = symbol v
-        Just f = sizeFunction $ rTyConInfo c
+        Just f = sizeFunction $ rtc_info c
         vv     = "vvRec"
 
 mkDType xvs acc ((v, (x, t@(RApp c _ _ _))):vxts)
   = mkDType ((v', x, f):xvs) (r:acc) vxts
   where r      = cmpLexRef xvs  (v', x, f)
         v'     = symbol v
-        Just f = sizeFunction $ rTyConInfo c
+        Just f = sizeFunction $ rtc_info c
 
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
