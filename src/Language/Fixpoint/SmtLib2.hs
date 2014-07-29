@@ -173,9 +173,12 @@ pairP = {-# SCC pairP #-}
 
 symbolP = {-# SCC symbolP #-} symbol <$> A.takeWhile1 (not . isSpace)
 
-valueP = {-# SCC valueP #-} A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
+valueP = {-# SCC valueP #-} negativeP
       <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
 
+negativeP
+  = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
+       return $ "(" <> v <> ")"
 
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
