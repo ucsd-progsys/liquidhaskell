@@ -1466,9 +1466,9 @@ ghcSpecEnv sp        = fromListSEnv binds
                      ++ [(symbol v, rSort t) | (v, Loc _ t) <- ctors sp]
                      ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
     rSort            = rTypeSortedReft emb 
-    vSort            = rSort . varRType 
-    varRType         :: Var -> RRType ()
-    varRType         = ofType . varType
+    vSort            = rSort . varRSort 
+    varRSort         :: Var -> RSort
+    varRSort         = ofType . varType
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
@@ -1486,7 +1486,7 @@ checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv e
     cb c ts                  = classBinds (RCls c ts)
     f env me r err           = err <|> checkReft env emb me r
     insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p) 
-    pbinds p                 = (pname p, toPredType p :: RSort) 
+    pbinds p                 = (pname p, pvarRType p :: RSort) 
                               : [(x, t) | (t, x, _) <- pargs p]
 
 
@@ -1582,7 +1582,7 @@ expToBind p
 expToBindParg :: (((), Symbol, Expr), RSort) -> State ExSt ((), Symbol, Expr)
 expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
 
-expToBindExpr :: Expr ->  RRType () -> State ExSt Expr
+expToBindExpr :: Expr ->  RSort -> State ExSt Expr
 expToBindExpr e@(EVar s) _ | isLower $ headSym $ symbol s
   = return e
 expToBindExpr e t         

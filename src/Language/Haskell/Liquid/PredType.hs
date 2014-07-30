@@ -2,9 +2,23 @@
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
-  , dataConTy, dataConPSpecType, makeTyConInfo
-  , unify, replacePreds, exprType, predType
-  , replacePredsWithRefs, pVartoRConc, toPredType
+  , dataConTy
+  , dataConPSpecType
+  , makeTyConInfo
+  , unify, replacePreds
+
+  , replacePredsWithRefs
+  , pVartoRConc
+
+  -- * Compute `Type` of GHC `CoreExpr`
+  , exprType
+
+  -- * Dummy `Type` that represents _all_ abstract-predicates
+  , predType
+
+  -- * Compute @RType@ of a given @PVar@
+  , pvarRType
+    
   , substParg
   , pApp
   , wiredSortedSyms
@@ -42,6 +56,9 @@ import Control.Monad.State
 import Data.List (nub)
 
 import Data.Default
+
+
+
 
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
@@ -104,10 +121,10 @@ dataConTy _ _
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
---------------Interfacing: Unify PrType with SpecType ---------------------
+-- | Unify PrType with SpecType ------------------------------
 ---------------------------------------------------------------------------
-
-unify :: Maybe PrType -> SpecType -> SpecType 
+unify               :: Maybe PrType -> SpecType -> SpecType 
+---------------------------------------------------------------------------
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
@@ -213,12 +230,33 @@ pVartoRConc p (v, args)
   = RConc $ pApp (pname p) $ EVar v : args'
   where args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
 
-toPredType (PV _ (PVProp ptype) _ args) = rpredType (ty:tys)
-  where
-    ty  = uRTypeGen ptype
-    tys = uRTypeGen . fst3 <$> args
+-----------------------------------------------------------------------
+-- | @pvarRType π@ returns a trivial @RType@ corresponding to the
+--   function signature for a @PVar@ @π@. For example, if
+--      @π :: T1 -> T2 -> T3 -> Prop@
+--   then @pvarRType π@ returns an @RType@ with an @RTycon@ called
+--   @predRTyCon@ `RApp predRTyCon [T1, T2, T3]` 
+-----------------------------------------------------------------------
+pvarRType :: (PPrint r, Reftable r) => PVar RSort -> RRType r
+-----------------------------------------------------------------------
+pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty:tys)
+  -- where
+  --   ty  = uRTypeGen τ 
+  --   tys = uRTypeGen . fst3 <$> args
         
-toPredType _ = errorstar "TODO:EFFECTS:toPredType"
+
+-- rpredType    :: (PPrint r, Reftable r) => PVKind (RRType r) -> [RRType r] -> RRType r
+rpredType (PVProp t) ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
+rpredType PVHProp    ts = RApp wpredRTyCon (uRTypeGen <$>     ts) [] mempty  
+
+predRTyCon   :: RTyCon
+predRTyCon   = symbolRTyCon predName
+
+wpredRTyCon   :: RTyCon
+wpredRTyCon   = symbolRTyCon wpredName
+
+symbolRTyCon   :: Symbol -> RTyCon
+symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
@@ -383,49 +421,45 @@ meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
 
 
 ----------------------------------------------------------------------------
----------- Interface: Modified CoreSyn.exprType due to predApp -------------
+-- | Interface: Modified CoreSyn.exprType due to predApp -------------------
 ----------------------------------------------------------------------------
+predType   :: Type 
+predType   = symbolType predName
 
-predName :: Symbol
-predName = "Pred"
+wpredName, predName   :: Symbol
+predName   = "Pred"
+wpredName  = "WPred"
 
-predType :: Type 
-predType = TyVarTy $ symbolTyVar predName
-
-rpredType    :: (PPrint r, Reftable r) => [RRType r] -> RRType r
-rpredType ts = RApp tyc ts [] mempty
-  where 
-    tyc      = RTyCon (stringTyCon 'x' 42 $ symbolString predName) [] def
-
+symbolType = TyVarTy . symbolTyVar 
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
 ----------------------------------------------------------------------------
-
-exprType (App e1 (Var v)) | eqType (idType v) predType = exprType e1
-exprType (Var var)           = idType var
-exprType (Lit lit)           = literalType lit
-exprType (Coercion co)       = coercionType co
-exprType (Let _ body)        = exprType body
-exprType (Case _ _ ty _)     = ty
-exprType (Cast _ co)         = pSnd (coercionKind co)
-exprType (Tick _ e)          = exprType e
-exprType (Lam binder expr)   = mkPiType binder (exprType expr)
+exprType (Var var)             = idType var
+exprType (Lit lit)             = literalType lit
+exprType (Coercion co)         = coercionType co
+exprType (Let _ body)          = exprType body
+exprType (Case _ _ ty _)       = ty
+exprType (Cast _ co)           = pSnd (coercionKind co)
+exprType (Tick _ e)            = exprType e
+exprType (Lam binder expr)     = mkPiType binder (exprType expr)
+exprType (App e1 (Var v))
+  | isPredType v               = exprType e1
 exprType e@(App _ _)
-  = case collectArgs e of
-        (fun, args) -> applyTypeToArgs e (exprType fun) args
-exprType _                   = error "PredType : exprType"
+  | (f, es) <- collectArgs e   = applyTypeToArgs e (exprType f) es 
+exprType _                     = error "PredType : exprType"
 
--- | Takes a nested application expression and returns the the function
--- being applied and the arguments to which it is applied
+-- | @collectArgs@ takes a nested application expression and returns
+--   the the function being applied and the arguments to which it is applied
 collectArgs :: Expr b -> (Expr b, [Arg b])
-collectArgs expr
-  = go expr []
+collectArgs expr          = go expr []
   where
-    go (App f (Var v)) as | eqType (idType v) predType = go f as
-    go (App f a) as = go f (a:as)
-    go e 	 as = (e, as)
+    go (App f (Var v)) as
+      | isPredType v      = go f as
+    go (App f a) as       = go f (a:as)
+    go e 	 as       = (e, as)
 
+isPredType v = eqType (idType v) predType
 
 -- | A more efficient version of 'applyTypeToArg' when we have several arguments.
 --   The first argument is just for debugging, and gives some context
@@ -442,9 +476,9 @@ applyTypeToArgs e op_ty (Type ty : args)
   where
     go rev_tys (Type ty : args) = go (ty:rev_tys) args
     go rev_tys rest_args        = applyTypeToArgs e op_ty' rest_args
-                                 where
-                                   op_ty' = applyTysD msg op_ty (reverse rev_tys)
-                                   msg    = O.text ("MYapplyTypeToArgs: " ++ panic_msg e op_ty)
+                                  where
+                                    op_ty' = applyTysD msg op_ty (reverse rev_tys)
+                                    msg    = O.text ("MYapplyTypeToArgs: " ++ panic_msg e op_ty)
 
 
 applyTypeToArgs e op_ty (_ : args)

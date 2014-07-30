@@ -1252,7 +1252,7 @@ defAnn True  = AnnRDf
 defAnn False = AnnDef
 
 addPToEnv γ π
-  = do γπ <- γ ++= ("addSpec1", pname π, toPredType π)
+  = do γπ <- γ ++= ("addSpec1", pname π, pvarRType π)
        foldM (++=) γπ [("addSpec2", x, ofRSort t) | (t, x, _) <- pargs π]
 
 extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
