@@ -320,7 +320,7 @@ data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , covPs        :: ![Int] -- indexes of covariant predicate arguments
                      , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
-                     }
+                     } deriving (Data, Typeable)
 
 data DataConP = DataConP { dc_loc     :: !SourcePos
                          , freeTyVars :: ![RTyVar]
@@ -1423,7 +1423,6 @@ data Def ctor
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show, Data, Typeable)
-
 deriving instance (Eq ctor) => Eq (Def ctor)
 
 -- MOVE TO TYPES
