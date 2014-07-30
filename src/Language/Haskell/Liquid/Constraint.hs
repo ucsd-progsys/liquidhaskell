@@ -430,7 +430,7 @@ splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
-       let tyInfo = rTyConInfo c
+       let tyInfo = rtc_info c
        cscov  <- splitSIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
        cscon  <- splitSIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
        cscov' <- rsplitSIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
@@ -552,7 +552,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
-       let tyInfo = rTyConInfo c
+       let tyInfo = rtc_info c
        cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
        cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
        cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
@@ -1626,17 +1626,20 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 
 truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
-truePredRef (PV _ τ _ _)
-  = trueTy (toType τ)
+truePredRef (PV _ (PVProp τ) _ _) = trueTy (toType τ)
+truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
-freshPredRef γ e (PV n τ _ as)
+freshPredRef γ e (PV n (PVProp τ) _ as)
   = do t    <- freshTy_type PredInstE e (toType τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
        γ' <- foldM (++=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
        addW $ WfC γ' t
        return $ RProp targs t
+
+freshPredRef _ _ (PV _ PVHProp _ _)
+  = errorstar "TODO:EFFECTS:freshPredRef"
 
 -----------------------------------------------------------------------
 ---------- Helpers: Creating Refinement Types For Various Things ------
@@ -1831,8 +1834,8 @@ addRInv m (x, t)
   = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
   | otherwise    
   = (x, t)
-   where ids = [id | tc <- M.keys                m
-                   , dc <- TC.tyConDataCons $ rTyCon tc
+   where ids = [id | tc <- M.keys m
+                   , dc <- TC.tyConDataCons $ rtc_tc tc
                    , id <- DC.dataConImplicitIds dc]
          res = ty_res . toRTypeRep
          xs  = ty_args $ toRTypeRep t
