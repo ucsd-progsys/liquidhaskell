@@ -1625,9 +1625,9 @@ getSrcSpan' x
 -- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
 
-truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
-truePredRef (PV _ (PVProp τ) _ _) = trueTy (toType τ)
-truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
+-- truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
+-- truePredRef (PV _ (PVProp τ) _ _) = trueTy (toType τ)
+-- truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV n (PVProp τ) _ as)

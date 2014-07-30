@@ -551,17 +551,29 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    - Can we reuse type-application sites for `HProp`-instantiation?
 	 - Constraint.hs  :1630: truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
      - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
-   - eliminate/solve `HProp` constraints prior to subtype splitting.
+	 
+- Write cons-solve
+  - eliminate/solve `HProp` constraints prior to subtype splitting.
 
 - Index `IO` or `State` by `HProp`
    - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
    - Bare.hs        :482 : addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
 
-PredType.hs    :221 : toPredType _ = errorstar "TODO:EFFECTS:toPredType"
-RefType.hs     :519 : rtPropTop (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:rtPropTop"
-RefType.hs     :531 :   = errorstar "TODO:EFFECTS:toPoly"
 
 
+**TODO:EFFECTS:ASKNIKI**
+
++ What is `predType` ?
+  Why do we have `PredType.exprType` ?
+  Where are these dummy `predType` applications inserted? (lgrep `predType`)
+
+  _Note_ : I have _created_ a `wpredType` but am not sure where all it should go.
+           Presumably it mirrors wherever `predType` goes. But perhaps a single
+		   `predType` suffices?
+
++ What is going on in `toPoly` and `expandRApp`?
+  Why the odd test about having the right number of params?
+  What is up with `pvArgs`? and the copying over of parameters?
 
 
 3. Suitable signatures for monadic operators
