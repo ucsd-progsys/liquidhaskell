@@ -511,10 +511,13 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 -- EFFECTS: OLD : appRefts rc [] = RProp [] . ofRSort . ptype  <$> rTyConPs rc
--- EFFECTS: NEW : appRefts rc [] = RProp [] . ofRSort . pvType <$> rTyConPVPs rc
-appRefts rc [] = errorstar "TODO:EFFECTS:appRefts (ask niki about above)"
+appRefts rc [] = rtPropTop <$> rTyConPVs rc
+-- appRefts rc [] = errorstar "TODO:EFFECTS:appRefts (ask niki about above)"
 appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
+rtPropTop (PV _ (PVProp τ) _ _) = RProp [] $ ofRSort τ
+rtPropTop (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:rtPropTop"
+  
 toPoly (RProp ss t) pv
   | length (pargs pv) == length ss 
   = RProp ss t
