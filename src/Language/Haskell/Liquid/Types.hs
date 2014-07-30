@@ -1,13 +1,15 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-} 
 {-# LANGUAGE OverlappingInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
 -- | This module should contain all the global type definitions and basic instances.
@@ -50,7 +52,7 @@ module Language.Haskell.Liquid.Types (
   , SubsTy (..)
 
   -- * Predicate Variables 
-  , PVar (PV, pname, parg, pargs), pvType
+  , PVar (PV, pname, parg, pargs), isPropPV, pvType
   , PVKind (..)
   , Predicate (..)
 
@@ -408,7 +410,7 @@ pvType p = case ptype p of
              
 data PVKind t
   = PVProp t | PVHProp
-    deriving (Generic, Data, Typeable, Show)
+    deriving (Generic, Data, Typeable, F.Foldable, Traversable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
@@ -511,8 +513,7 @@ rTyConPropVs = filter isPropPV . rtc_pvars
 isPropPV     = isProp . ptype
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
-
--- isHPropPV     = not . isPropPV
+-- isHPropPV   = not . isPropPV
 
 isProp (PVProp _) = True
 isProp _          = False

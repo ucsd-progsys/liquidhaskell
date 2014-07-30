@@ -468,27 +468,46 @@ varsAfter f s lvs
 txRefSort env embs = mapBot (addSymSort embs env)
 
 addSymSort embs tcenv t@(RApp rc@(RTyCon c _ _) ts rs r) 
-  = RApp rc ts (addSymSortRef <$> zip ps rargs) r'
+  = RApp rc ts (zipWith addSymSortRef ps rargs) r'
   where
-    ps                = rTyConPs $ appRTyCon embs tcenv rc ts
-    (rargs,rrest)     = splitAt (length ps) rs
-    r'                = L.foldl' go r rrest
+    ps                 = rTyConPVs $ appRTyCon embs tcenv rc ts
+    (rargs,rrest)      = splitAt (length ps) rs
+    r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
-    go r _            = r
+    go r _             = r
 
 addSymSort _ _ t 
   = t
 
-addSymSortRef (p, RProp s (RVar v r)) | isDummy v
-  = RProp (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
-  where t = ofRSort (ptype p) `strengthen` r
-addSymSortRef (p, RProp s t) 
-  = RProp (safeZip "addRefSortPoly" (fst <$> s) (fst3 <$> pargs p)) t
+addSymSortRef _ (RHProp _ _)   = errorstar "TODO:effects"
+addSymSortRef p r | isPropPV p = addSymSortRef' p r 
+                  | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
-addSymSortRef (p, RPropP s r@(U _ (Pr [up]) _)) 
-  = RPropP (safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)) r
-addSymSortRef (p, RPropP s t)
+
+addSymSortRef' p (RProp s (RVar v r)) | isDummy v
+  = RProp xs t
+    where
+      t  = ofRSort (pvType p) `strengthen` r
+      xs = spliceArgs "addSymSortRef 1" s p
+           -- safeZip "addSymSortRef 1" (fst <$> s) (fst3 <$> pargs p)
+
+addSymSortRef' p (RProp s t) 
+  = RProp xs t
+    where
+      xs = spliceArgs "addSymSortRef 2" s p
+           --  safeZip "addSymSortRef 2" (fst <$> s) (fst3 <$> pargs p)
+      
+addSymSortRef' p (RPropP s r@(U _ (Pr [up]) _)) 
+  = RPropP xs r
+    where
+      xs = safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)
+
+addSymSortRef' p (RPropP s t)
   = RPropP s t
+
+spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 
+
+
 
 varMeasures vars  = [ (symbol v, varSpecType v) 
                     | v <- vars
@@ -1069,8 +1088,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
       fld        = "fldList"
       x          = "xListSelector"
       xs         = "xsListSelector"
-      p          = PV "p" t (vv Nothing) [(t, fld, EVar fld)]
-      px         = pdVarReft $ PV "p" t (vv Nothing) [(t, fld, EVar x)] 
+      p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
+      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)] 
       lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty                 
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
@@ -1106,32 +1125,17 @@ mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
 mkps _  _      _           = error "Bare : mkps"
 
 mkps_ []     _       _          _    ps = ps
-mkps_ (n:ns) (t:ts) ((f, x):xs) args ps
-  = mkps_ ns ts xs (a:args) (p:ps)
-  where p = PV n t (vv Nothing) args
-        a = (t, f, x)
+mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
+  where
+    p                                   = PV n (PVProp t) (vv Nothing) args
+    a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = error "Bare : mkps_"
 
 ------------------------------------------------------------------------
------------------ Transforming Raw Strings using GHC Env ---------------
+-- | Transforming Raw Strings using GHC Env ----------------------------
 ------------------------------------------------------------------------
-
--- makeRTyConPs :: Reftable r => String -> M.HashMap TyCon RTyCon -> [RPVar] -> RRType r -> RRType r
--- makeRTyConPs msg tyi πs t@(RApp c ts rs r) 
---   | null $ rTyConPs c
---   = expandRApp tyi t
---   | otherwise 
---   = RApp c {rTyConPs = findπ πs <$> rTyConPs c} ts rs r 
---   -- need type application????
---   where findπ πs π = findWithDefaultL (== π) πs (emsg π)
---         emsg π     = errorstar $ "Bare: out of scope predicate " ++ msg ++ " " ++ show π
--- --             throwError $ "Bare: out of scope predicate" ++ show π 
--- 
--- 
--- makeRTyConPs _ _ _ t = t
-
-
 ofBareType :: (PPrint r, Reftable r) => BRType r -> BareM (RRType r)
+------------------------------------------------------------------------
 ofBareType (RVar a r) 
   = return $ RVar (symbolRTyVar a) r
 ofBareType (RFun x t1 t2 _) 
@@ -1286,9 +1290,10 @@ ofBPVar = mapM_pvar ofBareType
 
 mapM_pvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
 mapM_pvar f (PV x t v txys) 
-  = do t'    <- f t
+  = do t'    <- forM t f 
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' v txys'
+
 
 ofBDataCon l tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c

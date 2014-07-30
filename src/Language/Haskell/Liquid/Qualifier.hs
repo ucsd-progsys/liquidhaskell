@@ -51,7 +51,7 @@ specificationQualifiers k info
 refTypeQuals l tce t  = quals ++ pAppQuals l tce preds quals 
   where 
     quals             = refTypeQuals' l tce t
-    preds             = ty_preds $ toRTypeRep t
+    preds             = filter isPropPV $ ty_preds $ toRTypeRep t
 
 pAppQuals l tce ps qs = [ pAppQual l tce p xs (v, e) | p <- ps, (s, v, _) <- pargs p, (xs, e) <- mkE s ]
   where
@@ -70,7 +70,7 @@ pAppQual l tce p args (v, expr) =  Q "Auto" freeVars pred l
     pred                      = pApp predv $ EVar vv:predArgs
     vv                        = "v"
     predv                     = "~P"
-    tyvv                      = rTypeSort tce $ ptype p
+    tyvv                      = rTypeSort tce $ pvType p
     typred                    = rTypeSort tce (toPredType p :: RRType ())
     predArgs                  = mkexpr <$> (snd3 <$> pargs p)
     mkexpr x                  = if x == v then expr else EVar x 
@@ -92,7 +92,7 @@ refTypeQuals' l tce t0        = go emptySEnv t0
     go γ (REx x t t')         = (go γ t) 
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
     go _ _                    = []
-    goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPs c)
+    goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
     goRef g (RProp s t)  _    = go (insertsSEnv g s) t
     goRef _ (RPropP _ _)  _   = []
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
