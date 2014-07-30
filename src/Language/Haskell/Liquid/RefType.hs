@@ -486,9 +486,18 @@ strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
 
+-------------------------------------------------------------------------
+expandRApp :: (Reftable r)
+           => (M.HashMap TyCon FTycon)
+           -> (M.HashMap TyCon RTyCon)
+           -> RRType r
+           -> RRType r
+-------------------------------------------------------------------------
 expandRApp tce tyi (RApp rc ts rs r)
-  = RApp rc' ts (appRefts rc' rs) r
-    where rc' = appRTyCon tce tyi rc ts
+  = RApp rc' ts rs' r
+    where
+      rc' = appRTyCon tce tyi rc ts
+      rs' = appRefts rc' rs
 
 expandRApp _ _ t
   = t
@@ -511,8 +520,8 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 -- EFFECTS: OLD : appRefts rc [] = RProp [] . ofRSort . ptype  <$> rTyConPs rc
-appRefts rc [] = rtPropTop <$> rTyConPVs rc
 -- appRefts rc [] = errorstar "TODO:EFFECTS:appRefts (ask niki about above)"
+appRefts rc [] = rtPropTop <$> rTyConPVs rc
 appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
 rtPropTop (PV _ (PVProp τ) _ _) = RProp [] $ ofRSort τ
@@ -522,7 +531,7 @@ toPoly (RProp ss t) pv
   | length (pargs pv) == length ss 
   = RProp ss t
   | otherwise          
-  = RProp ([(s, t) | (t, s, _) <- pargs pv]) t
+  = errorstar "JHALA DID THIS" -- RProp ([(s, t) | (t, s, _) <- pargs pv]) t
     
 toPoly (RPropP ss r) pv 
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
