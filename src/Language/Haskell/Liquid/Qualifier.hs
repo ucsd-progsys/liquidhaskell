@@ -71,7 +71,7 @@ pAppQual l tce p args (v, expr) =  Q "Auto" freeVars pred l
     vv                        = "v"
     predv                     = "~P"
     tyvv                      = rTypeSort tce $ pvType p
-    typred                    = rTypeSort tce (toPredType p :: RRType ())
+    typred                    = rTypeSort tce (pvarRType p :: RSort)
     predArgs                  = mkexpr <$> (snd3 <$> pargs p)
     mkexpr x                  = if x == v then expr else EVar x 
 

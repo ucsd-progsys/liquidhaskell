@@ -542,17 +542,26 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    + Types.hs: Add a `World t` for SL formulas...
    
 
-- Allow `PVar` to have the sort `HProp`
++ Allow `PVar` to have the sort `HProp`
    + CHANGE `ptype :: PVKind t` where `data PVKind t = PVProp t | PVHProp` 
-   - Can we reuse `RAllP` to encode `HProp`-quantification? (YES)
-   - Update `RTyCon` to store `HProp` vars
-   - Can we reuse type-application sites for `HProp`-instantiation?
-   - Update consgen to handle the above.
+   + Can we reuse `RAllP` to encode `HProp`-quantification? (YES)
+   + Update `RTyCon` to store `HProp` vars
 
-- Rig constraint solver to eliminate `HProp` constraints prior to subtype splitting.
+- Update consgen
+   - Can we reuse type-application sites for `HProp`-instantiation?
+	 - Constraint.hs  :1630: truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
+     - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
+   - eliminate/solve `HProp` constraints prior to subtype splitting.
 
 - Index `IO` or `State` by `HProp`
    - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
+   - Bare.hs        :482 : addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
+
+PredType.hs    :221 : toPredType _ = errorstar "TODO:EFFECTS:toPredType"
+RefType.hs     :519 : rtPropTop (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:rtPropTop"
+RefType.hs     :531 :   = errorstar "TODO:EFFECTS:toPoly"
+
+
 
 
 3. Suitable signatures for monadic operators

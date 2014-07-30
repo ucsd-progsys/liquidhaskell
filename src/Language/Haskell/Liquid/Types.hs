@@ -492,13 +492,6 @@ newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 instance Symbolic RTyVar where
   symbol (RTV tv) = symbol . T.pack . showPpr $ tv
 
--- data RTyCon = RTyCon 
---   { rTyCon      :: !TyCon            -- GHC Type Constructor
---   , rTyConAllPs :: ![RPVar]          -- Predicate Parameters
---   , rTyConInfo  :: !TyConInfo        -- TyConInfo
---   }
---   deriving (Generic, Data, Typeable)
-
 data RTyCon = RTyCon 
   { rtc_tc    :: !TyCon            -- ^ GHC Type Constructor
   , rtc_pvars :: ![RPVar]          -- ^ Predicate Parameters
