@@ -46,6 +46,10 @@ module Language.Haskell.Liquid.Types (
   , RTyVar (..)
   , RTAlias (..)
 
+  -- * Worlds
+  , HSeg (..)
+  , World (..)
+    
   -- * Classes describing operations on `RTypes` 
   , TyConable (..)
   , RefTypable (..)

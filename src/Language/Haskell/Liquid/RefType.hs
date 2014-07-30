@@ -13,7 +13,7 @@
 {-# LANGUAGE PatternGuards             #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
--- room for refinements of various sorts.
+--   room for refinements of various sorts.
 
 -- TODO: Desperately needs re-organization.
 module Language.Haskell.Liquid.RefType (
@@ -90,6 +90,7 @@ import Language.Haskell.Liquid.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
+import Language.Haskell.Liquid.World
 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
@@ -519,26 +520,31 @@ isNumeric tce c
 addNumSizeFun c 
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
--- EFFECTS: OLD : appRefts rc [] = RProp [] . ofRSort . ptype  <$> rTyConPs rc
--- appRefts rc [] = errorstar "TODO:EFFECTS:appRefts (ask niki about above)"
 appRefts rc [] = rtPropTop <$> rTyConPVs rc
 appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
-rtPropTop (PV _ (PVProp τ) _ _) = RProp [] $ ofRSort τ
-rtPropTop (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:rtPropTop"
-  
-toPoly (RProp ss t) pv
-  | length (pargs pv) == length ss 
-  = RProp ss t
-  | otherwise          
-  = errorstar "JHALA DID THIS" -- RProp ([(s, t) | (t, s, _) <- pargs pv]) t
-    
+rtPropTop (PV _ (PVProp t) _ _) = RProp  [] $ ofRSort t
+rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
+
 toPoly (RPropP ss r) pv 
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
 
-toPoly (RHProp _ _) _ 
-  = errorstar "TODO:EFFECTS:toPoly"
+-- TODO:EFFECTS:ASKNIKI
+toPoly (RProp ss t) pv
+  | length (pargs pv) == length ss 
+  = RProp ss t
+  | otherwise
+  = RProp (pvArgs pv) t
     
+toPoly (RHProp ss w) pv
+  | length (pargs pv) == length ss 
+  = RHProp ss w
+  | otherwise          
+  = RHProp (pvArgs pv) w
+
+pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]    
+
+
 generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t 
          
@@ -556,9 +562,6 @@ freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole r)       = []
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
---getTyVars = everything (++) ([] `mkQ` f)
---  where f ((RVar α' _) :: SpecType) = [α'] 
---        f _                         = []
 
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllS _ t)     = tyClasses t
