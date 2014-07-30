@@ -258,23 +258,23 @@ wpredRTyCon   = symbolRTyCon wpredName
 symbolRTyCon   :: Symbol -> RTyCon
 symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
 
-----------------------------------------------------------------------------
----------- Interface: Replace Predicate With Type  -------------------------
-----------------------------------------------------------------------------
-
--- | This is the main function used to substitute an (abstract) predicate
--- with a concrete Ref, of a compound (`RProp`) type. The substitution is 
--- invoked to obtain the `SpecType` resulting at /predicate application/ 
--- sites in 'Language.Haskell.Liquid.Constraint'.
--- The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
--- That is, there are no further `PVar` in the target. 
-
--------------------------------------------------------------------------------
-
-replacePreds :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType 
-replacePreds msg       = foldl' go 
-   where go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
-         go _ (_, RPropP _ _)     = error "replacePreds on RPropP" -- replacePVarReft (π, r) <$> z
+-------------------------------------------------------------------------------------
+-- | Instantiate `PVar` with `RTProp` -----------------------------------------------
+-------------------------------------------------------------------------------------
+-- | @replacePreds@ is the main function used to substitute an (abstract)
+--   predicate with a concrete Ref, that is either an `RProp` or `RHProp`
+--   type. The substitution is invoked to obtain the `SpecType` resulting
+--   at /predicate application/ sites in 'Language.Haskell.Liquid.Constraint'.
+--   The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
+--   That is, there are no further _quantified_ `PVar` in the target.
+-------------------------------------------------------------------------------------
+replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType 
+-------------------------------------------------------------------------------------
+replacePreds msg             = foldl' go 
+   where
+     go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
+     go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
+     go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
 
 
 -- TODO: replace `replacePreds` with
@@ -291,17 +291,19 @@ substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
 substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
-  | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs ss r1 r2'
-  | isPredInReft              = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
-  | otherwise                 = t
-  where (r2', πs)             = splitRPvar π r2
-        isPredInReft          = not $ null πs 
+  | isPredInReft && a1 == a2    = RVar a1 $ meetListWithPSubs πs ss r1 r2'
+  | isPredInReft                = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
+  | otherwise                   = t
+  where
+    (r2', πs)                   = splitRPvar π r2
+    isPredInReft                = not $ null πs 
 
 substPred msg su@(π, _ ) (RApp c ts rs r)
-  | null πs                   = t' 
-  | otherwise                 = substRCon msg su t' πs r2'
-  where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
-        (r2', πs) = splitRPvar π r
+  | null πs                     = t' 
+  | otherwise                   = substRCon msg su t' πs r2'
+  where
+    t'                          = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+    (r2', πs)                   = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
@@ -314,13 +316,11 @@ substPred msg su@(π,_ ) (RFun x t t' r)
   | otherwise                   = {-meetListWithPSubs πs πt -}(RFun x t t' r')
   where (r', πs)                = splitRPvar π r
 
-substPred msg pt (RRTy e r o t) = RRTy (mapSnd (substPred msg pt) <$> e) r o (substPred msg pt t)
-substPred msg pt (RCls c ts)    = RCls c (substPred msg pt <$> ts)
-
+substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
+substPred msg su (RCls c ts)    = RCls c (substPred msg su <$> ts)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
-
-substPred _   _  t            = t
+substPred _   _  t              = t
 
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
@@ -336,15 +336,22 @@ substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, 
 
 substPredP su@(p, RProp ss tt) (RProp s t)       
   = RProp ss' $ substPred "substPredP" su t
- where ss' = drop n ss ++  s
--- where ss' = (reverse $ take (length (isFreePredInType p t)) $ reverse ss) ++  s
-       n   = length ss - length (freeArgsPs p t)
+ where
+   ss' = drop n ss ++  s
+   n   = length ss - length (freeArgsPs p t)
+
+substPredP _  (RHProp _ _)       
+  = errorstar "TODO:EFFECTS:substPredP"
 
 substPredP _  (RPropP _ _)       
   = error $ "RPropP found in substPredP"
 
+
+
+
 splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
-  where (epvs, pvs') = partition (uPVar pv ==) pvs
+  where
+    (epvs, pvs')               = partition (uPVar pv ==) pvs
 
 
 isPredInType p (RVar _ r) 
