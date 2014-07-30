@@ -525,7 +525,7 @@ toPoly (RPropP ss r) pv
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
 
 toPoly (RHProp _ _) _ 
-  = errorstar "TODO:effects:toPoly"
+  = errorstar "TODO:EFFECTS:toPoly"
     
 generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t 

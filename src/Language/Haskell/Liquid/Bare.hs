@@ -479,7 +479,7 @@ addSymSort embs tcenv t@(RApp rc@(RTyCon c _ _) ts rs r)
 addSymSort _ _ t 
   = t
 
-addSymSortRef _ (RHProp _ _)   = errorstar "TODO:effects"
+addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
 addSymSortRef p r | isPropPV p = addSymSortRef' p r 
                   | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
