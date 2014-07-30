@@ -648,7 +648,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
                      , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-                     , isBind     :: ![Bool]                      -- ^ subtyping over Sort (post-splitting)
+                     , isBind     :: ![Bool]                      -- ^ ?????? 
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
                      , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
@@ -845,8 +845,8 @@ addC :: SubC -> String -> CG ()
 addC !c@(SubC γ t1 t2) _msg 
   = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
        modify $ \s -> s { hsCs  = c : (hsCs s) }
-       bflag <- (safeHead True . isBind) <$> get
-       sflag <- scheck <$> get 
+       bflag <- safeHead True . isBind <$> get
+       sflag <- scheck                 <$> get 
        if bflag && sflag
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
          else return ()
@@ -1266,8 +1266,8 @@ data Template a = Asserted a | Assumed a | Unknown deriving (Functor)
 deriving instance (Show a) => (Show (Template a))
 
 
-addPostTemplate γ (Asserted t) = liftM Asserted $ addPost γ t
-addPostTemplate γ (Assumed  t) = liftM Assumed  $ addPost γ t
+addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
+addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
 addPostTemplate γ Unknown      = return Unknown 
 
 fromAsserted (Asserted t) = t
@@ -1282,7 +1282,6 @@ varTemplate γ (x, eo)
       (_, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
       (Just e, _, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
                            addW (WfC γ t)
-                           {- KVPROF addKuts t -}
                            Asserted <$> refreshArgsTop (x, t)
       (_,      _, _) -> return Unknown
 
@@ -1341,20 +1340,23 @@ cconsE γ e t
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 instantiatePreds γ e (RAllP p t)
-  = do s <- freshPredRef γ e p
+  = do s     <- freshPredRef γ e p
        return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t
   = return t
 
 cconsLazyLet γ (Let (NonRec x ex) e) t
-  = do tx <- {-(`strengthen` xr) <$>-} trueTy (varType x)
+  = do tx <- trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
        cconsE γ' e t
-  where xr = singletonReft x -- uTop $ F.symbolReft x'
-        x' = F.symbol x
+    where
+       xr = singletonReft x
+       x' = F.symbol x
 
 
------------------------ Type Synthesis ----------------------------
+-------------------------------------------------------------------
+-- | Type Synthesis -----------------------------------------------
+-------------------------------------------------------------------
 consE :: CGEnv -> Expr Var -> CG SpecType 
 -------------------------------------------------------------------
 
@@ -1368,7 +1370,7 @@ consE γ (Lit c)
 
 consE γ (App e (Type τ)) 
   = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
-       t          <- if isGeneric α te then freshTy_type TypeInstE e τ {- =>> addKuts -} else trueTy τ
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW       $ WfC γ t
        liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
 
@@ -1376,7 +1378,7 @@ consE γ e'@(App e a) | eqType (exprType a) predType
   = do t0 <- consE γ e
        case t0 of
          RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, s)] {- =>> addKuts -}
+                         return $ replacePreds "consE" t [(p, s)]
          _         -> return t0
 
 consE γ e'@(App e a)               
@@ -1385,14 +1387,13 @@ consE γ e'@(App e a)
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x = fromMaybe x $ L.lookup x su
        let te'              = F.substa f $ replacePreds "consE" te zs
-       (γ', te'')          <- dropExists γ te' -- teUnPost
+       (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
        unsetConsBind
        cconsE γ' a tx 
        setConsBind
        addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
---    where err = errorstar $ "consE: App crashes on" ++ showPpr a 
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
@@ -1624,10 +1625,6 @@ getSrcSpan' x
 -----------------------------------------------------------------------
 -- | Helpers: Creating Fresh Refinement -------------------------------
 -----------------------------------------------------------------------
-
--- truePredRef :: (PPrint r, F.Reftable r) => PVar (RRType r) -> CG SpecType
--- truePredRef (PV _ (PVProp τ) _ _) = trueTy (toType τ)
--- truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
 
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV n (PVProp τ) _ as)

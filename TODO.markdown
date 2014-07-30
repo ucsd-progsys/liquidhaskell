@@ -548,9 +548,9 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    + Update `RTyCon` to store `HProp` vars
 
 - Update consgen
-   - Can we reuse type-application sites for `HProp`-instantiation?
-	 - Constraint.hs  :1630: truePredRef (PV _ PVHProp _ _)    = errorstar "TODO:EFFECTS:truePredRef"
-     - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
+   + Can we reuse type-application sites for `HProp`-instantiation? (Yes)
+   - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
+   - PredType.hs         : go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
 	 
 - Write cons-solve
   - eliminate/solve `HProp` constraints prior to subtype splitting.
@@ -563,6 +563,8 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 **TODO:EFFECTS:ASKNIKI**
 
++ Wtf is `isBind`,`un/setConsBind` in Constraint.hs?
+
 + What is `predType` ?
   Why do we have `PredType.exprType` ?
   Where are these dummy `predType` applications inserted? (lgrep `predType`)
@@ -574,6 +576,12 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 + What is going on in `toPoly` and `expandRApp`?
   Why the odd test about having the right number of params?
   What is up with `pvArgs`? and the copying over of parameters?
+
++ Why are there _2_ different
+
+    consE γ e'@(App e a) | eqType (exprType a) predType 
+
+  One with the `eqType` check and one without?
 
 
 3. Suitable signatures for monadic operators
