@@ -250,14 +250,15 @@ predVarDefsP
  <|> return []
 
 predVarDefP
-  = liftM3 bPVar predVarIdP dcolon predVarTypeP
+  = bPVar <$> predVarIdP <*> dcolon <*> predVarTypeP
 
 predVarIdP 
   = symbol <$> tyVarIdP
 
-bPVar p _ xts  = PV p τ dummySymbol τxs
-  where (_, τ) = safeLast "bPVar last" xts
-        τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
+bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
+  where
+    (_, τ) = safeLast "bPVar last" xts
+    τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = bareTypeP >>= either parserFail return . mkPredVarType
@@ -373,7 +374,7 @@ monoPredicate1P
 
 predVarUseP 
   = do (p, xs) <- funArgsP 
-       return   $ PV p dummyTyId dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
+       return   $ PV p (PVProp dummyTyId) dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]
 
 funArgsP  = try realP <|> empP
   where

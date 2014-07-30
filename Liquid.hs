@@ -1,30 +1,28 @@
 {-# LANGUAGE TupleSections  #-}
 
-import Data.Monoid      (mconcat, mempty)
-import System.Exit 
-import Control.Applicative ((<$>))
-import Control.DeepSeq
-import Text.PrettyPrint.HughesPJ    
+import           Data.Monoid      (mconcat, mempty)
+import           System.Exit 
+import           Control.Applicative ((<$>))
+import           Control.DeepSeq
+import           Text.PrettyPrint.HughesPJ    
+import           CoreSyn
+import           Var
+import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Default
 
-import CoreSyn
-import Var
-
-import System.Console.CmdArgs.Verbosity (whenLoud)
-import System.Console.CmdArgs.Default
 import qualified Language.Fixpoint.Config as FC
-import Language.Fixpoint.Files
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Interface
-import Language.Fixpoint.Types (sinfo)
-
 import qualified Language.Haskell.Liquid.DiffCheck as DC
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Errors
-import Language.Haskell.Liquid.CmdLine
-import Language.Haskell.Liquid.GhcInterface
-import Language.Haskell.Liquid.Constraint       
-import Language.Haskell.Liquid.TransformRec   
-import Language.Haskell.Liquid.Annotate (mkOutput)
+import           Language.Fixpoint.Files
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Interface
+import           Language.Fixpoint.Types (sinfo)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Errors
+import           Language.Haskell.Liquid.CmdLine
+import           Language.Haskell.Liquid.GhcInterface
+import           Language.Haskell.Liquid.Constraint       
+import           Language.Haskell.Liquid.TransformRec   
+import           Language.Haskell.Liquid.Annotate (mkOutput)
 
 main :: IO b
 main = do cfg0    <- getOpts
