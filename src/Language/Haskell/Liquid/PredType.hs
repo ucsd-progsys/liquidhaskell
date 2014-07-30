@@ -218,7 +218,7 @@ toPredType (PV _ (PVProp ptype) _ args) = rpredType (ty:tys)
     ty  = uRTypeGen ptype
     tys = uRTypeGen . fst3 <$> args
         
-toPredType _ = errorstar "TODO:effects:toPredType"
+toPredType _ = errorstar "TODO:EFFECTS:toPredType"
 
 ----------------------------------------------------------------------------
 ---------- Interface: Replace Predicate With Type  -------------------------
