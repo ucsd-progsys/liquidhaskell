@@ -583,6 +583,247 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
   One with the `eqType` check and one without?
 
+--- 
+
+If expandRApp is called with [] only from Fresh.hs (means: create "top" refinements that will later get K-Vars)
+If expandRApp is called with rs the
+
+
+1. DROP the addition of dummy predType application
+   FAILS
+
+
+
+2. DROP all calls to unify and such.
+
+2. SPLIT RMono/RPoly. SpecType/RefType should have NO RMono.
+
+3. expandRApp should be split into 2 functions with / without args ([])
+
+4. REMOVE addTyConInfo from Constraint.hs (some parts go into Bare.hs others into Fresh.hs)
+
+5. Move into Bare.hs
+   
+   getNeedPd
+   dataConPSpecType
+   dataConPtoPredTy :: TC.DataCon -> DataConP -> PrType
+
+6. NUKE
+   generatePredicates
+
+7. NUKE UNIFY lets see what breaks.
+
+   Why BOTH `penv` and `tyi`  in `unifyts'` ?
+   Why do we first UNIFY and then call ADDTYCONINFO?
+   Why not just do it all at once?
+
+
+   TRY: just eliminate
+
+      second (addTyConInfo tce tyi) .
+
+   FROM:
+
+      unifyts'
+
+
+Lets trace: `unify pt t` what the hell is it doing?
+
+    pos
+      zipSO.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      zipper0.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      zipper.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      vector00.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      vector0.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      vecloop.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      transpose.hs:               FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ToyMVar.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      StateF0.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      StateF.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      State.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      StackClass.hs:              FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      scanr.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      risers.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RecQSort0.hs:               FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RecQSort.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      record0.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RBTree.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      RBTree-ord.hs:              FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Permutation.hs:             FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas9.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas1.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas0a.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas00.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas0.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      maybe2.hs:                  FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map2.hs:                    FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map0.hs:                    FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Map.hs:                     FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListSort.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      listSetDemo.hs:             FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      listSet.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListMSort.hs:               FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListLen.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListLen-LType.hs:           FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListISort.hs:               FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      linspace.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      HedgeUnion.hs:              FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      grty0.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      gimme.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      GhcSort3.T.hs:              FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      GhcSort2.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      GhcSort1.hs:                FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Class.hs:                   FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      BST.hs:                     FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      alphaconvert-List.hs:       FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      alias00.hs:                 FAIL
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+
+
+
+
+
 
 3. Suitable signatures for monadic operators
 
@@ -628,6 +869,9 @@ which is the `RTycon` for lists `[]` applied to:
 	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
 
 + Outer refinement `true`
+
+
+
 
 
 

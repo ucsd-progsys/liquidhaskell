@@ -39,6 +39,7 @@ import           Control.Applicative                  ((<$>))
 --   instantiation at type-instantiation sites.
 
 generatePredicates ::  GhcInfo -> ([CoreSyn.Bind CoreBndr], F.SEnv PrType)
+-- generatePredicates ::  GhcInfo -> F.SEnv PrType
 generatePredicates info = (cbs', nPd)
   where
     cbs'                = addPredApp nPd <$> cbs info

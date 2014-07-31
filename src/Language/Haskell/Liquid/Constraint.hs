@@ -91,8 +91,8 @@ import IdInfo
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where 
-    act                  = consAct (info {cbs = fst pds}) (snd pds)
-    pds                  = generatePredicates info
+    act                  = consAct (info {cbs = cbs'}) nPd
+    (cbs', nPd)          = generatePredicates info
     cfg                  = config $ spec info
 
 consAct info penv
@@ -1339,6 +1339,8 @@ cconsE γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
+
+
 instantiatePreds γ e (RAllP p t)
   = do s     <- freshPredRef γ e p
        return $ replacePreds "consE" t [(p, s)] 
@@ -1374,16 +1376,16 @@ consE γ (App e (Type τ))
        addW       $ WfC γ t
        liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
 
-consE γ e'@(App e a) | eqType (exprType a) predType 
-  = do t0 <- consE γ e
-       case t0 of
-         RAllP p t -> do s <- freshPredRef γ e' p
-                         return $ replacePreds "consE" t [(p, s)]
-         _         -> return t0
+-- consE γ e'@(App e a) | eqType (exprType a) predType 
+--   = do t0 <- consE γ e
+--        case t0 of
+--          RAllP p t -> do s <- freshPredRef γ e' p
+--                          return $ replacePreds "consE" t [(p, s)]
+--          _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
-       zs                  <- mapM (\π -> liftM ((π,)) $ freshPredRef γ e' π) πs
+       zs                  <- mapM (\π -> (π,) <$> freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x = fromMaybe x $ L.lookup x su
        let te'              = F.substa f $ replacePreds "consE" te zs
