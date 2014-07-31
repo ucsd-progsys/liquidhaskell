@@ -1,5 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-@ LIQUID "--c-files=foo.c" @-}
+{-@ LIQUID "--c-files=../ffi-include/foo.c" @-}
+{-@ LIQUID "-i../ffi-include" @-}
 module Main where
 
 import Foreign.C.Types

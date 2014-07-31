@@ -150,6 +150,7 @@ updateDynFlags cfg
   = do df <- getSessionDynFlags
        let df' = df { importPaths  = idirs cfg ++ importPaths df
                     , libraryPaths = idirs cfg ++ libraryPaths df
+                    , includePaths = idirs cfg ++ includePaths df
                     , profAuto     = ProfAutoCalls
                     , ghcLink      = LinkInMemory
                     --FIXME: this *should* be HscNothing, but that prevents us from
