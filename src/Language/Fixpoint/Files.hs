@@ -149,9 +149,11 @@ copyFiles srcs tgt
 
 ----------------------------------------------------------------------------------
 
-getHsTargets p
-  | hasTrailingPathSeparator p = getHsSourceFiles p
-  | otherwise                  = return [p]
+getHsTargets p = mapM canonicalizePath =<< files
+  where
+    files
+      | hasTrailingPathSeparator p = getHsSourceFiles p
+      | otherwise                  = return [p]
 
 getHsSourceFiles = find dirs hs
   where hs   = extension ==? ".hs" ||? extension ==? ".lhs"
