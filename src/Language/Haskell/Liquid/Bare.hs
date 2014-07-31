@@ -336,9 +336,9 @@ lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
         r'  <- resolve l r
         liftM3 (bareTCApp tyi r') (lookupGhcTyCon lc) (mapM (go s) rs) (mapM (expandAlias l s) ts)
   where
-    go s (RPropP ss r)    = RPropP <$> mapM ofSyms ss <*> resolve l r
-    go s (RProp ss t)    = RProp <$> mapM ofSyms ss <*> expandAlias l s t
-
+    go s (RPropP ss r) = RPropP <$> mapM ofSyms ss <*> resolve l r
+    go s (RProp ss t)  = RProp <$> mapM ofSyms ss <*> expandAlias l s t
+    go _ (RHProp _ _)  = errorstar "TODO:EFFECTS:lookupExpandRTApp"
 
 expandRTApp :: SourcePos -> [Symbol] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
 expandRTApp l s rta args r
@@ -474,6 +474,7 @@ addSymSort embs tcenv t@(RApp rc@(RTyCon c _ _) ts rs r)
     (rargs,rrest)      = splitAt (length ps) rs
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
+    go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
     go r _             = r
 
 addSymSort _ _ t 
@@ -1174,9 +1175,12 @@ ofBareType t
   = errorstar $ "Bare : ofBareType cannot handle " ++ show t
 
 ofRef (RProp ss t)   
-  = liftM2 RProp (mapM ofSyms ss) (ofBareType t)
+  = RProp <$> mapM ofSyms ss <*> ofBareType t
 ofRef (RPropP ss r) 
-  = liftM (`RPropP` r) (mapM ofSyms ss)
+  = (`RPropP` r) <$> mapM ofSyms ss
+ofRef (RHProp _ _)
+  = errorstar "TODO:EFFECTS:ofRef"
+
 
 ofSyms (x, t)
   = liftM ((,) x) (ofBareType t)
@@ -1273,7 +1277,8 @@ getPsSig m pos (RFun _ t1 t2 r)
 
 
 getPsSigPs m pos (RPropP _ r) = addps m pos r
-getPsSigPs m pos (RProp _ t) = getPsSig m pos t
+getPsSigPs m pos (RProp  _ t) = getPsSig m pos t
+getPsSigPs _ _   (RHProp _ _) = errorstar "TODO:EFFECTS:getPsSigPs"
 
 addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
@@ -1294,7 +1299,7 @@ mapM_pvar f (PV x t v txys)
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys 
        return $ PV x t' v txys'
 
-
+-- TODO:EFFECTS:ofBDataCon
 ofBDataCon l tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
@@ -1491,7 +1496,7 @@ checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv e
 
 
 checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
-checkReft env emb Nothing _  = Nothing -- RPropP / Ref case, not sure how to check these yet.  
+checkReft env emb Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.  
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r 
   where 
     r                        = rTypeSortedReft emb t
@@ -1555,6 +1560,7 @@ expToBindT t
 expToBindReft              :: SpecProp -> State ExSt SpecProp
 expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
 expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
+expToBindReft (RHProp _ _) = errorstar "TODO:EFFECTS:expToBindReft"
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds 

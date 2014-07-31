@@ -46,10 +46,10 @@ generatePredicates info = (cbs', nPd)
 
 getNeedPd spec          = F.fromListSEnv bs
     where
+      bs                = mapFst F.symbol <$> (dcs ++ assms)
       dcs               = concatMap mkDataConIdsTy pcs
       pcs               = [(x, dataConPtoPredTy x y) | (x, y) <- dconsP spec]
-      assms             = (mapSnd (mapReft ur_pred . val)) <$> tySigs spec
-      bs                = mapFst F.symbol <$> (dcs ++ assms)
+      assms             = mapSnd (mapReft ur_pred . val) <$> tySigs spec
 
 dataConPtoPredTy :: TC.DataCon -> DataConP -> PrType
 dataConPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
