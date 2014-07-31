@@ -131,6 +131,11 @@ config = cmdArgsMode $ Config {
     = def &= name "ghc-option"
           &= typ "OPTION"
           &= help "Pass this option to GHC"
+
+ , cFiles
+    = def &= name "c-files"
+          &= typ "OPTION"
+          &= help "Tell GHC to compile and link against these files"
  
  -- , verbose  
  --    = def &= help "Generate Verbose Output"
@@ -194,7 +199,7 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 
   
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def 2 def def def def
+  mempty        = Config def def def def def def def def def def def def def 2 def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2  
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2 
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2  
@@ -212,7 +217,9 @@ instance Monoid Config where
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2 
                          , shortNames     = shortNames c1        ||     shortNames     c2 
                          , shortErrors    = shortErrors c1       ||     shortErrors    c2 
-                         , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2 }
+                         , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2
+                         , cFiles         = cFiles c1            ++     cFiles         c2
+                         }
 
 instance Monoid SMTSolver where
   mempty        = def

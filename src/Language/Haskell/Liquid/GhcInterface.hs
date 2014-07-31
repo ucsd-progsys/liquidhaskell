@@ -20,6 +20,8 @@ import Bag (bagToList)
 import ErrUtils
 import Panic
 import GHC hiding (Target)
+import DriverPhases (Phase(..))
+import DriverPipeline (compileFile)
 import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
 import TidyPgm      (tidyProgram)
@@ -47,7 +49,7 @@ import System.FilePath ( replaceExtension
 
 import DynFlags
 import Control.Arrow (second)
-import Control.Monad (filterM, zipWithM, when, forM, forM_, liftM)
+import Control.Monad (filterM, zipWithM, when, forM, forM_, liftM, (<=<))
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
@@ -96,9 +98,11 @@ getGhcInfo' cfg0 target
       liftIO              $ cleanFiles target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
-      cfg                <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
+      cfg'               <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
+      cfg                <- liftIO $ canonicalizePaths cfg' target
       let paths           = idirs cfg
       updateDynFlags cfg
+      compileCFiles cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
@@ -147,7 +151,7 @@ updateDynFlags cfg
        let df' = df { importPaths  = idirs cfg ++ importPaths df
                     , libraryPaths = idirs cfg ++ libraryPaths df
                     , profAuto     = ProfAutoCalls
-                    , ghcLink      = NoLink
+                    , ghcLink      = LinkInMemory
                     --FIXME: this *should* be HscNothing, but that prevents us from
                     -- looking up *unexported* names in another source module..
                     , hscTarget    = HscInterpreted -- HscNothing
@@ -159,6 +163,13 @@ updateDynFlags cfg
                       `gopt_set` Opt_ImplicitImportQualified
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
+
+compileCFiles cfg
+  = do hsc <- getSession
+       os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (cFiles cfg)
+       df  <- getSessionDynFlags
+       setSessionDynFlags $ df { ldInputs = map (FileOption "") os ++ ldInputs df }
+
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 

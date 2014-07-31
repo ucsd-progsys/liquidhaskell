@@ -1,10 +1,14 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-@ LIQUID "--c-files=foo.c" @-}
 module Main where
 
 import Foreign.C.Types
 
-{-@ c_foo :: x:{CInt | v > 0} -> IO {v:CInt | v = x} @-}
-foreign import ccall unsafe "static foo.c foo" c_foo
+{-@ embed CInt as int @-}
+{-@ embed Integer as int @-}
+
+{-@ assume c_foo :: x:{CInt | x > 0} -> IO {v:CInt | v = x} @-}
+foreign import ccall unsafe "foo.c foo" c_foo
   :: CInt -> IO CInt
 
 main :: IO ()
