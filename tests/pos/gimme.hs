@@ -1,11 +1,6 @@
 module Blank () where
 
--- This is a blank file.
-
-
-{- gimme :: [a] -> n:Int -> acc:[a] -> {v:[a] | (len v) = (n + (len acc) + 1)} -}
-
-{-@ qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
+{-@ qualif Gimme(v:a, n:b, acc:a): len v = n + 1 + len acc @-}
 
 gimme :: [a] -> Int -> [a] -> [a]
 gimme xs (-1) acc  = acc
