@@ -91,7 +91,7 @@ import IdInfo
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where 
-    act                  = consAct (info {cbs = cbs'}) nPd
+    act                  = consAct (info {- cbs = cbs' -}) nPd
     (cbs', nPd)          = generatePredicates info
     cfg                  = config $ spec info
 
@@ -1326,13 +1326,14 @@ cconsE γ (Tick tt e) t
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
 cconsE γ e@(Cast e' _) t     
-  = do t' <- castTy γ (exprType e) e' -- trueTy $ exprType e
+  = do t' <- castTy γ (exprType e) e'
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
 cconsE γ e (RAllP p t)
   = cconsE γ e t'
-  where t' = fmap (replacePredsWithRefs su) t
-        su = (uPVar p, pVartoRConc p)
+  where
+    t' = replacePredsWithRefs su <$> t
+    su = (uPVar p, pVartoRConc p)
 
 cconsE γ e t
   = do te  <- consE γ e
@@ -1341,11 +1342,11 @@ cconsE γ e t
 
 
 
-instantiatePreds γ e (RAllP p t)
+instantiatePreds γ e t0@(RAllP p t)
   = do s     <- freshPredRef γ e p
        return $ replacePreds "consE" t [(p, s)] 
-instantiatePreds _ _ t
-  = return t
+instantiatePreds _ _ t0
+  = return t0
 
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
@@ -1371,13 +1372,16 @@ consE γ (Lit c)
   = refreshVV $ uRType $ literalFRefType (emb γ) c
 
 consE γ (App e (Type τ)) 
-  = do RAllT α te <- liftM (checkAll ("Non-all TyApp with expr", e)) $ consE γ e
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
-       addW       $ WfC γ t
-       liftM (\t -> subsTyVar_meet' (α, t) te) $ refreshVV t
-
+       addW       $  WfC γ t
+       t'         <- refreshVV t
+       instantiatePreds γ  
+       return     $  traceShow "HAHA: consE " $ subsTyVar_meet' (α, t') te
+       
 -- consE γ e'@(App e a) | eqType (exprType a) predType 
 --   = do t0 <- consE γ e
+--        HEREHEREHERE: ADD THIS, RESTORE ADDPREDS, SEE IF ALL TESTS PASS: instantiatePreds γ e' t0
 --        case t0 of
 --          RAllP p t -> do s <- freshPredRef γ e' p
 --                          return $ replacePreds "consE" t [(p, s)]
@@ -1391,7 +1395,7 @@ consE γ e'@(App e a)
        let te'              = F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
-       let (RFun x tx t _) = checkFun ("Non-fun App with caller ", e') te''
+       let (RFun x tx t _)  = checkFun ("Non-fun App with caller ", e') te''
        unsetConsBind
        cconsE γ' a tx 
        setConsBind
