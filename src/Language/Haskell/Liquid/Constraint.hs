@@ -162,8 +162,8 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where
     pt                  = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
 
-predsUnify tce tyi penv = -- second (addTyConInfo tce tyi) . -- needed to eliminate some @RPropH@
-  unifyts penv                  -- needed to match up some  @TyVars@
+predsUnify tce tyi penv = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                        . unifyts penv                  -- needed to match up some  @TyVars@
     
 unifyts penv (x, t) = (x, unify pt t)
  where
