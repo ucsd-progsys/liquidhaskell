@@ -127,8 +127,10 @@ initEnv info penv
        f4       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
+       
        let tx    = mapFst F.symbol . addRInv ialias . unifyts' senv tce tyi penv
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
+
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
        let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
@@ -165,10 +167,10 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 predsUnify tce tyi penv = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
                         . unifyts penv                  -- needed to match up some  @TyVars@
     
-unifyts penv (x, t) = (x, unify pt t)
+unifyts penv (x, t)     = (x, unify pt t)
  where
-   pt               = F.lookupSEnv x' penv
-   x'               = F.symbol x
+   pt                   = F.lookupSEnv x' penv
+   x'                   = F.symbol x
 
 measEnv sp penv xts cbs lts asms
   = CGE { loc   = noSrcSpan
@@ -1821,7 +1823,7 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 -------------------------------------------------------------------
---------- | Strengthening Binders with TyCon Invariants -----------
+-- | Strengthening Binders with TyCon Invariants ------------------
 -------------------------------------------------------------------
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
@@ -1832,7 +1834,7 @@ mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where 
     strip      = fourth4 . bkUniv . val 
 
-mkRTyConIAl    = mkRTyConInv . (snd <$>)
+mkRTyConIAl    = mkRTyConInv . fmap snd
 
 addRTyConInv :: RTyConInv -> SpecType -> SpecType
 addRTyConInv m t@(RApp c _ _ _)
@@ -1848,11 +1850,12 @@ addRInv m (x, t)
   = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
   | otherwise    
   = (x, t)
-   where ids = [id | tc <- M.keys m
-                   , dc <- TC.tyConDataCons $ rtc_tc tc
-                   , id <- DC.dataConImplicitIds dc]
-         res = ty_res . toRTypeRep
-         xs  = ty_args $ toRTypeRep t
+   where
+     ids = [id | tc <- M.keys m
+               , dc <- TC.tyConDataCons $ rtc_tc tc
+               , id <- DC.dataConImplicitIds dc]
+     res = ty_res . toRTypeRep
+     xs  = ty_args $ toRTypeRep t
 
 conjoinInvariant' t1 t2     
   = conjoinInvariantShift t1 t2

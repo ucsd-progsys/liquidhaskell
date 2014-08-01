@@ -585,14 +585,6 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 
 --- 
 
-### GOAL: Eliminate RPropP <-------------------------- HEREHEREHEREHEREHEREHEREHERE
-
-+ Only allowed in Parse.hs
-+ Translated away outside it.
-
-
-----
-
 If expandRApp is called with [] only from Fresh.hs (means: create "top" refinements that will later get K-Vars)
 If expandRApp is called with rs the
 
