@@ -1348,6 +1348,15 @@ instantiatePreds γ e t0@(RAllP π t)
 instantiatePreds _ _ t0
   = return t0
 
+instantiateStrata ls t = substStrata t ls <$> mapM (\_ -> fresh) ls
+
+substStrata t ls ls'   = F.substa f t
+  where
+    f x                = fromMaybe x $ L.lookup x su
+    su                 = zip ls ls'
+
+
+
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
@@ -1381,10 +1390,13 @@ consE γ e'@(App e (Type τ))
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
        te0                 <- instantiatePreds γ e' $ foldr RAllP te πs 
-                                             -- ZOINK zs                  <- mapM (\π -> (π,) <$> freshPredRef γ e' π) πs
-       su                  <- zip ls <$> mapM (\_ -> fresh) ls
-       let f x              = fromMaybe x $ L.lookup x su
-       let te'              = F.substa f te0 -- ZOINK $ replacePreds "consE" te zs
+
+       -- su                  <- zip ls <$> mapM (\_ -> fresh) ls
+       -- let f x              = fromMaybe x $ L.lookup x su
+       -- let te'              = F.substa f te0
+       
+       te'                 <- instantiateStrata ls te0
+       
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _)  = checkFun ("Non-fun App with caller ", e') te''
