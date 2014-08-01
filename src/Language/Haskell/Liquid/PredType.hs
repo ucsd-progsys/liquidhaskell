@@ -58,8 +58,6 @@ import Data.List (nub)
 import Data.Default
 
 
-
-
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
@@ -178,11 +176,11 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
        ts'   <- zipWithM unifyS ts pts
        return $ RApp c ts' rs' (bUnify r p)
     where 
-       fm       = S.fromList $ concatMap pvars (fp:fps) 
-       fp : fps = p : (getR <$> ps)
-       rs'      = zipWithZero unifyRef (RPropP [] mempty {- trueReft -}) mempty rs fps
+       fm       = S.fromList $ concatMap pvars (p : fps) 
+       fps      = getR <$> ps
+       rs'      = zipWithZero unifyRef (RPropP [] mempty) mempty rs fps
        getR (RPropP _ r) = r
-       getR (RProp _ _) = mempty 
+       getR (RProp _ _ ) = mempty 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
   = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
@@ -199,19 +197,24 @@ unifyS t@(RVar v a) (RAllE x' tx' t')
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
+bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
+unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
+unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
 
-unifyRef (RPropP s a) (Pr pvs) = RPropP s $ foldl' meet a $ pToReft <$> pvs
-unifyRef (RProp s a) (Pr pvs) = RProp s $ foldl' strengthen a $ pToReft <$> pvs
-
-zipWithZero _ _  _  []     []     = []
-zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
-zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
-zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
- 
 -- pToReft p = Reft (vv, [RPvar p]) 
-pToReft = (\p -> U mempty p mempty) . pdVar 
+pToReft  = (\p -> U mempty p mempty) . pdVar 
 
+zipWithZero f xz yz  = go
+  where
+    go []     ys     = (xz `f`) <$> ys
+    go xs     []     = (`f` yz) <$> xs
+    go (x:xs) (y:ys) = f x y  : go xs ys
+    
+-- ORIG zipWithZero _ _  _  []     []     = []
+-- ORIG zipWithZero f xz yz []     (y:ys) = f xz y : zipWithZero f xz yz [] ys
+-- ORIG zipWithZero f xz yz (x:xs) []     = f x yz : zipWithZero f xz yz xs []
+-- ORIG zipWithZero f xz yz (x:xs) (y:ys) = f x y  : zipWithZero f xz yz xs ys
+ 
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------

@@ -152,8 +152,14 @@ initEnv info penv
 
 ctor' = map (mapSnd val) . ctors
 
-unifyts' senv tce tyi penv =  second (addTyConInfo tce tyi) . strataUnify senv . unifyts penv
+-- | All this *should* happen inside @Bare@ but appears to happen after certain
+--   are signatures are @fresh@-ed, which is why they are here. TODO:fix.
 
+unifyts' senv tce tyi penv = strataUnify senv . predsUnify tce tyi penv
+
+predsUnify tce tyi penv    = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                           . unifyts penv                  -- needed to match up some  @TyVars@
+    
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where

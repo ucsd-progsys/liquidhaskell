@@ -407,8 +407,8 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
 -- w/o it
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
-bCon b s [RPropP _ r1] [] r = RApp b [] [] (r1 `meet` (U r mempty s)) 
-bCon b s rs ts r            = RApp b ts rs (U r mempty s)
+bCon b s [RPropP _ r1] [] r = RApp b [] [] $ r1 `meet` (U r mempty s)
+bCon b s rs ts r            = RApp b ts rs $ U r mempty s
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
 bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)
