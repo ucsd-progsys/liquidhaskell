@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Constraint (
     -- * Project Constraints to Fixpoint Format
   , cgInfoFInfo , cgInfoFInfoBot, cgInfoFInfoKvars
   
-  -- * KVars in constraints, for debug purposes
+  -- * KVars in constraints, for debug/profile purposes
   -- , kvars, kvars'
   ) where
 
@@ -150,19 +150,19 @@ initEnv info penv
   -- where tce = tcEmbeds $ spec info
     ialias  = mkRTyConIAl $ ialiases $ spec info
 
-
-
 ctor' = map (mapSnd val) . ctors
 
-unifyts' senv tce tyi penv =  (second (addTyConInfo tce tyi)) . (sunify senv) . (unifyts penv)
+unifyts' senv tce tyi penv =  second (addTyConInfo tce tyi) . strataUnify senv . unifyts penv
 
-sunify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
-sunify senv (x, t) = (x, maybe t (mappend t) pt)
- where pt = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
+strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
+strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
+  where
+    pt                  = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
 
 unifyts penv (x, t) = (x, unify pt t)
- where pt = F.lookupSEnv x' penv
-       x' = F.symbol x
+ where
+   pt               = F.lookupSEnv x' penv
+   x'               = F.symbol x
 
 measEnv sp penv xts cbs lts asms
   = CGE { loc   = noSrcSpan
