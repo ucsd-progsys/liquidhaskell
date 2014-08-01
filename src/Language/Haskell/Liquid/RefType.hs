@@ -526,8 +526,7 @@ appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc
 rtPropTop (PV _ (PVProp t) _ _) = RProp  [] $ ofRSort t
 rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
 
-toPoly (RPropP ss r) pv 
-  = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
+toPoly (RPropP ss r) pv         = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
 
 -- TODO:EFFECTS:ASKNIKI
 toPoly (RProp ss t) pv
