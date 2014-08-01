@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Types (
   
   -- * Ghc Information
   , GhcInfo (..)
-  , GhcSpec (..)
+  , GhcSpec (..), emptySpec
   , TargetVars (..)
 
   -- * Located Things
@@ -1616,6 +1616,8 @@ data Output a = O { o_vars   :: Maybe [String]
 
 emptyOutput = O Nothing [] mempty mempty [] mempty
 
+emptySpec   = undefined -- SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty NAMESET [] mempty 
+  
 instance Monoid (Output a) where 
   mempty        = emptyOutput  
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
