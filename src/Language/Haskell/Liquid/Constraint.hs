@@ -1340,6 +1340,12 @@ cconsE γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
+
+-------------------------------------------------------------------
+-- | @instantiatePreds@ peels away the universally quantified @PVars@
+--   of a @RType@, generates fresh @Ref@ for them and substitutes them
+--   in the body.
+       
 instantiatePreds γ e t0@(RAllP π t)
   = do r     <- freshPredRef γ e π 
        let t' = replacePreds "consE" t [(π, r)]
@@ -1348,6 +1354,10 @@ instantiatePreds γ e t0@(RAllP π t)
 instantiatePreds _ _ t0
   = return t0
 
+-------------------------------------------------------------------
+-- | @instantiateStrata@ generates fresh @Strata@ vars and substitutes
+--   them inside the body of the type.
+
 instantiateStrata ls t = substStrata t ls <$> mapM (\_ -> fresh) ls
 
 substStrata t ls ls'   = F.substa f t
@@ -1355,7 +1365,7 @@ substStrata t ls ls'   = F.substa f t
     f x                = fromMaybe x $ L.lookup x su
     su                 = zip ls ls'
 
-
+-------------------------------------------------------------------
 
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
