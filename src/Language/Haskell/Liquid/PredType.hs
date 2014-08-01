@@ -51,7 +51,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
-import Control.Applicative  ((<$>))
+import Control.Applicative  ((<$>), (<*>))
 import Control.Monad.State
 import Data.List (nub)
 
@@ -174,25 +174,24 @@ unifyS (RVar v a) (RVar _ p)
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
        ts'   <- zipWithM unifyS ts pts
-       return $ RApp c ts' rs {- rs' -} (bUnify r p)
+       return $ RApp c ts' rs (bUnify r p)
     where 
-       fm       = S.fromList $ concatMap pvars (p : fps) 
+       fm       = S.fromList $ concatMap pvars (p:fps) 
        fps      = getR <$> ps
-       -- rs'      = zipWithZero unifyRef (RPropP [] mempty) mempty rs fps
        getR (RPropP _ r) = r
        getR (RProp _ _ ) = mempty 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
-  = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
+  = RAllE x <$> unifyS tx tx' <*> unifyS t t'
 
 unifyS (REx x tx t) (REx x' tx' t') | x == x'
-  = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
-
+  = REx x   <$> unifyS tx tx' <*> unifyS t t'
+    
 unifyS t (REx x' tx' t')
-  = liftM (REx x' ((\p -> U mempty p mempty) <$> tx')) (unifyS t t')
-
+  = REx x' ((\p -> U mempty p mempty) <$> tx') <$> unifyS t t'
+    
 unifyS t@(RVar v a) (RAllE x' tx' t')
-  = liftM (RAllE x' ((\p -> U mempty p mempty)<$> tx')) (unifyS t t')
+  = RAllE x' ((\p -> U mempty p mempty)<$> tx') <$> (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
