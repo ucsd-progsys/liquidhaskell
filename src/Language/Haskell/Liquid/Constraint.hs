@@ -829,18 +829,7 @@ addBind x r
 addClassBind :: SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind = mapM (uncurry addBind) . classBinds
 
--- addClassBind (RCls c ts)
---   | isNumericClass c
---   = do let numReft = F.trueSortedReft F.FNum
---        let numVars = [rTyVarSymbol a | (RVar a _) <- ts]
---        is         <- forM numVars (`addBind` numReft)
---        return is
--- addClassBind _ 
---   = return [] 
-
--- unsetConsBind    = modify $ \s -> s {isBind = False : isBind s}
--- setConsBind      = modify $ \s -> s {isBind = tail (isBind s)}
-
+-- RJ: What is this `isBind` business?
 pushConsBind act
   = do modify $ \s -> s { isBind = False : isBind s }
        z <- act
@@ -1177,23 +1166,26 @@ makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
   where trep = toRTypeRep t
         args' = mapNs ns makeFinType $ ty_args trep
 
-makeTermEnvs γ xtes xes ts ts'
-  = (\rt -> γ `withTRec` (zip xs rt)) <$> rts
-  where vs   = zipWith collectArgs ts es
-        ys   = (fst3 . bkArrowDeep) <$> ts 
-        ys'  = (fst3 . bkArrowDeep) <$> ts'
-        sus' = zipWith mkSub ys ys'
-        sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
-        ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
-        tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
-        tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
-        rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
-        rts  = zipWith addTermCond ts' <$> rss
-        (xs, es)     = unzip xes
-        mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
-        collectArgs  = collectArguments . length . ty_binds . toRTypeRep
-        err x = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x 
-       
+
+makeTermEnvs γ xtes xes ts ts' = withTRec γ . zip xs <$> rts
+  where
+    vs   = zipWith collectArgs ts es
+    ys   = (fst3 . bkArrowDeep) <$> ts 
+    ys'  = (fst3 . bkArrowDeep) <$> ts'
+    sus' = zipWith mkSub ys ys'
+    sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
+    ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
+    tes  = zipWith (\su es -> F.subst su <$> es)  sus ess 
+    tes' = zipWith (\su es -> F.subst su <$> es)  sus' ess 
+    rss  = zipWith makeLexRefa tes' <$> (repeat <$> tes)
+    rts  = zipWith addTermCond ts' <$> rss
+    (xs, es)     = unzip xes
+    mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
+    collectArgs  = collectArguments . length . ty_binds . toRTypeRep
+    err x        = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x 
+
+
+                   
 consCB tflag _ γ (Rec xes) | tflag 
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -1423,7 +1415,8 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx 
        addW     $ WfC γ tx 
        return   $ rFun (F.symbol x) tx t1
-    where FunTy τx _ = exprType e 
+    where
+      FunTy τx _ = exprType e 
 
 -- EXISTS-BASED CONSTRAINTS HEREHEREHEREHERE
 -- Currently suppressed because they break all sorts of invariants,
@@ -1485,7 +1478,7 @@ consElimE γ xs e
        return $ rEx xts t
 
 -- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
--- the above existential elimination is not easy (e.g. at joins, recursive binders)
+--   the above existential elimination is not easy (e.g. at joins, recursive binders)
 
 cconsFreshE kvkind γ e
   = do t   <- freshTy_type kvkind e $ exprType e
