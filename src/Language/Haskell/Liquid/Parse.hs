@@ -608,11 +608,6 @@ cMeasureP
 
 iMeasureP :: Parser (Measure BareType LocSymbol)
 iMeasureP = measureP
-  -- = do m   <- locParserP symbolP
-  --      ty  <- genBareTypeP
-  --      reserved "="
-  --      tgt <- symbolP
-  --      return $ M m ty tgt
 
 classP :: Parser (RClass BareType)
 classP
@@ -728,9 +723,8 @@ dataSizeP
   where mkFun s = \x -> EApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl 
-dataDeclP 
-   =  try dataDeclFullP
-  <|> dataDeclSizeP
+dataDeclP = try dataDeclFullP <|> dataDeclSizeP
+
 
 dataDeclSizeP
   = do pos <- getPosition
@@ -771,17 +765,16 @@ betweenMany leftP rightP p
 -- specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
 specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
 
-----------------------------------------------------------------------------------------
------------------------- Bundling Parsers into a Typeclass -----------------------------
-----------------------------------------------------------------------------------------
+---------------------------------------------------------------
+-- | Bundling Parsers into a Typeclass ------------------------
+---------------------------------------------------------------
 
 instance Inputable BareType where
   rr' = doParse' bareTypeP 
 
 instance Inputable (Measure BareType LocSymbol) where
   rr' = doParse' measureP
-
-
+ 
 {-
 ---------------------------------------------------------------
 --------------------------- Testing ---------------------------

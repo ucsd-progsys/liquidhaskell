@@ -156,7 +156,7 @@ unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt)
 
 unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
+       t2' <- unifyS rt2 $ substParg (x', EVar x) pt2
        return $ rFun x t1' t2' 
 
 unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
@@ -174,7 +174,7 @@ unifyS (RVar v a) (RVar _ p)
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
        ts'   <- zipWithM unifyS ts pts
-       return $ RApp c ts' rs' (bUnify r p)
+       return $ RApp c ts' rs {- rs' -} (bUnify r p)
     where 
        fm       = S.fromList $ concatMap pvars (p : fps) 
        fps      = getR <$> ps
@@ -500,9 +500,10 @@ panic_msg :: CoreExpr -> Type -> String
 panic_msg e op_ty = showPpr e ++ " :: " ++ showPpr op_ty
 
 substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
-substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
-  where fxy s = if (s == EVar x) then y else s
-        fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+substParg (x, y) = fmap fp
+  where
+    fxy s        = if (s == EVar x) then y else s
+    fp           = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
 -------------------------------------------------------------------------------
 -----------------------------  Predicate Application --------------------------
