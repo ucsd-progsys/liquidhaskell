@@ -1377,23 +1377,14 @@ consE γ e'@(App e (Type τ))
        addW        $ WfC γ t
        t'         <- refreshVV t
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
--- OLD return      $ subsTyVar_meet' (α, t') te   
-       
--- OLD consE γ e'@(App e a) | eqType (exprType a) predType 
--- OLD   = do t0 <- consE γ e
--- OLD        instantiatePreds γ e' t0
-       
--- OLDER          case t0 of
--- OLDER            RAllP p t -> do s <- freshPredRef γ e' p
--- OLDER                            return $ replacePreds "consE" t [(p, s)]
--- OLDER            _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
-       zs                  <- mapM (\π -> (π,) <$> freshPredRef γ e' π) πs
+       te0                 <- instantiatePreds γ e' $ foldr RAllP te πs 
+                                             -- ZOINK zs                  <- mapM (\π -> (π,) <$> freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
        let f x              = fromMaybe x $ L.lookup x su
-       let te'              = F.substa f $ replacePreds "consE" te zs
+       let te'              = F.substa f te0 -- ZOINK $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
        let (RFun x tx t _)  = checkFun ("Non-fun App with caller ", e') te''
