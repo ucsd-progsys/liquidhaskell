@@ -1371,21 +1371,22 @@ consE γ (Var x)
 consE γ (Lit c) 
   = refreshVV $ uRType $ literalFRefType (emb γ) c
 
-consE γ (App e (Type τ)) 
+consE γ e'@(App e (Type τ)) 
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW       $  WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ  
-       return     $  traceShow "HAHA: consE " $ subsTyVar_meet' (α, t') te
+       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te   
+    
+       -- return     $  traceShow "HAHA: consE " $ subsTyVar_meet' (α, t') te
        
 -- consE γ e'@(App e a) | eqType (exprType a) predType 
 --   = do t0 <- consE γ e
---        HEREHEREHERE: ADD THIS, RESTORE ADDPREDS, SEE IF ALL TESTS PASS: instantiatePreds γ e' t0
---        case t0 of
---          RAllP p t -> do s <- freshPredRef γ e' p
---                          return $ replacePreds "consE" t [(p, s)]
---          _         -> return t0
+--        instantiatePreds γ e' t0
+-- OLD       case t0 of
+-- OLD         RAllP p t -> do s <- freshPredRef γ e' p
+-- OLD                         return $ replacePreds "consE" t [(p, s)]
+-- OLD         _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
