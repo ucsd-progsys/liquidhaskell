@@ -838,8 +838,14 @@ addClassBind = mapM (uncurry addBind) . classBinds
 -- addClassBind _ 
 --   = return [] 
 
-setConsBind   = modify $ \s -> s {isBind = tail (isBind s)}
-unsetConsBind = modify $ \s -> s {isBind = False : isBind s}
+-- unsetConsBind    = modify $ \s -> s {isBind = False : isBind s}
+-- setConsBind      = modify $ \s -> s {isBind = tail (isBind s)}
+
+pushConsBind act
+  = do modify $ \s -> s { isBind = False : isBind s }
+       z <- act
+       modify $ \s -> s { isBind = tail (isBind s) }
+       return z
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
@@ -1398,22 +1404,14 @@ consE γ e'@(App e (Type τ))
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a)               
-  = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
-       te0                 <- instantiatePreds γ e' $ foldr RAllP te πs 
-
-       -- su                  <- zip ls <$> mapM (\_ -> fresh) ls
-       -- let f x              = fromMaybe x $ L.lookup x su
-       -- let te'              = F.substa f te0
-       
-       te'                 <- instantiateStrata ls te0
-       
-       (γ', te'')          <- dropExists γ te'
+  = do ([], πs, ls, te) <- bkUniv <$> consE γ e
+       te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
+       te'              <- instantiateStrata ls te0
+       (γ', te'')       <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
-       let (RFun x tx t _)  = checkFun ("Non-fun App with caller ", e') te''
-       unsetConsBind
-       cconsE γ' a tx 
-       setConsBind
-       addPost γ' $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+       pushConsBind      $ cconsE γ' a tx 
+       addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ (Lam α e) | isTyVar α 
   = liftM (RAllT (rTyVar α)) (consE γ e) 
