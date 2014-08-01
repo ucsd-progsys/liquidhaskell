@@ -168,7 +168,7 @@ unifyS t@(RCls _ _) (RCls _ _)
   = return t
 
 unifyS (RVar v a) (RVar _ p)
-  = do modify $ \s -> s `S.union` (S.fromList $ pvars p) -- (filter (/= PdTrue) [p]))
+  = do modify $ \s -> s `S.union` (S.fromList $ pvars p)
        return $ RVar v $ bUnify a p
 
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
@@ -178,7 +178,7 @@ unifyS (RApp c ts rs r) (RApp _ pts ps p)
     where 
        fm       = S.fromList $ concatMap pvars (p : fps) 
        fps      = getR <$> ps
-       rs'      = zipWithZero unifyRef (RPropP [] mempty) mempty rs fps
+       -- rs'      = zipWithZero unifyRef (RPropP [] mempty) mempty rs fps
        getR (RPropP _ r) = r
        getR (RProp _ _ ) = mempty 
 
@@ -197,18 +197,18 @@ unifyS t@(RVar v a) (RAllE x' tx' t')
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
-unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
-unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
-
 -- pToReft p = Reft (vv, [RPvar p]) 
 pToReft  = (\p -> U mempty p mempty) . pdVar 
 
-zipWithZero f xz yz  = go
-  where
-    go []     ys     = (xz `f`) <$> ys
-    go xs     []     = (`f` yz) <$> xs
-    go (x:xs) (y:ys) = f x y  : go xs ys
+bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
+-- ORIG unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
+-- ORIG unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
+
+-- ORIG zipWithZero f xz yz  = go
+-- ORIG   where
+-- ORIG     go []     ys     = (xz `f`) <$> ys
+-- ORIG     go xs     []     = (`f` yz) <$> xs
+-- ORIG     go (x:xs) (y:ys) = f x y  : go xs ys
     
 -- ORIG zipWithZero _ _  _  []     []     = []
 -- ORIG zipWithZero f xz yz []     (y:ys) = f xz y : zipWithZero f xz yz [] ys
