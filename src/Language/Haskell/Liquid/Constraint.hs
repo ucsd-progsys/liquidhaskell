@@ -1340,11 +1340,11 @@ cconsE γ e t
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
+instantiatePreds γ e t0@(RAllP π t)
+  = do r     <- freshPredRef γ e π 
+       let t' = replacePreds "consE" t [(π, r)]
+       instantiatePreds γ e t'
 
-
-instantiatePreds γ e t0@(RAllP p t)
-  = do s     <- freshPredRef γ e p
-       return $ replacePreds "consE" t [(p, s)] 
 instantiatePreds _ _ t0
   = return t0
 
@@ -1376,17 +1376,17 @@ consE γ e'@(App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW       $  WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te   
-    
-       -- return     $  traceShow "HAHA: consE " $ subsTyVar_meet' (α, t') te
+       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       -- OLD return      $ subsTyVar_meet' (α, t') te   
        
--- consE γ e'@(App e a) | eqType (exprType a) predType 
---   = do t0 <- consE γ e
---        instantiatePreds γ e' t0
--- OLD       case t0 of
--- OLD         RAllP p t -> do s <- freshPredRef γ e' p
--- OLD                         return $ replacePreds "consE" t [(p, s)]
--- OLD         _         -> return t0
+-- OLD consE γ e'@(App e a) | eqType (exprType a) predType 
+-- OLD   = do t0 <- consE γ e
+-- OLD        instantiatePreds γ e' t0
+       
+-- OLDER          case t0 of
+-- OLDER            RAllP p t -> do s <- freshPredRef γ e' p
+-- OLDER                            return $ replacePreds "consE" t [(p, s)]
+-- OLDER            _         -> return t0
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
