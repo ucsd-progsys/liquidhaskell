@@ -1374,10 +1374,10 @@ consE γ (Lit c)
 consE γ e'@(App e (Type τ)) 
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
-       addW       $  WfC γ t
+       addW        $ WfC γ t
        t'         <- refreshVV t
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       -- OLD return      $ subsTyVar_meet' (α, t') te   
+-- OLD return      $ subsTyVar_meet' (α, t') te   
        
 -- OLD consE γ e'@(App e a) | eqType (exprType a) predType 
 -- OLD   = do t0 <- consE γ e
@@ -1392,7 +1392,7 @@ consE γ e'@(App e a)
   = do ([], πs, ls, te)    <- bkUniv <$> consE γ e
        zs                  <- mapM (\π -> (π,) <$> freshPredRef γ e' π) πs
        su                  <- zip ls <$> mapM (\_ -> fresh) ls
-       let f x = fromMaybe x $ L.lookup x su
+       let f x              = fromMaybe x $ L.lookup x su
        let te'              = F.substa f $ replacePreds "consE" te zs
        (γ', te'')          <- dropExists γ te'
        updateLocA πs (exprLoc e) te'' 
