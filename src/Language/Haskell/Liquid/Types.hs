@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Types (
   
   -- * Ghc Information
   , GhcInfo (..)
-  , GhcSpec (..), emptySpec
+  , GhcSpec (..) 
   , TargetVars (..)
 
   -- * Located Things
@@ -1615,8 +1615,6 @@ data Output a = O { o_vars   :: Maybe [String]
                   } deriving (Generic)
 
 emptyOutput = O Nothing [] mempty mempty [] mempty
-
-emptySpec   = undefined -- SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty NAMESET [] mempty 
   
 instance Monoid (Output a) where 
   mempty        = emptyOutput  
