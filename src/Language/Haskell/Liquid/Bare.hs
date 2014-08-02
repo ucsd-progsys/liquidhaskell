@@ -81,14 +81,18 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars exports env specs
-  = throwOr (throwOr return . checkGhcSpec specs) =<< execBare act initEnv
+  = throwOr return . checkGhcSpec specs . postProcess =<< execBare act initEnv
   where
-    act     = makeGhcSpec' cfg vars defVars exports specs
-    throwOr = either Ex.throw
-    initEnv = BE name mempty mempty mempty env
+    act      = makeGhcSpec' cfg vars defVars exports specs
+    throwOr  = either Ex.throw
+    initEnv  = BE name mempty mempty mempty env
+    
+postProcess :: GhcSpec -> GhcSpec
+postProcess sp = checkGhcSpec specs sp
+
 
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName,Ms.BareSpec)] -> BareM GhcSpec
+makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg vars defVars exports specs
   = do name                                    <- gets modName
@@ -550,30 +554,15 @@ mapTyRVar α a s@(MTVST αas err)
       Nothing             -> MTVST ((α,a):αas) err
 
 mkVarExpr v 
-  | isDataConWorkId v && not (null tvs) && isNothing tfun
-  = EApp (dummyLoc $ dataConSymbol (idDataCon v)) []
-  | otherwise   
-  = EVar $ symbol v
+  | isFunVar v = EApp (varFunSymbol v) []
+  | otherwise  = EVar (symbol v)
+
+varFunSymbol = dummyLoc . dataConSymbol . idDataCon 
+
+isFunVar v   = isDataConWorkId v && not (null αs) && isNothing tf
   where
-    t            = varType v
-    (tvs, tbase) = splitForAllTys t
-    tfun         = splitFunTy_maybe tbase
-
--- NUKE subsFreeSymbols    :: (Functor f, Subable t) => Subst -> f (x, t) -> f (x, t) 
--- NUKE subsFreeSymbols    = fmap . mapSnd . subst 
--- NUKE 
--- NUKE subsFreeSymbolsInv :: (Functor f, Subable t) => Subst -> f t -> f t
--- NUKE subsFreeSymbolsInv = fmap . subst
--- NUKE 
--- NUKE subsFreeSymbolsIAliases = subst
--- subsFreeSymbolsIAliases su = fmap (mapFst f . mapSnd f)
---   where 
---     f                  = subst su
--- NUKE subsFreeSymbolsQual su = tx
--- NUKE   where
--- NUKE     tx                 = fmap $ mapBody $ subst su
--- NUKE     mapBody f q        = q { q_body = f (q_body q) }
-
+    (αs, t)  = splitForAllTys $ varType v 
+    tf       = splitFunTy_maybe t
    
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
