@@ -161,7 +161,8 @@ makeGhcSpec' cfg vars defVars exports specs
        sp2    <- makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx sp1 
        sp3    <- makeGhcSpec2 su invs ialias measures                     sp2
        sp4    <- makeGhcSpec3 tcEnv datacons tycons embs syms             sp3
-       return  $ sp4
+       sp5    <- makeGhcSpec9 defVars specs name su sp
+       return  $ sp5
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
