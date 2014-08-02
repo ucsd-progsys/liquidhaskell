@@ -149,24 +149,24 @@ makeGhcSpec' cfg vars defVars exports specs
        _      <- makeRTEnv specs
        (tycons, datacons, dcSelectors) <- makeGhcSpecCHOP1 specs
        modify  $ \be -> be { tcEnv = makeTyConInfo tycons }
-
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
        (invs, ialias, embs, tcEnv, sigs, asms) <- makeGhcSpecCHOP3 cfg vars defVars specs name cls mts 
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cfg vars specs dcSelectors datacons cls tcEnv embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        let tx  = subsFreeSymbols su
-       let sp0 = emptySpec
-       sp1    <- makeGhcSpec0 cfg defVars exports name                    sp0 
-       sp2    <- makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx sp1 
-       sp3    <- makeGhcSpec2 su invs ialias measures                     sp2
-       sp4    <- makeGhcSpec3 tcEnv datacons tycons embs syms             sp3
-       sp5    <- makeGhcSpec9 defVars specs name su sp
-       return  $ sp5
+       return emptySpec
+         >>= makeGhcSpec0 cfg defVars exports name
+         >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx 
+         >>= makeGhcSpec2 su invs ialias measures                     
+         >>= makeGhcSpec3 tcEnv datacons tycons embs syms             
+         >>= makeGhcSpec9 defVars specs name su 
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
-       return      $ sp { config = cfg } { exports = exports } { tgtVars = targetVars }
+       return      $ sp { config = cfg         
+                        , exports = exports    
+                        , tgtVars = targetVars }
 
 makeGhcSpec9 defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars) specs
