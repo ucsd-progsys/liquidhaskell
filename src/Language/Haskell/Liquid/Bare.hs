@@ -136,12 +136,15 @@ makeGhcSpec' cfg vars defVars exports specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls tcEnv embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
-       return emptySpec
+       return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
          >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su 
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 tcEnv datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
+
+emptySpec     :: Config -> GhcSpec
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
