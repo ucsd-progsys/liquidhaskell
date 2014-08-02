@@ -88,7 +88,7 @@ makeGhcSpec cfg name vars defVars exports env specs
     initEnv  = BE name mempty mempty mempty env
     
 postProcess :: GhcSpec -> GhcSpec
-postProcess sp = checkGhcSpec specs sp
+postProcess = id -- HEREHEREHEREHERE (addTyConInfo stuff) 
 
 
 ------------------------------------------------------------------------------------------------
