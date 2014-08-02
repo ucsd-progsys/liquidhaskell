@@ -128,6 +128,7 @@ makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx sp
                 { asmSigs    = renameTyVars <$> tx asms               }
                 { ctors      = tx cs'                                 }
                 { meas       = tx (ms' ++ varMeasures vars ++ cms')   }
+    
 
 makeGhcSpec2 su invs ialias measures sp
   = return $ sp { invariants = subsFreeSymbolsInv      su invs }
@@ -160,7 +161,7 @@ makeGhcSpec' cfg vars defVars exports specs
          >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx 
          >>= makeGhcSpec2 su invs ialias measures                     
          >>= makeGhcSpec3 tcEnv datacons tycons embs syms             
-         >>= makeGhcSpec9 defVars specs name su 
+         >>= makeGhcSpec4 defVars specs name su 
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
@@ -168,7 +169,7 @@ makeGhcSpec0 cfg defVars exports name sp
                         , exports = exports    
                         , tgtVars = targetVars }
 
-makeGhcSpec9 defVars specs name su sp
+makeGhcSpec4 defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars) specs
        texprs' <- mconcat <$> mapM (makeTExpr defVars) specs
        lazies  <- mkThing makeLazy defVars specs name
@@ -594,7 +595,14 @@ mkVarExpr v
     (tvs, tbase) = splitForAllTys t
     tfun         = splitFunTy_maybe tbase
 
-subsFreeSymbols    = fmap . mapSnd . subst 
+-- subsFreeSymbols    = fmap . mapSnd . subst 
+
+subsFreeSymbols su  = tx
+  where 
+    tx              = fmap $ mapSnd $ subst su 
+
+
+
 subsFreeSymbolsInv = fmap . subst
 
 subsFreeSymbolsIAliases su = fmap (mapFst f . mapSnd f)
