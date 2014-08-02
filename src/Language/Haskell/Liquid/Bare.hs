@@ -123,7 +123,23 @@ checkMBody γ emb name sort (Def s c bs body) = go γ' body
 
     trep' = toRTypeRep sort
 
+makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx sp
+  = return $ sp { tySigs     = makePluggedSigs name exports (tx sigs) } 
+                { asmSigs    = renameTyVars <$> tx asms               }
+                { ctors      = tx cs'                                 }
+                { meas       = tx (ms' ++ varMeasures vars ++ cms')   }
 
+makeGhcSpec2 su invs ialias measures sp
+  = return $ sp { invariants = subsFreeSymbolsInv      su invs }
+                { ialiases   = subsFreeSymbolsIAliases su ialias } 
+                { measures   = subst su <$> M.elems $ Ms.measMap measures }
+
+makeGhcSpec3 tcEnv datacons tycons embs syms sp
+  = return  $ sp { tyconEnv   = tcEnv}
+                 { dconsP     = datacons}
+                 { tconsP     = tycons}
+                 { tcEmbeds   = embs }
+                 { freeSyms   = [(symbol v, v) | (_, v) <- syms] }
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName,Ms.BareSpec)] -> BareM GhcSpec
@@ -131,42 +147,21 @@ makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName,Ms.BareSpec)] -
 makeGhcSpec' cfg vars defVars exports specs
   = do name   <- gets modName
        _      <- makeRTEnv specs
-       let sp0 = emptySpec
-       sp1    <- makeGhcSpec0 cfg defVars exports name sp0 
        (tycons, datacons, dcSelectors) <- makeGhcSpecCHOP1 specs
-       modify           $ \be -> be { tcEnv = makeTyConInfo tycons }
-       (measures, cms', ms', cs', mts, xs') <- makeGhcSpecCHOP2 specs dcSelectors 
+       modify  $ \be -> be { tcEnv = makeTyConInfo tycons }
 
-       
-       -- CHOP 3
-       -- sigs'           <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
-       -- asms'           <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
-       -- invs            <- mconcat <$> mapM makeInvariants specs
-       -- ialias          <- mconcat <$> mapM makeIAliases   specs
-       -- let dms          = makeDefaultMethods vars mts
-       -- tcEnv           <- gets tcEnv
-       -- let sigs         = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- sigs' ++ mts ++ dms ]
-       -- let asms         = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
-
-       let (invs, ialias, embs, tcEnv, sigs, asms) = undefined 
-       
-       syms            <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
-       let su           = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
-
-       let tx           = subsFreeSymbols su
-       return          $ SP { tySigs     = makePluggedSigs name exports (tx sigs) 
-                            , asmSigs    = renameTyVars <$> tx asms
-                            , ctors      = tx cs'
-                            , meas       = tx (ms' ++ varMeasures vars ++ cms')
-                            , invariants = subsFreeSymbolsInv      su invs
-                            , ialiases   = subsFreeSymbolsIAliases su ialias
-                            , dconsP     = datacons
-                            , tconsP     = tycons
-                            , freeSyms   = [(symbol v, v) | (_, v) <- syms]
-                            , tcEmbeds   = embs
-                            , measures   = subst su <$> M.elems $ Ms.measMap measures
-                            , tyconEnv   = tcEnv
-                            }
+       (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
+       (invs, ialias, embs, tcEnv, sigs, asms) <- makeGhcSpecCHOP3 cfg vars defVars specs name cls mts 
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cfg vars specs dcSelectors datacons cls tcEnv embs
+       syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
+       let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
+       let tx  = subsFreeSymbols su
+       let sp0 = emptySpec
+       sp1    <- makeGhcSpec0 cfg defVars exports name                    sp0 
+       sp2    <- makeGhcSpec1 vars exports name sigs asms cs' ms' cms' tx sp1 
+       sp3    <- makeGhcSpec2 su invs ialias measures                     sp2
+       sp4    <- makeGhcSpec3 tcEnv datacons tycons embs syms             sp3
+       return  $ sp4
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
@@ -191,18 +186,29 @@ makeGhcSpecCHOP1 specs
        let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
        return           $ (tycons, datacons, dcSelectors) 
 
-makeGhcSpecCHOP2 cfg vars specs dcSelectors datacons
-  = do embs            <- mconcat <$> mapM makeTyConEmbeds specs
-       measures'       <- mconcat <$> mapM makeMeasureSpec specs
+makeGhcSpecCHOP3 cfg vars defVars specs name cls mts
+  = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
+       asms'   <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+       invs    <- mconcat <$> mapM makeInvariants specs
+       ialias  <- mconcat <$> mapM makeIAliases   specs
+       embs    <- mconcat <$> mapM makeTyConEmbeds specs
+       let dms  = makeDefaultMethods vars mts
+       tcEnv   <- gets tcEnv
+       let sigs = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- sigs' ++ mts ++ dms ]
+       let asms = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
+       return     (invs, ialias, embs, tcEnv, sigs, asms)
+
+
+makeGhcSpecCHOP2 cfg vars specs dcSelectors datacons cls tcEnv embs
+  = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms, isNothing $ lookup x cms' ]
-       (cls, mts)      <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
        let cs'          = [ (v, Loc (getSourcePos v) (txRefSort tcEnv embs t)) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
        let xs'          = val . fst <$> ms
-       return (measures, cms', ms', cs', mts, xs')
+       return (measures, cms', ms', cs', xs')
 
        
 mkThing mk defVars specs name
@@ -587,19 +593,12 @@ mkVarExpr v
     (tvs, tbase) = splitForAllTys t
     tfun         = splitFunTy_maybe tbase
 
-subsFreeSymbols su  = tx
-  where 
-    tx              = fmap $ mapSnd $ subst su 
+subsFreeSymbols    = fmap . mapSnd . subst 
+subsFreeSymbolsInv = fmap . subst
 
-subsFreeSymbolsInv su  = tx
+subsFreeSymbolsIAliases su = fmap (mapFst f . mapSnd f)
   where 
-    tx                 = fmap $ subst su 
-
-subsFreeSymbolsIAliases su  = tx
-  where 
-    tx                 = fmap (mapFst f . mapSnd f)
     f                  = subst su
-
 
 subsFreeSymbolsQual su = tx
   where
