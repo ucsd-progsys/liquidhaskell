@@ -87,40 +87,6 @@ makeGhcSpec cfg name vars defVars exports env specs
     throwOr = either Ex.throw
     initEnv = BE name mempty mempty mempty env
 
-checkMeasures emb env = concatMap (checkMeasure emb env)
-
-checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (M name@(Loc src n) sort body)
-  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
-  where 
-    txerror = ErrMeas (sourcePosSrcSpan src) n
-
-checkMBody γ emb name sort (Def s c bs body) = checkMBody' emb sort γ' body
-  where 
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
-    trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
-    ct   = ofType $ dataConUserType c :: SpecType
-
-checkMBodyUnify                 = go
-  where
-    go (RVar tv _) t            = [(tv, toRSort t, t)]
-    go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
-    go _ _                      = []
-
-checkMBody' emb sort γ body = case body of
-    E e   -> checkSortFull γ (rTypeSort emb sort') e
-    P p   -> checkSortFull γ psort  p
-    R s p -> checkSortFull (insertSEnv s sty γ) psort p
-  where
-    psort = FApp propFTyCon []
-    sty   = rTypeSortedReft emb sort' 
-    sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
-                                 , ty_binds = tail $ ty_binds trep'
-                                 , ty_args  = tail $ ty_args trep'             }
-    trep' = toRTypeRep sort
-
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName,Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
@@ -1483,13 +1449,11 @@ ghcSpecEnv sp        = fromListSEnv binds
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
 
--------------------------------------------------------------------------------------
--- | This function checks if a type is malformed in a given environment -------------
--------------------------------------------------------------------------------------
-
--------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+-- | @checkRType@ determines if a type is malformed in a given environment ---------------------
+------------------------------------------------------------------------------------------------
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
--------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
 
 checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
@@ -1518,6 +1482,46 @@ checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r
 --       ys -> errorstar (msg ys) 
 --     where 
 --       msg ys = printf "Unkown free symbols: %s in specification for %s \n%s\n" (showpp ys) (showpp x) (showpp t)
+
+---------------------------------------------------------------------------------------------------
+-- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
+---------------------------------------------------------------------------------------------------
+checkMeasures :: M.HashMap TyCon FTycon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
+---------------------------------------------------------------------------------------------------
+checkMeasures emb env = concatMap (checkMeasure emb env)
+
+checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure emb γ (M name@(Loc src n) sort body)
+  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
+  where 
+    txerror = ErrMeas (sourcePosSrcSpan src) n
+
+checkMBody γ emb name sort (Def s c bs body) = checkMBody' emb sort γ' body
+  where 
+    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
+    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
+    trep = toRTypeRep ct
+    su   = checkMBodyUnify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
+    ct   = ofType $ dataConUserType c :: SpecType
+
+checkMBodyUnify                 = go
+  where
+    go (RVar tv _) t            = [(tv, toRSort t, t)]
+    go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
+    go _ _                      = []
+
+checkMBody' emb sort γ body = case body of
+    E e   -> checkSortFull γ (rTypeSort emb sort') e
+    P p   -> checkSortFull γ psort  p
+    R s p -> checkSortFull (insertSEnv s sty γ) psort p
+  where
+    psort = FApp propFTyCon []
+    sty   = rTypeSortedReft emb sort' 
+    sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
+                                 , ty_binds = tail $ ty_binds trep'
+                                 , ty_args  = tail $ ty_args trep'             }
+    trep' = toRTypeRep sort
+
 
 
 -------------------------------------------------------------------------------
