@@ -95,32 +95,30 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
   where 
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb name sort (Def s c bs body) = go γ' body
+checkMBody γ emb name sort (Def s c bs body) = checkMBody' emb sort γ' body
   where 
-    γ'  = foldl (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> (ty_args trep)
-    ct  = ofType $ dataConUserType c :: SpecType
-    su  = unify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
-
-
+    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
+    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    unify (RVar tv _) t                    = [(tv, toRSort t, t)]
-    unify (RApp _ ts _ _) (RApp _ ts' _ _) = concat $ zipWith unify ts ts'
-    unify _ _                              = []
+    su   = checkMBodyUnify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
+    ct   = ofType $ dataConUserType c :: SpecType
 
-    go γ (E e)   = checkSortFull γ rs e
-    go γ (P p)   = checkSortFull γ psort p
-    go γ (R s p) = checkSortFull (insertSEnv s sty γ) psort p
+checkMBodyUnify                 = go
+  where
+    go (RVar tv _) t            = [(tv, toRSort t, t)]
+    go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
+    go _ _                      = []
 
-    sty = rTypeSortedReft emb sort' -- (thd3 $ bkArrowDeep sort)
-    rs  = rTypeSort       emb sort' -- (thd3 $ bkArrowDeep sort)
-
+checkMBody' emb sort γ body = case body of
+    E e   -> checkSortFull γ (rTypeSort emb sort') e
+    P p   -> checkSortFull γ psort  p
+    R s p -> checkSortFull (insertSEnv s sty γ) psort p
+  where
     psort = FApp propFTyCon []
-    sort' = fromRTypeRep $ trep' 
-                  { ty_vars = [], ty_preds = [], ty_labels = []
-                  , ty_binds = tail $ ty_binds trep'
-                  , ty_args = (tail $ ty_args trep')}
-
+    sty   = rTypeSortedReft emb sort' 
+    sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
+                                 , ty_binds = tail $ ty_binds trep'
+                                 , ty_args  = tail $ ty_args trep'             }
     trep' = toRTypeRep sort
 
 ------------------------------------------------------------------------------------------------
