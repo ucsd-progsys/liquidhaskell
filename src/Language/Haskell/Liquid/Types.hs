@@ -475,7 +475,13 @@ instance Subable Predicate where
   substf f (Pr pvs) = Pr (substf f <$> pvs)
   substa f (Pr pvs) = Pr (substa f <$> pvs)
 
-
+instance Subable Qualifier where
+  syms   = syms . q_body
+  subst  = mapQualBody . subst
+  substf = mapQualBody . substf
+  substa = mapQualBody . substa
+  
+mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r) where
   rnf (U r p s) = rnf r `seq` rnf p `seq` rnf s

@@ -122,11 +122,11 @@ makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su sp
                 , ctors      = tx   cs'
                 , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
     where
-      tx   = subsFreeSymbols su
+      tx   = fmap . mapSnd . subst $ su
 
 makeGhcSpec2 invs ialias measures su sp
-  = return $ sp { invariants = subsFreeSymbolsInv su invs 
-                , ialiases   = subsFreeSymbolsIAliases su ialias 
+  = return $ sp { invariants = subst su invs 
+                , ialiases   = subst su ialias 
                 , measures   = subst su <$> M.elems $ Ms.measMap measures }
 
 makeGhcSpec3 tcEnv datacons tycons embs syms sp
@@ -142,7 +142,7 @@ makeGhcSpec4 defVars specs name su sp
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
        quals   <- mconcat <$> mapM makeQualifiers specs
-       return   $ sp { qualifiers = subsFreeSymbolsQual su quals
+       return   $ sp { qualifiers = subst su quals
                      , decr       = decr'
                      , texprs     = texprs'
                      , lvars      = lvars'
@@ -559,25 +559,22 @@ mkVarExpr v
     (tvs, tbase) = splitForAllTys t
     tfun         = splitFunTy_maybe tbase
 
--- subsFreeSymbols    = fmap . mapSnd . subst 
+-- NUKE subsFreeSymbols    :: (Functor f, Subable t) => Subst -> f (x, t) -> f (x, t) 
+-- NUKE subsFreeSymbols    = fmap . mapSnd . subst 
+-- NUKE 
+-- NUKE subsFreeSymbolsInv :: (Functor f, Subable t) => Subst -> f t -> f t
+-- NUKE subsFreeSymbolsInv = fmap . subst
+-- NUKE 
+-- NUKE subsFreeSymbolsIAliases = subst
+-- subsFreeSymbolsIAliases su = fmap (mapFst f . mapSnd f)
+--   where 
+--     f                  = subst su
+-- NUKE subsFreeSymbolsQual su = tx
+-- NUKE   where
+-- NUKE     tx                 = fmap $ mapBody $ subst su
+-- NUKE     mapBody f q        = q { q_body = f (q_body q) }
 
-subsFreeSymbols su  = tx
-  where 
-    tx              = fmap $ mapSnd $ subst su 
-
-
-
-subsFreeSymbolsInv = fmap . subst
-
-subsFreeSymbolsIAliases su = fmap (mapFst f . mapSnd f)
-  where 
-    f                  = subst su
-
-subsFreeSymbolsQual su = tx
-  where
-    tx                 = fmap $ mapBody $ subst su
-    mapBody f q        = q { q_body = f (q_body q) }
-
+   
 -- meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts 
   where 
@@ -597,9 +594,9 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
     _                             -> errorstar $ "meetPad: " ++ msg
   where msg = "\nt1 = " ++ showpp t1 ++ "\nt2 = " ++ showpp t2
  
-------------------------------------------------------------------
----------- Error-Reader-IO For Bare Transformation ---------------
-------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+-- | Error-Reader-IO For Bare Transformation --------------------------------------
+-----------------------------------------------------------------------------------
 
 type BareM a = WriterT [Warn] (ErrorT Error (StateT BareEnv IO)) a
 
@@ -648,9 +645,8 @@ execBare act benv =
         Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++) 
                             return $ Right x
 
-
 ------------------------------------------------------------------
-------------------- API: Bare Refinement Types -------------------
+-- | API: Bare Refinement Types ----------------------------------
 ------------------------------------------------------------------
 
 makeMeasureSpec :: (ModName, Ms.Spec BareType LocSymbol) -> BareM (Ms.MSpec SpecType DataCon)
@@ -706,23 +702,19 @@ makeDefaultMethods defVs sigs
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
 makeLocalSpec cfg mod vs lvs xbs
-  = do env     <- get
-       vbs1    <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
-       unless (noCheckUnknown cfg) $
-         checkDefAsserts env vbs1 xbs1
-       vts1    <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
-       vts2    <- makeSpec cfg vs xbs2
-       return   $ vts1 ++ vts2
-  where (xbs1, xbs2)  = L.partition (modElem mod . fst) xbs
-
-        dupSnd (x, y)       = (dropMod x, (x, y))
-        expand3 (x, (y, w)) = (x, y, w)
-
-        dropMod  = fmap (dropModuleNames . symbol)
-
-        fchoose ls = maybe ls (:[]) $ L.find (`elem` vs) ls
-
-        modElem n x = (takeModuleNames $ val x) == (symbol n)
+  = do env   <- get
+       vbs1  <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       unless (noCheckUnknown cfg)   $ checkDefAsserts env vbs1 xbs1
+       vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
+       vts2  <- makeSpec cfg vs xbs2
+       return $ vts1 ++ vts2
+  where
+    (xbs1, xbs2)        = L.partition (modElem mod . fst) xbs
+    dupSnd (x, y)       = (dropMod x, (x, y))
+    expand3 (x, (y, w)) = (x, y, w)
+    dropMod             = fmap (dropModuleNames . symbol)
+    fchoose ls          = maybe ls (:[]) $ L.find (`elem` vs) ls
+    modElem n x         = (takeModuleNames $ val x) == (symbol n)
 
 makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
                 -> BareM [(ModName, Var, Located SpecType)]
@@ -996,8 +988,6 @@ isCon c
   | Just (c,cs) <- T.uncons $ symbolText c = isUpper c
   | otherwise                              = False
 
---FIXME: probably need to add a Location to `EVar` so we don't need
---this instance..
 instance Resolvable Symbol where
   resolve l x = fmap val $ resolve l $ Loc l x 
 
@@ -1525,7 +1515,7 @@ checkMBody' emb sort γ body = case body of
 
 
 -------------------------------------------------------------------------------
-------------------  Replace Predicate Arguments With Existentials -------------
+-- | Replace Predicate Arguments With Existentials ----------------------------
 -------------------------------------------------------------------------------
 
 data ExSt = ExSt { fresh :: Int
