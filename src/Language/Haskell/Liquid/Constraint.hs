@@ -1300,7 +1300,8 @@ varTemplate γ (x, eo)
                            Asserted <$> refreshArgsTop (x, t)
       (_,      _, _) -> return Unknown
 
-unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
+unifyVar γ x rt = rt
+-- ORIG unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
