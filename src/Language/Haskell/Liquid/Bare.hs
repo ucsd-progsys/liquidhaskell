@@ -81,11 +81,6 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars exports env specs
-  --  do z <- execBare act initEnv
-   --     case z of
-   --       Left e   -> Ex.throw e
-   --       Right sp -> checkGhcSpec specs $ postProcess sp 
-   --  
   = throwOr (throwOr return . checkGhcSpec specs . postProcess) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg vars defVars exports specs
