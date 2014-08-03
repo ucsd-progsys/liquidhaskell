@@ -132,7 +132,7 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3)
        mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
@@ -1255,7 +1255,7 @@ consBind isRec γ (x, e, Assumed spect)
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
-  = do t     <- unifyVar γ x <$> consE (γ `setBind` x) e
+  = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
        return $ Asserted t
 
@@ -1690,8 +1690,8 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x4 x5 x6 x7 x8 x9 _ _ x10 x11 _ _) 
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` x4 `seq` rnf x5 `seq` 
+  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 x11 _ _) 
+    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData FEnv where
