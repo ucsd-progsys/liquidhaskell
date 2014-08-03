@@ -610,15 +610,6 @@ If expandRApp is called with rs the
 
 4. REMOVE addTyConInfo from Constraint.hs (some parts go into Bare.hs others into Fresh.hs)
 
-5. Move into Bare.hs
-   
-   getNeedPd
-   dataConPSpecType
-   dataConPtoPredTy :: TC.DataCon -> DataConP -> PrType
-
-
-
-
 
 
 

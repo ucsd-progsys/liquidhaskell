@@ -57,7 +57,6 @@ import Data.List (nub)
 
 import Data.Default
 
-
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
