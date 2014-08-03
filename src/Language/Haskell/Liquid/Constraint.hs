@@ -91,8 +91,8 @@ import IdInfo
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where 
-    act                  = consAct (info {- cbs = cbs' -}) nPd
-    (cbs', nPd)          = generatePredicates info
+    act                  = consAct info nPd
+    nPd                  = generatePredicates info
     cfg                  = config $ spec info
 
 consAct info penv
@@ -112,51 +112,50 @@ consAct info penv
        let annot' = if sflag then (\t -> subsS smap t) <$> annot else annot
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
 
+------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
+------------------------------------------------------------------------------------
 initEnv info penv
-  = do let tce   = tcEmbeds $ spec info
-       defaults <- forM freeVars $ \x -> liftM (x,) (trueTy $ varType x)
+  = do let tce   = tcEmbeds sp
+       let fVars = impVars info ++ filter isConLikeId (snd <$> freeSyms sp)
+       defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       (ks,f0)  <- extract <$> refreshKs (grty info)-- asserted refinements     (for defined vars)
-       f0''     <- grtyTop info >>= refreshArgs'    -- default TOP reftype      (for exported vars without spec)
-       let f0'   = if (notruetypes $ config $ spec info) then [] else f0''
-       f1       <- refreshArgs' $ defaults          -- default TOP reftype      (for all vars)
-       f2       <- refreshArgs' $ assm info         -- assumed refinements      (for imported vars)
-       let asms  = [(x, val t) | (x, t) <- asmSigs $ spec info]
-       f3       <- refreshArgs' asms                -- assumed refinedments     (with `assume`)
-       f4       <- refreshArgs' $ ctor' $ spec info -- constructor refinements  (for measures)
+       (ks,f0)  <- extract <$> refreshKs (grty info) -- asserted refinements     (for defined vars)
+       f0''     <- refreshArgs' =<< grtyTop info     -- default TOP reftype      (for exported vars without spec)
+       let f0'   = if notruetypes $ config sp then [] else f0''
+       f1       <- refreshArgs' $ defaults           -- default TOP reftype      (for all vars)
+       f2       <- refreshArgs' $ assm info          -- assumed refinements      (for imported vars)
+       f3       <- refreshArgs' $ vals asmSigs sp    -- assumed refinedments     (with `assume`)
+       f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       
        let tx    = mapFst F.symbol . addRInv ialias . unifyts' senv tce tyi penv
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
-
        lts      <- lits <$> get
-       let tcb   = mapSnd (rTypeSort tce ) <$> concat bs
-       let γ0    = measEnv (spec info) penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
+       let tcb   = mapSnd (rTypeSort tce) <$> concat bs
+       let γ0    = measEnv sp penv (head bs) (cbs info) (tcb ++ lts) (bs!!3)
        mapM_ (addW . WfC γ0) (catMaybes ks)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
-    freeVars     = impVars info
-                 ++ filter isConLikeId (snd <$> freeSyms (spec info))
-    refreshArgs' = mapM (mapSndM refreshArgs)
-    refreshKs    = mapM (mapSndM refreshK)
-    refreshK t   = do
-        t' <- mapReftM f t
-        let b = foldReft ((||) . isHole) False t
-        return (if b then Just t' else Nothing, t')
-      where
-        f r | isHole r  = refresh r
-            | otherwise = return r
-    extract = unzip . map (\(v,(k,t)) -> (k,(v,t)))
-  -- where tce = tcEmbeds $ spec info
-    ialias  = mkRTyConIAl $ ialiases $ spec info
+    sp           = spec info
+    extract      = unzip . map (\(v, (k, t)) -> (k, (v, t)))
+    ialias       = mkRTyConIAl $ ialiases sp 
+    vals f       = map (mapSnd val) . f
+    
+refreshArgs' = mapM (mapSndM refreshArgs)
+refreshKs    = mapM (mapSndM refreshK)
+refreshK t   = do t' <- mapReftM f t
+                  let b = foldReft ((||) . isHole) False t
+                  return (if b then Just t' else Nothing, t')
+               where
+                  f r | isHole r  = refresh r
+                      | otherwise = return r
 
-ctor' = map (mapSnd val) . ctors
+asmSigs' = map (mapSnd val) . asmSigs     
+ctor'    = map (mapSnd val) . ctors
 
 -- | All this *should* happen inside @Bare@ but appears to happen after certain
 --   are signatures are @fresh@-ed, which is why they are here. TODO:fix.
-
 unifyts' senv tce tyi penv = strataUnify senv . predsUnify tce tyi penv
 
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
@@ -980,17 +979,18 @@ refreshArgs t
 
 refreshArgsSub :: SpecType -> CG (SpecType, F.Subst)
 refreshArgsSub t 
-  = do ts  <- mapM refreshArgs ts_u
-       xs' <- mapM (\_ -> fresh) xs
+  = do ts     <- mapM refreshArgs ts_u
+       xs'    <- mapM (\_ -> fresh) xs
        let sus = F.mkSubst <$> (L.inits $ zip xs (F.EVar <$> xs'))
        let su  = last sus 
        let ts' = zipWith F.subst sus ts
        let t'  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_res = F.subst su tbd}
        return (t', su)
-  where trep = toRTypeRep t
-        xs   = ty_binds trep
-        ts_u = ty_args  trep
-        tbd  = ty_res   trep
+    where
+       trep    = toRTypeRep t
+       xs      = ty_binds trep
+       ts_u    = ty_args  trep
+       tbd     = ty_res   trep
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -1005,19 +1005,20 @@ instance TCInfo CG where
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
------------------------ TERMINATION TYPE ---------------------------------------
+----------------------- TERMINATION TYPE --------------------------------------
 -------------------------------------------------------------------------------
 
 makeDecrIndex :: (Var, SpecType)-> CG [Int]
 makeDecrIndex (x, t) 
   = do hint <- checkHint' . L.lookup x . specDecr <$> get
        case dindex of
-        Nothing -> addWarning msg >> return []
-        Just i  -> return $ fromMaybe [i] hint
-  where ts            = ty_args $ toRTypeRep t
-        checkHint'    = checkHint x ts isDecreasing
-        dindex        = L.findIndex isDecreasing ts
-        msg = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x)
+         Nothing -> addWarning msg >> return []
+         Just i  -> return $ fromMaybe [i] hint
+    where
+       ts         = ty_args $ toRTypeRep t
+       checkHint' = checkHint x ts isDecreasing
+       dindex     = L.findIndex isDecreasing ts
+       msg        = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x) 
 
 recType ((_, []), (_, [], t))
   = t
@@ -1036,24 +1037,23 @@ recType ((vs, indexc), (x, index, t))
 checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg' vs)  index
        mapM  (safeLogIndex msg  ts) index
-  where loc   = showPpr (getSrcSpan x)
-        ts    = ty_args $ toRTypeRep t
-        msg'  = printf "%s: No decreasing argument on %s with %s"
-                  loc (showPpr x) (showPpr vs)
-        msg   = printf "%s: No decreasing parameter" loc
+    where
+       loc   = showPpr (getSrcSpan x)
+       ts    = ty_args $ toRTypeRep t
+       msg'  = printf "%s: No decreasing argument on %s with %s" loc (showPpr x) (showPpr vs)
+       msg   = printf "%s: No decreasing parameter" loc
 
 makeRecType t vs dxs is
   = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
-  where (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
-        vdxs       = zip vs dxs
-        xts        = zip (ty_binds trep) (ty_args trep)
-        trep       = toRTypeRep t
+  where
+    (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
+    vdxs       = zip vs dxs
+    xts        = zip (ty_binds trep) (ty_args trep)
+    trep       = toRTypeRep t
 
 safeLogIndex err ls n
-  | n >= length ls
-  = addWarning err >> return Nothing
-  | otherwise 
-  = return $ Just $ ls !! n
+  | n >= length ls = addWarning err >> return Nothing
+  | otherwise      = return $ Just $ ls !! n
 
 checkHint _ _ _ Nothing 
   = Nothing
