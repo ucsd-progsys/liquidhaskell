@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.Fresh (
   ) where
 
 import Control.Monad.State
-import Control.Applicative              ((<$>))
+import Control.Applicative              (Applicative, (<$>), (<*>))
 
 import qualified TyCon as TC
 
@@ -29,44 +29,46 @@ import Data.Monoid                      (mempty)
 type TTCInfo  = M.HashMap TC.TyCon RTyCon
 type TTCEmbed = TCEmb TC.TyCon
 
-class Monad m => Freshable m a where
+class (Applicative m, Monad m) => Freshable m a where
   fresh   :: m a
   true    :: a -> m a
   true    = return . id
   refresh :: a -> m a
   refresh = return . id
 
-class Monad m => TCInfo m where
+class (Applicative m, Monad m) => TCInfo m where
   getTyConInfo  :: m TTCInfo
   getTyConInfo  = return $ M.empty
   getTyConEmbed :: m TTCEmbed
   getTyConEmbed = return $ M.empty
 
 instance Freshable m Integer => Freshable m Symbol where
-  fresh = liftM (tempSymbol "x") fresh
+  fresh = tempSymbol "x" <$> fresh
 
 instance Freshable m Integer => Freshable m Refa where
-  fresh = liftM (`RKvar` mkSubst []) freshK
-    where freshK = liftM intKvar fresh
+  fresh      = ((`RKvar` mkSubst []) . intKvar) <$> fresh
+    -- where
+      -- freshK = intKvar <$> fresh
 
 instance Freshable m Integer => Freshable m [Refa] where
-  fresh = liftM single fresh
+  fresh = single <$> fresh
 
 -- instance Monad m => Freshable m TCEmbed where
 
 instance Freshable m Integer => Freshable m Reft where
   fresh                = errorstar "fresh Reft"
   true    (Reft (v,_)) = return $ Reft (v, []) 
-  refresh (Reft (_,_)) = liftM2 (curry Reft) freshVV fresh
-    where freshVV      = liftM (vv . Just) fresh
+  refresh (Reft (_,_)) = (Reft .) . (,) <$> freshVV <*> fresh
+    where
+      freshVV          = vv . Just <$> fresh
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = errorstar "fresh RReft"
-  true (U r _ s)    = liftM3 U (true r)    (return mempty) (true s) 
-  refresh (U r _ s) = liftM3 U (refresh r) (return mempty) (refresh s)
+  true (U r _ s)    = U <$> true r    <*> return mempty <*> true s 
+  refresh (U r _ s) = U <$> refresh r <*> return mempty <*> refresh s
 
 instance Freshable m Integer => Freshable m Strata where
-  fresh      = liftM ((:[]) . SVar) fresh           
+  fresh      = (:[]) . SVar <$> fresh           
   true []    = fresh
   true s     = return s
   refresh [] = fresh
@@ -79,18 +81,18 @@ instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable
 
 trueRefType :: (Freshable m Integer, Freshable m r,TCInfo m,  Reftable r) => RRType r -> m (RRType r)
 trueRefType (RAllT α t)       
-  = liftM (RAllT α) (true t)
+  = RAllT α <$> true t
 trueRefType (RAllP π t)       
-  = liftM (RAllP π) (true t)
+  = RAllP π <$> true t
 trueRefType (RFun _ t t' _)    
-  = liftM3 rFun fresh (true t) (true t')
+  = rFun <$> fresh <*> true t <*> true t'
 trueRefType (RApp c ts _ r)  
-  = liftM2 (\ts -> RApp c ts truerefs) (mapM true ts) (true r)
+  = (\ts -> RApp c ts truerefs) <$> mapM true ts <*> true r
     where truerefs = (RProp []  . ofRSort . pvType) <$> (rTyConPropVs c)
 trueRefType (RAppTy t t' _)    
-  = liftM3 RAppTy (true t) (true t') (return mempty)
+  = RAppTy <$> true t <*> true t' <*> return mempty
 trueRefType (RVar a r)
-  = liftM (RVar a) (true r)
+  = RVar a <$> true r
 trueRefType t                
   = return t
 
@@ -99,32 +101,52 @@ refreshRefType :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
                => RRType r
                -> m (RRType r)
 refreshRefType (RAllT α t)       
-  = liftM (RAllT α) (refresh t)
+  = RAllT α <$> refresh t
+
 refreshRefType (RAllP π t)       
-  = liftM (RAllP π) (refresh t)
+  = RAllP π <$> refresh t
+
 refreshRefType (RFun b t t' _)
   | b == dummySymbol
-  = liftM3 rFun fresh (refresh t) (refresh t')
+  = rFun <$> fresh <*> refresh t <*> refresh t'
   | otherwise
-  = liftM2 (rFun b) (refresh t) (refresh t')
-refreshRefType (RApp rc ts _ r)  
-  = do tyi                 <- getTyConInfo
-       tce                 <- getTyConEmbed
-       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
-       let rπs              = safeZip "refreshRef" rs (rTyConPVs rc')
-       liftM3 (RApp rc') (mapM refresh ts) (mapM refreshRef rπs) (refresh r)
+  = rFun b <$> refresh t <*> refresh t'
+
+-- ORIG refreshRefType (RApp rc ts _ r)  
+-- ORIG   = do tyi                 <- getTyConInfo
+-- ORIG        tce                 <- getTyConEmbed
+-- ORIG        let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
+-- ORIG        let rπs              = safeZip "refreshRef" rs (rTyConPVs rc')
+-- ORIG        RApp rc' <$> mapM refresh ts <*> mapM refreshRef rπs <*> refresh r
+
+refreshRefType (RApp rc ts rs r)  
+  = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
+
+
 refreshRefType (RVar a r)  
-  = liftM (RVar a) (refresh r)
+  = RVar a <$> refresh r
+    
 refreshRefType (RAppTy t t' r)  
-  = liftM3 RAppTy (refresh t) (refresh t') (refresh r)
+  = RAppTy <$> refresh t <*> refresh t' <*> refresh r
+    
 refreshRefType t                
   = return t
 
-refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
-           => (RRProp r, PVar RSort)
-           -> m (RRProp r)
+refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
 
-refreshRef (RProp s t, π) = liftM2 RProp (mapM freshSym (pargs π)) (refreshRefType t)
-refreshRef (RPropP _ _, _) = errorstar "refreshRef: unexpected"
+refreshRef _           = errorstar "refreshRef: unexpected"
 
-freshSym s                = liftM (, fst3 s) fresh
+freshSym (_, t)        = (, t) <$> fresh 
+
+-- ORIG refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
+-- ORIG            => (RRProp r, PVar RSort)
+-- ORIG            -> m (RRProp r)
+-- ORIG 
+-- ORIG 
+-- ORIG 
+-- ORIG refreshRef (RProp s t, π) = RProp <$> mapM freshSym (pargs π) <*> refreshRefType t
+-- ORIG refreshRef _              = errorstar "refreshRef: unexpected"
+-- ORIG 
+-- ORIG freshSym s                = (, fst3 s) <$> fresh
+-- ORIG 
+-- ORIG                             (t, symbol, expr)

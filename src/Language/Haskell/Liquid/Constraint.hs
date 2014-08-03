@@ -923,28 +923,15 @@ addA _ _ _ !a
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType 
-freshTy_type k e τ  = do t <- freshTy_reftype k $ ofType τ
-                         return t -- -$ traceShow ("freshTy_type: " ++ showPpr e) t
+freshTy_type k e τ  = freshTy_reftype k $ ofType τ
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
-freshTy_expr k e _  = do t <- freshTy_reftype k $ exprRefType e
-                         return t -- -$ traceShow ("freshTy_expr: " ++ showPpr e) t
-                
+freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 
 freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
 freshTy_reftype k τ = do t <- refresh $ uRType τ 
                          addKVars k t
                          return t
-
-
--- freshTy e τ = do t <- uRType <$> (refresh $ ofType τ)
---                  return $ traceShow ("freshTy: " ++ showPpr e) t
--- To revert to the old setup, just do
--- freshTy_expr = freshTy
--- freshTy_expr e τ = refresh $ {-traceShow ("exprRefType: " ++ F.showFix e) $-} exprRefType e
--- freshTy_expr e _ = do t <- refresh $ {- traceShow ("exprRefType: " ++ showPpr e) $ -} exprRefType e
---                         return $ uRType t
-
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
