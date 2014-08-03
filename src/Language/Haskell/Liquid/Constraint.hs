@@ -127,9 +127,8 @@ initEnv info
        f3       <- refreshArgs' $ vals asmSigs sp    -- assumed refinedments     (with `assume`)
        f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
-       let penv  = predEnv sp
        let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp penv
+       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -159,12 +158,13 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 
 -- | TODO: All this *should* happen inside @Bare@ but appears to happen after certain
 --   are signatures are @fresh@-ed, which is why they are here.
-predsUnify sp penv = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+predsUnify sp      = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
                    . unifyts penv                  -- needed to match up some  @TyVars@
   where
     tce            = tcEmbeds sp 
     tyi            = tyconEnv sp
-
+    penv           = predEnv  sp
+    
 predEnv            ::  GhcSpec -> F.SEnv PrType
 predEnv sp         = F.fromListSEnv bs
   where
@@ -181,11 +181,10 @@ unifyts penv (x, t)     = (x, unify pt t)
    x'                   = F.symbol x
 
 
-measEnv sp penv xts cbs lts asms
+measEnv sp xts cbs lts asms
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ second (uRType . val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
-        , penv  = penv 
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
@@ -237,7 +236,7 @@ data CGEnv
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
+        -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
@@ -259,9 +258,6 @@ instance Show CGEnv where
 
 getTag :: CGEnv -> F.Tag
 getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
-
-getPrType :: CGEnv -> F.Symbol -> Maybe PrType
-getPrType γ x = F.lookupSEnv x (penv γ)
 
 setLoc :: CGEnv -> SrcSpan -> CGEnv
 γ `setLoc` src 
@@ -1295,13 +1291,10 @@ varTemplate γ (x, eo)
   = case (eo, lookupREnv (F.symbol x) (grtys γ), lookupREnv (F.symbol x) (assms γ)) of
       (_, Just t, _) -> Asserted <$> refreshArgsTop (x, t)
       (_, _, Just t) -> Assumed  <$> refreshArgsTop (x, t)
-      (Just e, _, _) -> do t  <- unifyVar γ x <$> freshTy_expr RecBindE e (exprType e)
+      (Just e, _, _) -> do t  <- freshTy_expr RecBindE e (exprType e)
                            addW (WfC γ t)
                            Asserted <$> refreshArgsTop (x, t)
       (_,      _, _) -> return Unknown
-
-unifyVar γ x rt = rt
--- ORIG unifyVar γ x rt = unify (getPrType γ (F.symbol x)) rt
 
 -------------------------------------------------------------------
 -------------------- Generation: Expression -----------------------
