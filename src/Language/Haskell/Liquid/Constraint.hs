@@ -179,7 +179,7 @@ unifyts penv (x, t)     = (x, unify pt t)
  where
    pt                   = F.lookupSEnv x' penv
    x'                   = F.symbol x
-
+---------------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms
   = CGE { loc   = noSrcSpan
@@ -963,12 +963,10 @@ isKut _        = False
 specTypeKVars :: SpecType -> [F.Symbol]
 specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
 
-
-
 trueTy  :: Type -> CG SpecType
 trueTy t 
   = do t     <- true $ uRType $ ofType t
-       tyi   <- liftM tyConInfo get
+       tyi   <- tyConInfo  <$> get
        tce   <- tyConEmbed <$> get
        return $ addTyConInfo tce tyi t
 
