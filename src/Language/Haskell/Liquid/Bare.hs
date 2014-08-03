@@ -81,7 +81,12 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars exports env specs
-  = throwOr return . checkGhcSpec specs . postProcess =<< execBare act initEnv
+  --  do z <- execBare act initEnv
+   --     case z of
+   --       Left e   -> Ex.throw e
+   --       Right sp -> checkGhcSpec specs $ postProcess sp 
+   --  
+  = throwOr (throwOr return . checkGhcSpec specs . postProcess) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg vars defVars exports specs
     throwOr  = either Ex.throw
@@ -626,7 +631,9 @@ setRTAlias s a =
 setRPAlias s a =
   modify $ \b -> b { rtEnv = mapRP (M.insert s a) $ rtEnv b }
 
+------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
+------------------------------------------------------------------
 execBare act benv = 
    do z <- evalStateT (runErrorT (runWriterT act)) benv
       case z of
