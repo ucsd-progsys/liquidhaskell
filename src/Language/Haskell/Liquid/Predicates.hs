@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 
 module Language.Haskell.Liquid.Predicates (
-  generatePredicates
+  predEnv 
   ) where
 
 
@@ -32,27 +32,6 @@ import           Control.Applicative                  ((<$>))
 ----------------------------------------------------------------------
 ---- Predicate Environments ------------------------------------------
 ----------------------------------------------------------------------
-
--- | @generatePredicates@ inserts dummy predicate applications into
---   the source @[Bind CoreBndr]@ to facilitate abstract-predicate
---   instantiation in a manner symmetric to vanilla polymorphic
---   instantiation at type-instantiation sites.
-
-generatePredicates ::  GhcInfo -> (F.SEnv PrType)
-generatePredicates info = nPd
-  where
-    nPd                 = getNeedPd $ spec info
-
-getNeedPd spec          = F.fromListSEnv bs
-    where
-      bs                = mapFst F.symbol <$> (dcs ++ assms)
-      dcs               = concatMap mkDataConIdsTy pcs
-      pcs               = [(x, dataConPtoPredTy x y) | (x, y) <- dconsP spec]
-      assms             = mapSnd (mapReft ur_pred . val) <$> tySigs spec
-
-dataConPtoPredTy :: TC.DataCon -> DataConP -> PrType
-dataConPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
-
 -- NUKE addPredApp γ (NonRec b e) = NonRec b $ thd3 $ pExpr γ e
 -- NUKE addPredApp γ (Rec ls)     = Rec $ zip xs es'
 -- NUKE   where es' = (thd3. pExpr γ) <$> es
