@@ -74,7 +74,7 @@ import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
-import Language.Haskell.Liquid.Predicates
+-- import Language.Haskell.Liquid.Predicates
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
@@ -91,12 +91,12 @@ import IdInfo
 generateConstraints      :: GhcInfo -> CGInfo
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where 
-    act                  = consAct info nPd
-    nPd                  = generatePredicates info
+    act                  = consAct info
     cfg                  = config $ spec info
 
-consAct info penv
-  = do γ     <- initEnv info penv
+
+consAct info
+  = do γ     <- initEnv info
        sflag <- scheck <$> get
        foldM_ (consCBTop (derVars info)) γ (cbs info)
        hcs <- hsCs  <$> get 
@@ -113,9 +113,9 @@ consAct info penv
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
 
 ------------------------------------------------------------------------------------
-initEnv :: GhcInfo -> F.SEnv PrType -> CG CGEnv  
+initEnv :: GhcInfo -> CG CGEnv  
 ------------------------------------------------------------------------------------
-initEnv info penv
+initEnv info 
   = do let tce   = tcEmbeds sp
        let fVars = impVars info ++ filter isConLikeId (snd <$> freeSyms sp)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
@@ -128,8 +128,9 @@ initEnv info penv
        f3       <- refreshArgs' $ vals asmSigs sp    -- assumed refinedments     (with `assume`)
        f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
+       let penv  = predEnv sp
        let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv ialias . unifyts' senv tce tyi penv
+       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp penv
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -151,25 +152,35 @@ refreshK t   = do t' <- mapReftM f t
                   f r | isHole r  = refresh r
                       | otherwise = return r
 
-asmSigs' = map (mapSnd val) . asmSigs     
-ctor'    = map (mapSnd val) . ctors
-
--- | All this *should* happen inside @Bare@ but appears to happen after certain
---   are signatures are @fresh@-ed, which is why they are here. TODO:fix.
-unifyts' senv tce tyi penv = strataUnify senv . predsUnify tce tyi penv
-
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where
     pt                  = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
 
-predsUnify tce tyi penv = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
-                        . unifyts penv                  -- needed to match up some  @TyVars@
-    
+
+-- | TODO: All this *should* happen inside @Bare@ but appears to happen after certain
+--   are signatures are @fresh@-ed, which is why they are here.
+predsUnify sp penv = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                   . unifyts penv                  -- needed to match up some  @TyVars@
+  where
+    tce            = tcEmbeds sp 
+    tyi            = tyconEnv sp
+
+predEnv            ::  GhcSpec -> F.SEnv PrType
+predEnv sp         = F.fromListSEnv bs
+  where
+    bs             = mapFst F.symbol <$> (dcs ++ assms)
+    dcs            = concatMap mkDataConIdsTy pcs
+    pcs            = [(x, dcPtoPredTy x y) | (x, y) <- dconsP sp]
+    assms          = mapSnd (mapReft ur_pred . val) <$> tySigs sp
+    dcPtoPredTy    :: DC.DataCon -> DataConP -> PrType
+    dcPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
+
 unifyts penv (x, t)     = (x, unify pt t)
  where
    pt                   = F.lookupSEnv x' penv
    x'                   = F.symbol x
+
 
 measEnv sp penv xts cbs lts asms
   = CGE { loc   = noSrcSpan
@@ -713,8 +724,7 @@ initCGI cfg info = CGInfo {
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  =  qualifiers spc
-               ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
+  , specQuals  =  qualifiers spc ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
@@ -1250,7 +1260,7 @@ consBind isRec γ (x, e, Assumed spect)
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
-  = do t <- unifyVar γ x <$> consE (γ `setBind` x) e
+  = do t     <- unifyVar γ x <$> consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
        return $ Asserted t
 
@@ -1821,6 +1831,8 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
+
+
 
 -------------------------------------------------------------------
 -- | Strengthening Binders with TyCon Invariants ------------------
