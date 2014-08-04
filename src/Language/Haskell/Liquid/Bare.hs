@@ -452,7 +452,7 @@ varsAfter f s lvs
         eqList (x:xs)           = all (==x) xs
 
 -- EFFECTS: HEREHEREHERE is this the SAME as addTyConInfo?
-txRefSort tce tyi = mapBot (addSymSort tce tyi)
+txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
 addSymSort tce tyi t@(RApp rc@(RTyCon c _ _) ts rs r) 
   = RApp rc ts (zipWith addSymSortRef ps rargs) r'
@@ -468,9 +468,9 @@ addSymSort _ _ t
   = t
 
 addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
-addSymSortRef p r
-  | isPropPV p = addSymSortRef' p r 
-  | otherwise  = errorstar "addSymSortRef: malformed ref application"
+addSymSortRef p r | isPropPV p = addSymSortRef' p r 
+                  | otherwise  = errorstar "addSymSortRef: malformed ref application"
+
 
 addSymSortRef' p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
@@ -482,6 +482,7 @@ addSymSortRef' p (RProp s t)
   = RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
+           --  safeZip "addSymSortRef 2" (fst <$> s) (fst3 <$> pargs p)
       
 addSymSortRef' p (RPropP s r@(U _ (Pr [up]) _)) 
   = RPropP xs r
@@ -492,9 +493,6 @@ addSymSortRef' p (RPropP s t)
   = RPropP s t
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 
----
-
-
 varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConWorkId v, isSimpleType $ varType v ]
 varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
 isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
