@@ -140,7 +140,7 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , PPrint (RType p c tv r)
          )
         => Monoid (RType p c tv r)  where
-  mempty  = error "mempty RefType"
+  mempty  = errorstar "mempty: RType 1"
   mappend = strengthenRefType
 
 -- MOVE TO TYPES
@@ -151,20 +151,21 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
 
-  mempty          = RPropP [] mempty
+  mempty  = errorstar "mempty: RType 2"
+  -- mempty          = RPropP [] mempty
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
     | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
 
-  -- ORIG mappend (RPropP s1 r) (RProp s2 t) 
-  -- ORIG   | isTauto   r = RProp s2 t
-  -- ORIG   | isTrivial t = RPropP s1 r
-  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-  -- ORIG mappend (RProp s1 t) (RPropP s2 r) 
-  -- ORIG   | isTrivial t = RPropP s2 r
-  -- ORIG   | isTauto   r = RProp s1 t
-  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+  -- NUKE mappend (RPropP s1 r) (RProp s2 t) 
+  -- NUKE   | isTauto   r = RProp s2 t
+  -- NUKE   | isTrivial t = RPropP s1 r
+  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+  -- NUKE mappend (RProp s1 t) (RPropP s2 r) 
+  -- NUKE   | isTrivial t = RPropP s2 r
+  -- NUKE   | isTauto   r = RProp s1 t
+  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
 
   mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
@@ -172,19 +173,19 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
     | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
-  mempty         = RPropP [] mempty
+  -- mempty         = RPropP [] mempty
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
     | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-  -- ORIG mappend (RPropP s1 r) (RProp s2 t) 
-  -- ORIG   | isTauto   r = RProp s2 t
-  -- ORIG   | isTrivial t = RPropP s1 r
-  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
-  -- ORIG mappend (RProp s1 t) (RPropP s2 r) 
-  -- ORIG   | isTrivial t = RPropP s2 r
-  -- ORIG   | isTauto   r = RProp s1 t
-  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  -- NUKE mappend (RPropP s1 r) (RProp s2 t) 
+  -- NUKE   | isTauto   r = RProp s2 t
+  -- NUKE   | isTrivial t = RPropP s1 r
+  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  -- NUKE mappend (RProp s1 t) (RPropP s2 r) 
+  -- NUKE   | isTrivial t = RPropP s2 r
+  -- NUKE   | isTauto   r = RProp s1 t
+  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
   mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
@@ -208,13 +209,13 @@ instance Subable (RRProp Reft) where
   syms _                 = error "TODO:EFFECTS"
   
   subst su (RPropP ss r) = RPropP (mapSnd (subst su) <$> ss) $ subst su r 
-  subst su (RProp ss r)  = RProp (mapSnd (subst su) <$> ss) $ subst su r
+  subst su (RProp ss r)  = RProp  (mapSnd (subst su) <$> ss) $ subst su r
   subst _  _             = error "TODO:EFFECTS"
   
   substf f (RPropP ss r) = RPropP (mapSnd (substf f) <$> ss) $ substf f r
-  substf f (RProp ss r)  = RProp (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss r)  = RProp  (mapSnd (substf f) <$> ss) $ substf f r
   substa f (RPropP ss r) = RPropP (mapSnd (substa f) <$> ss) $ substa f r
-  substa f (RProp ss r)  = RProp (mapSnd (substa f) <$> ss) $ substa f r
+  substa f (RProp ss r)  = RProp  (mapSnd (substa f) <$> ss) $ substa f r
   substa f _             = error "TODO:EFFECTS"
   
 -------------------------------------------------------------------------------
