@@ -455,7 +455,7 @@ varsAfter f s lvs
 txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
 addSymSort tce tyi t@(RApp rc@(RTyCon c _ _) ts rs r) 
-  = RApp rc ts (zipWith addSymSortRef ps rargs) r'
+  = RApp rc ts (zipWith addSymSortRef pvs rargs) r'
   where
     rc'                = appRTyCon tce tyi rc ts
     pvs                = rTyConPVs rc' 
