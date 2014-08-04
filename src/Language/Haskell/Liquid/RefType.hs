@@ -490,12 +490,6 @@ strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
 
 -------------------------------------------------------------------------
-rApp' :: (Reftable r) => M.HashMap TyCon FTycon -> M.HashMap TyCon RTyCon
-      -> TyCon -> [RRType r] -> [RRProp r] -> RRType r -> RRType r 
--------------------------------------------------------------------------
-rApp' c ts rs_ r = error "TODO:EFFECTS" 
-
--------------------------------------------------------------------------
 expandRApp :: (Reftable r)
            => (M.HashMap TyCon FTycon)
            -> (M.HashMap TyCon RTyCon)
@@ -531,7 +525,8 @@ addNumSizeFun c
 appRefts rc [] = rtPropTop <$> rTyConPVs rc
 appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
-rtPropTop (PV _ (PVProp t) _ _) = RProp  [] $ ofRSort t
+rtPropTop (PV _ (PVProp t) _ _) = RProp err{- [] -} $ ofRSort t
+                                  where err = errorstar "HEREHERE: use pargs" 
 rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
 
 toPoly (RPropP ss r) pv

@@ -928,10 +928,12 @@ freshTy_type k e τ  = freshTy_reftype k $ ofType τ
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType 
 freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 
-freshTy_reftype     :: KVKind -> RefType -> CG SpecType 
-freshTy_reftype k τ = do t <- refresh $ uRType τ 
-                         addKVars k t
-                         return t
+freshTy_reftype     :: KVKind -> SpecType -> CG SpecType 
+-- freshTy_reftype k t = do t <- refresh =<< fixTy t 
+--                          addKVars k t
+--                          return t
+                       
+freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -946,16 +948,25 @@ isKut          :: KVKind -> Bool
 isKut RecBindE = True
 isKut _        = False
 
-
 specTypeKVars :: SpecType -> [F.Symbol]
 specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
 
+ofType' :: Type -> CG SpecType
+ofType' = fixTy . ofType
+  
+fixTy :: SpecType -> CG SpecType
+fixTy t = do tyi   <- tyConInfo  <$> get
+             tce   <- tyConEmbed <$> get
+             return $ addTyConInfo tce tyi t
+
 trueTy  :: Type -> CG SpecType
-trueTy t 
-  = do t     <- true $ uRType $ ofType t
-       tyi   <- tyConInfo  <$> get
-       tce   <- tyConEmbed <$> get
-       return $ addTyConInfo tce tyi t
+trueTy = ofType' >=> true
+
+-- trueTy τ =
+--  = do t     <- true $ uRType $ ofType τ
+--       tyi   <- tyConInfo  <$> get
+--       tce   <- tyConEmbed <$> get
+--       return $ addTyConInfo tce tyi t
 
 refreshArgsTop :: (Var, SpecType) -> CG SpecType
 refreshArgsTop (x, t) 
@@ -1779,10 +1790,10 @@ isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
 
 
-exprRefType :: CoreExpr -> RefType 
+exprRefType :: CoreExpr -> SpecType 
 exprRefType = exprRefType_ M.empty 
 
-exprRefType_ :: M.HashMap Var RefType -> CoreExpr -> RefType 
+exprRefType_ :: M.HashMap Var SpecType -> CoreExpr -> SpecType 
 exprRefType_ γ (Let b e) 
   = exprRefType_ (bindRefType_ γ b) e
 
