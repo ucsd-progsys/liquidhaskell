@@ -487,7 +487,7 @@ addSymSortRef' p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
--- EFFECTS: why can't we replace the next two equations with:
+-- EFFECTS: why can't we replace the next two equations with (breaks many tests)
 --
 -- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ ptxs) (RPropP s r@(U _ (Pr [up]) _)) 
 -- EFFECTS:   = RProp xts $ (ofRSort t) `strengthen` r
@@ -509,7 +509,8 @@ addSymSortRef' p (RPropP s r@(U _ (Pr [up]) _))
 addSymSortRef' p (RPropP s r)
   = RPropP s r
 
-addSymSortRef' _ _ = errorstar "TODO:EFFECTS:addSymSortRef'"
+addSymSortRef' _ _
+  = errorstar "TODO:EFFECTS:addSymSortRef'"
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 
 varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConWorkId v, isSimpleType $ varType v ]
