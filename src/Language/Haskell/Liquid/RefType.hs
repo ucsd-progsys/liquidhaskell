@@ -36,7 +36,9 @@ module Language.Haskell.Liquid.RefType (
   -- TODO: categorize these!
   , ofType, ofPredTree, toType
   , rTyVar, rVar, rApp, rEx 
-  , expandRApp, appRTyCon
+  , addTyConInfo
+  -- , expandRApp
+  , appRTyCon
   , typeSort, typeUniqueSymbol
   , strengthen
   , generalize, normalizePds
@@ -140,7 +142,7 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , PPrint (RType p c tv r)
          )
         => Monoid (RType p c tv r)  where
-  mempty  = errorstar "mempty: RType 1"
+  mempty  = errorstar "mempty: RType"
   mappend = strengthenRefType
 
 -- MOVE TO TYPES
@@ -151,46 +153,31 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
 
-  mempty  = errorstar "mempty: RType 2"
-  -- mempty          = RPropP [] mempty
-  mappend (RPropP s1 r1) (RPropP s2 r2) 
-    | isTauto r1 = RPropP s2 r2
-    | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+  mempty      = errorstar "mempty: RType 2"
+  mappend _ _ = errorstar "mappend: RType 2"
+  -- NUKE ? mappend (RPropP s1 r1) (RPropP s2 r2) 
+  -- NUKE ?   | isTauto r1 = RPropP s2 r2
+  -- NUKE ?   | isTauto r2 = RPropP s1 r1
+  -- NUKE ?   | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
 
-  -- NUKE mappend (RPropP s1 r) (RProp s2 t) 
-  -- NUKE   | isTauto   r = RProp s2 t
-  -- NUKE   | isTrivial t = RPropP s1 r
-  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-  -- NUKE mappend (RProp s1 t) (RPropP s2 r) 
-  -- NUKE   | isTrivial t = RPropP s2 r
-  -- NUKE   | isTauto   r = RProp s1 t
-  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-
-  mappend (RProp s1 t1) (RProp s2 t2) 
-    | isTrivial t1 = RProp s2 t2
-    | isTrivial t2 = RProp s1 t1
-    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
+  -- NUKE ? mappend (RProp s1 t1) (RProp s2 t2) 
+  -- NUKE ?   | isTrivial t1 = RProp s2 t2
+  -- NUKE ?   | isTrivial t2 = RProp s1 t1
+  -- NUKE ?   | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
-  -- mempty         = RPropP [] mempty
-  mempty  = errorstar "mempty: RTProp"
-  mappend (RPropP s1 r1) (RPropP s2 r2) 
-    | isTauto r1 = RPropP s2 r2
-    | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-  -- NUKE mappend (RPropP s1 r) (RProp s2 t) 
-  -- NUKE   | isTauto   r = RProp s2 t
-  -- NUKE   | isTrivial t = RPropP s1 r
-  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
-  -- NUKE mappend (RProp s1 t) (RPropP s2 r) 
-  -- NUKE   | isTrivial t = RPropP s2 r
-  -- NUKE   | isTauto   r = RProp s1 t
-  -- NUKE   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
-  mappend (RProp s1 t1) (RProp s2 t2) 
-    | isTrivial t1 = RProp s2 t2
-    | isTrivial t2 = RProp s1 t1
-    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
+  mempty         = errorstar "mempty: RTProp"
+  mappend _ _    = errorstar "mappend: RTProp"
+
+  -- NUKE? mappend (RPropP s1 r1) (RPropP s2 r2) 
+  -- NUKE?   | isTauto r1 = RPropP s2 r2
+  -- NUKE?   | isTauto r2 = RPropP s1 r1
+  -- NUKE?   | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+  -- NUKE? 
+  -- NUKE? mappend (RProp s1 t1) (RProp s2 t2) 
+  -- NUKE?   | isTrivial t1 = RProp s2 t2
+  -- NUKE?   | isTrivial t2 = RProp s1 t1
+  -- NUKE?   | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RTProp p c tv r) where
   isTauto (RPropP _ r) = isTauto r
@@ -202,7 +189,9 @@ instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RT
   bot                  = errorstar "RefType: Reftable bot    for Ref"
 
 
--- Subable Instances ----------------------------------------------
+----------------------------------------------------------------------------
+-- | Subable Instances -----------------------------------------------------
+----------------------------------------------------------------------------
 
 instance Subable (RRProp Reft) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
@@ -494,6 +483,17 @@ strengthen (RVar a r) r'        = RVar a       (r `meet` r')
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
+
+
+
+-------------------------------------------------------------------------
+addTyConInfo :: (PPrint r, Reftable r)
+             => (M.HashMap TyCon FTycon)
+             -> (M.HashMap TyCon RTyCon)
+             -> RRType r
+             -> RRType r
+-------------------------------------------------------------------------
+addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
 expandRApp :: (PPrint r, Reftable r)
