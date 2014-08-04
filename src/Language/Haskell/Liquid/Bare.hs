@@ -457,12 +457,13 @@ txRefSort tyi tce = mapBot (addSymSort tce tyi)
 addSymSort tce tyi t@(RApp rc@(RTyCon c _ _) ts rs r) 
   = RApp rc ts (zipWith addSymSortRef ps rargs) r'
   where
-    ps                 = rTyConPVs $ appRTyCon tce tyi rc ts
-    (rargs,rrest)      = splitAt (length ps) rs
+    rc'                = appRTyCon tce tyi rc ts
+    pvs                = rTyConPVs rc' 
+    (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
     go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
-    go r _             = r
+    go r _             = errorstar "YUCKER" -- r
 
 addSymSort _ _ t 
   = t
