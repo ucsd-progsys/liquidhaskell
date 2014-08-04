@@ -8,7 +8,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 
 module Language.Haskell.Liquid.Fresh (
-  Freshable(..), TCInfo(..)
+  Freshable(..)
   ) where
 
 import Control.Monad.State
@@ -26,8 +26,8 @@ import Language.Fixpoint.Misc
 
 import Data.Monoid                      (mempty)
 
-type TTCInfo  = M.HashMap TC.TyCon RTyCon
-type TTCEmbed = TCEmb TC.TyCon
+-- type TTCInfo  = M.HashMap TC.TyCon RTyCon
+-- type TTCEmbed = TCEmb TC.TyCon
 
 class (Applicative m, Monad m) => Freshable m a where
   fresh   :: m a
@@ -36,11 +36,11 @@ class (Applicative m, Monad m) => Freshable m a where
   refresh :: a -> m a
   refresh = return . id
 
-class (Applicative m, Monad m) => TCInfo m where
-  getTyConInfo  :: m TTCInfo
-  getTyConInfo  = return $ M.empty
-  getTyConEmbed :: m TTCEmbed
-  getTyConEmbed = return $ M.empty
+-- class (Applicative m, Monad m) => TCInfo m where
+--   getTyConInfo  :: m TTCInfo
+--   getTyConInfo  = return $ M.empty
+--   getTyConEmbed :: m TTCEmbed
+--   getTyConEmbed = return $ M.empty
 
 instance Freshable m Integer => Freshable m Symbol where
   fresh = tempSymbol "x" <$> fresh
@@ -74,12 +74,12 @@ instance Freshable m Integer => Freshable m Strata where
   refresh [] = fresh
   refresh s  = return s
 
-instance (Freshable m Integer, Freshable m r, TCInfo m, Reftable r) => Freshable m (RRType r) where
+instance (Freshable m Integer, Freshable m r, Reftable r) => Freshable m (RRType r) where
   fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType 
 
-trueRefType :: (Freshable m Integer, Freshable m r,TCInfo m,  Reftable r) => RRType r -> m (RRType r)
+trueRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
 trueRefType (RAllT α t)       
   = RAllT α <$> true t
 trueRefType (RAllP π t)       
@@ -97,7 +97,7 @@ trueRefType t
   = return t
 
 
-refreshRefType :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
+refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r)
                => RRType r
                -> m (RRType r)
 refreshRefType (RAllT α t)       
@@ -107,17 +107,8 @@ refreshRefType (RAllP π t)
   = RAllP π <$> refresh t
 
 refreshRefType (RFun b t t' _)
-  | b == dummySymbol
-  = rFun <$> fresh <*> refresh t <*> refresh t'
-  | otherwise
-  = rFun b <$> refresh t <*> refresh t'
-
--- ORIG refreshRefType (RApp rc ts _ r)  
--- ORIG   = do tyi                 <- getTyConInfo
--- ORIG        tce                 <- getTyConEmbed
--- ORIG        let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
--- ORIG        let rπs              = safeZip "refreshRef" rs (rTyConPVs rc')
--- ORIG        RApp rc' <$> mapM refresh ts <*> mapM refreshRef rπs <*> refresh r
+  | b == dummySymbol = rFun <$> fresh <*> refresh t <*> refresh t'
+  | otherwise        = rFun     b     <$> refresh t <*> refresh t'
 
 refreshRefType (RApp rc ts rs r)  
   = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
@@ -135,10 +126,3 @@ refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
 refreshRef _           = errorstar "refreshRef: unexpected"
 freshSym (_, t)        = (, t) <$> fresh 
 
--- ORIG refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
--- ORIG            => (RRProp r, PVar RSort)
--- ORIG            -> m (RRProp r)
--- ORIG 
--- ORIG refreshRef (RProp s t, π) = RProp <$> mapM freshSym (pargs π) <*> refreshRefType t
--- ORIG refreshRef _              = errorstar "refreshRef: unexpected"
--- ORIG freshSym s                = (, fst3 s) <$> fresh
