@@ -37,6 +37,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
+import           System.Directory                         (getCurrentDirectory)
 import           System.FilePath                          (dropFileName)
 import           System.Environment                       (lookupEnv, withArgs)
 import           System.Console.CmdArgs  hiding           (Loud)                
@@ -154,7 +155,8 @@ config = cmdArgsMode $ Config {
 getOpts :: IO Config 
 getOpts = do cfg0    <- envCfg 
              cfg1    <- mkOpts =<< cmdArgsRun config 
-             let cfg  = fixCfg $ mconcat [cfg0, cfg1]
+             pwd     <- getCurrentDirectory
+             cfg     <- canonicalizePaths (fixCfg $ mconcat [cfg0, cfg1]) pwd
              whenNormal $ putStrLn copyright
              return cfg
 
@@ -183,9 +185,10 @@ mkOpts cfg
 ---------------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------------
-withPragmas :: Config -> [Located String] -> IO Config
+withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 ---------------------------------------------------------------------------------------
-withPragmas = foldM withPragma
+withPragmas cfg fp ps
+  = foldM withPragma cfg ps >>= flip canonicalizePaths fp
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = (c `mappend`) <$> parsePragma s

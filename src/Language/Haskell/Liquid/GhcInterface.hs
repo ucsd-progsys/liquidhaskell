@@ -49,7 +49,7 @@ import System.FilePath ( replaceExtension
 
 import DynFlags
 import Control.Arrow (second)
-import Control.Monad (filterM, zipWithM, when, forM, forM_, liftM, (<=<))
+import Control.Monad (filterM, foldM, zipWithM, when, forM, forM_, liftM, (<=<))
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
@@ -98,15 +98,14 @@ getGhcInfo' cfg0 target
       liftIO              $ cleanFiles target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
-      cfg'               <- liftIO $ withPragmas cfg0 $ Ms.pragmas tgtSpec
-      cfg                <- liftIO $ canonicalizePaths cfg' target
+      cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
       let paths           = idirs cfg
       updateDynFlags cfg
-      compileCFiles cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+      compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
         when (not $ isSpecImport n) $
           addTarget =<< guessTarget f Nothing
