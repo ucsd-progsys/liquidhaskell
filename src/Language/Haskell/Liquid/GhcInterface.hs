@@ -158,6 +158,7 @@ updateDynFlags cfg
                     , ghcMode      = CompManager
                     -- prevent GHC from printing anything
                     , log_action   = \_ _ _ _ _ -> return ()
+                    -- , verbosity = 5
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
@@ -165,8 +166,10 @@ updateDynFlags cfg
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
 compileCFiles cfg
-  = do hsc <- getSession
-       os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (cFiles cfg)
+  = do df  <- getSessionDynFlags
+       setSessionDynFlags $ df { includePaths = nub $ idirs cfg ++ includePaths df }
+       hsc <- getSession
+       os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
        df  <- getSessionDynFlags
        setSessionDynFlags $ df { ldInputs = map (FileOption "") os ++ ldInputs df }
 
