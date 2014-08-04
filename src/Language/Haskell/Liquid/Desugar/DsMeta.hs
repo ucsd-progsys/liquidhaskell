@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Desugar.DsMeta( dsBracket,
 
 -- #include "HsVersions.h"
 
-import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr )
+import Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr )
 
 import Language.Haskell.Liquid.Desugar.MatchLit
 import DsMonad
