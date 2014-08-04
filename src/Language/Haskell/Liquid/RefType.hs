@@ -102,7 +102,7 @@ pdVar v        = Pr [uPVar v]
 
 findPVar :: [PVar (RType p c tv ())] -> UsedPVar -> PVar (RType p c tv ())
 findPVar ps p 
-  = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e))(pargs p) args)
+  = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
   where PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps 
         msg p = errorstar $ "RefType.findPVar" ++ showpp p ++ "not found"
 
@@ -490,7 +490,7 @@ strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
 
 -------------------------------------------------------------------------
-expandRApp :: (Reftable r)
+expandRApp :: (PPrint r, Reftable r)
            => (M.HashMap TyCon FTycon)
            -> (M.HashMap TyCon RTyCon)
            -> RRType r
@@ -505,29 +505,21 @@ expandRApp tce tyi (RApp rc ts rs r)
 expandRApp _ _ t
   = t
 
-appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
-  where
-    c    = rtc_tc rc
-    ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
-    ts'  = if null ts then rVar <$> βs else toRSort <$> ts
-    rc'  = M.lookupDefault rc c tyi
-    αs   = TC.tyConTyVars $ rtc_tc rc'
-    βs   = TC.tyConTyVars c
-    rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
-
-isNumeric tce c 
-  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == intFTyCon
-
-addNumSizeFun c 
-  = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
-
 appRefts rc [] = rtPropTop <$> rTyConPVs rc
 appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
 
-rtPropTop (PV _ (PVProp t) _ _) = RProp err{- [] -} $ ofRSort t
-                                  where err = errorstar "HEREHERE: use pargs" 
-rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
+-- rtPropTop (PV _ (PVProp t) _ _) = RProp []  $ ofRSort t
+-- rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
+
+rtPropTop pv = case ptype pv of
+                 PVProp t -> RProp xts $ ofRSort t
+                 PVHProp  -> RProp xts $ mempty
+               where
+                 xts      =  pvArgs pv
+      
+-- ORIG rtPropTop pv@(PV _ (PVProp t) _ _) = RProp []  $ ofRSort t
+-- ORIG rtPropTop pv@(PV _ PVHProp _ _)    = RHProp [] $ mempty
+
 
 toPoly (RPropP ss r) pv
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
@@ -546,6 +538,24 @@ toPoly (RHProp ss w) pv
   = RHProp (pvArgs pv) w
 
 pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]    
+
+
+appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
+  where
+    c    = rtc_tc rc
+    ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
+    ts'  = if null ts then rVar <$> βs else toRSort <$> ts
+    rc'  = M.lookupDefault rc c tyi
+    αs   = TC.tyConTyVars $ rtc_tc rc'
+    βs   = TC.tyConTyVars c
+    rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+
+isNumeric tce c 
+  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
+       (M.lookup (rtc_tc c) tce) == intFTyCon
+
+addNumSizeFun c 
+  = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 
 generalize :: (RefTypable c p tv r) => RType c p tv r -> RType c p tv r
