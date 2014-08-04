@@ -345,6 +345,9 @@ symsP
        return $ (, dummyRSort) <$> ss
  <|> return []
 
+dummyRSort
+  = ROth "dummy"
+
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
        <|> liftM ((:[]) . RConc) predP
@@ -354,14 +357,14 @@ predicatesP
   <|> return []
 
 predicate1P 
-   =  try (liftM2 RProp symsP (refP bbaseP))
-  <|> liftM (RPropP [] . predUReft) monoPredicate1P
-  <|> (braces $ liftM2 bRProp symsP' refasP)
+   =  try (RProp <$> symsP <*> refP bbaseP)
+  <|> (RPropP [] . predUReft <$> monoPredicate1P)
+  <|> (braces $ bRProp <$> symsP' <*> refasP)
    where 
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
                       return $ zip ss fs
-    refreshSym s = liftM (intSymbol s) freshIntP
+    refreshSym s = intSymbol s <$> freshIntP
 
 monoPredicateP 
    = try (angles monoPredicate1P) 
@@ -369,7 +372,7 @@ monoPredicateP
 
 monoPredicate1P
    =  try (reserved "True" >> return mempty)
-  <|> try (liftM pdVar (parens predVarUseP))
+  <|> try (pdVar <$> parens predVarUseP)
   <|> liftM pdVar predVarUseP 
 
 predVarUseP 
@@ -390,10 +393,11 @@ funArgsP  = try realP <|> empP
 
 bRProp []    _    = errorstar "Parse.bRProp empty list"
 bRProp syms' expr = RProp ss $ bRVar dummyName mempty mempty r
-  where (ss, (v, _)) = (init syms, last syms)
-        syms = [(y, s) | ((_, s), y) <- syms']
-        su   = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
-        r    = su `subst` Reft(v, expr)
+  where
+    (ss, (v, _))  = (init syms, last syms)
+    syms          = [(y, s) | ((_, s), y) <- syms']
+    su            = mkSubst [(x, EVar y) | ((x, _), y) <- syms'] 
+    r             = su `subst` Reft (v, expr)
 
 bRVar α s p r             = RVar α (U r p s)
 bLst (Just t) rs r        = RApp (dummyLoc listConName) [t] rs (reftUReft r)
@@ -418,7 +422,6 @@ reftUReft      = \r -> U r mempty mempty
 predUReft      = \p -> U dummyReft p mempty
 dummyReft      = mempty
 dummyTyId      = ""
-dummyRSort     = ROth "dummy"
 
 ------------------------------------------------------------------
 --------------------------- Measures -----------------------------
@@ -659,19 +662,12 @@ grabs p = try (liftM2 (:) p (grabs p))
 measureDefP :: Parser Body -> Parser (Def LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
-       (c, xs) <- {- ORIGINAL parens $ -} measurePatP
+       (c, xs) <- measurePatP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body    <- bodyP 
        whiteSpace
        let xs'  = (symbol . val) <$> xs
        return   $ Def mname (symbol <$> c) xs' body
-
--- ORIGINAL
--- measurePatP :: Parser (String, [LocString])
--- measurePatP
---   =  try (liftM2 (,)   upperIdP (sepBy locLowerIdP whiteSpace))
---  <|> try (liftM3 (\x c y -> (c, [x,y])) locLowerIdP colon locLowerIdP)
---  <|> (brackets whiteSpace  >> return ("[]",[])) 
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP 

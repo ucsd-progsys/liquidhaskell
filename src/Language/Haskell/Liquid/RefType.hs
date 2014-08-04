@@ -887,9 +887,9 @@ toType (REx _ _ t)
 toType (RAppTy t t' _)   
   = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
-  = errorstar $ "RefType.toType cannot handle: " ++ show t
+  = errorstar $ "RefType.toType cannot handle 1: " ++ show t
 toType t@(ROth _)      
-  = errorstar $ "RefType.toType cannot handle: " ++ show t
+  = errorstar $ "RefType.toType cannot handle 2: " ++ show t
 toType (RRTy _ _ _ t)      
   = toType t
 

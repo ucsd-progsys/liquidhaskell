@@ -441,17 +441,19 @@ varSymbols f n vs  = concatMapM go
                          (symbolString n) (show (loc s)) (show (val s))
 
 varsAfter f s lvs 
-  | eqList (fst <$> lvs)
-  = f (snd <$> lvs)
-  | otherwise
-  = map snd $ takeEqLoc $ dropLeLoc lvs
-  where takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
-        takeEqLoc []            = []
-        dropLeLoc               = L.dropWhile ((loc s >) . fst)
-        eqList []               = True
-        eqList (x:xs)           = all (==x) xs
+  | eqList (fst <$> lvs)    = f (snd <$> lvs)
+  | otherwise               = map snd $ takeEqLoc $ dropLeLoc lvs
+  where
+    takeEqLoc xs@((l, _):_) = L.takeWhile ((l==) . fst) xs
+    takeEqLoc []            = []
+    dropLeLoc               = L.dropWhile ((loc s >) . fst)
+    eqList []               = True
+    eqList (x:xs)           = all (==x) xs
 
--- EFFECTS: HEREHEREHERE is this the SAME as addTyConInfo?
+-- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
+-- (1) adds the _real_ sorts to RProp,
+-- (2) gathers _extra_ RProp at turnst them into refinements,
+--     e.g. tests/pos/multi-pred-app-00.hs
 txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
 addSymSort tce tyi t@(RApp rc@(RTyCon c _ _) ts rs r) 
@@ -459,6 +461,7 @@ addSymSort tce tyi t@(RApp rc@(RTyCon c _ _) ts rs r)
   where
     rc'                = appRTyCon tce tyi rc ts
     pvs                = rTyConPVs rc' 
+    rs'                = zipWith addSymSortRef pvs rargs
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
@@ -483,12 +486,13 @@ addSymSortRef' p (RProp s t)
   = RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
-           --  safeZip "addSymSortRef 2" (fst <$> s) (fst3 <$> pargs p)
       
 addSymSortRef' p (RPropP s r@(U _ (Pr [up]) _)) 
-  = RPropP xs r
+  = RPropP xts r
     where
-      xs = safeZip "addRefSortMono" (snd3 <$> pargs up) (fst3 <$> pargs p)
+      xts = safeZip "addRefSortMono" xs ts
+      xs  = snd3 <$> pargs up
+      ts  = fst3 <$> pargs p
 
 addSymSortRef' p (RPropP s t)
   = RPropP s t
