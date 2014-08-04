@@ -496,42 +496,41 @@ expandRApp :: (PPrint r, Reftable r)
            -> RRType r
            -> RRType r
 -------------------------------------------------------------------------
-expandRApp tce tyi (RApp rc ts rs r)
-  = RApp rc' ts rs' r
-    where
-      rc' = appRTyCon tce tyi rc ts
-      rs' = appRefts rc' rs
+expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
+  where
+    RApp rc ts rs r            = t
+    rc'                        = appRTyCon tce tyi rc ts
+    pvs                        = rTyConPVs rc'
+    rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
+    rs0                        = rtPropTop <$> pvs
 
-expandRApp _ _ t
-  = t
+expandRApp _ _ t               = t
 
-appRefts rc [] = rtPropTop <$> rTyConPVs rc
-appRefts rc rs = safeZipWith ("appRefts:" ++ showFix rc) toPoly rs (rTyConPVs rc)
+-- NUKE case rs of
+-- NUKE   [] -> rtPropTop <$> pvs
+-- NUKE   rs -> rtPropPV rc rs pvs
 
--- rtPropTop (PV _ (PVProp t) _ _) = RProp []  $ ofRSort t
--- rtPropTop (PV _ PVHProp _ _)    = RHProp [] $ mempty
 
 rtPropTop pv = case ptype pv of
                  PVProp t -> RProp xts $ ofRSort t
                  PVHProp  -> RProp xts $ mempty
                where
                  xts      =  pvArgs pv
-      
--- ORIG rtPropTop pv@(PV _ (PVProp t) _ _) = RProp []  $ ofRSort t
--- ORIG rtPropTop pv@(PV _ PVHProp _ _)    = RHProp [] $ mempty
+                 
+rtPropPV rc = safeZipWith msg mkRTProp
+  where
+    msg     = "appRefts: " ++ showFix rc
 
-
-toPoly (RPropP ss r) pv
+mkRTProp pv (RPropP ss r) 
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r  
 
--- TODO:EFFECTS:ASKNIKI
-toPoly (RProp ss t) pv
+mkRTProp pv (RProp ss t) 
   | length (pargs pv) == length ss 
   = RProp ss t
   | otherwise
   = RProp (pvArgs pv) t
     
-toPoly (RHProp ss w) pv
+mkRTProp pv (RHProp ss w) 
   | length (pargs pv) == length ss 
   = RHProp ss w
   | otherwise          
