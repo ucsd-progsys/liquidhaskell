@@ -167,17 +167,16 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
 
 instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
   mempty         = errorstar "mempty: RTProp"
-  mappend _ _    = errorstar "mappend: RTProp"
 
-  -- NUKE? mappend (RPropP s1 r1) (RPropP s2 r2) 
-  -- NUKE?   | isTauto r1 = RPropP s2 r2
-  -- NUKE?   | isTauto r2 = RPropP s1 r1
-  -- NUKE?   | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-  -- NUKE? 
-  -- NUKE? mappend (RProp s1 t1) (RProp s2 t2) 
-  -- NUKE?   | isTrivial t1 = RProp s2 t2
-  -- NUKE?   | isTrivial t2 = RProp s1 t1
-  -- NUKE?   | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
+  mappend (RPropP s1 r1) (RPropP s2 r2) 
+    | isTauto r1 = RPropP s2 r2
+    | isTauto r2 = RPropP s1 r1
+    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+  
+  mappend (RProp s1 t1) (RProp s2 t2) 
+    | isTrivial t1 = RProp s2 t2
+    | isTrivial t2 = RProp s1 t1
+    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
 
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RTProp p c tv r) where
   isTauto (RPropP _ r) = isTauto r
