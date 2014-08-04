@@ -1,6 +1,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE DeriveGeneric             #-}
 
 module Language.Fixpoint.Errors (
   -- * Concrete Location Type
@@ -38,13 +39,14 @@ import Control.Exception
 import qualified Control.Monad.Error as E 
 import Language.Fixpoint.PrettyPrint
 import Language.Fixpoint.Types
+import GHC.Generics         (Generic)
 
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
 
 data SrcSpan = SS { sp_start :: !SourcePos, sp_stop :: !SourcePos} 
-                 deriving (Eq, Ord, Show, Typeable)
+                 deriving (Eq, Ord, Show, Typeable, Generic)
 
 instance PPrint SrcSpan where
   pprint = ppSrcSpan
@@ -87,7 +89,7 @@ instance Hashable SrcSpan where
 -----------------------------------------------------------------------
 
 data Error = Error { errLoc :: SrcSpan, errMsg :: String }
-               deriving (Eq, Ord, Show, Typeable)
+               deriving (Eq, Ord, Show, Typeable, Generic)
 
 instance PPrint Error where
   pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
