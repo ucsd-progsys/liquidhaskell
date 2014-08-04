@@ -56,7 +56,7 @@ module Language.Haskell.Liquid.Types (
   , SubsTy (..)
 
   -- * Predicate Variables 
-  , PVar (PV, pname, parg, pargs), isPropPV, pvType
+  , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
   , PVKind (..)
   , Predicate (..)
 
