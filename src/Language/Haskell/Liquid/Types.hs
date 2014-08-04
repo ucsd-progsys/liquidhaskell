@@ -193,6 +193,7 @@ import CoreSyn (CoreBind)
 
 import System.Directory (canonicalizePath)
 import System.FilePath ((</>), isAbsolute, takeDirectory)
+import System.Posix.Files (getFileStatus, isDirectory)
 
 import Data.Default
 -----------------------------------------------------------------------------
@@ -226,10 +227,12 @@ data Config = Config {
 --   to worry about relative paths.
 canonicalizePaths :: Config -> FilePath -> IO Config
 canonicalizePaths cfg tgt
-  = do dir <- takeDirectory <$> canonicalizePath tgt
+  = do st  <- getFileStatus tgt
+       tgt <- canonicalizePath tgt
        let canonicalize f
-             | isAbsolute f = return f
-             | otherwise    = canonicalizePath (dir </> f)
+             | isAbsolute f   = return f
+             | isDirectory st = canonicalizePath (tgt </> f)
+             | otherwise      = canonicalizePath (takeDirectory tgt </> f)
        is <- mapM canonicalize $ idirs cfg
        cs <- mapM canonicalize $ cFiles cfg
        return $ cfg { idirs = is, cFiles = cs }
