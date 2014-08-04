@@ -559,59 +559,8 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
    - Bare.hs        :482 : addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
 
-
-
 **TODO:EFFECTS:ASKNIKI**
-
-+ Wtf is `isBind`,`un/setConsBind` in Constraint.hs?
-
-+ What is `predType` ?
-  Why do we have `PredType.exprType` ?
-  Where are these dummy `predType` applications inserted? (lgrep `predType`)
-
-  _Note_ : I have _created_ a `wpredType` but am not sure where all it should go.
-           Presumably it mirrors wherever `predType` goes. But perhaps a single
-		   `predType` suffices?
-
-+ What is going on in `toPoly` and `expandRApp`?
-  Why the odd test about having the right number of params?
-  What is up with `pvArgs`? and the copying over of parameters?
-
-+ Why are there _2_ different
-
-    consE γ e'@(App e a) | eqType (exprType a) predType 
-
-  One with the `eqType` check and one without?
-
---- 
-
-If expandRApp is called with [] only from Fresh.hs (means: create "top" refinements that will later get K-Vars)
-If expandRApp is called with rs the
-
-- NUKE UNIFY lets see what breaks.
-
-   Why BOTH `penv` and `tyi`  in `unifyts'` ?
-   Why do we first UNIFY and then call ADDTYCONINFO?
-   Why not just do it all at once?
-
-   TRY: just eliminate
-
-      second (addTyConInfo tce tyi) .
-
-   FROM:
-
-      unifyts'
-
-- DROP all calls to unify and such.
-
-2. SPLIT RMono/RPoly. SpecType/RefType should have NO RMono.
-
-3. expandRApp should be split into 2 functions with / without args ([])
-
-4. REMOVE addTyConInfo from Constraint.hs (some parts go into Bare.hs others into Fresh.hs)
-
-
-
++ What is `isBind`,`pushConsBind` in Constraint.hs?
 
 
 3. Suitable signatures for monadic operators
