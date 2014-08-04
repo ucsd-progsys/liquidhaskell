@@ -373,8 +373,8 @@ monoPredicateP
 monoPredicate1P
    =  try (reserved "True" >> return mempty)
   <|> try (pdVar <$> parens predVarUseP)
-  <|> liftM pdVar predVarUseP 
-
+  <|> (pdVar <$> predVarUseP)
+      
 predVarUseP 
   = do (p, xs) <- funArgsP 
        return   $ PV p (PVProp dummyTyId) dummySymbol [ (dummyTyId, dummySymbol, x) | x <- xs ]

@@ -114,11 +114,7 @@ dataConTy _ _
   = error "ofTypePAppTy"
 
 ---------------------------------------------------------------------------
--------------- Interfacing Between Predicates and Refinements -------------
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
--- | Unify PrType with SpecType ------------------------------
+-- | Unify PrType with SpecType -------------------------------------------
 ---------------------------------------------------------------------------
 unify               :: Maybe PrType -> SpecType -> SpecType 
 ---------------------------------------------------------------------------
@@ -199,6 +195,7 @@ unifyS t1 t2
 pToReft  = (\p -> U mempty p mempty) . pdVar 
 
 bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
+                                 
 -- ORIG unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
 -- ORIG unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
 
@@ -272,11 +269,10 @@ symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
 replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType 
 -------------------------------------------------------------------------------------
 replacePreds msg             = foldl' go 
-   where
-     go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
-     go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
-     go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
-
+  where
+    go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
+    go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
+    go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
 
 -- TODO: replace `replacePreds` with
 -- instance SubsTy RPVar (Ref RReft SpecType) SpecType where
