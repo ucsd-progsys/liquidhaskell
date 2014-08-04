@@ -112,16 +112,15 @@ refreshRefType (RFun b t t' _)
   | otherwise
   = rFun b <$> refresh t <*> refresh t'
 
--- ORIG refreshRefType (RApp rc ts _ r)  
--- ORIG   = do tyi                 <- getTyConInfo
--- ORIG        tce                 <- getTyConEmbed
--- ORIG        let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
--- ORIG        let rπs              = safeZip "refreshRef" rs (rTyConPVs rc')
--- ORIG        RApp rc' <$> mapM refresh ts <*> mapM refreshRef rπs <*> refresh r
+refreshRefType (RApp rc ts _ r)  
+  = do tyi                 <- getTyConInfo
+       tce                 <- getTyConEmbed
+       let RApp rc' _ rs _  = expandRApp tce tyi (RApp rc ts [] r)
+       let rπs              = safeZip "refreshRef" rs (rTyConPVs rc')
+       RApp rc' <$> mapM refresh ts <*> mapM refreshRef rπs <*> refresh r
 
-refreshRefType (RApp rc ts rs r)  
-  = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
-
+-- EFFECTS refreshRefType (RApp rc ts rs r)  
+-- EFFECTS   = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
 
 refreshRefType (RVar a r)  
   = RVar a <$> refresh r
@@ -132,21 +131,14 @@ refreshRefType (RAppTy t t' r)
 refreshRefType t                
   = return t
 
-refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
+-- EFFECTS refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
+-- EFFECTS refreshRef _           = errorstar "refreshRef: unexpected"
+-- EFFECTS freshSym (_, t)        = (, t) <$> fresh 
 
-refreshRef _           = errorstar "refreshRef: unexpected"
+refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
+           => (RRProp r, PVar RSort)
+           -> m (RRProp r)
 
-freshSym (_, t)        = (, t) <$> fresh 
-
--- ORIG refreshRef :: (Freshable m Integer, Freshable m r, TCInfo m, Reftable r)
--- ORIG            => (RRProp r, PVar RSort)
--- ORIG            -> m (RRProp r)
--- ORIG 
--- ORIG 
--- ORIG 
--- ORIG refreshRef (RProp s t, π) = RProp <$> mapM freshSym (pargs π) <*> refreshRefType t
--- ORIG refreshRef _              = errorstar "refreshRef: unexpected"
--- ORIG 
--- ORIG freshSym s                = (, fst3 s) <$> fresh
--- ORIG 
--- ORIG                             (t, symbol, expr)
+refreshRef (RProp s t, π) = RProp <$> mapM freshSym (pargs π) <*> refreshRefType t
+refreshRef _              = errorstar "refreshRef: unexpected"
+freshSym s                = (, fst3 s) <$> fresh
