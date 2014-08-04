@@ -156,14 +156,16 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
     | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-  mappend (RPropP s1 r) (RProp s2 t) 
-    | isTauto   r = RProp s2 t
-    | isTrivial t = RPropP s1 r
-    | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
-  mappend (RProp s1 t) (RPropP s2 r) 
-    | isTrivial t = RPropP s2 r
-    | isTauto   r = RProp s1 t
-    | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+
+  -- ORIG mappend (RPropP s1 r) (RProp s2 t) 
+  -- ORIG   | isTauto   r = RProp s2 t
+  -- ORIG   | isTrivial t = RPropP s1 r
+  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+  -- ORIG mappend (RProp s1 t) (RPropP s2 r) 
+  -- ORIG   | isTrivial t = RPropP s2 r
+  -- ORIG   | isTauto   r = RProp s1 t
+  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t  `strengthen` U r mempty mempty
+
   mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
@@ -175,14 +177,14 @@ instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Mon
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
     | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-  mappend (RPropP s1 r) (RProp s2 t) 
-    | isTauto   r = RProp s2 t
-    | isTrivial t = RPropP s1 r
-    | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
-  mappend (RProp s1 t) (RPropP s2 r) 
-    | isTrivial t = RPropP s2 r
-    | isTauto   r = RProp s1 t
-    | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  -- ORIG mappend (RPropP s1 r) (RProp s2 t) 
+  -- ORIG   | isTauto   r = RProp s2 t
+  -- ORIG   | isTrivial t = RPropP s1 r
+  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
+  -- ORIG mappend (RProp s1 t) (RPropP s2 r) 
+  -- ORIG   | isTrivial t = RPropP s2 r
+  -- ORIG   | isTauto   r = RProp s1 t
+  -- ORIG   | otherwise   = RProp (s1 ++ s2) $ t `strengthen` r
   mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
@@ -190,29 +192,34 @@ instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Mon
 
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RTProp p c tv r) where
   isTauto (RPropP _ r) = isTauto r
-  isTauto (RProp _ t) = isTrivial t
+  isTauto (RProp _ t)  = isTrivial t
   ppTy (RPropP _ r) d  = ppTy r d
-  ppTy (RProp _ _) _  = errorstar "RefType: Reftable ppTy in RProp"
-  toReft              = errorstar "RefType: Reftable toReft"
-  params              = errorstar "RefType: Reftable params for Ref"
-  bot                 = errorstar "RefType: Reftable bot    for Ref"
+  ppTy (RProp _ _) _   = errorstar "RefType: Reftable ppTy in RProp"
+  toReft               = errorstar "RefType: Reftable toReft"
+  params               = errorstar "RefType: Reftable params for Ref"
+  bot                  = errorstar "RefType: Reftable bot    for Ref"
 
 
 -- Subable Instances ----------------------------------------------
 
 instance Subable (RRProp Reft) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
-  syms (RProp ss t)     = (fst <$> ss) ++ syms t
-
+  syms (RProp ss t)      = (fst <$> ss) ++ syms t
+  syms _                 = error "TODO:EFFECTS"
+  
   subst su (RPropP ss r) = RPropP (mapSnd (subst su) <$> ss) $ subst su r 
-  subst su (RProp ss r) = RProp (mapSnd (subst su) <$> ss) $ subst su r
-
+  subst su (RProp ss r)  = RProp (mapSnd (subst su) <$> ss) $ subst su r
+  subst _  _             = error "TODO:EFFECTS"
+  
   substf f (RPropP ss r) = RPropP (mapSnd (substf f) <$> ss) $ substf f r
-  substf f (RProp ss r) = RProp (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss r)  = RProp (mapSnd (substf f) <$> ss) $ substf f r
   substa f (RPropP ss r) = RPropP (mapSnd (substa f) <$> ss) $ substa f r
-  substa f (RProp ss r) = RProp (mapSnd (substa f) <$> ss) $ substa f r
-
--- Reftable Instances -------------------------------------------------------
+  substa f (RProp ss r)  = RProp (mapSnd (substa f) <$> ss) $ substa f r
+  substa f _             = error "TODO:EFFECTS"
+  
+-------------------------------------------------------------------------------
+-- | Reftable Instances -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   isTauto     = isTrivial
@@ -221,14 +228,10 @@ instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   params      = errorstar "params on RType"
   bot         = errorstar "bot on RType"
 
--- ppTySReft s r d 
---   = text "\\" <> hsep (toFix <$> s) <+> text "->" <+> ppTy r d
 
-
-
--- MOVE TO TYPES
-
--- TyConable Instances -------------------------------------------------------
+-------------------------------------------------------------------------------
+-- | TyConable Instances -------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- MOVE TO TYPES
 instance TyConable RTyCon where
@@ -251,7 +254,9 @@ instance TyConable LocSymbol where
   ppTycon = ppTycon . val
 
 
--- RefTypable Instances -------------------------------------------------------
+-------------------------------------------------------------------------------
+-- | RefTypable Instances -----------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- MOVE TO TYPES
 instance Fixpoint String where
@@ -321,7 +326,7 @@ eqRSort _ _ _
   = False
 
 --------------------------------------------------------------------
---------- Wrappers for GHC Type Elements ---------------------------
+-- | Wrappers for GHC Type Elements --------------------------------
 --------------------------------------------------------------------
 
 instance Eq Predicate where
@@ -341,7 +346,6 @@ instance Ord RTyVar where
 
 instance Hashable RTyVar where
   hashWithSalt i (RTV α) = hashWithSalt i α
-
 
 instance Ord RTyCon where
   compare x y = compare (rtc_tc x) (rtc_tc y)
@@ -505,11 +509,6 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
     rs0                        = rtPropTop <$> pvs
 
 expandRApp _ _ t               = t
-
--- NUKE case rs of
--- NUKE   [] -> rtPropTop <$> pvs
--- NUKE   rs -> rtPropPV rc rs pvs
-
 
 rtPropTop pv = case ptype pv of
                  PVProp t -> RProp xts $ ofRSort t
@@ -1140,7 +1139,4 @@ mkTyConInfo c = TyConInfo pos neg
         errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
         dindex        = -1
         neutral       = [0..n] L.\\ (fst <$> varsigns)
-
-
-
 
