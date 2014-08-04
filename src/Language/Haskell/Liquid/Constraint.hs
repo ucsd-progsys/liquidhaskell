@@ -40,7 +40,7 @@ import TypeRep
 import Class            (Class, className)
 import Var
 import Id
-import Name            -- (getSrcSpan, getOccName)
+import Name            
 import NameSet
 import Text.PrettyPrint.HughesPJ
 
@@ -739,7 +739,7 @@ initCGI cfg info = CGInfo {
     spc        = spec info
     spec'      = spc { tySigs  = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc]
                      , asmSigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs spc]}
-    tyi        = makeTyConInfo (tconsP spc)
+    tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
     globs      = F.fromListSEnv . map mkSort $ meas spc
     mkSort     = mapSnd (rTypeSortedReft tce . val)
 

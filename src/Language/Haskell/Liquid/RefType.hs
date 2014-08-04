@@ -363,8 +363,10 @@ normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
 
 rPred     = RAllP
-rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing)) 
 rEx xts t = foldr (\(x, tx) t -> REx x tx t) t xts   
+rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing)) 
+
+
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
 addPds ps t           = foldl' (flip rPred) t ps
@@ -486,6 +488,12 @@ strengthen (RVar a r) r'        = RVar a       (r `meet` r')
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `meet` r')
 strengthen t _                  = t 
+
+-------------------------------------------------------------------------
+rApp' :: (Reftable r) => M.HashMap TyCon FTycon -> M.HashMap TyCon RTyCon
+      -> TyCon -> [RRType r] -> [RRProp r] -> RRType r -> RRType r 
+-------------------------------------------------------------------------
+rApp' c ts rs_ r = error "TODO:EFFECTS" 
 
 -------------------------------------------------------------------------
 expandRApp :: (Reftable r)

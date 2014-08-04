@@ -81,6 +81,7 @@ makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name vars defVars exports env specs
+  
   = throwOr (throwOr return . checkGhcSpec specs . postProcess) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg vars defVars exports specs
@@ -97,18 +98,18 @@ makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] 
 makeGhcSpec' cfg vars defVars exports specs
   = do name                                    <- gets modName
        _                                       <- makeRTEnv specs
-       (tycons, datacons, dcSelectors)         <- makeGhcSpecCHOP1 specs
-       modify                                   $ \be -> be { tcEnv = makeTyConInfo tycons }
+       (tycons, datacons, dcSelectors, tyi)    <- makeGhcSpecCHOP1 specs
+       modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
-       (invs, ialias, embs, tcEnv, sigs, asms) <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts 
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls tcEnv embs
+       (invs, ialias, embs, sigs, asms)        <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts 
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
          >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su 
          >>= makeGhcSpec2 invs ialias measures su                     
-         >>= makeGhcSpec3 tcEnv datacons tycons embs syms             
+         >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
 
 emptySpec     :: Config -> GhcSpec
@@ -133,12 +134,13 @@ makeGhcSpec2 invs ialias measures su sp
                 , ialiases   = subst su ialias 
                 , measures   = subst su <$> M.elems $ Ms.measMap measures }
 
-makeGhcSpec3 tcEnv datacons tycons embs syms sp
-  = return  $ sp { tyconEnv   = tcEnv
-                 , dconsP     = datacons
-                 , tconsP     = tycons
-                 , tcEmbeds   = embs 
-                 , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
+makeGhcSpec3 datacons tycons embs syms sp
+  = do tcEnv   <- gets tcEnv
+       return  $ sp { tyconEnv   = tcEnv
+                    , dconsP     = datacons
+                    , tconsP     = tycons
+                    , tcEmbeds   = embs 
+                    , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
 
 makeGhcSpec4 defVars specs name su sp
   = do decr'   <- mconcat <$> mapM (makeHints defVars) specs
@@ -159,7 +161,8 @@ makeGhcSpecCHOP1 specs
        let tycons       = tcs        ++ wiredTyCons 
        let datacons     = mapSnd val <$> (concat dcs ++ wiredDataCons)
        let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
-       return           $ (tycons, datacons, dcSelectors) 
+       let tyi          = makeTyConInfo tycons
+       return           $ (tycons, datacons, dcSelectors, tyi) 
 
 makeGhcSpecCHOP2 cfg vars defVars specs name cls mts
   = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
@@ -168,19 +171,20 @@ makeGhcSpecCHOP2 cfg vars defVars specs name cls mts
        ialias  <- mconcat <$> mapM makeIAliases   specs
        embs    <- mconcat <$> mapM makeTyConEmbeds specs
        let dms  = makeDefaultMethods vars mts
-       tcEnv   <- gets tcEnv
-       let sigs = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- sigs' ++ mts ++ dms ]
-       let asms = [ (x, txRefSort tcEnv embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
-       return     (invs, ialias, embs, tcEnv, sigs, asms)
+       tyi     <- gets tcEnv
+       let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- sigs' ++ mts ++ dms ]
+       let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
+       return     (invs, ialias, embs, sigs, asms)
 
-makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls tcEnv embs
+makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
+       tyi             <- gets tcEnv 
        let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
        let ms'          = [ (x, Loc l t) | (Loc l x, t) <- ms, isNothing $ lookup x cms' ]
-       let cs'          = [ (v, Loc (getSourcePos v) (txRefSort tcEnv embs t)) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
+       let cs'          = [ (v, Loc (getSourcePos v) (txRefSort tyi embs t)) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
        let xs'          = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
        
@@ -244,8 +248,8 @@ expandRTAliasDef d
        return $ d { body = body }
 
 expandRTAliasBody :: SourcePos -> RTEnv -> Body -> BareM Body
-expandRTAliasBody l env (P p)   = P   <$> (expPAlias l p)
-expandRTAliasBody l env (R x p) = R x <$> (expPAlias l p)
+expandRTAliasBody l env (P p)   = P   <$> expPAlias l p
+expandRTAliasBody l env (R x p) = R x <$> expPAlias l p
 expandRTAliasBody l _   (E e)   = E   <$> resolve l e
 
 expPAlias :: SourcePos -> Pred -> BareM Pred
