@@ -290,7 +290,7 @@ unsafePackCStringLen (ptr,len) = do
 {-@ unsafePackMallocCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
 unsafePackMallocCString :: CString -> IO ByteString
 unsafePackMallocCString cstr = do
-    fp  <- undefined -- LIQUID newForeignPtr c_free_finalizer (castPtr cstr)
+    fp  <- newForeignPtr c_free_finalizer (castPtr cstr)
     len <- c_strlen cstr
     return $! PS fp 0 ({- LIQUID fromIntegral -} cSizeInt len)
 
