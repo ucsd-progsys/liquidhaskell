@@ -2,6 +2,7 @@
     RecordWildCards, UnboxedTuples, UnliftedFFITypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
+{-@ LIQUID "--c-files=../../cbits/cbits.c" @-}
 -- |
 -- Module      : Data.Text.Array
 -- Copyright   : (c) 2009, 2010, 2011 Bryan O'Sullivan
@@ -393,23 +394,15 @@ equal arrA offA arrB offB count = inlinePerformIO $ do
   return $! i == 0
 {-# INLINE equal #-}
 
---LIQUID FIXME: these imports fail with an interactive linker error on linux, but not on osx.. strange
-
---LIQUID FFI foreign import ccall unsafe "_hs_text_memcpy" memcpyI
---LIQUID FFI     :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
+foreign import ccall unsafe "_hs_text_memcpy" memcpyI
+    :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
 {-@ memcpyI :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO () @-}
-memcpyI :: MutableByteArray# s -> CSize -> ByteArray# -> CSize -> CSize -> IO ()
-memcpyI = undefined
 
---LIQUID FFI foreign import ccall unsafe "_hs_text_memcmp" memcmp
---LIQUID FFI     :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
+foreign import ccall unsafe "_hs_text_memcmp" memcmp
+    :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
 {-@ memcmp :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt @-}
-memcmp :: ByteArray# -> CSize -> ByteArray# -> CSize -> CSize -> IO CInt
-memcmp = undefined
 
---LIQUID FFI foreign import ccall unsafe "_hs_text_memcpy" memcpyM
---LIQUID FFI     :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize
---LIQUID FFI     -> IO ()
+foreign import ccall unsafe "_hs_text_memcpy" memcpyM
+    :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize
+    -> IO ()
 {-@ memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO () @-}
-memcpyM :: MutableByteArray# s -> CSize -> MutableByteArray# s -> CSize -> CSize -> IO ()
-memcpyM = undefined
