@@ -70,10 +70,6 @@ trueRefType (RFun _ t t' _)
 trueRefType (RApp c ts rs r)
   = RApp c <$> mapM true ts <*> mapM trueRef rs <*> true r
 
-  -- ORIG = (\ts -> RApp c ts truerefs) <$> mapM true ts <*> true r
-  -- ORIG   where
-  -- ORIG     truerefs = RProp []  . ofRSort . pvType <$> rTyConPropVs c
-
 trueRefType (RAppTy t t' _)
   = RAppTy <$> true t <*> true t' <*> return mempty
 
