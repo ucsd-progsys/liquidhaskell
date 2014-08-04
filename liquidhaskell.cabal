@@ -146,6 +146,7 @@ Library
                 , process
                 , syb
                 , text
+                , unix
                 , intern
                 , vector
                 , hashable
