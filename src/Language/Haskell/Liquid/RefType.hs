@@ -152,19 +152,9 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
          , RefTypable p c tv ()
          , RefTypable p c tv (UReft r)) 
          => Monoid (Ref (RType p c tv ()) r (RType p c tv (UReft r))) where
-
   mempty      = errorstar "mempty: RType 2"
   mappend _ _ = errorstar "mappend: RType 2"
-  -- NUKE ? mappend (RPropP s1 r1) (RPropP s2 r2) 
-  -- NUKE ?   | isTauto r1 = RPropP s2 r2
-  -- NUKE ?   | isTauto r2 = RPropP s1 r1
-  -- NUKE ?   | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-
-  -- NUKE ? mappend (RProp s1 t1) (RProp s2 t2) 
-  -- NUKE ?   | isTrivial t1 = RProp s2 t2
-  -- NUKE ?   | isTrivial t2 = RProp s1 t1
-  -- NUKE ?   | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
-
+  
 instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
   mempty         = errorstar "mempty: RTProp"
 
