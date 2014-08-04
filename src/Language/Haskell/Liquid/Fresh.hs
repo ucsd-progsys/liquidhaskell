@@ -83,8 +83,6 @@ trueRefType (RVar a r)
 trueRefType t
   = return t
 
-trueRef r = undefined 
-
 trueRef (RProp s t) = RProp s <$> trueRefType t
 trueRef _           = errorstar "trueRef: unexpected"
 
