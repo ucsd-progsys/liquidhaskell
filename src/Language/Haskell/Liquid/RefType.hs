@@ -174,6 +174,7 @@ instance ( SubsTy tv (RType p c tv ()) (RType p c tv ())
 
 instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Monoid (RTProp a b c r) where
   -- mempty         = RPropP [] mempty
+  mempty  = errorstar "mempty: RTProp"
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
