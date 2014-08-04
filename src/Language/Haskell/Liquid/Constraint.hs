@@ -998,10 +998,6 @@ instance Freshable CG Integer where
              let n = freshIndex s
              put $ s { freshIndex = n + 1 }
              return n
-
-instance TCInfo CG where
-  getTyConInfo  = tyConInfo  <$> get
-  getTyConEmbed = tyConEmbed <$> get
   	
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
