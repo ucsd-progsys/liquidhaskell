@@ -156,8 +156,9 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
     pt                  = (fmap (\(U r p l) -> U mempty mempty l)) <$> L.lookup x senv
 
 
--- | TODO: All this *should* happen inside @Bare@ but appears to happen after certain
---   are signatures are @fresh@-ed, which is why they are here.
+-- | TODO: All this *should* happen inside @Bare@ but appears
+--   to happen after certain are signatures are @fresh@-ed,
+--   which is why they are here.
 predsUnify sp      = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
                    . unifyts penv                  -- needed to match up some  @TyVars@
   where
@@ -951,6 +952,9 @@ isKut _        = False
 specTypeKVars :: SpecType -> [F.Symbol]
 specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
 
+trueTy  :: Type -> CG SpecType
+trueTy = ofType' >=> true
+
 ofType' :: Type -> CG SpecType
 ofType' = fixTy . ofType
   
@@ -958,15 +962,6 @@ fixTy :: SpecType -> CG SpecType
 fixTy t = do tyi   <- tyConInfo  <$> get
              tce   <- tyConEmbed <$> get
              return $ addTyConInfo tce tyi t
-
-trueTy  :: Type -> CG SpecType
-trueTy = ofType' >=> true
-
--- trueTy τ =
---  = do t     <- true $ uRType $ ofType τ
---       tyi   <- tyConInfo  <$> get
---       tce   <- tyConEmbed <$> get
---       return $ addTyConInfo tce tyi t
 
 refreshArgsTop :: (Var, SpecType) -> CG SpecType
 refreshArgsTop (x, t) 
@@ -999,7 +994,6 @@ instance Freshable CG Integer where
              put $ s { freshIndex = n + 1 }
              return n
   	
-addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------------
 ----------------------- TERMINATION TYPE --------------------------------------
