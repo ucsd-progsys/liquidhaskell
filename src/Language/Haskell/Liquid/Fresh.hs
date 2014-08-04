@@ -9,16 +9,10 @@
 
 module Language.Haskell.Liquid.Fresh (Freshable(..)) where
 
-import           Control.Applicative             (Applicative, (<$>), (<*>))
-import           Control.Monad.State
-import           Data.Monoid                     (mempty)
-
-import qualified Data.HashMap.Strict             as M
-import qualified TyCon                           as TC
-
+import           Control.Applicative           (Applicative, (<$>), (<*>))
+import           Data.Monoid                   (mempty)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
-import           Language.Haskell.Liquid.RefType (expandRApp, uTop)
 import           Language.Haskell.Liquid.Types
 
 class (Applicative m, Monad m) => Freshable m a where
@@ -66,24 +60,38 @@ trueRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m
 -----------------------------------------------------------------------------------------------
 trueRefType (RAllT α t)
   = RAllT α <$> true t
+
 trueRefType (RAllP π t)
   = RAllP π <$> true t
+
 trueRefType (RFun _ t t' _)
   = rFun <$> fresh <*> true t <*> true t'
-trueRefType (RApp c ts _ r)
-  = (\ts -> RApp c ts truerefs) <$> mapM true ts <*> true r
-    where truerefs = (RProp []  . ofRSort . pvType) <$> (rTyConPropVs c)
+
+trueRefType (RApp c ts rs r)
+  = RApp c <$> mapM true ts <*> mapM trueRef rs <*> true r
+
+  -- ORIG = (\ts -> RApp c ts truerefs) <$> mapM true ts <*> true r
+  -- ORIG   where
+  -- ORIG     truerefs = RProp []  . ofRSort . pvType <$> rTyConPropVs c
+
 trueRefType (RAppTy t t' _)
   = RAppTy <$> true t <*> true t' <*> return mempty
+
 trueRefType (RVar a r)
   = RVar a <$> true r
+
 trueRefType t
   = return t
+
+trueRef r = undefined 
+
+trueRef (RProp s t) = RProp s <$> trueRefType t
+trueRef _           = errorstar "trueRef: unexpected"
+
 
 -----------------------------------------------------------------------------------------------
 refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-
 refreshRefType (RAllT α t)
   = RAllT α <$> refresh t
 
