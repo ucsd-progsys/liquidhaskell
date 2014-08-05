@@ -167,7 +167,9 @@ updateDynFlags cfg
 
 compileCFiles cfg
   = do df  <- getSessionDynFlags
-       setSessionDynFlags $ df { includePaths = nub $ idirs cfg ++ includePaths df }
+       setSessionDynFlags $ df { includePaths = nub $ idirs cfg ++ includePaths df
+                               , importPaths  = nub $ idirs cfg ++ importPaths df
+                               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
        hsc <- getSession
        os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
        df  <- getSessionDynFlags
