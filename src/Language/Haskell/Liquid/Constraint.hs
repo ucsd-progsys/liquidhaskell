@@ -662,7 +662,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
                      , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-                     , isBind     :: ![Bool]                      -- ^ ?????? 
+                     , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings 
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
                      , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
