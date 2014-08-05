@@ -54,19 +54,19 @@ test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
 test:
-	cabal install --enable-tests
+	cabal install --enable-tests --disable-shared
 	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 retest:
-	cabal install --enable-tests
+	cabal install --enable-tests --disable-shared
 	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-test:
-	cabal install --enable-tests
+	cabal install --enable-tests --disable-shared
 	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-retest:
-	cabal install --enable-tests
+	cabal install --enable-tests --disable-shared
 	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
