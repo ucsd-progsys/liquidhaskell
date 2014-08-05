@@ -535,12 +535,83 @@ value of `f` (c.f. tests/pos/cont1.hs)
 PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 ------------------------------------------------------------
 
++ Create a test case: `tests/todo/Eff*.hs`
 
-1. Introduce a new sort of refinement `HProp`
++ Introduce a new sort of refinement `Ref` (with alias `RTProp`)
+   + Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RPropP`] and `RPoly` [---> `RProp`]
+   + Types.hs: Add a `World t` for SL formulas...
+   
 
-2. Index `IO` or `State` by `HProp`
++ Allow `PVar` to have the sort `HProp`
+   + CHANGE `ptype :: PVKind t` where `data PVKind t = PVProp t | PVHProp` 
+   + Can we reuse `RAllP` to encode `HProp`-quantification? (YES)
+   + Update `RTyCon` to store `HProp` vars
+
+- Update consgen
+   + Can we reuse type-application sites for `HProp`-instantiation? (Yes)
+   - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
+   - PredType.hs         : go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
+	 
+- Write cons-solve
+  - eliminate/solve `HProp` constraints prior to subtype splitting.
+
+- Index `IO` or `State` by `HProp`
+   - Parse.hs: Update `data` parser to allow `TyCon` to be indexed by abstract `HProp`
+   - Bare.hs        :482 : addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
+
+**TODO:EFFECTS:ASKNIKI**
++ What is `isBind`,`pushConsBind` in Constraint.hs?
+
 
 3. Suitable signatures for monadic operators
+
+### RHProp
+
+a. Following `RProp` we should have
+	
+	* RHProp := x1:t1,...,xn:tn -> World
+
+b. Where `World` is a _spatial conjunction_ of
+
+	* WPreds : (h v1 ... vn), h2, ...
+	* Wbinds : x1 := T1, x2 := T2, ... 
+
+c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
+
+**Problem:** rejigger _inference_ to account for parameters in heap variables.
+
+
+
+### RPoly  (---> RProp)
+
+Per Niki:
+
+	RProp := x1:t1,...,xn:tn -> RType
+
+with the 'predicate' application implicitly buried as a `ur_pred` inside the RType
+
+For example, we represent
+
+	[a]<p>
+
+as
+
+	RApp [] a (RPoly  [(h:a)] {v:a<p>}) true
+
+which is the `RTycon` for lists `[]` applied to:
+
++ Tyvar `a`
+
++ RPoly with:
+	* _params_ `h:a`
+	* _body_   `{v:a<p> | true}` which is really, `RVar a {ur_reft = true, ur_pred = (Predicate 'p' with params 'h')}`
+
++ Outer refinement `true`
+
+
+
+
+
 
 
 **Heap Propositions** `HProp`
@@ -661,7 +732,7 @@ where each `Ai` is a _rigid_ or quantified heap var that is atomic,
 i.e. cannot be further solved for. For solving, we throw away _all_ 
 refinements, and just use the shape τ. 
 
-```haskell
+```
 solve :: Sol -> [Constraint] -> Maybe Sol
 solve σ []     
   = Just σ
