@@ -161,8 +161,8 @@ mkAlive x
   = x
 
 class Subable a where
- sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
- subTy :: M.HashMap TyVar Type -> a -> a
+  sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
+  subTy :: M.HashMap TyVar Type -> a -> a
 
 instance Subable CoreExpr where
   sub s (Var v)        = M.lookupDefault (Var v) v s

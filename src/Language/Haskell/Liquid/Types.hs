@@ -1,17 +1,18 @@
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE DeriveDataTypeable    #-}
 {-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE DeriveFoldable        #-}
+{-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-} 
 {-# LANGUAGE OverlappingInstances  #-}
 {-# LANGUAGE ViewPatterns          #-}
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
--- | This module (should) contain all the global type definitions and basic
--- instances. Need to gradually pull things into here, especially from @RefType@
+-- | This module should contain all the global type definitions and basic instances.
 
 module Language.Haskell.Liquid.Types (
 
@@ -20,7 +21,7 @@ module Language.Haskell.Liquid.Types (
   
   -- * Ghc Information
   , GhcInfo (..)
-  , GhcSpec (..)
+  , GhcSpec (..) 
   , TargetVars (..)
 
   -- * Located Things
@@ -31,34 +32,78 @@ module Language.Haskell.Liquid.Types (
   , LocSymbol
   , LocText
 
-  -- * Data Constructors
-  , BDataCon (..)
+  -- * Default unknown name
+  , dummyName, isDummy
 
-  -- * Constructors and Destructors
+  -- * Refined Type Constructors 
+  , RTyCon (RTyCon, rtc_tc, rtc_info)
+  , TyConInfo(..)
+  , rTyConPVs 
+  , rTyConPropVs
+ 
+  -- * Refinement Types 
+  , RType (..), Ref(..), RTProp (..)
+  , RTyVar (..)
+  , RTAlias (..)
+
+  -- * Worlds
+  , HSeg (..)
+  , World (..)
+    
+  -- * Classes describing operations on `RTypes` 
+  , TyConable (..)
+  , RefTypable (..)
+  , SubsTy (..)
+
+  -- * Predicate Variables 
+  , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
+  , PVKind (..)
+  , Predicate (..)
+
+  -- * Refinements
+  , UReft(..)
+
+  -- * Parse-time entities describing refined data types
+  , DataDecl (..)
+  , DataConP (..)
+  , TyConP (..)
+
+  -- * Pre-instantiated RType
+  , RRType, BRType, RRProp
+  , BSort, BPVar
+
+  -- * Instantiated RType
+  , BareType, RefType, PrType
+  , SpecType, SpecProp 
+  , RSort
+  , UsedPVar, RPVar, RReft
+  , REnv (..)
+
+  -- * Constructing & Destructing RTypes
+  , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
   , rFun
-  , Oblig(..), ignoreOblig
+
+  -- * Manipulating `Predicates`
+  , pvars, pappSym, pToRef, pApp
+
+  -- * Some tests on RTypes
+  , isBase
+  , isFunTy
+  , isTrivial
+
+  -- * Traversing `RType` 
+  , efoldReft, foldReft
+  , mapReft, mapReftM
+  , mapBot, mapBind
+ 
+  -- * ???
+  , Oblig(..)
+  , ignoreOblig
   , addTermCond
   , addInvCond
 
-  -- * Some predicates on RTypes
-  , isBase
-  , isFunTy
-
-  , RTypeRep(..), fromRTypeRep, toRTypeRep
-
-  -- * Manipulating Predicate
-  , pvars
-
-  -- * All these should be MOVE TO TYPES
-  , RTyVar (..), RType (..), RRType, BRType, RTyCon(..)
-  , TyConable (..), RefTypable (..), SubsTy (..), Ref(..)
-  , RTAlias (..), mapRTAVars
-  , BSort, BPVar, BareType, RSort, UsedPVar, RPVar, RReft, RefType
-  , PrType, SpecType
-  , PVar (..) , Predicate (..), UReft(..), DataDecl (..), TyConInfo(..)
-  , TyConP (..), DataConP (..)
 
   -- * Inferred Annotations 
   , AnnInfo (..)
@@ -67,20 +112,9 @@ module Language.Haskell.Liquid.Types (
   -- * Overall Output
   , Output (..)
 
-  -- * Default unknown name
-  , dummyName, isDummy
   -- * Refinement Hole
   , hole, isHole
 
-  , classToRApp
-
-  -- * Traversing `RType` 
-  , efoldReft, foldReft
-  , mapReft, mapReftM
-  , mapBot, mapBind
-  
-  , isTrivial
-  
   -- * Converting To and From Sort
   , ofRSort, toRSort
   , rTypeValueVar
@@ -94,36 +128,37 @@ module Language.Haskell.Liquid.Types (
   -- * Printer Configuration 
   , PPEnv (..)
   , Tidy  (..)
-  -- , configTidy
-  , ppEnv, ppEnvShort
+  , ppEnv
+  , ppEnvShort
 
-  -- * Import handling
-  , ModName (..), ModType (..), isSrcImport, isSpecImport
+  -- * Modules and Imports
+  , ModName (..), ModType (..)
+  , isSrcImport, isSpecImport
   , getModName, getModString
 
   -- * Refinement Type Aliases
-  , REnv (..)
-  , RTEnv (..), mapRT, mapRP, RTBareOrSpec
+  , RTEnv (..)
+  , RTBareOrSpec
+  , mapRT
+  , mapRP
 
   -- * Final Result
   , Result (..)
 
-  -- * Different kinds of errors
+  -- * Errors and Error Messages
   , Error
   , TError (..)
   , EMsg (..)
   , LParseError (..)
   , ErrorResult
-  -- , showEMsg 
   , errSpan
   , errOther
 
-  -- * Source information associated with each constraint
+  -- * Source information (associated with constraints)
   , Cinfo (..)
 
   -- * Measures
   , Measure (..)
-  -- , IMeasure (..)
   , CMeasure (..)
   , Def (..)
   , Body (..)
@@ -137,11 +172,17 @@ module Language.Haskell.Liquid.Types (
   , emptyKVProf   -- empty profile
   , updKVProf     -- extend profile
 
-  , pappSym, pToRef, pApp
-
+  -- * Misc 
+  , classToRApp
+  , mapRTAVars
   , insertsSEnv
 
-  , Stratum(..), Strata, isSVar, getStrata, makeDivType, makeFinType
+  -- * Strata
+  , Stratum(..), Strata
+  , isSVar
+  , getStrata
+  , makeDivType, makeFinType
+
   )
   where
 
@@ -164,7 +205,7 @@ import Language.Haskell.Liquid.GhcMisc
 
 import Control.Arrow                            (second)
 import Control.Monad                            (liftM, liftM2, liftM3)
-import            qualified Control.Monad.Error as Ex
+import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
 import Control.Applicative                      ((<$>), (<*>))
 import Data.Typeable                            (Typeable)
@@ -336,8 +377,8 @@ data GhcSpec = SP {
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
-                     , covPs        :: ![Int] -- indexes of covariant predicate arguments
-                     , contravPs    :: ![Int] -- indexes of contravariant predicate arguments
+                     , covPs        :: ![Int]    -- ^ indexes of covariant predicate arguments
+                     , contravPs    :: ![Int]    -- ^ indexes of contravariant predicate arguments
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
                      } deriving (Data, Typeable)
 
@@ -356,17 +397,24 @@ data TargetVars = AllVars | Only ![Var]
 
 
 --------------------------------------------------------------------
--- | Predicate Variables -------------------------------------------
+-- | Abstract Predicate Variables ----------------------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
 data PVar t
   = PV { pname :: !Symbol
-       , ptype :: !t
+       , ptype :: !(PVKind t)
        , parg  :: !Symbol
        , pargs :: ![(t, Symbol, Expr)]
        }
-	deriving (Generic, Data, Typeable, Show)
+    deriving (Generic, Data, Typeable, Show)
+
+pvType p = case ptype p of
+             PVProp t -> t
+             PVHProp  -> errorstar "pvType on HProp-PVar" 
+             
+data PVKind t
+  = PVProp t | PVHProp
+    deriving (Generic, Data, Typeable, F.Foldable, Traversable, Show)
 
 instance Eq (PVar t) where
   pv == pv' = pname pv == pname pv' {- UNIFY: What about: && eqArgs pv pv' -}
@@ -374,14 +422,22 @@ instance Eq (PVar t) where
 instance Ord (PVar t) where
   compare (PV n _ _ _)  (PV n' _ _ _) = compare n n'
 
-instance Functor PVar where
-  fmap f (PV x t v txys) = PV x (f t) v (mapFst3 f <$> txys)
+instance Functor PVKind where
+  fmap f (PVProp t) = PVProp (f t)
+  fmap f (PVHProp)  = PVHProp
 
+instance Functor PVar where
+  fmap f (PV x t v txys) = PV x (f <$> t) v (mapFst3 f <$> txys)
+
+instance (NFData a) => NFData (PVKind a) where
+  rnf (PVProp t) = rnf t
+  rnf (PVHProp)  = ()
+  
 instance (NFData a) => NFData (PVar a) where
   rnf (PV n t v txys) = rnf n `seq` rnf v `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hashWithSalt i (PV n _ _ xys) = hashWithSalt i  n -- : (thd3 <$> xys)
+  hashWithSalt i (PV n _ _ xys) = hashWithSalt i n
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -406,7 +462,6 @@ pdTrue         = Pr []
 pdAnd ps       = Pr (nub $ concatMap pvars ps)
 pvars (Pr pvs) = pvs
 
--- MOVE TO TYPES
 instance Subable UsedPVar where 
   syms pv         = [ y | (_, x, EVar y) <- pargs pv, x /= y ]
   subst s pv      = pv { pargs = mapThd3 (subst s)  <$> pargs pv }  
@@ -414,14 +469,19 @@ instance Subable UsedPVar where
   substa f pv     = pv { pargs = mapThd3 (substa f) <$> pargs pv }  
 
 
--- MOVE TO TYPES
 instance Subable Predicate where
   syms (Pr pvs)     = concatMap syms pvs 
   subst s (Pr pvs)  = Pr (subst s <$> pvs)
   substf f (Pr pvs) = Pr (substf f <$> pvs)
   substa f (Pr pvs) = Pr (substa f <$> pvs)
 
-
+instance Subable Qualifier where
+  syms   = syms . q_body
+  subst  = mapQualBody . subst
+  substf = mapQualBody . substf
+  substa = mapQualBody . substa
+  
+mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r) where
   rnf (U r p s) = rnf r `seq` rnf p `seq` rnf s
@@ -443,12 +503,27 @@ instance Symbolic RTyVar where
   symbol (RTV tv) = symbol . T.pack . showPpr $ tv
 
 data RTyCon = RTyCon 
-  { rTyCon     :: !TyCon            -- GHC Type Constructor
-  , rTyConPs   :: ![RPVar]          -- Predicate Parameters
-  , rTyConInfo :: !TyConInfo        -- TyConInfo
+  { rtc_tc    :: !TyCon            -- ^ GHC Type Constructor
+  , rtc_pvars :: ![RPVar]          -- ^ Predicate Parameters
+  , rtc_info  :: !TyConInfo        -- ^ TyConInfo
   }
   deriving (Generic, Data, Typeable)
 
+-- | Accessors for @RTyCon@
+
+rTyConInfo   = rtc_info 
+rTyConTc     = rtc_tc
+rTyConPVs    = rtc_pvars
+rTyConPropVs = filter isPropPV . rtc_pvars
+isPropPV     = isProp . ptype
+
+-- rTyConPVHPs = filter isHPropPV . rtc_pvars
+-- isHPropPV   = not . isPropPV
+
+isProp (PVProp _) = True
+isProp _          = False
+
+               
 defaultTyConInfo = TyConInfo [] [] [] [] Nothing
 
 instance Default TyConInfo where
@@ -456,19 +531,22 @@ instance Default TyConInfo where
 
 
 -----------------------------------------------------------------------
------------ TyCon get CoVariance - ContraVariance Info ----------------
+-- | Co- and Contra-variance for TyCon -------------------------------- 
 -----------------------------------------------------------------------
 
--- indexes start from 0 and type or predicate arguments can be both
--- covariant and contravaariant
--- eg, for the below Foo dataType
--- data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
---   = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
--- there will be 
---  covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
---  contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
---  covariantPsArgs     = [0, 2], for predicate arguments p and r
---  contravariantPsArgs = [1, 2], for predicate arguments q and r
+-- | Indexes start from 0 and type or predicate arguments can be both
+--   covariant and contravaariant e.g., for the below Foo dataType
+-- 
+--     data Foo a b c d <p :: b -> Prop, q :: Int -> Prop, r :: a -> Prop>
+--       = F (a<r> -> b<p>) | Q (c -> a) | G (Int<q> -> a<r>)
+--
+--  there will be: 
+-- 
+--    covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
+--    contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
+--    covariantPsArgs     = [0, 2], for predicate arguments p and r
+--    contravariantPsArgs = [1, 2], for predicate arguments q and r
+--
 --  does not appear in the data definition, we enforce BOTH
 --  con - contra variance
 
@@ -516,8 +594,8 @@ data RType p c tv r
 
   | RApp  { 
       rt_tycon  :: !c
-    , rt_args   :: ![RType p c tv r]     
-    , rt_pargs  :: ![Ref (RType p c tv ()) r (RType p c tv r)] 
+    , rt_args   :: ![RType  p c tv r]     
+    , rt_pargs  :: ![RTProp p c tv r] 
     , rt_reft   :: !r
     }
 
@@ -567,23 +645,59 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 instance Show Oblig where
- show OTerm = "termination-condition"
- show OInv  = "invariant-obligation"
+  show OTerm = "termination-condition"
+  show OInv  = "invariant-obligation"
 
 instance PPrint Oblig where
   pprint = text . show
 
-data Ref t s m 
-  = RMono [(Symbol, t)] s
-  | RPoly [(Symbol, t)] m
+-- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
+--   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
+--   * the `RProp`  denoted by `{\h -> v > h}` to 
+--   * the `RTyCon` denoted by `[]`.
+--   Thus, @Ref@ is used for abstract-predicate (arguments) that are associated
+--   with _type constructors_ i.e. whose semantics are _dependent upon_ the data-type.
+--   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
+--   directly to any type and has semantics _independent of_ the data-type.
+  
+data Ref τ r t 
+  = RPropP {
+      rf_args :: [(Symbol, τ)]
+    , rf_reft :: r
+    }                              -- ^ Parse-time `RProp` 
+
+  | RProp  {
+      rf_args :: [(Symbol, τ)] 
+    , rf_body :: t                 
+    }                              -- ^ Abstract refinement associated with `RTyCon`
+    
+  | RHProp {
+      rf_args :: [(Symbol, τ)]
+    , rf_heap :: World t           
+  }                                -- ^ Abstract heap-refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
 
--- MOVE TO TYPES
+-- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
+--   In general, perhaps we need not expose @Ref@ directly at all.
+type RTProp p c tv r = Ref (RType p c tv ()) r (RType p c tv r)
+
+
+-- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
+--   that satisfies two invariants (TODO:LIQUID):
+--   1. Each `hs_addr :: Symbol` appears at most once,
+--   2. There is at most one `HVar` in a list.
+
+newtype World t = World [HSeg t]
+                deriving (Generic, Data, Typeable) 
+
+data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
+                | HVar UsedPVar
+                deriving (Generic, Data, Typeable) 
+
 data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
     deriving (Generic, Data, Typeable)
 
--- MOVE TO TYPES
 type BRType     = RType LocSymbol LocSymbol Symbol
 type RRType     = RType Class     RTyCon    RTyVar
 
@@ -598,6 +712,8 @@ type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
 type RefType    = RRType    Reft
+type SpecProp   = RRProp    RReft
+type RRProp r   = Ref       RSort r (RRType r)
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin 
@@ -630,8 +746,6 @@ class ( TyConable c
   where
     ppCls    :: p -> [RType p c tv r] -> Doc
     ppRType  :: Prec -> RType p c tv r -> Doc 
-    -- ppRType  = ppr_rtype True -- False 
-    -- ppBase   :: r -> Doc -> Doc
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -677,18 +791,18 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
 
 -- | Datacons
 
-data BDataCon a 
-  = BDc a       -- ^ Raw named data constructor
-  | BTup Int    -- ^ Tuple constructor + arity
-  deriving (Eq, Ord, Show)
-
-instance Functor BDataCon where
-  fmap f (BDc x)  = BDc (f x)
-  fmap f (BTup i) = BTup i
-
-instance Hashable a => Hashable (BDataCon a) where
-  hashWithSalt i (BDc x)  = hashWithSalt i x
-  hashWithSalt i (BTup j) = hashWithSalt i j
+-- JUNK data BDataCon a 
+-- JUNK   = BDc a       -- ^ Raw named data constructor
+-- JUNK   | BTup Int    -- ^ Tuple constructor + arity
+-- JUNK   deriving (Eq, Ord, Show)
+-- JUNK 
+-- JUNK instance Functor BDataCon where
+-- JUNK   fmap f (BDc x)  = BDc (f x)
+-- JUNK   fmap f (BTup i) = BTup i
+-- JUNK 
+-- JUNK instance Hashable a => Hashable (BDataCon a) where
+-- JUNK   hashWithSalt i (BDc x)  = hashWithSalt i x
+-- JUNK   hashWithSalt i (BTup j) = hashWithSalt i j
 
 ------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ----------------------------
@@ -706,11 +820,11 @@ data RTypeRep p c tv r
 fromRTypeRep rep 
   = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip (ty_binds rep) (ty_args rep)) (ty_res rep)
 
-toRTypeRep :: RType p c tv r -> RTypeRep p c tv r
-toRTypeRep t 
-  = RTypeRep αs πs ls xs ts t''
-  where (αs, πs, ls, t') = bkUniv  t
-        (xs, ts, t'')    = bkArrow t'
+toRTypeRep           :: RType p c tv r -> RTypeRep p c tv r
+toRTypeRep t         = RTypeRep αs πs ls xs ts t''
+  where
+    (αs, πs, ls, t') = bkUniv  t
+    (xs, ts, t'')    = bkArrow t'
 
 mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts 
   where 
@@ -727,9 +841,7 @@ bkArrow t               = ([], [], t)
 
 safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
-safeBkArrow (RAllS _ t) = safeBkArrow t -- errorstar "safeBkArrow on RAllS"
--- tmp for unfoldR
--- safeBkArrow (RAllS _ _) = errorstar "safeBkArrow on RAllS"
+safeBkArrow (RAllS _ t) = safeBkArrow t 
 safeBkArrow t           = bkArrow t
 
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs 
@@ -744,8 +856,6 @@ bkClass (RFun _ (RCls c t) t' _) = let (cs, t'') = bkClass t' in ((c, t):cs, t''
 bkClass t                        = ([], t)
 
 rFun b t t' = RFun b t t' mempty
-
-
 
 addTermCond = addObligation OTerm
 
@@ -829,17 +939,17 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z l) = U (substf f r) (substf f z) (substf f l) 
   substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
-instance (Reftable r, RefTypable p c tv r) => Subable (Ref (RType p c tv ()) r (RType p c tv r)) where
-  syms (RMono ss r)     = (fst <$> ss) ++ syms r
-  syms (RPoly ss r)     = (fst <$> ss) ++ syms r
+instance (Reftable r, RefTypable p c tv r) => Subable (RTProp p c tv r) where
+  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
+  syms (RProp ss r)     = (fst <$> ss) ++ syms r
 
-  subst su (RMono ss r) = RMono ss (subst su r)
-  subst su (RPoly ss t) = RPoly ss (subst su <$> t)
+  subst su (RPropP ss r) = RPropP ss (subst su r)
+  subst su (RProp ss t) = RProp ss (subst su <$> t)
 
-  substf f (RMono ss r) = RMono ss (substf f r) 
-  substf f (RPoly ss t) = RPoly ss (substf f <$> t)
-  substa f (RMono ss r) = RMono ss (substa f r) 
-  substa f (RPoly ss t) = RPoly ss (substa f <$> t)
+  substf f (RPropP ss r) = RPropP ss (substf f r) 
+  substf f (RProp ss t) = RProp ss (substf f <$> t)
+  substa f (RPropP ss r) = RPropP ss (substa f r) 
+  substa f (RProp ss t) = RProp ss (substa f <$> t)
 
 instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
@@ -907,9 +1017,9 @@ emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r
 emapReft _ _ (ROth s)            = ROth  s 
 emapReft f γ (RHole r)           = RHole (f γ r)
 
-emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> Ref (RType p c tv ()) t (RType p c tv t) -> Ref (RType p c tv ()) s (RType p c tv s)
-emapRef  f γ (RMono s r)         = RMono s $ f γ r
-emapRef  f γ (RPoly s t)         = RPoly s $ emapReft f γ t
+emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp p c tv t -> RTProp p c tv s
+emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
+emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
@@ -946,9 +1056,9 @@ mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f
 mapReftM _ (ROth s)           = return  $ ROth  s 
 mapReftM f (RHole r)          = liftM   RHole       (f r)
 
-mapRefM  :: (Monad m) => (t -> m s) -> Ref (RType p c tv ()) t (RType p c tv t) -> m (Ref (RType p c tv ()) s (RType p c tv s))
-mapRefM  f (RMono s r)        = liftM   (RMono s)      (f r)
-mapRefM  f (RPoly s t)        = liftM   (RPoly s)      (mapReftM f t)
+mapRefM  :: (Monad m) => (t -> m s) -> (RTProp p c tv t) -> m (RTProp p c tv s)
+mapRefM  f (RPropP s r)        = liftM   (RPropP s)      (f r)
+mapRefM  f (RProp s t)        = liftM   (RProp s)      (mapReftM f t)
 
 -- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
 foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv 
@@ -975,8 +1085,8 @@ efoldReft cb g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref 
-    ho  γ z (RMono ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RPoly ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RPropP ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RProp ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
    
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts 
@@ -984,29 +1094,6 @@ efoldReft cb g f fp = go
     -- folding over [Ref]
     ho' γ z rs                 = foldr (flip $ ho γ) z rs 
 
--- ORIG delete after regrtest-ing specerror
--- -- efoldReft :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> RType p c tv r -> a
--- efoldReft g f γ z me@(RVar _ r)       = f γ (Just me) r z 
--- efoldReft g f γ z (RAllT _ t)         = efoldReft g f γ z t
--- efoldReft g f γ z (RAllP _ t)         = efoldReft g f γ z t
--- efoldReft g f γ z me@(RFun x t t' r)  = f γ (Just me) r (efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t')
--- efoldReft g f γ z me@(RApp _ ts rs r) = f γ (Just me) r (efoldRefs g f γ (efoldRefts g f (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
--- efoldReft g f γ z (RCls _ ts)         = efoldRefts g f γ z ts
--- efoldReft g f γ z (RAllE x t t')      = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
--- efoldReft g f γ z (REx x t t')        = efoldReft g f (insertSEnv x (g t) γ) (efoldReft g f γ z t) t' 
--- efoldReft _ _ _ z (ROth _)            = z 
--- efoldReft g f γ z me@(RAppTy t t' r)  = f γ (Just me) r (efoldReft g f γ (efoldReft g f γ z t) t')
--- efoldReft _ _ _ z (RExprArg _)        = z
--- 
--- -- efoldRefts :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [RType p c tv r] -> a
--- efoldRefts g f γ z ts                = foldr (flip $ efoldReft g f γ) z ts 
--- 
--- -- efoldRefs :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> [Ref r (RType p c tv r)] -> a
--- efoldRefs g f γ z rs               = foldr (flip $ efoldRef g f γ) z  rs 
--- 
--- -- efoldRef :: (RType p c tv r -> b) -> (SEnv b -> Maybe (RType p c tv r) -> r -> a -> a) -> SEnv b -> a -> Ref r (RType p c tv r) -> a
--- efoldRef g f γ z (RMono ss r)         = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
--- efoldRef g f γ z (RPoly ss t)         = efoldReft g f (insertsSEnv γ ((mepSnd (g . ofRSort)) <$> ss)) z t
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
@@ -1018,8 +1105,8 @@ mapBot f (RCls c ts)       = RCls c (mapBot f <$> ts)
 mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f t'                = f t' 
-mapBotRef _ (RMono s r)    = RMono s $ r
-mapBotRef f (RPoly s t)    = RPoly s $ mapBot f t
+mapBotRef _ (RPropP s r)    = RPropP s $ r
+mapBotRef f (RProp s t)    = RProp s $ mapBot f t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1036,8 +1123,8 @@ mapBind f (RRTy e r o t)   = RRTy e r o (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
-mapBindRef f (RMono s r)   = RMono (mapFst f <$> s) r
-mapBindRef f (RPoly s t)   = RPoly (mapFst f <$> s) $ mapBind f t
+mapBindRef f (RPropP s r)   = RPropP (mapFst f <$> s) r
+mapBindRef f (RProp s t)   = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
@@ -1057,7 +1144,7 @@ stripQuantifiers (RAppTy t t' r)  = RAppTy (stripQuantifiers t) (stripQuantifier
 stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
 stripQuantifiers (RCls c ts)      = RCls c (stripQuantifiers <$> ts)
 stripQuantifiers t                = t
-stripQuantifiersRef (RPoly s t)   = RPoly s $ stripQuantifiers t
+stripQuantifiersRef (RProp s t)   = RProp s $ stripQuantifiers t
 stripQuantifiersRef r             = r
 
 
@@ -1237,7 +1324,8 @@ instance PPrint EMsg where
 
 type Error = TError SpecType
 
--- | INVARIANT : all Error constructors should hava a pos field
+
+-- | INVARIANT : all Error constructors should have a pos field
 data TError t = 
     ErrSubType  { pos  :: !SrcSpan
                 , msg  :: !Doc 
@@ -1330,7 +1418,7 @@ instance Ord Error where
 
 instance Ex.Error Error where
   strMsg = errOther . pprint
-
+ 
 errSpan :: TError a -> SrcSpan
 errSpan = pos 
 
@@ -1533,7 +1621,7 @@ data Output a = O { o_vars   :: Maybe [String]
                   } deriving (Generic)
 
 emptyOutput = O Nothing [] mempty mempty [] mempty
-
+  
 instance Monoid (Output a) where 
   mempty        = emptyOutput  
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
