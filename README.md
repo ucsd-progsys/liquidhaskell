@@ -4,9 +4,10 @@ README
 Requirements
 ------------
 
-LiquidHaskell requires (in addition to the Hackage dependencies)
+LiquidHaskell requires (in addition to the cabal dependencies)
 
-- a recent OCaml compiler
+- recent OCaml compiler
+- SMTLIB2 compatible solver
 
 How To Clone, Build and Install
 -------------------------------
@@ -14,30 +15,25 @@ How To Clone, Build and Install
 To begin building, run the following commands in the root
 directory of the distribution:
 
-1. Create top-level project directory
+1. Install a suitable smt solver binary, e.g.
+
+	+ [Z3](http://z3.codeplex.com/)
+	+ [CVC4](http://cvc4.cs.nyu.edu/) 
+	+ [MathSat](http://mathsat.fbk.eu/download.html)
+
+2. Create top-level project directory and clone repositories:
 
     mkdir /path/to/liquid
     cd /path/to/liquid
-    hsenv
-    source .hsenv/bin/activate
-
-2. Install a suitable `z3` binary from
-
-    http://z3.codeplex.com/
-
-3. Install liquid-fixpoint
-
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
-    cd liquid-fixpoint
-    cabal install
-    cd ../
-
-4. Install liquidhaskell
-
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
+	cabal sandbox init
+    cabal sandbox add-source ../liquid-fixpoint/
+	
+3. Install 
+
     cabal install
-    cd ../
 
 To **rebuild** after this step, run
 
@@ -766,7 +762,13 @@ verification attempts.
 Editor Integration
 ==================
 
-Currently, only support for Vim, *sorry!* (Feel free to submit a PR for emacs).
+Emacs
+-----
+
+**Install**
+
+1. Copy `syntax/flycheck-liquid.el` into your emacs path.
+2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
 
 Vim
 ---
@@ -787,6 +789,7 @@ let g:vim_annotations_offset = '/.liquid/'
 cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
 cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
 ~~~~~
+
 **Run**
 
 + `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
