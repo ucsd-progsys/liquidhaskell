@@ -49,7 +49,7 @@ See URL `https://github.com/ucsd-progsys/liquidhaskell'."
           (message
 	   (one-or-more " ") (one-or-more not-newline)
 	   (zero-or-more "\n"
-			 (zero-or-more " ")
+			 (one-or-more " ")
 			 (zero-or-more not-newline)))
           line-end)
 
@@ -57,7 +57,7 @@ See URL `https://github.com/ucsd-progsys/liquidhaskell'."
 	  (message
 	   (one-or-more " ") (one-or-more not-newline)
 	   (zero-or-more "\n"
-			 (zero-or-more " ")
+			 (one-or-more " ")
 			 (zero-or-more not-newline)))
           line-end)
    )
