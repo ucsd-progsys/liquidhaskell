@@ -5,7 +5,6 @@
 ;; Author: Ranjit Jhala <jhala@cs.ucsd.edu>
 ;; Version: 0.0.1
 ;; Package-Requires: ((flycheck "0.13") (dash "1.2") (emacs "24.1") (pos-tip "0.5.0"))
-
 ;;; License:
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -39,12 +38,41 @@
 
 (cl-defstruct position file row col)
 
+(defun get-string-from-file (filePath)
+  "Return filePath's file content."
+  (with-temp-buffer
+    (insert-file-contents filePath)
+    (buffer-string)))
 
+(defun get-json-from-file (filePath)
+  "Return json object from filePath's content"
+  (let* ((json-key-type 'string)
+	 (str (get-string-from-file filePath)))
+    (json-read-from-string str)))
+
+
+(defvar liquid-annot-table)
+(setq liquid-annot-table (get-json-from-file "/Users/rjhala/tmp/.liquid/flycheck_Foo.hs.json"))
+
+(defun liquid-annot (table row col)
+  "Get annotation from table from identifier at row, col"
+  (let* ((r    (format "%d" row))
+	 (c    (format "%d" col))
+	 (tys  (assoc "types" table))
+	 (ro   (assoc r tys)))
+    (cdr (assoc "ann" (assoc c ro)))))
+
+;; If you want the separate balloon-popup
 (defun liquid-popup-tip (text)
   (if (and (functionp 'ac-quick-help-use-pos-tip-p)
            (ac-quick-help-use-pos-tip-p))
       (pos-tip-show text 'popup-tip-face nil nil 300 popup-tip-max-width)
     (popup-tip text)))
+
+;; If you just want the ascii-popup
+;; (defun liquid-popup-tip (text)
+;;   (popup-tip text))
+
 
 (defun liquid-splitters () 
   '( ?\s  ?\t ?\n ?\( ?\) ?\[ ?\] ))
@@ -103,17 +131,26 @@
 	    (position-string pos) 
 	    ident)))
 
+(defun liquid-annot-at-pos-2 (pos)
+  "Info to display: the identifier at the position or NONE" 
+  (let* ((row (position-row pos))
+	 (col (position-col pos)))
+    (liquid-annot liquid-annot-table row col)))
+
 (defun liquid-annot-at-pos (pos)
   "Determine info to display"
-  (liquid-annot-at-pos-1 pos))
+  (liquid-annot-at-pos-2 pos))
 
 ;;;###autoload
 (defun liquid-annot-popup ()
   "Popup help about anything at point."
   (interactive)
   (let* ((pos    (liquid-get-position))
+	 (ident  (liquid-ident-at-pos pos))
          (annot  (liquid-annot-at-pos pos)))
-          (liquid-popup-tip annot)))
+    (if annot 
+	(liquid-popup-tip annot)
+        (liquid-popup-tip (format "No annotation for: %s" ident)))))
 
 ;;; cloned from  tss-popup-help
 
