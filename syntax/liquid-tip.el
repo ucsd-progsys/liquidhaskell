@@ -29,12 +29,15 @@
 (require 'json)
 (require 'ring)
 (require 'etags)
-(require 'flymake)
-(require 'eldoc)
+;; (require 'flymake)
+;; (require 'eldoc)
 (require 'pos-tip nil t)
-(require 'log4e)
-(require 'yaxception)
+;; (require 'log4e)
+;; (require 'yaxception)
 (require 'thingatpt)
+(require 'button-lock)
+
+
 
 (cl-defstruct position file row col)
 
@@ -50,29 +53,65 @@
 	 (str (get-string-from-file filePath)))
     (json-read-from-string str)))
 
-
+;; Global variable holding the annotations
 (defvar liquid-annot-table)
-(setq liquid-annot-table (get-json-from-file "/Users/rjhala/tmp/.liquid/flycheck_Foo.hs.json"))
 
-(defun liquid-annot (table row col)
-  "Get annotation from table from identifier at row, col"
-  (let* ((r    (format "%d" row))
-	 (c    (format "%d" col))
-	 (tys  (assoc "types" table))
-	 (ro   (assoc r tys)))
-    (cdr (assoc "ann" (assoc c ro)))))
+;; -----------------------------------------------------------------------------------------------
+;; API for getting annots -- alist
+;; -----------------------------------------------------------------------------------------------
+;; (setq liquid-annot-table (get-json-from-file "/Users/rjhala/tmp/.liquid/flycheck_Foo.hs.json"))
+;; 
+;; (defun liquid-annot (table row col)
+;;   "Get annotation from table from identifier at row, col"
+;;   (let* ((r    (format "%d" row))
+;; 	 (c    (format "%d" col))
+;; 	 (tys  (assoc "types" table))
+;; 	 (ro   (assoc r tys)))
+;;     (cdr (assoc "ann" (assoc c ro)))))
+;; -----------------------------------------------------------------------------------------------
+
+;; -----------------------------------------------------------------------------------------------
+;; API for getting annots -- hash-table 
+;; -----------------------------------------------------------------------------------------------
+
+(setq liquid-annot-table 
+      (let ((json-object-type 'hash-table))
+	(get-json-from-file "/Users/rjhala/tmp/.liquid/flycheck_Foo.hs.json")))
+
+(defun gethash-nil (key table) 
+  (if table 
+      (gethash key table nil)
+      nil))
+
+(defun liquid-annot-get (file row col)
+  "Get annotation for identifier at row, col in file"
+  (let* ((table (gethash-nil file liquid-annot-table))
+	 (r     (format "%d" row))
+	 (c     (format "%d" col))
+	 (tys   (gethash-nil "types" table))
+	 (ro    (gethash-nil r tys)))
+    (gethash-nil "ann" (gethash-nil c ro))))
+
+;; -- Display --------------------------------------------------------------
 
 ;; If you want the separate balloon-popup
-(defun liquid-popup-tip (text)
+(defun liquid-tip-popup (text)
+  "Display text in a window popup"
   (if (and (functionp 'ac-quick-help-use-pos-tip-p)
            (ac-quick-help-use-pos-tip-p))
       (pos-tip-show text 'popup-tip-face nil nil 300 popup-tip-max-width)
     (popup-tip text)))
 
 ;; If you just want the ascii-popup
-;; (defun liquid-popup-tip (text)
+;; (defun liquid-tip-popup (text)
+;;  "Display text in ascii popup"
 ;;   (popup-tip text))
 
+
+;; -- Compute range ---------------------------------------------------------
+
+(defvar liquid-id-regexp 
+  (rx (one-or-more (not (in " \n\t()[]{}")))))
 
 (defun liquid-splitters () 
   '( ?\s  ?\t ?\n ?\( ?\) ?\[ ?\] ))
@@ -87,6 +126,7 @@
      (if (or (<= p low) (liquid-is-split ch)) 
 	 p 
          (liquid-id-start-pos low (- p 1)))))
+
 
 (defun column-number-at-pos (pos)
   "Find the column of position pos"
@@ -113,46 +153,82 @@
 	  (position-col pos)
 	  (position-file pos)))
 
-(defun liquid-annot-at-pos-0 (pos)
-  "Info to display: just the file/line/constant string"
-  (let* ((info  (format "hello!")))
-    (format "the information at %s is %s" 
-	    (position-string pos)
-	    info)))
+;; DEBUG (defun liquid-annot-at-pos-0 (pos)
+;; DEBUG   "Info to display: just the file/line/constant string"
+;; DEBUG   (let* ((info  (format "hello!")))
+;; DEBUG     (format "the information at %s is %s" 
+;; DEBUG 	    (position-string pos)
+;; DEBUG 	    info)))
+
+;; DEBUG (defun liquid-annot-at-pos-1 (pos)
+;; DEBUG   "Info to display: the identifier at the position or NONE" 
+;; DEBUG   (let* ((ident (liquid-ident-at-pos pos)))
+;; DEBUG     (format "the identifier at %s is %s" 
+;; DEBUG 	    (position-string pos) 
+;; DEBUG 	    ident)))
+
 
 (defun liquid-ident-at-pos (pos)
   "Return the identifier at a given position"
   (thing-at-point 'word))
 
-(defun liquid-annot-at-pos-1 (pos)
-  "Info to display: the identifier at the position or NONE" 
-  (let* ((ident (liquid-ident-at-pos pos)))
-    (format "the identifier at %s is %s" 
-	    (position-string pos) 
-	    ident)))
-
 (defun liquid-annot-at-pos-2 (pos)
-  "Info to display: the identifier at the position or NONE" 
-  (let* ((row (position-row pos))
-	 (col (position-col pos)))
-    (liquid-annot liquid-annot-table row col)))
+  "Info to display: type annotation for the identifier at the position or NONE" 
+  (let* ((file (position-file pos))
+	 (row  (position-row  pos))
+	 (col  (position-col  pos)))
+    (liquid-annot-get file row col)))
 
 (defun liquid-annot-at-pos (pos)
   "Determine info to display"
   (liquid-annot-at-pos-2 pos))
 
 ;;;###autoload
-(defun liquid-annot-popup ()
+(defun liquid-tip-show ()
   "Popup help about anything at point."
   (interactive)
   (let* ((pos    (liquid-get-position))
 	 (ident  (liquid-ident-at-pos pos))
          (annot  (liquid-annot-at-pos pos)))
     (if annot 
-	(liquid-popup-tip annot)
-        (liquid-popup-tip (format "No annotation for: %s" ident)))))
+	(liquid-tip-popup annot)
+        (liquid-tip-popup (format "No annotation for %s at %s" ident (position-string pos))))))
 
-;;; cloned from  tss-popup-help
+
+;;;###autoload
+(defun liquid-tip-init ()
+  "Initialize liquid-tip by making all identifiers buttons"
+  (interactive)
+  (progn (button-lock-mode 1)
+	 (button-lock-set-button liquid-id-regexp 'liquid-tip-show)
+	 ;; (button-lock-set-button "yoga" 'liquid-tip-show)
+	 ;; (button-lock-set-button "mydiv" 'liquid-tip-show)
+	 ))
+
+;;;###autoload
+(defun liquid-tip-update ()
+  "Update liquid-annot-table by reloading annot file for buffer"
+  (interactive)
+  42)
+
+
+;; DEBUG (defface my-tooltip
+;; DEBUG   '((t
+;; DEBUG      :background "gray85"
+;; DEBUG      :foreground "black"
+;; DEBUG      :inherit variable-pitch))
+;; DEBUG   "Face for my tooltip.")
+;; DEBUG 
+;; DEBUG (defface my-tooltip-highlight
+;; DEBUG   '((t
+;; DEBUG      :background "blue"
+;; DEBUG      :foreground "white"
+;; DEBUG      :inherit my-tooltip))
+;; DEBUG   "Face for my tooltip highlighted.")
+;; DEBUG 
+;; DEBUG (let ((str (propertize "foo\nbar\nbaz" 'face 'my-tooltip)))
+;; DEBUG   (put-text-property 6 11 'face 'my-tooltip-highlight str)
+;; DEBUG   (pos-tip-show-no-propertize str 'my-tooltip))
 
 (provide 'liquid-tip)
 
