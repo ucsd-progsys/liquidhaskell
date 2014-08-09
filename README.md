@@ -765,10 +765,13 @@ Editor Integration
 Emacs
 -----
 
+LH has [flycheck](https://github.com/flycheck/flycheck) integration with emacs.
+
 **Install**
 
 1. Copy `syntax/flycheck-liquid.el` into your emacs path.
 2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
+
 
 Vim
 ---
