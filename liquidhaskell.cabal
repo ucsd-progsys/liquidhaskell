@@ -28,9 +28,6 @@ data-files: include/*.hquals
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/List.hs
-          , include/Language/Haskell/Liquid/Prelude.hs
-          , include/Language/Haskell/Liquid/Foreign.hs
           , include/Language/Haskell/Liquid/Prelude.pred
           , include/System/*.spec
           , syntax/liquid.css
@@ -185,9 +182,10 @@ Library
                     Language.Haskell.Liquid.Types,
                     Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
-                    Paths_liquidhaskell
- 
-   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
+                    Paths_liquidhaskell,
+
+                    --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
+                    Language.Haskell.Liquid.Desugar.Desugar,
                     Language.Haskell.Liquid.Desugar.DsExpr,
                     Language.Haskell.Liquid.Desugar.Coverage,
                     Language.Haskell.Liquid.Desugar.Check,
@@ -203,6 +201,7 @@ Library
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
+   ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
 test-suite test
