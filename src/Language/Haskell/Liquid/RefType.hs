@@ -892,6 +892,8 @@ toType t@(ROth _)
   = errorstar $ "RefType.toType cannot handle 2: " ++ show t
 toType (RRTy _ _ _ t)      
   = toType t
+toType t
+  = errorstar $ "RefType.toType cannot handle: " ++ show t
 
 
 ---------------------------------------------------------------
