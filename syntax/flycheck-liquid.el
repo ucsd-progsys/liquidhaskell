@@ -66,7 +66,7 @@ See URL `https://github.com/ucsd-progsys/liquidhaskell'."
     (-> errors
       flycheck-dedent-error-messages
       flycheck-sanitize-errors))
-  :modes haskell-mode
+  :modes (haskell-mode literate-haskell-mode)
   :next-checkers ((warnings-only . haskell-hlint)))
 
 (add-to-list 'flycheck-checkers 'haskell-liquid)
