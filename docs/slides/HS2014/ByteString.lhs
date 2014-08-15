@@ -44,13 +44,14 @@ asked for.
 
 > {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
 
-Now let's create a few `ByteString`. Here's a `ByteString` with 5 valid 
+Now let's create a few `ByteString`s. Here's a `ByteString` with 5 valid 
 indices. 
 
 > good_bs1 = do fp <- mallocForeignPtrBytes 5
 >               return $ PS fp 0 5
 
-Here's a similar `ByteString` with only 4 valid indices.
+Here's a similar `ByteString` with only 4 valid indices, but whose pointer has 
+*5* valid indices.
 
 > good_bs2 = do fp <- mallocForeignPtrBytes 5
 >               return $ PS fp 1 4
@@ -73,7 +74,7 @@ Creating ByteStrings
 Nobody actually builds `ByteString`s like this though, the authors have kindly
 provided a higher-order function called `create` to handle the actual
 allocation. To `create` a `ByteString` you have to say how many bytes you want
-and provide a function that will fill in the blanks.
+and provide a function that will fill in the newly allocated memory.
 
 > create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 > create l f = do
@@ -88,9 +89,11 @@ write
 > bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 
 which clearly isn't correct. We'd like to say that the provided function can 
-only address locations a up to a certain offset from the pointer. Just as we 
-had `fplen` to talk about the "length" of a `ForeignPtr`, we have provided 
-`plen` to talk about the "length" of a `Ptr`, and we've defined a helpful alias
+only address locations a up to a certain offset from the pointer.
+
+Just as we had `fplen` to talk about the "length" of a `ForeignPtr`, we have
+provided `plen` to talk about the "length" of a `Ptr`, and we've defined a
+helpful alias
 
 < {-@ type PtrN a N = {v:Ptr a | plen v = N} @-}
 
@@ -111,6 +114,7 @@ functions like `bad_create` and getting away with it. We'll just give `create`
 the type
  
 > {-@ create :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> IO (ByteStringN l)   @-}
+> {-@ type ByteStringN N = {v:ByteString | bs_len v = N} @-}
 
 and, lo and behold, LiquidHaskell has flagged `bad_create` as unsafe! 
 Furthermore, we can write things like
@@ -136,8 +140,9 @@ Higher-Order Loops
 TODO: will there be enough time for this? will it be too confusing?
 
 
-
-> {-@ type ByteStringN N = {v:ByteString | bs_len v = N} @-}
+> -----------------------------------------------------------------------
+> -- Helper Code
+> -----------------------------------------------------------------------
 
 > {-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
 > unsafeCreate n f = unsafePerformIO $ create n f
