@@ -17,9 +17,11 @@ Lets see how one might achieve this with [abstract refinements][absref].
 
 <!-- more -->
 
-<span class="hidden">
+<div class="hidden">
 
 \begin{code}
+
+{-@ LIQUID "--short-names" @-}
 
 import Prelude hiding (filter)
 
@@ -32,31 +34,33 @@ filter :: (a -> Maybe a) -> [a] -> [a]
 
 \end{code}
 
-</span>
+</div>
 
 Goal
 ----
 
 What we're after is a way to write a `filter` function such that:
 
-< {-@ getNats :: [Int] -> [Nat] @-}
-< getNats     = filter isNat
-< 
-< {-@ getEvens :: [Int] -> [Even] @-}
-< getEvens    = filter isEven
-< 
-< {-@ getOdds :: [Int] -> [Odd] @-}
-< getOdds     = filter isOdd
+\begin{code} haskell
+{-@ getNats :: [Int] -> [Nat] @-}
+getNats     = filter isNat
 
+{-@ getEvens :: [Int] -> [Even] @-}
+getEvens    = filter isEven
+
+{-@ getOdds :: [Int] -> [Odd] @-}
+getOdds     = filter isOdd
+\end{code}
 
 where `Nat`, `Even` and `Odd` are just subsets of `Int`:
 
-< {-@ type Nat  = {v:Int| 0 <= v}       @-}
-< 
-< {-@ type Even = {v:Int| v mod 2 == 0} @-}
-< 
-< {-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
+```haskell
+{-@ type Nat  = {v:Int| 0 <= v}       @-}
 
+{-@ type Even = {v:Int| v mod 2 == 0} @-}
+
+{-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
+```
 
 Take 1: `map`, maybe?
 ---------------------
@@ -127,12 +131,16 @@ I fear we've *cheated* a little bit.
 One of the nice things about the *classical* `filter` is that by eyeballing
 the signature:
 
-< filter :: (a -> Bool) -> [a] -> [a]
+```haskell
+filter :: (a -> Bool) -> [a] -> [a]
+```
 
 we are guaranteed, via parametricity, that the output list's elements are
 a *subset of* the input list's elements. The signature for our new-fangled
 
-< filter1 :: (a -> Maybe b) -> [a] -> [b]
+```haskell
+filter1 :: (a -> Maybe b) -> [a] -> [b]
+```
 
 yields no such guarantee!
 
