@@ -27,11 +27,6 @@ import Prelude hiding (filter)
 
 import Prelude hiding (filter)
 isNat, isEven, isOdd :: Int -> Maybe Int
-filter :: (a -> Maybe a) -> [a] -> [a]
-
-{-@ type Even = {v:Int| v mod 2 == 0} @-}
-{-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
-
 \end{code}
 
 </div>
@@ -41,33 +36,33 @@ Goal
 
 What we're after is a way to write a `filter` function such that:
 
-\begin{code} haskell
-{-@ getNats :: [Int] -> [Nat] @-}
-getNats     = filter isNat
+\begin{code} 
+{-@ getNats  :: [Int] -> [Nat] @-}
+getNats      = filter isNat
 
 {-@ getEvens :: [Int] -> [Even] @-}
-getEvens    = filter isEven
+getEvens     = filter isEven
 
-{-@ getOdds :: [Int] -> [Odd] @-}
-getOdds     = filter isOdd
+{-@ getOdds  :: [Int] -> [Odd] @-}
+getOdds      = filter isOdd
 \end{code}
 
 where `Nat`, `Even` and `Odd` are just subsets of `Int`:
 
-```haskell
-{-@ type Nat  = {v:Int| 0 <= v}       @-}
+\begin{code}
+{- type Nat  = {v:Int| 0 <= v}         -}
 
 {-@ type Even = {v:Int| v mod 2 == 0} @-}
 
 {-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
-```
+\end{code}
 
-Take 1: `map`, maybe?
----------------------
+Take 1: Map, maybe?
+-------------------
 
 Bowing to the anti-boolean sentiment currently in the air, lets eschew 
 the classical approach where the predicates (`isNat` etc.) return `True` 
-or `False` and instead implement `filter` using a `map`.
+or `False` and instead implement `filter` using a map.
 
 \begin{code}
 filter1          :: (a -> Maybe b) -> [a] -> [b]
@@ -111,17 +106,6 @@ getEvens1    = filter1 isEven
 getOdds1     = filter1 isOdd
 \end{code}
 
-It all works out, because in each case, LiquidHaskell *instantiates*
-the type variables `a` and `b` in the signature of `filter` suitably:
-
-Function       `a`      `b`
-------------   ------   -------
-`getNats`      `Int`    `Nat`
-`getEvens`     `Int`    `Even`
-`getOdds`      `Int`    `Odd`
-
-(Hover over the different instances of `filter1` above to confirm this.)
-
 **But but...**
 
 Well that was easy! Or was it?
@@ -131,18 +115,30 @@ I fear we've *cheated* a little bit.
 One of the nice things about the *classical* `filter` is that by eyeballing
 the signature:
 
-```haskell
+\begin{code}
 filter :: (a -> Bool) -> [a] -> [a]
-```
+\end{code}
 
 we are guaranteed, via parametricity, that the output list's elements are
 a *subset of* the input list's elements. The signature for our new-fangled
 
-```haskell
+\begin{code}
 filter1 :: (a -> Maybe b) -> [a] -> [b]
-```
+\end{code}
 
 yields no such guarantee!
+
+In this case, things work out, because in each case, LiquidHaskell *instantiates*
+the type variables `a` and `b` in the signature of `filter1` suitably:
+
+* `getNats`  : `a := Int` and `b := Nat`
+* `getEvens` : `a := Int` and `b := Even`
+* `getOdds`  : `a := Int` and `b := Odd`
+
+(Hover over the different instances of `filter1` above to confirm this.)
+
+But in general, we'd rather *not* lose the nice ``subset guarantee" that the
+classical `filter` provides.
 
 
 Take 2: One Type Variable
@@ -218,30 +214,28 @@ everything works out.
 Voila!
 
 \begin{code}
-{-@ getNats :: [Int] -> [Nat] @-}
-getNats     = filter isNat
+{-@ getNats3  :: [Int] -> [Nat] @-}
+getNats3      = filter isNat
 
-{-@ getEvens :: [Int] -> [Even] @-}
-getEvens    = filter isEven
+{-@ getEvens3 :: [Int] -> [Even] @-}
+getEvens3     = filter isEven
 
-{-@ getOdds :: [Int] -> [Odd] @-}
-getOdds     = filter isOdd
+{-@ getOdds3  :: [Int] -> [Odd] @-}
+getOdds3      = filter isOdd
 \end{code}
 
 Now, at each *use* of `filter` LH separately instantiates the `a` and
-the `p`. In each case, the `a` is just `Int` but the `p` is:
+the `p`. In each case, the `a` is just `Int` but the `p` is instantiated as:
 
-Function       `p`
-------------   --------------------
-`getNats`      `\v -> 0 <= v`
-`getEvens`     `\v -> v mod 2 == 0`
-`getOdds`      `\v -> v mod 2 /= 0`
++ `getNats`  : `p := \v -> 0 <= v`
++ `getEvens` : `p := \v -> v mod 2 == 0`
++ `getOdds`  : `p := \v -> v mod 2 /= 0`
 
 
 Conclusion
 ----------
 
-Using abstract refinements, we've written a `filter` whose signature guarantees:
+Thus, using abstract refinements, we've written a `filter` whose signature guarantees:
 
 * The outputs are a subset of the inputs, that,
 * Indeed satisfy the property being filtered for.
