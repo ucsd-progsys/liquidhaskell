@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Filtering, Finely"
+title: "A Finer Filter"
 date: 2014-08-15 16:12
 author: Ranjit Jhala
 published: true
