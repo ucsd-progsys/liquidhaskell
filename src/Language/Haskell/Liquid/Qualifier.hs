@@ -1,8 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
 
+import IdInfo (IdDetails(..))
+import Var (idDetails)
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
@@ -25,10 +28,17 @@ specificationQualifiers :: Int -> GhcInfo -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info
   = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info)
-        , x `S.member` (S.fromList $ defVars info)
+        , ((isClassOp x || isDataCon x) && x `S.member` (S.fromList $ impVars info ++ defVars info))
+          || x `S.member` (S.fromList $ defVars info)
         , q <- refTypeQuals (getSourcePos x) (tcEmbeds $ spec info) (val t)
         , length (q_params q) <= k + 1
     ]
+  where
+    isClassOp (idDetails -> ClassOpId _) = True
+    isClassOp _                          = False
+    isDataCon (idDetails -> DataConWorkId _) = True
+    isDataCon (idDetails -> DataConWrapId _) = True
+    isDataCon _                              = False
 
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
