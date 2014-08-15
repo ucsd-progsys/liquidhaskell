@@ -1,7 +1,7 @@
 > {-@ LIQUID "--no-termination" @-}
 > {-@ LIQUID "-g-package-db" @-}
 > {-@ LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
-> import Prelude hiding (head)
+> import Prelude hiding (head, max)
 > import qualified Data.ByteString.Char8 as B
 > import qualified Data.ByteString.Unsafe as B
 > import Data.List (find)
@@ -25,6 +25,9 @@ and in using it to verify over 10KLoC of real Haskell code.
 
 Refinement Types
 ================
+
+We'll start with a lightning tour of LiquidHaskell before getting into the
+gritty benchmarks.
 
 A refinment type is a Haskell type where each component of the type is annotated
 with a predicate from an SMT-decidable logic. For example,
@@ -205,6 +208,8 @@ Apart from allowing definitions for multiple types, class measures work just
 like regular measures, i.e. they're translated into refined data constructor
 types.
 
+If we go ahead and define an instance for lists,
+
 > instance Indexable [] where
 >   size []        = 0
 >   size (x:xs)    = 1 + size xs
@@ -212,3 +217,46 @@ types.
 >   (x:xs) `at` 0  = x
 >   (x:xs) `at` i  = xs `at` (i-1)
 
+LiquidHaskell will verify that our implementation matches the class
+specification.
+
+Clients of a type-class get to assume that the instances have been defined
+correctly, i.e. LiquidHaskell will happily prove that 
+
+> sum :: (Indexable f) => f Int -> Int
+> sum xs = go 0 
+>   where
+>     go i | i < size xs = xs `at` i + go (i+1)
+>          | otherwise   = 0
+
+is safe for **all** instances of `Indexable`.
+
+
+Abstract Refinements
+--------------------
+
+All of the examples so far have used *concrete* refinements, but sometimes
+we just want to say that *some* property will be preserved by the function, e.g.
+
+> max     :: Int -> Int -> Int 
+> max x y = if x > y then x else y
+>
+> {-@ xPos  :: {v: _ | v > 0} @-}
+> xPos  = max 10 13
+>
+> {-@ xNeg  :: {v: _ | v < 0} @-}
+> xNeg  = max (0-5) (0-8)
+>
+> {-@ xEven :: {v: _ | v mod 2 == 0} @-}
+> xEven = max 4 (0-6)
+
+Since `max` returns one of it's arguments, we know that if *both* inputs share
+some property, then *so will the output*. In LiquidHaskell we can express this
+by abstracting over the refinements.
+
+> {-@ max :: forall <p :: Int -> Prop>.
+>            Int<p> -> Int<p> -> Int<p>
+>   @-}
+
+Now that we've covered the basics of using LiquidHaskell, let's take a look at
+our first experiment: proving functions total.
