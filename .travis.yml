@@ -32,7 +32,7 @@ script:
  - cabal build
  - cabal copy
  - cabal register
- - ./dist/build/test/test --pattern "$TESTS/"
+ - ./dist/build/test/test --pattern "$TESTS/" -j2 +RTS -N2 -RTS
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
 
