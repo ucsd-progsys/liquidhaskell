@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "filter, three ways"
+title: "Filtering, Finely"
 date: 2014-08-15 16:12
 author: Ranjit Jhala
 published: true
@@ -10,22 +10,28 @@ categories: abstract-refinements
 demo: filter.hs
 ---
 
-This morning, I came across this
-[nice post](https://twitter.com/ertesx/status/500034598042996736)
-which describes how one can write a very expressive type for 
+This morning, I came across this [nice post](https://twitter.com/ertesx/status/500034598042996736) which describes how one can write a very expressive type for 
 `filter` using [singletons](https://hackage.haskell.org/package/singletons).
 
-Lets see how one might achieve something similar using [abstract refinements][absref].
+Lets see how one might achieve this with [abstract refinements][absref].
 
 <!-- more -->
 
 <span class="hidden">
+
 \begin{code}
+
+import Prelude hiding (filter)
+
+import Prelude hiding (filter)
+isNat, isEven, isOdd :: Int -> Maybe Int
+filter :: (a -> Maybe a) -> [a] -> [a]
+
 {-@ type Even = {v:Int| v mod 2 == 0} @-}
 {-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
 
-isNat, isEven, isOdd :: Int -> Int
 \end{code}
+
 </span>
 
 Goal
@@ -33,26 +39,23 @@ Goal
 
 What we're after is a way to write a `filter` function such that:
 
-\begin{code}<div/>
-{-@ getNats :: [Int] -> [Nat] @-}
-getNats     = filter isNat
+< {-@ getNats :: [Int] -> [Nat] @-}
+< getNats     = filter isNat
+< 
+< {-@ getEvens :: [Int] -> [Even] @-}
+< getEvens    = filter isEven
+< 
+< {-@ getOdds :: [Int] -> [Odd] @-}
+< getOdds     = filter isOdd
 
-{-@ getEvens :: [Int] -> [Even] @-}
-getEvens    = filter isEven
-
-{-@ getOdds :: [Int] -> [Odd] @-}
-getOdds     = filter isOdd
-\end{code}
 
 where `Nat`, `Even` and `Odd` are just subsets of `Int`:
 
-\begin{code}<div/>
-{-@ type Nat  = {v:Int| 0 <= v}       @-}
-
-{-@ type Even = {v:Int| v mod 2 == 0} @-}
-
-{-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
-\end{code}
+< {-@ type Nat  = {v:Int| 0 <= v}       @-}
+< 
+< {-@ type Even = {v:Int| v mod 2 == 0} @-}
+< 
+< {-@ type Odd  = {v:Int| v mod 2 /= 0} @-}
 
 
 Take 1: `map`, maybe?
@@ -81,7 +84,7 @@ isNat x
   | otherwise      = Nothing
 
 {-@ isEven         :: Int -> Maybe Even @-}
-isNat x
+isEven x
   | x `mod` 2 == 0 = Just x
   | otherwise      = Nothing
 
@@ -124,16 +127,12 @@ I fear we've *cheated* a little bit.
 One of the nice things about the *classical* `filter` is that by eyeballing
 the signature:
 
-\begin{code}<div/>
-filter :: (a -> Bool) -> [a] -> [a]
-\end{code}
+< filter :: (a -> Bool) -> [a] -> [a]
 
 we are guaranteed, via parametricity, that the output list's elements are
 a *subset of* the input list's elements. The signature for our new-fangled
 
-\begin{code}<div/>
-filter1 :: (a -> Maybe b) -> [a] -> [b]
-\end{code}
+< filter1 :: (a -> Maybe b) -> [a] -> [b]
 
 yields no such guarantee!
 
@@ -144,7 +143,7 @@ Take 2: One Type Variable
 Easy enough! Why do we need *two* type variables anyway?
 
 \begin{code}
-filter2 f        :: (a -> Maybe a) -> [a] -> [a]
+filter2          :: (a -> Maybe a) -> [a] -> [a]
 
 filter2 f []     = []
 filter2 f (x:xs) = case f x of
@@ -169,7 +168,9 @@ getEvens2    = filter2 isEven
 getOdds2     = filter2 isOdd
 \end{code}
 
-Whats this, LH is not impressed! Perhaps you know why already.
+Yikes, LH is not impressed!
+
+Perhaps you know why already?
 
 Since we used **the same** type variable `a` for *both* the 
 input *and* output, LH must instantiate `a` with a type that 
@@ -181,7 +182,7 @@ Consequently, we get the errors above -- "expected Nat but got Int".
 Take 3: Add Abstract Refinement
 -------------------------------
 
-Hmm. What we need is a generic way of specifying that the 
+What we need is a generic way of specifying that the 
 output of the predicate is not just an `a` but an `a` that
 *also enjoys* whatever property we are filtering for. 
 
