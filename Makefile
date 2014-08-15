@@ -9,7 +9,8 @@ CABALI=$(CABAL) install --ghc-options=$(OPTS)
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
 # to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
-TASTY=find dist -type f -name test | head -n1
+# TASTY=find dist -type f -name test | head -n1
+TASTY=./dist/build/test/test
 
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
@@ -54,20 +55,24 @@ test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
 test:
-	cabal install --enable-tests --disable-shared
-	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 retest:
-	cabal install --enable-tests --disable-shared
-	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-test:
-	cabal install --enable-tests --disable-shared
-	cabal exec $$($(TASTY)) -- --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-retest:
-	cabal install --enable-tests --disable-shared
-	cabal exec $$($(TASTY)) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
 	hlint --colour --report .

@@ -90,8 +90,9 @@ mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 mkTest code dir file
   = testCase file $ do
       createDirectoryIfMissing True $ takeDirectory log
+      liquid <- canonicalizePath "dist/build/liquid/liquid"
       withFile log WriteMode $ \h -> do
-        let cmd     = testCmd dir file
+        let cmd     = testCmd liquid dir file
         (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
         c          <- waitForProcess ph
         assertEqual "Wrong exit code" code c
@@ -100,9 +101,9 @@ mkTest code dir file
 
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> String
+testCmd :: FilePath -> FilePath -> FilePath -> String
 ---------------------------------------------------------------------------
-testCmd dir file = printf "cd %s && liquid --verbose %s" dir file
+testCmd liquid dir file = printf "cd %s && %s --verbose %s" dir liquid file
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
