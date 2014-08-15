@@ -158,10 +158,11 @@ updateDynFlags cfg
                     , ghcMode      = CompManager
                     -- prevent GHC from printing anything
                     , log_action   = \_ _ _ _ _ -> return ()
-                    -- , verbosity = 5
+                    -- , verbosity = 3
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
+                      `gopt_set` Opt_PIC
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
