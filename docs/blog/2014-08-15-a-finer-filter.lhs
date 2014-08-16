@@ -116,16 +116,16 @@ I fear we've *cheated* a little bit.
 One of the nice things about the *classical* `filter` is that by eyeballing
 the signature:
 
-\begin{code}
--- filter :: (a -> Bool) -> [a] -> [a]
-\end{code}
+\begin{spec}
+filter :: (a -> Bool) -> [a] -> [a]
+\end{spec}
 
 we are guaranteed, via parametricity, that the output list's elements are
 a *subset of* the input list's elements. The signature for our new-fangled
 
-\begin{code}
--- filter1 :: (a -> Maybe b) -> [a] -> [b]
-\end{code}
+\begin{spec}
+filter1 :: (a -> Maybe b) -> [a] -> [b]
+\end{spec}
 
 yields no such guarantee!
 
