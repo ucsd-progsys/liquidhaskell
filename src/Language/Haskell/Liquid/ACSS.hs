@@ -265,20 +265,6 @@ inlines s = lines' s id
   lines' (c:s)          acc = lines' s (acc . (c:))
 
 
--- -- | The code for classify is largely stolen from Language.Preprocessor.Unlit.
--- classify ::  [String] -> [Lit]
--- classify []             = []
--- classify (x:xs) | "\\begin{code}"`isPrefixOf`x
---                         = Lit x: allProg xs
---    where allProg []     = []  -- Should give an error message,
---                               -- but I have no good position information.
---          allProg (x:xs) | "\\end{code}"`isPrefixOf`x
---                         = Lit x: classify xs
---          allProg (x:xs) = Code x: allProg xs
--- classify (('>':x):xs)   = Code ('>':x) : classify xs
--- classify (x:xs)         = Lit x: classify xs
-
-
 -- | The code for classify is largely stolen from Language.Preprocessor.Unlit.
 classify ::  [String] -> [Lit]
 classify []             = []
@@ -298,7 +284,6 @@ allProg name  = go
     go (x:xs) | end `isPrefixOf `x
               = Lit x: classify xs
     go (x:xs) = Code x: go xs
-
 
 
 
