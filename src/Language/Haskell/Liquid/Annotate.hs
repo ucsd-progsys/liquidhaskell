@@ -135,10 +135,26 @@ renderPandoc' pandocPath htmlFile srcFile css body
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile  
 
-pandocPreProc  = T.unpack . stripBegin . stripEnd . T.pack
+pandocPreProc  = T.unpack 
+               . strip beg code 
+               . strip end code
+               . strip beg spec 
+               . strip end spec 
+               . T.pack
   where 
-    stripBegin = T.replace (T.pack "\\begin{code}") T.empty 
-    stripEnd   = T.replace (T.pack "\\end{code}")   T.empty 
+    beg, end, code, spec :: String
+    beg        = "begin"
+    end        = "end"
+    code       = "code"
+    spec       = "spec" 
+    strip x y  = T.replace (T.pack $ printf "\\%s{%s}" x y) T.empty
+    -- stripBcode = T.replace (T.pack "\\begin{code}") T.empty 
+    -- stripEcode = T.replace (T.pack "\\end{code}")   T.empty 
+    -- stripBspec = T.replace (T.pack "\\begin{code}") T.empty 
+    -- stripEspec = T.replace (T.pack "\\end{code}")   T.empty 
+
+
+
 
 -------------------------------------------------------------------------
 -- | Direct HTML Rendering (for non-lhs/markdown source) ---------------- 
