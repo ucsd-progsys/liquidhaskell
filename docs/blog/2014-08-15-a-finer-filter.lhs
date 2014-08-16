@@ -23,11 +23,20 @@ Lets see how one might achieve this with [abstract refinements][absref].
 
 {-@ LIQUID "--short-names" @-}
 
+module Filter (filter) where
+
 import Prelude hiding (filter)
+import Data.Set (Set)
 
 import Prelude hiding (filter)
 isPos, isEven, isOdd :: Int -> Maybe Int
-filter :: (a -> Maybe a) -> [a] -> [a]
+filter, filter3 :: (a -> Maybe a) -> [a] -> [a]
+
+{-@ measure elts :: [a] -> (Set a) 
+    elts ([])   = {v | Set_emp v }
+    elts (x:xs) = {v | v = Set_cup (Set_sng x) (elts xs) }
+  @-}
+ 
 \end{code}
 
 </div>
@@ -78,17 +87,17 @@ To complete the picture, we need just define the predicates as
 functions returning a `Maybe`:
 
 \begin{code}
-{-@ isPos          :: Int -> Maybe Pos  @-}
+{- isPos          :: Int -> Maybe Pos  @-}
 isPos x
   | x > 0          = Just x
   | otherwise      = Nothing
 
-{-@ isEven         :: Int -> Maybe Even @-}
+{- isEven         :: Int -> Maybe Even @-}
 isEven x
   | x `mod` 2 == 0 = Just x
   | otherwise      = Nothing
 
-{-@ isOdd          :: Int -> Maybe Odd  @-}
+{- isOdd          :: Int -> Maybe Odd  @-}
 isOdd x
   | x `mod` 2 /= 0 = Just x
   | otherwise      = Nothing
@@ -189,25 +198,22 @@ Take 3: Add Abstract Refinement
 -------------------------------
 
 What we need is a generic way of specifying that the 
-output of the predicate is not just an `a` but an `a` that
-*also* enjoys whatever property we are filtering for. 
+output of the predicate is not just an `a` but an `a` 
+that *also* enjoys whatever property we are filtering for. 
 
 This sounds like a job for [abstract refinements][absref] which
 let us parameterize a signature over its refinements:
 
 \begin{code}
-{-@ filter      :: forall a <p :: a -> Prop>.
-                     (a -> Maybe a<p>) -> [a] -> [a<p>] @-}
-filter f []     = []
-filter f (x:xs) = case f x of
-                    Just x'  -> x' : filter f xs 
-                    Nothing ->       filter f xs
+{-@ filter3      :: forall a <p :: a -> Prop>.
+                      (a -> Maybe a<p>) -> [a] -> [a<p>] @-}
+filter3 f []     = []
+filter3 f (x:xs) = case f x of
+                     Just x'  -> x' : filter3 f xs 
+                     Nothing ->       filter3 f xs
 \end{code}
 
-(Note that the *implementation* of each of the `filter` functions are
-the same; they only differ in their type *specification*.)
-
-Now, we've **decoupled** the filter-property from the type variable `a`.
+ Now, we've **decoupled** the filter-property from the type variable `a`.
 
 The input still is a mere `a`, but the output is an `a` with bells on,
 specifically, which satisfies the (abstract) refinement `p`.
@@ -216,13 +222,13 @@ Voila!
 
 \begin{code}
 {-@ getPoss3  :: [Int] -> [Pos] @-}
-getPoss3      = filter isPos
+getPoss3      = filter3 isPos
 
 {-@ getEvens3 :: [Int] -> [Even] @-}
-getEvens3     = filter isEven
+getEvens3     = filter3 isEven
 
 {-@ getOdds3  :: [Int] -> [Odd] @-}
-getOdds3      = filter isOdd
+getOdds3      = filter3 isOdd
 \end{code}
 
 Now, LH happily accepts each of the above.
@@ -237,6 +243,45 @@ the `p`. In each case, the `a` is just `Int` but the `p` is instantiated as:
 That is, in each case, LH instantiates `p` with the refinement that describes
 the output type we are looking for.
 
+**Edit:** At this point, I was ready to go to bed, and so happily 
+declared victory and turned in. The next morning, [mypetclone](http://www.reddit.com/r/haskell/comments/2dozs5/liquidhaskell_a_finer_filter/cjrrx3y)
+graciously pointed out my folly: the signature for `filter3` makes no guarantees
+about the subset property. In fact, 
+
+\begin{code}
+doubles = filter3 (\x -> Just (x + x)) 
+\end{code}
+
+typechecks just fine, while `doubles` clearly violates the subset property. 
+
+Take 4: 
+-------
+
+I suppose the moral is that it may be tricky -- for me at least! -- to read more into
+a type than what it *actually says*. Fortunately, with refinements, our types can say
+quite a lot.
+
+In particular, lets make the subset property explicit, by
+
+1. Requiring the predicate return its input (or nothing), and,
+2. Ensuring  the output is indeed a subset of the inputs.
+
+\begin{code}
+{-@ filter      :: forall a <p :: a -> Prop>.
+                       (x:a -> Maybe {v:a<p> | v = x})
+                    -> xs:[a]
+                    -> {v:[a<p>] | Set_sub (elts v) (elts xs)} @-}
+
+filter f []     = []
+filter f (x:xs) = case f x of
+                    Just x'  -> x' : filter f xs 
+                    Nothing ->       filter f xs
+\end{code}
+
+where `elts` describes the [set of elements in a list][sets].
+
+**Note:** The *implementation* of each of the above `filter` functions are
+the same; they only differ in their type *specification*.
 
 Conclusion
 ----------
@@ -246,9 +291,13 @@ And so, using abstract refinements, we've written a `filter` whose signature gua
 * The outputs must be a *subset* of the inputs, and
 * The outputs indeed satisfy the property being filtered for.
 
-Finally, if you are of the old school, and like your filters `Boolean`, then take
-a look at this lovely new [paper by Kaki and Jagannathan](http://gowthamk.github.io/docs/icfp77-kaki.pdf)
-which shows how refinements can be further generalized to support the classical idiom.
+Another thing that I've learnt from this exercise, is that the old 
+school `Boolean` approach has its merits. Take a look at the clever 
+"latent predicates" technique of [Tobin-Hochstadt and Felleisen][racket]
+or this lovely new [paper by Kaki and Jagannathan][catalyst] which
+shows how refinements can be further generalized to make Boolean filters fine.
 
-
-[absref]:  /blog/2013/06/03/abstracting-over-refinements.lhs/ 
+[sets]:   /blog/2013/03/26/talking-about-sets.lhs/ 
+[absref]:   /blog/2013/06/03/abstracting-over-refinements.lhs/ 
+[racket]:   http://www.ccs.neu.edu/racket/pubs/popl08-thf.pdf
+[catalyst]: http://gowthamk.github.io/docs/icfp77-kaki.pdf
