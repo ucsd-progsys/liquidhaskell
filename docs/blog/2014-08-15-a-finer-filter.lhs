@@ -27,6 +27,7 @@ import Prelude hiding (filter)
 
 import Prelude hiding (filter)
 isNat, isEven, isOdd :: Int -> Maybe Int
+filter :: (a -> Maybe a) -> [a] -> [a]
 \end{code}
 
 </div>
@@ -115,16 +116,16 @@ I fear we've *cheated* a little bit.
 One of the nice things about the *classical* `filter` is that by eyeballing
 the signature:
 
-\begin{code}
+\begin{spec}
 filter :: (a -> Bool) -> [a] -> [a]
-\end{code}
+\end{spec}
 
 we are guaranteed, via parametricity, that the output list's elements are
 a *subset of* the input list's elements. The signature for our new-fangled
 
-\begin{code}
+\begin{spec}
 filter1 :: (a -> Maybe b) -> [a] -> [b]
-\end{code}
+\end{spec}
 
 yields no such guarantee!
 
@@ -237,8 +238,8 @@ Conclusion
 
 Thus, using abstract refinements, we've written a `filter` whose signature guarantees:
 
-* The outputs are a subset of the inputs, that,
-* Indeed satisfy the property being filtered for.
+* The outputs must be a *subset* of the inputs, and
+* The outputs indeed satisfy the property being filtered for.
 
 Finally, if you are of the old school, and like your filters `Boolean`, then take
 a look at this lovely new [paper by Kaki and Jagannathan](http://gowthamk.github.io/docs/icfp77-kaki.pdf).
