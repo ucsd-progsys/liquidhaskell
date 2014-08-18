@@ -269,14 +269,23 @@ inlines s = lines' s id
 classify ::  [String] -> [Lit]
 classify []             = []
 classify (x:xs) | "\\begin{code}"`isPrefixOf`x
-                        = Lit x: allProg xs
-   where allProg []     = []  -- Should give an error message,
-                              -- but I have no good position information.
-         allProg (x:xs) | "\\end{code}"`isPrefixOf`x
-                        = Lit x: classify xs
-         allProg (x:xs) = Code x: allProg xs
+                        = Lit x: allProg "code" xs
+classify (x:xs) | "\\begin{spec}"`isPrefixOf`x
+                        = Lit x: allProg "spec" xs
 classify (('>':x):xs)   = Code ('>':x) : classify xs
 classify (x:xs)         = Lit x: classify xs
+
+
+allProg name  = go 
+  where
+    end       = "\\end{" ++ name ++ "}"
+    go []     = []  -- Should give an error message,
+                    -- but I have no good position information.
+    go (x:xs) | end `isPrefixOf `x
+              = Lit x: classify xs
+    go (x:xs) = Code x: go xs
+
+
 
 -- | Join up chunks of code\/comment that are next to each other.
 joinL :: [Lit] -> [Lit]
