@@ -48,6 +48,8 @@ import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
 import qualified Control.Exception as Ex 
 import Data.Bifunctor
+import Data.Generics.Aliases    (mkT)
+import Data.Generics.Schemes    (everywhere)
 -- import Data.Data                hiding (TyCon, tyConName)
 -- import Data.Function            (on)
 import qualified Data.Text as T
@@ -107,7 +109,7 @@ makeGhcSpec' cfg vars defVars exports specs
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
-         >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su 
+         >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su 
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
@@ -121,8 +123,8 @@ makeGhcSpec0 cfg defVars exports name sp
                         , exports = exports    
                         , tgtVars = targetVars }
 
-makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su sp
-  = return $ sp { tySigs     = makePluggedSigs name exports $ tx sigs  
+makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
+  = return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
                 , asmSigs    = renameTyVars <$> tx asms
                 , ctors      = tx   cs'
                 , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
@@ -197,10 +199,12 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
     n             = length xts
 
 
-makePluggedSigs name exports sigs'
-  = [(x, plugHoles r τ <$> t) | (x, t) <- renamedSigs
-                              , let τ   = expandTypeSynonyms $ varType x
-                              , let r   = maybeTrue x name exports       ]
+makePluggedSigs name embs tcEnv exports sigs'
+  = [ (x, plugHoles embs tcEnv r τ <$> t)
+    | (x, t) <- renamedSigs
+    , let τ   = expandTypeSynonyms $ varType x
+    , let r   = maybeTrue x name exports
+    ]
   where
     renamedSigs = renameTyVars <$> sigs'
 
@@ -768,8 +772,8 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
+-- plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
+plugHoles tce tyi f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -778,7 +782,10 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
-    go t                (RHole r)          = fmap f t { rt_reft = f r }
+    go t                (RHole r)          = addHoles t' { rt_reft = f r }
+      where
+        t'       = everywhere (mkT $ addRefs tce tyi) t
+        addHoles = fmap (const $ f $ uReft ("v", [hole]))
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
     go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
@@ -791,6 +798,16 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
      where
        err = errOther $ text msg
        msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+
+addRefs :: TCEmb TyCon
+     -> M.HashMap TyCon RTyCon
+     -> SpecType
+     -> SpecType
+addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
+  where
+    RApp c' _ ps _ = addTyConInfo tce tyi (RApp c ts [] r)
+    ps'            = safeZip "addRefHoles" ps (rTyConPVs c')
+addRefs _ _ t  = t
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -1617,7 +1634,7 @@ freshSymbol
        return $ symbol $ "ex#" ++ show n
 
 maybeTrue x target exports r
-  | not (isHole r) || isInternalName name || inTarget && notExported
+  | not (hasHole r) || isInternalName name || inTarget && notExported
   = r
   | otherwise
   = uTop $ Reft ("VV", [])
