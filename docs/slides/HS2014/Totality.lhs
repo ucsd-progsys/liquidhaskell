@@ -1,8 +1,6 @@
 > {-@ LIQUID "--no-termination" @-}
 > {-@ LIQUID "--totality"       @-}
 > {-@ LIQUID "--diffcheck"      @-}
-> {- LIQUID "-g-package-db" @-}
-> {- LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
 > 
 > module Totality where
 > 
