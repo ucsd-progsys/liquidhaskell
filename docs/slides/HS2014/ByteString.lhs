@@ -1,7 +1,11 @@
 > {-@ LIQUID "--no-termination" @-}
-> {-@ LIQUID "-g-package-db" @-}
-> {-@ LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
-> module Main where
+> {- LIQUID "-g-package-db"     @-}
+> {-@ LIQUID "--short-names"    @-}
+> {-  LIQUID "--diffcheck"      @-}
+> {- LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
+> {-# LANGUAGE ForeignFunctionInterface #-}
+> 
+> module Bytestring where
 > 
 > import Prelude hiding (null)
 > import Data.Char
@@ -14,6 +18,7 @@
 > import Language.Haskell.Liquid.Prelude
 
 Now for some real fun, let's try to prove that `ByteString` is memory-safe! 
+
 `ByteString`s are at the heart of many Haskell applications, e.g. web servers, 
 and, as we saw at the beginning of the talk, a bad access can lead to a segfault 
 or, even worse, leaking arbitrary memory.
@@ -21,7 +26,10 @@ or, even worse, leaking arbitrary memory.
 A `ByteString` consists of a pointer into a region of memory, an offset into 
 the region, and a length.
 
-> data ByteString = PS (ForeignPtr Word8) Int Int
+> data ByteString = PS { bPayload :: ForeignPtr Word8
+>                      , bOffset  :: !Int
+>                      , bLength  :: !Int
+>                      }
 
 The crucial invariant is that we should only be able to reach valid memory 
 locations via the offset and length, i.e. the sum `off + len` *must not exceed* 
@@ -29,23 +37,27 @@ the "length" of the pointer.
 
 > {-@ data ByteString = PS
 >       { bPayload :: ForeignPtr Word8
->       , bOffset  :: {v:Nat | v           <= (fplen bPayload)}
->       , bLength  :: {v:Nat | bOffset + v <= (fplen bPayload)} }
+>       , bOffset  :: {v:Nat | v           <= fplen bPayload}
+>       , bLength  :: {v:Nat | bOffset + v <= fplen bPayload}
+>       }
 >   @-}
 
-What is the "length" of a pointer you ask? It's the number of bytes that are
-addressable from the base of the pointer. We can't compute it, but that won't
-stop us from talking about it in our types. We provide a "ghost" measure called
-`fplen` to refer to this length.
+What is the "length" of a pointer? It's the number of bytes that are
+addressable from the base of the pointer. We can't compute it, but that
+won't stop us from talking about it in our types. We provide a "ghost"
+measure called `fplen` to refer to this length.
 
 < {-@ measure fplen :: ForeignPtr a -> Int @-}
 
-Since we haven't defined any equations for `fplen` we won't get strengthed 
-constructors, and we might have to assume a few things about `fplen`s, for 
-instance that `malloc` behaves sensibly and allocates the number of bytes you 
-asked for.
+and use it to define a foreign-pointer to a segment containing *N* bytes
 
-> {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
+> {-@ type ForeignN a N = {v:ForeignPtr a | fplen v = N} @-}
+
+Since we haven't defined any equations for `fplen` we won't get strengthed 
+constructors. Instead, we will *assume* that `malloc` behaves sensibly and
+allocates the number of bytes you asked for.
+
+> {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignN a n) @-}
 
 Now let's create a few `ByteString`s. Here's a `ByteString` with 5 valid 
 indices. 
@@ -53,17 +65,21 @@ indices.
 > good_bs1 = do fp <- mallocForeignPtrBytes 5
 >               return $ PS fp 0 5
 
-Here's a similar `ByteString` with only 4 valid indices, but whose pointer has 
-*5* valid indices.
+Note that the *length* of the BS is *not* the same as the region
+of allocated memory. 
 
+Here's a `ByteString` whose pointer region has 5-bytes, but the BS itself
+is of size 4.
+ 
 > good_bs2 = do fp <- mallocForeignPtrBytes 5
->               return $ PS fp 1 4
+>               return $ PS fp 2 4
 
 LiquidHaskell won't let us build a `ByteString` that claims to have more valid 
-indices than it actually does
+indices than it *actually* does
 
-> bad_bs1 = do fp <- mallocForeignPtrBytes 0
->              return $ PS fp 0 1
+> bad_bs1 = do
+>   fp <- mallocForeignPtrBytes 0 
+>   return $ PS fp 0 10 
 
 even if we try to be sneaky with the length parameter.
 
@@ -74,10 +90,12 @@ even if we try to be sneaky with the length parameter.
 Creating ByteStrings
 --------------------
 
-Nobody actually builds `ByteString`s like this though, the authors have kindly
-provided a higher-order function called `create` to handle the actual
-allocation. To `create` a `ByteString` you have to say how many bytes you want
-and provide a function that will fill in the newly allocated memory.
+Nobody actually builds `ByteString`s like this though.
+
+The authors have kindly provided a higher-order function
+called `create` to handle the actual allocation. To `create`
+a `ByteString` you have to say how many bytes you want and
+provide a function that will fill in the newly allocated memory.
 
 > create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 > create l f = do
@@ -85,63 +103,85 @@ and provide a function that will fill in the newly allocated memory.
 >     withForeignPtr fp $ \p -> f p
 >     return $! PS fp 0 l
 
-But this seems horribly unsafe! What's to stop the parameter `f` from poking 
-any random, invalid offset from the pointer it wants to? I could, for example, 
-write
+But this seems horribly unsafe!
+
+What's to stop the parameter `f` from poking any random,
+invalid offset from the pointer it wants to?
+
+We could, e.g.
+
+* create a BS of size `5`, and
+* write a `0` at the index `10`.
 
 > bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 
-which clearly isn't correct. We'd like to say that the provided function can 
-only address locations a up to a certain offset from the pointer.
+which clearly isn't correct. We'd like to say that the provided
+function can only address locations a up to a certain offset
+from the pointer.
 
-Just as we had `fplen` to talk about the "length" of a `ForeignPtr`, we have
-provided `plen` to talk about the "length" of a `Ptr`, and we've defined a
-helpful alias
+Just as we had `fplen` to talk about the "length" of a `ForeignPtr`,
+we have provided `plen` to talk about the "length" of a `Ptr`, and
+we've defined a helpful alias
 
 < {-@ type PtrN a N = {v:Ptr a | plen v = N} @-}
 
-which says that a `PtrN a n` has precisely `n` addressable bytes from its base.
+which says that a `PtrN a n` has precisely `n` addressable bytes
+from its base.
+
+Pointer Arithmetic
+------------------
+
 We have also given `plusPtr` the type
 
 < {-@ plusPtr :: p:Ptr a -> n:Int -> {v:Ptr a | plen v = plen p - n} @-}
 
-which says that as you increment a `Ptr`, you're left with fewer addressable bytes.
-Finally, we give `poke` the type
+which says that as you increment a `Ptr`, you're left with fewer addressable
+bytes.
 
-< {-@ poke :: Storable a => {v:Ptr a | plen v >= 0} -> a -> IO () @-}
+Finally, we type `poke` as 
+
+< {-@ poke :: Storable a => {v:Ptr a | 0 <= plen v } -> a -> IO () @-}
 
 which says that the given `Ptr` must be addressable in order to safely `poke` it.
 
-Now we have all of the necessary tools to prevent ourselves from writing 
-functions like `bad_create` and getting away with it. We'll just give `create` 
-the type
+Now we have all of the necessary tools to *prevent* ourselves from
+shooting ourselves in the foot with functions like `bad_create`.
+
+We'll just give `create` the type
  
-> {-@ create :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> IO (ByteStringN l)   @-}
+> {-@ create :: l:Nat -> (PtrN Word8 l -> IO ()) -> IO (ByteStringN l)   @-}
+
+where the alias
+
 > {-@ type ByteStringN N = {v:ByteString | bLength v = N} @-}
 
-and, lo and behold, LiquidHaskell has flagged `bad_create` as unsafe! 
+Lo and behold, LiquidHaskell has flagged `bad_create` as unsafe! 
+
 Furthermore, we can write things like
 
 > good_create = create 5 $ \p -> poke (p `plusPtr` 2) (0 :: Word8)
 
-or
+Here's a real example from the BS library:
 
-> packWith :: (a -> Word8) -> [a] -> ByteString
-> packWith k str = unsafeCreate (length str) $ \p -> go p str
->     where
->         go _ []     = return ()
->         go p (x:xs) = poke p (k x) >> go (p `plusPtr` 1) xs
-
-> pack = packWith (fromIntegral . ord)
+> packWith        :: (a -> Word8) -> [a] -> ByteString
+> packWith k str  = unsafeCreate (length str) $ \p -> go p str
+>   where
+>     go _ []     = return ()
+>     go p (x:xs) = poke p (k x) >> go (p `plusPtr` 1) xs
 
 proving that `pack` will *never* write out-of-bounds!
-
 
 Nested Data
 -----------
 
-For a more in depth example, let's take a look at `group`, which transforms strings
-like `"foo"` into lists of strings like `["f","oo"]`.
+For a more in depth example, let's take a look at `group`,
+which transforms strings like
+
+   `"foobaaaar"`
+
+into *lists* of strings like
+
+   `["f","oo", "b", "aaa", "r"]`.
 
 The specification is that `group` should produce a list of `ByteStrings`
 
@@ -150,19 +190,18 @@ The specification is that `group` should produce a list of `ByteStrings`
 
 We use the type alias
 
-> {-@ type ByteStringNE = {v:ByteString | (bLength v) > 0} @-}
+> {-@ type ByteStringNE = {v:ByteString | bLength v > 0} @-}
 
-to specify (1) and introduce a new measure
+to specify (safety) and introduce a new measure
 
 > {-@ measure bLengths  :: [ByteString] -> Int
 >     bLengths ([])   = 0
 >     bLengths (x:xs) = (bLength x) + (bLengths xs)
 >   @-}
 
-to specify (2). The full type + specification looks like this:
+to specify (precision). The full type-specification looks like this:
 
-> {-@ group :: b:ByteString -> {v: [ByteStringNE] | (bLengths v) = (bLength b)} @-}
-> group :: ByteString -> [ByteString]
+> {-@ group :: b:ByteString -> {v: [ByteStringNE] | bLengths v = bLength b} @-}
 > group xs
 >     | null xs   = []
 >     | otherwise = let y = unsafeHead xs
@@ -192,7 +231,10 @@ where `ByteStringPair b` describes a pair of `ByteString`s whose lengths sum to
 the length of `b`.
 
 > {-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 ->
->       (bLength x1) + (bLength x2) = (bLength B)}> @-}
+>       bLength x1 + bLength x2 = bLength B}> @-}
+
+
+RJ:LIMITATIONS
 
 Those familiar with the internals of ByteString may notice that we have made a
 small change in `group`, the original implementation was
