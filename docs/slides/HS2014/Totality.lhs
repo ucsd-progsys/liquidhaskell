@@ -1,22 +1,27 @@
 > {-@ LIQUID "--no-termination" @-}
-> {-@ LIQUID "--totality" @-}
-> {-@ LIQUID "-g-package-db" @-}
-> {-@ LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
-> module Main where
+> {-@ LIQUID "--totality"       @-}
+> {-@ LIQUID "--diffcheck"      @-}
+> {- LIQUID "-g-package-db" @-}
+> {- LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
+> 
+> module Totality where
 > 
 > import Prelude hiding (head)
 > import Language.Haskell.Liquid.Prelude
 > import Control.Exception.Base
 
 Partial functions are a pain to deal with, they have a tendency to blow up when 
-you least expect it. And yet the often-recommended alternative of making 
-partial functions return a `Maybe` or `Either` is tedious and encourages the 
-use of other partial functions like `fromJust`. What we really ought to do is 
-*prove* that undefined case can never arise.
+you least expect it.
 
-It turns out this is relatively easy in LiquidHaskell. GHC already does much of 
-the heavy lifting by filling in all of the undefined cases with explicit calls
-to various error functions, e.g.
+The often-recommended alternative of making partial functions return a `Maybe` or
+`Either` is often tedious and encourages the use of *other* partial functions like `fromJust`.
+
+What we really ought to do is *prove* that undefined case can never arise.
+
+This is relatively easy in LiquidHaskell.
+
+GHC already does much of the heavy lifting by filling in all of the undefined
+cases with explicit calls to various error functions, e.g.
 
 > head (x:xs) = x
 
@@ -56,11 +61,20 @@ So we actually end up with
 which is a contradiction, therefore it is safe to "call" `patError` since we 
 have proven that the call will never *actually* happen.
 
+RJ:ADD SAFEZIP?
 
-Map
----
+> {-@ type ListL a Xs = {v:[a] | len v == len Xs} @-} 
+> {-@ safeZipWith :: (a -> b -> c) -> xs:[a] -> ListL b xs -> ListL c xs @-}
+> safeZipWith f = go
+>   where
+>     go (x:xs) (y:ys) = f x y : go xs ys
+>     go []     []     = []
 
-> {-@ nestcomment :: Nat -> xs:_ -> (_,{v:_|(if ((len xs) = 0) then ((len v) = 0) else ((len v) <= (len xs))) }) @-}
+
+Totality in Real-World
+----------------------
+
+> {-@ nestcomment :: Nat -> xs:_ -> (_,{v:_| len v <= len xs}) @-}
 > 
 > nestcomment :: Int -> String -> (String,String)
 > nestcomment n ('{':'-':ss) | n>=0 = (("{-"++cs),rm)

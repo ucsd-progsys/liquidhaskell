@@ -1,6 +1,8 @@
 > {-@ LIQUID "--no-termination" @-}
-> {-@ LIQUID "-g-package-db" @-}
-> {-@ LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
+> {-  LIQUID "-g-package-db" @-}
+> {-  LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
+> module Basics where
+> 
 > import Prelude hiding (head, max)
 > import qualified Data.ByteString.Char8 as B
 > import qualified Data.ByteString.Unsafe as B
@@ -37,8 +39,8 @@ with a predicate from an SMT-decidable logic. For example,
 describes the set of `Int`s that are between 0 and 100. We'll make heavy use of
 *aliases* to simplify the types, e.g.
 
-> {-@ predicate Btwn Lo N Hi = N >= Lo && N < Hi @-}
-> {-@ type Rng Lo Hi = {v:Int | Btwn Lo v Hi} @-}
+> {-@ predicate Btwn Lo N Hi = Lo <= N && N < Hi @-}
+> {-@ type Rng Lo Hi = {v:Int | Btwn Lo v Hi}    @-}
 
 < Rng 0 100
 
@@ -47,7 +49,7 @@ is equivalent to the first type.
 We can describe a function's *contract* by refining its input and output types
 with our desired pre- and post-conditions.
 
-> {-@ range :: lo:Int -> hi:{Int | lo <= hi} -> [Rng lo hi] @-}
+> {-@ range :: lo:Int -> hi:{Int | lo <= hi} -> {v:[Rng lo hi] | len v = hi - lo} @-}
 
 This type tells us that `range` accepts two `Int`s, the second being larger than
 the first, and returns a `[Int]` where all of the elements are between `lo` and
@@ -58,10 +60,11 @@ the first, and returns a `[Int]` where all of the elements are between `lo` and
 >   | lo <= hi  = lo : range (lo + 1) hi
 >   | otherwise = []
 
-LiquidHaskell complains that `lo` is not *strictly* less than `hi`! Fortunately,
-that's easily fixed, we'll just replace the `<=` in the guard with `<`.
+LiquidHaskell complains that `lo` is not *strictly* less than `hi`!
 
-> {-@ range' :: lo:Int -> hi:{Int | lo <= hi} -> [Rng lo hi] @-}
+Fortunately, that's easily fixed, we'll just replace the `<=` in the guard with `<`.
+
+> {-@ range' :: lo:Int -> hi:{Int | lo <= hi} -> {v:[Rng lo hi] | len v = hi - lo } @-}
 > range' :: Int -> Int -> [Int]
 > range' lo hi
 >   | lo < hi   = lo : range' (lo + 1) hi
@@ -89,8 +92,11 @@ does by instantiating `find`s type parameter `a` with `Rng lo hi`.
 
 Ok, we can talk about Integers, what about arbitrary, user-defined datatypes?
 
+RJ:MOVE THIS INTO TOTALITY?
+
 Measures
 ========
+ 
 One of the most maligned Haskell functions is also one of the simplest.
 
 > data List a = Nil | Cons a (List a)
@@ -99,18 +105,16 @@ One of the most maligned Haskell functions is also one of the simplest.
 > head Nil        = error "ARGH!!!!"
 
 Many people argue that `head` and co. should be removed from the Prelude because
-they're partial functions, and partial functions are dangerous. But with
-LiquidHaskell, we can specify *precisely* when it's safe to call `head`.
+they're partial functions, and partial functions are dangerous.
 
-`head`'s pre-condition is that the input list be non-empty. How do we specify
-emptiness vs non-emptiness? In dependently-typed languages (including recent
-extensions to Haskell) we might define a *family* of `List` types, indexed by
-their length, and then specify that `head` can only be called with Lists whose
-length is not 0. In LiquidHaskell, we take a subtly different, and arguably more
-flexible, approach.
+With LiquidHaskell, we can specify *precisely* when it's safe to call `head`.
 
-Instead of defining an index that is baked into the type definition, we'll
-define a *measure*, which you can think of as a *view* of the datatype.
+`head`'s pre-condition is that the input list be non-empty.
+
+Lets see how to specify emptiness vs non-emptiness.
+
+(Instead of defining an index that is baked into the type definition)
+we'll define a *measure*, which you can think of as a *view* of the datatype.
 
 > {-@ measure llen :: List a -> Int
 >     llen (Nil)       = 0
@@ -127,7 +131,7 @@ types for the data constructors, e.g.
 
 ASIDE: another great spot to show off liquid-pos-tip.
 
-> nil = Nil
+> nil  = Nil
 > cons = Cons
 
 LiquidHaskell's interpretation of measures is a key distinction from indexed
@@ -150,6 +154,10 @@ We can also give precise specifications to, e.g., `append`
 > append Nil ys         = ys
 > append (Cons x xs) ys = Cons x (append xs ys)
 
+> safeZip :: (a -> b -> c) -> [a] -> [b] -> [c]
+> safeZip f (x:xs) (y:ys) = f x y : safeZip f xs ys
+> 
+
 
 Refined Data Types
 ------------------
@@ -167,12 +175,12 @@ will reject *any* `CSV` value that does not satisfy the invariant.
 > good_2 = CSV [ "Month", "Days"]
 >              [ ["Jan", "31"]
 >              , ["Feb", "28"] ]
-> bad_2  = CSV [ "Month", "Days"]
->              [ ["Jan", "31"]
->              , ["Feb"] ]
+> bad_2  = CSV  [ "Month", "Days"]
+>               [ ["Jan", "31"]
+>               , ["Feb"] ]
 
-FIXME: why isn't `bad_2` being flagged by LH??
 
+RJ:BEGIN-CUT
 
 Refined Type-Classes
 --------------------
@@ -186,6 +194,7 @@ and giving it a refined definition.
 > class Indexable f where
 >   size :: f a -> Int
 >   at   :: f a -> Int -> a
+>
 > {-@
 > class Indexable f where
 >   size :: forall a. xs:f a -> {v:Nat | v = sz xs}
@@ -257,6 +266,8 @@ by abstracting over the refinements.
 > {-@ max :: forall <p :: Int -> Prop>.
 >            Int<p> -> Int<p> -> Int<p>
 >   @-}
+
+RJ:END-CUT
 
 Now that we've covered the basics of using LiquidHaskell, let's take a look at
 our first experiment: proving functions total.
