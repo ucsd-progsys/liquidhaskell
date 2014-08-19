@@ -782,7 +782,7 @@ plugHoles tce tyi f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
-    go t                (RHole r)          = addHoles t' { rt_reft = f r }
+    go t                (RHole r)          = (addHoles t') { rt_reft = f r }
       where
         t'       = everywhere (mkT $ addRefs tce tyi) t
         addHoles = fmap (const $ f $ uReft ("v", [hole]))
@@ -1633,15 +1633,17 @@ freshSymbol
        modify $ \s -> s{fresh = n+1}
        return $ symbol $ "ex#" ++ show n
 
+maybeTrue :: NamedThing a => a -> ModName -> NameSet -> RReft -> RReft
 maybeTrue x target exports r
-  | not (hasHole r) || isInternalName name || inTarget && notExported
+  | isInternalName name || inTarget && notExported
   = r
   | otherwise
-  = uTop $ Reft ("VV", [])
+  = killHoles r
   where
     inTarget    = moduleName (nameModule name) == getModName target
     name        = getName x
     notExported = not $ getName x `elemNameSet` exports
+    killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
 -------------------------------------------------------------------------------------
 -- | Tasteful Error Messages --------------------------------------------------------
