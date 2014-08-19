@@ -53,7 +53,7 @@ See URL `https://github.com/ucsd-progsys/liquidhaskell'."
 			 (zero-or-more not-newline)))
           line-end)
 
-   (error line-start " " (file-name) ":" line ":" column "-" (one-or-more digit) ":"
+   (error line-start " " (file-name) ":(" line "," column ")-(" (one-or-more digit) "," (one-or-more digit) "):"
 	  (message
 	   (one-or-more " ") (one-or-more not-newline)
 	   (zero-or-more "\n"
