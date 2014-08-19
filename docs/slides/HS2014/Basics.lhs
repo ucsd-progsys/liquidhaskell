@@ -1,6 +1,4 @@
 > {-@ LIQUID "--no-termination" @-}
-> {-  LIQUID "-g-package-db" @-}
-> {-  LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
 > module Basics where
 > 
 > import Prelude hiding (head, max)

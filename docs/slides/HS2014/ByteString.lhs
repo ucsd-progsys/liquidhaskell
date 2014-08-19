@@ -1,8 +1,6 @@
 > {-@ LIQUID "--no-termination" @-}
-> {- LIQUID "-g-package-db"     @-}
 > {-@ LIQUID "--short-names"    @-}
 > {-  LIQUID "--diffcheck"      @-}
-> {- LIQUID "-g/Users/gridaphobe/.nix-profile/lib/ghc-7.8.3/package.conf.d/" @-}
 > {-# LANGUAGE ForeignFunctionInterface #-}
 > 
 > module Bytestring where
