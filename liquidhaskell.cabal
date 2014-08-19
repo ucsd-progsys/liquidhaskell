@@ -28,7 +28,8 @@ data-files: include/*.hquals
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/Prelude.pred
+          , include/Language/Haskell/Liquid/*.hs
+          , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
 
