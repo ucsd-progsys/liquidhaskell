@@ -62,7 +62,7 @@ LiquidHaskell complains that `lo` is not *strictly* less than `hi`!
 
 Fortunately, that's easily fixed, we'll just replace the `<=` in the guard with `<`.
 
-> {-@ range' :: lo:Int -> hi:{Int | lo <= hi} -> {v:[Rng lo hi] | len v = hi - lo } @-}
+> {-@ range' :: lo:Int -> hi:{Int | lo <= hi} -> [Rng lo hi] @-}
 > range' :: Int -> Int -> [Int]
 > range' lo hi
 >   | lo < hi   = lo : range' (lo + 1) hi
@@ -90,47 +90,42 @@ does by instantiating `find`s type parameter `a` with `Rng lo hi`.
 
 Ok, we can talk about Integers, what about arbitrary, user-defined datatypes?
 
-RJ:MOVE THIS INTO TOTALITY?
 
 Measures
 ========
- 
-One of the most maligned Haskell functions is also one of the simplest.
 
-> data List a = Nil | Cons a (List a)
+Let's go one step further with `range` and reason about the length of the 
+resulting list. Given that
 
-> head (Cons x _) = x
-> head Nil        = error "ARGH!!!!"
+< range 0 2 == [0,1]
 
-Many people argue that `head` and co. should be removed from the Prelude because
-they're partial functions, and partial functions are dangerous.
+and
 
-With LiquidHaskell, we can specify *precisely* when it's safe to call `head`.
+< range 1 1 == []
 
-`head`'s pre-condition is that the input list be non-empty.
-
-Lets see how to specify emptiness vs non-emptiness.
+it looks like the length of the output list should be `hi - lo`, but how do we 
+express that in LiquidHaskell?
 
 (Instead of defining an index that is baked into the type definition)
 we'll define a *measure*, which you can think of as a *view* of the datatype.
 
-> {-@ measure llen :: List a -> Int
->     llen (Nil)       = 0
->     llen (Cons x xs) = 1 + (llen xs)
->   @-}
+< {-@ measure len :: [a] -> Int
+<     len ([])   = 0
+<     len (x:xs) = 1 + (len xs)
+<   @-}
 
 Measures look like Haskell functions, but they're *not*. They are a very
 restricted subset of inductively-defined Haskell functions with a single
 equation per data constructor. LiquidHaskell translates measures into refined
 types for the data constructors, e.g.
 
-< Nil  :: {v:List a | llen v = 0}
-< Cons :: _ -> xs:_ -> {v:List a | llen v = llen xs + 1}
+< []  :: {v:[a] | len v = 0}
+< (:) :: _ -> xs:_ -> {v:[a] | len v = len xs + 1}
 
 ASIDE: another great spot to show off liquid-pos-tip.
 
-> nil  = Nil
-> cons = Cons
+> nil  = []
+> cons = (:)
 
 LiquidHaskell's interpretation of measures is a key distinction from indexed
 data types, because we can define multiple measures independently of the actual
@@ -139,22 +134,25 @@ from the individual measures.
 
 ASIDE: perhaps quickly show by defining `measure null` as a throwaway.
 
-With our measure in hand we can now tell LiquidHaskell when it is safe to call
-`head`.
+With our measure in hand we can now specify our final type for `range`
 
-> {-@ head :: {v:List a | llen v > 0} -> a @-}
-> good_1 = head (Cons 1 Nil)
-> bad_1  = head Nil
+> {-@ range'' :: lo:Int -> hi:{Int | lo <= hi} -> {v:[Rng lo hi] | len v = hi - lo } @-}
+
+Notice that we don't need to change the implementation at all, LiquidHaskell 
+accepts it as is!
+
+> range'' :: Int -> Int -> [Int]
+> range'' lo hi
+>   | lo < hi   = lo : range'' (lo + 1) hi
+>   | otherwise = []
 
 We can also give precise specifications to, e.g., `append`
 
-> {-@ append :: xs:_ -> ys:_ -> {v:_ | llen v = llen xs + llen ys} @-}
-> append Nil ys         = ys
-> append (Cons x xs) ys = Cons x (append xs ys)
+> {-@ append :: xs:_ -> ys:_ -> {v:_ | len v = len xs + len ys} @-}
+> append []     ys = ys
+> append (x:xs) ys = x : append xs ys
 
-> safeZip :: (a -> b -> c) -> [a] -> [b] -> [c]
-> safeZip f (x:xs) (y:ys) = f x y : safeZip f xs ys
-> 
+
 
 
 Refined Data Types
