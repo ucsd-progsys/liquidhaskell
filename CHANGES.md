@@ -1,6 +1,6 @@
 # Changes
 
-# 0.2
+## 0.2
 - Move to GHC-7.8.3
 LiquidHaskell now *requires* ghc-7.8.3.
 
