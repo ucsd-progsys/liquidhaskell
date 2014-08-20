@@ -111,6 +111,14 @@ We could, e.g.
 * create a BS of size `5`, and
 * write a `0` at the index `10`.
 
+ASIDE: have these assumed types around to suppress the type-errors that LH will 
+       show, just remove them when script introduces type
+
+> {- assume plusPtr :: p:Ptr a -> n:Int -> Ptr b @-}
+> {- assume poke :: Storable a => Ptr a -> a -> IO () @-}
+
+END ASIDE
+
 > bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 
 which clearly isn't correct. We'd like to say that the provided
@@ -125,6 +133,7 @@ we've defined a helpful alias
 
 which says that a `PtrN a n` has precisely `n` addressable bytes
 from its base.
+
 
 Pointer Arithmetic
 ------------------
@@ -147,11 +156,13 @@ shooting ourselves in the foot with functions like `bad_create`.
 
 We'll just give `create` the type
  
-> {-@ create :: l:Nat -> (PtrN Word8 l -> IO ()) -> IO (ByteStringN l)   @-}
+> {-@ create :: l:Nat -> (PtrN Word8 l -> IO ()) -> IO (ByteStringN l) @-}
 
 where the alias
 
 > {-@ type ByteStringN N = {v:ByteString | bLength v = N} @-}
+
+describes `ByteString`s of length `N`.
 
 Lo and behold, LiquidHaskell has flagged `bad_create` as unsafe! 
 
@@ -169,13 +180,14 @@ Here's a real example from the BS library:
 
 proving that `pack` will *never* write out-of-bounds!
 
+
 Nested Data
 -----------
 
 For a more in depth example, let's take a look at `group`,
 which transforms strings like
 
-   `"foobaaaar"`
+   `"foobaaar"`
 
 into *lists* of strings like
 
@@ -304,10 +316,16 @@ but it is unclear how to prove this at the moment in LiquidHaskell
 > empty :: ByteString
 > empty = PS nullForeignPtr 0 0
 > 
+> {-@ assume
+>     c_memcpy :: dst:(PtrV Word8)
+>              -> src:(PtrV Word8) 
+>              -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
+>              -> IO (Ptr Word8)
+>   @-}
 > foreign import ccall unsafe "string.h memcpy" c_memcpy
 >     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
-> {-@ assume
->     memcpy :: dst:(PtrV Word8)
+> 
+> {-@ memcpy :: dst:(PtrV Word8)
 >            -> src:(PtrV Word8) 
 >            -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
 >            -> IO () 
