@@ -198,8 +198,7 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
 
 
 makePluggedSigs name exports sigs
-  = renameTyVars <$>
-    [ (x, plugHoles r τ <$> t)
+  = [ (x, plugHoles r τ <$> t)
     | (x, t) <- sigs
     , let τ   = expandTypeSynonyms $ varType x
     , let r   = maybeTrue x name exports
@@ -770,7 +769,7 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
     tx = (v,) . Loc l . generalize
 
 plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
+plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -778,6 +777,11 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
+
+    tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
+    initvmap          = initMapSt undefined
+    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
+    st'''             = subts su st''
 
     go t                (RHole r)          = fmap f t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
