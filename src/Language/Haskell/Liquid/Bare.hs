@@ -197,12 +197,13 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
     n             = length xts
 
 
-makePluggedSigs name exports sigs'
-  = [(x, plugHoles r τ <$> t) | (x, t) <- renamedSigs
-                              , let τ   = expandTypeSynonyms $ varType x
-                              , let r   = maybeTrue x name exports       ]
-  where
-    renamedSigs = renameTyVars <$> sigs'
+makePluggedSigs name exports sigs
+  = renameTyVars <$>
+    [ (x, plugHoles r τ <$> t)
+    | (x, t) <- sigs
+    , let τ   = expandTypeSynonyms $ varType x
+    , let r   = maybeTrue x name exports
+    ]
 
 
 

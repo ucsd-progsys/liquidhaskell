@@ -47,7 +47,7 @@ is equivalent to the first type.
 We can describe a function's *contract* by refining its input and output types
 with our desired pre- and post-conditions.
 
-> {-@ range :: lo:Int -> hi:{Int | lo <= hi} -> {v:[Rng lo hi] | len v = hi - lo} @-}
+> {-@ range :: lo:Int -> hi:{Int | lo <= hi} -> [Rng lo hi] @-}
 
 This type tells us that `range` accepts two `Int`s, the second being larger than
 the first, and returns a `[Int]` where all of the elements are between `lo` and
