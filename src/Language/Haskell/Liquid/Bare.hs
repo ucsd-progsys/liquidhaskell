@@ -769,7 +769,7 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
     tx = (v,) . Loc l . generalize
 
 plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
+plugHoles f t st = mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -782,6 +782,8 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
     initvmap          = initMapSt undefined
     su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
     st'''             = subts su st''
+    ps'               = fmap (subts su') <$> ps
+    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
 
     go t                (RHole r)          = fmap f t { rt_reft = f r }
     go (RVar _ _)       v@(RVar _ _)       = v
