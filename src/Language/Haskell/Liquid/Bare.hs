@@ -198,7 +198,7 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
 
 
 makePluggedSigs name exports sigs
-  = [ (x, plugHoles r τ <$> t)
+  = [ (x, plugHoles x r τ t)
     | (x, t) <- sigs
     , let τ   = expandTypeSynonyms $ varType x
     , let r   = maybeTrue x name exports
@@ -768,8 +768,8 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
+plugHoles :: Var -> (RReft -> RReft) -> Type -> Located SpecType -> Located SpecType
+plugHoles x f t (Loc l st) = Loc l $ mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -779,7 +779,7 @@ plugHoles f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st'''
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
     tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
-    initvmap          = initMapSt undefined
+    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
     su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
     st'''             = subts su st''
 
