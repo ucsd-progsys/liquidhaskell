@@ -1,6 +1,6 @@
 > {-@ LIQUID "--no-termination" @-}
 > {-@ LIQUID "--totality"       @-}
-> {- LIQUID "--diffcheck"      @-}
+> {-@ LIQUID "--diffcheck"      @-}
 > 
 > module Totality where
 > 
@@ -46,7 +46,7 @@ code. So how do we prove that `patError` is unreachable in `head`?
 We can specify that `head` should only be called with *non-empty* lists by 
 giving it a refined type like
 
-> {-@ head :: {v:[a] | len v > 0} -> a @-}
+> {-@ head :: {v:[a] | 0 < len v} -> a @-}
 
 Now, when LiquidHaskell sees the case-analysis on the `[]` case, it puts
 
@@ -100,8 +100,8 @@ Totality in Real-World
 If that was not convincing enough, I'll leave you with a final example from 
 HsColour, which is probably invoked thousands of times per day.
 
-> nestcomment :: Int -> String -> (String,String)
-> nestcomment n ('{':'-':ss) | n>=0 = (("{-"++cs),rm)
+> nestcomment :: Int -> String -> (String, String)
+> nestcomment n ('{':'-':ss) | n>=0 = (("{-"++   cs),rm)
 >                                   where (cs,rm) = nestcomment (n+1) ss
 > nestcomment n ('-':'}':ss) | n>0  = let (cs,rm) = nestcomment (n-1) ss
 >                                     in (("-}"++cs),rm)
