@@ -1,6 +1,6 @@
 > {-@ LIQUID "--no-termination" @-}
 > {-@ LIQUID "--short-names"    @-}
-> {-  LIQUID "--diffcheck"      @-}
+> {-@  LIQUID "--diffcheck"     @-}
 > {-# LANGUAGE ForeignFunctionInterface #-}
 > 
 > module Bytestring where
@@ -114,7 +114,7 @@ We could, e.g.
 ASIDE: have these assumed types around to suppress the type-errors that LH will 
        show, just remove them when script introduces type
 
-> {- assume plusPtr :: p:Ptr a -> n:Int -> Ptr b @-}
+> {- assume plusPtr :: p:Ptr a -> n:Int -> Ptr b      @-}
 > {- assume poke :: Storable a => Ptr a -> a -> IO () @-}
 
 END ASIDE
