@@ -124,8 +124,7 @@ types for the data constructors, e.g.
 
 ASIDE: another great spot to show off liquid-pos-tip.
 
-> nil  = []
-> cons = (:)
+> mylist = 1 : []
 
 LiquidHaskell's interpretation of measures is a key distinction from indexed
 data types, because we can define multiple measures independently of the actual
@@ -171,9 +170,9 @@ will reject *any* `CSV` value that does not satisfy the invariant.
 > good_2 = CSV [ "Month", "Days"]
 >              [ ["Jan", "31"]
 >              , ["Feb", "28"] ]
-> bad_2  = CSV  [ "Month", "Days"]
->               [ ["Jan", "31"]
->               , ["Feb"] ]
+> bad_2  = CSV [ "Month", "Days"]
+>              [ ["Jan", "31"]
+>              , ["Feb"] ]
 
 
 RJ:BEGIN-CUT
