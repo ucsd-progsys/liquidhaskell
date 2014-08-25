@@ -241,6 +241,15 @@ import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import Foreign.ForeignPtr       (ForeignPtr)
 
+{-@ measure sumLens :: [[a]] -> Int
+    sumLens ([])   = 0
+    sumLens (x:xs) = len x + (sumLens xs)
+  @-}
+{-@ invariant {v:[[a]] | sumLens v >= 0} @-}
+{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
+
 -- ByteString qualifiers
 {-@ qualif LBLensAcc(v:ByteString,
                      bs:List ByteString,
