@@ -40,7 +40,7 @@ import           Data.List (find)
 
 
 range lo hi
-  | lo < hi   = lo : range (lo + 1) hi
+  | lo <= hi  = lo : range (lo + 1) hi
   | otherwise = []
 
 
