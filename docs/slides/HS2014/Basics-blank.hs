@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
-{- LIQUID "--diffcheck" @-}
+{-@ LIQUID "--diffcheck" @-}
 {-@ LIQUID "--short-names" @-}
 module Basics where
 
@@ -128,3 +128,5 @@ csv = CSV [ "Month", "Days"]
 -- Local Variables:
 -- flycheck-checker: haskell-liquid
 -- End:
+
+range :: Int -> Int -> [Int]

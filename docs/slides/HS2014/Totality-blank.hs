@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
-{- LIQUID "--diffcheck"      @-}
+{-@ LIQUID "--diffcheck"      @-}
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--totality"       @-}
 module Totality where
@@ -43,7 +43,6 @@ head (x:_) = x
 
 
 
-safeZipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 safeZipWith f = go
   where
     go (x:xs) (y:ys) = f x y : go xs ys
@@ -86,7 +85,6 @@ safeZipWith f = go
 
 
 
-nestcomment :: Int -> String -> (String,String)
 nestcomment n ('{':'-':ss) | n>=0 = (("{-"++cs),rm)
                                   where (cs,rm) = nestcomment (n+1) ss
 nestcomment n ('-':'}':ss) | n>0  = let (cs,rm) = nestcomment (n-1) ss
@@ -110,3 +108,5 @@ nestcomment n [] = ([],[])
 -- Local Variables:
 -- flycheck-checker: haskell-liquid
 -- End:
+
+nestcomment :: Int -> String -> (String,String)

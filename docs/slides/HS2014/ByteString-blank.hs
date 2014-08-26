@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-termination" @-}
-{- LIQUID "--diffcheck"      @-}
+{-@ LIQUID "--diffcheck"      @-}
 {-@ LIQUID "--short-names"    @-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Bytestring where
@@ -91,7 +91,6 @@ bs = do fp <- mallocForeignPtrBytes 5
 
 
 
-create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
     fp <- mallocForeignPtrBytes l
     withForeignPtr fp $ \p -> f p
@@ -248,3 +247,5 @@ nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 -- Local Variables:
 -- flycheck-checker: haskell-liquid
 -- End:
+
+create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
