@@ -1,6 +1,6 @@
 # Changes
 
-## 0.2
+## NEXT
 - Move to GHC-7.8.3
 LiquidHaskell now *requires* ghc-7.8.3.
 
@@ -80,3 +80,5 @@ LiquidHaskell now comes with syntax checkers for [flycheck](https://github.com/f
 
 - Incremental Checking
 LiquidHaskell has a new `--diffcheck` flag that will only check binders that have changed since the last run, which can drastically improve verification times.
+
+- Experimental Support for Z3's theory of real numbers with the `--real` flag.
