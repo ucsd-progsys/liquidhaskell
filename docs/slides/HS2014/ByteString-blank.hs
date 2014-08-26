@@ -20,6 +20,7 @@ data ByteString = PS { bPayload :: ForeignPtr Word8
                      , bLength  :: !Int
                      }
 
+{- measure fplen :: ForeignPtr a -> Int -}
 
 {-@ data ByteString = PS
       { bPayload :: ForeignPtr Word8
@@ -30,37 +31,11 @@ data ByteString = PS { bPayload :: ForeignPtr Word8
 
 {-@ type ByteStringN N = {v:ByteString | bLength v = N} @-}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {-@ type ForeignN a N = {v:ForeignPtr a | fplen v = N} @-}
 {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignN a n) @-}
 
-
-
-
 bs = do fp <- mallocForeignPtrBytes 5
-        return $ PS fp 0 5
+        return $ PS fp 2 3
 
 
 
@@ -126,16 +101,10 @@ bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 
 
 
-
-
-
-
-
--- pack str = unsafeCreate (length str) $ \p -> go p str
---   where
---     go _ []     = return ()
---     go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
-
+pack str = unsafeCreate (length str) $ \p -> go p  str
+  where
+    go _ []     = return ()
+    go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
 
 
 
@@ -143,14 +112,37 @@ bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 
 
 
--- unsafeIndex :: ByteString -> Int -> Word8
--- unsafeIndex (PS x s l) i = liquidAssert (i >= 0 && i < l) $
---     unsafePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
 
 
 
--- good = let b = pack [1,2,3]
---        in unsafeIndex b 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+unsafeIndex :: ByteString -> Int -> Word8
+unsafeIndex (PS x s l) i = liquidAssert (i >= 0 && i < l)  $
+    unsafePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i) --FIXME: diffcheck breaks here
+
+
+
+
+good = let b = pack [1,2,3]
+       in unsafeIndex b 2
 
 
 
