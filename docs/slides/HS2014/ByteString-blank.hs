@@ -1,10 +1,10 @@
 {-@ LIQUID "--no-termination" @-}
+{- LIQUID "--diffcheck"      @-}
 {-@ LIQUID "--short-names"    @-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Bytestring where
 
 import Prelude hiding (null)
-import Control.Exception (assert)
 import Data.Char
 import Data.Word
 import Foreign.C.Types
@@ -59,12 +59,10 @@ data ByteString = PS { bPayload :: ForeignPtr Word8
 
 
 
+bs = do fp <- mallocForeignPtrBytes 5
+        return $ PS fp 0 5
 
 
-
-
--- good_bs = do fp <- mallocForeignPtrBytes 5
---              return $ PS fp 0 5
 
 
 

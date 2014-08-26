@@ -1,10 +1,10 @@
 {-@ LIQUID "--no-termination" @-}
-{- LIQUID "--totality"       @-}
+{- LIQUID "--diffcheck"      @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--totality"       @-}
 module Totality where
 
 import Prelude hiding (head)
-import Language.Haskell.Liquid.Prelude
-import Control.Exception.Base
 
 head (x:_) = x
 
