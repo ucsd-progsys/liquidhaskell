@@ -6,19 +6,11 @@ module Totality where
 
 import Prelude hiding (head)
 
-head (x:_) = x
+head (x:_) =  x
 
-
-
-
-
-
-
-
-
-
-
-
+-- head xs = case xs of
+--  (x:_) -> x
+--  []    -> patError "..."
 
 
 
@@ -45,7 +37,7 @@ head (x:_) = x
 
 safeZipWith f = go
   where
-    go (x:xs) (y:ys) = f x y : go xs ys
+    go  (x:xs) (y:ys) = f x y : go xs ys
     go []     []     = []
 
 
@@ -72,21 +64,9 @@ safeZipWith f = go
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 nestcomment n ('{':'-':ss) | n>=0 = (("{-"++cs),rm)
-                                  where (cs,rm) = nestcomment (n+1) ss
+                           | otherwise = undefined
+                           where (cs,rm) = nestcomment (n+1) ss
 nestcomment n ('-':'}':ss) | n>0  = let (cs,rm) = nestcomment (n-1) ss
                                     in (("-}"++cs),rm)
 nestcomment n ('-':'}':ss) | n==0 = ("-}",ss)

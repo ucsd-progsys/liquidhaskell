@@ -8,42 +8,12 @@ import           Data.List (find)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 range lo hi
-  | lo <= hi  = lo : range (lo + 1) hi
+  | lo <= hi  = lo : range (lo + 1)  hi
   | otherwise = []
+
+
+
 
 
 
@@ -78,11 +48,18 @@ rangeFind f lo hi = find f $ range lo hi
 
 
 
+-- range 1 4 = [1,2,3]
+-- range 1 1 = []
+-- length (range lo hi) = hi - lo
 
 
 
-append []     ys = ys
-append (x:xs) ys = x : append xs ys
+
+
+
+
+
+
 
 
 
@@ -106,7 +83,7 @@ data CSV a = CSV { cols :: [String], rows :: [[a]] }
 
 csv = CSV [ "Month", "Days"]
           [ ["Jan",  "31"]
-          , ["Feb",  "28"] 
+          , ["Feb", "28"] 
           ]
 
 
