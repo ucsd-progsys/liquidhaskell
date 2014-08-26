@@ -304,9 +304,7 @@ strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
 
--- listFTyCon = TC (S listConName)
 
--- isListTC   = (listFTyCon ==)
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
 isFAppTyTC = (== appFTyCon)
@@ -1444,6 +1442,7 @@ litPrefix    = "lit" `T.snoc` symSepName
 
 strSort      :: Sort
 strSort      = FApp strFTyCon []
+
 
 class SymConsts a where
   symConsts :: a -> [SymConst]

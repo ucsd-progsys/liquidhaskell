@@ -33,6 +33,7 @@ import System.FilePath
 import Text.PrettyPrint.HughesPJ
 import Text.Parsec.Pos                   
 import Data.Typeable
+import Data.Generics        (Data)
 import Text.Printf 
 import Data.Hashable
 import Control.Exception
@@ -46,7 +47,7 @@ import GHC.Generics         (Generic)
 -----------------------------------------------------------------------
 
 data SrcSpan = SS { sp_start :: !SourcePos, sp_stop :: !SourcePos} 
-                 deriving (Eq, Ord, Show, Typeable, Generic)
+                 deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance PPrint SrcSpan where
   pprint = ppSrcSpan
@@ -89,7 +90,7 @@ instance Hashable SrcSpan where
 -----------------------------------------------------------------------
 
 data Error = Error { errLoc :: SrcSpan, errMsg :: String }
-               deriving (Eq, Ord, Show, Typeable, Generic)
+               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance PPrint Error where
   pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
