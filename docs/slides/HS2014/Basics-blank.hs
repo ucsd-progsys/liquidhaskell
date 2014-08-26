@@ -1,4 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
+{- LIQUID "--diffcheck" @-}
+{-@ LIQUID "--short-names" @-}
 module Basics where
 
 import           Data.List (find)
@@ -102,15 +104,11 @@ append (x:xs) ys = x : append xs ys
 
 data CSV a = CSV { cols :: [String], rows :: [[a]] }
 
-good_csv = CSV [ "Month", "Days"]
-               [ ["Jan",  "31"]
-               , ["Feb",  "28"] 
-               ]
+csv = CSV [ "Month", "Days"]
+          [ ["Jan",  "31"]
+          , ["Feb",  "28"] 
+          ]
 
-bad_csv  = CSV [ "Month", "Days"]
-               [ ["Jan",  "31"]
-               , ["Feb"       ]
-               ]
 
 
 
