@@ -123,6 +123,7 @@ types for the data constructors, e.g.
 < (:) :: _ -> xs:_ -> {v:[a] | len v = len xs + 1}
 
 ASIDE: another great spot to show off liquid-pos-tip.
+NV: state that measures are uninterpreted functions into logic
 
 > mylist = 1 : []
 
@@ -160,6 +161,11 @@ Refined Data Types
 Sometimes we *want* every instance of a type to satisfy some invariant. Every
 row in a `CSV` table should have the same number of columns.
 
+NV: Universal invariants that we get by type polymorphism is not trivial, 
+so maybe give a simple type like [{v:Int |  v > 0}]
+before going into [ListL a cols]
+
+
 > data CSV a = CSV { cols :: [String], rows :: [[a]] }
 > {-@ type ListL a L = {v:[a] | len v = len L} @-}
 > {-@ data CSV a = CSV { cols :: [String], rows :: [ListL a cols] } @-}
@@ -173,6 +179,7 @@ will reject *any* `CSV` value that does not satisfy the invariant.
 > bad_2  = CSV [ "Month", "Days"]
 >              [ ["Jan", "31"]
 >              , ["Feb"] ]
+
 
 
 RJ:BEGIN-CUT
