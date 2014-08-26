@@ -45,6 +45,8 @@ addressable from the base of the pointer. We can't compute it, but that
 won't stop us from talking about it in our types. We provide a "ghost"
 measure called `fplen` to refer to this length.
 
+NV: "ghost measure" is more complicated than uninterpreted function
+
 < {-@ measure fplen :: ForeignPtr a -> Int @-}
 
 and use it to define a foreign-pointer to a segment containing *N* bytes
