@@ -6,6 +6,9 @@ module Basics where
 import           Data.List (find)
 
 
+-- list of numbers between 0 and 100
+
+-- numbers between 0 and 100
 
 
 range lo hi

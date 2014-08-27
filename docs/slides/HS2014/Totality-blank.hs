@@ -6,13 +6,14 @@ module Totality where
 
 import Prelude hiding (head)
 
-head (x:_) =  x
+head (x:_) = x
 
 -- head xs = case xs of
---  (x:_) -> x
---  []    -> patError "..."
+--   (x:_) -> x
+--   []    -> patError "..."
 
-
+-- patError :: {v:String | false} -> a
+-- patError = error
 
 
 
