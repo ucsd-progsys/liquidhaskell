@@ -325,7 +325,7 @@ substPred _   _  t              = t
 substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
-        rs                    = zipWith strSubR rs1 rs2 -- safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
+        rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
         strSub r1 r2          = meetListWithPSubs πs ss r1 r2
         strSubR r1 r2         = meetListWithPSubsRef πs ss r1 r2
 

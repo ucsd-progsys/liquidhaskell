@@ -605,7 +605,7 @@ splitCIndexed γ t1s t2s indexes
         t2s' = catMaybes $ (!?) t2s <$> indexes
 
 rsplitCIndexed γ t1s t2s indexes 
-  = concatMapM (rsplitC γ) (zip t1s' t2s') -- (safeZip "rsplitC" t1s' t2s')
+  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
   where t1s' = catMaybes $ (!?) t1s <$> indexes
         t2s' = catMaybes $ (!?) t2s <$> indexes
 
