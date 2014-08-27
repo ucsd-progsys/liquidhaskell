@@ -47,18 +47,24 @@ isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType  
 -------------------------------------------------------------------------
-tidySpecType k = tidyDSymbols
-               . tidyValueVars
+tidySpecType k = tidyValueVars
+               . tidyDSymbols
                . tidySymbols 
                . tidyLocalRefas k 
                . tidyFunBinds
                . tidyTyVars 
 
 tidyValueVars :: SpecType -> SpecType
-tidyValueVars = mapReft $ \u -> u { ur_reft = txVV $ ur_reft u }
+tidyValueVars = mapReft $ \u -> u { ur_reft = tidyVV $ ur_reft u }
+
+tidyVV r@(Reft (va,_))
+  | isJunk va = shiftVV r v'
+  | otherwise = r  
   where
-    v         = vv Nothing
-    txVV      = (`shiftVV` v)
+    v'        = if v `elem` xs then symbol ("v'" :: T.Text) else v
+    v         = symbol ("v" :: T.Text)
+    xs        = syms r
+    isJunk    = isPrefixOfSym "x"
     
 tidySymbols :: SpecType -> SpecType
 tidySymbols t = substa tidySymbol $ mapBind dropBind t  
