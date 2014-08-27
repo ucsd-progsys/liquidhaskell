@@ -42,9 +42,14 @@ def solve_quals(dir,file,bare,time,quiet,flags,lflags):
   else: time = []
   if lflags: lflags = ["--" + f for f in lflags]
   hygiene_flags = []
-  out = open(os.path.join(dir,file) + ".log", "w")
+  (dn, bn) = os.path.split(file)
+  try:
+    os.makedirs(os.path.join(dir,dn,".liquid"))
+  except OSError:
+    pass
+  out = open(os.path.join(dir,dn,".liquid",bn) + ".log", "w")
   rv  = logged_sys_call(time + solve + flags + lflags + hygiene_flags + [file],
-                        out=out, err=subprocess.STDOUT, dir=dir)
+                        out=None, err=subprocess.STDOUT, dir=dir)
   out.close()
   return rv
 
@@ -83,8 +88,7 @@ class Config (rtest.TestConfig):
     if self.is_test(file):
       lflags = getliquidargs(path)
       fargs  = getfileargs(path)
-      if (self.dargs != ""): 
-        fargs = [self.dargs] + fargs  
+      fargs  = self.dargs + fargs  
       return solve_quals(dir, file, True, False, True, fargs, lflags)
     elif file.endswith(".sh"):
       return run_script(path, True)
@@ -141,12 +145,13 @@ benchtestdirs = [ ("../web/demos", demosIgnored, 0)
                 , ("../benchmarks/bytestring-0.9.2.1", {}, 0)
                 , ("../benchmarks/text-0.11.2.3", textIgnored, 0)
                 , ("../benchmarks/vector-algorithms-0.5.4.2", {}, 0)
+                , ("../benchmarks/hscolour-1.20.0.0", {}, 0)
                 ]
 
 parser = optparse.OptionParser()
 parser.add_option("-a", "--all", action="store_true", dest="alltests", help="run all tests")
 parser.add_option("-t", "--threads", dest="threadcount", default=1, type=int, help="spawn n threads")
-parser.add_option("-o", "--opts", dest="opts", default="", type=str, help="additional arguments to liquid")
+parser.add_option("-o", "--opts", dest="opts", default=[], action='append', type=str, help="additional arguments to liquid")
 parser.disable_interspersed_args()
 options, args = parser.parse_args()
 
@@ -155,13 +160,14 @@ print "args =", args
 
 def testdirs():
   global testdirs
-  if options.alltests: 
+  if options.alltests:
     return regtestdirs + benchtestdirs
   else:
     return regtestdirs
 
 testdirs = testdirs()
 
-[os.system(("cd %s; cleanup; cd ../" % d)) for (d,_,_) in testdirs]
+clean = os.path.abspath("../cleanup")
+[os.system(("cd %s; %s; cd ../" % (d,clean))) for (d,_,_) in testdirs]
 runner = rtest.TestRunner (Config (options.opts, testdirs, logfile, options.threadcount))
-runner.run ()
+sys.exit(runner.run())

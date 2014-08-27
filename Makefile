@@ -1,88 +1,41 @@
-#include config.make
-
-#SERVERHOME=$(ROOTHOME)/_site/
-SERVERHOME=/home/rjhala/public_html/liquid/haskell/demo
-##############################################################################
-##############################################################################
-##############################################################################
-
-API=ghc-7.4.1
 THREADS=1
-GHC=$(GHCHOME)/ghc
-GPG=$(GHCHOME)/ghc-pkg
 
-#OPTS="-W -O2 -XStandaloneDeriving -XDeriveDataTypeable"
-
-FOPTS=""
-OPTS="-W -O2 -XStandaloneDeriving"
+FASTOPTS="-O0"
+DISTOPTS="-W -O2 -XStandaloneDeriving"
 PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
 
 CABAL=cabal
 CABALI=$(CABAL) install --ghc-options=$(OPTS)
 CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
+# to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
+# TASTY=find dist -type f -name test | head -n1
+TASTY=./dist/build/test/test
+
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
-all:
-	$(CABAL) install --ghc-options=$(OPTS) 
+##############################################################################
+##############################################################################
+##############################################################################
 
-fast: 
-	$(CABAL) build 
+fast:
+	$(CABAL) install --ghc-options=$(FASTOPTS) 
+
+first: 
+	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
+
+dist:
+	$(CABAL) install --ghc-options=$(DISTOPTS) 
 
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
 
-rebuild:
-	cd external/fixpoint/ && make clean && make && cd ../../
-	make
-
-site: all web
-	cp dist_liquid/build/liquid/liquid $(SERVERHOME)/liquid
-	cp -rf external $(SERVERHOME)/
-	cp -rf include $(SERVERHOME)/
-	cp -rf syntax $(SERVERHOME)/
-
-web:
-	cp -rf web/* $(SERVERHOME)/
-
-
-siteperms:
-	sudo chgrp -R www-data $(SERVERHOME)
-	sudo chmod -R g+rx $(SERVERHOME)
-	sudo chmod    g+rwx $(SERVERHOME)/
-	sudo chmod -R g+rwx $(SERVERHOME)/include/
-	sudo chmod -R g+rwx $(SERVERHOME)/saved/
-
-igoto:
-	$(CABAL) configure --ghc-options=$(OPTS) 
-
-goto:
+igotgoto:
 	$(CABAL) build --ghc-options=$(OPTS) 
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
-
 clean:
 	cabal clean
-
-vector:
-	$(CABAL) install vector
-
-ansi-terminal:
-	$(CABAL) install ansi-terminal 
-
-
-bytestring:
-	$(CABAL) install bytestring 
-	$(CABAL) install bytestring-lexing
-
-hscolour:
-	$(CABAL) install --with-ghc=$(GHC) hscolour 
-
-hsannot:
-	$(GHC) --make HsAnnot
-
-dexpose:
-	$(GPG) expose $(API)
 
 docs:
 	$(CABAL) hscolour
@@ -94,11 +47,35 @@ deps:
 pdeps:
 	$(CABALP) $(DEPS)
 
-all-test:
+all-test-py:
 	cd tests && ./regrtest.py -a -t $(THREADS) && cd ../
 
-test:
+test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
+
+test:
+	$(CABAL) configure --enable-tests -O2
+	$(CABAL) build
+	$(CABAL) exec $(TASTY) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+
+retest:
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+all-test:
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+all-retest:
+	cabal configure --enable-tests -O2
+	cabal build
+	cabal exec $(TASTY) -- --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 lint:
 	hlint --colour --report .
+
+tags:
+	hasktags -b src/

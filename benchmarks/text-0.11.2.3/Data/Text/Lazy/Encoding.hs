@@ -1,6 +1,6 @@
 {-@ LIQUID "--notermination" @-}
-{-@ LIQUID "--idirs=../bytestring-0.9.2.1/" @-}
-{-@ LIQUID "--idirs=../../include/" @-}
+{-@ LIQUID "--idirs=../../../../bytestring-0.9.2.1/" @-}
+{-@ LIQUID "--idirs=../../../../../include/" @-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE Rank2Types #-}
 -- |

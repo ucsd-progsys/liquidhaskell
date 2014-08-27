@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Measure (
     Spec (..)
   , BareSpec  
   , MSpec (..)
-  , mkM, mkMSpec
+  , mkM, mkMSpec, mkMSpec'
   , qualifySpec
   , mapTy
   , dataConTypes
@@ -22,14 +22,15 @@ import DataCon
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
 import Data.Monoid hiding ((<>))
-import Data.List (foldl1', union)
+import Data.List (foldl1', union, nub)
 import Data.Either (partitionEithers)
 import Data.Bifunctor
+import Data.Text (Text)
 import Control.Applicative      ((<$>))
 import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (Def)
+import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
@@ -39,14 +40,17 @@ type BareSpec      = Spec BareType LocSymbol
 
 data Spec ty bndr  = Spec { 
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
-  , invariants :: ![Located ty]                 -- ^ Data type invariants  
+  , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
+  , invariants :: ![Located ty]                 -- ^ Data type invariants
+  , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
-  , aliases    :: ![RTAlias String BareType]    -- ^ RefType aliases
+  , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
-  , embeds     :: !(TCEmb (Located String))     -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(TCEmb (LocSymbol))          -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
@@ -62,20 +66,35 @@ data Spec ty bndr  = Spec {
 -- MOVE TO TYPES
 data MSpec ty ctor = MSpec { 
     ctorMap  :: M.HashMap Symbol [Def ctor]
-  , measMap  :: M.HashMap Symbol (Measure ty ctor)
-  , cmeasMap :: M.HashMap Symbol (Measure ty ())
+  , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
+  , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
   , imeas    :: ![Measure ty ctor]
   }
 
-instance Monoid (MSpec ty ctor) where
+
+instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
+  show (MSpec ct m cm im) 
+    = "\nMSpec:\n" ++ 
+      "\nctorMap:\t "  ++ show ct ++ 
+      "\nmeasMap:\t "  ++ show m  ++ 
+      "\ncmeasMap:\t " ++ show cm ++ 
+      "\nimeas:\t "    ++ show im ++ 
+      "\n" 
+
+instance Eq ctor => Monoid (MSpec ty ctor) where
   mempty = MSpec M.empty M.empty M.empty []
 
-  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) =
-    MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
-          (cm1 `M.union` cm2) (im1 ++ im2)
-
+  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) 
+    | null dups 
+    = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
+           (cm1 `M.union` cm2) (im1 ++ im2)
+    | otherwise 
+    = errorstar $ err (head dups)
+    where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
+          err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
+                         , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
 --                          , termexprs = [ (tx x, es) | (x, es) <- termexprs sp]
                          }
   where
@@ -90,11 +109,17 @@ mkM name typ eqns
 
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
+
+mkMSpec' ms = MSpec cm mm M.empty []
+  where 
+    cm     = groupMap (symbol . ctor) $ concatMap eqns ms
+    mm     = M.fromList [(name m, m) | m <- ms ]
+
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where 
-    cm     = groupMap (val.ctor) $ concatMap eqns (ms'++ims)
-    mm     = M.fromList [(val $ name m, m) | m <- ms' ]
-    cmm    = M.fromList [(val $ name m, m) | m <- cms ]
+    cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
+    mm     = M.fromList [(name m, m) | m <- ms' ]
+    cmm    = M.fromList [(name m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
@@ -112,27 +137,53 @@ checkDuplicateMeasure ms
 
 -- MOVE TO TYPES
 instance Monoid (Spec ty bndr) where
-  mappend (Spec xs ys invs zs ds is as ps es qs drs lvs ss gs cms ims cls tes)
-          (Spec xs' ys' invs' zs' ds' is' as' ps' es' qs' drs' lvs' ss' gs' cms' ims' cls' tes')
-           = Spec (xs ++ xs') 
-                  (ys ++ ys') 
-                  (invs ++ invs') 
-                  (sortNub (zs ++ zs')) 
-                  (ds ++ ds') 
-                  (sortNub (is ++ is')) 
-                  (as ++ as')
-                  (ps ++ ps')
-                  (M.union es es')
-                  (qs ++ qs')
-                  (drs ++ drs')
-                  (lvs ++ lvs')
-                  (S.union ss ss')
-                  (gs ++ gs')
-                  (cms ++ cms')
-                  (ims ++ ims')
-                  (cls ++ cls')
-                  (tes ++ tes')
-  mempty   = Spec [] [] [] [] [] [] [] [] M.empty [] [] [] S.empty [] [] [] [] []
+  mappend s1 s2
+    = Spec { measures   =           measures s1   ++ measures s2
+           , asmSigs    =           asmSigs s1    ++ asmSigs s2 
+           , sigs       =           sigs s1       ++ sigs s2 
+           , localSigs  =           localSigs s1  ++ localSigs s2 
+           , invariants =           invariants s1 ++ invariants s2
+           , ialiases   =           ialiases s1   ++ ialiases s2
+           , imports    = sortNub $ imports s1    ++ imports s2
+           , dataDecls  = dataDecls s1            ++ dataDecls s2
+           , includes   = sortNub $ includes s1   ++ includes s2
+           , aliases    =           aliases s1    ++ aliases s2
+           , paliases   =           paliases s1   ++ paliases s2
+           , embeds     = M.union   (embeds s1)     (embeds s2)
+           , qualifiers =           qualifiers s1 ++ qualifiers s2
+           , decr       =           decr s1       ++ decr s2
+           , lvars      =           lvars s1      ++ lvars s2
+           , lazy       = S.union   (lazy s1)        (lazy s2)
+           , pragmas    =           pragmas s1    ++ pragmas s2
+           , cmeasures  =           cmeasures s1  ++ cmeasures s2
+           , imeasures  =           imeasures s1  ++ imeasures s2
+           , classes    =           classes s1    ++ classes s1
+           , termexprs  =           termexprs s1  ++ termexprs s2
+           }
+
+  mempty
+    = Spec { measures   = [] 
+           , asmSigs    = [] 
+           , sigs       = [] 
+           , localSigs  = [] 
+           , invariants = []
+           , ialiases   = []
+           , imports    = []
+           , dataDecls  = [] 
+           , includes   = [] 
+           , aliases    = [] 
+           , paliases   = [] 
+           , embeds     = M.empty
+           , qualifiers = []
+           , decr       = []
+           , lvars      = []
+           , lazy       = S.empty
+           , pragmas    = []
+           , cmeasures  = []
+           , imeasures  = []
+           , classes    = []
+           , termexprs  = []
+           }
 
 -- MOVE TO TYPES
 instance Functor Def where
@@ -163,46 +214,23 @@ instance Bifunctor MSpec   where
 
 -- MOVE TO TYPES
 instance Bifunctor Spec    where
-  first f (Spec ms ss is x0 x1 x2 x3 x4 x5 x6 x7 x7a x8 x9 cms ims cls texpr)
-    = Spec { measures   = first  f <$> ms
-           , sigs       = second f <$> ss
-           , invariants = fmap   f <$> is
-           , imports    = x0 
-           , dataDecls  = x1
-           , includes   = x2
-           , aliases    = x3
-           , paliases   = x4
-           , embeds     = x5
-           , qualifiers = x6
-           , decr       = x7
-           , lvars      = x7a
-           , lazy       = x8
-           , pragmas    = x9
-           , cmeasures  = first f <$> cms
-           , imeasures  = first f <$> ims
-           , classes    = fmap f <$> cls
-           , termexprs  = texpr
-           }
-  second f (Spec ms x0 x1 x2 x3 x4 x5 x5' x6 x7 x8 x8a x9 x10 x11 ims x12 texpr)
-    = Spec { measures   = fmap (second f) ms
-           , sigs       = x0 
-           , invariants = x1
-           , imports    = x2
-           , dataDecls  = x3
-           , includes   = x4
-           , aliases    = x5
-           , paliases   = x5'
-           , embeds     = x6
-           , qualifiers = x7
-           , decr       = x8
-           , lvars      = x8a
-           , lazy       = x9
-           , pragmas    = x10
-           , cmeasures  = x11
-           , imeasures  = fmap (second f) ims
-           , classes    = x12
-           , termexprs  = texpr
-           }
+  first f s
+    = s { measures   = first  f <$> (measures s)
+        , asmSigs    = second f <$> (asmSigs s)
+        , sigs       = second f <$> (sigs s)
+        , localSigs  = second f <$> (localSigs s)
+        , invariants = fmap   f <$> (invariants s)
+        , ialiases   = fmapP  f <$> (ialiases s)
+        , cmeasures  = first f  <$> (cmeasures s)
+        , imeasures  = first f  <$> (imeasures s)
+        , classes    = fmap f   <$> (classes s)
+        }
+    where fmapP f (x, y) = (fmap f x, fmap f y)
+
+  second f s
+    = s { measures   = fmap (second f) (measures s)
+        , imeasures  = fmap (second f) (imeasures s)
+        }
 
 -- MOVE TO TYPES
 instance PPrint Body where
@@ -253,7 +281,7 @@ dataConTypes  s = (ctorTys, measTys)
     defsVar     = ctor . safeHead "defsVar" 
 
 defRefType :: Def DataCon -> RefType
-defRefType (Def f dc xs body) = mkArrow as [] xts t'
+defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
     xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc

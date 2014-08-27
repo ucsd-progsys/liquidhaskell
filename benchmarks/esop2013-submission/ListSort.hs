@@ -1,4 +1,4 @@
-{--! run liquid with no-termination -}
+{-@ LIQUID "--no-termination" @-}
 
 module ListSort (insertSort, insertSort', mergeSort, quickSort) where
 

@@ -36,14 +36,14 @@ myrev = go []
 
 {-@ myapp :: xs:[a] 
           -> ys:[a] 
-          -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(ys))} @-}
+          -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys) } @-}
 myapp :: [a] -> [a] -> [a]
 myapp []     ys = ys
 myapp (x:xs) ys = x : myapp xs ys
 
 -- | Finally, to round off this little demo, here's @filter@, which returns a subset.
 
-{-@ myfilter :: (a -> Bool) -> xs:[a] -> {v:[a]| (? Set_sub(listElts(v), listElts(xs)))} @-}
+{-@ myfilter :: (a -> Bool) -> xs:[a] -> {v:[a] | Set_sub (listElts v) (listElts xs) } @-}
 myfilter :: (a -> Bool) -> [a] -> [a]
 myfilter f []     = []
 myfilter f (x:xs) = if f x 

@@ -1,14 +1,27 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections, OverloadedStrings #-}
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
-  , dataConTy, dataConPSpecType, makeTyConInfo
-  , unify, replacePreds, exprType, predType
-  , replacePredsWithRefs, pVartoRConc, toPredType
+  , dataConTy
+  , dataConPSpecType
+  , makeTyConInfo
+  , unify, replacePreds
+
+  , replacePredsWithRefs
+  , pVartoRConc
+
+  -- * Compute `Type` of GHC `CoreExpr`
+  , exprType
+
+  -- * Dummy `Type` that represents _all_ abstract-predicates
+  , predType
+
+  -- * Compute @RType@ of a given @PVar@
+  , pvarRType
+    
   , substParg
   , pApp
   , wiredSortedSyms
-  , pVartoRConc
   ) where
 
 -- import PprCore          (pprCoreExpr)
@@ -28,7 +41,8 @@ import DataCon
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.List        (partition, foldl')
-import Data.Monoid      (mempty)
+import Data.Monoid      (mempty, mappend)
+import qualified Data.Text as T
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
@@ -37,42 +51,47 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
 
-import Control.Applicative  ((<$>))
+import Control.Applicative  ((<$>), (<*>))
 import Control.Monad.State
+import Data.List (nub)
+
+import Data.Default
 
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP αs' ps cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv conv size)
+mkRTyCon tc (TyConP αs' ps ls cv conv size) = RTyCon tc pvs' (mkTyConInfo tc cv conv size)
   where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
-dataConPSpecType dc (DataConP vs ps cs yts rt) = mkArrow vs ps ts' rt'
-  where (xs, ts) = unzip $ reverse yts
-        mkDSym   = stringSymbol . (++ ('_':(showPpr dc))) . show
-        ys       = mkDSym <$> xs
-        tx _  []     []     []     = []
-        tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
-                                   : tx ((x, F.EVar y):su) xs ys ts
-        yts'     = tx [] xs ys ts
-        ts'      = map (S "",) cs ++ yts'
-        su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
-        rt'      = subst su rt
-
+dataConPSpecType dc (DataConP _ vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
+  where 
+    (xs, ts) = unzip $ reverse yts
+    mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
+    ys       = mkDSym <$> xs
+    tx _  []     []     []     = []
+    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+                               : tx ((x, F.EVar y):su) xs ys ts
+    yts'     = tx [] xs ys ts
+    ts'      = map ("" ,) cs ++ yts'
+    su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
+    rt'      = subst su rt
 
 instance PPrint TyConP where
-  pprint (TyConP vs ps _ _ _) 
+  pprint (TyConP vs ps ls _ _ _) 
     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-      (parens $ hsep (punctuate comma (map pprint ps)))
+      (parens $ hsep (punctuate comma (map pprint ps))) <+>
+      (parens $ hsep (punctuate comma (map pprint ls)))
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP vs ps cs yts t)
+  pprint (DataConP _ vs ps ls cs yts t)
      = (parens $ hsep (punctuate comma (map pprint vs))) <+>
        (parens $ hsep (punctuate comma (map pprint ps))) <+>
+       (parens $ hsep (punctuate comma (map pprint ls))) <+>
        (parens $ hsep (punctuate comma (map pprint cs))) <+>
        (parens $ hsep (punctuate comma (map pprint yts))) <+>
        pprint t
@@ -95,20 +114,24 @@ dataConTy _ _
   = error "ofTypePAppTy"
 
 ---------------------------------------------------------------------------
--------------- Interfacing Between Predicates and Refinements -------------
+-- | Unify PrType with SpecType -------------------------------------------
 ---------------------------------------------------------------------------
-
+unify               :: Maybe PrType -> SpecType -> SpecType 
 ---------------------------------------------------------------------------
---------------Interfacing: Unify PrType with SpecType ---------------------
----------------------------------------------------------------------------
-
-unify :: Maybe PrType -> SpecType -> SpecType 
 unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
 unify _         t   = t
 
 ---------------------------------------------------------------------------
 unifyS :: SpecType -> PrType -> State (S.HashSet UsedPVar) SpecType 
 ---------------------------------------------------------------------------
+
+unifyS (RAllS s t) pt
+  = do t' <- unifyS t pt 
+       return $ RAllS s t'
+
+unifyS t (RAllS s pt) 
+  = do t' <- unifyS t pt 
+       return $ RAllS s t'
 
 unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
@@ -128,7 +151,7 @@ unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt)
 
 unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
   = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 (substParg (x', EVar x) pt2)
+       t2' <- unifyS rt2 $ substParg (x', EVar x) pt2
        return $ rFun x t1' t2' 
 
 unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
@@ -140,54 +163,59 @@ unifyS t@(RCls _ _) (RCls _ _)
   = return t
 
 unifyS (RVar v a) (RVar _ p)
-  = do modify $ \s -> s `S.union` (S.fromList $ pvars p) -- (filter (/= PdTrue) [p]))
+  = do modify $ \s -> s `S.union` (S.fromList $ pvars p)
        return $ RVar v $ bUnify a p
 
 unifyS (RApp c ts rs r) (RApp _ pts ps p)
   = do modify $ \s -> s `S.union` fm
        ts'   <- zipWithM unifyS ts pts
-       return $ RApp c ts' rs' (bUnify r p)
+       return $ RApp c ts' rs (bUnify r p)
     where 
-       fm       = S.fromList $ concatMap pvars (fp:fps) 
-       fp : fps = p : (getR <$> ps)
-       rs'      = zipWithZero unifyRef (RMono [] mempty {- trueReft -}) mempty rs fps
-       getR (RMono _ r) = r
-       getR (RPoly _ _) = mempty 
+       fm       = S.fromList $ concatMap pvars (p:fps) 
+       fps      = getR <$> ps
+       getR (RPropP _ r) = r
+       getR (RProp _ _ ) = mempty 
 
 unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
-  = liftM2 (RAllE x) (unifyS tx tx') (unifyS t t')
+  = RAllE x <$> unifyS tx tx' <*> unifyS t t'
 
 unifyS (REx x tx t) (REx x' tx' t') | x == x'
-  = liftM2 (REx x) (unifyS tx tx') (unifyS t t')
-
+  = REx x   <$> unifyS tx tx' <*> unifyS t t'
+    
 unifyS t (REx x' tx' t')
-  = liftM (REx x' (U mempty <$> tx')) (unifyS t t')
-
+  = REx x' ((\p -> U mempty p mempty) <$> tx') <$> unifyS t t'
+    
 unifyS t@(RVar v a) (RAllE x' tx' t')
-  = liftM (RAllE x' (U mempty <$> tx')) (unifyS t t')
+  = RAllE x' ((\p -> U mempty p mempty)<$> tx') <$> (unifyS t t')
 
 unifyS t1 t2                
   = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
 
-bUnify a (Pr pvs)        = foldl' meet a $ pToReft <$> pvs
-
-unifyRef (RMono s a) (Pr pvs) = RMono s $ foldl' meet a $ pToReft <$> pvs
-unifyRef (RPoly s a) (Pr pvs) = RPoly s $ foldl' strengthen a $ pToReft <$> pvs
-
-zipWithZero _ _  _  []     []     = []
-zipWithZero f xz yz []     (y:ys) = (f xz y):(zipWithZero f xz yz [] ys)
-zipWithZero f xz yz (x:xs) []     = (f x yz):(zipWithZero f xz yz xs [])
-zipWithZero f xz yz (x:xs) (y:ys) = (f x y) :(zipWithZero f xz yz xs ys)
- 
 -- pToReft p = Reft (vv, [RPvar p]) 
-pToReft = U mempty . pdVar 
+pToReft  = (\p -> U mempty p mempty) . pdVar 
 
+bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
+                                 
+-- ORIG unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
+-- ORIG unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
+
+-- ORIG zipWithZero f xz yz  = go
+-- ORIG   where
+-- ORIG     go []     ys     = (xz `f`) <$> ys
+-- ORIG     go xs     []     = (`f` yz) <$> xs
+-- ORIG     go (x:xs) (y:ys) = f x y  : go xs ys
+    
+-- ORIG zipWithZero _ _  _  []     []     = []
+-- ORIG zipWithZero f xz yz []     (y:ys) = f xz y : zipWithZero f xz yz [] ys
+-- ORIG zipWithZero f xz yz (x:xs) []     = f x yz : zipWithZero f xz yz xs []
+-- ORIG zipWithZero f xz yz (x:xs) (y:ys) = f x y  : zipWithZero f xz yz xs ys
+ 
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps)) 
-  = U (Reft (v, rs ++ rs')) (Pr ps2)
+replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s) 
+  = U (Reft (v, rs ++ rs')) (Pr ps2) s
   where rs'              = r . (v,) . pargs <$> ps1
         (ps1, ps2)       = partition (==p) ps
         freeSymbols      = snd3 <$> filter (\(_, x, y) -> EVar x == y) pargs1
@@ -200,29 +228,51 @@ pVartoRConc p (v, args)
   = RConc $ pApp (pname p) $ EVar v : args'
   where args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
 
-toPredType (PV _ ptype _ args) = rpredType (ty:tys)
-  where ty = uRTypeGen ptype
-        tys = uRTypeGen . fst3 <$> args
+-----------------------------------------------------------------------
+-- | @pvarRType π@ returns a trivial @RType@ corresponding to the
+--   function signature for a @PVar@ @π@. For example, if
+--      @π :: T1 -> T2 -> T3 -> Prop@
+--   then @pvarRType π@ returns an @RType@ with an @RTycon@ called
+--   @predRTyCon@ `RApp predRTyCon [T1, T2, T3]` 
+-----------------------------------------------------------------------
+pvarRType :: (PPrint r, Reftable r) => PVar RSort -> RRType r
+-----------------------------------------------------------------------
+pvarRType (PV _ k {- (PVProp τ) -} _ args) = rpredType k (fst3 <$> args) -- (ty:tys)
+  -- where
+  --   ty  = uRTypeGen τ 
+  --   tys = uRTypeGen . fst3 <$> args
         
 
-----------------------------------------------------------------------------
----------- Interface: Replace Predicate With Type  -------------------------
-----------------------------------------------------------------------------
+-- rpredType    :: (PPrint r, Reftable r) => PVKind (RRType r) -> [RRType r] -> RRType r
+rpredType (PVProp t) ts = RApp predRTyCon  (uRTypeGen <$> t : ts) [] mempty
+rpredType PVHProp    ts = RApp wpredRTyCon (uRTypeGen <$>     ts) [] mempty  
 
--- | This is the main function used to substitute an (abstract) predicate
--- with a concrete Ref, of a compound (`RPoly`) type. The substitution is 
--- invoked to obtain the `SpecType` resulting at /predicate application/ 
--- sites in 'Language.Haskell.Liquid.Constraint'.
--- The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
--- That is, there are no further `PVar` in the target. 
+predRTyCon   :: RTyCon
+predRTyCon   = symbolRTyCon predName
 
--------------------------------------------------------------------------------
+wpredRTyCon   :: RTyCon
+wpredRTyCon   = symbolRTyCon wpredName
 
-replacePreds :: String -> SpecType -> [(RPVar, Ref RSort RReft SpecType)] -> SpecType 
-replacePreds msg       = foldl' go 
-   where go z (π, t@(RPoly _ _)) = substPred msg   (π, t)     z
-         go _ (_, RMono _ _)     = error "replacePreds on RMono" -- replacePVarReft (π, r) <$> z
+symbolRTyCon   :: Symbol -> RTyCon
+symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
 
+-------------------------------------------------------------------------------------
+-- | Instantiate `PVar` with `RTProp` -----------------------------------------------
+-------------------------------------------------------------------------------------
+-- | @replacePreds@ is the main function used to substitute an (abstract)
+--   predicate with a concrete Ref, that is either an `RProp` or `RHProp`
+--   type. The substitution is invoked to obtain the `SpecType` resulting
+--   at /predicate application/ sites in 'Language.Haskell.Liquid.Constraint'.
+--   The range of the `PVar` substitutions are /fresh/ or /true/ `RefType`. 
+--   That is, there are no further _quantified_ `PVar` in the target.
+-------------------------------------------------------------------------------------
+replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType 
+-------------------------------------------------------------------------------------
+replacePreds msg             = foldl' go 
+  where
+    go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
+    go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
+    go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
 
 -- TODO: replace `replacePreds` with
 -- instance SubsTy RPVar (Ref RReft SpecType) SpecType where
@@ -230,25 +280,27 @@ replacePreds msg       = foldl' go
 
 -- replacePreds :: String -> SpecType -> [(RPVar, Ref Reft RefType)] -> SpecType 
 -- replacePreds msg       = foldl' go 
---   where go z (π, RPoly t) = substPred msg   (π, t)     z
---         go z (π, RMono r) = replacePVarReft (π, r) <$> z
+--   where go z (π, RProp t) = substPred msg   (π, t)     z
+--         go z (π, RPropP r) = replacePVarReft (π, r) <$> z
 
 -------------------------------------------------------------------------------
-substPred :: String -> (RPVar, Ref RSort RReft SpecType) -> SpecType -> SpecType
+substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
 -------------------------------------------------------------------------------
 
-substPred _   (π, RPoly ss (RVar a1 r1)) t@(RVar a2 r2)
-  | isPredInReft && a1 == a2  = RVar a1 $ meetListWithPSubs πs ss r1 r2'
-  | isPredInReft              = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
-  | otherwise                 = t
-  where (r2', πs)             = splitRPvar π r2
-        isPredInReft          = not $ null πs 
+substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
+  | isPredInReft && a1 == a2    = RVar a1 $ meetListWithPSubs πs ss r1 r2'
+  | isPredInReft                = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
+  | otherwise                   = t
+  where
+    (r2', πs)                   = splitRPvar π r2
+    isPredInReft                = not $ null πs 
 
 substPred msg su@(π, _ ) (RApp c ts rs r)
-  | null πs                   = t' 
-  | otherwise                 = substRCon msg (traceShow "substPred.su" su) t' πs r2'
-  where t'        = RApp c (substPred msg su <$> ts) (substPredP su <$> traceShow "substPred.rs" rs) r
-        (r2', πs) = splitRPvar π r
+  | null πs                     = t' 
+  | otherwise                   = substRCon msg su t' πs r2'
+  where
+    t'                          = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+    (r2', πs)                   = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
@@ -261,18 +313,17 @@ substPred msg su@(π,_ ) (RFun x t t' r)
   | otherwise                   = {-meetListWithPSubs πs πt -}(RFun x t t' r')
   where (r', πs)                = splitRPvar π r
 
-substPred msg pt (RCls c ts)    = RCls c (substPred msg pt <$> ts)
-
+substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
+substPred msg su (RCls c ts)    = RCls c (substPred msg su <$> ts)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
-
-substPred _   _  t            = t
+substPred _   _  t              = t
 
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
-substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
-  | rTyCon c1 == rTyCon c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
+substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
+  | rtc_tc c1 == rtc_tc c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
         rs                    = zipWith strSubR rs1 rs2 -- safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
         strSub r1 r2          = meetListWithPSubs πs ss r1 r2
@@ -280,15 +331,24 @@ substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
-substPredP su@(p, RPoly ss tt) (RPoly s t)       
-  = RPoly ss' $ substPred "substPredP" su t
- where ss' = if isFreePredInType p t then (ss ++ s) else s
+substPredP su@(p, RProp ss tt) (RProp s t)       
+  = RProp ss' $ substPred "substPredP" su t
+ where
+   ss' = drop n ss ++  s
+   n   = length ss - length (freeArgsPs p t)
 
-substPredP _  (RMono _ _)       
-  = error $ "RMono found in substPredP"
+substPredP _  (RHProp _ _)       
+  = errorstar "TODO:EFFECTS:substPredP"
 
-splitRPvar pv (U x (Pr pvs)) = (U x (Pr pvs'), epvs)
-  where (epvs, pvs') = partition (uPVar pv ==) pvs
+substPredP _  (RPropP _ _)       
+  = error $ "RPropP found in substPredP"
+
+
+
+
+splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
+  where
+    (epvs, pvs')               = partition (uPVar pv ==) pvs
 
 
 isPredInType p (RVar _ r) 
@@ -312,32 +372,34 @@ isPredInType _ (RExprArg _)
 isPredInType _ (ROth _)
   = False
 
-isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
+isPredInURef p (U _ (Pr ps) _) = any (uPVar p ==) ps
 
-isFreePredInType p (RVar _ r) 
-  = isFreePredInURef p r
-isFreePredInType p (RFun _ t1 t2 r) 
-  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
-isFreePredInType p (RAllT _ t)
-  = isFreePredInType p t 
-isFreePredInType p (RAllP p' t)
-  = not (p == p') && isFreePredInType p t 
-isFreePredInType p (RApp _ ts _ r) 
-  = isFreePredInURef p r || any (isFreePredInType p) ts
-isFreePredInType p (RCls _ ts) 
-  = any (isFreePredInType p) ts
-isFreePredInType p (RAllE _ t1 t2) 
-  = isFreePredInType p t1 || isFreePredInType p t2 
-isFreePredInType p (RAppTy t1 t2 r) 
-  = isFreePredInURef p r || isFreePredInType p t1 || isFreePredInType p t2
-isFreePredInType _ (RExprArg _)              
-  = False
-isFreePredInType _ (ROth _)
-  = False
+freeArgsPs p (RVar _ r) 
+  = freeArgsPsRef p r
+freeArgsPs p (RFun _ t1 t2 r) 
+  = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+freeArgsPs p (RAllT _ t)
+  = freeArgsPs p t 
+freeArgsPs p (RAllP p' t)
+  | p == p'   = []
+  | otherwise = freeArgsPs p t 
+freeArgsPs p (RApp _ ts _ r) 
+  = nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
+freeArgsPs p (RCls _ ts) 
+  = nub $ concatMap (freeArgsPs p) ts
+freeArgsPs p (RAllE _ t1 t2) 
+  = nub $ freeArgsPs p t1 ++ freeArgsPs p t2 
+freeArgsPs p (RAppTy t1 t2 r) 
+  = nub $ freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+freeArgsPs _ (RExprArg _)              
+  = []
+freeArgsPs _ (ROth _)
+  = []
 
-isFreePredInURef p (U _ (Pr ps))
-  = any (\(_, x, w) -> (EVar x) == w) $ concatMap pargs ps'
-  where ps' = filter (uPVar p ==) ps
+freeArgsPsRef p (U _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
+  where 
+   ps' = f <$> filter (uPVar p ==) ps
+   f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
@@ -352,61 +414,56 @@ meetListWithPSub ss r1 r2 π
   = errorstar $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
-meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
+meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = RPoly s1 $ r2 `meet` r1      
+  = RProp s1 $ r2 `meet` r1      
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
-  = RPoly s2 $ r2 `meet` (subst su r1)
+  = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
-  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> s1) (pargs π)]
+  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
 
 ----------------------------------------------------------------------------
----------- Interface: Modified CoreSyn.exprType due to predApp -------------
+-- | Interface: Modified CoreSyn.exprType due to predApp -------------------
 ----------------------------------------------------------------------------
+predType   :: Type 
+predType   = symbolType predName
 
-predName :: String 
-predName = "Pred"
+wpredName, predName   :: Symbol
+predName   = "Pred"
+wpredName  = "WPred"
 
-predType :: Type 
-predType = TyVarTy $ stringTyVar predName
-
-rpredType    :: (PPrint r, Reftable r) => [RRType r] -> RRType r
-rpredType ts = RApp tyc ts [] mempty
-  where 
-    tyc      = RTyCon (stringTyCon 'x' 42 predName) [] defaultTyConInfo
-
-defaultTyConInfo = TyConInfo [] [] [] [] Nothing
+symbolType = TyVarTy . symbolTyVar 
 
 ----------------------------------------------------------------------------
 exprType :: CoreExpr -> Type
 ----------------------------------------------------------------------------
-
-exprType (App e1 (Var v)) | eqType (idType v) predType = exprType e1
-exprType (Var var)           = idType var
-exprType (Lit lit)           = literalType lit
-exprType (Coercion co)       = coercionType co
-exprType (Let _ body)        = exprType body
-exprType (Case _ _ ty _)     = ty
-exprType (Cast _ co)         = pSnd (coercionKind co)
-exprType (Tick _ e)          = exprType e
-exprType (Lam binder expr)   = mkPiType binder (exprType expr)
+exprType (Var var)             = idType var
+exprType (Lit lit)             = literalType lit
+exprType (Coercion co)         = coercionType co
+exprType (Let _ body)          = exprType body
+exprType (Case _ _ ty _)       = ty
+exprType (Cast _ co)           = pSnd (coercionKind co)
+exprType (Tick _ e)            = exprType e
+exprType (Lam binder expr)     = mkPiType binder (exprType expr)
+exprType (App e1 (Var v))
+  | isPredType v               = exprType e1
 exprType e@(App _ _)
-  = case collectArgs e of
-        (fun, args) -> applyTypeToArgs e (exprType fun) args
-exprType _                   = error "PredType : exprType"
+  | (f, es) <- collectArgs e   = applyTypeToArgs e (exprType f) es 
+exprType _                     = error "PredType : exprType"
 
--- | Takes a nested application expression and returns the the function
--- being applied and the arguments to which it is applied
+-- | @collectArgs@ takes a nested application expression and returns
+--   the the function being applied and the arguments to which it is applied
 collectArgs :: Expr b -> (Expr b, [Arg b])
-collectArgs expr
-  = go expr []
+collectArgs expr          = go expr []
   where
-    go (App f (Var v)) as | eqType (idType v) predType = go f as
-    go (App f a) as = go f (a:as)
-    go e 	 as = (e, as)
+    go (App f (Var v)) as
+      | isPredType v      = go f as
+    go (App f a) as       = go f (a:as)
+    go e 	 as       = (e, as)
 
+isPredType v = eqType (idType v) predType
 
 -- | A more efficient version of 'applyTypeToArg' when we have several arguments.
 --   The first argument is just for debugging, and gives some context
@@ -423,9 +480,9 @@ applyTypeToArgs e op_ty (Type ty : args)
   where
     go rev_tys (Type ty : args) = go (ty:rev_tys) args
     go rev_tys rest_args        = applyTypeToArgs e op_ty' rest_args
-                                 where
-                                   op_ty' = applyTysD msg op_ty (reverse rev_tys)
-                                   msg    = O.text ("MYapplyTypeToArgs: " ++ panic_msg e op_ty)
+                                  where
+                                    op_ty' = applyTysD msg op_ty (reverse rev_tys)
+                                    msg    = O.text ("MYapplyTypeToArgs: " ++ panic_msg e op_ty)
 
 
 applyTypeToArgs e op_ty (_ : args)
@@ -437,9 +494,10 @@ panic_msg :: CoreExpr -> Type -> String
 panic_msg e op_ty = showPpr e ++ " :: " ++ showPpr op_ty
 
 substParg :: Functor f => (Symbol, F.Expr) -> f Predicate -> f Predicate
-substParg (x, y) = fmap fp  -- RJ: UNIFY: BUG  mapTy fxy
-  where fxy s = if (s == EVar x) then y else s
-        fp    = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
+substParg (x, y) = fmap fp
+  where
+    fxy s        = if (s == EVar x) then y else s
+    fp           = subvPredicate (\pv -> pv { pargs = mapThd3 fxy <$> pargs pv })
 
 -------------------------------------------------------------------------------
 -----------------------------  Predicate Application --------------------------
@@ -456,7 +514,7 @@ pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
  
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
-predFTyCon = stringFTycon $ dummyLoc predName
+predFTyCon = symbolFTycon $ dummyLoc predName
 
 -- pApp :: Symbol -> [F.Expr] -> Pred
 -- pApp p es= PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)

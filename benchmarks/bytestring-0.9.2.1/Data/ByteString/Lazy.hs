@@ -221,6 +221,7 @@ import Data.Monoid              (Monoid(..))
 
 import Data.Word                (Word8)
 import Data.Int                 (Int64)
+import qualified Data.List
 import System.IO                (Handle,stdin,stdout,openBinaryFile,IOMode(..)
                                 ,hClose,hWaitForInput,hIsEOF)
 import System.IO.Unsafe
@@ -239,6 +240,15 @@ import Data.ByteString.Fusion   (PairS(..), MaybeS(..))
 import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import Foreign.ForeignPtr       (ForeignPtr)
+
+{-@ measure sumLens :: [[a]] -> Int
+    sumLens ([])   = 0
+    sumLens (x:xs) = len x + (sumLens xs)
+  @-}
+{-@ invariant {v:[[a]] | sumLens v >= 0} @-}
+{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
 
 -- ByteString qualifiers
 {-@ qualif LBLensAcc(v:ByteString,
@@ -436,6 +446,7 @@ pack ws = go Empty (chunks defaultChunkSize ws)
 {-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
 unpack :: ByteString -> [Word8]
 --LIQUID INLINE unpack cs = L.concatMap S.unpack (toChunks cs)
+{-@ assume L.concat :: xs:[[a]] -> {v:[a] | len v = sumLens xs} @-}
 unpack cs = L.concat $ mapINLINE $ toChunks cs
     where mapINLINE [] = []
           mapINLINE (c:cs) = S.unpack c : mapINLINE cs
@@ -617,9 +628,7 @@ reverse cs0 = rev Empty cs0
 -- \`intersperses\' that byte between the elements of the 'ByteString'.
 -- It is analogous to the intersperse function on Lists.
 {-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((lbLength b) > 0) ? ((lbLength v) = (2 * (lbLength b)) - 1)
-                                         : ((lbLength v) = 0)) }
+                -> {v:ByteString | if (lbLength b > 0) then (lbLength v = (2 * lbLength b) - 1) else (lbLength v = 0) }
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse _ Empty        = Empty
@@ -917,8 +926,7 @@ take i cs0         = take' i cs0
 -- elements, or @[]@ if @n > 'length' xs@.
 {-@ drop :: n:Nat64
          -> b:ByteString
-         -> {v:ByteString | ((lbLength v) = (((lbLength b) <= n)
-                                          ? 0 : ((lbLength b) - n)))}
+         -> {v:ByteString | lbLength v = (if lbLength b <= n then 0 else (lbLength b - n))}
   @-}
 drop  :: Int64 -> ByteString -> ByteString
 drop i p | i <= 0 = p
@@ -1511,8 +1519,9 @@ copy cs = foldrChunks (\_ c cs -> Chunk (S.copy c) cs) Empty cs
 hGetContentsN :: Int -> Handle -> IO ByteString
 hGetContentsN k h = lazyRead
   where
+    {-@ Lazy lazyRead @-}
     lazyRead = unsafeInterleaveIO loop
-
+    {-@ Lazy loop @-}
     loop = do
         c <- S.hGetNonBlocking h k
         --TODO: I think this should distinguish EOF from no data available

@@ -4,8 +4,10 @@ module Language.Haskell.Liquid.Misc where
 
 import Control.Applicative
 import System.FilePath
+import qualified Data.Text as T
 
 import Language.Fixpoint.Misc (errorstar)
+import Language.Fixpoint.Types
 
 import Paths_liquidhaskell
 
@@ -29,6 +31,9 @@ dropThd3 (x, y, _) = (x, y)
 
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 
+fourth4 (_,_,_,x) = x
+third4  (_,_,x,_) = x
+
 mapSndM f (x, y) = return . (x,) =<< f y
 
 firstM  f (a,b) = (,b) <$> f a
@@ -50,3 +55,9 @@ getHqBotPath  = getDataFileName "include/Bot.hquals"
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
 safeZipWithError msg _      _      = errorstar msg
+
+mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
+
+mapN 0 f (x:xs) = f x : xs
+mapN n f (x:xs) = x : mapN (n-1) f xs
+mapN _ _ []     = []

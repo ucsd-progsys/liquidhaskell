@@ -1,5 +1,7 @@
 module For (prop, prop2, even_, minifac) where
 
+{-@ LIQUID "--no-termination-check" @-}
+
 import Language.Haskell.Liquid.Prelude
 
 even_ arg = if arg == 0 then True else odd_ (arg - 1)

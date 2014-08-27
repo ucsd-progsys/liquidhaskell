@@ -1053,8 +1053,8 @@ mapAccumR f z0 t = second reverse $ S.mapAccumL g z0 $ reverseStream t
 
 -- | /O(n*m)/ 'replicate' @n@ @t@ is a 'Text' consisting of the input
 -- @t@ repeated @n@ times.
-{-@ replicate :: n:Nat -> t:Text -> {v:Text | ((n = 0) ? ((tlength v) = 0)
-                                                       : ((tlength v) >= (tlength t)))}
+{-@ replicate :: n:Nat -> t:Text -> {v:Text | if n = 0 then (tlength v = 0)
+                                                       else (tlength v >= tlength t)}
   @-}
 replicate :: Int -> Text -> Text
 replicate n t@(Text a o l)
@@ -1181,7 +1181,7 @@ take n t@(Text arr off len)
 -- 'Text' after the first @n@ characters, or the empty 'Text' if @n@
 -- is greater than the length of the 'Text'. Subject to fusion.
 {-@ drop :: n:Nat -> t:Text
-         -> {v:Text | ((tlength v) = (((tlength t) <= n) ? 0 : ((tlength t) - n)))}
+         -> {v:Text | tlength v = if tlength t <= n then 0 else (tlength t - n)}
   @-}
 drop :: Int -> Text -> Text
 drop n t@(Text arr off len)

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -23,12 +23,13 @@ import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
-import           SrcLoc                       (srcSpanFile, srcSpanStartLine, srcSpanStartCol)
+import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
 
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
-import           Name                         (mkInternalName, getSrcSpan)
+import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
+import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
@@ -54,10 +55,15 @@ import qualified DataCon                      as DC
 import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe
+import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
-import           Control.Applicative          ((<$>))
+import           Data.Aeson                 
+import qualified Data.Text                    as T
+import qualified Data.Text.Encoding           as T
+import qualified Data.Text.Unsafe             as T
+import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Exception            (assert, throw)
 import           Outputable                   (Outputable (..), text, ppr)
@@ -81,9 +87,10 @@ data MGIModGuts = MI {
   , mgi_tcs       :: ![TyCon]
   , mgi_fam_insts :: ![FamInst]
   , mgi_exports   :: !NameSet
+  , mgi_is_dfun   :: !(Maybe [DFunId])
   }
 
-miModGuts mg = MI {
+miModGuts dids mg = MI {
     mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg
@@ -92,6 +99,7 @@ miModGuts mg = MI {
   , mgi_tcs       = mg_tcs mg
   , mgi_fam_insts = mg_fam_insts mg
   , mgi_exports   = availsToNameSet $ mg_exports mg
+  , mgi_is_dfun   = dids
   }
 
 -----------------------------------------------------------------------
@@ -103,10 +111,9 @@ srcSpanTick m loc
   = ProfNote (AllCafsCC m loc) False True
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
-tickSrcSpan (ProfNote (AllCafsCC _ loc) _ _)
-  = loc
-tickSrcSpan z
-  = errorstar $ "tickSrcSpan: unhandled tick: " ++ showPpr z
+tickSrcSpan (ProfNote cc _ _) = cc_loc cc
+tickSrcSpan z                 = noSrcSpan -- errorstar msg
+--   where msg = "tickSrcSpan: unhandled tick: " ++ showPpr z
 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
@@ -115,13 +122,13 @@ tickSrcSpan z
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
-        occ  = mkTcOcc s
+        occ  = mkTyVarOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon c n s = TC.mkKindTyCon name superKind
   where 
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
-    occ           = mkTyVarOcc $ assert (validTyVar s) s
+    occ           = mkTcOcc s
 
 hasBaseTypeVar = isBaseType . varType
 
@@ -178,6 +185,52 @@ instance Hashable SrcSpan where
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList 
 
+instance ToJSON RealSrcSpan where
+  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
+                     , "startLine" .= l1 -- srcSpanStartLine sp 
+                     , "startCol"  .= c1 -- srcSpanStartCol  sp
+                     , "endLine"   .= l2 -- srcSpanEndLine   sp
+                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+                     ]
+    where 
+      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp          
+
+unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
+  where    
+    f                 = unpackFS $ srcSpanFile rsp
+    l1                = srcSpanStartLine rsp 
+    c1                = srcSpanStartCol  rsp
+    l2                = srcSpanEndLine   rsp
+    c2                = srcSpanEndCol    rsp
+    
+
+instance FromJSON RealSrcSpan where
+  parseJSON (Object v) = realSrcSpan <$> v .: "filename" 
+                                     <*> v .: "startLine"
+                                     <*> v .: "startCol"
+                                     <*> v .: "endLine"
+                                     <*> v .: "endCol"
+  parseJSON _          = mempty
+
+realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2 
+  where
+    loc1                  = mkRealSrcLoc (fsLit f) l1 c1
+    loc2                  = mkRealSrcLoc (fsLit f) l2 c2
+
+
+
+instance ToJSON SrcSpan where
+  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]  
+  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
+
+instance FromJSON SrcSpan where
+  parseJSON (Object v) = do tag <- v .: "realSpan"
+                            case tag of
+                              False -> return noSrcSpan 
+                              True  -> RealSrcSpan <$> v .: "spanInfo"
+  parseJSON _          = mempty
+
+
 -------------------------------------------------------
 
 toFixSDoc = PJ.text . PJ.render . toFix 
@@ -185,9 +238,9 @@ sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
-showPpr      = Out.showPpr tracingDynFlags
-showSDoc     = Out.showSDoc tracingDynFlags
-showSDocDump = Out.showSDocDump tracingDynFlags
+showPpr      = Out.showPpr unsafeGlobalDynFlags
+showSDoc     = Out.showSDoc unsafeGlobalDynFlags
+showSDocDump = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
@@ -195,11 +248,22 @@ instance Fixpoint Var where
   toFix = pprDoc 
 
 instance Fixpoint Name where
-  toFix = pprDoc 
+  toFix = pprDoc
 
 instance Fixpoint Type where
   toFix = pprDoc
 
+instance Show Name where
+  show = showPpr
+
+instance Show Var where
+  show = showPpr
+
+instance Show Class where
+  show = showPpr
+
+instance Show TyCon where
+  show = showPpr
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
 sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc 
@@ -212,9 +276,10 @@ sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
     col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
-srcSpanSourcePos (UnhelpfulSpan _) = dummyPos 
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos" 
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
+srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
 srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
@@ -296,9 +361,22 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
+symbolTyCon x i n = stringTyCon x i (symbolString n)
+symbolTyVar n = stringTyVar (symbolString n)
 
-instance Show Var where
-  show = showPpr
+instance Symbolic TyCon where
+  symbol = symbol . qualifiedNameSymbol . getName
 
-instance Show DataCon where
-  show = showPpr
+instance Symbolic Name where
+  symbol = symbol . showPpr -- qualifiedNameSymbol
+
+qualifiedNameSymbol n = symbol $
+  case nameModule_maybe n of
+    Nothing -> occNameFS (getOccName n)
+    Just m  -> concatFS [moduleNameFS (moduleName m), fsLit ".", occNameFS (getOccName n)]
+
+instance Symbolic FastString where
+  symbol = symbol . fastStringText
+
+fastStringText = T.decodeUtf8 . fastStringToByteString
+symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
