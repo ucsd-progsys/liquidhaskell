@@ -1,4 +1,6 @@
 > {-@ LIQUID "--no-termination" @-}
+> {-@ LIQUID "--short-names"    @-}
+> 
 > module Basics where
 > 
 > import Prelude hiding (head, max)
@@ -43,6 +45,17 @@ describes the set of `Int`s that are between 0 and 100. We'll make heavy use of
 < Rng 0 100
 
 is equivalent to the first type.
+
+To double check note that,
+
+> {-@ okRange :: [Rng 0 100] @-}
+> okRange = [1,10,30] :: [Int]
+ 
+but, of course,
+
+> {-@ badRange :: [Rng 0 100] @-}
+> badRange = [1,10,300] :: [Int]
+
 
 We can describe a function's *contract* by refining its input and output types
 with our desired pre- and post-conditions.
