@@ -50,9 +50,9 @@ import Data.Typeable (Typeable)
 import Language.Haskell.Liquid.Prelude
 
 {-@ data Text [tlen] = Text
-            (arr :: A.Array)
-            (off :: AValidO arr)
-            (len :: (AValidL off arr))
+            (ttarr :: A.Array)
+            (ttoff :: AValidO ttarr)
+            (ttlen :: (AValidL ttoff ttarr))
   @-}
 
 {-@ measure tarr :: Text -> A.Array
@@ -103,7 +103,7 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ qualif MinTLength(v:Text, n:Int, t:Text):
-        tlength(v) = (tlength(t) > n ? n : tlength(t))
+        tlength(v) = if tlength(t) > n then n else (tlength t)
   @-}
 
 {-@ qualif TLengthAcc(v:int, t:Text, l:int):

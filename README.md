@@ -1,18 +1,13 @@
-README
-======
+LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
+=============
 
 Requirements
 ------------
 
-LiquidHaskell requires (in addition to the Hackage dependencies)
+LiquidHaskell requires (in addition to the cabal dependencies)
 
-- a recent OCaml compiler
-
-If you *optionally* want to link against Z3 (**only on Linux**)
-
-- the GNU multiprecision library
-- the CamlIDL library
-
+- recent OCaml compiler
+- SMTLIB2 compatible solver
 
 How To Clone, Build and Install
 -------------------------------
@@ -20,30 +15,25 @@ How To Clone, Build and Install
 To begin building, run the following commands in the root
 directory of the distribution:
 
-1. Create top-level project directory
+1. Install a suitable smt solver binary, e.g.
+
+	+ [Z3](http://z3.codeplex.com/)
+	+ [CVC4](http://cvc4.cs.nyu.edu/) 
+	+ [MathSat](http://mathsat.fbk.eu/download.html)
+
+2. Create top-level project directory and clone repositories:
 
     mkdir /path/to/liquid
     cd /path/to/liquid
-    hsenv
-    source .hsenv/bin/activate
-
-2. Install a suitable `z3` binary from
-
-    http://z3.codeplex.com/
-
-3. Install liquid-fixpoint
-
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
-    cd liquid-fixpoint
-    cabal install
-    cd ../
-
-4. Install liquidhaskell
-
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
+	cabal sandbox init
+    cabal sandbox add-source ../liquid-fixpoint/
+	
+3. Install 
+
     cabal install
-    cd ../
 
 To **rebuild** after this step, run
 
@@ -121,29 +111,6 @@ How to Get Stack Traces On Exceptions
 
     $ liquid +RTS -xc -RTS foo.hs
 
-How to deploy Web Demo
-----------------------
-
-1. Set $packagedir in web/liquid.php to a suitable package directory, e.g.
-    
-    $packagedir = "/home/rjhala/.ghc/x86_64-linux-7.4.1/package.conf.d/";`
-
-2. Name target directory $(SERVERHOME) in Makefile
-
-3. Create target directory
-
-    mkdir $(SERVERHOME)
-
-3. Build and copy files
-
-    make site
-
-4. Set permissions to allow www-data to write to relevant directories
-
-    make siteperms 
-
-The last step requires sudo access which is tedious and should be fixed.
-
 
 Command Line Options
 ====================
@@ -158,25 +125,117 @@ for example, to disable termination checking (see below)
 
     {-@ LIQUID "--notermination" @-}
 
-Ignore False Predicates
+You may also put command line options in the environment variable
+`LIQUIDHASKELL_OPTS`. For example, if you add the line:
+  
+    LIQUIDHASKELL_OPTS="--diff"
+
+to your `.bashrc` then, by default, all files will be 
+*incrementally checked* unless you run with the overriding 
+`--full` flag (see below).
+
+Incremental Checking
+--------------------
+
+LiquidHaskell supports *incremental* checking where each run only checks 
+the part of the program that has been modified since the previous run.
+
+    $ liquid --diff foo.hs
+
+Each run of `liquid` saves the file to a `.bak` file and the *subsequent* 
+run 
+    + does a `diff` to see what has changed w.r.t. the `.bak` file
+    + only generates constraints for the `[CoreBind]` corresponding to the 
+       changed top-level binders and their transitive dependencies.
+
+The time savings are quite significant. For example:
+
+    $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
+
+    real	7m3.179s
+    user	4m18.628s
+    sys	    0m21.549s
+
+Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
+
+    $ time liquid -d --notermination -i . Data/ByteString.hs > log 2>&1
+
+    real	0m11.584s
+    user	0m6.008s
+    sys	    0m0.696s
+
+The diff is only performed against **code**, i.e. if you only change
+specifications, qualifiers, measures, etc. `liquid -d` will not perform
+any checks. In this case, you may specify individual definitions to verify:
+
+    $ liquid -b bar -b baz foo.hs
+
+This will verify `bar` and `baz`, as well as any functions they use.
+
+If you always want to run a given file with diff-checking, add
+the pragma:
+
+    {-@ LIQUID "--diff" @-}
+
+
+Full Checking (DEFAULT)
 -----------------------
 
-[PLEASE EDIT: I have no idea what "ignoring false predicates means"]
+To force LiquidHaskell to check the **whole** file (DEFAULT), use:
 
-To ignore false predicates use the nofalse option
- 
-    liquid --nofalse test.hs
+    $ liquid --full foo.hs
 
-See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
+to the file. This will override any other `--diff` incantation 
+elsewhere (e.g. inside the file.)
 
-Prune Unsorted Predicates
--------------------------
 
-By default unsorted predicates are pruned away (yielding `true` 
-for the corresponding refinement.) To disable this behaviour 
-use the `no-prune-unsorted` flag.
- 
-    liquid --no-prune-unsorted test.hs
+If you always want to run a given file with full-checking, add
+the pragma:
+
+    {-@ LIQUID "--full" @-}
+
+Specifying Different SMT Solvers
+--------------------------------
+
+By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+
+To run a different solver (supporting SMTLIB2) do:
+
+    $ liquid --smtsolver=NAME foo.hs
+
+Currently, LiquidHaskell supports
+
++ [CVC4](http://cvc4.cs.nyu.edu/) 
++ [MathSat](http://mathsat.fbk.eu/download.html )
+
+To use these solvers, you must install the corresponding binaries
+from the above web-pages into your `PATH`.
+
+You can also build and link against the Z3 API (faster but requires more
+dependencies). If you do so, you can use that interface with:
+
+    $ liquid --smtsolver=z3mem foo.hs
+
+     
+Short Error Messages
+--------------------
+
+By default, subtyping error messages will contain the inferred type, the 
+expected type -- which is **not** a super-type, hence the error -- and a 
+context containing relevant variables and their type to help you understand
+the error. If you don't want the above and instead, want only the 
+**source position** of the error use:
+
+    --short-errors
+    
+Short (Unqualified) Module Names
+-------------------------------
+
+By default, the inferred types will have fully qualified module names.
+To use unqualified names, much easier to read, use:
+
+    --short-names
+
 
 Totality Check
 --------------
@@ -303,71 +362,30 @@ it is used. For example, with the above annotation the following code is SAFE:
 By default, all the variables starting with `fail` are marked as LAZY, to defer
 failing checks at the point where these variables are used.
 
-Specifying Different SMT Solvers
---------------------------------
+Prune Unsorted Predicates
+-------------------------
 
-By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
+By default unsorted predicates are pruned away (yielding `true` 
+for the corresponding refinement.) To disable this behaviour 
+use the `no-prune-unsorted` flag.
+ 
+    liquid --no-prune-unsorted test.hs
 
-To run a different solver (via SMTLIB2 bindings) do:
 
-    $ liquid --smtsolver=NAME foo.hs
 
-Currently, LiquidHaskell supports
+Ignore False Predicates
+-----------------------
 
-+ [CVC4](http://cvc4.cs.nyu.edu/) 
-+ [MathSat](http://mathsat.fbk.eu/download.html )
+[PLEASE EDIT: I have no idea what "ignoring false predicates means"]
 
-To use these solvers, you must install the corresponding binaries
-from the above web-pages into your PATH.
+To ignore false predicates use the nofalse option
+ 
+    liquid --nofalse test.hs
 
-You can also build and link against the Z3 API (faster but requires more
-dependencies). If you do so, you can use that interface with:
+See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
 
-    $ liquid --smtsolver=z3mem foo.hs
 
-Incremental Checking
---------------------
 
-LiquidHaskell supports *incremental* checking where each run only checks
-the part of the program that has been modified since the previous run.
-
-    $ liquid -d foo.hs
-
-1. Each run of `liquid` saves the file to a `.bak` file and
-
-2. Each subsequent run 
-    + does a `diff` to see what has changed w.r.t. the `.bak` file
-    + only generates constraints for the `[CoreBind]` corresponding to the 
-       changed top-level binders and their transitive dependencies.
-
-**Note:** Subsequent runs will report **Safe** if there are no errors in the
-changed portions but there *are* errors in the unchanged portion. Thus, you
-should finally run *without* the `-d` option before concluding a module is Safe!
-
-The time savings are quite significant. For example:
-
-    $ time liquid --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
-
-    real	7m3.179s
-    user	4m18.628s
-    sys	    0m21.549s
-
-Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
-
-    $ time liquid -d --notermination -i . -i ../../include/ Data/ByteString.hs > log 2>&1
-
-    real	0m11.584s
-    user	0m6.008s
-    sys	0m0.696s
-
-The diff is only performed against *code*, i.e. if you only change
-specifications, qualifiers, measures, etc. `liquid -d` will not perform
-any checks. In this case, you may specify individual definitions to
-verify:
-
-    $ liquid -b bar -b baz foo.hs
-
-This will verify `bar` and `baz`, as well as any functions they use.
 
 Writing Specifications
 ======================
@@ -591,8 +609,38 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
-The easiest way to use such self-invariants or refinements, is to just define a type 
-alias (e.g. `IList` or `IMaybe` and use them in the specification and verification.)
+
+Invariants 
+==========
+There are two ways of specifying invariants in LiquidHaskell.
+First, there are *global* invariants that always hold for a data-type. For
+example,  the length of a list cannot be negative
+
+    {-@ invariant {v:[a] | (len v >= 0)} @-}
+
+LiquidHaskell can prove that this invariant holds, by proving that all List's
+constractos (ie., `:` and `[]`) satisfy it.(TODO!)
+Then, LiquidHaskell assumes that each list element that is created satisfies
+this invariant.
+
+Second, there are *local* invariants that one may use. For
+example, in [test/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+list is treated as a Stream. To establish this local invariant one can use the
+`using` declaration
+
+    {-@ using ([a]) as  {v:[a] | (len v > 0)} @-}
+
+denoting that each list is not empty.
+Then, LiquidHaskell will prove that this invariant holds, by proving that *all
+calls* to List's
+constractos (ie., `:` and `[]`) satisfy it, and
+will assume that each list element that is created satisfies
+this invariant.
+
+With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
+proves that taking the `head` of a list is safe.
+But, at [test/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
+`[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 Formal Grammar of Refinement Predicates
 =======================================
@@ -615,7 +663,7 @@ Formal Grammar of Refinement Predicates
        | c                      -- constant
        | (e + e)                -- addition
        | (e - e)                -- subtraction
-       | (c * e)                -- multiplication by constant
+       | (c * e)                -- cmultiplication by constant
        | (v e1 e2 ... en)       -- uninterpreted function application
        | (if p then e else e)   -- if-then-else
 
@@ -711,4 +759,74 @@ verification attempts.
   It is also possible to generate *slide shows* from the above.
   See the [tutorial directory](docs/tutorial) for an example.
 
+Editor Integration
+==================
+
+Emacs
+-----
+
+LH has [flycheck](https://github.com/flycheck/flycheck) integration with emacs.
+
+**Install**
+
+1. Copy `syntax/flycheck-liquid.el` into your emacs path.
+2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
+
+**Disable**
+
+To disable flycheck-liquid on a particular file, add:
+
+    -- Local Variables:
+    -- flycheck-disabled-checkers: (haskell-liquid)
+    -- End:
+
+at the end of the file.
+
+Vim
+---
+
+**Install**
+
+1. Add the following to your `.vimrc`
+
+~~~~~
+Bundle 'scrooloose/syntastic'
+Bundle 'panagosg7/vim-annotations'
+let g:vim_annotations_offset = '/.liquid/'
+~~~~~
+
+2. Copy the following files
+
+~~~~~
+cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
+cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
+~~~~~
+
+**Run**
+
++ `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
+
+**View**
+
+1. **Warnings** will be displayed in the usual error buffer.
+
+2. **Inferred Types** will be displayed when `<F1>` is pressed over an identifier.
+
+
+**Options**
+
+You can configure the checker in various ways in your `.vimrc`.
+
++ To run after **each save**, for *all* Haskell files, add:
+
+~~~~~
+let g:syntastic_mode_map = { 'mode': 'active' }
+let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
+~~~~~
+
++ To pass extra options to liquidhaskell add: 
+
+~~~~~
+let g:syntastic_haskell_liquid_args = "--diff"
+~~~~~
 

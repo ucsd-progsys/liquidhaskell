@@ -1,6 +1,5 @@
 module spec GHC.Real where
 
-GHC.Real./               :: (GHC.Real.Fractional a) => x:a -> y:{v:a | v != 0} -> {v: a | v = (x / y) }
 
 GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
@@ -8,7 +7,7 @@ GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|
 class (GHC.Real.Real a, GHC.Enum.Enum a) => GHC.Real.Integral a where
   GHC.Real.quot :: a -> a -> a
   GHC.Real.rem :: a -> a -> a
-  GHC.Real.mod :: x:a -> y:a -> {v:a | ((0 <= x && 0 < y) => (0 <= v && v < y))}
+  GHC.Real.mod :: x:a -> y:a -> {v:a | v = x mod y && ((0 <= x && 0 < y) => (0 <= v && v < y))}
   GHC.Real.div :: x:a -> y:a -> {v:a | ((v = (x / y))
                                      && (((x>=0) && (y>=0)) => (v>=0))
                                      && (((x>=0) && (y>=1)) => (v<=x))) }

@@ -262,7 +262,6 @@ import Foreign
 
 #if defined(__GLASGOW_HASKELL__)
 import GHC.Base                 (Char(..),unpackCString#,ord#,int2Word#)
-import GHC.IOBase               (IO(..),stToIO)
 import GHC.Prim                 (Addr#,writeWord8OffAddr#,plusAddr#)
 import GHC.Ptr                  (Ptr(..))
 import GHC.ST                   (ST(..))
@@ -272,7 +271,20 @@ import GHC.ST                   (ST(..))
 #define STRICT2(f) f a b | a `seq` b `seq` False = undefined
 #define STRICT3(f) f a b c | a `seq` b `seq` c `seq` False = undefined
 #define STRICT4(f) f a b c d | a `seq` b `seq` c `seq` d `seq` False = undefined
-
+#if __GLASGOW_HASKELL__ >= 611
+import Data.IORef
+import GHC.IO.Handle.Internals
+import GHC.IO.Handle.Types
+import GHC.IO.Buffer
+import GHC.IO.BufferedIO as Buffered
+import GHC.IO                   (stToIO, unsafePerformIO)
+import Data.Char                (ord)
+import Foreign.Marshal.Utils    (copyBytes)
+#else
+import System.IO.Error          (isEOFError)
+import GHC.IOBase
+import GHC.Handle
+#endif
 
 --LIQUID
 import Data.ByteString.Fusion (PairS(..), MaybeS(..))
@@ -1050,9 +1062,9 @@ combine1 _ [n] = n
 combine1 b ns  = combine1 (b*b) $ combine2 b ns
 
 {-@ combine2 :: Integer -> x:[Integer]
-             -> {v:[Integer] | (((len x) > 1)
-                             ? (((len v) <  (len x)) && ((len v) > 0))
-                             : ((len v) <= (len x)))}
+             -> {v:[Integer] | if len x > 1
+                               then (len v <  len x && len v > 0)
+                               else (len v <= len x)}
   @-}
 {-@ Decrease combine2 2 @-}
 combine2 :: Integer -> [Integer] -> [Integer]

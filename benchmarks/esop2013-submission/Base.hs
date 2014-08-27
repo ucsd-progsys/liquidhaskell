@@ -1,3 +1,4 @@
+{-@ LIQUID "--totality" @-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 -- LIQUID {- LANGUAGE DeriveDataTypeable, StandaloneDeriving -}
@@ -363,10 +364,6 @@ mlen (Bin s k v l r) = 1 + mlen l + mlen r
 {-@ measure isBin :: Map k a -> Prop
     isBin (Bin sz kx x l r) = true
     isBin (Tip)             = false
-  @-}
-
-{-@ measure key :: Map k a -> k 
-    key (Bin sz kx x l r) = kx 
   @-}
 
 {-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}
@@ -2737,7 +2734,7 @@ deleteFindMin :: Map k a -> (k, a, Map k a)
 deleteFindMin t
   = case t of
       Bin _ k x Tip r -> (k, x, r)
-      --Bin _ k x l r   -> let (km, m, l') = deleteFindMin l in (km, m, balanceR k x l' r)
+      Bin _ k x l r   -> let (km, m, l') = deleteFindMin l in (km, m, balanceR k x l' r)
       Tip             -> error "Map.deleteFindMin: can not return the minimal element of an empty map"
 
 -- | /O(log n)/. Delete and find the maximal element.

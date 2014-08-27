@@ -1,0 +1,258 @@
+@font-face {
+	font-family: 'PT Mono';
+    font-style: normal;
+	font-weight: normal;
+	src: local("☺"), url('fonts/PT_Mono-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'PT Sans';
+    font-style: normal; 
+	font-weight: bold;
+	src: local("☺"), url('fonts/PT_Sans-Web-Bold.ttf') format('truetype');
+}@font-face {
+	font-family: 'PT Sans';
+    font-style: italic;
+	font-weight: normal;
+	src: local("☺"), url('fonts/PT_Sans-Web-Italic.ttf') format('truetype');
+}@font-face {
+	font-family: 'PT Sans';
+    font-style: normal;
+	font-weight: normal;
+	src: local("☺"), url('fonts/PT_Sans-Web-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'PT Sans Narrow';
+    font-style: normal;
+	font-weight: bold;
+	src: local("☺"), url('fonts/PT_Sans-Narrow-Web-Bold.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'PT Sans Narrow';
+    font-style: normal;
+	font-weight: normal;
+	src: local("☺"), url('fonts/PT_Sans-Narrow-Web-Regular.ttf') format('truetype');
+}
+html {
+    height: 100%;
+	background-color: #fefffe;
+}
+body {
+	width: 1024px !important;
+    height: 600px !important;
+	margin-left: -512px !important;
+	margin-top: -300px !important;
+}
+section {
+	background: transparent;
+	color: #000;
+	width: 100%  !important;
+	/* width: 800px !important; */
+	height: 600px !important;
+    padding: 50px 112px 0;	
+	font-family: 'PT Sans', sans-serif;
+	font-size: 16pt;
+}
+
+body :first-child {
+}
+address, blockquote, dl, fieldset, form, h1, h2, h3, h4, h5, h6, hr, ol, p, pre, table, ul, dl { padding: 10px 20px 10px 20px; }
+h1, h2, h3 {
+	text-align: left;
+	color: #666; 
+	font-family: 'PT Sans Narrow', sans-serif;
+	font-weight: bold;
+}
+input, select {
+border 0.5pt solid black;
+font-size: 16pt;
+line-height: 10pt;
+padding: 0 0 -2.5pt 0;
+z-index:1;
+}
+ul, ol {
+	margin: 10px 10px 10px 50px;
+}
+a { color: #205CB3; }
+section.titleslide h1 { margin-top: 200px; }
+h1.title { margin-top: 150px; font-size:200%; margin-bottom: 20px; text-align: center; text-shadow:0px 2px 1px #444; 
+-webkit-transition: color 1s ease-in-out;
+-moz-transition: color 1s ease-in-out;
+ }
+h1.title:hover {
+color: #C43628;
+}
+h2.author { font-size: 120%; margin-top: 0px; margin-bottom: 0px; text-align:center; color: #555; font-family: 'PT Sans Narrow'; font-weight: normal;}
+h3.date { font-size: 80%; margin-top: 0px; text-align: center; color: #555; font-family: 'PT Mono'; font-weight: normal;}
+h1 { font-size: 180%; margin: 0 0 10px; text-shadow:0px 2px 1px #fff;}
+h2 { font-size: 140%; } 
+h3 { font-size: 100%; }
+blockquote { font-style: italic }
+q {
+	display: inline-block;
+	width: 700px;
+	height: 600px;
+	background-color: black;
+	color: white;
+	font-size: 60px;
+	padding: 50px;
+}
+footer {
+	position: absolute;
+	bottom: 10px;
+	right: 20px;
+	text-shadow: white 0px 1px 0px, rgba(0, 0, 0, 0.2) 0 2px 5px;
+}
+/* JHALA: pre, code { background: transparent; } */
+pre, code {background-color:#E6F0FA;}
+
+pre { padding: 10px 50px; }
+td > pre { padding: 0px; }
+td { padding: 5px; }
+::-moz-selection { background-color: khaki; }
+code { font-family: 'PT Mono'; font-size: 90%; }
+code > span.co { font-style: normal; }
+code > span.kw { font-weight: normal; }
+code > span.er { font-weight: normal; }
+
+/* Transition effect */
+/* Feel free to change the transition effect for original
+animations. See here:
+https://developer.mozilla.org/en/CSS/CSS_transitions
+How to use CSS3 Transitions: */
+section {
+	-moz-transition: left 400ms ease-in-out 0s;
+	-webkit-transition: left 400ms ease-in-out 0s;
+	-ms-transition: left 400ms ease-in-out 0s;
+	transition: left 400ms ease-in-out 0s;
+}
+
+/* Before */
+section { left: -150%; }
+/* Now */
+section[aria-selected] { left: 0; }
+/* After */
+section[aria-selected] ~ section { left: +150%; }
+
+/* Incremental elements */
+
+/* By default, visible */
+.incremental > * { opacity: 1; }
+
+/* The current item */
+.incremental > *[aria-selected] { color: red; opacity: 1; }
+
+/* The items to-be-selected */
+.incremental > *[aria-selected] ~ * { opacity: 0.2; }
+
+/******************************************************************/
+/* LIQUID: Hacking the Background *********************************/
+/******************************************************************/
+
+a { color: #205CB3; }
+
+.hs-linenum {
+  color: #B2B2B2; 
+  font-style: italic;
+}
+
+.hs-error {
+  background-color: #FF8585 ;
+}
+
+.hs-keyglyph {
+  color: #007020
+}
+
+.hs-keyword {
+  color: #007020;
+  // font-weight: bold;
+}
+
+.hs-comment, .hs-comment a {color: green;}
+
+.hs-str, .hs-chr {color: teal;}
+
+.hs-conid { 
+  color: #902000;   /* color: #00FFFF; color: #0E84B5; */
+  //font-weight: bold;  
+}
+
+.hs-definition { 
+  color: #06287E 
+  /* font-weight: bold; */ 
+}
+
+.hs-varid, .hs-varop, .hs-layout {
+  color: black; 
+}
+
+.hs-num {
+  color: #40A070;
+}
+
+.hs-conop {
+  color: #902000; 
+}
+
+.hs-cpp {
+  color: orange;
+}
+
+.hs-sel  {}
+
+a.annot {
+  position:relative; 
+  color:#000;
+  text-decoration:none; 
+  white-space: pre; 
+}
+
+a.annot:hover { 
+  z-index:25; 
+  background-color: #D8D8D8;
+}
+
+a.annot span.annottext{display: none}
+
+a.annot:hover span.annottext{ 
+  
+  border-radius: 5px 5px;
+  
+  -moz-border-radius: 5px; 
+  -webkit-border-radius: 5px; 
+  
+  box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.1); 
+  -webkit-box-shadow: 5px 5px rgba(0, 0, 0, 0.1);
+  -moz-box-shadow: 5px 5px rgba(0, 0, 0, 0.1); 
+
+  font-size: 60%;
+  white-space:pre;
+  display:block;
+  position: absolute; 
+  left: 1em; top: 2em; 
+  z-index: 99;
+  margin-left: 5; 
+  background: #FFFFAA; 
+  border: 3px solid #FFAD33;
+  padding: 0.8em 1em;
+}
+
+code {
+   /* font-weight: bold; */
+   background-color: rgb(250, 250, 250); 
+   border: 1px solid rgb(200, 200, 200);
+   padding-left: 4px;
+   padding-right: 4px;
+}
+
+pre {
+  background-color: #f0f0f0;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 5px;
+  font-size: 80%;
+  // font-family: Bitstream Vera Sans Mono,monospace;
+  display: block;
+  overflow: visible;
+}
+

@@ -43,11 +43,12 @@ union         :: GHC.Classes.Ord a => xs:(Data.Set.Set a) -> ys:(Data.Set.Set a)
 intersection  :: GHC.Classes.Ord a => xs:(Data.Set.Set a) -> ys:(Data.Set.Set a) -> {v:(Data.Set.Set a) | v = (Set_cap xs ys)}
 difference    :: GHC.Classes.Ord a => xs:(Data.Set.Set a) -> ys:(Data.Set.Set a) -> {v:(Data.Set.Set a) | v = (Set_dif xs ys)}
 
+fromList :: GHC.Classes.Ord a => xs:[a] -> {v:Data.Set.Set a | v = (listElts xs)}
 
 ---------------------------------------------------------------------------------------------
 -- | The set of elements in a list ----------------------------------------------------------
 ---------------------------------------------------------------------------------------------
 
 measure listElts :: [a] -> (Data.Set.Set a) 
-listElts([])   = {v | (? Set_emp(v))}
+listElts([])   = {v | (Set_emp v)}
 listElts(x:xs) = {v | v = (Set_cup (Set_sng x) (listElts xs)) }

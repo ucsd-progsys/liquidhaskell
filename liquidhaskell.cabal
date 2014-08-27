@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.1
+Version:             0.2.0.0
 Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -11,7 +11,7 @@ Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
 Category:            Language
 Build-Type:          Simple
-Cabal-version:       >=1.8
+Cabal-version:       >=1.18
 
 data-files: include/*.hquals
           , include/*.hs
@@ -25,14 +25,11 @@ data-files: include/*.hquals
           , include/Foreign/*.spec
           , include/Foreign/C/*.spec
           , include/Foreign/Marshal/*.spec
-          , include/GHC/List.lhs
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/List.hs
-          , include/Language/Haskell/Liquid/Prelude.hs
-          , include/Language/Haskell/Liquid/Foreign.hs
-          , include/Language/Haskell/Liquid/Prelude.pred
+          , include/Language/Haskell/Liquid/*.hs
+          , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
 
@@ -46,13 +43,19 @@ Source-Repository head
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
 
 Executable liquid
+  default-language: Haskell98
   Build-Depends: base >= 4 && < 5
-               , ghc==7.6.3
+               , ghc>=7.8.3
                , ansi-terminal
+               , template-haskell
+               , time
+               , array
+               , hpc
                , bifunctors
                , cmdargs
                , containers
                , cpphs
+               , data-default
                , deepseq
                , directory
                , Diff
@@ -67,59 +70,67 @@ Executable liquid
                , syb
                , text
                , vector
-               , liquid-fixpoint
-               , hashable<1.2
+               , liquid-fixpoint >= 0.2
+               , hashable
                , unordered-containers
                , aeson
                , bytestring
+               , fingertree
                , liquidhaskell
 
   Main-is: Liquid.hs
   --ghc-options: -O -W
-  Extensions: PatternGuards
+  Default-Extensions: PatternGuards
 
-Executable liquid-count-binders
-  Build-Depends: base >= 4 && < 5
-               , ghc==7.6.3
-               , ansi-terminal
-               , bifunctors
-               , cmdargs
-               , containers
-               , cpphs
-               , deepseq
-               , directory
-               , Diff
-               , filemanip
-               , filepath
-               , ghc-paths
-               , hscolour
-               , mtl
-               , parsec
-               , pretty
-               , process
-               , syb
-               , text
-               , vector
-               , liquid-fixpoint
-               , hashable<1.2
-               , unordered-containers
-               , aeson
-               , bytestring
-               , liquidhaskell
-               
-  Main-is: CountBinders.hs
-  --ghc-options: -O -W
-  Extensions: PatternGuards
+-- Executable liquid-count-binders
+--   Build-Depends: base >= 4 && < 5
+--                , ghc==7.6.3
+--                , ansi-terminal
+--                , bifunctors
+--                , cmdargs
+--                , containers
+--                , cpphs
+--                , deepseq
+--                , directory
+--                , Diff
+--                , filemanip
+--                , filepath
+--                , ghc-paths
+--                , hscolour
+--                , mtl
+--                , parsec
+--                , pretty
+--                , process
+--                , syb
+--                , text
+--                , vector
+--                , liquid-fixpoint
+--                , hashable
+--                , unordered-containers
+--                , aeson
+--                , bytestring
+--                , fingertree
+--                , liquidhaskell
+--                
+--   Main-is: CountBinders.hs
+--   --ghc-options: -O -W
+--   Extensions: PatternGuards
 
 
 Library
+   Default-Language: Haskell98
    Build-Depends: base
-                , ghc==7.6.3
+                , ghc>=7.8.3
                 , ansi-terminal
+                , template-haskell
+                , time
+                , array
+                , hpc
                 , bifunctors
                 , cmdargs
                 , containers
                 , cpphs
+                , data-default
                 , deepseq
                 , directory
                 , Diff
@@ -133,12 +144,15 @@ Library
                 , process
                 , syb
                 , text
+                , unix
+                , intern
                 , vector
-                , hashable<1.2
+                , hashable
                 , unordered-containers
-                , liquid-fixpoint
+                , liquid-fixpoint >= 0.2
                 , aeson
                 , bytestring
+                , fingertree
  
    hs-source-dirs:  include, src
  
@@ -151,9 +165,10 @@ Library
                     Language.Haskell.Liquid.Measure, 
                     Language.Haskell.Liquid.Parse, 
                     Language.Haskell.Liquid.GhcInterface, 
+                    Language.Haskell.Liquid.World, 
                     Language.Haskell.Liquid.RefType, 
+                    Language.Haskell.Liquid.Errors, 
                     Language.Haskell.Liquid.PredType, 
-                    Language.Haskell.Liquid.Predicates, 
                     Language.Haskell.Liquid.ACSS, 
                     Language.Haskell.Liquid.DiffCheck, 
                     Language.Haskell.Liquid.ANFTransform, 
@@ -166,11 +181,17 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
-                    Paths_liquidhaskell
- 
-   other-modules:   Language.Haskell.Liquid.Desugar.Desugar
+                    Paths_liquidhaskell,
+
+                    --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
+                    Language.Haskell.Liquid.Desugar.Desugar,
                     Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.Coverage,
+                    Language.Haskell.Liquid.Desugar.Check,
+                    Language.Haskell.Liquid.Desugar.DsForeign,
+                    Language.Haskell.Liquid.Desugar.DsMeta,
                     Language.Haskell.Liquid.Desugar.DsListComp,
                     Language.Haskell.Liquid.Desugar.MatchCon,
                     Language.Haskell.Liquid.Desugar.MatchLit,
@@ -181,6 +202,22 @@ Library
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
-   Extensions: PatternGuards
+   ghc-prof-options: -fprof-auto
+   Default-Extensions: PatternGuards
 
-
+test-suite test
+  default-language: Haskell98
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests
+  ghc-options:       -O2 -threaded
+  main-is:           test.hs
+  build-depends:     base,
+                     directory,
+                     filepath,
+                     process,
+                     tagged,
+                     unix,
+                     liquidhaskell,
+                     tasty >= 0.8,
+                     tasty-hunit >= 0.8,
+                     tasty-rerun >= 1.1

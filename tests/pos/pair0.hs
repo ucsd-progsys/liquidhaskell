@@ -1,5 +1,6 @@
 module Pair () where 
 
+{-@ LIQUID "--no-termination" @-}
 import Language.Haskell.Liquid.Prelude 
 
 data Pair a b = P a b

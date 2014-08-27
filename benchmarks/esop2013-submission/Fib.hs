@@ -24,12 +24,7 @@ get i a = a i
 {-@ measure fib :: Int -> Int @-}
 {-@ type FibV = j:Int -> {v:Int| ((v != 0) => (v = fib(j)))} @-}
 
--- {- assume liquidAssume :: b:Bool -> a -> {v: a | Prop(b)}  @-}
--- {- NOINLINE liquidAssume #-}
--- liquidAssume :: Bool -> a -> a 
--- liquidAssume b x = x
-
-{-@ assume axiom_fib :: i:Int -> {v: Bool | (Prop(v) <=> (fib(i) = ((i <= 1) ? 1 : ((fib(i-1)) + (fib(i-2)))))) } @-}
+{-@ assume axiom_fib :: i:Int -> {v: Bool | Prop v <=> (fib i = (if i <= 1 then 1 else (fib (i-1) + fib (i-2)))) } @-}
 axiom_fib :: Int -> Bool
 axiom_fib i = undefined
 

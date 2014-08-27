@@ -1,11 +1,11 @@
-module Fixme (foo) where
+module Niki () where
 
--- isEven 0 = True
--- isEven n = isEven $ n - 1
+import Language.Haskell.Liquid.Prelude
 
-incr x = (x, x+1)
+{-@ data Pair a b <p :: x0:a -> x1:b -> Prop> = P (x :: a) (y :: b<p x>) @-} 
+data Pair a b = P a b
 
-{-@ foo :: x:Int -> {v:Int | v > x } @-}
-foo :: Int -> Int
-foo x = y
-  where (w, y) = incr x
+bar = P (0::Int) (1::Int)
+foo = chk bar
+
+chk (P x y) = liquidAssertB (x <= y)

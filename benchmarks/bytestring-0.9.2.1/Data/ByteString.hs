@@ -262,14 +262,28 @@ import qualified System.IO      (hGetLine)
 import System.IO                (hGetBufNonBlocking)
 import System.IO.Error          (isEOFError)
 
-import GHC.Handle
+-- import GHC.Handle
 import GHC.Prim                 (Word#, (+#), writeWord8OffAddr#)
 import GHC.Base                 (build)
 import GHC.Word hiding (Word8)
 import GHC.Ptr                  (Ptr(..))
 import GHC.ST                   (ST(..))
-import GHC.IOBase
 
+#endif
+
+#if __GLASGOW_HASKELL__ >= 611
+import Data.IORef
+import GHC.IO.Handle.Internals
+import GHC.IO.Handle.Types
+import GHC.IO.Buffer
+import GHC.IO.BufferedIO as Buffered
+import GHC.IO                   (stToIO, unsafePerformIO)
+import Data.Char                (ord)
+import Foreign.Marshal.Utils    (copyBytes)
+#else
+import System.IO.Error          (isEOFError)
+import GHC.IOBase
+import GHC.Handle
 #endif
 
 -- An alternative to Control.Exception (assert) for nhc98
@@ -670,9 +684,7 @@ reverse (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f ->
 -- the 'ByteString'.  It is analogous to the intersperse function on
 -- Lists.
 {-@ intersperse :: Word8 -> b:ByteString
-                -> {v:ByteString |
-                     (((bLength b) > 0) ? ((bLength v) = (2 * (bLength b)) - 1)
-                                          : ((bLength v) = 0)) }
+                -> {v:ByteString | bLength v = if bLength b > 0 then (2 * bLength b - 1) else 0 }
   @-}
 intersperse :: Word8 -> ByteString -> ByteString
 intersperse c ps@(PS x s l)
