@@ -1,4 +1,7 @@
 # NB: don't set `language: haskell` here
+branches:
+ only:
+  - master
 
 env:
  - TESTS=pos

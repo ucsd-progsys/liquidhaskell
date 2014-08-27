@@ -10,7 +10,15 @@ TODO
 
 * error messages (see issues on github) 
 
-* diff-errors
+remove-parens
+-------------
+
++ x16 to v
++ Range {0} {100} -- allow Range 0 100 instead. 
++ extra PARENS in refinement printout.
++ qualifier duplication
+
+
 
 exists-based constraints
 ------------------------

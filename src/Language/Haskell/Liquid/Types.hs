@@ -1243,12 +1243,12 @@ instance PPrint Symbol where
   pprint = pprint . symbolText
 
 instance PPrint Expr where
-  pprint (EApp f es)     = parens $ intersperse empty $ (pprint f) : (pprint <$> es) 
+  pprint (EApp f es)     = {- parens $ -} intersperse empty $ (pprint f) : (pprint <$> es) 
   pprint (ECon c)        = pprint c 
   pprint (EVar s)        = pprint s
   pprint (ELit s _)      = pprint s
-  pprint (EBin o e1 e2)  = parens $ pprint e1 <+> pprint o <+> pprint e2
-  pprint (EIte p e1 e2)  = parens $ text "if" <+> pprint p <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
+  pprint (EBin o e1 e2)  = {- parens $ -} pprint e1 <+> pprint o <+> pprint e2
+  pprint (EIte p e1 e2)  = {- parens $ -} text "if" <+> parens (pprint p) <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
   pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 
   pprint (EBot)          = text "_|_"
   pprint (ESym s)        = pprint s
@@ -1260,13 +1260,13 @@ instance PPrint Pred where
   pprint PTop            = text "???"
   pprint PTrue           = trueD 
   pprint PFalse          = falseD
-  pprint (PBexp e)       = parens $ pprint e
-  pprint (PNot p)        = parens $ text "not" <+> parens (pprint p)
-  pprint (PImp p1 p2)    = parens $ (pprint p1) <+> text "=>"  <+> (pprint p2)
-  pprint (PIff p1 p2)    = parens $ (pprint p1) <+> text "<=>" <+> (pprint p2)
-  pprint (PAnd ps)       = parens $ pprintBin trueD  andD ps
-  pprint (POr  ps)       = parens $ pprintBin falseD orD  ps 
-  pprint (PAtom r e1 e2) = parens $ pprint e1 <+> pprint r <+> pprint e2
+  pprint (PBexp e)       = {- parens $ -} pprint e
+  pprint (PNot p)        = {- parens $ -} text "not" <+> parens (pprint p)
+  pprint (PImp p1 p2)    = {- parens $ -} pprint p1 <+> text "=>"  <+> pprint p2
+  pprint (PIff p1 p2)    = {- parens $ -} (pprint p1) <+> text "<=>" <+> (pprint p2)
+  pprint (PAnd ps)       = {- parens $ -} pprintBin trueD  andD ps
+  pprint (POr  ps)       = {- parens $ -} pprintBin falseD orD  ps 
+  pprint (PAtom r e1 e2) = {- parens $ -} pprint e1 <+> pprint r <+> pprint e2
   pprint (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
 
 trueD  = text "true"

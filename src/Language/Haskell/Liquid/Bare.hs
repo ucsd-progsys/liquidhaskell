@@ -199,14 +199,12 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
     n             = length xts
 
 
-makePluggedSigs name embs tcEnv exports sigs'
-  = [ (x, plugHoles embs tcEnv r τ <$> t)
-    | (x, t) <- renamedSigs
+makePluggedSigs name embs tcEnv exports sigs
+  = [ (x, plugHoles embs tcEnv x r τ t)
+    | (x, t) <- sigs
     , let τ   = expandTypeSynonyms $ varType x
     , let r   = maybeTrue x name exports
     ]
-  where
-    renamedSigs = renameTyVars <$> sigs'
 
 
 
@@ -772,8 +770,7 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
--- plugHoles :: (RReft -> RReft) -> Type -> SpecType -> SpecType
-plugHoles tce tyi f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
+plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -781,6 +778,13 @@ plugHoles tce tyi f t st = mkArrow αs ps (ls1 ++ ls2) cs' $ go rt' st''
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
+
+    tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
+    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
+    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
+    st'''             = subts su st''
+    ps'               = fmap (subts su') <$> ps
+    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
 
     go t                (RHole r)          = (addHoles t') { rt_reft = f r }
       where

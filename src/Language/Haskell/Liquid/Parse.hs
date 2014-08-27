@@ -199,7 +199,9 @@ bbaseNoAppP
 maybeP p = liftM Just p <|> return Nothing
 
 bareTyArgP
-  =  try (braces $ liftM RExprArg exprP)
+  =  -- try (RExprArg . expr <$> binderP) <|>
+     try (RExprArg . expr <$> integer)
+ <|> try (braces $ RExprArg <$> exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
 
@@ -704,7 +706,6 @@ dataConP
        xts <- dataConFieldsP
        return (x, xts)
 
--- dataConNameP = symbolString <$> binderP -- upperIdP
 dataConNameP 
   =  try upperIdP
  <|> pwr <$> parens (idP bad)

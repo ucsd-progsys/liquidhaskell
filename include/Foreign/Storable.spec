@@ -7,12 +7,12 @@ import Foreign.Ptr
 predicate PValid P N         = ((0 <= N) && (N < (plen P)))   
 
 Foreign.Storable.poke        :: (Foreign.Storable.Storable a)
-                             => {v: (GHC.Ptr.Ptr a) | 0 <= (plen v)}
+                             => {v: (GHC.Ptr.Ptr a) | 0 < (plen v)}
                              -> a
                              -> (GHC.Types.IO ())
 
 Foreign.Storable.peek        :: (Foreign.Storable.Storable a)
-                             => p:{v: (GHC.Ptr.Ptr a) | 0 <= (plen v)}
+                             => p:{v: (GHC.Ptr.Ptr a) | 0 < (plen v)}
                              -> (GHC.Types.IO {v:a | v = (deref p)})
 
 Foreign.Storable.peekByteOff :: (Foreign.Storable.Storable a)
