@@ -30,7 +30,7 @@ import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.RefType hiding (shiftVV)
 
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
@@ -48,11 +48,18 @@ isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 tidySpecType :: Tidy -> SpecType -> SpecType  
 -------------------------------------------------------------------------
 tidySpecType k = tidyDSymbols
+               . tidyValueVars
                . tidySymbols 
                . tidyLocalRefas k 
                . tidyFunBinds
                . tidyTyVars 
 
+tidyValueVars :: SpecType -> SpecType
+tidyValueVars = mapReft $ \u -> u { ur_reft = txVV $ ur_reft u }
+  where
+    v         = vv Nothing
+    txVV      = (`shiftVV` v)
+    
 tidySymbols :: SpecType -> SpecType
 tidySymbols t = substa tidySymbol $ mapBind dropBind t  
   where 
