@@ -18,9 +18,11 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 ##############################################################################
 ##############################################################################
 
-
 fast:
 	$(CABAL) install --ghc-options=$(FASTOPTS) 
+
+first: 
+	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
 
 dist:
 	$(CABAL) install --ghc-options=$(DISTOPTS) 
@@ -28,10 +30,7 @@ dist:
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
 
-igoto:
-	$(CABAL) configure --ghc-options=$(OPTS) 
-
-goto:
+igotgoto:
 	$(CABAL) build --ghc-options=$(OPTS) 
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
@@ -55,9 +54,10 @@ test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
 test:
-	cabal configure --enable-tests -O2
-	cabal build
-	cabal exec $(TASTY) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$(CABAL) configure --enable-tests -O2
+	$(CABAL) build
+	$(CABAL) exec $(TASTY) -- --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+
 
 retest:
 	cabal configure --enable-tests -O2
