@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.2.2.0
+Version:             0.2.0.0
 Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -28,7 +28,8 @@ data-files: include/*.hquals
           , include/GHC/*.hquals
           , include/GHC/*.spec
           , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/Prelude.pred
+          , include/Language/Haskell/Liquid/*.hs
+          , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
 

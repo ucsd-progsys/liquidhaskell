@@ -108,7 +108,7 @@ import Language.Haskell.Liquid.Foreign
 --LIQUID FIXME: this is a hacky, specialized type
 {-@ withLIQUID :: z:CSize
                -> a:A.MArray s
-               -> ({v:PtrV CSize | (Btwn (deref v) z (malen a))} -> IO b)
+               -> ({v:Ptr CSize | (Btwn (deref v) z (malen a)) && plen v > 0} -> IO b)
                -> IO b
   @-}
 withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b

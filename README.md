@@ -1,5 +1,5 @@
-README
-======
+LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
+=============
 
 Requirements
 ------------
@@ -772,6 +772,15 @@ LH has [flycheck](https://github.com/flycheck/flycheck) integration with emacs.
 1. Copy `syntax/flycheck-liquid.el` into your emacs path.
 2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
 
+**Disable**
+
+To disable flycheck-liquid on a particular file, add:
+
+    -- Local Variables:
+    -- flycheck-disabled-checkers: (haskell-liquid)
+    -- End:
+
+at the end of the file.
 
 Vim
 ---

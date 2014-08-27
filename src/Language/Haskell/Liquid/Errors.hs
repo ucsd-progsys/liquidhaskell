@@ -68,7 +68,7 @@ stripReft t   = maybe t' (strengthen t') ro
 stripRType    :: SpecType -> (SpecType, Maybe RReft)
 stripRType t  = (t', ro)
   where
-    t'        = ofType $ toType t
+    t'        = fmap (const (uTop mempty)) t
     ro        = stripRTypeBase  t 
 
 tidyREnv      :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]

@@ -62,9 +62,9 @@ data DiffCheck = DC { newBinds  :: [CoreBind]
                     , oldOutput :: !(Output Doc)
                     }
 
-data Def  = D { binder :: Var -- ^ name of binder
-              , start  :: Int -- ^ line at which binder definition starts
+data Def  = D { start  :: Int -- ^ line at which binder definition starts
               , end    :: Int -- ^ line at which binder definition ends
+              , binder :: Var -- ^ name of binder
               } 
             deriving (Eq, Ord)
 
@@ -131,7 +131,7 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = L.sort [D x l l' | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
@@ -204,9 +204,10 @@ dependentVars d    = {- tracePpr "INCCHECK: tx changed vars" $ -}
 -------------------------------------------------------------------------
 diffVars :: [Int] -> [Def] -> [Var]
 -------------------------------------------------------------------------
-diffVars lines defs  = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines ++ " defs= " ++ show defs) $ 
-                       go (L.sort lines) (L.sort defs)
+diffVars lines defs' = {- tracePpr ("INCCHECK: diffVars lines = " ++ show lines ++ " defs= " ++ show defs) $ -} 
+                       go (L.sort lines) defs
   where 
+    defs             = L.sort defs'
     go _      []     = []
     go []     _      = []
     go (i:is) (d:ds) 
@@ -340,7 +341,7 @@ setShift (l1, l2, δ) = IM.insert (IM.Interval l1 l2) δ
 checkedItv :: [Def] -> ChkItv
 checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is 
   where
-    is            = [IM.Interval l1 l2 | D _ l1 l2 <- chDefs]
+    is            = [IM.Interval l1 l2 | D l1 l2 _ <- chDefs]
 
 
 ifM b x y    = b >>= \z -> if z then x else y

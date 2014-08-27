@@ -36,12 +36,15 @@
 
 (require 'flycheck)
 
+(defvar flycheck-liquid-diffcheck nil
+  "Whether to run liquid in incremental-checking mode.")
+
 (flycheck-define-checker haskell-liquid
   "A Haskell refinement type checker using liquidhaskell.
 
 See URL `https://github.com/ucsd-progsys/liquidhaskell'."
   :command
-  ("liquid" source-inplace)
+  ("liquid" (option-flag "--diffcheck" flycheck-liquid-diffcheck) source-inplace)
   ;; ("~/bin/Checker.hs" source-inplace)
   :error-patterns
   (
@@ -54,6 +57,14 @@ See URL `https://github.com/ucsd-progsys/liquidhaskell'."
           line-end)
 
    (error line-start " " (file-name) ":" line ":" column "-" (one-or-more digit) ":"
+	  (message
+	   (one-or-more " ") (one-or-more not-newline)
+	   (zero-or-more "\n"
+			 (one-or-more " ")
+			 (zero-or-more not-newline)))
+          line-end)
+
+   (error line-start " " (file-name) ":(" line "," column ")-(" (one-or-more digit) "," (one-or-more digit) "):"
 	  (message
 	   (one-or-more " ") (one-or-more not-newline)
 	   (zero-or-more "\n"

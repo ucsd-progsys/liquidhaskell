@@ -241,6 +241,15 @@ import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import Foreign.ForeignPtr       (ForeignPtr)
 
+{-@ measure sumLens :: [[a]] -> Int
+    sumLens ([])   = 0
+    sumLens (x:xs) = len x + (sumLens xs)
+  @-}
+{-@ invariant {v:[[a]] | sumLens v >= 0} @-}
+{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
+
 -- ByteString qualifiers
 {-@ qualif LBLensAcc(v:ByteString,
                      bs:List ByteString,
@@ -437,6 +446,7 @@ pack ws = go Empty (chunks defaultChunkSize ws)
 {-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
 unpack :: ByteString -> [Word8]
 --LIQUID INLINE unpack cs = L.concatMap S.unpack (toChunks cs)
+{-@ assume L.concat :: xs:[[a]] -> {v:[a] | len v = sumLens xs} @-}
 unpack cs = L.concat $ mapINLINE $ toChunks cs
     where mapINLINE [] = []
           mapINLINE (c:cs) = S.unpack c : mapINLINE cs
