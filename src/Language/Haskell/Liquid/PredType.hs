@@ -5,7 +5,8 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy
   , dataConPSpecType
   , makeTyConInfo
-  , unify, replacePreds
+  , unify
+  , replacePreds
 
   , replacePredsWithRefs
   , pVartoRConc
@@ -299,7 +300,7 @@ substPred msg su@(π, _ ) (RApp c ts rs r)
   | null πs                     = t' 
   | otherwise                   = substRCon msg su t' πs r2'
   where
-    t'                          = RApp c (substPred msg su <$> ts) (substPredP su <$> rs) r
+    t'                          = RApp c (substPred msg su <$> ts) (substPredP msg su <$> rs) r
     (r2', πs)                   = splitRPvar π r
 
 substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
@@ -322,25 +323,37 @@ substPred _   _  t              = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
+pad msg f = go
+  where
+    go (x:xs) (y:ys) = y : go xs ys
+    go (x:xs) []     = f x : go xs []
+    go []     []     = []
+    go _       _     = errorstar $ "pad: " ++ msg
+    
 substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
-  | rtc_tc c1 == rtc_tc c2    = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
-  where ts                    = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
-        rs                    = safeZipWith (msg ++ ": substRcon2") strSubR rs1 rs2
-        strSub r1 r2          = meetListWithPSubs πs ss r1 r2
-        strSubR r1 r2         = meetListWithPSubsRef πs ss r1 r2
+  | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
+  where
+    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
+    rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1 rs2'
+    -- TODO: REMOVE `pad` just use rs2 ?
+    rs2'                   = pad "substRCon" top rs1 rs2
+    strSub r1 r2           = meetListWithPSubs πs ss r1 r2
+    strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
+
+
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
-substPredP su@(p, RProp ss tt) (RProp s t)       
-  = RProp ss' $ substPred "substPredP" su t
+substPredP msg su@(p, RProp ss tt) (RProp s t)       
+  = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where
    ss' = drop n ss ++  s
    n   = length ss - length (freeArgsPs p t)
 
-substPredP _  (RHProp _ _)       
+substPredP _ _  (RHProp _ _)       
   = errorstar "TODO:EFFECTS:substPredP"
 
-substPredP _  (RPropP _ _)       
+substPredP _ _  (RPropP _ _)       
   = error $ "RPropP found in substPredP"
 
 
