@@ -335,6 +335,7 @@ substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
   where
     ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
     rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1 rs2'
+    -- TODO: REMOVE `pad` just use rs2 ?
     rs2'                   = pad "substRCon" top rs1 rs2
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
