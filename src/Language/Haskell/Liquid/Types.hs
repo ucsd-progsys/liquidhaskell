@@ -674,7 +674,7 @@ data Ref τ r t
   | RHProp {
       rf_args :: [(Symbol, τ)]
     , rf_heap :: World t           
-  }                                -- ^ Abstract heap-refinement associated with `RTyCon`
+    }                              -- ^ Abstract heap-refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.

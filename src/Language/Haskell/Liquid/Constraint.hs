@@ -1340,9 +1340,9 @@ cconsE γ e t
        
 instantiatePreds γ e t0@(RAllP π t)
   = do r     <- freshPredRef γ e π
-       let πZZ = traceShow ("instantiatePreds 1") π
-       let tZZ = traceShow ("instantiatePreds 2") t
-       let rZZ = traceShow ("instantiatePreds 3") r
+       let πZZ = {- traceShow ("instantiatePreds 1") -} π
+       let tZZ = {- traceShow ("instantiatePreds 2") -} t
+       let rZZ = {- traceShow ("instantiatePreds 3") -} r
        let t'  = replacePreds "consE" tZZ [(πZZ, rZZ)]
        instantiatePreds γ e t'
 
