@@ -630,6 +630,9 @@ instance (RefTypable p c tv r) => PPrint (RType p c tv r) where
 instance PPrint (RType p c tv r) => Show (RType p c tv r) where
   show = showpp
 
+instance PPrint (RTProp p c tv r) => Show (RTProp p c tv r) where
+  show = showpp
+
 instance Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
 
