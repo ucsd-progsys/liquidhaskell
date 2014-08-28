@@ -7,6 +7,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ParallelListComp           #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | This module contains the functions that convert /from/ descriptions of 
 -- symbols, names and types (over freshly parsed /bare/ Strings),
@@ -26,6 +27,7 @@ import Var
 import Name                     (getSrcSpan, isInternalName)
 import NameSet
 import Id                       (isConLikeId)
+import CoreSyn                  hiding (Expr)
 import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
@@ -55,7 +57,7 @@ import Data.Generics.Schemes    (everywhere)
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
+import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym, takeWhileSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -79,19 +81,21 @@ import Debug.Trace (trace)
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
+makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
-makeGhcSpec cfg name vars defVars exports env specs
+makeGhcSpec cfg name cbs vars defVars exports env specs
   
-  = throwOr (throwOr return . checkGhcSpec specs . postProcess) =<< execBare act initEnv
+  = throwOr (throwOr return . checkGhcSpec specs . postProcess cbs) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg vars defVars exports specs
     throwOr  = either Ex.throw
     initEnv  = BE name mempty mempty mempty env
     
-postProcess :: GhcSpec -> GhcSpec
-postProcess = id -- HEREHEREHEREHERE (addTyConInfo stuff) 
+postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
+postProcess cbs sp@(SP {..}) = sp { tySigs = sigs } -- HEREHEREHEREHERE (addTyConInfo stuff) 
+  where
+    sigs = replaceLocalBinds tcEmbeds tyconEnv tySigs cbs
 
 
 ------------------------------------------------------------------------------------------------
@@ -1339,8 +1343,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
-    errors           =  mapMaybe (checkBind "variable"    emb tcEnv env) sigs
-                     ++ mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
+    errors           = -- mapMaybe (checkBind "variable"    emb tcEnv env) sigs
+                      mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
                      ++ mapMaybe (checkExpr "measure"     emb env sigs)  (texprs sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
@@ -1365,6 +1369,65 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     ms               =  measures sp
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
+                        , SEnv SortedReft
+                        , TCEmb TyCon
+                        , M.HashMap TyCon RTyCon
+                        ) (State (M.HashMap Var (Located SpecType)))
+
+replaceLocalBinds :: TCEmb TyCon
+                  -> M.HashMap TyCon RTyCon
+                  -> [(Var, Located SpecType)]
+                  -> CoreProgram
+                  -> [(Var, Located SpecType)]
+replaceLocalBinds emb tyi sigs cbs
+  = M.toList $ execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs) (M.empty, emptySEnv, emb, tyi)) (M.fromList sigs)
+
+traverseExprs (Let b e)
+  = traverseBinds b (traverseExprs e)
+traverseExprs (Lam _ e)
+  = traverseExprs e
+traverseExprs (App x y)
+  = traverseExprs x >> traverseExprs y
+traverseExprs (Case e _ _ as)
+  = traverseExprs e >> mapM_ (traverseExprs . thd3) as
+traverseExprs (Cast e _)
+  = traverseExprs e
+traverseExprs (Tick _ e)
+  = traverseExprs e
+traverseExprs _
+  = return ()
+
+traverseBinds b k
+  = do (env', fenv', emb, tyi) <- ask
+       let env  = L.foldl' (\m v -> M.insert (takeWhileSym (/='#') $ symbol v) (symbol v) m) env' vs
+           fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+       withReaderT (const (env,fenv,emb,tyi)) $ do
+         mapM_ replaceLocalBindsOne vs
+         mapM_ traverseExprs es
+         k
+  where
+    vs = bindersOf b
+    es = rhssOfBind b
+
+replaceLocalBindsOne :: Var -> ReplaceM ()
+replaceLocalBindsOne v
+  = do mt <- gets (M.lookup v)
+       case mt of
+         Nothing -> return ()
+         Just (Loc l (toRTypeRep -> t@(RTypeRep {..}))) -> do
+           (env,fenv,emb,tyi) <- ask
+           let f k  = fromMaybe k $ M.lookup k env
+           let res  = substa f ty_res
+           let args = map (substa f) ty_args
+           let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
+           case checkTy msg emb tyi fenv t' of
+             Just err -> Ex.throw err
+             Nothing -> modify (M.insert v (Loc l t'))
+           
 
 checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb tcEnv env t   = checkTy err emb tcEnv env (val t) 
