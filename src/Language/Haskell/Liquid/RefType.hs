@@ -171,6 +171,7 @@ instance ( Monoid r, Reftable r, RefTypable a b c r, RefTypable a b c ()) => Mon
 instance (Reftable r, RefTypable p c tv r, RefTypable p c tv ()) => Reftable (RTProp p c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp _ t)  = isTrivial t
+  top (RProp xs t)     = RProp xs $ mapReft top t 
   ppTy (RPropP _ r) d  = ppTy r d
   ppTy (RProp _ _) _   = errorstar "RefType: Reftable ppTy in RProp"
   toReft               = errorstar "RefType: Reftable toReft"
