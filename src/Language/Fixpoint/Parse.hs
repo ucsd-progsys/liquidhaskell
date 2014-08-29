@@ -187,14 +187,11 @@ symconstP = SL . T.pack <$> stringLiteral
 expr0P :: Parser Expr
 expr0P 
   =  (fastIfP EIte exprP)
--- <|> try (EVar . stringSymbol <$> upperIdP)   -- SPEED: remove try 
--- <|> try (expr <$> symbolP) 
- <|> {- try -} (ESym <$> symconstP)
- <|> {- try -} (ECon <$> constantP)                   -- SPEED: drop try
- <|> (reserved "_|_" >> return EBot)      
- <|> try (parens  exprP)                          -- SPEED: move to END
- <|> try (parens  exprCastP)                      -- SPEED: remove try 
- -- <|> try (parens $ condQmP EIte exprP)
+ <|> (ESym <$> symconstP)
+ <|> (ECon <$> constantP)
+ <|> (reserved "_|_" >> return EBot)
+ <|> try (parens  exprP)
+ <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
 
 charsExpr cs

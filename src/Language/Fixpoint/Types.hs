@@ -558,7 +558,6 @@ isTautoPred z  = eqT z || (z `elem` tautos)
     eqT _      = False
 
 
-
 isTautoReft (Reft (_, ras)) = all isTautoRa ras
 isTautoRa (RConc p)         = isTautoPred p
 isTautoRa _                 = False
@@ -1325,15 +1324,15 @@ class (Monoid r, Subable r) => Reftable r where
   top     :: r -> r
   top _   =  mempty
 
-  -- | should also refactor `top` so it takes a parameter.
   bot     :: r -> r
 
   meet    :: r -> r -> r
   meet    = mappend
 
   toReft  :: r -> Reft
+  ofReft  :: Reft -> r
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
-
+  
 instance Monoid Pred where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
@@ -1360,12 +1359,14 @@ instance Reftable () where
   bot  _    = ()
   meet _ _  = ()
   toReft _  = mempty
+  ofReft _  = mempty
   params _  = []
 
 instance Reftable Reft where
   isTauto  = isTautoReft
   ppTy     = ppr_reft
   toReft   = id
+  ofReft   = id
   params _ = []
 
   bot    _        = falseReft
@@ -1387,6 +1388,7 @@ instance Reftable SortedReft where
   isTauto  = isTauto . toReft
   ppTy     = ppTy . toReft
   toReft   = sr_reft
+  ofReft   = error "No instance of ofReft for SortedReft"
   params _ = []
   bot s    = s { sr_reft = falseReft }
 
@@ -1403,19 +1405,6 @@ instance Falseable Refa where
 
 instance Falseable Reft where
   isFalse (Reft(_, rs)) = or [isFalse p | RConc p <- rs]
-
--- instance Expression a => Reftable a where
---   isTauto _ = isTauto . toReft
---   ppTy      = ppTy . toReft
---   toReft    = exprReft
---   params _  = []
-
--- instance Predicate a => Reftable a where
---   isTauto   = isTauto . toReft
---   ppTy      = ppTy . toReft
---   toReft    = propReft
---   params _  = []
-
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
