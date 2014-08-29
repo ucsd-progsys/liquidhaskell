@@ -93,9 +93,10 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
     initEnv  = BE name mempty mempty mempty env
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
-postProcess cbs sp@(SP {..}) = sp { tySigs = sigs } -- HEREHEREHEREHERE (addTyConInfo stuff) 
+postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
+  -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
-    sigs = replaceLocalBinds tcEmbeds tyconEnv tySigs (ghcSpecEnv sp) cbs
+    (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
 
 
 ------------------------------------------------------------------------------------------------
@@ -1343,10 +1344,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
-    errors           = -- mapMaybe (checkBind "variable"    emb tcEnv env) sigs
-                      mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
+    errors           =  mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
-                     ++ mapMaybe (checkExpr "measure"     emb env sigs)  (texprs sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -1375,16 +1374,23 @@ type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
                         , SEnv SortedReft
                         , TCEmb TyCon
                         , M.HashMap TyCon RTyCon
-                        ) (State (M.HashMap Var (Located SpecType)))
+                        ) (State ( M.HashMap Var (Located SpecType)
+                                 , M.HashMap Var [Expr]
+                                 ))
 
 replaceLocalBinds :: TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
                   -> [(Var, Located SpecType)]
+                  -> [(Var, [Expr])]
                   -> SEnv SortedReft
                   -> CoreProgram
-                  -> [(Var, Located SpecType)]
-replaceLocalBinds emb tyi sigs senv cbs
-  = M.toList $ execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs) (M.empty, senv, emb, tyi)) (M.fromList sigs)
+                  -> ([(Var, Located SpecType)], [(Var, [Expr])])
+replaceLocalBinds emb tyi sigs texprs senv cbs
+  = (M.toList s, M.toList t)
+  where
+    (s,t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
+                                  (M.empty, senv, emb, tyi))
+                      (M.fromList sigs, M.fromList texprs)
 
 traverseExprs (Let b e)
   = traverseBinds b (traverseExprs e)
@@ -1415,7 +1421,7 @@ traverseBinds b k
 
 replaceLocalBindsOne :: Var -> ReplaceM ()
 replaceLocalBindsOne v
-  = do mt <- gets (M.lookup v)
+  = do mt <- gets (M.lookup v . fst)
        case mt of
          Nothing -> return ()
          Just (Loc l (toRTypeRep -> t@(RTypeRep {..}))) -> do
@@ -1427,7 +1433,17 @@ replaceLocalBindsOne v
            let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
            case checkTy msg emb tyi fenv t' of
              Just err -> Ex.throw err
-             Nothing -> modify (M.insert v (Loc l t'))
+             Nothing -> modify (first $ M.insert v (Loc l t'))
+           mes <- gets (M.lookup v . snd)
+           case mes of
+             Nothing -> return ()
+             Just es -> do
+               let f k  = fromMaybe k $ M.lookup k env
+               let es'  = substa f es
+               case checkExpr "termination" emb fenv (v, Loc l t', es') of
+                 Just err -> Ex.throw err
+                 Nothing -> modify (second $ M.insert v es')
+
            
 
 checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
@@ -1473,10 +1489,9 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
-checkExpr s emb env vts (v, es) = mkErr <$> go es
+checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
+checkExpr s emb env (v, Loc l t, es) = mkErr <$> go es
   where 
-    Loc l t = safeFromJust msg $ L.lookup v vts
     mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     go      = foldl (\err e -> err <|> checkSorted env' e) Nothing  
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
