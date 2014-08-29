@@ -64,13 +64,13 @@ mapN _ _ []     = []
 
 
  
-pad _ f [] ys
-  = (f <$> ys, ys)
-pad _ f xs []
-  = (xs, f <$> xs)
+pad _ f [] ys   = (f <$> ys, ys)
+pad _ f xs []   = (xs, f <$> xs)
 pad msg f xs ys
-  | length xs == length ys
-  = (xs, f <$> xs)
-  | otherwise
-  = errorstar $ "pad: " ++ msg
+  | nxs == nys  = (xs, f <$> xs)
+  | otherwise   = errorstar $ "pad: " ++ msg
+  where
+    nxs         = length xs
+    nys         = length ys
+                        
                   
