@@ -598,13 +598,17 @@ splitC (SubR γ o r)
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
-  where t1s' = catMaybes $ (!?) t1s <$> indexes
-        t2s' = catMaybes $ (!?) t2s <$> indexes
+  where
+    t1s' = catMaybes $ (!?) t1s <$> indexes
+    t2s' = catMaybes $ (!?) t2s <$> indexes
 
 rsplitCIndexed γ t1s t2s indexes 
-  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
-  where t1s' = catMaybes $ (!?) (maybePad "rsplitC" F.top t2s t1s) <$> indexes
-        t2s' = catMaybes $ (!?) (maybePad "rsplitC" F.top t1s t2s) <$> indexes
+  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s'' t2s'')
+  where
+    t1s'           = catMaybes $ (!?) t1s <$> indexes
+    t2s'           = catMaybes $ (!?) t2s <$> indexes
+    (t1s'', t2s'') = pad "rsplitCIndexed" F.top t1s' t2s'
+
 
 bsplitC γ t1 t2
   = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
