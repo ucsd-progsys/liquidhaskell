@@ -95,7 +95,7 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
 postProcess cbs sp@(SP {..}) = sp { tySigs = sigs } -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
-    sigs = replaceLocalBinds tcEmbeds tyconEnv tySigs cbs
+    sigs = replaceLocalBinds tcEmbeds tyconEnv tySigs (ghcSpecEnv sp) cbs
 
 
 ------------------------------------------------------------------------------------------------
@@ -1380,10 +1380,11 @@ type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
 replaceLocalBinds :: TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
                   -> [(Var, Located SpecType)]
+                  -> SEnv SortedReft
                   -> CoreProgram
                   -> [(Var, Located SpecType)]
-replaceLocalBinds emb tyi sigs cbs
-  = M.toList $ execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs) (M.empty, emptySEnv, emb, tyi)) (M.fromList sigs)
+replaceLocalBinds emb tyi sigs senv cbs
+  = M.toList $ execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs) (M.empty, senv, emb, tyi)) (M.fromList sigs)
 
 traverseExprs (Let b e)
   = traverseBinds b (traverseExprs e)
