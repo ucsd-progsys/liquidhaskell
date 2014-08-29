@@ -23,7 +23,6 @@ module Language.Haskell.Liquid.PredType (
   , substParg
   , pApp
   , wiredSortedSyms
-  , maybePad
   ) where
 
 -- import PprCore          (pprCoreExpr)
@@ -52,6 +51,7 @@ import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Types 
 import Language.Haskell.Liquid.RefType  hiding (generalize)
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc
 
 import Control.Applicative  ((<$>), (<*>))
 import Control.Monad.State
@@ -326,25 +326,13 @@ substPred _   _  t              = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
-pad msg f = go
-  where
-    go (x:xs) (y:ys) = y : go xs ys
-    go (x:xs) []     = f x : go xs []
-    go []     []     = []
-    go _       _     = errorstar $ "pad: " ++ msg
-
-maybePad msg f xs ys
-  | length xs > length ys = pad msg f xs ys
-  | otherwise             = ys
-
 substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
-    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1 ts2
+    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
     rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
     -- TODO: REMOVE `pad` just use rs2 ?
-    rs1'                   = maybePad "substRCon" top rs2 rs1
-    rs2'                   = maybePad "substRCon" top rs1 rs2
+    (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
 
