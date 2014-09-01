@@ -113,7 +113,7 @@ module Language.Haskell.Liquid.Types (
   , Output (..)
 
   -- * Refinement Hole
-  , hole, isHole
+  , hole, isHole, hasHole
 
   -- * Converting To and From Sort
   , ofRSort, toRSort
@@ -1673,9 +1673,10 @@ instance NFData KVProf where
 
 hole = RKvar "HOLE" mempty
 
-isHole (toReft -> (Reft (_, [RKvar "HOLE" _]))) = True
-isHole _                                        = False
+isHole (RKvar ("HOLE") _) = True
+isHole _                  = False
 
+hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 
 classToRApp :: SpecType -> SpecType
 classToRApp (RCls cl ts) 

@@ -42,7 +42,7 @@ import Var
 import Id
 import Name            
 import NameSet
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Control.Monad.State
 
@@ -119,7 +119,7 @@ initEnv info
        let fVars = impVars info ++ filter isConLikeId (snd <$> freeSyms sp)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        tyi      <- tyConInfo <$> get 
-       (ks,f0)  <- extract <$> refreshKs (grty info) -- asserted refinements     (for defined vars)
+       (hs,f0)  <- refreshHoles $ grty info -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info     -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs' $ defaults           -- default TOP reftype      (for all vars)
@@ -132,23 +132,23 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3)
-       mapM_ (addW . WfC γ0) (catMaybes ks)
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
-    extract      = unzip . map (\(v, (k, t)) -> (k, (v, t)))
     ialias       = mkRTyConIAl $ ialiases sp 
     vals f       = map (mapSnd val) . f
+
+refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
+refreshHoles' (x,t)
+  | noHoles t = return (Nothing,x,t)
+  | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
+  where
+    tx r | hasHole r = refresh r
+         | otherwise = return r
+extract (a,b,c) = (a,(b,c))
     
 refreshArgs' = mapM (mapSndM refreshArgs)
-refreshKs    = mapM (mapSndM refreshK)
-refreshK t   = do t' <- mapReftM f t
-                  let b = foldReft ((||) . isHole) False t
-                  return (if b then Just t' else Nothing, t')
-               where
-                  f r | isHole r  = refresh r
-                      | otherwise = return r
 
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
@@ -182,7 +182,7 @@ unifyts penv (x, t)     = (x, unify pt t)
    x'                   = F.symbol x
 ---------------------------------------------------------------------------------------
 
-measEnv sp xts cbs lts asms
+measEnv sp xts cbs lts asms hs
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ second (uRType . val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
@@ -197,6 +197,7 @@ measEnv sp xts cbs lts asms
         , tgKey = Nothing
         , trec  = Nothing
         , lcb   = M.empty
+        , holes = fromListHEnv hs
         } 
     where
       tce = tcEmbeds sp
@@ -249,6 +250,7 @@ data CGEnv
         , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
         , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
+        , holes :: !HEnv               -- ^ Types with holes, will need refreshing
         } -- deriving (Data, Typeable)
 
 instance PPrint CGEnv where
@@ -1226,12 +1228,15 @@ consCB _ _ γ (NonRec x e)
        extender γ (x, to')
 
 consBind isRec γ (x, e, Asserted spect) 
-  = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
+  = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
+           (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e spect
+       when (F.symbol x `elemHEnv` holes γ) $
+         -- have to add the wf constraint here for HOLEs so we have the proper env
+         addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
        return $ Asserted spect -- Nothing
-  where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Assumed spect) 
   = do let γ' = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1245,6 +1250,15 @@ consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
        return $ Asserted t
+
+noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
+
+killSubst :: RReft -> RReft
+killSubst = fmap tx
+  where
+    tx (F.Reft (s, rs)) = F.Reft (s, map f rs)
+    f (F.RKvar k _) = F.RKvar k mempty
+    f (F.RConc p)   = F.RConc p
 
 defAnn True  = AnnRDf
 defAnn False = AnnDef
@@ -1680,7 +1694,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 x11 _ _) 
+  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 x11 _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
@@ -1921,3 +1935,7 @@ updateCs kvars cs
         F.Reft(_, lhspds) = lhs
         lhsconcs = [p | F.RConc p <- lhspds]
 
+newtype HEnv = HEnv (S.HashSet F.Symbol)
+
+fromListHEnv = HEnv . S.fromList
+elemHEnv x (HEnv s) = x `S.member` s
