@@ -7,6 +7,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ParallelListComp           #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 -- | This module contains the functions that convert /from/ descriptions of 
 -- symbols, names and types (over freshly parsed /bare/ Strings),
@@ -26,6 +27,7 @@ import Var
 import Name                     (getSrcSpan, isInternalName)
 import NameSet
 import Id                       (isConLikeId)
+import CoreSyn                  hiding (Expr)
 import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
@@ -48,12 +50,14 @@ import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
 import qualified Control.Exception as Ex 
 import Data.Bifunctor
+import Data.Generics.Aliases    (mkT)
+import Data.Generics.Schemes    (everywhere)
 -- import Data.Data                hiding (TyCon, tyConName)
 -- import Data.Function            (on)
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym)
+import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym, takeWhileSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -77,19 +81,22 @@ import Debug.Trace (trace)
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [Var] -> [Var] -> NameSet -> HscEnv
+makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
-makeGhcSpec cfg name vars defVars exports env specs
+makeGhcSpec cfg name cbs vars defVars exports env specs
   
-  = throwOr (throwOr return . checkGhcSpec specs . postProcess) =<< execBare act initEnv
+  = throwOr (throwOr return . checkGhcSpec specs . postProcess cbs) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg vars defVars exports specs
     throwOr  = either Ex.throw
     initEnv  = BE name mempty mempty mempty env
     
-postProcess :: GhcSpec -> GhcSpec
-postProcess = id -- HEREHEREHEREHERE (addTyConInfo stuff) 
+postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
+postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
+  -- HEREHEREHEREHERE (addTyConInfo stuff) 
+  where
+    (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
 
 
 ------------------------------------------------------------------------------------------------
@@ -107,7 +114,7 @@ makeGhcSpec' cfg vars defVars exports specs
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
-         >>= makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su 
+         >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su 
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
@@ -121,8 +128,8 @@ makeGhcSpec0 cfg defVars exports name sp
                         , exports = exports    
                         , tgtVars = targetVars }
 
-makeGhcSpec1 vars exports name sigs asms cs' ms' cms' su sp
-  = return $ sp { tySigs     = makePluggedSigs name exports $ tx sigs  
+makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
+  = return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
                 , asmSigs    = renameTyVars <$> tx asms
                 , ctors      = tx   cs'
                 , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
@@ -197,8 +204,8 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
     n             = length xts
 
 
-makePluggedSigs name exports sigs
-  = [ (x, plugHoles x r τ t)
+makePluggedSigs name embs tcEnv exports sigs
+  = [ (x, plugHoles embs tcEnv x r τ t)
     | (x, t) <- sigs
     , let τ   = expandTypeSynonyms $ varType x
     , let r   = maybeTrue x name exports
@@ -768,8 +775,7 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles :: Var -> (RReft -> RReft) -> Type -> Located SpecType -> Located SpecType
-plugHoles x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
+plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -785,7 +791,10 @@ plugHoles x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' s
     ps'               = fmap (subts su') <$> ps
     su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
 
-    go t                (RHole r)          = fmap f t { rt_reft = f r }
+    go t                (RHole r)          = (addHoles t') { rt_reft = f r }
+      where
+        t'       = everywhere (mkT $ addRefs tce tyi) t
+        addHoles = fmap (const $ f $ uReft ("v", [hole]))
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
     go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
@@ -798,6 +807,16 @@ plugHoles x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' s
      where
        err = errOther $ text msg
        msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+
+addRefs :: TCEmb TyCon
+     -> M.HashMap TyCon RTyCon
+     -> SpecType
+     -> SpecType
+addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
+  where
+    RApp c' _ ps _ = addTyConInfo tce tyi (RApp c ts [] r)
+    ps'            = safeZip "addRefHoles" ps (rTyConPVs c')
+addRefs _ _ t  = t
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
@@ -1325,10 +1344,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
-    errors           =  mapMaybe (checkBind "variable"    emb tcEnv env) sigs
-                     ++ mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
+    errors           =  mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
                      ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
-                     ++ mapMaybe (checkExpr "measure"     emb env sigs)  (texprs sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -1351,6 +1368,83 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     ms               =  measures sp
     measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
+                        , SEnv SortedReft
+                        , TCEmb TyCon
+                        , M.HashMap TyCon RTyCon
+                        ) (State ( M.HashMap Var (Located SpecType)
+                                 , M.HashMap Var [Expr]
+                                 ))
+
+replaceLocalBinds :: TCEmb TyCon
+                  -> M.HashMap TyCon RTyCon
+                  -> [(Var, Located SpecType)]
+                  -> [(Var, [Expr])]
+                  -> SEnv SortedReft
+                  -> CoreProgram
+                  -> ([(Var, Located SpecType)], [(Var, [Expr])])
+replaceLocalBinds emb tyi sigs texprs senv cbs
+  = (M.toList s, M.toList t)
+  where
+    (s,t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
+                                  (M.empty, senv, emb, tyi))
+                      (M.fromList sigs, M.fromList texprs)
+
+traverseExprs (Let b e)
+  = traverseBinds b (traverseExprs e)
+traverseExprs (Lam _ e)
+  = traverseExprs e
+traverseExprs (App x y)
+  = traverseExprs x >> traverseExprs y
+traverseExprs (Case e _ _ as)
+  = traverseExprs e >> mapM_ (traverseExprs . thd3) as
+traverseExprs (Cast e _)
+  = traverseExprs e
+traverseExprs (Tick _ e)
+  = traverseExprs e
+traverseExprs _
+  = return ()
+
+traverseBinds b k
+  = do (env', fenv', emb, tyi) <- ask
+       let env  = L.foldl' (\m v -> M.insert (takeWhileSym (/='#') $ symbol v) (symbol v) m) env' vs
+           fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
+       withReaderT (const (env,fenv,emb,tyi)) $ do
+         mapM_ replaceLocalBindsOne vs
+         mapM_ traverseExprs es
+         k
+  where
+    vs = bindersOf b
+    es = rhssOfBind b
+
+replaceLocalBindsOne :: Var -> ReplaceM ()
+replaceLocalBindsOne v
+  = do mt <- gets (M.lookup v . fst)
+       case mt of
+         Nothing -> return ()
+         Just (Loc l (toRTypeRep -> t@(RTypeRep {..}))) -> do
+           (env',fenv,emb,tyi) <- ask
+           let f m k = M.lookupDefault k k m
+           let (env,args) = L.mapAccumL (\e (v,t) -> (M.insert v v e, substa (f e) t))
+                             env' (zip ty_binds ty_args)
+           let res  = substa (f env) ty_res
+           let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
+           let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
+           case checkTy msg emb tyi fenv t' of
+             Just err -> Ex.throw err
+             Nothing -> modify (first $ M.insert v (Loc l t'))
+           mes <- gets (M.lookup v . snd)
+           case mes of
+             Nothing -> return ()
+             Just es -> do
+               let es'  = substa (f env) es
+               case checkExpr "termination" emb fenv (v, Loc l t', es') of
+                 Just err -> Ex.throw err
+                 Nothing -> modify (second $ M.insert v es')
+
+           
 
 checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb tcEnv env t   = checkTy err emb tcEnv env (val t) 
@@ -1395,10 +1489,9 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> [(v, Located SpecType)] -> (v, [Expr])-> Maybe Error 
-checkExpr s emb env vts (v, es) = mkErr <$> go es
+checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
+checkExpr s emb env (v, Loc l t, es) = mkErr <$> go es
   where 
-    Loc l t = safeFromJust msg $ L.lookup v vts
     mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     go      = foldl (\err e -> err <|> checkSorted env' e) Nothing  
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
@@ -1623,15 +1716,17 @@ freshSymbol
        modify $ \s -> s{fresh = n+1}
        return $ symbol $ "ex#" ++ show n
 
+maybeTrue :: NamedThing a => a -> ModName -> NameSet -> RReft -> RReft
 maybeTrue x target exports r
-  | not (isHole r) || isInternalName name || inTarget && notExported
+  | isInternalName name || inTarget && notExported
   = r
   | otherwise
-  = uTop $ Reft ("VV", [])
+  = killHoles r
   where
     inTarget    = moduleName (nameModule name) == getModName target
     name        = getName x
     notExported = not $ getName x `elemNameSet` exports
+    killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
 -------------------------------------------------------------------------------------
 -- | Tasteful Error Messages --------------------------------------------------------
