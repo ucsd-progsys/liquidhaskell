@@ -548,10 +548,7 @@ splitC (SubC γ t1 (RAllP p t))
         su = (uPVar p, pVartoRConc p)
 
 splitC (SubC _ t1@(RAllP _ _) t2) 
-  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
---   = splitC $ SubC γ t' t2
---   where t' = fmap (replacePredsWithRefs su) t
---        su = (uPVar p, pVartoRConc p)
+  = errorstar $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -601,13 +598,17 @@ splitC (SubR γ o r)
 
 splitCIndexed γ t1s t2s indexes 
   = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
-  where t1s' = catMaybes $ (!?) t1s <$> indexes
-        t2s' = catMaybes $ (!?) t2s <$> indexes
+  where
+    t1s' = catMaybes $ (!?) t1s <$> indexes
+    t2s' = catMaybes $ (!?) t2s <$> indexes
 
 rsplitCIndexed γ t1s t2s indexes 
-  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s' t2s')
-  where t1s' = catMaybes $ (!?) t1s <$> indexes
-        t2s' = catMaybes $ (!?) t2s <$> indexes
+  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s'' t2s'')
+  where
+    t1s'           = catMaybes $ (!?) t1s <$> indexes
+    t2s'           = catMaybes $ (!?) t2s <$> indexes
+    (t1s'', t2s'') = pad "rsplitCIndexed" F.top t1s' t2s'
+
 
 bsplitC γ t1 t2
   = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
@@ -1342,8 +1343,11 @@ cconsE γ e t
 --   in the body.
        
 instantiatePreds γ e t0@(RAllP π t)
-  = do r     <- freshPredRef γ e π 
-       let t' = replacePreds "consE" t [(π, r)]
+  = do r     <- freshPredRef γ e π
+       let πZZ = {- traceShow ("instantiatePreds 1") -} π
+       let tZZ = {- traceShow ("instantiatePreds 2") -} t
+       let rZZ = {- traceShow ("instantiatePreds 3") -} r
+       let t'  = replacePreds "consE" tZZ [(πZZ, rZZ)]
        instantiatePreds γ e t'
 
 instantiatePreds _ _ t0
@@ -1437,7 +1441,7 @@ consE γ (Tick tt e)
   = do t <- consE (γ `setLoc` l) e
        addLocA Nothing l (AnnUse t)
        return t
-    where l = {- traceShow ("tickSrcSpan: e = " ++ showPpr e) $ -} tickSrcSpan tt
+    where l = tickSrcSpan tt
 
 consE γ e@(Cast e' _)      
   = castTy γ (exprType e) e'
@@ -1625,7 +1629,7 @@ varAnn γ x t
 
 getSrcSpan' x 
   | loc == noSrcSpan
-  = {- traceShow ("myGetSrcSpan: No Location for: " ++ showPpr x) $ -} loc
+  = loc
   | otherwise
   = loc
   where loc = getSrcSpan x
