@@ -17,27 +17,27 @@ directory of the distribution:
 
 1. Install a suitable smt solver binary, e.g.
 
-	+ [Z3](http://z3.codeplex.com/)
-	+ [CVC4](http://cvc4.cs.nyu.edu/) 
-	+ [MathSat](http://mathsat.fbk.eu/download.html)
-
+    + [Z3](http://z3.codeplex.com/)
+    + [CVC4](http://cvc4.cs.nyu.edu/) 
+    + [MathSat](http://mathsat.fbk.eu/download.html)
+    
 2. Create top-level project directory and clone repositories:
 
-```
-mkdir /path/to/liquid
-cd /path/to/liquid
-git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
-git clone git@github.com:ucsd-progsys/liquidhaskell.git
-cd liquidhaskell
-cabal sandbox init
-cabal sandbox add-source ../liquid-fixpoint/
-```
+    ```
+    mkdir /path/to/liquid
+    cd /path/to/liquid
+    git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
+    git clone git@github.com:ucsd-progsys/liquidhaskell.git
+    cd liquidhaskell
+    cabal sandbox init
+    cabal sandbox add-source ../liquid-fixpoint/
+    ```
 
 3. Install 
 
-```
-cabal install
-```
+    ```
+    cabal install
+    ```
 
 To **rebuild** after this step, run
 
