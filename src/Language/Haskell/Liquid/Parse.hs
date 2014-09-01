@@ -178,7 +178,7 @@ bbaseP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM2 bAppTy lowerIdP (sepBy1 bareTyArgP blanks))
  <|> try (liftM3 bRVar lowerIdP stratumP monoPredicateP)
- <|> liftM4 bCon locUpperIdP stratumP predicatesP (sepBy bareTyArgP blanks)
+ <|> liftM5 bCon locUpperIdP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
 
 stratumP :: Parser Strata
 stratumP 
@@ -193,7 +193,7 @@ bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
- <|> try (liftM4 bCon locUpperIdP stratumP predicatesP (return []))
+ <|> try (liftM5 bCon locUpperIdP stratumP predicatesP (return []) (return mempty))
  <|> liftM3 bRVar lowerIdP stratumP monoPredicateP 
 
 maybeP p = liftM Just p <|> return Nothing
@@ -368,6 +368,10 @@ predicate1P
                       return $ zip ss fs
     refreshSym s = intSymbol s <$> freshIntP
 
+mmonoPredicateP 
+   = try (angles $ angles monoPredicate1P) 
+  <|> return mempty
+
 monoPredicateP 
    = try (angles monoPredicate1P) 
   <|> return mempty
@@ -413,8 +417,8 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
 -- w/o it
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
-bCon b s [RPropP _ r1] [] r = RApp b [] [] $ r1 `meet` (U r mempty s)
-bCon b s rs ts r            = RApp b ts rs $ U r mempty s
+bCon b s [RPropP _ r1] [] _ r = RApp b [] [] $ r1 `meet` (U r mempty s)
+bCon b s rs            ts p r = RApp b ts rs $ U r p s
 
 -- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
 bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)
