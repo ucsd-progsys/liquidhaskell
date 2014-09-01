@@ -36,7 +36,6 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  - A Z3 Binary (<http://z3.codeplex.com>)
 
-
 Extra-Source-Files: configure
                   , external/fixpoint/Makefile
                   , external/fixpoint/*.ml
@@ -72,6 +71,10 @@ Extra-Source-Files: configure
 Flag z3mem
   Description: Link to Z3
   Default:     False
+
+Source-Repository head
+  Type:        git
+  Location:    https://github.com/ucsd-progsys/liquid-fixpoint/
 
 -- FIXME: This is a terrible hack. We build Fixpoint.hs *twice*, once
 -- targeting fixpoint.native so we can then *clobber* it with the
