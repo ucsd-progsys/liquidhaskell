@@ -3,9 +3,6 @@
 {-@ LIQUID "--short-names" @-}
 module Basics where
 
-import           Data.List (find)
-
-
 -- list of numbers between 0 and 100
 
 list = [1,10,30]
