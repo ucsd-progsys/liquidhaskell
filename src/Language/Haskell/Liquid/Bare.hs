@@ -1425,10 +1425,11 @@ replaceLocalBindsOne v
        case mt of
          Nothing -> return ()
          Just (Loc l (toRTypeRep -> t@(RTypeRep {..}))) -> do
-           (env,fenv,emb,tyi) <- ask
-           let f k  = fromMaybe k $ M.lookup k env
-           let res  = substa f ty_res
-           let args = map (substa f) ty_args
+           (env',fenv,emb,tyi) <- ask
+           let f m k = M.lookupDefault k k m
+           let (env,args) = L.mapAccumL (\e (v,t) -> (M.insert v v e, substa (f e) t))
+                             env' (zip ty_binds ty_args)
+           let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
            let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
            case checkTy msg emb tyi fenv t' of
@@ -1438,8 +1439,7 @@ replaceLocalBindsOne v
            case mes of
              Nothing -> return ()
              Just es -> do
-               let f k  = fromMaybe k $ M.lookup k env
-               let es'  = substa f es
+               let es'  = substa (f env) es
                case checkExpr "termination" emb fenv (v, Loc l t', es') of
                  Just err -> Ex.throw err
                  Nothing -> modify (second $ M.insert v es')
