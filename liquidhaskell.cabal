@@ -33,11 +33,6 @@ data-files: include/*.hquals
           , include/System/*.spec
           , syntax/liquid.css
 
-Source-Repository this
-  Tag:         0.1
-  Type:        git
-  Location:    https://github.com/ucsd-progsys/liquidhaskell/
-
 Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
