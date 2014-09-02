@@ -128,6 +128,7 @@ filterBinds cbs ys = filter f cbs
     f (NonRec x _) = x `S.member` ys 
     f (Rec xes)    = any (`S.member` ys) $ fst <$> xes 
 
+
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------

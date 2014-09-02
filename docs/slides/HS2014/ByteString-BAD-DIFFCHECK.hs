@@ -54,7 +54,7 @@ pack str = unsafeCreate (length str) $ \p -> go p  str
 
 -- uncomment this spec and then twiddle the definition to rerun diffcheck, it 
 -- will only resolve the type error on the line you twiddle.
-{-@ unsafeIndex :: b:ByteString -> {v:Nat | v < bLength b} -> Word8 @-}
+{- unsafeIndex :: b:ByteString -> {v:Nat | v < bLength b} -> Word8 @-}
 unsafeIndex (PS x s l) i = liquidAssert (i >= 0 && i < l)  $
     unsafePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s + i) --FIXME: diffcheck breaks here
 
