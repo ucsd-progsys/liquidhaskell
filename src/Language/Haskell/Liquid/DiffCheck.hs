@@ -131,7 +131,7 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = traceShow "coreDefs" $ L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
