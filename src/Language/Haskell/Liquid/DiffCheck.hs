@@ -131,11 +131,12 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDefs cbs = traceShow "coreDefs" $ L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
     vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
+    
 
 -- | `meetSpans` cuts off the start-line to be no less than the line at which 
 --   the binder is defined. Without this, i.e. if we ONLY use the ticks and
@@ -161,13 +162,27 @@ lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan b _                = Nothing 
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs             = foldr1 combineSrcSpans xs
+catSpans b xs             = foldr1 combineSrcSpans [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+
+bindFile (NonRec x _) = varFile x
+bindFile (Rec xes)    = varFile $ fst $ head xes 
+
+varFile b = case getSrcSpan b of
+              RealSrcSpan z -> srcSpanFile z
+              _             -> error $ "INCCHECK: getFile: no file found for: " ++ showPpr b
+
 
 bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e
 bindSpans (Rec    xes)    = map getSrcSpan xs ++ concatMap exprSpans es
   where 
     (xs, es)              = unzip xes
-exprSpans (Tick t _)      = [tickSrcSpan t]
+
+exprSpans (Tick t e)
+  | isJunkSpan sp         = exprSpans e
+  | otherwise             = [sp]
+  where
+    sp                    = tickSrcSpan t
+    
 exprSpans (Var x)         = [getSrcSpan x]
 exprSpans (Lam x e)       = getSrcSpan x : exprSpans e 
 exprSpans (App e a)       = exprSpans e ++ exprSpans a 
@@ -177,6 +192,9 @@ exprSpans (Case e x _ cs) = getSrcSpan x : exprSpans e ++ concatMap altSpans cs
 exprSpans e               = [] 
 
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
+
+isJunkSpan (RealSrcSpan _) = False
+isJunkSpan _               = True
 
 -------------------------------------------------------------------------
 coreDeps  :: [CoreBind] -> Deps
@@ -204,7 +222,7 @@ dependentVars d    = {- tracePpr "INCCHECK: tx changed vars" $ -}
 -------------------------------------------------------------------------
 diffVars :: [Int] -> [Def] -> [Var]
 -------------------------------------------------------------------------
-diffVars lines defs' = {- tracePpr ("INCCHECK: diffVars lines = " ++ show lines ++ " defs= " ++ show defs) $ -} 
+diffVars lines defs' = -- tracePpr ("INCCHECK: diffVars lines = " ++ show lines ++ " defs= " ++ show defs) $  
                        go (L.sort lines) defs
   where 
     defs             = L.sort defs'
