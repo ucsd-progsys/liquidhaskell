@@ -213,6 +213,7 @@ test-suite test
                      tagged,
                      unix,
                      liquidhaskell,
-                     tasty >= 0.9,
-                     tasty-hunit >= 0.9,
+                     optparse-applicative < 0.10,
+                     tasty >= 0.8,
+                     tasty-hunit >= 0.8,
                      tasty-rerun >= 1.1
