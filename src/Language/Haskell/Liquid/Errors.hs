@@ -214,6 +214,12 @@ ppError' _ dSp (ErrMismatch _ x τ t)
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t
 
+ppError' _ dSp (ErrAliasApp _ n name dl dn)
+  = dSp <+> text "Malformed Type Alias Application"
+    $+$ text "Type alias:" <+> pprint name
+    $+$ text "Defined at:" <+> pprint dl
+    $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n  
+
 ppError' _ dSp (ErrSaved _ s)
   = dSp <+> s
 

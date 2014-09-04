@@ -335,25 +335,32 @@ lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
 
 expandRTApp :: SourcePos -> [Symbol] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
 expandRTApp l s rta args r
-  | length args == (length αs) + (length εs)
+  | length args == length αs + length εs
   = do args'  <- mapM (expandAlias l s) args
        let ts  = take (length αs) args'
            αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
        return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
   | otherwise
-  = errortext $ (text msg)
+  = Ex.throw err
   where
     su        = mkSubst $ zip (symbol <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta
---    msg       = rtName rta ++ " " ++ join (map showpp args)
     es_       = drop (length αs) args
-    es        = map (exprArg msg) es_
-    msg = "Malformed type alias application at " ++ show l ++ "\n\t"
-               ++ show (rtName rta) 
-               ++ " defined at " ++ show (rtPos rta)
-               ++ "\n\texpects " ++ show (length αs + length εs)
-               ++ " arguments but it is given " ++ show (length args)
+    es        = map (exprArg $ show err) es_
+    msg       = show err
+    err       :: Error
+    err       = ErrAliasApp (sourcePosSrcSpan l) (length args) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta) (length αs + length εs) 
+
+    -- JUNK msg = "Malformed type alias application at " ++ show l ++ "\n\t"
+    -- JUNK            ++ show (rtName rta) 
+    -- JUNK            ++ " defined at " ++ show (rtPos rta)
+    -- JUNK            ++ "\n\texpects " ++ show ()
+    -- JUNK            ++ " arguments but it is given " ++ show (length args)
+
+    -- JUNK Ex.throw $ errOther $ text 
+    -- JUNK                           $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+      
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
 -- e.g. type Matrix a Row Col = List (List a Row) Col

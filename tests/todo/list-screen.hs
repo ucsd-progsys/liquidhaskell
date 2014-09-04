@@ -3,7 +3,10 @@
 module ListDemo where
 
 -----------------------------------------------------------------------
--- Lets define a List data-type
+-- 1. Lets define a List data-type
+-- 2. Lets force List to have Nat 
+-- 3. Lets force List to have Pos
+-- 4. Oops, need a different type.
 -----------------------------------------------------------------------
 
 data List a = E | (:+:) { h :: a, t :: List a }
@@ -14,21 +17,16 @@ infixr  9 :+:
 
 -- Ok, now here are some lists
 
-up   :: List Int
-up   = 10 :+: 20 :+: 70 :+: E
+nats = 2    :+: 7    :+: 19    :+: E
 
-down :: List Int
-down = 7 :+: 2 :+: 0 :+: E
-
-mix  :: List Int
-mix  = 2 :+: 7 :+: 0 :+: E
+negs = (-2) :+: (-7) :+: (-19) :+: E
 
 
 -- Lets define some simple refinements.
 
 -- | The set of `Int` that are greater then `N`
 
-{-@ type Geq N = {v:_ | N <= v} @-}
+{-@ type Geq N = {v:Int | N <= v } @-}
 
 -- | now we can define the *natural* and *positive* numbers as:
 
@@ -61,7 +59,7 @@ countUp n   = n :+: countUp (n + 1)
 
 -- Lets specify this by REFINING `List` to only allow ORDERED lists...
 
-{-@ data List a = E | (:+:) { h :: a, t :: List (Geq h) } @-}
+{-@ data List a = E | (:+:) { h :: a, t :: List {v:a | Geq h} } @-}
                                       
 -- the main idea: tail `t` must ONLY contain values that are GREATER THAN the head `h`.
 -- that is,
