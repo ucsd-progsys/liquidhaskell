@@ -545,7 +545,7 @@ renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
     initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, ls, tbody)    = bkUniv t
-    err                    = errTypeMismatch x lt
+    err                    = error "FIXME:FUCKED" -- errTypeMismatch x lt
 
 
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
@@ -1543,7 +1543,7 @@ checkMismatch        :: (Var, Located SpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where 
     ok               = tyCompat x (val t)
-    err              = errTypeMismatch x t
+    err              = error "FIXME:FOOED" -- errTypeMismatch x t
 
 tyCompat x t         = lhs == rhs
   where 
@@ -1610,7 +1610,7 @@ checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType Da
 checkMeasure emb γ (M name@(Loc src n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where 
-    txerror = ErrMeas (sourcePosSrcSpan src) n
+    txerror = error "FIXME: YICKEDS" -- ErrMeas (sourcePosSrcSpan src) n
 
 checkMBody γ emb name sort (Def s c bs body) = checkMBody' emb sort γ' body
   where 
