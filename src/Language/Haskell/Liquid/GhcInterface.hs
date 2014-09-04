@@ -138,12 +138,12 @@ derivedVs cbs fd = concatMap bindersOf cbf ++ deps
         deps :: [Id]
         deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap bindersOf cbf)
 
-        dep (DFunUnfolding _ _ e) = concatMap grapDep  e
-        dep _                     = []
+        dep (DFunUnfolding _ _ e)         = concatMap grapDep  e
+        dep (CoreUnfolding {uf_tmpl = e}) = grapDep  e
+        dep f                             = []
 
         grapDep :: CoreExpr -> [Id]
-        grapDep (Var x)     = [x]
-        grapDep _           = []
+        grapDep e           = freeVars S.empty e
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
@@ -203,7 +203,7 @@ getGhcModGuts1 fn = do
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
 
-getDerivedDictionaries cm mod = filter ((`elem` pdFuns) . shortPpr) dFuns 
+getDerivedDictionaries cm mod = dFuns -- filter ((`elem` pdFuns) . shortPpr) dFuns 
   where hsmod    = unLoc $ pm_parsed_source mod
         decls    = unLoc <$> hsmodDecls hsmod
         tyClD    = [d  | TyClD  d <- decls]
