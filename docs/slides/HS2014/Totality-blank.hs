@@ -1,4 +1,4 @@
-{-@ LIQUID "--totality"       @-}
+{-@ LIQUID "--totality" @-}
 module Totality where
 
 import Prelude hiding (head)
@@ -67,6 +67,7 @@ nestcomment n [] = ([],[])
 -- End:
 
 nestcomment :: Int -> String -> (String,String)
+
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--diffcheck"      @-}
 {-@ LIQUID "--short-names"    @-}
