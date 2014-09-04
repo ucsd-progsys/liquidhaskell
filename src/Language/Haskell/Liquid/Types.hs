@@ -1327,18 +1327,17 @@ type Error = TError SpecType
 
 -- | INVARIANT : all Error constructors should have a pos field
 data TError t = 
-    ErrSubType  { pos  :: !SrcSpan
-                , msg  :: !Doc 
-                , ctx  :: !(M.HashMap Symbol t) 
-                , tact :: !t
-                , texp :: !t
-                } -- ^ liquid type error
-
-   | ErrAssType { pos :: !SrcSpan
-                , obl :: !Oblig
-                , msg :: !Doc
-                , ref :: !RReft
-                } -- ^ liquid type error
+    ErrSubType { pos  :: !SrcSpan
+               , msg  :: !Doc 
+               , ctx  :: !(M.HashMap Symbol t) 
+               , tact :: !t
+               , texp :: !t
+               } -- ^ liquid type error
+  | ErrAssType { pos :: !SrcSpan
+               , obl :: !Oblig
+               , msg :: !Doc
+               , ref :: !RReft
+               } -- ^ liquid type error
 
   | ErrParse    { pos :: !SrcSpan
                 , msg :: !Doc
@@ -1397,10 +1396,18 @@ data TError t =
                 , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
 
+  | ErrAliasApp { pos   :: !SrcSpan
+                , nargs :: !Int
+                , dname :: !Doc
+                , dpos  :: !SrcSpan
+                , dargs :: !Int
+                }
+
   | ErrSaved    { pos :: !SrcSpan 
                 , msg :: !Doc
-                } -- ^ Unexpected PANIC 
- 
+                } -- ^ Previously saved error, that carries over after DiffCheck
+
+  
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
