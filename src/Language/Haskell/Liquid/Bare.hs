@@ -1276,7 +1276,9 @@ getPsSig m pos (RAppTy t1 t2 r)
   = addps m pos r ++ getPsSig m pos t1 ++ getPsSig m pos t2
 getPsSig m pos (RFun _ t1 t2 r) 
   = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
-getPsSig m pos z
+getPsSig m pos (RHole r)
+  = addps m pos r 
+getPsSig m pos z 
   = error $ "getPsSig" ++ show z
     
 
