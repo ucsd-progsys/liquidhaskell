@@ -53,6 +53,8 @@ range lo hi
 
 
 
+-- measures let us describe properties of data
+-- without *embedding* them into the data definition!
 
 
 
