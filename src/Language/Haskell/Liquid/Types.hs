@@ -17,7 +17,7 @@
 module Language.Haskell.Liquid.Types (
 
   -- * Options
-    Config (..), canonicalizePaths
+    Config (..)
   
   -- * Ghc Information
   , GhcInfo (..)
@@ -232,9 +232,7 @@ import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
 import CoreSyn (CoreBind)
 
-import System.Directory (canonicalizePath)
 import System.FilePath ((</>), isAbsolute, takeDirectory)
-import System.Posix.Files (getFileStatus, isDirectory)
 
 import Data.Default
 -----------------------------------------------------------------------------
@@ -264,20 +262,6 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   } deriving (Data, Typeable, Show, Eq)
-
--- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
---   to worry about relative paths.
-canonicalizePaths :: Config -> FilePath -> IO Config
-canonicalizePaths cfg tgt
-  = do st  <- getFileStatus tgt
-       tgt <- canonicalizePath tgt
-       let canonicalize f
-             | isAbsolute f   = return f
-             | isDirectory st = canonicalizePath (tgt </> f)
-             | otherwise      = canonicalizePath (takeDirectory tgt </> f)
-       is <- mapM canonicalize $ idirs cfg
-       cs <- mapM canonicalize $ cFiles cfg
-       return $ cfg { idirs = is, cFiles = cs }
 
 
 -----------------------------------------------------------------------------
