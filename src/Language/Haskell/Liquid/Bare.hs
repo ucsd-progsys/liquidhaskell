@@ -543,7 +543,7 @@ renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
     initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, ls, tbody)    = bkUniv t
-    err                    = error "FIXME:FUCKED" -- errTypeMismatch x lt
+    err                    = errTypeMismatch x lt
 
 
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
@@ -665,6 +665,8 @@ setRPAlias s a =
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
 ------------------------------------------------------------------
+execBare' x y = (execBare x y) `Ex.catch` (return . Left)
+
 execBare act benv = 
    do z <- evalStateT (runErrorT (runWriterT act)) benv
       case z of
@@ -788,9 +790,9 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
-
     tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
-    initvmap          = initMapSt $ Ex.throw $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
+    -- RJ:HOLE-CRASH-BUG the problem is in the uncaught Ex.throw in mapTyVars 
+    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
     su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
     st'''             = subts su st''
     ps'               = fmap (subts su') <$> ps
@@ -810,8 +812,7 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
     go t                st                 = Ex.throw err
      where
-       err = errOther $ text msg
-       msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+       err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 addRefs :: TCEmb TyCon
      -> M.HashMap TyCon RTyCon
@@ -1543,7 +1544,7 @@ checkMismatch        :: (Var, Located SpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where 
     ok               = tyCompat x (val t)
-    err              = error "FIXME:FOOED" -- errTypeMismatch x t
+    err              = errTypeMismatch x t
 
 tyCompat x t         = lhs == rhs
   where 
@@ -1610,7 +1611,7 @@ checkMeasure :: M.HashMap TyCon FTycon -> SEnv SortedReft -> Measure SpecType Da
 checkMeasure emb γ (M name@(Loc src n) sort body)
   = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
   where 
-    txerror = error "FIXME: YICKEDS" -- ErrMeas (sourcePosSrcSpan src) n
+    txerror = ErrMeas (sourcePosSrcSpan src) n
 
 checkMBody γ emb name sort (Def s c bs body) = checkMBody' emb sort γ' body
   where 
