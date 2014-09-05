@@ -224,11 +224,13 @@ makePluggedAsmSigs embs tcEnv sigs
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
+       let su = zip (freeTyVars dcp) (map rTyVar das)
        tyArgs <- zipWithM (\t1 (x,t2) -> 
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l t2)) 
                  dts (reverse $ tyArgs dcp)
        tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l (tyRes dcp))
        return (dc, Loc l dcp { freeTyVars = map rTyVar das
+                             , freePred = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                              , tyArgs = reverse tyArgs
                              , tyRes = tyRes})
 
