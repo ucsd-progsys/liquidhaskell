@@ -32,7 +32,7 @@ import CoreSyn                  hiding (Expr)
 import PrelNames
 import PrelInfo                 (wiredInThings)
 import Type                     (expandTypeSynonyms, splitFunTy_maybe)
-import DataCon                  (dataConWorkId, dataConStupidTheta)
+import DataCon                  (dataConWorkId, dataConStupidTheta, dataConName)
 import TyCon                    (SynTyConRhs(SynonymTyCon))
 import HscMain
 import TysWiredIn
@@ -107,11 +107,11 @@ makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] 
 makeGhcSpec' cfg vars defVars exports specs
   = do name                                    <- gets modName
        _                                       <- makeRTEnv specs
-       (tycons, datacons, dcSelectors, tyi)    <- makeGhcSpecCHOP1 specs
+       (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
-       (invs, ialias, embs, sigs, asms)        <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts 
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
+       (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSs datacons cls embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
@@ -133,9 +133,10 @@ makeGhcSpec0 cfg defVars exports name sp
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs <- makePluggedAsmSigs name embs tyi exports $ tx asms
+       ctors <- makePluggedAsmSigs name embs tyi exports $ tx cs'
        return $ sp { tySigs     = tySigs
                    , asmSigs    = asmSigs
-                   , ctors      = tx   cs'
+                   , ctors      = ctors
                    , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
@@ -170,22 +171,22 @@ makeGhcSpec4 defVars specs name su sp
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let tycons       = tcs        ++ wiredTyCons 
-       let datacons     = mapSnd val <$> (concat dcs ++ wiredDataCons)
-       let dcSelectors  = concat $ map makeMeasureSelectors (concat dcs)
        let tyi          = makeTyConInfo tycons
-       return           $ (tycons, datacons, dcSelectors, tyi) 
+       embs            <- mconcat <$> mapM makeTyConEmbeds specs
+       datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+       let dcSelectors  = concat $ map makeMeasureSelectors datacons
+       return           $ (tycons, second val <$> datacons, dcSelectors, tyi, embs) 
 
-makeGhcSpecCHOP2 cfg vars defVars specs name cls mts
+makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
   = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
        asms'   <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
        invs    <- mconcat <$> mapM makeInvariants specs
        ialias  <- mconcat <$> mapM makeIAliases   specs
-       embs    <- mconcat <$> mapM makeTyConEmbeds specs
        let dms  = makeDefaultMethods vars mts
        tyi     <- gets tcEnv
        let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- sigs' ++ mts ++ dms ]
        let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
-       return     (invs, ialias, embs, sigs, asms)
+       return     (invs, ialias, sigs, asms)
 
 makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
@@ -219,6 +220,15 @@ makePluggedAsmSigs name embs tcEnv exports sigs
       let τ = expandTypeSynonyms $ varType x
       let r = killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
+
+makePluggedDataCons embs tcEnv dcs
+  = forM dcs $ \(dc, Loc l dcp) -> do
+       let (das, _, dts, dt) = dataConSig dc
+       tyArgs <- zipWithM (\t1 (x,t2) -> 
+                   (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l t2)) 
+                 dts (reverse $ tyArgs dcp)
+       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l (tyRes dcp))
+       return (dc, Loc l dcp {tyArgs = reverse tyArgs, tyRes = tyRes})
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 

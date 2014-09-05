@@ -386,8 +386,8 @@ data DataConP = DataConP { dc_loc     :: !SourcePos
                          , freeTyVars :: ![RTyVar]
                          , freePred   :: ![PVar RSort]
                          , freeLabels :: ![Symbol]
-                         , tyConsts   :: ![SpecType]
-                         , tyArgs     :: ![(Symbol, SpecType)]
+                         , tyConsts   :: ![SpecType] -- ^ FIXME: WHAT IS THIS??
+                         , tyArgs     :: ![(Symbol, SpecType)] -- ^ These are backwards, why??
                          , tyRes      :: !SpecType
                          } deriving (Data, Typeable)
 
