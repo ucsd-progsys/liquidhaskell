@@ -1,7 +1,3 @@
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--diffcheck"      @-}
-{-@ LIQUID "--short-names"    @-}
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Bytestring where
 
 import Prelude hiding (null)
@@ -162,7 +158,7 @@ pack str = unsafeCreate (length str) $ \p -> go p  str
 
 
 unsafeIndex (PS x s l) i = liquidAssert (i >= 0 && i < l)  $
-    unsafePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i) --FIXME: diffcheck breaks here
+    unsafePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
 
 
 
@@ -211,3 +207,7 @@ unsafeCreate n f = unsafePerformIO $ create n f
 
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 unsafeIndex :: ByteString -> Int -> Word8
+
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diffcheck"      @-}
+{-@ LIQUID "--short-names"    @-}

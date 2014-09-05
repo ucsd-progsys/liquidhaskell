@@ -211,8 +211,6 @@ makePluggedSigs name embs tcEnv exports sigs
     , let r   = maybeTrue x name exports
     ]
 
-
-
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
@@ -335,25 +333,32 @@ lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
 
 expandRTApp :: SourcePos -> [Symbol] -> RTAlias RTyVar SpecType  -> [BareType] -> RReft -> BareM SpecType
 expandRTApp l s rta args r
-  | length args == (length αs) + (length εs)
+  | length args == length αs + length εs
   = do args'  <- mapM (expandAlias l s) args
        let ts  = take (length αs) args'
            αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
        return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
   | otherwise
-  = errortext $ (text msg)
+  = Ex.throw err
   where
     su        = mkSubst $ zip (symbol <$> εs) es
     αs        = rtTArgs rta 
     εs        = rtVArgs rta
---    msg       = rtName rta ++ " " ++ join (map showpp args)
     es_       = drop (length αs) args
-    es        = map (exprArg msg) es_
-    msg = "Malformed type alias application at " ++ show l ++ "\n\t"
-               ++ show (rtName rta) 
-               ++ " defined at " ++ show (rtPos rta)
-               ++ "\n\texpects " ++ show (length αs + length εs)
-               ++ " arguments but it is given " ++ show (length args)
+    es        = map (exprArg $ show err) es_
+    msg       = show err
+    err       :: Error
+    err       = ErrAliasApp (sourcePosSrcSpan l) (length args) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta) (length αs + length εs) 
+
+    -- JUNK msg = "Malformed type alias application at " ++ show l ++ "\n\t"
+    -- JUNK            ++ show (rtName rta) 
+    -- JUNK            ++ " defined at " ++ show (rtPos rta)
+    -- JUNK            ++ "\n\texpects " ++ show ()
+    -- JUNK            ++ " arguments but it is given " ++ show (length args)
+
+    -- JUNK Ex.throw $ errOther $ text 
+    -- JUNK                           $ "Cyclic Reftype Alias Definition: " ++ show (c:s)
+      
 -- | exprArg converts a tyVar to an exprVar because parser cannot tell 
 -- HORRIBLE HACK To allow treating upperCase X as value variables X
 -- e.g. type Matrix a Row Col = List (List a Row) Col
@@ -660,6 +665,8 @@ setRPAlias s a =
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
 ------------------------------------------------------------------
+execBare' x y = (execBare x y) `Ex.catch` (return . Left)
+
 execBare act benv = 
    do z <- evalStateT (runErrorT (runWriterT act)) benv
       case z of
@@ -783,8 +790,8 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
-
     tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
+    -- RJ:HOLE-CRASH-BUG the problem is in the uncaught Ex.throw in mapTyVars 
     initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
     su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
     st'''             = subts su st''
@@ -805,8 +812,7 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
     go t                st                 = Ex.throw err
      where
-       err = errOther $ text msg
-       msg = printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+       err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
 addRefs :: TCEmb TyCon
      -> M.HashMap TyCon RTyCon
@@ -1276,7 +1282,11 @@ getPsSig m pos (RAppTy t1 t2 r)
   = addps m pos r ++ getPsSig m pos t1 ++ getPsSig m pos t2
 getPsSig m pos (RFun _ t1 t2 r) 
   = addps m pos r ++ getPsSig m pos t2 ++ getPsSig m (not pos) t1
-
+getPsSig m pos (RHole r)
+  = addps m pos r 
+getPsSig m pos z 
+  = error $ "getPsSig" ++ show z
+    
 
 getPsSigPs m pos (RPropP _ r) = addps m pos r
 getPsSigPs m pos (RProp  _ t) = getPsSig m pos t
@@ -1356,7 +1366,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
                   -- ++ checkDuplicateRTAlias "Predicate Alias"    pAliases  
-                  --   ++ checkRTAliasSyms      "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
+                  -- ++ checkRTAliasSyms      "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1370,6 +1380,8 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     sigs             =  tySigs sp ++ asmSigs sp
 
 
+-- RJ: This is not nice. More than 3 elements should be a record.
+    
 type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
                         , SEnv SortedReft
                         , TCEmb TyCon

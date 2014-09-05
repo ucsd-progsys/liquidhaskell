@@ -1,6 +1,3 @@
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--diffcheck" @-}
-{-@ LIQUID "--short-names" @-}
 module Basics where
 
 -- list of numbers between 0 and 100
@@ -21,6 +18,12 @@ list = [1,10,30]
 
 
 
+
+
+
+
+
+range :: Int -> Int -> [Int]
 range lo hi
   | lo <= hi  = lo : range (lo + 1)  hi
   | otherwise = []
@@ -50,6 +53,8 @@ range lo hi
 
 
 
+-- measures let us describe properties of data
+-- without *embedding* them into the data definition!
 
 
 
@@ -93,5 +98,8 @@ csv = CSV [ "Month", "Days"]
 -- flycheck-checker: haskell-liquid
 -- End:
 
-list :: [Int]
-range :: Int -> Int -> [Int]
+-- list :: [Int]
+
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diffcheck" @-}
+{-@ LIQUID "--short-names" @-}
