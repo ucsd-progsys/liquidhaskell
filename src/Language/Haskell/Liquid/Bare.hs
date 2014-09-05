@@ -132,8 +132,8 @@ makeGhcSpec0 cfg defVars exports name sp
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs <- makePluggedSigs name embs tyi exports $ tx sigs
-       asmSigs <- makePluggedAsmSigs name embs tyi exports $ tx asms
-       ctors <- makePluggedAsmSigs name embs tyi exports $ tx cs'
+       asmSigs <- makePluggedAsmSigs embs tyi $ tx asms
+       ctors <- makePluggedAsmSigs embs tyi $ tx cs'
        return $ sp { tySigs     = tySigs
                    , asmSigs    = asmSigs
                    , ctors      = ctors
@@ -215,7 +215,7 @@ makePluggedSigs name embs tcEnv exports sigs
       let r = maybeTrue x name exports
       (x,) <$> plugHoles embs tcEnv x r τ t
 
-makePluggedAsmSigs name embs tcEnv exports sigs
+makePluggedAsmSigs embs tcEnv sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
       let r = killHoles
@@ -1399,7 +1399,10 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
     pAliases         =  concat [Ms.paliases sp | (_, sp) <- specs]
-    dcons spec       =  [ (v, Loc l dc)        | (v, dc) <- dataConSpec (dconsP spec), let l = getSourcePos v ] 
+    dcons spec       =  [(v, Loc l t) | (v,t)   <- dataConSpec (dconsP spec) 
+                                      | (_,dcp) <- dconsP spec
+                                      , let l = dc_loc dcp
+                                      ]
     emb              =  tcEmbeds sp
     env              =  ghcSpecEnv sp
     tcEnv            =  tyconEnv sp
