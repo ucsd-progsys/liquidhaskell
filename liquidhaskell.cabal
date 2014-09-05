@@ -139,7 +139,7 @@ Library
                 , process
                 , syb
                 , text
-                , unix
+                -- , unix
                 , intern
                 , vector
                 , hashable
@@ -211,7 +211,7 @@ test-suite test
                      filepath,
                      process,
                      tagged,
-                     unix,
+                     -- unix,
                      liquidhaskell,
                      optparse-applicative < 0.10,
                      tasty >= 0.8,

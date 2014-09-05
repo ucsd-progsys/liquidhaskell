@@ -7,7 +7,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
-import qualified System.Posix as Posix
+-- import qualified System.Posix as Posix
 import System.Process
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -15,34 +15,6 @@ import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
-
--- main
---   = do pos         <- dirTests "tests/pos"   [] ExitSuccess
---        neg         <- dirTests "tests/neg"   [] (ExitFailure 1)
---        crash       <- dirTests "tests/crash" [] (ExitFailure 2)
---        -- benchmarks
---        text        <- dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
---        bs          <- dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
---        esop        <- dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
---        vector_algs <- dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
---        hscolour    <- dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
---        -- TestTrees
---        let unit = testGroup "Unit"
---                     [ testGroup "pos" pos
---                     , testGroup "neg" neg
---                     , testGroup "crash" crash
---                     ]
---        let bench = testGroup "Benchmarks"
---                      [ testGroup "text" text
---                      , testGroup "bytestring" bs
---                      , testGroup "esop" esop
---                      , testGroup "vector-algorithms" vector_algs
---                      , testGroup "hscolour" hscolour
---                      ]
---        defaultMainWithIngredients
---          [ rerunningTests [ listingTests, consoleTestReporter ]
---          , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
---          ] $ testGroup "Tests" [ unit, bench ]
 
 main :: IO ()
 main = run =<< tests 
@@ -81,8 +53,6 @@ dirTests root ignored code
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
-
-
 
 ---------------------------------------------------------------------------
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
@@ -152,7 +122,7 @@ group n xs = testGroup n <$> sequence xs
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
 walkDirectory root
-  = do (ds,fs) <- partitionM isDirectory . candidates =<< getDirectoryContents root
+  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< getDirectoryContents root
        (fs++) <$> concatMapM walkDirectory ds
   where
     candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
@@ -165,8 +135,8 @@ partitionM f = go [] []
                          if b then go (x:ls) rs xs
                               else go ls (x:rs) xs
 
-isDirectory :: FilePath -> IO Bool
-isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
+-- isDirectory :: FilePath -> IO Bool
+-- isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
 
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f []     = pure []

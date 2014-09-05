@@ -43,8 +43,6 @@ import           System.Directory                    (doesDirectoryExist, canoni
 import           System.Environment                  (lookupEnv, withArgs)
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
-import           System.Posix.Files                  (getFileStatus,
-                                                      isDirectory)
 
 import           Language.Fixpoint.Config            hiding (Config, config,
                                                       real)
@@ -172,12 +170,13 @@ getOpts = do cfg0    <- envCfg
 --   to worry about relative paths.
 canonicalizePaths :: Config -> FilePath -> IO Config
 canonicalizePaths cfg tgt
-  = do st  <- getFileStatus tgt
-       tgt <- canonicalizePath tgt
-       dir <- doesDirectoryExist tgt
+  = do -- st  <- getFileStatus tgt
+       tgt   <- canonicalizePath tgt
+       isdir <- doesDirectoryExist tgt
        let canonicalize f
-             | isAbsolute f   = return f
-             | isDirectory st = canonicalizePath (tgt </> f)
+             | isAbsolute f = return f
+             | isdir        = canonicalizePath (tgt </> f)
+             --   | isDirectory st = canonicalizePath (tgt </> f)
              | otherwise      = canonicalizePath (takeDirectory tgt </> f)
        is <- mapM canonicalize $ idirs cfg
        cs <- mapM canonicalize $ cFiles cfg
