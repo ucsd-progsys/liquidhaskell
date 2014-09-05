@@ -97,7 +97,11 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 consAct info
   = do γ     <- initEnv info
        sflag <- scheck <$> get
-       foldM_ (consCBTop (derVars info)) γ (cbs info)
+       tflag <- trustghc <$> get
+       let trustBinding x = if tflag 
+                             then (x `elem` (derVars info) || isInternal x) 
+                             else False 
+       foldM_ (consCBTop trustBinding) γ (cbs info)
        hcs <- hsCs  <$> get 
        hws <- hsWfs <$> get
        scss <- sCs <$> get
@@ -682,6 +686,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS 
                      , tcheck     :: !Bool                        -- ^ Check Termination (?) 
                      , scheck     :: !Bool                        -- ^ Check Strata (?)
+                     , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
                      , logWarn    :: ![String]                    -- ^ ? FIX THIS
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
@@ -733,6 +738,7 @@ initCGI cfg info = CGInfo {
   , specLazy   = lazy spc
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
+  , trustghc   = trustinternals cfg
   , pruneRefs  = not $ noPrune cfg
   , logWarn    = []
   , kvProf     = emptyKVProf
@@ -1069,7 +1075,7 @@ checkValidHint x ts f n
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
 -------------------------------------------------------------------
-consCBTop :: [Var] -> CGEnv -> CoreBind -> CG CGEnv 
+consCBTop :: (Var -> Bool) -> CGEnv -> CoreBind -> CG CGEnv 
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv 
 -------------------------------------------------------------------
 
@@ -1083,14 +1089,13 @@ consCBLet γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'
 
-consCBTop dVs γ cb | isDerived
+consCBTop trustBinding γ cb | all trustBinding xs
   = do ts <- mapM trueTy (varType <$> xs)
        foldM (\γ xt -> (γ, "derived") += xt) γ (zip xs' ts)
-  where isDerived = all (`elem` dVs) xs
-        xs        = bindersOf cb
-        xs'       = F.symbol <$> xs
+  where xs             = bindersOf cb
+        xs'            = F.symbol <$> xs
 
-consCBTop _  γ cb
+consCBTop _ γ cb
   = do oldtcheck <- tcheck <$> get
        strict    <- specLazy <$> get
        let tflag  = oldtcheck

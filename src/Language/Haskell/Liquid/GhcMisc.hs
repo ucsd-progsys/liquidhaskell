@@ -25,6 +25,7 @@ import           Kind                         (superKind)
 import           NameSet                      (NameSet)
 import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
 
+import           Language.Fixpoint.Names      (dropModuleNames)
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
@@ -311,8 +312,8 @@ ignoreLetBinds e@(Let (NonRec x xe) e')
 ignoreLetBinds e 
   = e
 
-isDictionary x = L.isPrefixOf "$d" (showPpr x)
-isInternal   x = L.isPrefixOf "$" (showPpr x)
+isDictionary x = L.isPrefixOf "$d" (symbolString $ dropModuleNames $ symbol x)
+isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
 
 
 instance Hashable Var where

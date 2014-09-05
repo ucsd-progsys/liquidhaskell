@@ -70,6 +70,34 @@ step (Machine heap e stack)
   -- Letrec
   | ELet binds body <- e = Machine (Map.union (Map.fromList binds) heap) body stack
 
+
+-- Example refinements on Map.Map
+{-@ measure mlen :: Map.Map a b -> Int @-}
+
+{-@ invariant {v:Map.Map k v | (mlen v >= 0) } @-}
+
+{-@ assume Map.delete :: Ord k => x:k -> m:Map.Map k v -> {v:Map.Map k v | mlen v < mlen m} @-}
+
+
+-- Bad Termination Condition on subst
+{- subst :: su:(Map.Map Var Var) -> Expr -> Expr / [mlen su] @-}
+-- 
+
+-- Sizing Expressions:
+-- TODO: the length of ELet and ECase are badly defined
+
+{-@ invariant {v:Expr | elen v >= 0} @-}
+{-@ invariant {v:Alts | alen v >= 0} @-}
+{-@ measure elen :: Expr -> Int 
+    elen (EVar v)     = 1
+    elen (ECase e alts) = 1 + (elen e) + (alen alts)
+  @-}
+
+{-@ measure alen :: Alts -> Int@-}
+ 
+
+
+{-@ subst :: (Map.Map Var Var) -> e:Expr -> Expr / [elen e] @-}
 subst :: Map.Map Var Var -> Expr -> Expr
 subst sm = \case
   EVar x | Just y <- Map.lookup x sm -> EVar y
