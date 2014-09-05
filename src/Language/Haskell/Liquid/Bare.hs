@@ -42,6 +42,8 @@ import OccName                  (tcName)
 import Data.Char                (isLower, isUpper)
 import Text.Printf
 -- import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing, fromJust)
+import qualified Control.Monad
+
 import Control.Monad.State      (get, gets, modify, State, evalState, evalStateT, execState, StateT)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<*>), (<|>))
@@ -130,7 +132,8 @@ makeGhcSpec0 cfg defVars exports name sp
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do asms' <- mapM renameTyVars $ tx asms
-       return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
+       sigs' <- makePluggedSigs name embs tyi exports $ tx sigs  
+       return $ sp { tySigs     = sigs'
                    , asmSigs    = asms' 
                    , ctors      = tx   cs'
                    , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
@@ -206,12 +209,12 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
 
 
 makePluggedSigs name embs tcEnv exports sigs
-  = [ (x, plugHoles embs tcEnv x r τ t)
-    | (x, t) <- sigs
-    , let τ   = expandTypeSynonyms $ varType x
-    , let r   = maybeTrue x name exports
-    ]
-
+  = Control.Monad.forM sigs $ \(x, t) -> do
+      let τ  = expandTypeSynonyms $ varType x
+      let r  = maybeTrue x name exports
+      z     <- plugHoles embs tcEnv x r τ t
+      return (x, z)
+      
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
@@ -537,12 +540,12 @@ isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb)
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
 renameTyVars (x, lt@(Loc l t))
-  = case mapTyVars' τbody tbody of
-      Just tyvsmap -> let su = [(y, rTyVar x) | (x, y) <- tyvsmap]
-                          t' = subts su $ mkUnivs [] ps ls tbody
+  = case mapTyVars' err τbody tbody of
+      Right tyvsmap -> let su = [(y, rTyVar x) | (x, y) <- tyvsmap]
+                           t' = subts su $ mkUnivs [] ps ls tbody
                       in
                           return (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
-      Nothing      -> Ex.throw err
+      Left _        -> Ex.throw err
     where
       -- tyvsmap          =     vmap $ execState (mapTyVars τbody tbody) initvmap 
       (αs, τbody)         = splitForAllTys $ expandTypeSynonyms $ varType x
@@ -552,7 +555,7 @@ renameTyVars (x, lt@(Loc l t))
 
 
 -------------------------------------------------------------------------------
-mapTyVars' :: (PPrint r, Reftable r) => Type -> RRType r -> Maybe [(Var, RTyVar)]
+mapTyVars' :: (PPrint r, Reftable r) => Error -> Type -> RRType r -> Either Error [(Var, RTyVar)]
 mapTyVars' = undefined
 
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
@@ -791,26 +794,27 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
+plugHoles tce tyi x f t (Loc l st) =
+  case mapTyVars' err (toType rt') st'' of
+    Left _        -> Ex.throw err
+    Right tyvsmap -> let su    = [(y, rTyVar x) | (x, y) <- tyvsmap]
+                         st''' = subts su st''
+                         ps'   = fmap (subts su') <$> ps
+                         su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+                     in 
+                         Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
-
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
-    tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
-    -- RJ:HOLE-CRASH-BUG the problem is in the uncaught Ex.throw in mapTyVars 
-    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
-    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    st'''             = subts su st''
-    ps'               = fmap (subts su') <$> ps
-    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    err               = ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
 
     go t                (RHole r)          = (addHoles t') { rt_reft = f r }
       where
-        t'       = everywhere (mkT $ addRefs tce tyi) t
-        addHoles = fmap (const $ f $ uReft ("v", [hole]))
+        t'            = everywhere (mkT $ addRefs tce tyi) t
+        addHoles      = fmap (const $ f $ uReft ("v", [hole]))
     go (RVar _ _)       v@(RVar _ _)       = v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
     go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
@@ -819,19 +823,15 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy (go t1 t1') (go t2 t2') r
     go (RApp _ t _ _)   (RApp c t' p r)    = RApp c (zipWith go t t') p r
     go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
-    go t                st                 = Ex.throw err
-     where
-       err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+    go t                st                 = Ex.throw $ errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
-addRefs :: TCEmb TyCon
-     -> M.HashMap TyCon RTyCon
-     -> SpecType
-     -> SpecType
+
+addRefs :: TCEmb TyCon -> M.HashMap TyCon RTyCon -> SpecType -> SpecType
 addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
   where
-    RApp c' _ ps _ = addTyConInfo tce tyi (RApp c ts [] r)
-    ps'            = safeZip "addRefHoles" ps (rTyConPVs c')
-addRefs _ _ t  = t
+    RApp c' _ ps _              = addTyConInfo tce tyi (RApp c ts [] r)
+    ps'                         = safeZip "addRefHoles" ps (rTyConPVs c')
+addRefs _ _ t                   = t
 
 showTopLevelVars vs = 
   forM vs $ \v -> 
