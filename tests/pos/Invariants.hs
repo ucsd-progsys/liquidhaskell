@@ -14,7 +14,7 @@ data F a = F {fx :: a, fy :: a, fzz :: a}
 -- F :: x:a -> y:a -> z:a -> { prove this } -> F a
 
 
-{-@ foo :: x:a -> a-> {v : F a | (fx v) = x} @-}
+{-@ foo :: x:a -> a -> {v : F a | x = fx v} @-}
 foo :: a -> a -> F a
 foo x y = F x x y
 
