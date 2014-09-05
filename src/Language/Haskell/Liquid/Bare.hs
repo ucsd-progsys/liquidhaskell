@@ -129,10 +129,11 @@ makeGhcSpec0 cfg defVars exports name sp
                         , tgtVars = targetVars }
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
-  = return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
-                , asmSigs    = renameTyVars <$> tx asms
-                , ctors      = tx   cs'
-                , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
+  = do asms' <- mapM renameTyVars $ tx asms
+       return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
+                   , asmSigs    = asms' 
+                   , ctors      = tx   cs'
+                   , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
 
@@ -535,16 +536,24 @@ isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb)
 
 -- This throws an exception if there is a mismatch
 -- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
-  where
-    t'                     = subts su $ mkUnivs [] ps ls tbody
-    su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
-    initvmap               = initMapSt err
-    (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
-    (as, ps, ls, tbody)    = bkUniv t
-    err                    = errTypeMismatch x lt
+renameTyVars (x, lt@(Loc l t))
+  = case mapTyVars' τbody tbody of
+      Just tyvsmap -> let su = [(y, rTyVar x) | (x, y) <- tyvsmap]
+                          t' = subts su $ mkUnivs [] ps ls tbody
+                      in
+                          return (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
+      Nothing      -> Ex.throw err
+    where
+      -- tyvsmap          =     vmap $ execState (mapTyVars τbody tbody) initvmap 
+      (αs, τbody)         = splitForAllTys $ expandTypeSynonyms $ varType x
+      (as, ps, ls, tbody) = bkUniv t
+      err                 = errTypeMismatch x lt
 
+
+
+-------------------------------------------------------------------------------
+mapTyVars' :: (PPrint r, Reftable r) => Type -> RRType r -> Maybe [(Var, RTyVar)]
+mapTyVars' = undefined
 
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
                         , errmsg :: Error 
