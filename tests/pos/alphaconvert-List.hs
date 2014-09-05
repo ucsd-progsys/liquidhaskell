@@ -12,12 +12,12 @@ import Prelude hiding ((++), elem)
 import Data.Set (Set (..))
 import Language.Haskell.Liquid.Prelude   
 
-alpha   :: [Bndr] -> Expr -> Expr 
-subst   :: Expr -> Bndr -> Expr -> Expr
-maxs    :: [Int] -> Int 
-lemma1  :: Int -> [Int] -> Bool
-fresh   :: [Bndr] -> Bndr
-free    :: Expr -> [Bndr]
+alpha  :: [Bndr] -> Expr -> Expr 
+subst  :: Expr -> Bndr -> Expr -> Expr
+maxs   :: [Int] -> Int 
+lemma1 :: Int -> [Int] -> Bool
+fresh  :: [Bndr] -> Bndr
+free   :: Expr -> [Bndr]
 
 ---------------------------------------------------------------------
 -- | Datatype Definition --------------------------------------------
