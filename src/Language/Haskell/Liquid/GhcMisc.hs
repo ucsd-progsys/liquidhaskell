@@ -25,6 +25,7 @@ import           Kind                         (superKind)
 import           NameSet                      (NameSet)
 import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
 
+import           Language.Fixpoint.Names      (dropModuleNames)
 import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
@@ -304,6 +305,7 @@ collectValBinders' expr = go [] expr
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
     go tvs (Lam b e) | isId    b = go (b:tvs) e
+    go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
 ignoreLetBinds e@(Let (NonRec x xe) e') 
@@ -311,8 +313,8 @@ ignoreLetBinds e@(Let (NonRec x xe) e')
 ignoreLetBinds e 
   = e
 
-isDictionary x = L.isPrefixOf "$d" (showPpr x)
-isInternal   x = L.isPrefixOf "$" (showPpr x)
+isDictionary x = L.isPrefixOf "$d" (symbolString $ dropModuleNames $ symbol x)
+isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
 
 
 instance Hashable Var where
