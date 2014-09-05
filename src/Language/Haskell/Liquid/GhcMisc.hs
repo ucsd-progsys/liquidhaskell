@@ -305,6 +305,7 @@ collectValBinders' expr = go [] expr
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
     go tvs (Lam b e) | isId    b = go (b:tvs) e
+    go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
 ignoreLetBinds e@(Let (NonRec x xe) e') 
