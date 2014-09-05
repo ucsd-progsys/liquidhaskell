@@ -65,7 +65,7 @@ import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftF
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.RefType          hiding (freeTyVars)
 import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.PredType hiding (unify)
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -228,7 +228,9 @@ makePluggedDataCons embs tcEnv dcs
                    (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l t2)) 
                  dts (reverse $ tyArgs dcp)
        tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l (tyRes dcp))
-       return (dc, Loc l dcp {tyArgs = reverse tyArgs, tyRes = tyRes})
+       return (dc, Loc l dcp { freeTyVars = map rTyVar das
+                             , tyArgs = reverse tyArgs
+                             , tyRes = tyRes})
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
