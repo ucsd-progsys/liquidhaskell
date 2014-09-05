@@ -211,8 +211,6 @@ makePluggedSigs name embs tcEnv exports sigs
     , let r   = maybeTrue x name exports
     ]
 
-
-
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
@@ -792,7 +790,7 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
 
     tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
-    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
+    initvmap          = initMapSt $ Ex.throw $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
     su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
     st'''             = subts su st''
     ps'               = fmap (subts su') <$> ps
@@ -1367,7 +1365,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
                   -- ++ checkDuplicateRTAlias "Predicate Alias"    pAliases  
-                  --   ++ checkRTAliasSyms      "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
+                  -- ++ checkRTAliasSyms      "Predicate Alias"    (concat [Ms.paliases sp | (_, sp) <- specs])
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1381,6 +1379,8 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     sigs             =  tySigs sp ++ asmSigs sp
 
 
+-- RJ: This is not nice. More than 3 elements should be a record.
+    
 type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
                         , SEnv SortedReft
                         , TCEmb TyCon
