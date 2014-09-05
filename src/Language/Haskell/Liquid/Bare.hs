@@ -554,22 +554,6 @@ isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb)
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
 
--- This throws an exception if there is a mismatch
-renameTyVars :: (Var, Located SpecType) -> BareM (Var, Located SpecType)
-renameTyVars (x, lt@(Loc l t)) 
-  = do tyvsmap <- case runMapTyVars (mapTyVars τbody tbody) initvmap of
-                    Left e -> throwError e
-                    Right s -> return $ vmap s
-       let su = [(y, rTyVar x) | (x, y) <- tyvsmap]
-           t' = subts su $ mkUnivs [] ps ls tbody
-       return (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
-  where
-    initvmap               = initMapSt err
-    (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
-    (as, ps, ls, tbody)    = bkUniv t
-    err                    = errTypeMismatch x lt
-
-
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
                         , errmsg :: Error 
                         }
