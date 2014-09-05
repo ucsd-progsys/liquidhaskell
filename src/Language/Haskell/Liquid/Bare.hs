@@ -8,6 +8,7 @@
 {-# LANGUAGE ParallelListComp           #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE LambdaCase                 #-}
 
 -- | This module contains the functions that convert /from/ descriptions of 
 -- symbols, names and types (over freshly parsed /bare/ Strings),
@@ -42,7 +43,8 @@ import OccName                  (tcName)
 import Data.Char                (isLower, isUpper)
 import Text.Printf
 -- import Data.Maybe               (listToMaybe, fromMaybe, mapMaybe, catMaybes, isNothing, fromJust)
-import Control.Monad.State      (get, gets, modify, State, evalState, evalStateT, execState, StateT)
+import Control.DeepSeq          (force)
+import Control.Monad.State      (get, gets, modify, put, State, evalState, evalStateT, execState, execStateT, StateT)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<*>), (<|>))
 import Control.Monad.Reader     hiding (forM)
@@ -129,10 +131,12 @@ makeGhcSpec0 cfg defVars exports name sp
                         , tgtVars = targetVars }
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
-  = return $ sp { tySigs     = makePluggedSigs name embs tyi exports $ tx sigs  
-                , asmSigs    = renameTyVars <$> tx asms
-                , ctors      = tx   cs'
-                , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
+  = do tySigs <- makePluggedSigs name embs tyi exports $ tx sigs
+       asmSigs <- makePluggedAsmSigs name embs tyi exports $ tx asms
+       return $ sp { tySigs     = tySigs
+                   , asmSigs    = asmSigs
+                   , ctors      = tx   cs'
+                   , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
 
@@ -205,11 +209,16 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
 
 
 makePluggedSigs name embs tcEnv exports sigs
-  = [ (x, plugHoles embs tcEnv x r τ t)
-    | (x, t) <- sigs
-    , let τ   = expandTypeSynonyms $ varType x
-    , let r   = maybeTrue x name exports
-    ]
+  = forM sigs $ \(x,t) -> do
+      let τ = expandTypeSynonyms $ varType x
+      let r = maybeTrue x name exports
+      (x,) <$> plugHoles embs tcEnv x r τ t
+
+makePluggedAsmSigs name embs tcEnv exports sigs
+  = forM sigs $ \(x,t) -> do
+      let τ = expandTypeSynonyms $ varType x
+      let r = killHoles
+      (x,) <$> plugHoles embs tcEnv x r τ t
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
   where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
@@ -534,12 +543,15 @@ isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb)
 -------------------------------------------------------------------------------
 
 -- This throws an exception if there is a mismatch
--- renameTyVars :: (Var, SpecType) -> (Var, SpecType)
-renameTyVars (x, lt@(Loc l t)) = (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
+renameTyVars :: (Var, Located SpecType) -> BareM (Var, Located SpecType)
+renameTyVars (x, lt@(Loc l t)) 
+  = do tyvsmap <- case runMapTyVars (mapTyVars τbody tbody) initvmap of
+                    Left e -> throwError e
+                    Right s -> return $ vmap s
+       let su = [(y, rTyVar x) | (x, y) <- tyvsmap]
+           t' = subts su $ mkUnivs [] ps ls tbody
+       return (x, Loc l $ mkUnivs (rTyVar <$> αs) [] [] t')
   where
-    t'                     = subts su $ mkUnivs [] ps ls tbody
-    su                     = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    tyvsmap                = vmap $ execState (mapTyVars τbody tbody) initvmap 
     initvmap               = initMapSt err
     (αs, τbody)            = splitForAllTys $ expandTypeSynonyms $ varType x
     (as, ps, ls, tbody)    = bkUniv t
@@ -552,7 +564,10 @@ data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
 
 initMapSt = MTVST []
 
-mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> State MapTyVarST ()
+runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
+runMapTyVars x s = execStateT x s
+
+mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> StateT MapTyVarST (Either Error) ()
 mapTyVars τ (RAllT a t)   
   = mapTyVars τ t
 mapTyVars (ForAllTy α τ) t 
@@ -562,7 +577,9 @@ mapTyVars (FunTy τ τ') (RFun _ t t' _)
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _) 
    = zipWithM_ mapTyVars τs ts
 mapTyVars (TyVarTy α) (RVar a _)      
-   = modify $ \s -> mapTyRVar α a s
+   = do s  <- get
+        s' <- mapTyRVar α a s
+        put s'
 mapTyVars τ (RAllP _ t)   
   = mapTyVars τ t 
 mapTyVars τ (RAllS _ t)   
@@ -581,13 +598,13 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
 mapTyVars τ (RHole _)
   = return ()
 mapTyVars τ t
-  = Ex.throw =<< errmsg <$> get
+  = throwError =<< errmsg <$> get
 
 mapTyRVar α a s@(MTVST αas err)
   = case lookup α αas of
-      Just a' | a == a'   -> s
-              | otherwise -> Ex.throw err
-      Nothing             -> MTVST ((α,a):αas) err
+      Just a' | a == a'   -> return s
+              | otherwise -> throwError err
+      Nothing             -> return $ MTVST ((α,a):αas) err
 
 mkVarExpr v 
   | isFunVar v = EApp (varFunSymbol v) []
@@ -622,7 +639,7 @@ meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
 -----------------------------------------------------------------------------------
 -- | Error-Reader-IO For Bare Transformation --------------------------------------
 -----------------------------------------------------------------------------------
-
+-- FIXME: don't use WriterT [], very slow
 type BareM a = WriterT [Warn] (ErrorT Error (StateT BareEnv IO)) a
 
 type Warn    = String
@@ -646,7 +663,7 @@ inModule m act = do
 
 withVArgs l vs act = do
   old <- gets rtEnv
-  mapM (mkExprAlias l . symbol . showpp) vs
+  mapM_ (mkExprAlias l . symbol . showpp) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res
@@ -665,10 +682,8 @@ setRPAlias s a =
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
 ------------------------------------------------------------------
-execBare' x y = (execBare x y) `Ex.catch` (return . Left)
-
 execBare act benv = 
-   do z <- evalStateT (runErrorT (runWriterT act)) benv
+   do z <- evalStateT (runErrorT (runWriterT act)) benv `Ex.catch` (return . Left)
       case z of
         Left s        -> return $ Left s
         Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++) 
@@ -782,7 +797,15 @@ mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b
   where
     tx = (v,) . Loc l . generalize
 
-plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ go rt' st'''
+plugHoles tce tyi x f t (Loc l st) 
+  = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
+                    Left e -> throwError e
+                    Right s -> return $ vmap s
+       let su    = [(y, rTyVar x) | (x, y) <- tyvsmap]
+           st''' = subts su st''
+           ps'   = fmap (subts su') <$> ps
+           su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+       Loc l . mkArrow αs ps' (ls1 ++ ls2) cs' <$> go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -790,27 +813,22 @@ plugHoles tce tyi x f t (Loc l st) = Loc l $ mkArrow αs ps' (ls1 ++ ls2) cs' $ 
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
-    tyvsmap           = vmap $ execState (mapTyVars (toType rt') st'') initvmap
-    -- RJ:HOLE-CRASH-BUG the problem is in the uncaught Ex.throw in mapTyVars 
     initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
-    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    st'''             = subts su st''
-    ps'               = fmap (subts su') <$> ps
-    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
 
-    go t                (RHole r)          = (addHoles t') { rt_reft = f r }
+    go :: SpecType -> SpecType -> BareM SpecType
+    go t                (RHole r)          = return $ (addHoles t') { rt_reft = f r }
       where
         t'       = everywhere (mkT $ addRefs tce tyi) t
         addHoles = fmap (const $ f $ uReft ("v", [hole]))
-    go (RVar _ _)       v@(RVar _ _)       = v
-    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x (go i i') (go o o') r
-    go (RAllT _ t)      (RAllT a t')       = RAllT a $ go t t'
-    go t                (RAllE b a t')     = RAllE b a $ go t t'
-    go t                (REx b x t')       = REx b x $ go t t'
-    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy (go t1 t1') (go t2 t2') r
-    go (RApp _ t _ _)   (RApp c t' p r)    = RApp c (zipWith go t t') p r
-    go (RCls _ t)       (RCls c t')        = RCls c $ zipWith go t t'
-    go t                st                 = Ex.throw err
+    go (RVar _ _)       v@(RVar _ _)       = return v
+    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
+    go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
+    go t                (RAllE b a t')     = RAllE b a <$> go t t'
+    go t                (REx b x t')       = REx b x <$> go t t'
+    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
+    go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
+    go (RCls _ t)       (RCls c t')        = RCls c <$> zipWithM go t t'
+    go t                st                 = throwError err
      where
        err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
 
@@ -1738,7 +1756,8 @@ maybeTrue x target exports r
     inTarget    = moduleName (nameModule name) == getModName target
     name        = getName x
     notExported = not $ getName x `elemNameSet` exports
-    killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
+
+killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
 -------------------------------------------------------------------------------------
 -- | Tasteful Error Messages --------------------------------------------------------
