@@ -81,7 +81,7 @@ step (Machine heap e stack)
 -- 
 
 -- Sizing Expressions:
--- TODO: the length of ELet and ECase are badly defined
+-- TODO: define elen for the rest of the cases 
 
 {-@ invariant {v:Expr | elen v > 0} @-}
 {-@ measure elen :: Expr -> Int 
