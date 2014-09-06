@@ -1,4 +1,5 @@
-# Chapter 5: Termination
+Termination
+===========
 
 This is the chapter on termination stuff.
 
