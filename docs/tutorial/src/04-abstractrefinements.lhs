@@ -1,3 +1,4 @@
-# Chapter 4: Abstract Refinements
+Abstract Refinements
+====================
 
-+ Copy from FLOPS/IHP talk sequence
+Copy from FLOPS/IHP talk sequence

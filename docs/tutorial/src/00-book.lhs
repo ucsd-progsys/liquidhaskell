@@ -1,34 +1,33 @@
-% A LiquidHaskell Tutorial
-% Ranjit Jhala
-% Sep 5th, 2014
-
-This is a book.
+---
+title:         "Programming with LiquidHaskell"
+author:        Ranjit Jhala, Eric Seidel, Niki Vazou
+date:          Sep 5th, 2014
+documentclass: book
+toc:           true
+---
 
 \begin{comment}
-
-
 \begin{code}
-fac :: Int -> Int
-fac 0 = 1
-fac n = n * fac (n-1)
+module Ch3 where
+main = putStrLn "Hello"
 \end{code}
-
 \end{comment}
 
-Section 1
-=========
 
-* This
-* Is
-* The end.
+Introduction
+============
 
-Foo
----
 
-I am a subsection.
+What (are refinement types?)
+----------------------------
 
-Bar
----
+Why (should you care?)
+----------------------
 
-I am a subsection.
+Who (are you?)
+--------------
+
+Where (is the code?)
+--------------------
+
 
