@@ -18,16 +18,10 @@ Introduction
 ============
 
 
-What (are refinement types?)
-----------------------------
+Audience
+--------
 
-Why (should you care?)
-----------------------
-
-Who (are you?)
---------------
-
-Where (is the code?)
---------------------
+Sample Code
+-----------
 
 
