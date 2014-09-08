@@ -789,7 +789,7 @@ type Tag           = [Int]
 type BindId        = Int
 type FEnv          = SEnv SortedReft
 
-newtype IBindEnv   = FB (S.HashSet BindId)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 data BindEnv       = BE { be_size  :: Int
                         , be_binds :: M.HashMap BindId (Symbol, SortedReft)
