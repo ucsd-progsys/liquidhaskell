@@ -315,10 +315,7 @@ instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
 ppTable m = vcat $ pprxt <$> xts
   where 
     pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)  
-    n          = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
+    n          = 1 + maximumWithDefault 0 [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
     keySize     = length . render . pprint
     xts         = sortBy (compare `on` fst) $ M.toList m
     thresh      = 6
-
-
-
