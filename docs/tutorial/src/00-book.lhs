@@ -188,6 +188,6 @@ All the code for this tutorial is available at
 
     http://github.com/ucsd-pl/liquidhaskell-tutorial.git 
 
-We *strongly* recommend you grab it, and follow along at home,
-and especially, that you do the various suggested exercises.
-
+We *strongly* recommend you grab the code, and follow along
+at home, and especially, that you do the various suggested
+exercises.
