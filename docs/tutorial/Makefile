@@ -1,4 +1,4 @@
-PANDOC=pandoc --chapters --template=templates/default.latex 
+PANDOC=pandoc --chapters --latex-engine=xelatex --template=templates/default.latex 
 
 lhsObjects  := $(wildcard src/*.lhs)
 
