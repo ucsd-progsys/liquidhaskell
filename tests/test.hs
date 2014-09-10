@@ -1,8 +1,14 @@
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Control.Applicative
 import Control.Monad
+import Data.Char
 import Data.Proxy
+import Data.Tagged
+import Data.Typeable
+import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
@@ -21,10 +27,24 @@ main = run =<< tests
   where
     run   = defaultMainWithIngredients [ 
                 rerunningTests   [ listingTests, consoleTestReporter ]
-              , includingOptions [ Option (Proxy :: Proxy NumThreads) ]
+              , includingOptions [ Option (Proxy :: Proxy NumThreads)
+                                 , Option (Proxy :: Proxy SmtSolver) ]
               ]
     
     tests = group "Tests" [ unitTests, benchTests ]
+
+data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
+instance IsOption SmtSolver where
+  defaultValue = Z3
+  parseValue = safeRead . map toUpper
+  optionName = return "smtsolver"
+  optionHelp = return "Use this SMT solver"
+  optionCLParser =
+    option
+      (  long (untag (optionName :: Tagged SmtSolver String))
+      <> help (untag (optionHelp :: Tagged SmtSolver String))
+      <> reader (auto . map toUpper)
+      )
 
 unitTests  
   = group "Unit" [ 
@@ -58,11 +78,11 @@ isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest code dir file
-  = testCase file $ do
+  = askOption $ \(smt :: SmtSolver) -> testCase file $ do
       createDirectoryIfMissing True $ takeDirectory log
       liquid <- canonicalizePath "dist/build/liquid/liquid"
       withFile log WriteMode $ \h -> do
-        let cmd     = testCmd liquid dir file
+        let cmd     = testCmd liquid dir file smt
         (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
         c          <- waitForProcess ph
         assertEqual "Wrong exit code" code c
@@ -71,9 +91,10 @@ mkTest code dir file
 
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> String
+testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> String
 ---------------------------------------------------------------------------
-testCmd liquid dir file = printf "cd %s && %s --verbose %s" dir liquid file
+testCmd liquid dir file smt 
+  = printf "cd %s && %s --verbose --smtsolver %s %s" dir liquid (show smt) file
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
