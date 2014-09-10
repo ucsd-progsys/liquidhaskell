@@ -230,7 +230,7 @@ cleanupContext me@(Ctx {..})
 {- "z3 -smtc -in MBQI=false"        -}
 
 -- ERIC: Do we really need to set mbqi to false? It seems useful for generating test data
-smtCmd Z3      = "z3 -smt2 -in MODEL=true MODEL.PARTIAL=true auto-config=false"
+smtCmd Z3      = "z3 -smt2 -in"
 smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
@@ -283,7 +283,11 @@ smt_set_funs = M.fromList [("Set_emp",emp),("Set_add",add),("Set_cup",cup)
                           ,("Set_sub",sub),("Set_com",com)]
 
 z3Preamble
-  = [ format "(define-sort {} () Int)"
+  = [ "(set-option :auto-config false)"
+    , "(set-option :model true)"
+    , "(set-option :model.partial false)"
+    , "(set-option :smt.mbqi false)"
+    , format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
         (set, elt)

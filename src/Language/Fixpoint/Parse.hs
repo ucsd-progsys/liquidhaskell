@@ -517,7 +517,7 @@ solutionFileP
 
 remainderP p  
   = do res <- p
-       str <- stateInput <$> getParserState
+       str <- getInput
        pos <- getPosition 
        return (res, str, pos) 
 
