@@ -4,15 +4,16 @@ branches:
   - master
 
 env:
- - SMT=z3
- - SMT=cvc4
- - TESTS=pos
- - TESTS=neg
- - TESTS=crash
- - TESTS=text
- - TESTS=bytestring
- - TESTS=esop
- - TESTS=vector-algorithms
+ - SMT=z3 TESTS=pos
+ - SMT=z3 TESTS=neg
+ - SMT=z3 TESTS=crash
+ - SMT=z3 TESTS=text
+ - SMT=z3 TESTS=bytestring
+ - SMT=z3 TESTS=esop
+ - SMT=z3 TESTS=vector-algorithms
+ - SMT=cvc4 TESTS=pos
+ - SMT=cvc4 TESTS=neg
+ - SMT=cvc4 TESTS=crash
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 

@@ -52,6 +52,10 @@ getIncludeDir = dropFileName <$> getDataFileName "include/Prelude.spec"
 getCssPath    = getDataFileName "syntax/liquid.css"
 getHqBotPath  = getDataFileName "include/Bot.hquals"
 
+
+maximumWithDefault zero [] = zero
+maximumWithDefault _    xs = maximum xs
+
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
 safeZipWithError msg _      _      = errorstar msg
