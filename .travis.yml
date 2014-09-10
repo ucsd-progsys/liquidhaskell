@@ -4,6 +4,8 @@ branches:
   - master
 
 env:
+ - SMT=z3
+ - SMT=cvc4
  - TESTS=pos
  - TESTS=neg
  - TESTS=crash
@@ -23,8 +25,8 @@ before_install:
  - cabal update
  - git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
  - pushd /tmp/fixpoint && cabal install && popd
- - curl http://goto.ucsd.edu/~gridaphobe/z3 -o "$HOME/.cabal/bin/z3"
- - chmod a+x "$HOME/.cabal/bin/z3"
+ - curl "http://goto.ucsd.edu/~gridaphobe/$SMT" -o "$HOME/.cabal/bin/$SMT"
+ - chmod a+x "$HOME/.cabal/bin/$SMT"
 
 install:
  - cabal install --only-dependencies --enable-tests
@@ -35,7 +37,7 @@ script:
  - cabal build
  - cabal copy
  - cabal register
- - ./dist/build/test/test --pattern "$TESTS/" -j2 +RTS -N2 -RTS
+ - ./dist/build/test/test --pattern "$TESTS/" --smtsolver "$SMT" -j2 +RTS -N2 -RTS
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
 
