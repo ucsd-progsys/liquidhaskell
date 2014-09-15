@@ -30,6 +30,7 @@ module Language.Fixpoint.SmtLib2 (
     -- * Creating and killing SMTLIB2 Process
     , Context (..)
     , makeContext
+    , makeContextNoLog
     , cleanupContext
 
     -- * Execute Queries
@@ -112,7 +113,7 @@ data Response     = Ok
 data Context      = Ctx { pId  :: ProcessHandle
                         , cIn  :: Handle
                         , cOut :: Handle
-                        , cLog :: Handle
+                        , cLog :: Maybe Handle
                         , verbose :: Bool
                         }
 
@@ -147,7 +148,7 @@ smtRead me = {-# SCC smtRead #-}
        case A.eitherResult res of
          Left e  -> error e
          Right r -> do
-           hPutStrLnNow (cLog me) $ format "; SMT Says: {}" (Only $ show r)
+           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
            when (verbose me) $
              LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
@@ -189,7 +190,9 @@ pairs !xs = case L.splitAt 2 xs of
               ((x:y:[]),zs) -> (x,y) : pairs zs
 
 smtWriteRaw      :: Context -> LT.Text -> IO ()
-smtWriteRaw me !s = {-# SCC smtWriteRaw #-} hPutStrLnNow (cOut me) s >>  hPutStrLnNow (cLog me) s
+smtWriteRaw me !s = {-# SCC smtWriteRaw #-} do
+  hPutStrLnNow (cOut me) s
+  maybe (return ()) (\h -> hPutStrLnNow h s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = {-# SCC smtReadRaw #-} TIO.hGetLine (cIn me)
@@ -205,14 +208,20 @@ makeContext   :: SMTSolver -> IO Context
 --------------------------------------------------------------------------
 makeContext s
   = do me <- makeProcess s
+       createDirectoryIfMissing True $ takeDirectory smtFile
+       hLog               <- openFile smtFile WriteMode
+       let me' = me { cLog = Just hLog }
+       mapM_ (smtWrite me') $ smtPreamble s
+       return me'
+
+makeContextNoLog s
+  = do me <- makeProcess s
        mapM_ (smtWrite me) $ smtPreamble s
        return me
 
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
-       createDirectoryIfMissing True $ takeDirectory smtFile
-       hLog                <- openFile smtFile WriteMode
-       return $ Ctx pid hIn hOut hLog False
+       return $ Ctx pid hIn hOut Nothing False
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
@@ -222,7 +231,7 @@ cleanupContext me@(Ctx {..})
        code <- waitForProcess pId
        hClose cIn
        hClose cOut
-       hClose cLog
+       maybe (return ()) hClose cLog
        return code
 
 {- "z3 -smt2 -in"                   -}
@@ -359,7 +368,7 @@ encode t = {-# SCC encode #-}
   foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
                                         ,("(", "ZL"), (")", "ZR"), (",", "ZT")
                                         ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                        ,("z", "zz"), ("Z", "ZZ")]
+                                        ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s
