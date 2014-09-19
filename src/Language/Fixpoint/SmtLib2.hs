@@ -204,8 +204,9 @@ hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
 makeContext   :: SMTSolver -> IO Context
 --------------------------------------------------------------------------
 makeContext s
-  = do me <- makeProcess s
-       mapM_ (smtWrite me) $ smtPreamble s
+  = do me  <- makeProcess s
+       pre <- smtPreamble s me
+       mapM_ (smtWrite me) pre
        return me
 
 makeProcess s
@@ -229,13 +230,19 @@ cleanupContext me@(Ctx {..})
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
 {- "z3 -smtc -in MBQI=false"        -}
 
--- ERIC: Do we really need to set mbqi to false? It seems useful for generating test data
 smtCmd Z3      = "z3 -smt2 -in"
 smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
-smtPreamble Z3 = z3Preamble
-smtPreamble _  = smtlibPreamble
+-- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+smtPreamble Z3 me 
+  = do smtWrite me "(get-info :version)"
+       r <- (!!1) . T.splitOn "\"" <$> smtReadRaw me
+       case r of
+         "4.3.2" -> return $ z3_432_options ++ z3Preamble
+         _       -> return $ z3_options ++ z3Preamble
+smtPreamble _  _  
+  = return smtlibPreamble
 
 smtFile :: FilePath
 smtFile = extFileName Smt2 "out"
@@ -282,12 +289,20 @@ smt_set_funs = M.fromList [("Set_emp",emp),("Set_add",add),("Set_cup",cup)
                           ,("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
                           ,("Set_sub",sub),("Set_com",com)]
 
-z3Preamble
+-- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+z3_432_options 
   = [ "(set-option :auto-config false)"
     , "(set-option :model true)"
     , "(set-option :model.partial false)"
-    , "(set-option :smt.mbqi false)"
-    , format "(define-sort {} () Int)"
+    , "(set-option :smt.mbqi false)" ]
+z3_options 
+  = [ "(set-option :auto-config false)"
+    , "(set-option :model true)"
+    , "(set-option :model-partial false)"
+    , "(set-option :mbqi false)" ]
+
+z3Preamble
+  = [ format "(define-sort {} () Int)"
         (Only elt)
     , format "(define-sort {} () (Array {} Bool))"
         (set, elt)
