@@ -67,7 +67,8 @@ import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Type             (mkClassPred, splitFunTys, expandTypeSynonyms, isPredTy, substTyWith, classifyPredType, PredTree(..), isClassPred)
-import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon)
+import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon, 
+                         intTyCon, charTyCon)
 
 import qualified        Data.Text as T
 import Data.Interned
@@ -805,8 +806,13 @@ ofType_ (TyConApp c τs)
   = rApp c (ofType_ <$> τs) [] mempty 
 ofType_ (AppTy t1 t2)
   = RAppTy (ofType_ t1) (ofType t2) mempty             
--- ofType_ τ               
---   = errorstar ("ofType cannot handle: " ++ showPpr τ)
+ofType_ (LitTy x)
+  = fromTyLit x
+  where
+    fromTyLit (NumTyLit n) = rApp intTyCon [] [] mempty
+    fromTyLit (StrTyLit s) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
+ofType_ τ               
+  = errorstar ("ofType cannot handle: " ++ showPpr τ)
 
 ofPredTree (ClassPred c τs)
   = Just $ RCls c (ofType_ <$> τs)
