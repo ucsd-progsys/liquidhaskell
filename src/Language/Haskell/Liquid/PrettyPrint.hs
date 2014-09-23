@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
-import Text.Parsec.Error (ParseError)
+import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
 import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
@@ -63,11 +63,15 @@ instance PPrint ErrMsg where
 instance PPrint SourceError where
   pprint = text . show
 
--- instance PPrint ParseError where 
---   pprint = text . show 
+instance PPrint ParseError where 
+  pprint e = vcat $ tail $ map text ls
+    where
+      ls = lines $ showErrorMessages "or" "unknown parse error"
+                                     "expecting" "unexpected" "end of input"
+                                     (errorMessages e)
 
-instance PPrint LParseError where
-  pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
+-- instance PPrint LParseError where
+--   pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
 
 instance PPrint Var where
   pprint = pprDoc 

@@ -149,7 +149,7 @@ module Language.Haskell.Liquid.Types (
   , Error
   , TError (..)
   , EMsg (..)
-  , LParseError (..)
+  -- , LParseError (..)
   , ErrorResult
   , errSpan
   , errOther
@@ -1326,7 +1326,7 @@ data TError t =
 
   | ErrParse    { pos :: !SrcSpan
                 , msg :: !Doc
-                , err :: !LParseError
+                , err :: !ParseError
                 } -- ^ specification parse error
 
   | ErrTySpec   { pos :: !SrcSpan
@@ -1398,8 +1398,8 @@ data TError t =
                 } -- ^ Unexpected PANIC 
   deriving (Typeable, Functor)
 
-data LParseError = LPE !SourcePos [String] 
-                   deriving (Data, Typeable, Generic)
+-- data LParseError = LPE !SourcePos [String] 
+--                    deriving (Data, Typeable, Generic)
 
 
 instance Eq Error where
