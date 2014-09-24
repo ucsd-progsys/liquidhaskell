@@ -1,17 +1,17 @@
-module When where
-
-import Control.Monad
+module When (foo, fooOk) where
 
 {-@ assume div :: x:_ -> y:{_ | y /= 0} -> _ @-}
 
 {- when :: b:Bool -> {v:_ | ???} -> _ -}
+when b x = if b then x else return ()
+
 
 foo :: Int -> IO ()
 foo x = when (x > 0) $ print (1 `div` x)
 
-{-@ assume whenT :: b:Bool -> ({v:() | Prop b} -> IO ()) -> IO () @-}
+{-@ whenT :: b:Bool -> ({v:() | Prop b} -> IO ()) -> IO () @-}
 whenT :: Bool -> (() -> IO ()) -> IO ()
-whenT b k = when b $ k ()
+whenT b k = if b then k () else return ()
 
 fooOk :: Int -> IO ()
 fooOk x = whenT (x > 0) $ \() -> print (1 `div` x)
