@@ -55,23 +55,23 @@ test-py:
 	cd tests && ./regrtest.py -t $(THREADS) && cd ../
 
 test:
-	$(CABAL) configure --enable-tests -O2
+	$(CABAL) configure --enable-tests --disable-library-profiling -O2
 	$(CABAL) build
 	$(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 
 retest:
-	cabal configure --enable-tests -O2
+	cabal configure --enable-tests --disable-library-profiling -O2
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-test:
-	cabal configure --enable-tests -O2
+	cabal configure --enable-tests --disable-library-profiling -O2
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-retest:
-	cabal configure --enable-tests -O2
+	cabal configure --enable-tests --disable-library-profiling -O2
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 

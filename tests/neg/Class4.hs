@@ -9,7 +9,9 @@ class Frog a where
   mkInt :: a -> Int
   mkInt _ = liquidAssert (0 > 1) 10
 
+{-@ class Frog a where
+      mkInt :: a -> Int
+  @-}
 
 instance Frog Int where
 
-{-@ mkInt :: (Frog a) => a -> Int @-}
