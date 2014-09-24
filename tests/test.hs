@@ -40,10 +40,9 @@ instance IsOption SmtSolver where
   optionName = return "smtsolver"
   optionHelp = return "Use this SMT solver"
   optionCLParser =
-    option
+    option (auto . map toUpper)
       (  long (untag (optionName :: Tagged SmtSolver String))
       <> help (untag (optionHelp :: Tagged SmtSolver String))
-      <> reader (auto . map toUpper)
       )
 
 unitTests  
