@@ -4,7 +4,7 @@ import Control.Monad
 
 {-@ assume div :: x:_ -> y:{_ | y /= 0} -> _ @-}
 
-{- assume when :: forall <p :: a -> Prop>. b:Bool -> IO () <{\x -> Prop b => p x}> -> _ @-}
+{- when :: b:Bool -> {v:_ | ???} -> _ -}
 
 foo :: Int -> IO ()
 foo x = when (x > 0) $ print (1 `div` x)
