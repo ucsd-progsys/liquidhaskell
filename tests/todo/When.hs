@@ -9,7 +9,7 @@ when b x = if b then x else return ()
 foo :: Int -> IO ()
 foo x = when (x > 0) $ print (1 `div` x)
 
-{-@ whenT :: b:Bool -> ({v:() | Prop b} -> IO ()) -> IO () @-}
+{-@ whenT :: b:_ -> ({v:_ | Prop b} -> _) -> _ @-}
 whenT :: Bool -> (() -> IO ()) -> IO ()
 whenT b k = if b then k () else return ()
 
