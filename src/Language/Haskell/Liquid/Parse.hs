@@ -100,12 +100,12 @@ parseWithError parser f s
 ---------------------------------------------------------------------------
 parseErrorError     :: SourceName -> ParseError -> Error
 ---------------------------------------------------------------------------
-parseErrorError f e = ErrParse sp msg lpe
+parseErrorError f e = ErrParse sp msg e
   where 
     pos             = errorPos e
     sp              = sourcePosSrcSpan pos 
     msg             = text $ "Error Parsing Specification from: " ++ f
-    lpe             = LPE pos (eMsgs e)
+    -- lpe             = LPE pos (eMsgs e)
     eMsgs           = fmap messageString . errorMessages 
 
 ---------------------------------------------------------------------------

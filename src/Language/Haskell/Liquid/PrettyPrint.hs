@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
-import Text.Parsec.Error (ParseError)
+import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
 import Control.Applicative ((<*>), (<$>))
 import Data.Maybe   (fromMaybe)
@@ -63,11 +63,15 @@ instance PPrint ErrMsg where
 instance PPrint SourceError where
   pprint = text . show
 
--- instance PPrint ParseError where 
---   pprint = text . show 
+instance PPrint ParseError where 
+  pprint e = vcat $ tail $ map text ls
+    where
+      ls = lines $ showErrorMessages "or" "unknown parse error"
+                                     "expecting" "unexpected" "end of input"
+                                     (errorMessages e)
 
-instance PPrint LParseError where
-  pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
+-- instance PPrint LParseError where
+--   pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
 
 instance PPrint Var where
   pprint = pprDoc 
@@ -315,10 +319,7 @@ instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
 ppTable m = vcat $ pprxt <$> xts
   where 
     pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)  
-    n          = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
+    n          = 1 + maximumWithDefault 0 [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
     keySize     = length . render . pprint
     xts         = sortBy (compare `on` fst) $ M.toList m
     thresh      = 6
-
-
-
