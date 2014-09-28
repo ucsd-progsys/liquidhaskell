@@ -612,7 +612,7 @@ Conjunction of predicates from (finite) ground set $\quals$
 
 <br>
 
-[[Rybalchenko et al., CAV 2011]](http://goto.ucsd.edu/~rjhala/papers/hmc.html)
+[[Houdini](http://dl.acm.org/citation.cfm?id=730008), [HMC](http://goto.ucsd.edu/~rjhala/papers/hmc.html)]
 
 
 Recipe Scales Up
