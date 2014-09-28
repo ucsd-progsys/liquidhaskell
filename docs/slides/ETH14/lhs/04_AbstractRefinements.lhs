@@ -76,10 +76,10 @@ Example: `maxInt`
 
 Compute the larger of two `Int`s:
 
-\begin{code} <br> 
+\begin{spec} <br> 
 maxInt     :: Int -> Int -> Int 
 maxInt x y = if y <= x then x else y
-\end{code}
+\end{spec}
 
 
 
@@ -88,11 +88,11 @@ Example: `maxInt`
 
 Has **many incomparable** refinement types
 
-\begin{code}<br>
+\begin{spec}<br>
 maxInt :: Nat  -> Nat  -> Nat
 maxInt :: Even -> Even -> Even
 maxInt :: Odd  -> Odd  -> Odd 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -136,10 +136,10 @@ Refinement Polymorphism
 By Type Polymorphism?
 ---------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 max     :: α -> α -> α 
 max x y = if y <= x then x else y
-\end{code}
+\end{spec}
 
 <div class="fragment"> 
 
@@ -158,10 +158,10 @@ e = maxInt 2 8     -- α := Even
 By Type Polymorphism?
 ---------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 max     :: α -> α -> α 
 max x y = if y <= x then x else y
-\end{code}
+\end{spec}
 
 <br>
 
@@ -170,25 +170,25 @@ But there is a fly in the ointment ...
 Polymorphic `max` in Haskell
 ----------------------------
 
-\begin{code} In Haskell the type of max is
+\begin{spec} In Haskell the type of max is
 max :: (Ord α) => α -> α -> α
-\end{code}
+\end{spec}
 
 <br>
 
-\begin{code} Could *ignore* the class constraints, instantiate as before...
+\begin{spec} Could *ignore* the class constraints, instantiate as before...
 {-@ o :: Odd @-}
 o     = max 3 7  -- α := Odd 
-\end{code}
+\end{spec}
 
 
 Polymorphic `(+)` in Haskell
 ----------------------------
 
-\begin{code} ... but this is *unsound*!
+\begin{spec} ... but this is *unsound*!
 max :: (Ord α) => α -> α -> α
 (+) :: (Num α) => α -> α -> α
-\end{code}
+\end{spec}
 
 <br>
 
@@ -241,12 +241,12 @@ Enable *quantification over refinements* ...
 
 <br>
 
-\begin{code}<div/>
+\begin{spec}<div/>
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
 maxInt x y = if x <= y then y else x 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -260,12 +260,12 @@ Abstract Refinement is **uninterpreted function** in SMT logic
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br>
+\begin{spec}<br>
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
 maxInt x y = if x <= y then y else x 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -274,12 +274,12 @@ maxInt x y = if x <= y then y else x
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br>
+\begin{spec}<br>
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
 maxInt x y = if x <= y then y else x 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -295,12 +295,12 @@ $$\begin{array}{rll}
 Parametric Refinements 
 ----------------------
 
-\begin{code}<br>
+\begin{spec}<br>
 {-@ maxInt :: forall <p :: Int -> Prop>. 
                 Int<p> -> Int<p> -> Int<p>  @-}
 
 maxInt x y = if x <= y then y else x 
-\end{code}
+\end{spec}
 
 <br>
 

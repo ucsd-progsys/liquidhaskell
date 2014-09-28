@@ -104,9 +104,9 @@ sumNats xs  = foldl (+) 0 xs
 <br>
 
 <div class="fragment">
-\begin{code} Recall 
+\begin{spec} Recall 
 foldl :: (α -> β -> α) -> α -> [β] -> α
-\end{code}
+\end{spec}
 </div>
 
 <br>
@@ -118,20 +118,20 @@ How to **instantiate** `α` and `β` ?
 Function Subtyping
 ------------------
 
-\begin{code}<div/>
+\begin{spec}<div/>
 (+) ::  x:Int -> y:Int -> {v:Int|v=x+y} 
     <:  Nat   -> Nat   -> Nat
-\end{code}
+\end{spec}
 
 <br>
 
 <div class="fragment">
 Because,
 
-\begin{code}<div/>
+\begin{spec}<div/>
                |- Nat       <: Int  -- Contra
   x:Nat, y:Nat |- {v = x+y} <: Nat  -- Co
-\end{code}
+\end{spec}
 </div>
 
 <br>
@@ -139,25 +139,25 @@ Because,
 <div class="fragment">
 Because,
 
-\begin{code}<div/>
+\begin{spec}<div/>
   0<=x && 0<=y && v = x+y   => 0 <= v
-\end{code}
+\end{spec}
 </div>
 
 Example: Summing `Nat`s
 -----------------------
 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 {-@ sumNats :: [Nat] -> Nat @-}
 sumNats xs  = foldl (+) 0 xs 
-\end{code}
+\end{spec}
 
 <br>
 
-\begin{code} Where:
+\begin{spec} Where:
 foldl :: (α -> β -> α) -> α -> [β] -> α
 (+)   :: Nat -> Nat -> Nat
-\end{code}
+\end{spec}
 
 <br>
 

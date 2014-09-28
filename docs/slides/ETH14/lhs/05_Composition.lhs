@@ -76,9 +76,9 @@ How to type compose (#) ?
 
 This specification is *too weak* <br>
 
-\begin{code} <br>
+\begin{spec} <br>
 (#) :: (b -> c) -> (a -> b) -> (a -> c)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -119,10 +119,10 @@ plus3     = plus 1 . plus 2
 Using (.) Operator 
 ------------------
 
-\begin{code} <br>
+\begin{spec} <br>
 {-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
 plus3     = plus 1 . plus 2
-\end{code}
+\end{spec}
 
 <br>
 
@@ -134,10 +134,10 @@ LiquidHaskell *instantiates*
 Using (.) Operator 
 ------------------
 
-\begin{code} <br>
+\begin{spec} <br>
 {-@ plus3 :: x:Int -> {v:Int | v = x + 3} @-}
 plus3     = plus 1 . plus 2
-\end{code}
+\end{spec}
 
 <br> To *infer* that output of `plus3` has type: 
 
