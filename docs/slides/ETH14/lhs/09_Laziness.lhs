@@ -8,8 +8,6 @@ module Laziness where
 import Language.Haskell.Liquid.Prelude
 
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--short"          @-}
-
 
 safeDiv :: Int -> Int -> Int
 foo     :: Int -> Int
@@ -86,12 +84,12 @@ An Innocent Function
 
 <br>
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
   | otherwise = foo n
-\end{code}
+\end{spec}
 
 LiquidHaskell Lies! 
 -------------------
@@ -118,7 +116,7 @@ Why is this program **deemed safe**?!
 *Safe* With Eager Eval
 ----------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -128,7 +126,7 @@ explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
               (\x -> 2013 `safeDiv` z) a 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -139,7 +137,7 @@ explode = let z = 0     -- :: {v:Int| v = 0}
 *Unsafe* With Lazy Eval
 -----------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -149,7 +147,7 @@ explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
               (\x -> 2013 `safeDiv` z) a 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -187,11 +185,11 @@ Classical Floyd-Hoare notion of [partial correctness](http://en.wikipedia.org/wi
 Problem: Divergence
 -------------------
 
-\begin{code} **Consider** <div/> 
+\begin{spec} **Consider** <div/> 
         {-@ e :: {v : Int | P} @-}
 
         let x = e in body 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -212,7 +210,7 @@ Problem: Divergence
 Eager vs. Lazy Binders 
 ----------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -222,7 +220,8 @@ explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
               (\x -> 2013 `safeDiv` z) a 
-\end{code}
+\end{spec}
+
 
 <br>
 

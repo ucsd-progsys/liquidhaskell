@@ -43,11 +43,11 @@ Recall: Refined Constructors
 
 Define **increasing** Lists with strengthened constructors:
 
-\begin{code} <br>
+\begin{spec} <br>
 data L a where
   N :: L a
   C :: hd:a -> tl: L {v:a | hd <= v} -> L a
-\end{code}
+\end{spec}
 
 Problem: Decreasing Lists?
 --------------------------
@@ -86,36 +86,36 @@ Example
 
 Consider a list with *three* or more elements 
 
-\begin{code} <br>
+\begin{spec} <br>
 x1 `C` x2 `C` x3 `C` rest :: L <p> a 
-\end{code}
+\end{spec}
 
 Example: Unfold Once
 --------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 x1                 :: a
 x2 `C` x3 `C` rest :: L <p> a<p x1> 
-\end{code}
+\end{spec}
 
 Example: Unfold Twice
 ---------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 x1          :: a
 x2          :: a<p x1>  
 x3 `C` rest :: L <p> a<p x1 && p x2> 
-\end{code}
+\end{spec}
 
 Example: Unfold Thrice
 ----------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 x1   :: a
 x2   :: a<p x1>  
 x3   :: a<p x1 && p x2>  
 rest :: L <p> a<p x1 && p x2 && p x3> 
-\end{code}
+\end{spec}
 
 <br>
 
@@ -201,11 +201,11 @@ Checking GHC Lists
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target= "_blank">Demo:</a> 
 Above applies to GHC's List definition:
 
-\begin{code} <br> 
+\begin{spec} <br> 
 data [a] <p :: a -> a -> Prop>
   = [] 
   | (:) { h :: a, tl :: [a<p h>]<p> }
-\end{code}
+\end{spec}
 
 Checking GHC Lists
 ------------------

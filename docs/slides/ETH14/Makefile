@@ -1,6 +1,10 @@
 ####################################################################
 SERVERHOME=nvazou@goto.ucsd.edu:~/public_html/liquidtutorial/
 RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
+## LOCAL
+## MATHJAX=file:///Users/rjhala/research/MathJax
+## REMOTE 
+MATHJAX=https://c328740.ssl.cf1.rackcdn.com/mathjax/latest
 ####################################################################
 
 STRIPCODE=./MkCode.hs
@@ -12,7 +16,8 @@ REVEAL=pandoc \
 	   --mathjax \
 	   --section-divs                       \
 	   --template=_support/template.reveal  \
-	   --variable reveal=../_support/reveal.js
+	   --variable reveal=../_support/reveal.js \
+	   --variable mathjax=$(MATHJAX)
 
 FREVEAL=pandoc \
  	   --from=markdown+lhs\

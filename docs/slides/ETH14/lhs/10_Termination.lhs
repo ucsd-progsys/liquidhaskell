@@ -71,10 +71,10 @@ Recur On *Smaller* `Nat`
 
 **To ensure termination of**
 
-\begin{code} <div/>
+\begin{spec} <div/>
 foo   :: Nat -> T
 foo x =  body
-\end{code}
+\end{spec}
 
 </div>
 
@@ -144,10 +144,10 @@ Recur On *Smaller* Inputs
 
 What of input types other than `Nat` ?
 
-\begin{code}<div/>
+\begin{spec}<div/>
 foo   :: S -> T
 foo x = body
-\end{code}
+\end{spec}
 
 <br>
 
@@ -162,10 +162,10 @@ Recur On *Smaller* Inputs
 
 What of input types other than `Nat` ?
 
-\begin{code}<div/>
+\begin{spec}<div/>
 foo   :: S -> T
 foo x = body
-\end{code}
+\end{spec}
 
 <br>
 

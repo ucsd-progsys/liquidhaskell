@@ -263,12 +263,12 @@ Use `Vec` API to write a *memoized* fibonacci function
 <br>
 
 <div class="fragment">
-\begin{code} Using the fibonacci table:
+\begin{spec} Using the fibonacci table:
 type FibV =  
      Vec <{\v -> true}, 
           {\k v -> (v = 0 || v = (fib k))}> 
           Int                              
-\end{code}
+\end{spec}
 </div>
 
 <br>
@@ -296,12 +296,12 @@ Specifying Fibonacci
 
 We *axiomatize* the definition of `fib` in SMT ...
 
-\begin{code}<br>
+\begin{spec}<br>
 predicate AxFib I = 
   (fib I) == if I <= 1 
                then 1 
                else fib(I-1) + fib(I-2)
-\end{code}
+\end{spec}
 
 Specifying Fibonacci
 --------------------
