@@ -51,11 +51,7 @@ tut: $(mdObjects)
 
 slides: $(htmlObjects)
 
-
 pdfslides: $(pdfObjects)
-
-plpv: slides
-	scp lhs/*.html $(RJSERVER)
 
 lhs/.liquid/%.lhs.markdown: lhs/%.lhs
 	-$(LIQUID) $?

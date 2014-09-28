@@ -20,20 +20,20 @@ Division By Zero
 
 
 <div class="fragment"> 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 λ> let average xs = sum xs `div` length xs
 
 λ> average [1,2,3]
 2
-\end{code}
+\end{spec}
 </div>
 
 <div class="fragment"> 
 
-\begin{code} <br> 
+\begin{spec} <br> 
 λ> average []
 *** Exception: divide by zero
-\end{code}
+\end{spec}
 
 </div>
 
@@ -41,54 +41,54 @@ Missing Keys
 ------------
 
 <div class="fragment"> 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 λ> :m +Data.Map 
 λ> let m = fromList [ ("haskell", "lazy")
                     , ("ocaml"  , "eager")]
 
 λ> m ! "haskell"
 "lazy"
-\end{code}
+\end{spec}
 </div>
 
 <div class="fragment"> 
-\begin{code} <br> 
+\begin{spec} <br> 
 λ> m ! "javascript"
 "*** Exception: key is not in the map
-\end{code}
+\end{spec}
 </div>
 
 Segmentation Faults
 -------------------
 
 <div class="fragment"> 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 λ> :m +Data.Vector 
 λ> let v = fromList ["haskell", "ocaml"]
 λ> unsafeIndex v 0
 "haskell"
-\end{code}
+\end{spec}
 </div>
 
 <div class="fragment"> 
-\begin{code} <br> 
+\begin{spec} <br> 
 λ> V.unsafeIndex v 3
 
 
 'ghci' terminated by signal SIGSEGV ...
-\end{code}
+\end{spec}
 </div>
 
 
 "HeartBleeds"
 -------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 λ> :m + Data.Text Data.Text.Unsafe 
 λ> let t = pack "Kanazawa"
 λ> takeWord16 5 t
 "Kanaz"
-\end{code}
+\end{spec}
 
 <br>
 
@@ -97,10 +97,10 @@ Memory overflows **leaking secrets**...
 
 <br>
 
-\begin{code} <div/>
+\begin{spec} <div/>
 λ> takeWord16 20 t
 "Kanazawa\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
-\end{code}
+\end{spec}
 </div>
 
 Goal
@@ -173,4 +173,5 @@ Plan
 + <div class="fragment"><a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
 + <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 + <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
+
 

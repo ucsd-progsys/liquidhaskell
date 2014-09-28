@@ -86,28 +86,28 @@ Expressions
 
 <br>
 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 e := x, y, z,...    -- variable
    | 0, 1, 2,...    -- constant
    | (e + e)        -- addition
    | (e - e)        -- subtraction
    | (c * e)        -- linear multiplication
    | (f e1 ... en)  -- uninterpreted function
-\end{code}
+\end{spec}
 
 Predicates
 ----------
 
 <br>
 
-\begin{code} <div/>
+\begin{spec} <div/>
 p := e           -- atom 
    | e1 == e2    -- equality
    | e1 <  e2    -- ordering 
    | (p && p)    -- and
    | (p || p)    -- or
    | (not p)     -- negation
-\end{code}
+\end{spec}
 
 <br>
 
@@ -118,7 +118,7 @@ Refinement Types
 
 <br>
 
-\begin{code}<div/>
+\begin{spec}<div/>
 b := Int 
    | Bool 
    | ...         -- base types
@@ -126,7 +126,7 @@ b := Int
 
 t := {x:b | p}   -- refined base 
    | x:t -> t    -- refined function  
-\end{code}
+\end{spec}
 
 
 Subtyping Judgment 
@@ -179,9 +179,9 @@ Example: Natural Numbers
 
 <br>
 
-\begin{code} <div/>  
+\begin{spec} <div/>  
         type Nat = {v:Int | 0 <= v}
-\end{code}
+\end{spec}
 
 <br>
 
@@ -252,9 +252,9 @@ Precondition: `safeDiv`
 
 Specify pre-condition as **input type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
-\end{code}
+\end{spec}
 
 <br>
 
@@ -279,9 +279,10 @@ Precondition: `safeDiv`
 
 Specify pre-condition as **input type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
-\end{code}
+\end{spec}
+
 
 <br>
 
@@ -305,18 +306,18 @@ Precondition: `safeDiv`
 
 Specify pre-condition as **input type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ safeDiv :: n:Int -> d:NonZero -> Int @-}
-\end{code}
+\end{spec}
 
 <br>
 
 Precondition is checked at **call-site**
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ ok  :: Nat -> Int @-}
 ok n    = 10 `safeDiv` (n+1)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -359,11 +360,11 @@ Postcondition: `abs`
 
 Specify post-condition as **output type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
 abs x | 0 <= x    = x 
       | otherwise = 0 - x
-\end{code}
+\end{spec}
 
 <br>
 
@@ -376,11 +377,11 @@ Postcondition: `abs`
 
 Specify post-condition as **output type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
 abs x | 0 <= x    = x 
       | otherwise = 0 - x
-\end{code}
+\end{spec}
 
 <br>
 
@@ -398,11 +399,11 @@ Postcondition: `abs`
 
 Specify post-condition as **output type** 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ abs :: x:Int -> {v:Nat | x <= v} @-}
 abs x | 0 <= x    = x 
       | otherwise = 0 - x
-\end{code}
+\end{spec}
 
 <br>
 
@@ -691,7 +692,7 @@ How to **specify** every element in `nats` is non-negative?
 
 \begin{code} <div/>
 nats     =  0 `C` 1 `C` 2 `C` N
-\end{code}
+\end{spec}
 
 <br>
 
@@ -711,9 +712,9 @@ Example: Lists
 
 How to **specify** every element in `nats` is non-negative?
 
-\begin{code} <div/>
+\begin{spec} <div/>
 nats     =  0 `C` 1 `C` 2 `C` N
-\end{code}
+\end{spec}
 
 <br>
 
@@ -734,7 +735,7 @@ Example: Lists
 
 How to **verify** ? 
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ nats :: L Nat @-}
 nats   = l0
   where
@@ -742,7 +743,7 @@ nats   = l0
     l1 = 1 `C` l2  -- Nat `C` L Nat >>> L Nat
     l2 = 2 `C` l3  -- Nat `C` L Nat >>> L Nat
     l3 = N         -- L Nat
-\end{code}
+\end{spec}
 
 <br>
 
