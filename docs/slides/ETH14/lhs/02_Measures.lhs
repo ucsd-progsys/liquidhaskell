@@ -8,9 +8,14 @@ Measuring Data Types
 <div class="hidden">
 
 \begin{code}
+
+{-# LIQUID "--no-termination" #-}
+{-# LIQUID "--full" #-}
+
 module Measures where
 import Prelude hiding ((!!), length)
 import Language.Haskell.Liquid.Prelude
+
 
 length      :: L a -> Int
 (!)         :: L a -> Int -> a
@@ -57,16 +62,23 @@ We can define the **length** as:
     llen (C x xs) = 1 + (llen xs)  @-}
 \end{code}
 
+<div class="hidden">
+
+\begin{code}
+{-@ data L [llen] a = N | C {hd :: a, tl :: L a } @-}
+{-@ invariant {v: L a | 0 <= llen v}              @-} 
+\end{code}
+
 </div>
 
 Example: Length of a List 
 -------------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ measure llen  :: (L a) -> Int
     llen (N)      = 0
     llen (C x xs) = 1 + (llen xs)  @-}
-\end{code}
+\end{spec}
 
 <br>
 
@@ -74,20 +86,20 @@ We **strengthen** data constructor types
 
 <br>
 
-\begin{code} <div/>
+\begin{spec} <div/>
 data L a where 
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
-\end{code}
+\end{spec}
 
 Measures Are Uninterpreted
 --------------------------
 
-\begin{code} <br>
+\begin{spec} <br>
 data L a where 
   N :: {v: L a | (llen v) = 0}
   C :: a -> t:_ -> {v:_| llen v = 1 + llen t}
-\end{code}
+\end{spec}
 
 <br>
 
@@ -125,19 +137,19 @@ Other properties of `llen` asserted when typing **fold** & **unfold**
 <br>
 
 <div class="fragment">
-\begin{code}**Fold**<br>
+\begin{spec}**Fold**<br>
 z = C x y     -- z :: {v | llen v = 1 + llen y}
-\end{code}
+\end{spec}
 </div>
 
 <br>
 
 <div class="fragment">
-\begin{code}**Unfold**<br>
+\begin{spec}**Unfold**<br>
 case z of 
   N     -> e1 -- z :: {v | llen v = 0}
   C x y -> e2 -- z :: {v | llen v = 1 + llen y}
-\end{code}
+\end{spec}
 </div>
 
 
@@ -236,11 +248,11 @@ Measure describing whether a `List` is empty
 <div class="fragment">
 We **strengthen** data constructors
 
-\begin{code} <div/> 
+\begin{spec} <div/> 
 data L a where 
   N :: {v : L a | (isNull v)}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
-\end{code}
+\end{spec}
 
 </div>
 
@@ -249,7 +261,7 @@ Conjoining Refinements
 
 Data constructor refinements are **conjoined** 
 
-\begin{code} <br>
+\begin{spec} <br>
 data L a where 
   N :: {v:L a |  (llen v) = 0 
               && (isNull v) }
@@ -257,7 +269,7 @@ data L a where
     -> xs:L a 
     -> {v:L a |  (llen v) = 1 + (llen xs) 
               && not (isNull v)          }
-\end{code}
+\end{spec}
 
 -->
 
@@ -278,13 +290,13 @@ Multiple Measures: Red-Black Trees
 Basic Type 
 ----------
 
-\begin{code} <br>
+\begin{spec} <br>
 data Tree a = Leaf 
             | Node Color a (Tree a) (Tree a)
 
 data Color  = Red 
             | Black
-\end{code}
+\end{spec}
 
 Color Invariant 
 ---------------
@@ -292,20 +304,20 @@ Color Invariant
 `Red` nodes have `Black` children
 
 <div class="fragment">
-\begin{code} <br>
+\begin{spec} <br>
 measure isRB        :: Tree a -> Prop
 isRB (Leaf)         = true
 isRB (Node c x l r) = c=Red => (isB l && isB r)
                       && isRB l && isRB r
-\end{code}
+\end{spec}
 </div>
 
 <div class="fragment">
-\begin{code} where <br>
+\begin{spec} where <br>
 measure isB         :: Tree a -> Prop 
 isB (Leaf)          = true
 isB (Node c x l r)  = c == Black 
-\end{code}
+\end{spec}
 </div>
 
 *Almost* Color Invariant 
@@ -318,11 +330,11 @@ Color Invariant **except** at root.
 <br>
 
 <div class="fragment">
-\begin{code} <br>
+\begin{spec} <br>
 measure isAlmost        :: Tree a -> Prop
 isAlmost (Leaf)         = true
 isAlmost (Node c x l r) = isRB l && isRB r
-\end{code}
+\end{spec}
 </div>
 
 
@@ -332,33 +344,33 @@ Height Invariant
 Number of `Black` nodes equal on **all paths**
 
 <div class="fragment">
-\begin{code} <br>
+\begin{spec} <br>
 measure isBH        :: RBTree a -> Prop
 isBH (Leaf)         =  true
 isBH (Node c x l r) =  bh l = bh r 
                     && isBH l && isBH r 
-\end{code}
+\end{spec}
 </div>
 
 <div class="fragment">
-\begin{code} where <br>
+\begin{spec} where <br>
 measure bh        :: RBTree a -> Int
 bh (Leaf)         = 0
 bh (Node c x l r) = bh l 
                   + if c = Red then 0 else 1
-\end{code}
+\end{spec}
 </div>
 
 Refined Type 
 ------------
 
-\begin{code} <br>
+\begin{spec} <br>
 -- Red-Black Trees
 type RBT a  = {v:Tree a | isRB v && isBH v}
 
 -- Almost Red-Black Trees
 type ARBT a = {v:Tree a | isAlmost v && isBH v}
-\end{code}
+\end{spec}
 
 <br>
 
@@ -425,11 +437,11 @@ i.e. specifies **increasing** Lists
 Increasing Lists 
 ----------------
 
-\begin{code} <br>
+\begin{spec} <br>
 data L a where
   N :: L a
   C :: x:a -> xs: L {v:a | x <= v} -> L a
-\end{code}
+\end{spec}
 
 <br>
 

@@ -49,10 +49,10 @@ Iteration Dependence
 
 We used `loop` to write 
 
-\begin{code} <br>
+\begin{spec} <br>
 {-@ add :: n:Nat -> m:Nat -> {v:Nat|v=m+n} @-}
 add n m = loop 0 m n (\_ i -> i + 1)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -71,10 +71,10 @@ Iteration Dependence
 
 We used `loop` to write 
 
-\begin{code} <br>
+\begin{spec} <br>
 {-@ add :: n:Nat -> m:Nat -> {v:Nat|v=m+n} @-}
 add n m = loop 0 m n (\_ i -> i + 1)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -88,10 +88,10 @@ Iteration Dependence
 
 We used `loop` to write 
 
-\begin{code} <br>
+\begin{spec} <br>
 {-@ add :: n:Nat -> m:Nat -> {v:Nat|v=m+n} @-}
 add n m = loop 0 m n (\_ i -> i + 1)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -106,13 +106,13 @@ add n m = loop 0 m n (\_ i -> i + 1)
 Induction in `loop` (by hand)
 -----------------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 loop lo hi base f = go lo base
   where 
     go i acc 
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
-\end{code}
+\end{spec}
 
 <br>
 
@@ -132,13 +132,13 @@ loop lo hi base f = go lo base
 Induction in `loop` (by hand)
 -----------------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 loop lo hi base f = go lo base
   where 
     go i acc 
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
-\end{code}
+\end{spec}
 
 <br>
 
@@ -151,13 +151,13 @@ loop lo hi base f = go lo base
 Induction in `loop` (by hand)
 -----------------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 loop lo hi base f = go lo base
   where 
     go i acc 
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
-\end{code}
+\end{spec}
 
 <br>
 
@@ -169,13 +169,13 @@ loop lo hi base f = go lo base
 Induction in `loop` (by hand)
 -----------------------------
 
-\begin{code} <br> 
+\begin{spec} <br> 
 loop lo hi base f = go lo base
   where 
     go i acc 
       | i < hi    = go (i+1) (f i acc)
       | otherwise = acc
-\end{code}
+\end{spec}
 
 <br>
 
@@ -208,12 +208,12 @@ Induction in `loop` (by type)
 `p` is the *index dependent* invariant!
 
 
-\begin{code}<br> 
+\begin{spec}<br> 
 p    :: Int -> a -> Prop             -- invt 
 base :: a<p lo>                      -- base 
 f    :: i:Int -> a<p i> -> a<p(i+1)> -- step
 out  :: a<p hi>                      -- goal
-\end{code}
+\end{spec}
 
 
 
@@ -237,10 +237,10 @@ add n m = loop 0 m n (\_ z -> z + 1)
 Using Induction
 ---------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 {-@ add :: n:Nat -> m:Nat -> {v:Nat| v=m+n} @-}
 add n m = loop 0 m n (\_ z -> z + 1)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -282,10 +282,10 @@ Lets write a generic loop over such lists ...
 Example: `foldr`
 ----------------
 
-\begin{code} <br>
+\begin{spec} <br>
 foldr f b N        = b
 foldr f b (C x xs) = f xs x (foldr f b xs)
-\end{code}
+\end{spec}
 
 <br>
 
@@ -317,13 +317,13 @@ Lets step through the type...
 `foldr`: Abstract Refinement
 ----------------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 p    :: L a -> b -> Prop   
 step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
 base :: b<p N> 
 ys   :: L a
 out  ::  b<p ys>                            
-\end{code}
+\end{spec}
 
 <br>
 
@@ -335,13 +335,13 @@ out  ::  b<p ys>
 `foldr`: Base Case
 ------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 p    :: L a -> b -> Prop   
 step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
 base :: b<p N> 
 ys   :: L a
 out  :: b<p ys>                            
-\end{code}
+\end{spec}
 
 <br>
 
@@ -354,13 +354,13 @@ out  :: b<p ys>
 `foldr`: Ind. Step 
 ------------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 p    :: L a -> b -> Prop   
 step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
 base :: b<p N> 
 ys   :: L a
 out  :: b<p ys>                            
-\end{code}
+\end{spec}
 
 <br>
 
@@ -372,13 +372,13 @@ out  :: b<p ys>
 `foldr`: Output
 ---------------
 
-\begin{code} <div/>
+\begin{spec} <div/>
 p    :: L a -> b -> Prop   
 step :: xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)> 
 base :: b<p N> 
 ys   :: L a
 out  :: b<p ys>                            
-\end{code}
+\end{spec}
 
 <br>
 
