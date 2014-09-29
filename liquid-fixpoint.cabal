@@ -139,6 +139,7 @@ Library
                    Language.Fixpoint.Errors,
                    Language.Fixpoint.Config,
                    Language.Fixpoint.Types,
+                   Language.Fixpoint.Visitor,
                    Language.Fixpoint.Sort,
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,

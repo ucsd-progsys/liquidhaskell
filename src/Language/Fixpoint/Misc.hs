@@ -3,6 +3,7 @@
 
 module Language.Fixpoint.Misc where
 
+import Data.Traversable               (traverse)
 import Data.Hashable
 import qualified Control.Exception     as Ex
 -- import qualified Data.HashSet        as S 
@@ -384,4 +385,4 @@ mapEither f         = go [] []
                         Left l  -> go (l:ls) rs  xs
                         Right r -> go ls  (r:rs) xs
 
-
+f <$$> x = traverse f x
