@@ -1,7 +1,14 @@
+{-# LANGUAGE TupleSections #-}
+
 module Language.Fixpoint.Visitor (
+  -- * Visitor
+     Visitor (..)
+     
+  -- * Default Visitor
+  , defaultVisitor
 
   -- * Transformers
-    trans
+  , trans
             
   -- * Accumulators
   , fold
@@ -50,8 +57,8 @@ defaultVisitor = Visitor {
 fold         :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> a 
 fold v c a t = snd $ execVisitM v c a visit t
 
-trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> t -> t 
-trans v c z  = fst $ execVisitM v c mempty visit z 
+trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t 
+trans v c a z = fst $ execVisitM v c mempty visit z 
 
 execVisitM v c a f x = runState (f v c x) a
 
@@ -71,6 +78,16 @@ instance Visitable Expr where
 
 instance Visitable Pred where
   visit = visitPred
+
+instance Visitable Refa where
+  visit v c (RConc p) = RConc <$> visit v c p
+  visit _ _ r         = return r 
+
+instance Visitable Reft where
+  visit v c (Reft (vv, ras)) = (Reft . (vv,)) <$> visitMany v c ras 
+
+visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
+visitMany v c xs = visit v c <$$> xs
 
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr 
 visitExpr v = vE
