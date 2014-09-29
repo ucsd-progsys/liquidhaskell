@@ -30,6 +30,7 @@ module Language.Fixpoint.SmtLib2 (
     -- * Creating and killing SMTLIB2 Process
     , Context (..)
     , makeContext
+    , makeContextNoLog
     , cleanupContext
 
     -- * Execute Queries
@@ -112,7 +113,7 @@ data Response     = Ok
 data Context      = Ctx { pId  :: ProcessHandle
                         , cIn  :: Handle
                         , cOut :: Handle
-                        , cLog :: Handle
+                        , cLog :: Maybe Handle
                         , verbose :: Bool
                         }
 
@@ -147,7 +148,7 @@ smtRead me = {-# SCC smtRead #-}
        case A.eitherResult res of
          Left e  -> error e
          Right r -> do
-           hPutStrLnNow (cLog me) $ format "; SMT Says: {}" (Only $ show r)
+           maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
            when (verbose me) $
              LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
@@ -189,7 +190,9 @@ pairs !xs = case L.splitAt 2 xs of
               ((x:y:[]),zs) -> (x,y) : pairs zs
 
 smtWriteRaw      :: Context -> LT.Text -> IO ()
-smtWriteRaw me !s = {-# SCC smtWriteRaw #-} hPutStrLnNow (cOut me) s >>  hPutStrLnNow (cLog me) s
+smtWriteRaw me !s = {-# SCC smtWriteRaw #-} do
+  hPutStrLnNow (cOut me) s
+  maybe (return ()) (\h -> hPutStrLnNow h s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = {-# SCC smtReadRaw #-} TIO.hGetLine (cIn me)
@@ -204,15 +207,23 @@ hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
 makeContext   :: SMTSolver -> IO Context
 --------------------------------------------------------------------------
 makeContext s
+  = do me  <- makeProcess s
+       pre <- smtPreamble s me
+       createDirectoryIfMissing True $ takeDirectory smtFile
+       hLog               <- openFile smtFile WriteMode
+       let me' = me { cLog = Just hLog }
+       mapM_ (smtWrite me') pre
+       return me'
+
+makeContextNoLog s
   = do me <- makeProcess s
-       mapM_ (smtWrite me) $ smtPreamble s
+       pre <- smtPreamble s me
+       mapM_ (smtWrite me) pre
        return me
 
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
-       createDirectoryIfMissing True $ takeDirectory smtFile
-       hLog                <- openFile smtFile WriteMode
-       return $ Ctx pid hIn hOut hLog False
+       return $ Ctx pid hIn hOut Nothing False
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
@@ -222,20 +233,26 @@ cleanupContext me@(Ctx {..})
        code <- waitForProcess pId
        hClose cIn
        hClose cOut
-       hClose cLog
+       maybe (return ()) hClose cLog
        return code
 
 {- "z3 -smt2 -in"                   -}
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
 {- "z3 -smtc -in MBQI=false"        -}
 
--- ERIC: Do we really need to set mbqi to false? It seems useful for generating test data
-smtCmd Z3      = "z3 -smt2 -in MODEL=true MODEL.PARTIAL=true auto-config=false"
+smtCmd Z3      = "z3 -smt2 -in"
 smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
-smtPreamble Z3 = z3Preamble
-smtPreamble _  = smtlibPreamble
+-- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+smtPreamble Z3 me 
+  = do smtWrite me "(get-info :version)"
+       r <- (!!1) . T.splitOn "\"" <$> smtReadRaw me
+       case r of
+         "4.3.2" -> return $ z3_432_options ++ z3Preamble
+         _       -> return $ z3_options ++ z3Preamble
+smtPreamble _  _  
+  = return smtlibPreamble
 
 smtFile :: FilePath
 smtFile = extFileName Smt2 "out"
@@ -281,6 +298,18 @@ smt_set_funs :: M.HashMap Symbol Raw
 smt_set_funs = M.fromList [("Set_emp",emp),("Set_add",add),("Set_cup",cup)
                           ,("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
                           ,("Set_sub",sub),("Set_com",com)]
+
+-- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
+z3_432_options 
+  = [ "(set-option :auto-config false)"
+    , "(set-option :model true)"
+    , "(set-option :model.partial false)"
+    , "(set-option :smt.mbqi false)" ]
+z3_options 
+  = [ "(set-option :auto-config false)"
+    , "(set-option :model true)"
+    , "(set-option :model-partial false)"
+    , "(set-option :mbqi false)" ]
 
 z3Preamble
   = [ format "(define-sort {} () Int)"
@@ -355,7 +384,7 @@ encode t = {-# SCC encode #-}
   foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
                                         ,("(", "ZL"), (")", "ZR"), (",", "ZT")
                                         ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                        ,("z", "zz"), ("Z", "ZZ")]
+                                        ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s

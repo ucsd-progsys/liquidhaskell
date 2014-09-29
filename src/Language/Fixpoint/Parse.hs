@@ -517,7 +517,7 @@ solutionFileP
 
 remainderP p  
   = do res <- p
-       str <- stateInput <$> getParserState
+       str <- getInput
        pos <- getPosition 
        return (res, str, pos) 
 
@@ -533,7 +533,7 @@ parseFromFile :: Parser b -> SourceName -> IO b
 parseFromFile p f = doParse' p f <$> readFile f
 
 freshIntP :: Parser Integer
-freshIntP = do n <- stateUser <$> getParserState
+freshIntP = do n <- getState
                updateState (+ 1)
                return n
 

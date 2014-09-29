@@ -4,9 +4,9 @@ import Distribution.PackageDescription
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
-import System.Posix.Env
-import System.Process
+import System.Environment
 import System.Exit
+import System.Process
 
 main         = defaultMainWithHooks fixHooks
   where
@@ -16,7 +16,7 @@ main         = defaultMainWithHooks fixHooks
                                }
 
 buildFixpoint _ _ pkg lbi
-  = do setEnv "Z3MEM" (show z3mem) True
+  = do setEnv "Z3MEM" (show z3mem)
        executeShellCommand "./configure"
        executeShellCommand "./build.sh"
        executeShellCommand "chmod a+x external/fixpoint/fixpoint.native "
