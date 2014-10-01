@@ -230,32 +230,16 @@ simplesymbol = symbol . getName
 
 
 strengthenHaskellMeasures :: S.HashSet Var -> [(Var, Located SpecType)]
-strengthenHaskellMeasures = undefined
-{-
-strengthenHaskellMeasures :: [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec  -- [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec 
-strengthenHaskellMeasures specs sp
-  = do name <- gets modName
-       let hmeans = S.map val <$> Ms.hmeas <$> L.lookup name specs
-       return $ sp{tySigs = go hmeans <$> tySigs sp}
-  where 
-    go Nothing       (x, t)
-     = traceShow "NOTHING!!!!" (x, t)
-    go (Just hmeans) (x, t) 
-     | S.member (dropModuleNames $ simplesymbol x) hmeans 
-     = traceShow "DID IT" (x, strengthenResult (dummyLoc $ dropModuleNames $ simplesymbol x) <$> t)
-     | otherwise
-     = traceShow ("\nNope: " ++ show (dropModuleNames $ simplesymbol x)) (x, t)
--}
+strengthenHaskellMeasures hmeas = (\v -> (v, dummyLoc $ strengthenResult v)) <$> (S.toList hmeas)
 
-strengthenResult :: LocSymbol -> SpecType -> SpecType
-strengthenResult f t 
+strengthenResult :: Var -> SpecType
+strengthenResult v
   = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
   where rep = toRTypeRep t
         r   = U (exprReft (EApp f [EVar x])) mempty mempty
         x   = safeHead "strengthenResult" $ ty_binds rep
-
-isHaskellMeasure :: LocSymbol -> Var -> Bool
-isHaskellMeasure x v = (val x) == (dropModuleNames (simplesymbol v))
+        f   = dummyLoc $ dropModuleNames $ simplesymbol v
+        t   = (ofType $ varType v) :: SpecType
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
@@ -518,7 +502,7 @@ makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
 makeHints vs (_, spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVar  vs (_, spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 makeLazy  vs (_, spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
-makeHMeas vs (_, spec) = fmap fst <$> (varSymbols id "HMeas" vs $ [(v, ()) | v <- S.toList $ Ms.hmeas spec])
+makeHMeas vs (_, spec) = fmap fst <$> (varSymbols id "HMeas" vs $ [(v, loc v) | v <- S.toList $ Ms.hmeas spec])
 makeTExpr vs (_, spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
