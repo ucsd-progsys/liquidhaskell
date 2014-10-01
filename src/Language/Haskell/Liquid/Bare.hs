@@ -68,6 +68,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType          hiding (freeTyVars)
 import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.PredType hiding (unify)
+import Language.Haskell.Liquid.CoreToLogic
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
@@ -90,7 +91,7 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
   
   = throwOr (throwOr return . checkGhcSpec specs . postProcess cbs) =<< execBare act initEnv
   where
-    act      = makeGhcSpec' cfg vars defVars exports specs
+    act      = makeGhcSpec' cfg cbs vars defVars exports specs
     throwOr  = either Ex.throw
     initEnv  = BE name mempty mempty mempty env
     
@@ -102,16 +103,16 @@ postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
 
 
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
+makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' cfg vars defVars exports specs
+makeGhcSpec' cfg cbs vars defVars exports specs
   = do name                                    <- gets modName
        _                                       <- makeRTEnv specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSs datacons cls embs
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg cbs vars specs dcSs datacons cls embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
@@ -123,6 +124,7 @@ makeGhcSpec' cfg vars defVars exports specs
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
+
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
@@ -188,10 +190,12 @@ makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
        let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
 
-makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
+makeGhcSpecCHOP3 cfg cbs vars specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
-       tyi             <- gets tcEnv 
-       let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
+       tyi             <- gets tcEnv
+       name            <- gets modName 
+       let hmeans       = makeHaskellMeasures cbs name <$> specs
+       let measures     = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
@@ -200,6 +204,23 @@ makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
        let xs'          = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
        
+makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
+makeHaskellMeasures cbs name' (name, spec) | name /= name' = mempty
+makeHaskellMeasures cbs _     (name, spec) = Ms.mkMSpec' [makeMeasureDefinition cbs x | x <- S.toList (Ms.hmeas spec)]
+
+makeMeasureDefinition :: [CoreBind] -> LocSymbol -> Measure SpecType DataCon
+makeMeasureDefinition cbs x 
+  = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
+    (NonRec v def:_)   -> Ms.mkM x (ofType $ varType v) $ coreToDef x v def
+    (Rec [(v, def)]:_) -> Ms.mkM x (ofType $ varType v) $ coreToDef x v def
+    _                  -> errorstar ("Cannot extract measure from haskell function, for " ++ show x)
+  where
+    binders (NonRec x _) = [x]
+    binders (Rec xes)    = fst <$> xes  
+
+    simplesymbol = symbol . getName
+
+
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
   where
