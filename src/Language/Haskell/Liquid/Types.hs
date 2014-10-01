@@ -139,8 +139,7 @@ module Language.Haskell.Liquid.Types (
   -- * Refinement Type Aliases
   , RTEnv (..)
   , RTBareOrSpec
-  , mapRT
-  , mapRP
+  , mapRT, mapRP, mapRE
 
   -- * Final Result
   , Result (..)
@@ -1484,16 +1483,22 @@ type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
 
+type RTExprAlias  = Either (ModName, RTAlias Symbol Expr)
+                           (RTAlias Symbol Expr)
+
 data RTEnv   = RTE { typeAliases :: M.HashMap Symbol RTBareOrSpec
                    , predAliases :: M.HashMap Symbol RTPredAlias
+                   , exprAliases :: M.HashMap Symbol RTExprAlias
                    }
 
 instance Monoid RTEnv where
-  (RTE ta1 pa1) `mappend` (RTE ta2 pa2) = RTE (ta1 `M.union` ta2) (pa1 `M.union` pa2)
-  mempty = RTE M.empty M.empty
+  (RTE ta1 pa1 ea1) `mappend` (RTE ta2 pa2 ea2)
+    = RTE (ta1 `M.union` ta2) (pa1 `M.union` pa2) (ea1 `M.union` ea2)
+  mempty = RTE M.empty M.empty M.empty
 
 mapRT f e = e { typeAliases = f $ typeAliases e }
 mapRP f e = e { predAliases = f $ predAliases e }
+mapRE f e = e { exprAliases = f $ exprAliases e }
 
 cinfoError (Ci _ (Just e)) = e
 cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
