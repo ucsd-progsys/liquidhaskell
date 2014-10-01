@@ -4,9 +4,9 @@ llen :: [a] -> Int
 llen [] = 0
 llen (x:xs) = 1 + llen xs
 
-{-@ measure llen @-}
+{-@ measure lllen @-}
 
-{-@ lllen :: xs:[a] -> {v:Int| (llen xs) = v} @-}
+{-@ lllen :: xs:[a] -> {v:Int| (lllen xs) = v} @-}
 
 lllen :: [a] -> Int	
 lllen [] = 0

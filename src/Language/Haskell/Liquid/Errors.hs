@@ -192,6 +192,10 @@ ppError' _ dSp (ErrMeas _ t s)
   = dSp <+> text "Bad Measure Specification"
     $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
+ppError' _ dSp (ErrHMeas _ t s)
+  = dSp <+> text "Cannot promote Haskell function" <+> pprint t <+> text "to logic"
+    $+$ (nest 4 $ pprint s)
+
 ppError' _ dSp (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
     $+$ (nest 4 $ vcat $ pprint <$> ls)
