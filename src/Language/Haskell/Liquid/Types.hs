@@ -1367,6 +1367,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
+  | ErrHMeas    { pos :: !SrcSpan
+                , ms  :: !Symbol
+                , msg :: !Doc
+                } -- ^ Haskell bad Measure error
+
   | ErrUnbound  { pos :: !SrcSpan
                 , var :: !Doc
                 } -- ^ Unbound symbol in specification 
