@@ -121,7 +121,6 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
-         >>= strengthenHaskellMeasures specs
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
