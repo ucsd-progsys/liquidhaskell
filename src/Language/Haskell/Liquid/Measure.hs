@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts       #-} 
 {-# LANGUAGE UndecidableInstances   #-}
+{-# LANGUAGE OverloadedStrings      #-}
 
 module Language.Haskell.Liquid.Measure (  
     Spec (..)
@@ -19,8 +20,11 @@ import qualified Outputable as O
 import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
+
+import qualified Data.List as L 
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
+import qualified Data.Text as T
 import Data.Monoid hiding ((<>))
 import Data.List (foldl1', union, nub)
 import Data.Either (partitionEithers)
@@ -55,6 +59,7 @@ data Spec ty bndr  = Spec {
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
+  , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
@@ -123,6 +128,10 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
+
+
+
+
 checkDuplicateMeasure ms 
   = case M.toList dups of 
       []         -> ms
@@ -154,6 +163,7 @@ instance Monoid (Spec ty bndr) where
            , decr       =           decr s1       ++ decr s2
            , lvars      =           lvars s1      ++ lvars s2
            , lazy       = S.union   (lazy s1)        (lazy s2)
+           , hmeas      = S.union   (hmeas s1)       (hmeas s2)
            , pragmas    =           pragmas s1    ++ pragmas s2
            , cmeasures  =           cmeasures s1  ++ cmeasures s2
            , imeasures  =           imeasures s1  ++ imeasures s2
@@ -178,6 +188,7 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = []
            , lazy       = S.empty
+           , hmeas      = S.empty
            , pragmas    = []
            , cmeasures  = []
            , imeasures  = []
