@@ -2,8 +2,9 @@
 {-# LANGUAGE FlexibleContexts       #-} 
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE TupleSections          #-}
 
-module Language.Haskell.Liquid.CoreToLogic ( coreToDef , mkLit ) where
+module Language.Haskell.Liquid.CoreToLogic ( coreToDef , mkLit, runToLogic, LError(..) ) where
 
 import GHC hiding (Located)
 import Var
@@ -12,7 +13,7 @@ import qualified CoreSyn as C
 import Literal
 import IdInfo
 
-import Control.Applicative      ((<$>), (<*>), (<|>))
+import Control.Applicative 
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym)
@@ -25,46 +26,72 @@ import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 
 import qualified Data.HashMap.Strict as M
 
-coreToDef :: LocSymbol -> Var -> C.CoreExpr -> [Def DataCon]
+import Data.Monoid
+import Data.Functor
+import Data.Either
+
+newtype LogicM a = LM (Either a LError)
+
+
+data LError = LE String
+
+instance Monad LogicM where
+	return = LM . Left
+	(LM (Left x))  >>= f = f x
+	(LM (Right x)) >>= f = LM (Right x)
+
+instance Functor LogicM where
+	fmap f (LM (Left x))  = LM $ Left $ f x
+	fmap f (LM (Right x)) = LM $ Right x
+
+instance Applicative LogicM where
+	pure = LM . Left
+
+	(LM (Left f))  <*> (LM (Left x))  = LM $ Left (f x)
+	(LM (Right f)) <*> (LM (Left x))  = LM $ Right f
+	(LM (Left f))  <*> (LM (Right x)) = LM $ Right x
+	(LM (Right f)) <*> (LM (Right x)) = LM $ Right x
+
+throw :: String -> LogicM a
+throw = LM . Right . LE
+
+runToLogic (LM x) = x
+
+coreToDef :: LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def DataCon]
 coreToDef x v e = go $ simplify e
   where
     go (C.Lam a e)  = go e
     go (C.Tick _ e) = go e
-    go (C.Case _ _ _ alts) = goalt <$> alts
-    go e'                 = merror ("Measure Functions should have a case at top level, instead of: \t" ++ showPpr e ++ "\nOF\n" ++ showPpr e')
+    go (C.Case _ _ _ alts) = mapM goalt alts
+    go e'                 = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e) = Def x d (symbol <$> xs) (E $ coreToLogic e)
-    goalt alt = merror $ "Bad alternative\t" ++ showPpr alt
-
-    merror str = errorstar $ ("Bad measure: " ++ show x ++ str)
+    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic e
+    goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
 
-
-
-coreToLogic :: C.CoreExpr -> Expr
-coreToLogic (C.Let b e)  = coreToLogic e `subst1` makesub b
+coreToLogic :: C.CoreExpr -> LogicM Expr
+coreToLogic (C.Let b e)  = subst1 <$> coreToLogic e <*>  makesub b
 coreToLogic (C.Tick _ e) = coreToLogic e
 coreToLogic (C.App (C.Var v) e) | ignoreVar v = coreToLogic e
 coreToLogic (C.Lit l)            
   = case mkLit l of 
-     Nothing -> errorstar $ "Bad Literal in measure definition" ++ showPpr l
-     Just i -> i
-coreToLogic (C.Var x)           = EVar $ symbol x
+     Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+     Just i -> return i
+coreToLogic (C.Var x)           = return $ EVar $ symbol x
 coreToLogic e@(C.App _ _)       = toLogicApp e 
-coreToLogic e                   = errorstar ("\nCannot transform to Logic\n" ++ showPpr e)
+coreToLogic e                   = throw ("Cannot transform to Logic" ++ showPpr e)
 
+toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e   
-  =  let (f, es) = splitArgs e in
-     let args    = reverse $ (coreToLogic <$> es) in
-     makeApp (tosymbol f) args
+  =  do let (f, es) = splitArgs e
+        args       <- reverse <$> (mapM coreToLogic es)
+        (`makeApp` args) <$> tosymbol f
 
 makeApp f [e1, e2] | Just op <- M.lookup (val f) bops
   = EBin op e1 e2
 
 makeApp f args 
   = EApp f args
-
-
 
 bops :: M.HashMap Symbol Bop
 bops = M.fromList [ (symbol ("+" :: String), Plus)
@@ -79,11 +106,11 @@ splitArgs (C.App f (C.Var v)) | isDictionary v    = splitArgs f
 splitArgs (C.App f e) = (f', e:es) where (f', es) = splitArgs f
 splitArgs f           = (f, [])
 
-tosymbol (C.Var x) = dummyLoc $ simpleSymbolVar x
-tosymbol  e        = error ("\nBad Measure Definition:\t" ++ showPpr e ++ "\t is not a cannot be applied")
+tosymbol (C.Var x) = return $ dummyLoc $ simpleSymbolVar x
+tosymbol  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
-makesub (C.NonRec x e) = (symbol x, coreToLogic e)
-makesub  _             = errorstar "Cannot make Logical Substitution of Recursive Definitions"
+makesub (C.NonRec x e) =  (symbol x,) <$> coreToLogic e
+makesub  _             = throw "Cannot make Logical Substitution of Recursive Definitions"
 
 mkLit :: Literal -> Maybe Expr
 mkLit (MachInt    n)   = mkI n

@@ -194,7 +194,7 @@ makeGhcSpecCHOP3 cfg cbs vars specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
        tyi             <- gets tcEnv
        name            <- gets modName 
-       let hmeans       = makeHaskellMeasures cbs name <$> specs
+       hmeans          <- mapM (makeHaskellMeasures cbs name) specs
        let measures     = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
@@ -204,21 +204,28 @@ makeGhcSpecCHOP3 cfg cbs vars specs dcSelectors datacons cls embs
        let xs'          = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
        
-makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
-makeHaskellMeasures cbs name' (name, spec) | name /= name' = mempty
-makeHaskellMeasures cbs _     (name, spec) = Ms.mkMSpec' [makeMeasureDefinition cbs x | x <- S.toList (Ms.hmeas spec)]
+makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
+makeHaskellMeasures cbs name' (name, spec) | name /= name' = return mempty
+makeHaskellMeasures cbs _     (name, spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs) (S.toList $ Ms.hmeas spec)
 
-makeMeasureDefinition :: [CoreBind] -> LocSymbol -> Measure SpecType DataCon
+makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition cbs x 
   = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
-    (NonRec v def:_)   -> Ms.mkM x (ofType $ varType v) $ coreToDef x v def
-    (Rec [(v, def)]:_) -> Ms.mkM x (ofType $ varType v) $ coreToDef x v def
-    _                  -> errorstar ("Cannot extract measure from haskell function, for " ++ show x)
+    (NonRec v def:_)   -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
+    (Rec [(v, def)]:_) -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
+    _                  -> mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
     binders (Rec xes)    = fst <$> xes  
 
     simplesymbol = symbol . getName
+
+    coreToDef' x v def = case (runToLogic $ coreToDef x v def) of 
+                           Left x         -> return  x
+                           Right (LE str) -> mkError str
+
+    mkError str = throwError $ ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       
+
 
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
