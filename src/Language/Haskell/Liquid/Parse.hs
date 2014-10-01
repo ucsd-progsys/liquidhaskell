@@ -446,6 +446,7 @@ data Pspec ty ctor
   | IAlias  (Located ty, Located ty)
   | Alias   (RTAlias Symbol BareType)
   | PAlias  (RTAlias Symbol Pred)
+  | EAlias  (RTAlias Symbol Expr)
   | Embed   (LocSymbol, FTycon)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
@@ -470,6 +471,7 @@ instance Show (Pspec a b) where
   show (IAlias _) = "IAlias" 
   show (Alias  _) = "Alias"  
   show (PAlias _) = "PAlias" 
+  show (EAlias _) = "EAlias" 
   show (Embed  _) = "Embed"  
   show (Qualif _) = "Qualif" 
   show (Decr   _) = "Decr"   
@@ -498,6 +500,7 @@ mkSpec name xs         = (name,)
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.paliases   = [p | PAlias p <- xs]
+  , Measure.ealiases   = [e | EAlias e <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
@@ -526,6 +529,7 @@ specP
     <|> (reserved "using"     >> liftM IAlias invaliasP )
     <|> (reserved "type"      >> liftM Alias  aliasP    )
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
+    <|> (reserved "expression">> liftM EAlias ealiasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
@@ -588,6 +592,7 @@ embedP
 
 aliasP  = rtAliasP id     bareTypeP
 paliasP = rtAliasP symbol predP
+ealiasP = rtAliasP symbol exprP
 
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty) 
 rtAliasP f bodyP
