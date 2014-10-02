@@ -703,7 +703,7 @@ $$\forall x \in \mathtt{nats}. 0 \leq x$$
 <br>
 
 <div class="fragment">
-VCs over **quantified formulas** ... *terrible* for SMT
+VCs over **quantified formulas** ... *challenging* for SMT
 </div>
 
 

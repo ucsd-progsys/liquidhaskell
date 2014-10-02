@@ -33,38 +33,18 @@ N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 <br>
 
 <div class="fragment">
-[[continue]](00_Motivation_Logic.lhs.slides.html)
+[[continue]](00_Motivation.lhs.slides.html)
 </div>
-
-
-Junk
-----
-
-\begin{spec}
-/// "Classic"
-function minIndex(arr){
-  var min = 0;
-  for (var i = 0; i < a.length; i++) {
-    var cur = a[i];
-    if (cur < a[min]){
-      min = i;
-    }
-  }
-  return min;
-}
-\end{spec}
 
 
 Plan 
 ----
 
-
 + <a href="00_Motivation.lhs.slides.html" target="_blank">Motivation</a>
 + <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a></div>
 + <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
 + <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
-+ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>, <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">...</a>,<a href="05_Composition.lhs.slides.html" target= "_blank">...</a></div>
-+ <div class="fragment"><a href="09_Laziness.lhs.slides.html" target="_blank">Laziness</a> and <a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
++ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>,<a href="07_Array.lhs.slides.html" target= "_blank">Data</a></div>
 + <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 + <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
 
