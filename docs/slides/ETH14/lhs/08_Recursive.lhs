@@ -1,3 +1,27 @@
+Abstract Refinements {#data}
+============================
+
+Recap
+-----
+
+**So far**
+
+Abstract Refinements decouple invariants from
+
++ functions
++ indexed data
+
+<br>
+
+<div class="fragment">
+
+**Next**
+
+Decouple invariants from **recursive** data structures
+</div>
+
+
+
 Decouple Invariants From Data {#recursive} 
 ==========================================
 
@@ -56,7 +80,7 @@ What if we need *both* [increasing *and* decreasing lists?](http://hackage.haske
 
 <br>
 
-<div class="fragment">
+<div class="hidden">
 [Separate (indexed) types](http://web.cecs.pdx.edu/~sheard/Code/QSort.html) get quite complicated ...
 </div>
 
@@ -250,8 +274,8 @@ Duplicate-free Lists
 iDiff     = [1,3,2]
 \end{code}
 
-Checking GHC Lists
-------------------
+Checking Lists
+--------------
 
 Now we can check all the usual list sorting algorithms 
 
@@ -291,116 +315,6 @@ merge (x:xs) (y:ys)
   | otherwise  = y : merge (x:xs) ys
 \end{code}
 
-
-
-Example: `Data.List.sort` 
--------------------------
-
-<br>
-
-GHC's "official" list sorting routine
-
-<br>
-
-Juggling lists of increasing & decreasing lists
-
-
-
-
-Ex: `Data.List.sort` [1/5]
---------------------------
-
-**Step 1.** Make sequences of increasing & decreasing lists
-
-<br>
-
-\begin{code}
-sequences (a:b:xs)
-  | a `compare` b == GT = descending b [a]  xs
-  | otherwise           = ascending  b (a:) xs
-sequences [x]           = [[x]]
-sequences []            = [[]]
-\end{code}
-
-Ex: `Data.List.sort` [2/5]
---------------------------
-
-**Step 1.** Make sequences of increasing & decreasing lists
-
-<br>
-
-\begin{code}
-descending a as (b:bs)
-  | a `compare` b == GT 
-  = descending b (a:as) bs
-descending a as bs      
-  = (a:as): sequences bs
-\end{code}
-
-Ex: `Data.List.sort` [3/5]
---------------------------
-
-**Step 1.** Make sequences of increasing & decreasing lists
-
-<br>
-
-
-\begin{code}
-ascending a as (b:bs)
-  | a `compare` b /= GT 
-  = ascending b (\ys -> as (a:ys)) bs
-ascending a as bs      
-  = as [a]: sequences bs
-\end{code}
-
-Ex: `Data.List.sort` [4/5]
---------------------------
-
-**Step 2.** Merge sequences
-
-<br>
-
-\begin{code}
-mergeAll [x]        = x
-mergeAll xs         = mergeAll (mergePairs xs)
-
-mergePairs (a:b:xs) = merge a b: mergePairs xs
-mergePairs [x]      = [x]
-mergePairs []       = []
-\end{code}
-
-
-Ex: `Data.List.sort` [5/5]
---------------------------
-
-Put it all together
-
-<br>
-
-\begin{code}
-{-@ sort :: (Ord a) => [a] -> Incs a  @-}
-sort = mergeAll . sequences
-\end{code}
-
-<br>
-
-<div class="fragment">No other hints or annotations required.</div>
-
--->
-
-Phew!
------
-
-Lets see one last example...
-
-<br>
-<br>
-<br>
-<br>
-
-[[Skip]](#/1/32)
-
-
 Example: Binary Trees
 ---------------------
 
@@ -410,7 +324,7 @@ Example: Binary Trees
 
 <div class="fragment">
 
-Implemented, in `Data.Map` as a binary tree:
+Implemented, as a binary tree:
 
 <br>
 
@@ -538,9 +452,9 @@ Recap
 2. Subtyping: SMT Implication
 3. Measures: Strengthened Constructors
 4. **Abstract:** Refinements over functions and data
-5. <div class="fragment">Er, what about Haskell's **lazy evaluation**?</div>
+5. <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 
 <br>
 <br>
 
-<div class="fragment">[[continue...]](09_Laziness.lhs.slides.html)</div>
+<div class="fragment">[[continue...]](11_Evaluation.lhs.slides.html)</div>

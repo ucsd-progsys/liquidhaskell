@@ -1,10 +1,14 @@
 Abstract Refinements {#induction}
 =================================
 
-Induction
----------
+Decoupling Invariants from Code
+-------------------------------
 
-Encoding *induction* with Abstract refinements
+Abstract refinements
+
++ Decouple invariants from code
+
++ Yield precise, reusable **summaries** of HOFs
 
 <div class="hidden">
 
@@ -437,11 +441,11 @@ By automatically instantiating
 Recap
 -----
 
-Abstract refinements *decouple* **invariant** from **traversal**
+Abstract refinements *decouple* **invariant** from **iteration**
 
 <br>
 
-<div class="fragment">**Reusable** specifications for higher-order functions.</div>
+<div class="fragment">**Reusable** summaries for higher-order functions.</div>
 
 <br>
 
@@ -455,5 +459,7 @@ Recap
 3. Measures: Strengthened Constructors
 4. Abstract: Refinements over Type Signatures
     + <div class="fragment">**Functions**</div>
-    + <div class="fragment">**Data** <a href="08_Recursive.lhs.slides.html" target="_blank">[continue]</a></div>
+    + <div class="fragment">**Data** <a href="07_Array.lhs.slides.html" target="_blank">[continue]</a></div>
 
+
+<div class="fragment">[[continue...]](07_Array.lhs.slides.html)</div>

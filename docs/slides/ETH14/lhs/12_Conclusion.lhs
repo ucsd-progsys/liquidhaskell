@@ -24,11 +24,13 @@ Use **Types** to lift **Logic + Analysis** to Modern Programs
 <br>
 
 <div class="fragment"> 
--------------------   ------------------------------------------------
-**Properties:**       Predicates *+ Types*
-**Proofs:**           Verification Conditions *+ Subtyping* 
-**Inference:**        Abstract Interpretation *+ Hindley-Milner*
--------------------   ------------------------------------------------
+
+-------------------       ------------------------------------------------
+**Properties:**           Predicates *+ Types*
+**Proofs:**               Verification Conditions *+ Subtyping* 
+**Inference:**            Abstract Interpretation *+ Hindley-Milner*
+-------------------       ------------------------------------------------
+
 </div>
 
 
