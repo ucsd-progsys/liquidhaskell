@@ -15,38 +15,41 @@ main = putStrLn "Easter Egg: to force Makefile"
 Conclusion
 ==========
 
+Liquid Types 
+------------
+
+
+Use **Types** to lift **Logic + Analysis** to Modern Programs 
+
+<br>
+
+<div class="fragment"> 
+-------------------   ------------------------------------------------
+**Properties:**       Predicates *+ Types*
+**Proofs:**           Verification Conditions *+ Subtyping* 
+**Inference:**        Abstract Interpretation *+ Hindley-Milner*
+-------------------   ------------------------------------------------
+</div>
+
 
 Liquid Types 
 ------------
 
-Generalize Program **Logics** via **Types**
+Use **Types** to lift **Logic + Analysis** to Modern Programs 
 
 <br>
 
-<div class="fragment">Expressive *and* Automatic</div>
+**Take Home 1: Types are a simple and uniform way to analyze**
+
++ Unbounded Data (eg. Arrays, Lists, HashMaps)
++ Polymorphism   (eg. Generics,...)
++ Callbacks/HOFs (eg. map, reduce, filter,...)
 
 
 Liquid Types 
 ------------
 
-Generalize Program **Logics** via **Types**
-
-<br>
-
-Expressive *and* Automatic
-
-<br>
-
-**Take Home 1: Inference**
-
-+ Typecheck "templates" 
-
-+ Abstract Interpretation
- 
-Liquid Types 
-------------
-
-Generalize Program **Logics** via **Types**
+Use **Types** to lift **Logic + Analysis** to Modern Programs 
 
 <br>
 
@@ -59,59 +62,27 @@ Expressive *and* Automatic
 + Measures for Datatype properties
 
 + Abstract Refinements 
- 
-Liquid Types 
-------------
-
-Generalize Program **Logics** via **Types**
-
-<br>
-
-Expressive *and* Automatic
-
-<br>
-
-**Take Home 3: Laziness breaks *partial* correctness**
- 
-+ Use refinements prove termination
-
-+ Use termination to prove refinements
-
-<!--
-
-Take Home Messages
-------------------
-
-1. <div class="fragment"> **Inference**
-    + Typecheck "templates" 
-    + Abstract Interpretation
-   </div>
 
 
-2. <div class="fragment">**Uninterpreted functions**
-    + Measures for Datatype properties
-    + Abstract Refinements 
-   </div>
+Current & Future Work
+---------------------
 
-3. <div class="fragment">**Laziness breaks *partial* correctness**
-    + Use refinements prove termination
-    + Use termination to prove refinements
-   </div>
+**Technology**
+
++ Speed
++ Imperative Features (Pointers, Mutation, ...) 
++ Diagnostics & Error Messages
 
 
-Future Work
------------
+Current & Future Work
+---------------------
 
-<br>
-<br>
+**Applications**
 
-- <div class="fragment">Speed</div>
++ Concurrency & Distribution
++ Probabilistic Behavior
++ Completion, Repair & Synthesis
 
-- <div class="fragment">Case Studies</div>
-
-- <div class="fragment">**Error Feedback**</div>
-
--->
 
  {#asd}
 =======

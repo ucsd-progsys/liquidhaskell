@@ -1,8 +1,9 @@
  {#asds}
 ========
 
-Goal
-----
+Algorithmic Verification 
+------------------------
+
 
 <div class="hidden">
 
@@ -12,103 +13,116 @@ main = putStrLn "Easter Egg: to force Makefile"
 
 </div>
 
-
 <br>
 <br>
 
+**Goal**
 
-Analysis & Verification of Program Properties
+<br>
 
+(Automatically) Proving Properties of Programs 
 
 Algorithmic Verification
 ========================
 
-Tension
--------
+A Classic Example 
+-----------------
 
-<img src="../img/tension0.png" height=300px>
+<img src="../img/minindex-classic.png" height=300px>
 
-Automation vs. Expressiveness
+**Verify:** indices `i`, `min` are *within bounds* of `arr`
 
-Tension
--------
+Easy, use **Logic** + **Analysis**
 
-<img src="../img/tension1.png" height=300px>
+Logic 
+-----
 
-Extremes: Hindley-Milner vs. CoC
+<img src="../img/minindex-invariant.png" height=300px>
 
-Tension
--------
+-------------------   ----------------------------------------------------
+**Specification**     *Predicates* (invariants, pre-/post-conditions)
+**Proof**             *Verification Conditions* checked by SMT solver
+-------------------   ----------------------------------------------------
 
-<img src="../img/tension2.png" height=300px>
-
-Trading off Automation for Expressiveness
-
-Tension
--------
-
-<img src="../img/tension3.png" height=300px>
-
-**Goal:** Find a sweet spot?
-
-Program Logics
---------------
-
-<br>
-
-**Floyd-Hoare** (ESC, Dafny, SLAM/BLAST,...)
-
-<br>
-
-+ **Properties:**   Assertions & Pre- and Post-conditions
-
-+ **Proofs:**       Verification Conditions proved by SMT
-
-+ **Inference:**    Abstract Interpretation
-
-<br>
-
-<div class="fragment"> Automatic but **not** Expressive </div>
-
-
-Program Logics
---------------
-
-<br>
-
-Automatic but **not** Expressive
-
-<br>
-
-+ Rich Data Types ?
-
-+ Higher-order functions ?
-
-+ Polymorphism ?
-
-
-Liquid Types
-------------
-
-<br>
-
-Generalize Floyd-Hoare Logic with Types
-
-<div class="fragment"> 
-<br>
-
-+ **Properties:**  Types + Predicates
-
-+ **Proofs:**      Subtyping + Verification Conditions
-
-+ **Inference:**   Hindley-Milner + Abstract Interpretation
-
+<div class="fragment">
+[ESC, Spec#, Dafny, VCC, ...]
 </div>
 
-<div class="fragment"> 
-  <br>
-  Towards reconciling Automation and Expressiveness
+<div class="fragment">
+No invariants? **Inference** via Analysis...
 </div>
+
+Analysis 
+--------
+
++ Invariants are *fixpoints* of reachable states
+
++ Compute via *Dataflow Analysis* or *Abstract Interpretation*
+
+<div class="fragment">
+[ABCD, ASTREE, BLAST, CLOUSOT, SATURN, SLAM, ...]
+</div>
+
+
+Logic + Analysis 
+----------------
+
+-------------------   ----------------------------------------------------
+**Specification**     *Predicates* (invariants, pre-/post-conditions)
+**Proof**             *Verification Conditions* checked by SMT solver
+**Inference**         *Fixpoint* over abstract domain
+-------------------   ----------------------------------------------------
+
+<div class="fragment">
+But ... limited to "classical" programs!
+</div>
+
+
+"Classical" vs. "Modern" Programs
+---------------------------------
+
+**"Classical" Programs**
+
++ <div class="fragment">Assignment + Branches + Sequencing + Loops </div>
++ <div class="fragment">Procedures + Recursion</div>
++ <div class="fragment">(Recent) Objects + Classes</div>
+
+**"Modern" Programs**
+
++ <div class="fragment">Unbounded Containers  (eg. Arrays, Lists, HashMaps)</div>
++ <div class="fragment">Polymorphism          (eg. Generics,...)</div>
++ <div class="fragment">Callbacks/HOFs        (eg. map, reduce, filter,...)<div>
+
+
+A "Modern" Example 
+------------------
+
+<img src="../img/minindex-modern.png" height=300px>
+
+Verify indices `i`, `min` are *within bounds* of `arr`
+
+<div class="fragment">Many vexing problems for Logic + Analysis</div>
+
++ <div class="fragment">How to **assert**      facts about *unbounded* contents of `arr`?</div>
++ <div class="fragment">How to **summarize**   behavior of `reduce` independent of `callback`?</div>
++ <div class="fragment">How to **instantiate** summary at different *contexts* ?</div>
+
+
+This Talk: Liquid Types
+-----------------------
+
+
+<br>
+Use **Types** to lift **Logic + Analysis** to Modern Programs 
+
+<div class="fragment"> 
+-------------------   ------------------------------------------------
+**Properties:**       Predicates *+ Types*
+**Proofs:**           Verification Conditions *+ Subtyping* 
+**Inference:**        Abstract Interpretation *+ Hindley-Milner*
+-------------------   ------------------------------------------------
+</div>
+
 
 Liquid Types
 ------------
@@ -125,9 +139,7 @@ Plan
 + <a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a>
 + <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
 + <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target= "_blank">Higher-Order Functions</a></div>
-+ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>, <a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">...</a>,<a href="05_Composition.lhs.slides.html" target= "_blank">...</a></div>
-+ <div class="fragment"><a href="09_Laziness.lhs.slides.html" target="_blank">Lazy Evaluation</a></div>
-+ <div class="fragment"><a href="10_Termination.lhs.slides.html" target="_blank">Termination</a></div>
++ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a><a href="08_Recursive.lhs.slides.html" target= "_blank">Data</a>,<a href="07_Array.lhs.slides.html" target= "_blank">Data</a>,<a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>.</div>
 + <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 + <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
 

@@ -71,6 +71,7 @@ Numbers
 
 </div>
 
+<div class="hidden">
 
 Termination
 -----------
@@ -87,6 +88,8 @@ Proving termination is **easy in practice**.
 - <div class="fragment">`12`  *do not* terminate (e.g. top-level `IO` loops)</div>
 - <div class="fragment">`8`   currently *outside scope* of LiquidHaskell</div>
 
+
+</div>
 
 <div class="fragment">[[continue...]](12_Conclusion.lhs.slides.html)</div>
 
