@@ -68,6 +68,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType          hiding (freeTyVars)
 import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.PredType hiding (unify)
+import Language.Haskell.Liquid.CoreToLogic
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
@@ -90,7 +91,7 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
   
   = throwOr (throwOr return . checkGhcSpec specs . postProcess cbs) =<< execBare act initEnv
   where
-    act      = makeGhcSpec' cfg vars defVars exports specs
+    act      = makeGhcSpec' cfg cbs vars defVars exports specs
     throwOr  = either Ex.throw
     initEnv  = BE name mempty mempty mempty env
     
@@ -102,16 +103,16 @@ postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
 
 
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' :: Config -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
+makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
-makeGhcSpec' cfg vars defVars exports specs
+makeGhcSpec' cfg cbs vars defVars exports specs
   = do name                                    <- gets modName
        _                                       <- makeRTEnv specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg vars specs dcSs datacons cls embs
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP3 cfg cbs vars specs dcSs datacons cls embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
@@ -123,6 +124,7 @@ makeGhcSpec' cfg vars defVars exports specs
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
+
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
@@ -159,12 +161,14 @@ makeGhcSpec4 defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
+       hmeas   <- mkThing makeHMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
        return   $ sp { qualifiers = subst su quals
                      , decr       = decr'
                      , texprs     = texprs'
                      , lvars      = lvars'
-                     , lazy       = lazies }        
+                     , lazy       = lazies 
+                     , tySigs     = strengthenHaskellMeasures hmeas ++ tySigs sp}        
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars (m, s) | (m, s) <- specs, m == name ]
 
@@ -188,10 +192,12 @@ makeGhcSpecCHOP2 cfg vars defVars specs name cls mts embs
        let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (m, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
 
-makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
+makeGhcSpecCHOP3 cfg cbs vars specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
-       tyi             <- gets tcEnv 
-       let measures     = measures' `mappend` Ms.mkMSpec' dcSelectors
+       tyi             <- gets tcEnv
+       name            <- gets modName 
+       hmeans          <- mapM (makeHaskellMeasures cbs name) specs
+       let measures     = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
@@ -200,6 +206,41 @@ makeGhcSpecCHOP3 cfg vars specs dcSelectors datacons cls embs
        let xs'          = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
        
+makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
+makeHaskellMeasures cbs name' (name, spec) | name /= name' = return mempty
+makeHaskellMeasures cbs _     (name, spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs) (S.toList $ Ms.hmeas spec)
+
+makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
+makeMeasureDefinition cbs x 
+  = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
+    (NonRec v def:_)   -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
+    (Rec [(v, def)]:_) -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
+    _                  -> mkError "Cannot extract measure from haskell function"
+  where
+    binders (NonRec x _) = [x]
+    binders (Rec xes)    = fst <$> xes  
+
+    coreToDef' x v def = case (runToLogic $ coreToDef x v def) of 
+                           Left x         -> return  x
+                           Right (LE str) -> mkError str
+
+    mkError str = throwError $ ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       
+
+simplesymbol = symbol . getName
+
+
+strengthenHaskellMeasures :: S.HashSet Var -> [(Var, Located SpecType)]
+strengthenHaskellMeasures hmeas = (\v -> (v, dummyLoc $ strengthenResult v)) <$> (S.toList hmeas)
+
+strengthenResult :: Var -> SpecType
+strengthenResult v
+  = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
+  where rep = toRTypeRep t
+        r   = U (exprReft (EApp f [EVar x])) mempty mempty
+        x   = safeHead "strengthenResult" $ ty_binds rep
+        f   = dummyLoc $ dropModuleNames $ simplesymbol v
+        t   = (ofType $ varType v) :: SpecType
+
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
   where
@@ -207,7 +248,6 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (r
         
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
     n             = length xts
-
 
 makePluggedSigs name embs tcEnv exports sigs
   = forM sigs $ \(x,t) -> do
@@ -242,11 +282,14 @@ makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
 makeRTEnv specs
   = do forM_ rts $ \(mod, rta) -> setRTAlias (rtName rta) $ Left (mod, rta)
        forM_ pts $ \(mod, pta) -> setRPAlias (rtName pta) $ Left (mod, pta)
+       forM_ ets $ \(mod, eta) -> setREAlias (rtName eta) $ Left (mod, eta)
+       makeREAliases ets
        makeRPAliases pts
        makeRTAliases rts
     where
        rts = (concat [(m,) <$> Ms.aliases  s | (m, s) <- specs])
        pts = (concat [(m,) <$> Ms.paliases s | (m, s) <- specs])
+       ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
        
 makeRTAliases xts = mapM_ expBody xts
   where
@@ -262,6 +305,14 @@ makeRPAliases xts     = mapM_ expBody xts
                           env  <- gets $ predAliases . rtEnv
                           body <- withVArgs l (rtVArgs xt) $ expandRPAliasE l $ rtBody xt
                           setRPAlias (rtName xt) $ Right $ xt { rtBody = body }
+
+makeREAliases xts     = mapM_ expBody xts
+  where 
+    expBody (mod, xt) = inModule mod $ do
+                          let l = rtPos xt
+                          env  <- gets $ exprAliases . rtEnv
+                          body <- withVArgs l (rtVArgs xt) $ expandREAliasE l $ rtBody xt
+                          setREAlias (rtName xt) $ Right $ xt { rtBody = body }
 
 -- | Using the Alias Environment to Expand Definitions
 expandRTAliasMeasure m
@@ -287,20 +338,32 @@ expPAlias l = expandPAlias l []
 expandRTAlias   :: SourcePos -> BareType -> BareM SpecType
 expandRTAlias l bt = expType =<< expReft bt
   where 
-    expReft      = mapReftM (txPredReft expPred)
+    expReft      = mapReftM (txPredReft expPred expExpr)
     expType      = expandAlias  l []
     expPred      = expandPAlias l []
+    expExpr      = expandEAlias l []
 
-txPredReft :: (Pred -> BareM Pred) -> RReft -> BareM RReft
-txPredReft f (U r p l) = (\r -> U r p l) <$> txPredReft' f r
+mapPredM f = go
+  where
+    go (PAnd ps)       = PAnd <$> mapM go ps
+    go (POr ps)        = POr  <$> mapM go ps
+    go (PNot p)        = PNot <$> go p
+    go (PImp p q)      = PImp <$> go p <*> go q
+    go (PIff p q)      = PIff <$> go p <*> go q
+    go (PBexp e)       = PBexp <$> f e
+    go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
+    go (PAll xs p)     = PAll xs <$> go p
+    go p               = return p
+    
+
+txPredReft :: (Pred -> BareM Pred) -> (Expr -> BareM Expr) -> RReft -> BareM RReft
+txPredReft f fe (U r p l) = (\r -> U r p l) <$> txPredReft' f r
   where 
     txPredReft' f (Reft (v, ras)) = Reft . (v,) <$> mapM (txPredRefa f) ras
-    txPredRefa  f (RConc p)       = RConc <$> f p
+    txPredRefa  f (RConc p)       = fmap RConc $ (f <=< mapPredM fe) p
     txPredRefa  _ z               = return z
 
 -- | Using the Alias Environment to Expand Definitions
-
-expandRPAliasE l = expandPAlias l []
 
 expandAlias :: SourcePos -> [Symbol] -> BareType -> BareM SpecType
 expandAlias l = go
@@ -399,6 +462,8 @@ exprArg msg (RAppTy (RVar f _) t _)
 exprArg msg z 
   = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg 
 
+expandRPAliasE l = expandPAlias l []
+
 expandPAlias :: SourcePos -> [Symbol] -> Pred -> BareM Pred
 expandPAlias l = go
   where 
@@ -411,9 +476,9 @@ expandPAlias l = go
               body <- inModule mod $ withVArgs l' (rtVArgs rp) $ expandPAlias l' (f':s) $ rtBody rp
               let rp' = rp { rtBody = body }
               setRPAlias f' $ Right $ rp'
-              expandRPApp l (f':s) rp' <$> resolve l es
+              expandEApp l (f':s) rp' <$> resolve l es
             Just (Right rp) ->
-              withVArgs l (rtVArgs rp) (expandRPApp l (f':s) rp <$> resolve l es)
+              withVArgs l (rtVArgs rp) (expandEApp l (f':s) rp <$> resolve l es)
             Nothing -> fmap PBexp (EApp <$> resolve l f <*> resolve l es)
     go s (PAnd ps)                = PAnd <$> (mapM (go s) ps)
     go s (POr  ps)                = POr  <$> (mapM (go s) ps)
@@ -423,16 +488,40 @@ expandPAlias l = go
     go s (PAll xts p)             = PAll xts <$> (go s p)
     go _ p                        = resolve l p
 
-expandRPApp l s rp es
-  = let su  = mkSubst $ safeZipWithError msg (rtVArgs rp) es
+expandREAliasE l = expandEAlias l []
+
+expandEAlias :: SourcePos -> [Symbol] -> Expr -> BareM Expr
+expandEAlias l = go
+  where 
+    --NOTE: don't do any name-resolution here, expandPAlias runs afterwards and
+    --      will handle it
+    go s e@(EApp f@(Loc l' f') es)
+      | f' `elem` s                = errorstar $ "Cyclic Predicate Alias Definition: " ++ show (f':s)
+      | otherwise = do
+          env <- gets (exprAliases.rtEnv)
+          case M.lookup f' env of
+            Just (Left (mod,re)) -> do
+              body <- inModule mod $ withVArgs l' (rtVArgs re) $ expandEAlias l' (f':s) $ rtBody re
+              let re' = re { rtBody = body }
+              setREAlias f' $ Right $ re'
+              expandEApp l (f':s) re' <$> mapM (go (f':s)) es
+            Just (Right re) ->
+              withVArgs l (rtVArgs re) (expandEApp l (f':s) re <$> mapM (go (f':s)) es)
+            Nothing -> EApp f <$> mapM (go s) es
+    go s (EBin op e1 e2)          = EBin op <$> go s e1 <*> go s e2
+    go s (EIte p  e1 e2)          = EIte p  <$> go s e1 <*> go s e2
+    go s (ECst e st)              = (`ECst` st) <$> go s e
+    go _ e                        = return e
+
+expandEApp l s re es
+  = let su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
         msg = "Malformed alias application at " ++ show l ++ "\n\t"
-               ++ show (rtName rp) 
-               ++ " defined at " ++ show (rtPos rp)
-               ++ "\n\texpects " ++ show (length $ rtVArgs rp)
+               ++ show (rtName re) 
+               ++ " defined at " ++ show (rtPos re)
+               ++ "\n\texpects " ++ show (length $ rtVArgs re)
                ++ " arguments but it is given " ++ show (length es)
 --        msg = "expandRPApp: " ++ show (EApp (dummyLoc $ symbol $ rtName rp) es)
-    in subst su $ rtBody rp
-
+    in subst su $ rtBody re
 
 makeQualifiers (mod,spec) = inModule mod mkQuals
   where
@@ -462,6 +551,7 @@ makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
 makeHints vs (_, spec) = varSymbols id "Hint" vs $ Ms.decr spec
 makeLVar  vs (_, spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
 makeLazy  vs (_, spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
+makeHMeas vs (_, spec) = fmap fst <$> (varSymbols id "HMeas" vs $ [(v, loc v) | v <- S.toList $ Ms.hmeas spec])
 makeTExpr vs (_, spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
@@ -676,6 +766,9 @@ setRTAlias s a =
 
 setRPAlias s a =
   modify $ \b -> b { rtEnv = mapRP (M.insert s a) $ rtEnv b }
+
+setREAlias s a =
+  modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }
 
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
