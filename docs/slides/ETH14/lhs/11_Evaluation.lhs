@@ -71,25 +71,20 @@ Numbers
 
 </div>
 
-<div class="hidden">
+Recap
+-----
 
-Termination
------------
-
-Proving termination is **easy in practice**.
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. Abstract: Refinements over functions and data
+5. **Evaluation**
+5. <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
 
 <br>
-
-- <div class="fragment">`503` recursive functions</div>
-- <div class="fragment">`67%` automatically proved</div>
-- <div class="fragment">`30%` need *witnesses* `/[...]`</div>
-- <div class="fragment">`1`   witness per `100` lines of code</div>
-- <div class="fragment">`20`  *not proven* to terminate</div>
-- <div class="fragment">`12`  *do not* terminate (e.g. top-level `IO` loops)</div>
-- <div class="fragment">`8`   currently *outside scope* of LiquidHaskell</div>
+<br>
 
 
-</div>
 
 <div class="fragment">[[continue...]](12_Conclusion.lhs.slides.html)</div>
 

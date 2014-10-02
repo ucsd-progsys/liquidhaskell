@@ -6,7 +6,7 @@ Recap
 
 **So far**
 
-Decouple invariants from *functions*
+Abstract Refinements **decouple invariants** from *functions*
 
 <br>
 
@@ -14,8 +14,10 @@ Decouple invariants from *functions*
 
 **Next**
 
-Decouple invariants from *data structures*
+Decouple invariants from *indexed data structures*
 </div>
+
+
 
 Decouple Invariants From Data {#vector} 
 =======================================
@@ -43,7 +45,7 @@ axiom_fib = undefined
 
 <div class="fragment">
 
-Implemented as maps from `Int` to `a` 
+For this talk, implemented as maps from `Int` to `a` 
 
 <br>
 
@@ -82,7 +84,7 @@ Diverse `Vec`tors by *instantiating* `dom` and `rng`
 
 <div class="fragment">
 
-A quick alias for *segments* between `I` and `J`
+An alias for *segments* between `I` and `J`
 
 <br>
 
@@ -397,9 +399,19 @@ Previous, special purpose program analyses
 - [Dillig-Dillig, POPL 12](link) 
 - ...
 
-Encoded as instance of abstract refinement types!
+Encoded as an instance of abstract refinement types!
 </div>
 
+Recap
+-----
+
+1. Refinements: Types + Predicates
+2. Subtyping: SMT Implication
+3. Measures: Strengthened Constructors
+4. Abstract: Refinements over Type Signatures
+    + Functions
+    + <div class="fragment">**Indexed Data**</div>
+    + <div class="fragment">**Recursive Data** <a href="08_Recursive.lhs.slides.html" target="_blank">[continue]</a></div>
 
 
-
+<div class="fragment">[[continue...]](08_Recursive.lhs.slides.html)</div>
