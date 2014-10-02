@@ -11,6 +11,7 @@ main = putStrLn "Easter Egg: to force Makefile"
  {#ASD}
 =======
 
+
 Liquid Types For Haskell
 ------------------------
 
@@ -34,6 +35,24 @@ N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
 <div class="fragment">
 [[continue]](00_Motivation_Logic.lhs.slides.html)
 </div>
+
+
+Junk
+----
+
+\begin{spec}
+/// "Classic"
+function minIndex(arr){
+  var min = 0;
+  for (var i = 0; i < a.length; i++) {
+    var cur = a[i];
+    if (cur < a[min]){
+      min = i;
+    }
+  }
+  return min;
+}
+\end{spec}
 
 
 Plan 
