@@ -446,11 +446,13 @@ data Pspec ty ctor
   | IAlias  (Located ty, Located ty)
   | Alias   (RTAlias Symbol BareType)
   | PAlias  (RTAlias Symbol Pred)
+  | EAlias  (RTAlias Symbol Expr)
   | Embed   (LocSymbol, FTycon)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
   | Lazy    LocSymbol
+  | HMeas   LocSymbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -470,11 +472,13 @@ instance Show (Pspec a b) where
   show (IAlias _) = "IAlias" 
   show (Alias  _) = "Alias"  
   show (PAlias _) = "PAlias" 
+  show (EAlias _) = "EAlias" 
   show (Embed  _) = "Embed"  
   show (Qualif _) = "Qualif" 
   show (Decr   _) = "Decr"   
   show (LVars  _) = "LVars"  
   show (Lazy   _) = "Lazy"   
+  show (HMeas  _) = "HMeas"   
   show (Pragma _) = "Pragma" 
   show (CMeas  _) = "CMeas"  
   show (IMeas  _) = "IMeas"  
@@ -498,11 +502,13 @@ mkSpec name xs         = (name,)
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.paliases   = [p | PAlias p <- xs]
+  , Measure.ealiases   = [e | EAlias e <- xs]
   , Measure.embeds     = M.fromList [e | Embed e <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
-  , Measure.lazy       = S.fromList [s | Lazy s <- xs]
+  , Measure.lazy       = S.fromList [s | Lazy s  <- xs]
+  , Measure.hmeas      = S.fromList [s | HMeas s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
@@ -515,7 +521,8 @@ specP
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Asrt   tyBindP   )
     <|> (reserved "Local"     >> liftM LAsrt  tyBindP   )
-    <|> (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> try (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> (reserved "measure"   >> liftM HMeas  hmeasureP ) 
     <|> try (reserved "class" >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reserved "class"     >> liftM Class  classP    )
@@ -526,6 +533,7 @@ specP
     <|> (reserved "using"     >> liftM IAlias invaliasP )
     <|> (reserved "type"      >> liftM Alias  aliasP    )
     <|> (reserved "predicate" >> liftM PAlias paliasP   )
+    <|> (reserved "expression">> liftM EAlias ealiasP   )
     <|> (reserved "embed"     >> liftM Embed  embedP    )
     <|> (reserved "qualif"    >> liftM Qualif qualifierP)
     <|> (reserved "Decrease"  >> liftM Decr   decreaseP )
@@ -543,6 +551,9 @@ lazyP = binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
+
+hmeasureP :: Parser LocSymbol
+hmeasureP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
@@ -588,6 +599,7 @@ embedP
 
 aliasP  = rtAliasP id     bareTypeP
 paliasP = rtAliasP symbol predP
+ealiasP = rtAliasP symbol exprP
 
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty) 
 rtAliasP f bodyP
