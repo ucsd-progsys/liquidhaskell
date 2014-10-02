@@ -383,15 +383,17 @@ Memoized Fibonacci
 Recap
 -----
 
-Created a `Vec` container 
++ Created a `Vec` (Array) container 
 
-Decoupled *domain* and *range* invariants from *data*
++ Decoupled *domain* and *range* invariants from *data*
+
++ Enabled analysis of *array segments*
 
 <br>
 
 <div class="fragment">
 
-Previous, special purpose program analyses 
+Special purpose program analyses 
 
 - [Gopan-Reps-Sagiv, POPL 05](link)
 - [J.-McMillan, CAV 07](link)
@@ -410,8 +412,6 @@ Recap
 3. Measures: Strengthened Constructors
 4. Abstract: Refinements over Type Signatures
     + Functions
-    + <div class="fragment">**Indexed Data**</div>
-    + <div class="fragment">**Recursive Data** <a href="08_Recursive.lhs.slides.html" target="_blank">[continue]</a></div>
+    + <div class="fragment">**Data**</div>
 
-
-<div class="fragment">[[continue...]](08_Recursive.lhs.slides.html)</div>
+<div class="fragment">[[continue...]](11_Evaluation.lhs.slides.html)</div>
