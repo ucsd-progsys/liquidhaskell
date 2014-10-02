@@ -32,14 +32,7 @@ module LiquidArray where
 import Language.Haskell.Liquid.Prelude (liquidAssume, liquidError)
 
 {-@ LIQUID "--no-termination" @-}
-
-fibMemo   :: Vec Int -> Int -> (Vec Int, Int)
-fastFib   :: Int -> Int
-idv       :: Int -> Vec Int
-axiom_fib :: Int -> Bool
-axiom_fib = undefined
-
-{-@ predicate AxFib I = (fib I) == (if I <= 1 then 1 else fib(I-1) + fib(I-2)) @-}
+initialize :: Int -> Vec Int
 \end{code}
 </div>
 
@@ -89,7 +82,7 @@ An alias for *segments* between `I` and `J`
 <br>
 
 \begin{code}
-{-@ predicate Seg V I J = (I <= V && V < J) @-}
+{-@ predicate Btwn I V J = I <= V && V < J @-}
 \end{code}
 
 </div>
@@ -104,32 +97,13 @@ Defined between `[0..N)` mapping each key to itself:
 <div class="fragment">
 
 \begin{code}
-{-@ type IdVec N = Vec <{\v -> (Seg v 0 N)}, 
-                        {\k v -> v=k}> 
+{-@ type IdVec N = Vec <{\v -> (Btwn 0 v N)}, 
+                        {\k v -> v = k}> 
                        Int                  @-}
 \end{code}
 
 </div>
 
-Ex: Identity Vectors
---------------------
-
-Defined between `[0..N)` mapping each key to itself:
-
-<br>
-
-\begin{code}
-{-@ idv :: n:Nat -> (IdVec n) @-}
-idv n   = V (\k -> if 0 < k && k < n 
-                     then k 
-                     else liquidError "eeks")
-\end{code}
-
-<br>
-
-<div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Array.hs" target="_blank">Demo:</a>Whats the problem? How can we fix it?
-</div>
 
 Ex: Zero-Terminated Vectors
 ---------------------------
@@ -142,13 +116,12 @@ Defined between `[0..N)`, with *last* element equal to `0`:
 
 \begin{code}
 {-@ type ZeroTerm N = 
-     Vec <{\v -> (Seg v 0 N)}, 
-          {\k v -> (k = N-1 => v = 0)}> 
-          Int                             @-}
+     Vec <{\v -> Btwn 0 v N}, 
+          {\k v -> k = N-1 => v = 0}> 
+          Int                         @-}
 \end{code}
 
 </div>
-
 
 Ex: Fibonacci Table 
 -------------------
@@ -162,15 +135,15 @@ A vector whose value at index `k` is either
 \begin{code}
 {-@ type FibV =  
      Vec <{\v -> true}, 
-          {\k v -> (v = 0 || v = (fib k))}> 
-          Int                               @-}
+          {\k v -> v = 0 || v = fib k}> 
+          Int                          @-}
 \end{code}
 
 
-Accessing Vectors
------------------
+An API for Vectors
+------------------
 
-Next: lets *abstractly* type `Vec`tor operations, *e.g.* 
+Next: Lets write an API for Vector operations
 
 <br>
 
@@ -181,10 +154,10 @@ Next: lets *abstractly* type `Vec`tor operations, *e.g.*
 - `get`
 
 
-Ex: Empty Vectors
+API: Empty Vectors
 -----------------
 
-`empty` returns Vector whose domain is `false`
+`empty` a Vector whose domain is `false` (defined at *no* key)
 
 <br>
 
@@ -202,8 +175,8 @@ empty     = V $ \_ -> error "empty vector!"
 What would happen if we changed `false` to `true`?
 </div>
 
-Ex: `get` Key's Value 
----------------------
+API: `get` Key's Value 
+----------------------
 
 - *Input* `key` in *domain*
 
@@ -220,8 +193,8 @@ get k (V f) = f k
 \end{code}
 
 
-Ex: `set` Key's Value 
----------------------
+API: `set` Key's Value 
+----------------------
 
 - <div class="fragment">Input `key` in *domain*</div>
 
@@ -231,8 +204,8 @@ Ex: `set` Key's Value
 
 - <div class="fragment">Output domain *includes* `key`</div>
 
-Ex: `set` Key's Value 
----------------------
+API: `set` Key's Value 
+----------------------
 
 \begin{code}
 {-@ set :: forall a <d :: Int -> Prop,
@@ -242,7 +215,7 @@ Ex: `set` Key's Value
         -> Vec <d, r> a                     @-}
 set key val (V f) = V $ \k -> if k == key 
                                 then val 
-                                else f key
+                                else f k
 \end{code}
 
 <br>
@@ -252,133 +225,21 @@ set key val (V f) = V $ \k -> if k == key
 Help! Can you spot and fix the errors? 
 </div>
 
-<!-- INSERT tests/pos/vecloop.lhs here AFTER FIXED -->
-
 Using the Vector API
 --------------------
 
-Memoized Fibonacci
-------------------
-
-Use `Vec` API to write a *memoized* fibonacci function
-
-<br>
-
-<div class="fragment">
-\begin{spec} Using the fibonacci table:
-type FibV =  
-     Vec <{\v -> true}, 
-          {\k v -> (v = 0 || v = (fib k))}> 
-          Int                              
-\end{spec}
-</div>
-
-<br>
-
-<div class="fragment">
-But wait, what is `fib` ?
-</div>
-
-
-Specifying Fibonacci
---------------------
-
-`fib` is *uninterpreted* in the refinement logic  
-
-<br>
+Loop over vector, setting each key `i` equal to `i`:
 
 \begin{code}
-{-@ measure fib :: Int -> Int @-}
+{-@ initialize :: n:Nat -> IdVec n @-}
+initialize n      = loop 0 empty
+  where
+    loop i a 
+      | i < n     = let a' = set i i a
+                    in
+                        loop (i+1) a'
+      | otherwise = a 
 \end{code}
-
-<br>
-
-Specifying Fibonacci
---------------------
-
-We *axiomatize* the definition of `fib` in SMT ...
-
-\begin{spec}<br>
-predicate AxFib I = 
-  (fib I) == if I <= 1 
-               then 1 
-               else fib(I-1) + fib(I-2)
-\end{spec}
-
-Specifying Fibonacci
---------------------
-
-Finally, lift axiom into LiquidHaskell as *ghost function*
-
-<br>
-
-\begin{code}
-{-@ axiom_fib :: 
-      i:_ -> {v:_|((Prop v) <=> (AxFib i))} @-}
-\end{code}
-
-<br>
-
-<div class="fragment">
-**Note:** Recipe for *escaping* SMT limitations
-
-1. *Prove* fact externally
-2. *Use* as ghost function call
-</div>
-
-
-Fast Fibonacci
---------------
-
-An efficient fibonacci function
-
-<br>
-
-\begin{code}
-{-@ fastFib :: n:Int -> {v:_ | v = (fib n)} @-}
-fastFib n   = snd $ fibMemo (V (\_ -> 0)) n
-\end{code}
-
-<br>
-
-<div class="fragment">
-- `fibMemo` *takes* a table initialized with `0`
-
-- `fibMemo` *returns* a table with `fib` values upto `n`.
-</div>
-
-
-Memoized Fibonacci 
-------------------
-
-\begin{code}
-fibMemo t i 
-  | i <= 1    
-  = (t, liquidAssume (axiom_fib i) 1)
-  | otherwise 
-  = case get i t of   
-     0 -> let (t1,n1) = fibMemo t  (i-1)
-              (t2,n2) = fibMemo t1 (i-2)
-              n       = liquidAssume 
-                        (axiom_fib i) (n1+n2)
-          in (set i n t2,  n)
-     n -> (t, n)
-\end{code}
-
-Memoized Fibonacci 
-------------------
-
-- `fibMemo` *takes* a table initialized with `0`
-- `fibMemo` *returns* a table with `fib` values upto `n`.
-
-<br>
-
-\begin{code}
-{-@ fibMemo :: FibV 
-            -> i:Int 
-            -> (FibV,{v:Int | v = (fib i)}) @-}
-\end{code}
-
 
 Recap
 -----
