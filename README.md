@@ -576,6 +576,16 @@ Generic measures (tests/pos/Class.hs)
         size (Node x l r) = 1 + (size l) + (size r)
     @-}
 
+
+Haskell Functions as Measures (beta) (tests/pos/HaskellMeasure.hs)
+
+Inductive Haskell Functions from Data Types to some type can be lifted to logic
+    {-@ measure llen @-}
+
+    llen        :: [a] -> Int
+    llen []     = 0
+    llen (x:xs) = 1 + llen xs
+
 Self-Invariants
 ===============
 

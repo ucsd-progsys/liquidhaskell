@@ -452,6 +452,7 @@ data Pspec ty ctor
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
   | Lazy    LocSymbol
+  | HMeas   LocSymbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -477,6 +478,7 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"   
   show (LVars  _) = "LVars"  
   show (Lazy   _) = "Lazy"   
+  show (HMeas  _) = "HMeas"   
   show (Pragma _) = "Pragma" 
   show (CMeas  _) = "CMeas"  
   show (IMeas  _) = "IMeas"  
@@ -505,7 +507,8 @@ mkSpec name xs         = (name,)
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
-  , Measure.lazy       = S.fromList [s | Lazy s <- xs]
+  , Measure.lazy       = S.fromList [s | Lazy s  <- xs]
+  , Measure.hmeas      = S.fromList [s | HMeas s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
@@ -518,7 +521,8 @@ specP
   = try (reserved "assume"    >> liftM Assm   tyBindP   )
     <|> (reserved "assert"    >> liftM Asrt   tyBindP   )
     <|> (reserved "Local"     >> liftM LAsrt  tyBindP   )
-    <|> (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> try (reserved "measure"   >> liftM Meas   measureP  ) 
+    <|> (reserved "measure"   >> liftM HMeas  hmeasureP ) 
     <|> try (reserved "class" >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reserved "class"     >> liftM Class  classP    )
@@ -547,6 +551,9 @@ lazyP = binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
+
+hmeasureP :: Parser LocSymbol
+hmeasureP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
