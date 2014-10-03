@@ -74,10 +74,10 @@ We can define the **length** as:
 Example: Length of a List 
 -------------------------
 
-\begin{spec} <div/>
+\begin{spec}
 {-@ measure llen  :: (L a) -> Int
     llen (N)      = 0
-    llen (C x xs) = 1 + (llen xs)  @-}
+    llen (C x xs) = 1 + llen xs  @-}
 \end{spec}
 
 <br>
@@ -161,7 +161,7 @@ Now, we can verify:
 <br>
 
 \begin{code}
-{-@ length      :: xs:L a -> (EqLen xs) @-}
+{-@ length      :: xs:L a -> EqLen xs @-}
 length N        = 0
 length (C _ xs) = 1 + length xs
 \end{code}
@@ -173,7 +173,7 @@ length (C _ xs) = 1 + length xs
 Where `EqLen` is a type alias:
 
 \begin{code}
-{-@ type EqLen Xs = {v:Nat | v = (llen Xs)} @-}
+{-@ type EqLen Xs = {v:Nat | v = llen Xs} @-}
 \end{code}
 
 </div>
@@ -184,7 +184,7 @@ List Indexing Redux
 We can type list lookup:
 
 \begin{code}
-{-@ (!)      :: xs:L a -> (LtLen xs) -> a @-}
+{-@ (!)      :: xs:L a -> LtLen xs -> a @-}
 (C x _)  ! 0 = x
 (C _ xs) ! i = xs ! (i - 1)
 _        ! _ = liquidError "never happens!"
@@ -196,7 +196,7 @@ _        ! _ = liquidError "never happens!"
 Where `LtLen` is a type alias:
 
 \begin{code}
-{-@ type LtLen Xs = {v:Nat | v < (llen Xs)} @-}
+{-@ type LtLen Xs = {v:Nat | v < llen Xs} @-}
 \end{code}
 
 <br>
@@ -218,6 +218,9 @@ Support **many** measures on a type ...
 <div class="fragment">
 ... by **conjoining** the constructor refinements.
 </div>
+
+<br>
+<br>
 
 [[Skip...]](#/refined-data-cons)
 
@@ -456,7 +459,7 @@ Increasing Lists
 <br>
 
 \begin{code}
-insertSort = foldr insert N
+insertSort xs = foldr insert N xs
 
 insert y (x `C` xs) 
   | y <= x    = y `C` (x `C` xs)
@@ -466,17 +469,23 @@ insert y N    = y `C` N
 
 <br>
 
-<div class="fragment">**Problem 1:** What if we need [increasing & decreasing lists](http://web.cecs.pdx.edu/~sheard/Code/QSort.html)?</div>
-
 Recap
 -----
+
+<br>
+<br>
+
+
 
 1. Refinements: Types + Predicates
 2. Subtyping: SMT Implication
 3. **Measures:** Strengthened Constructors
-    - <div class="fragment">**Decouple** property from structure</div>
-    <!-- - <div class="fragment">**Reuse** structure across *different* properties</div> -->
 
+<br>
+
+<div class="fragment">Logic + Analysis for Collections</div>
+
+<br>
 <br>
 
 <div class="fragment"><a href="03_HigherOrderFunctions.lhs.slides.html" target="_blank">[continue]</a></div>

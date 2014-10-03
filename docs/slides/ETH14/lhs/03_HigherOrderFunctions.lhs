@@ -16,10 +16,10 @@ add         :: Int -> Int -> Int
 \end{code}
 </div>
 
-Higher-Order Specifications
----------------------------
+Higher-Order Functions 
+----------------------
 
-Types scale to *Higher-Order* Specifications
+Types scale to *Higher-Order Functions*  
 
 <br>
 
@@ -38,7 +38,7 @@ Types scale to *Higher-Order* Specifications
 <div class="fragment">Very difficult with *first-order program logics*</div>
 
 
-Higher Order Specifications
+Higher Order Specifications 
 ===========================
 
 Example: Higher Order Loop
@@ -64,11 +64,10 @@ Example: Summing Lists
 ----------------------
 
 \begin{code}
-listSum     :: [Int] -> Int
-listSum xs  = loop 0 n 0 body 
+listSum xs     = loop 0 n 0 body 
   where 
-    body    = \i acc -> acc + (xs !! i)
-    n       = length xs
+    body i acc = acc + (xs !! i)
+    n          = length xs
 \end{code}
 
 <br>
@@ -76,16 +75,43 @@ listSum xs  = loop 0 n 0 body
 <div class="fragment">
 **Function Subtyping** 
 
-+ `body` called with `i :: Btwn 0 (llen xs)`
-
-+ Hence, indexing with `!!` is safe.
+\begin{spec}
+loop :: l -> h -> α -> (Btwn l h -> α -> α) -> α
+\end{spec}
 </div>
 
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Loop.hs" target= "_blank">Demo:</a> Tweak `loop` exit condition? 
+At callsite, since `l := 0` and `h := llen xs` 
+
+\begin{spec}
+body :: Btwn 0 (llen xs) -> Int -> Int
+\end{spec}
 </div>
+
+Example: Summing Lists
+----------------------
+
+\begin{spec}
+listSum xs     = loop 0 n 0 body 
+  where 
+    body i acc = acc + (xs !! i)
+    n          = length xs
+\end{spec}
+
+<br>
+
+**Function Subtyping** 
+
+\begin{spec}
+body :: Btwn 0 (llen xs) -> Int -> Int
+\end{spec}
+
+<br>
+
+That is, `i :: Btwn 0 (llen xs)` so indexing `!!` is safe.
+
 
 Polymorphic Instantiation
 =========================
@@ -144,6 +170,9 @@ Because,
 \end{spec}
 </div>
 
+
+
+
 Example: Summing `Nat`s
 -----------------------
 
@@ -168,7 +197,7 @@ Hence, `sumNats` verified by **instantiating** `α,β := Nat`
 <br>
 
 <div class="fragment">
-`α` is **loop invariant**, instantiation is invariant **synthesis**
+`α` is **loop invariant**, instantiation is invariant **inference**
 </div>
 
 Instantiation And Inference
@@ -199,7 +228,7 @@ By type checking the templates
 <br>
 <div class="fragment">
 **Step 3. Fixpoint** 
-Abstract interpretatn. to get solution for $\kvar{}$
+Abstract interpretation to get solution for $\kvar{}$
 </div>
 
 
