@@ -110,7 +110,7 @@ body :: Btwn 0 (llen xs) -> Int -> Int
 
 <br>
 
-That is, `i :: Btwn 0 (llen xs)` so indexing `!!` is safe.
+So `i` is `Btwn 0 (llen xs)`; indexing `!!` is verified safe.
 
 
 Polymorphic Instantiation
@@ -155,8 +155,8 @@ Function Subtyping
 Because,
 
 \begin{spec}<div/>
-               |- Nat       <: Int  -- Contra
-  x:Nat, y:Nat |- {v = x+y} <: Nat  -- Co
+             |- Nat       <: Int  -- Contra (in)
+x:Nat, y:Nat |- {v = x+y} <: Nat  -- Co    (out)
 \end{spec}
 </div>
 

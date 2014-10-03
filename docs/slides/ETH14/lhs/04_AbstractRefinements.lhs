@@ -10,7 +10,7 @@ import Prelude
 import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--no-termination" @-}
 
-o, no        :: Int
+-- o,no        :: Int
 maxInt       :: Int -> Int -> Int
 \end{code}
 </div>
@@ -21,33 +21,34 @@ Abstract Refinements
 --------------------
 
 
-
 Abstract Refinements
 ====================
 
-Two Problems
-------------
+A Tricky Problem
+----------------
+
+<br>
+
+<div class="fragment">
+
+**Problem** 
+
+Require *context-dependent* invariants & summaries for HOFs.
+
+</div>
 
 <br>
 <br>
 
 <div class="fragment">
 
-**Problem 1:** 
+**Example** 
 
-How to specify increasing *and* decreasing lists?
-
-</div>
-
-<br>
-
-<div class="fragment">
-
-**Problem 2:** 
-
-How to specify *iteration-dependence* in higher-order functions?
+How to summarize *iteration-dependence* for higher-order `loop`?
 
 </div>
+
+
 
 
 Problem Is Pervasive
@@ -86,7 +87,7 @@ maxInt x y = if y <= x then x else y
 Example: `maxInt` 
 -----------------
 
-Has **many incomparable** refinement types
+Has **many incomparable** refinement types/summaries
 
 \begin{spec}<br>
 maxInt :: Nat  -> Nat  -> Nat
@@ -96,13 +97,13 @@ maxInt :: Odd  -> Odd  -> Odd
 
 <br>
 
-<div class="fragment">Oh no! **Which** one should we use?</div>
+<div class="fragment">*Which* should we use?</div>
 
 
 Refinement Polymorphism 
 -----------------------
 
-`maxInt` returns *one of* its two inputs `x` and `y` 
+`maxInt` returns **one of** its two inputs `x` and `y` 
 
 <div class="fragment">
 
@@ -121,7 +122,7 @@ Refinement Polymorphism
 </div>
 </div>
 
-<div class="fragment">Above holds *for all properties*!</div>
+<div class="fragment">Above holds **for all properties**!</div>
 
 <br>
 
@@ -130,85 +131,6 @@ Refinement Polymorphism
 **Need to abstract properties over types**
 
 </div>
-
-<!--
-
-By Type Polymorphism?
----------------------
-
-\begin{spec} <br> 
-max     :: α -> α -> α 
-max x y = if y <= x then x else y
-\end{spec}
-
-<div class="fragment"> 
-
-Instantiate `α` at callsites
-
-\begin{code}
-{-@ o :: Odd  @-}
-o = maxInt 3 7     -- α := Odd
-
-{-@ e :: Even @-}
-e = maxInt 2 8     -- α := Even
-\end{code}
-
-</div>
-
-By Type Polymorphism?
----------------------
-
-\begin{spec} <br> 
-max     :: α -> α -> α 
-max x y = if y <= x then x else y
-\end{spec}
-
-<br>
-
-But there is a fly in the ointment ...
-
-Polymorphic `max` in Haskell
-----------------------------
-
-\begin{spec} In Haskell the type of max is
-max :: (Ord α) => α -> α -> α
-\end{spec}
-
-<br>
-
-\begin{spec} Could *ignore* the class constraints, instantiate as before...
-{-@ o :: Odd @-}
-o     = max 3 7  -- α := Odd 
-\end{spec}
-
-
-Polymorphic `(+)` in Haskell
-----------------------------
-
-\begin{spec} ... but this is *unsound*!
-max :: (Ord α) => α -> α -> α
-(+) :: (Num α) => α -> α -> α
-\end{spec}
-
-<br>
-
-<div class="fragment">
-
-*Ignoring* class constraints would let us "prove":
-
-\begin{code}
-{-@ no :: Odd @-}
-no     = 3 + 7    -- α := Odd !
-\end{code}
-
-</div>
-
-Type Polymorphism? No.
-----------------------
-
-<div class="fragment">Need to try a bit harder...</div>
-
--->
 
 Parametric Refinements 
 ----------------------
@@ -317,22 +239,19 @@ $$\begin{array}{rll}
 Using Abstract Refinements
 --------------------------
 
-- <div class="fragment">**When** we call `maxInt` with args with some refinement,</div>
-
-- <div class="fragment">**Then** `p` instantiated with *same* refinement,</div>
-
-- <div class="fragment">**Result** of call will also have *same* concrete refinement.</div>
+- <div class="fragment">**If** we call `maxInt` with args satisfying *common property*,</div>
+- <div class="fragment">**Then** `p` instantiated property, *result* gets same property.</div>
 
 <br>
 
 <div class="fragment">
 
 \begin{code}
-{-@ o' :: Odd  @-}
-o' = maxInt 3 7     -- p := \v -> Odd v 
+{-@ xo :: Odd  @-}
+xo = maxInt 3 7     -- p := \v -> Odd v 
 
-{-@ e' :: Even @-}
-e' = maxInt 2 8     -- p := \v -> Even v 
+{-@ xe :: Even @-}
+xe = maxInt 2 8     -- p := \v -> Even v 
 \end{code}
 
 </div>
@@ -340,33 +259,10 @@ e' = maxInt 2 8     -- p := \v -> Even v
 <br>
 
 <div class="fragment">
-Infer **Instantiation** by Liquid Typing 
+**Infer Instantiation by Liquid Typing**
 
 At call-site, instantiate `p` with unknown $\kvar{p}$ and solve!
 </div>
-
-
-<!--
-
-Using Abstract Refinements
---------------------------
-
-Or any other property ...
-
-<br>
-
-<div class="fragment">
-
-\begin{code}
-{-@ type RGB = {v:_ | (0 <= v && v < 256)} @-}
-
-{-@ rgb :: RGB @-}
-rgb = maxInt 56 8   -- p := \v -> 0 <= v < 256
-\end{code}
-
-</div>
-
--->
 
 Recap
 -----
