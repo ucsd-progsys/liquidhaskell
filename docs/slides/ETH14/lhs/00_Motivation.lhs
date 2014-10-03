@@ -110,10 +110,37 @@ But ... limited to "classical" programs!
 <br>
 
 + <div class="fragment">Assignment + Branches + Loops </div>
-+ <div class="fragment">Procedures + Recursion</div>
++ <div class="fragment">Recursive Procedures </div>
 + <div class="fragment">Objects + Classes*</div>
 
 <br>
+
+"Classical" Programs
+--------------------
+
+<br>
+
+<div class="fragment">
+**Imperative**
+
+Assignments, Branches, Loops
+</div>
+
+<br>
+
+<div class="fragment">
+**First-Order Functions**
+
+Recursion 
+</div>
+
+<br>
+
+<div class="fragment">
+**Objects**
+
+Classes, Inheritance*
+</div>
 
 
 "Modern" Programs
@@ -121,9 +148,9 @@ But ... limited to "classical" programs!
 
 
 <div class="fragment">
-**Unbounded Containers**
+**Containers**
 
-eg. Arrays, Lists, HashMaps
+Arrays, Lists, HashMaps,...
 
 </div>
 
@@ -132,7 +159,7 @@ eg. Arrays, Lists, HashMaps
 <div class="fragment">
 **Polymorphism**
 
-eg. Generics, Typeclasses...
+Generics, Typeclasses...
 </div>
 
 <br>
@@ -140,7 +167,7 @@ eg. Generics, Typeclasses...
 <div class="fragment">
 **Higher Order Functions**
 
-(eg. callbacks, map, reduce, filter,...)
+Callbacks, map, reduce, filter,...
 </div>
 
 
@@ -151,16 +178,21 @@ A "Modern" Example
 
 Verify indices `i`, `min` are *within bounds* of `arr`
 
-<div class="fragment">Challenges for Logic + Analysis</div>
+A "Modern" Example 
+------------------
+
+<img src="../img/minindex-modern.png" height=300px>
+
+Pose vexing challenges for Logic + Analysis
 
 Logic + Analysis Challenges
 ----------------------------
 
 <img src="../img/minindex-modern.png" height=250px>
 
-+ <div class="fragment">How to analyze **unbounded** contents of `arr`?</div>
++ How to analyze **unbounded** contents of `arr`?
 + <div class="fragment">How to **summarize** `reduce` independent of `callback`?</div>
-+ <div class="fragment">How to precisely reuse summary at different **contexts** ?</div>
++ <div class="fragment">How to precisely reuse summary at each **context** ?</div>
 
 
  {#motiv}
@@ -174,8 +206,8 @@ Logic + Analysis + *Types*
 ==========================
 
 
-Liquid Types
-------------
+Refinement Types
+----------------
 
 <br>
 
@@ -185,11 +217,11 @@ Use **Types** to lift **Logic + Analysis** to Modern Programs
 
 <div class="fragment">
 
--------------------   ----------------------------------------------------
-**Specification**     Predicates + *Types*
-**Verification**      VCs checked by SMT + *Subtyping* 
-**Inference**         Abstract Interpretation + *Hindley-Milner*
--------------------   ----------------------------------------------------
+-----   ----   ---   ----   -------------------   -------------------------------------------
+                            **Specification**     *Types* + Predicates 
+                            **Verification**      *Subtyping* + Verification Conditions
+                            **Inference**         *Type Inference* + Abstract Interpretation
+-----   ----   ---   ----   -------------------   -------------------------------------------
 
 <br>
 <br>
@@ -198,8 +230,8 @@ Use **Types** to lift **Logic + Analysis** to Modern Programs
 
 </div>
 
-Liquid Types
-------------
+Refinement Types
+----------------
 
 
 
@@ -215,5 +247,10 @@ Plan
 + <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a><a href="06_Inductive.lhs.slides.html" target="_blank">Code</a>,<a href="07_Array.lhs.slides.html" target= "_blank">Data</a></div>
 + <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
 + <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
+
+<br>
+<br>
+
+
 
 <div class="fragment">[[continue...]](01_SimpleRefinements.lhs.slides.html)</div>

@@ -18,8 +18,6 @@ zero'   :: Int
 safeDiv :: Int -> Int -> Int
 abs     :: Int -> Int
 nats    :: L Int
-evens   :: L Int
-odds    :: L Int
 range   :: Int -> Int -> L Int
 \end{code}
 
@@ -150,6 +148,8 @@ $$\Gamma \defeq \overline{\bindx{x_i}{t_i}}$$
 
 Subtyping is Implication
 ------------------------
+
+<br>
 
 [PVS' Predicate Subtyping](http://pvs.csl.sri.com/papers/subtypes98/tse98.pdf)
 
@@ -423,6 +423,9 @@ $$\begin{array}{rll}
 From Checking To Inference
 --------------------------
 
+<br>
+<br>
+
 **So far**
 
 How to **check** code against given signature
@@ -433,18 +436,25 @@ How to **check** code against given signature
 
 **Next**
 
-How to **synthesize** signatures from code
+How to **infer** signatures from code
 
 </div>
 
+From Checking To Inference
+--------------------------
+
+<br>
 <br>
 
-<div class="fragment">
 
 **2-Phase Process**
 
-1. H-M to synthesize *types*
-2. A-I to synthesize *refinements*  
+<div class="fragment">
+
+<br>
+
+1. Hindley-Milner infers **types**
+2. Abstract Interpr. infers **refinements**  
 
 </div>
 
@@ -477,7 +487,7 @@ Types with variables $\kvar{}$ for *unknown* refinements
 
 **Step 2. Constraints**
 
-Typecheck templates: VCs $\rightarrow$ Horn constraints over $\kvar{}$
+Typecheck templates: VCs $\rightarrow$ Horn *constraints* over $\kvar{}$
 
 </div>
 
@@ -487,7 +497,7 @@ Typecheck templates: VCs $\rightarrow$ Horn constraints over $\kvar{}$
 
 **Step 3. Solve**
 
-Via least-fixpoint over suitable abstract domain
+Via *least-fixpoint* over suitable abstract domain
 
 </div>
 
@@ -568,16 +578,18 @@ $$\begin{array}{rll}
 Step 3. Solve (`abs`)
 ---------------------
 
+<br>
+
 Least-fixpoint over abstract domain 
 
 <br>
 
+Step 3. Solve (`abs`)
+---------------------
 
-<div class="fragment">
 **Predicate Abstraction**
 
 Conjunction of predicates from (finite) ground set $\quals$
-</div>
 
 <br>
 
@@ -625,19 +637,24 @@ Recipe Scales Up
 <br>
 
 <div class="fragment">
-+ Define type checker, get inference for free 
++ Define type *checker* and get *inference* for free 
 
-+ Scales to Data types, HO functions, Polymorphism
++ Scales to Collections, HOFs, Polymorphism
 
 </div>
 <br>
 
 <div class="fragment">
+**Next:** Collections
+</div>
+
+<!--
+<div class="fragment">
 **Key Requirement** 
 
 Refinements belong in abstract domain, e.g. QF-UFLIA
 </div>
-
+-->
 
 
  {#universalinvariants}
@@ -663,8 +680,6 @@ infixr `C`
 
 
 <br>
-<br>
-<br>
 
 
 \begin{code}
@@ -688,9 +703,11 @@ nats     =  0 `C` 1 `C` 3 `C` N
 Example: Lists
 --------------
 
+<br>
+
 How to **specify** every element in `nats` is non-negative?
 
-\begin{code} <div/>
+\begin{spec} 
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{spec}
 
@@ -710,9 +727,11 @@ VCs over **quantified formulas** ... *challenging* for SMT
 Example: Lists
 --------------
 
+<br>
+
 How to **specify** every element in `nats` is non-negative?
 
-\begin{spec} <div/>
+\begin{spec} 
 nats     =  0 `C` 1 `C` 2 `C` N
 \end{spec}
 
@@ -747,45 +766,6 @@ nats   = l0
 
 <br>
 
-<div class="fragment">
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `nats` contained `-2`? 
-
-</div>
-
-<!--
-
-Example: Even/Odd Lists
------------------------
-
-\begin{code}
-{-@ type Even = {v:Int | v mod 2 =  0} @-}
-{-@ type Odd  = {v:Int | v mod 2 /= 0} @-}
-\end{code}
-
-<br>
-
-<div class="fragment">
-\begin{code}
-{-@ evens :: L Even @-}
-evens     =  0 `C` 2 `C` 4 `C` N
-
-{-@ odds  :: L Odd  @-}
-odds      =  1 `C` 3 `C` 5 `C` N 
-\end{code}
-</div>
-
-<br>
-
-<div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=HaskellSimpleRefinements.hs" target= "_blank">Demo:</a> 
-What if `evens` contained `1`? 
-</div>
-
--->
-
-
 Example: `range`
 ----------------
 
@@ -800,7 +780,7 @@ Example: `range`
 <br>
 
 \begin{code}
-{-@ type Btwn I J = {v:_ | (I<=v && v<J)} @-}
+{-@ type Btwn I J = { v:_ | I<=v && v<J } @-}
 \end{code}
 
 
