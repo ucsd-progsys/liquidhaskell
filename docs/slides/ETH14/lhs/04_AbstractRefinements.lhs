@@ -276,6 +276,10 @@ Recap
 <br>
 
 <div class="fragment">
-  Abstract Refinements decouple invariants from **code** ... <a href="06_Inductive.lhs.slides.html" target="_blank">[continue]</a>
+  Abstract Refinements decouple invariants from **code** ...
+
+<br>
+
+<a href="06_Inductive.lhs.slides.html" target="_blank">[continue]</a>
 </div>
 
