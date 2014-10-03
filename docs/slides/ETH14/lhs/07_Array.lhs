@@ -4,9 +4,11 @@ Abstract Refinements {#data}
 Recap
 -----
 
+<br>
+
 **So far**
 
-Abstract Refinements **decouple invariants** from *functions*
+Abstract Refinements decouple invariants from *functions*
 
 <br>
 
@@ -14,7 +16,8 @@ Abstract Refinements **decouple invariants** from *functions*
 
 **Next**
 
-Decouple invariants from *indexed data structures*
+Decouple invariants from *data structures*
+
 </div>
 
 
@@ -97,7 +100,7 @@ Defined between `[0..N)` mapping each key to itself:
 <div class="fragment">
 
 \begin{code}
-{-@ type IdVec N = Vec <{\v -> (Btwn 0 v N)}, 
+{-@ type IdVec N = Vec <{\v -> Btwn 0 v N}, 
                         {\k v -> v = k}> 
                        Int                  @-}
 \end{code}
@@ -143,8 +146,8 @@ A vector whose value at index `k` is either
 An API for Vectors
 ------------------
 
-Next: Lets write an API for Vector operations
 
+<br>
 <br>
 
 - `empty`
@@ -182,6 +185,8 @@ API: `get` Key's Value
 
 - *Output* value in *range* related with `k`
 
+<br>
+
 \begin{code}
 {-@ get :: forall a <d :: Int -> Prop,  
                      r :: Int -> a -> Prop>.
@@ -213,6 +218,7 @@ API: `set` Key's Value
            key: Int<d> -> val: a<r key>
         -> vec: Vec<{v:Int<d>| v /= key},r> a
         -> Vec <d, r> a                     @-}
+
 set key val (V f) = V $ \k -> if k == key 
                                 then val 
                                 else f k
@@ -220,7 +226,7 @@ set key val (V f) = V $ \k -> if k == key
 
 <br>
 
-<div class="fragment">
+<div class="hidden">
 <a href="http://goto.ucsd.edu:8090/index.html#?demo=Array.hs" target="_blank">Demo:</a>
 Help! Can you spot and fix the errors? 
 </div>
@@ -229,6 +235,8 @@ Using the Vector API
 --------------------
 
 Loop over vector, setting each key `i` equal to `i`:
+
+<br>
 
 \begin{code}
 {-@ initialize :: n:Nat -> IdVec n @-}
@@ -244,6 +252,8 @@ initialize n      = loop 0 empty
 Recap
 -----
 
+<br>
+
 + Created a `Vec` (Array) container 
 
 + Decoupled *domain* and *range* invariants from *data*
@@ -252,18 +262,24 @@ Recap
 
 <br>
 
-<div class="fragment">
+Recap
+-----
 
-Special purpose program analyses 
+<br>
 
-- [Gopan-Reps-Sagiv, POPL 05](link)
-- [J.-McMillan, CAV 07](link)
-- [Logozzo-Cousot-Cousot, POPL 11](link)
-- [Dillig-Dillig, POPL 12](link) 
-- ...
+Custom *array segment* program analyses: 
 
-Encoded as an instance of abstract refinement types!
-</div>
+<br>
+
+- Gopan-Reps-Sagiv, POPL 05
+- J.-McMillan, CAV 07
+- Logozzo-Cousot-Cousot, POPL 11
+- Dillig-Dillig, POPL 12 
+
+<br>
+
+Encoded in (abstract) refinement typed API.
+
 
 Recap
 -----

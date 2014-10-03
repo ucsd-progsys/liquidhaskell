@@ -28,7 +28,7 @@ Require *context-dependent* invariants & summaries for HOFs.
 
 **A Solution** 
 
-Decoupled invariants yield precise, reusable summaries
+Decoupled invariants yield *precise* & *reusable* summaries
 
 
 
@@ -423,7 +423,7 @@ Using `foldr`: Size
 We can now verify <br>
 
 \begin{code}
-{-@ size :: xs:_ -> {v:Int| v = (llen xs)} @-}
+{-@ size :: xs:_ -> {v:Int| v = llen xs} @-}
 size     = foldr (\_ _ n -> n + 1) 0
 \end{code}
 
@@ -432,7 +432,7 @@ size     = foldr (\_ _ n -> n + 1) 0
 <div class="fragment">
 by *automatically instantiating*
 
-`p := \xs acc -> acc = (llen xs)`
+`p := \xs acc -> acc = llen xs`
 </div>
 
 Using `foldr`: Append
@@ -441,7 +441,7 @@ Using `foldr`: Append
 We can now verify <br>
 
 \begin{code}
-{-@ (++) :: xs:_ -> ys:_ -> (Cat a xs ys) @-} 
+{-@ (++) :: xs:_ -> ys:_ -> Cat a xs ys @-} 
 xs ++ ys = foldr (\_ -> C) ys xs 
 \end{code}
 
@@ -452,7 +452,7 @@ where
 
 \begin{code}
 {-@ type Cat a X Y = 
-    {v:_|(llen v) = (llen X) + (llen Y)} @-}
+    {v:_| llen v = llen X + llen Y} @-}
 \end{code}
 </div>
 
@@ -467,6 +467,8 @@ By automatically instantiating
 
 Recap
 -----
+
+<br>
 
 Abstract refinements *decouple* **invariant** from **iteration**
 
@@ -487,6 +489,3 @@ Recap
 4. Abstract: Refinements over Type Signatures
     + <div class="fragment">**Functions**</div>
     + <div class="fragment">**Data** <a href="07_Array.lhs.slides.html" target="_blank">[continue]</a></div>
-
-
-<div class="fragment">[[continue...]](07_Array.lhs.slides.html)</div>
