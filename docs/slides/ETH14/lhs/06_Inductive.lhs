@@ -1,14 +1,41 @@
 Abstract Refinements {#induction}
 =================================
 
-Decoupling Invariants from Code
--------------------------------
+Decoupling Invariants & Code
+----------------------------
 
-Abstract refinements
-
-+ Decouple invariants from code
++ Abstract refinements deoouple invariants from code
 
 + Yield precise, reusable **summaries** of HOFs
+
+Recall: Tricky Problem
+----------------------
+
+<br>
+
+<div class="fragment">
+
+**Problem** 
+
+Require *context-dependent* invariants & summaries for HOFs.
+
+</div>
+
+<br>
+<br>
+
+<div class="fragment">
+
+**A Solution** 
+
+Decoupled invariants yield precise, reusable summaries
+
+
+
+</div>
+
+
+
 
 <div class="hidden">
 
