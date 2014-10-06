@@ -211,201 +211,19 @@ Multiple Measures
 
 <br>
 
-Support **many** measures on a type ...
-
-<br>
-
-<div class="fragment">
-... by **conjoining** the constructor refinements.
-</div>
-
-<br>
-<br>
-
-[[Skip...]](#/refined-data-cons)
-
-
-<!--
-
-Multiple Measures
-=================
-
- {#adasd}
----------
-
-We allow *many* measures for a type
-
-Ex: List Emptiness 
-------------------
-
-Measure describing whether a `List` is empty 
-
-\begin{code}
-{-@ measure isNull :: (L a) -> Prop
-    isNull (N)      = true
-    isNull (C x xs) = false           @-}
-\end{code}
-
-<br>
-
-<div class="fragment">
-We **strengthen** data constructors
-
-\begin{spec} <div/> 
-data L a where 
-  N :: {v : L a | (isNull v)}
-  C :: a -> L a -> {v:(L a) | not (isNull v)}
-\end{spec}
-
-</div>
-
-Conjoining Refinements
-----------------------
-
-Data constructor refinements are **conjoined** 
-
-\begin{spec} <br>
-data L a where 
-  N :: {v:L a |  (llen v) = 0 
-              && (isNull v) }
-  C :: a 
-    -> xs:L a 
-    -> {v:L a |  (llen v) = 1 + (llen xs) 
-              && not (isNull v)          }
-\end{spec}
-
--->
-
-Multiple Measures: Red-Black Trees
-==================================
-
- {#rbtree}
-----------
-
-<img src="../img/RedBlack.png" height=300px>
-
-+ <div class="fragment">**Color:** `Red` nodes have `Black` children</div>
-+ <div class="fragment">**Height:** Number of `Black` nodes equal on *all paths*</div>
-<br>
-
-[[Skip...]](#/refined-data-cons)
-
-Basic Type 
-----------
-
-\begin{spec} <br>
-data Tree a = Leaf 
-            | Node Color a (Tree a) (Tree a)
-
-data Color  = Red 
-            | Black
-\end{spec}
-
-Color Invariant 
----------------
-
-`Red` nodes have `Black` children
-
-<div class="fragment">
-\begin{spec} <br>
-measure isRB        :: Tree a -> Prop
-isRB (Leaf)         = true
-isRB (Node c x l r) = c=Red => (isB l && isB r)
-                      && isRB l && isRB r
-\end{spec}
-</div>
-
-<div class="fragment">
-\begin{spec} where <br>
-measure isB         :: Tree a -> Prop 
-isB (Leaf)          = true
-isB (Node c x l r)  = c == Black 
-\end{spec}
-</div>
-
-*Almost* Color Invariant 
-------------------------
-
-<br>
-
-Color Invariant **except** at root. 
-
-<br>
-
-<div class="fragment">
-\begin{spec} <br>
-measure isAlmost        :: Tree a -> Prop
-isAlmost (Leaf)         = true
-isAlmost (Node c x l r) = isRB l && isRB r
-\end{spec}
-</div>
-
-
-Height Invariant
-----------------
-
-Number of `Black` nodes equal on **all paths**
-
-<div class="fragment">
-\begin{spec} <br>
-measure isBH        :: RBTree a -> Prop
-isBH (Leaf)         =  true
-isBH (Node c x l r) =  bh l = bh r 
-                    && isBH l && isBH r 
-\end{spec}
-</div>
-
-<div class="fragment">
-\begin{spec} where <br>
-measure bh        :: RBTree a -> Int
-bh (Leaf)         = 0
-bh (Node c x l r) = bh l 
-                  + if c = Red then 0 else 1
-\end{spec}
-</div>
-
-Refined Type 
-------------
-
-\begin{spec} <br>
--- Red-Black Trees
-type RBT a  = {v:Tree a | isRB v && isBH v}
-
--- Almost Red-Black Trees
-type ARBT a = {v:Tree a | isAlmost v && isBH v}
-\end{spec}
-
-<br>
-
-[Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
-
-<!--
-
-Measures vs. Index Types
-========================
-
-Decouple Property & Type 
-------------------------
-
-Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
+**Multiple** measures by **conjoining** refinements.
 
 <br>
 
 <div class="fragment">
 
-+ Measures **decouple** properties from structures
+e.g. Red Black Tree
 
-+ Support **multiple** properties over structures 
-
-+ Enable  **reuse** of structures in different contexts                 
-
-</div>
++ Height
++ Color
++ Nodes, etc.
 
 <br>
-
-<div class="fragment">Invaluable in practice!</div>
-
--->
 
 Refined Data Constructors
 =========================
@@ -413,7 +231,7 @@ Refined Data Constructors
  {#refined-data-cons}
 ---------------------
 
-Can encode invariants **inside constructors**
+Can encode *other* invariants **inside constructors**
 
 <div class="fragment">
 

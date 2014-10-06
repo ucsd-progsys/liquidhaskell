@@ -41,21 +41,18 @@ Use **Types** to lift **Logic + Analysis** to Modern Programs
 
 <br>
 
-**Take Home 1: Types are a simple and uniform way to analyze**
+**Take Home: Types are a simple and uniform way to analyze**
 
 + Unbounded Data (eg. Arrays, Lists, HashMaps)
 + Polymorphism   (eg. Generics,...)
 + Callbacks/HOFs (eg. map, reduce, filter,...)
 
+<div class="hidden">
 
 Liquid Types 
 ------------
 
 Use **Types** to lift **Logic + Analysis** to Modern Programs 
-
-<br>
-
-Expressive *and* Automatic
 
 <br>
 
@@ -65,6 +62,7 @@ Expressive *and* Automatic
 
 + Abstract Refinements 
 
+</div>
 
 Current & Future Work
 ---------------------
@@ -73,8 +71,7 @@ Current & Future Work
 
 + Speed
 + Imperative Features (Pointers, Mutation, ...) 
-+ Diagnostics & Error Messages
-
++ Diagnostics & *Error Messages*
 
 Current & Future Work
 ---------------------
@@ -84,7 +81,6 @@ Current & Future Work
 + Concurrency & Distribution
 + Probabilistic Behavior
 + Completion, Repair & Synthesis
-
 
  {#asd}
 =======

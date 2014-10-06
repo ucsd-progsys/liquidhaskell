@@ -20,19 +20,23 @@ main = putStrLn "Easter Egg: to force Makefile"
 
 </div>
 
+<br>
+
+**Substantial Code Bases**
+
+10KLoc, 50+ Modules
 
 <br>
 
-Substantial code bases.
+**Complex Properties**
+
+Memory Safety, Functional Correctness*, Termination
 
 <br>
 
-Complex properties.
-
-<br>
-
-<div class="fragment">Inference is crucial.</div>
-
+<div class="fragment">
+**Inference is Crucial**
+</div>
 
 
 Numbers
@@ -45,10 +49,11 @@ Numbers
 `Data.List`                         814
 `Data.Set.Splay`                    149
 `Data.Vector.Algorithms`           1219
+`HsColour`                         1047
 `Data.Map.Base`                    1396
 `Data.Text`                        3125
-`Data.Bytestring`                  3501 
-**Total**                     **10224**
+`Data.Bytestring`                  3501
+**Total**                     **11251**
 ---------------------------   ---------
 
 </div>
@@ -60,13 +65,14 @@ Numbers
 
 **Library**                     **LOC**     **Time**
 ---------------------------   ---------   ----------
-`Data.List`                         814          52s
-`Data.Set.Splay`                    149          26s
-`Data.Vector.Algorithms`           1219         196s 
-`Data.Map.Base`                    1396         247s
-`Data.Text`                        3125         809s
-`Data.Bytestring`                  3501         549s
-**Total**                     **10224**    **1880s**
+`Data.List`                         814          26s
+`Data.Set.Splay`                    149          27s
+`Data.Vector.Algorithms`           1219          89s 
+`HsColour`                         1047         196s
+`Data.Map.Base`                    1396         174s
+`Data.Text`                        3125         499s
+`Data.Bytestring`                  3501         294s
+**Total**                     **11251**    **1305s**
 ---------------------------   ---------   ----------
 
 </div>
@@ -84,7 +90,4 @@ Recap
 <br>
 <br>
 
-
-
 <div class="fragment">[[continue...]](12_Conclusion.lhs.slides.html)</div>
-
