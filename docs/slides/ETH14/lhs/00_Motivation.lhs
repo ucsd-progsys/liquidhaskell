@@ -61,9 +61,7 @@ Program Logic
 
 <br>
 
-<div class="fragment">
 No invariants? **Inference** via Analysis...
-</div>
 
 Program Analysis 
 ----------------
@@ -74,7 +72,7 @@ Program Analysis
 
 <br>
 
-<div class="fragment">Computable via *Dataflow Analysis* or *Abstract Interpretation*</div>
+Computable via *Dataflow Analysis* or *Abstract Interpretation*
 
 <br>
 
@@ -103,17 +101,6 @@ But ... limited to "classical" programs!
  {#classicalvmodern}
 --------------------
 
-
-"Classical" Programs
---------------------
-
-<br>
-
-+ <div class="fragment">Assignment + Branches + Loops </div>
-+ <div class="fragment">Recursive Procedures </div>
-+ <div class="fragment">Objects + Classes*</div>
-
-<br>
 
 "Classical" Programs
 --------------------

@@ -35,7 +35,7 @@ Types scale to *Higher-Order Functions*
 
 <br>
 
-<div class="fragment">Very difficult with *first-order program logics*</div>
+<div class="fragment">Difficult with *first-order program logics*</div>
 
 
 Higher Order Specifications 
@@ -112,6 +112,20 @@ body :: Btwn 0 (llen xs) -> Int -> Int
 
 So `i` is `Btwn 0 (llen xs)`; indexing `!!` is verified safe.
 
+
+ {#polyinst}
+============
+
+Polymorphic Instantiation
+-------------------------
+
+<br>
+<br>
+<br>
+
+<div class="fragment">
+"Plugging in" summaries at call-sites
+</div>
 
 Polymorphic Instantiation
 =========================

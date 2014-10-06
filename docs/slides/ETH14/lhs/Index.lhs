@@ -12,7 +12,7 @@ main = putStrLn "Easter Egg: to force Makefile"
 =======
 
 
-Liquid Types For Haskell
+Types & Program Analysis 
 ------------------------
 
 
