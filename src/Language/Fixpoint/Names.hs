@@ -262,6 +262,7 @@ prims = [ propConName
         , "Set_cap"
         , "Set_dif"
         , "Set_emp"
+        , "Set_empty"
         , "Set_mem"
         , "Set_sub"
         , "FAppTy" 
