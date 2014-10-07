@@ -25,9 +25,11 @@ import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
 
 main :: IO b
-main = do cfg0    <- getOpts
-          res     <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
-          exitWith $ resultExit $ o_result res
+main = do cfg0     <- getOpts
+          res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
+          let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
+          -- putStrLn  $ "ExitCode: " ++ show ecode
+          exitWith ecode
 
 checkOne :: Config -> FilePath -> IO (Output Doc)
 checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)

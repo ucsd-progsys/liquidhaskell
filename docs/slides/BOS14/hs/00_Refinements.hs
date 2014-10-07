@@ -11,7 +11,6 @@ divide    :: Int -> Int -> Int
 
 
 
-
 {-@ dead :: {v:_ | false} -> a @-}
 dead msg = error msg
 
@@ -22,16 +21,16 @@ dead msg = error msg
 
 
 
+
 {-@ divide :: Int -> Pos -> Int @-}
 divide x 0 = dead "divide-by-zero"
 divide x n = x `div` n
 
 
+
+
 {-@ boo :: Int -> Nat -> Int @-}
 boo x y    = divide x (y + 1)
-
-
-
 
 
 -- {- wtAverage :: {v : [(Pos, Pos)] | len v > 0} -> Int @-}
@@ -47,6 +46,9 @@ data List a = N | C a (List a)
 
 map f (N)      = N
 map f (C x xs) = C (f x) (map f xs) 
+
+
+
 
 foldr f acc N        = acc
 foldr f acc (C x xs) = f x (foldr f acc xs)

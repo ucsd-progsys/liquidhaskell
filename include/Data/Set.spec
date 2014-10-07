@@ -13,13 +13,17 @@ measure Set_cup  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 measure Set_cap  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 
 -- | difference
-measure Set_dif  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
+measure Set_dif   :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 
 -- | singleton
-measure Set_sng  :: a -> (Data.Set.Set a)
+measure Set_sng   :: a -> (Data.Set.Set a)
 
 -- | emptiness test
-measure Set_emp  :: (Data.Set.Set a) -> Prop
+measure Set_emp   :: (Data.Set.Set a) -> Prop
+
+-- | empty set 
+measure Set_empty :: forall a. GHC.Types.Int -> (Data.Set.Set a)
+
 
 -- | membership test
 measure Set_mem  :: a -> (Data.Set.Set a) -> Prop

@@ -98,6 +98,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nowarnings
+    = def &= help "Don't display warnings, only show errors"
+          &= name "no-warnings"
+
  , trustinternals
     = def &= help "Trust all ghc auto generated code"
           &= name "trust-interals"
@@ -225,7 +229,7 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def 2 def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def 2 def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -234,6 +238,7 @@ instance Monoid Config where
                          , binders        = sortNub $ binders c1 ++     binders        c2
                          , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2
                          , notermination  = notermination  c1    ||     notermination  c2
+                         , nowarnings     = nowarnings     c1    ||     nowarnings     c2
                          , trustinternals = trustinternals c1    ||     trustinternals c2
                          , nocaseexpand   = nocaseexpand   c1    ||     nocaseexpand   c2
                          , strata         = strata         c1    ||     strata         c2
@@ -264,30 +269,35 @@ instance Monoid SMTSolver where
 exitWithResult :: Config -> FilePath -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
 exitWithResult cfg target out
-  = do let r  = o_result out
-       let rs = showFix r
-       {-# SCC "annotate" #-} annotate cfg target out
+  = do {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
-       writeWarns     $ o_warns out
+       writeWarns  warns
        writeResult cfg (colorResult r) r
-       writeFile   (extFileName Result target) rs
-       return $ out { o_result = if null (o_warns out) then r else Unsafe [] }
+       writeFile   (extFileName Result target) (showFix r)
+       return $ out { o_result = res' }
+    where
+       r         = o_result out
+       res'      = if null warns then r else Unsafe [] 
+       warns     = if nowarnings cfg then [] else o_warns out
 
-writeWarns []            = return ()
-writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
-writeCheckVars Nothing   = return ()
-writeCheckVars (Just []) = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns) = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
-writeResult cfg c        = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
+writeWarns []              = return ()
+writeWarns ws              = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
+
+
+writeCheckVars Nothing     = return ()
+writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+
+writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
-    tidy                 = if shortErrors cfg then Lossy else Full
-    writeDoc c (i, d)    = writeBlock c i $ lines $ render d
-    writeBlock c _ []    = return ()
-    writeBlock c 0 ss    = forM_ ss (colorPhaseLn c "")
-    writeBlock c _ ss    = forM_ ("\n" : ss) putStrLn
+    tidy                   = if shortErrors cfg then Lossy else Full
+    writeDoc c (i, d)      = writeBlock c i $ lines $ render d
+    writeBlock c _ []      = return ()
+    writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
+    writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 resDocs _ Safe             = [text "SAFE"]
 resDocs k (Crash xs s)     = text ("CRASH: " ++ s) : pprManyOrdered k "" xs
