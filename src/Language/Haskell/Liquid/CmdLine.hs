@@ -98,6 +98,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nowarnings
+    = def &= help "Don't display warnings, only show errors"
+          &= name "no-warnings"
+
  , trustinternals
     = def &= help "Trust all ghc auto generated code"
           &= name "trust-interals"
@@ -225,7 +229,7 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def 2 def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def 2 def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -234,6 +238,7 @@ instance Monoid Config where
                          , binders        = sortNub $ binders c1 ++     binders        c2
                          , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2
                          , notermination  = notermination  c1    ||     notermination  c2
+                         , nowarnings     = nowarnings     c1    ||     nowarnings     c2
                          , trustinternals = trustinternals c1    ||     trustinternals c2
                          , nocaseexpand   = nocaseexpand   c1    ||     nocaseexpand   c2
                          , strata         = strata         c1    ||     strata         c2
@@ -269,11 +274,13 @@ exitWithResult cfg target out
        {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
-       writeWarns     $ o_warns out
+       when showWarns (writeWarns $ o_warns out)
        writeResult cfg (colorResult r) r
        writeFile   (extFileName Result target) rs
        return $ out { o_result = if null (o_warns out) then r else Unsafe [] }
-
+    where
+       showWarns = not $ nowarnings cfg
+       
 writeWarns []            = return ()
 writeWarns ws            = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 

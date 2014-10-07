@@ -5,16 +5,16 @@ module Poo where
 
 import Prelude hiding (map, foldr, foldr1)
 
-
 divide    :: Int -> Int -> Int
 -- wtAverage :: [(Int, Int)] -> Int
 
 
 
 
+
+
 {-@ dead :: {v:_ | false} -> a @-}
 dead msg = error msg
-
 
 
 {-@ type Nat = {v:Int | v >= 0} @-}
