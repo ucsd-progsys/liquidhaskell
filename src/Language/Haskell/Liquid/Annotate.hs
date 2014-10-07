@@ -85,7 +85,7 @@ annotate cfg srcF out
        generateHtml srcF tyHtmlF typAnnMap 
        writeFile         vimF  $ vimAnnot cfg annTyp 
        B.writeFile       jsonF $ encode typAnnMap
-       forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
+       when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
     where
        tplAnnMap  = mkAnnMap cfg result annTpl
        typAnnMap  = mkAnnMap cfg result annTyp
@@ -98,6 +98,7 @@ annotate cfg srcF out
        annF       = extFileName Annot srcF
        jsonF      = extFileName Json  srcF  
        vimF       = extFileName Vim   srcF
+       showWarns  = not $ nowarnings cfg
 
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
