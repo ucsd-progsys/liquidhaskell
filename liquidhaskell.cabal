@@ -212,7 +212,7 @@ test-suite test
                      process,
                      tagged,
                      liquidhaskell,
-                     optparse-applicative,
+                     optparse-applicative >= 0.10 && < 0.11,
                      tasty >= 0.10,
                      tasty-hunit >= 0.9,
                      tasty-rerun >= 1.1
