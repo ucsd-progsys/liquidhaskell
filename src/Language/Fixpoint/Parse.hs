@@ -227,6 +227,7 @@ funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
 
 
 
+
 -- ORIG exprP :: Parser Expr 
 -- ORIG exprP =  expr2P <|> lexprP
 -- 
