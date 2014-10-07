@@ -42,11 +42,12 @@ wrapStars msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
 
 wrapStarsWithOptStars True  msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'
 wrapStarsWithOptStars False msg = wrapStars msg
-    
+
+-- withColor _ act = act  
 withColor c act
-  = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
-       act
-       setSGR [ Reset]
+   = do setSGR [ SetConsoleIntensity BoldIntensity, SetColor Foreground Vivid c] 
+        act
+        setSGR [ Reset]
 
 colorStrLn c       = withColor (moodColor c) . putStrLn 
 colorPhaseLn c msg = colorStrLn c . wrapStars .  (msg ++)

@@ -94,8 +94,12 @@ instance Checkable Expr where
   check γ e = do {checkExpr f e; return ()}
    where f =  (`lookupSEnvWithDistance` γ)
 
-  checkSort γ s e = do {t <- checkExpr f e; checkEqSort s t}
-   where f =  (`lookupSEnvWithDistance` γ)
+  checkSort γ s e = checkExpr f (ECst e s) >> return ()
+    where
+      f           =  (`lookupSEnvWithDistance` γ)
+
+  -- ORIG checkSort γ s e = do {t <- checkExpr f e; checkEqSort s t}
+  -- ORIG  where f =  (`lookupSEnvWithDistance` γ)
 
 
 checkEqSort s t
@@ -159,8 +163,11 @@ checkCst f t e
          then return t
          else throwError (errCast e t' t)
 
--- | Helper for checking uninterpreted function applications
 
+checkApp f to g es
+  = snd <$> checkApp' f to g es
+
+-- | Helper for checking uninterpreted function applications
 checkApp' f to g es 
   = do gt           <- checkLocSym f g
        (n, its, ot) <- sortFunction gt
@@ -172,10 +179,6 @@ checkApp' f to g es
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany θ [t] [t']
                           return (θ', apply θ' t)
-
-
-checkApp f to g es
-  = snd <$> checkApp' f to g es
 
 
 -- | Helper for checking binary (numeric) operations
@@ -240,8 +243,19 @@ checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> thro
 checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
 checkRelTy f _ _ FReal (FObj l)    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
 checkRelTy f _ _ (FObj l) FReal    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
-checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
+
+checkRelTy _ e Eq t1 t2
+  | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
+checkRelTy _ e Ne t1 t2
+  | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
+checkRelTy _ e Eq t1 t2            = unify [t1] [t2] >> return ()
+checkRelTy _ e Ne t1 t2            = unify [t1] [t2] >> return ()
+
+-- ORIG checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
+-- ORIG checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
+
+
+
 checkRelTy _ e Ueq t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
 checkRelTy _ e Une t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
@@ -257,6 +271,16 @@ checkRelEqVar f x g es             = do tx <- checkSym f x
 isAppTy :: Sort -> Bool
 isAppTy (FApp _ _) = True
 isAppTy _          = False
+
+
+isPoly :: Sort -> Bool
+isPoly = not . null . fVars
+
+fVars (FVar i)     = [i]
+fVars (FFunc _ ts) = concatMap fVars ts
+fVars (FApp _ ts)  = concatMap fVars ts
+fVars _            = []
+
 
 -------------------------------------------------------------------------
 -- | Error messages -----------------------------------------------------
