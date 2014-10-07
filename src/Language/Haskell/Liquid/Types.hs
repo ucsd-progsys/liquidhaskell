@@ -248,6 +248,7 @@ data Config = Config {
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , trustinternals :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
   , strata         :: Bool       -- ^ enable strata analysis
