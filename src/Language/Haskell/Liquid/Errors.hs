@@ -227,6 +227,9 @@ ppError' _ dSp (ErrAliasApp _ n name dl dn)
 ppError' _ dSp (ErrSaved _ s)
   = dSp <+> s
 
+ppError' _ dSp (ErrTermin _ s)
+  = dSp <+> text "Termination Error" $+$ s
+
 ppError' _ _ (ErrOther _ s)
   = text "Panic!" <+> nest 4 (pprint s)
 
