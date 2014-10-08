@@ -623,8 +623,7 @@ checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
   where [s1, s2]   = getStrata <$> [t1, t2]
-        wrn        =  "Stratum Error : " ++ show s1 ++ " > " ++ show s2 ++ 
-                      "\tat " ++ show (pprint $ loc γ)
+        wrn        =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2) 
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -688,7 +687,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , scheck     :: !Bool                        -- ^ Check Strata (?)
                      , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-                     , logWarn    :: ![String]                    -- ^ ? FIX THIS
+                     , logErrors  :: ![TError SpecType]           -- ^ Errors during coontraint generation
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      } -- deriving (Data, Typeable)
@@ -740,7 +739,7 @@ initCGI cfg info = CGInfo {
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
   , pruneRefs  = not $ noPrune cfg
-  , logWarn    = []
+  , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
   } 
@@ -888,8 +887,8 @@ addPost _ t
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
-addWarning   :: String -> CG ()  
-addWarning w = modify $ \s -> s { logWarn = w : (logWarn s) }
+addWarning   :: TError SpecType -> CG ()  
+addWarning w = modify $ \s -> s { logErrors = w : (logErrors s) }
 
 -- | Used for annotation binders (i.e. at binder sites)
 
@@ -1018,7 +1017,7 @@ makeDecrIndex (x, t)
        ts         = ty_args $ toRTypeRep t
        checkHint' = checkHint x ts isDecreasing
        dindex     = L.findIndex isDecreasing ts
-       msg        = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x) 
+       msg        = ErrTermin (getSrcSpan x) (text "No decreasing parameter") 
 
 recType ((_, []), (_, [], t))
   = t
@@ -1035,13 +1034,13 @@ recType ((vs, indexc), (x, index, t))
                   loc (showPpr x) (showPpr vs)
 
 checkIndex (x, vs, t, index)
-  = do mapM_ (safeLogIndex msg' vs)  index
+  = do mapM_ (safeLogIndex msg' vs) index
        mapM  (safeLogIndex msg  ts) index
     where
-       loc   = showPpr (getSrcSpan x)
+       loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep t
-       msg'  = printf "%s: No decreasing argument on %s with %s" loc (showPpr x) (showPpr vs)
-       msg   = printf "%s: No decreasing parameter" loc
+       msg'  = ErrTermin loc (text $ "No decreasing argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
+       msg   = ErrTermin loc (text "No decreasing parameter")
 
 makeRecType t vs dxs is
   = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
