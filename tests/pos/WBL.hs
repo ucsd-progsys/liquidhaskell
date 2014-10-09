@@ -129,14 +129,9 @@ makeT p l r = case rank l >= rank r of
 {-@ merge :: (Ord a) => h1:PHeap a -> h2:PHeap a -> {v:PHeap a | realRank v = realRank h1 + realRank h2}  @-}
 merge Empty h2 = h2
 merge h1 Empty = h1
-merge h1@(Node p1 k1 l1 r1) h2@(Node p2 k2 l2 r2)
-  | p1 >= p2   =  makeT p1 l1  (merge r1 (Node p2 k2 l2 r2))
-  | p1 < p2    =  makeT p2 l2  (merge (Node p1 k1 l1 r1) r2)
-
--- ORIGINAL code, which doesn't seem right.
--- merge h1@(Node p1 k1 l1 r1) h2@(Node p2 k2 l2 r2) = case p1 < p2 of
---   True  -> makeT p1 l1 (merge r1 h2)
---   False -> makeT p2 l2 (merge h1 r2)
+merge h1@(Node p1 k1 l1 r1) h2@(Node p2 k2 l2 r2) = case p1 > p2 of
+  True  -> makeT p1 l1 (merge r1 (Node p2 k2 l2 r2))
+  False -> makeT p2 l2 (merge (Node p1 k1 l1 r1) r2)
 
 -- Inserting into a heap is performed by merging that heap with newly
 -- created singleton heap.
