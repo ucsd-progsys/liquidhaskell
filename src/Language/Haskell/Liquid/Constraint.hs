@@ -1125,7 +1125,7 @@ consCBSizedTys tflag γ (Rec xes)
        is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
-       (traceShow "DECR"  . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
+       (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Asserted <$> ts)
        γ'       <- foldM extender γ xts
