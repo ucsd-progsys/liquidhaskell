@@ -1398,8 +1398,9 @@ data TError t =
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
   
-  | ErrTermin   { pos :: !SrcSpan
-                , msg :: !Doc
+  | ErrTermin   { bind :: ![Var]
+                , pos  :: !SrcSpan
+                , msg  :: !Doc
                 } -- ^ Termination Error 
 
   | ErrOther    { pos :: !SrcSpan
