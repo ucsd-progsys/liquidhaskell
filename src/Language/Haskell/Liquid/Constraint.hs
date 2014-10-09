@@ -1009,7 +1009,8 @@ instance Freshable CG Integer where
 
 makeDecrIndex :: (Var, SpecType)-> CG [Int]
 makeDecrIndex (x, t) 
-  = do hint <- checkHint' . L.lookup x . specDecr <$> get
+  = do spDecr <- specDecr <$> get
+       hint   <- checkHint' (L.lookup x $ spDecr)
        case dindex of
          Nothing -> addWarning msg >> return []
          Just i  -> return $ fromMaybe [i] hint
@@ -1055,21 +1056,21 @@ safeLogIndex err ls n
   | otherwise      = return $ Just $ ls !! n
 
 checkHint _ _ _ Nothing 
-  = Nothing
+  = return Nothing
 
 checkHint x ts f (Just ns) | L.sort ns /= ns
-  = errorstar $ printf "%s: The hints should be increasing" loc
-  where loc = showPpr $ getSrcSpan x
+  = addWarning (ErrTermin loc (text "The hints should be increasing")) >> return Nothing
+  where loc = getSrcSpan x
 
 checkHint x ts f (Just ns) 
-  = Just $ catMaybes (checkValidHint x ts f <$> ns)
+  = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
 
 checkValidHint x ts f n
-  | n < 0 || n >= length ts = errorstar err
-  | f (ts L.!! n)           = Just n
-  | otherwise               = errorstar err
-  where err = printf "%s: Invalid Hint %d for %s" loc (n+1) (showPpr x)
-        loc = showPpr $ getSrcSpan x
+  | n < 0 || n >= length ts = addWarning err >> return Nothing
+  | f (ts L.!! n)           = return $ Just n
+  | otherwise               = addWarning err >> return Nothing
+  where err = ErrTermin loc (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x))
+        loc = getSrcSpan x
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
@@ -1119,12 +1120,12 @@ consCBSizedTys tflag γ (Rec xes)
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
-       ts'       <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
+       ts'      <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
-       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts')
+       is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
-       checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
+       (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Asserted <$> ts)
        γ'       <- foldM extender γ xts
@@ -1135,17 +1136,18 @@ consCBSizedTys tflag γ (Rec xes)
   where
        dmapM f  = sequence . (mapM f <$>)
        (xs, es) = unzip xes
-       collectArgs   = collectArguments . length . ty_binds . toRTypeRep
-       checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
-       checkSameLens = checkAll err2 length
-       err1          = printf "%s: The decreasing parameters should be of same type" loc
-       err2          = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
-       loc           = showPpr $ getSrcSpan (head xs)
+       collectArgs    = collectArguments . length . ty_binds . toRTypeRep
+       checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
+       checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
+       checkSameLens  = checkAll err2 length
+       err1           = ErrTermin loc $ text "The decreasing parameters should be of same type"
+       err2           = ErrTermin loc $ text "All Recursive functions should have the same number of decreasing parameters"
+       loc            = getSrcSpan (head xs)
 
-       checkAll _   _ []            = []
+       checkAll _   _ []            = return []
        checkAll err f (x:xs) 
-         | all (==(f x)) (f <$> xs) = (x:xs)
-         | otherwise                = errorstar err
+         | all (==(f x)) (f <$> xs) = return (x:xs)
+         | otherwise                = addWarning err >> return [] 
 
 consCBWithExprs γ (Rec xes) 
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
