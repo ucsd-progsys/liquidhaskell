@@ -1069,7 +1069,7 @@ checkValidHint x ts f n
   | n < 0 || n >= length ts = addWarning err >> return Nothing
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
-  where err = ErrTermin loc (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x))
+  where err = ErrTermin loc (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x) ++  "\nin\n" ++ show (ts))
         loc = getSrcSpan x
 
 -------------------------------------------------------------------
@@ -1125,7 +1125,7 @@ consCBSizedTys tflag γ (Rec xes)
        is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
-       (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
+       (traceShow "DECR"  . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Asserted <$> ts)
        γ'       <- foldM extender γ xts
