@@ -39,7 +39,7 @@ data Heap a   = Empty | Node { pri   :: a
 
 {-@ predicate ValidRank V = okRank V && realRank V = rank V  @-}
 {-@ type PHeap a = {v:OHeap a | ValidRank v}                 @-} 
-{-@ type OHeap a = Heap <{\root v -> root >= v}> a           @-}
+{-@ type OHeap a = Heap <{\root v -> root <= v}> a           @-}
 
 {-@ measure okRank        :: Heap a -> Prop
     okRank (Empty)        = true
@@ -116,7 +116,7 @@ singleton p = Node p 1 Empty Empty
 -- in the newly created tree by reversing left and right subtrees when
 -- necessary (note the inversed r and l in the False alternative of
 -- case expression).
-{-@ makeT   :: p:a -> h1:PHeap {v:a | p >= v} -> h2:PHeap {v:a | p >= v}
+{-@ makeT   :: p:a -> h1:PHeap {v:a | p <= v} -> h2:PHeap {v:a | p <= v}
             -> {v:PHeap a | realRank v = 1 + realRank h1 + realRank h2} @-}
 makeT p l r = case rank l >= rank r of
                 True  ->  Node p (1 + rank l + rank r) l r
@@ -129,7 +129,7 @@ makeT p l r = case rank l >= rank r of
 {-@ merge :: (Ord a) => h1:PHeap a -> h2:PHeap a -> {v:PHeap a | realRank v = realRank h1 + realRank h2}  @-}
 merge Empty h2 = h2
 merge h1 Empty = h1
-merge h1@(Node p1 k1 l1 r1) h2@(Node p2 k2 l2 r2) = case p1 > p2 of
+merge h1@(Node p1 k1 l1 r1) h2@(Node p2 k2 l2 r2) = case p1 < p2 of
   True  -> makeT p1 l1 (merge r1 (Node p2 k2 l2 r2))
   False -> makeT p2 l2 (merge (Node p1 k1 l1 r1) r2)
 
