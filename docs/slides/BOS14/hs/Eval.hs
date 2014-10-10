@@ -6,8 +6,6 @@ import Language.Haskell.Liquid.Prelude (liquidError)
 import Prelude hiding (lookup)
 import Data.Set (Set (..))
 
-{-@ embed Set as Set_Set @-}
-
 type Val  = Int
 
 type Bndr = String 
@@ -29,7 +27,7 @@ lookup x ((y,v):env)
 lookup x []            = liquidError "Unbound Variable"
 
 ------------------------------------------------------------------
-{-@ eval :: g:Env -> CExpr g -> Val @-}
+{-@ eval :: g:Env -> ClosedExpr g -> Val @-}
 ------------------------------------------------------------------
 eval env (Const i)     = i
 eval env (Var x)       = lookup x env 
@@ -38,16 +36,16 @@ eval env (Let x e1 e2) = eval env' e2
   where 
     env'               = (x, eval env e1) : env
 
-{-@ type CExpr G = {v:Expr | Set_sub (free v) (vars G)} @-}
+{-@ type ClosedExpr G  = {v:Expr | Set_sub (free v) (vars G)} @-}
 
 {-@ measure vars :: Env -> (Set Bndr)
-    vars ([])    = {v | Set_emp v }
-    vars (b:env) = {v | v = Set_cup (Set_sng (fst b)) (vars env)}
+    vars ([])    = (Set_empty 0)
+    vars (b:env) = (Set_cup (Set_sng (fst b)) (vars env))
   @-}
 
 {-@ measure free       :: Expr -> (Set Bndr) 
-    free (Const i)     = {v | Set_emp v}
-    free (Var x)       = {v | v = Set_sng x} 
-    free (Plus e1 e2)  = {v | v = Set_cup (free e1) (free e2)}
-    free (Let x e1 e2) = {v | v = Set_cup (free e1) (Set_dif (free e2) (Set_sng x))}
+    free (Const i)     = (Set_empty 0)
+    free (Var x)       = (Set_sng x) 
+    free (Plus e1 e2)  = (Set_cup (free e1) (free e2))
+    free (Let x e1 e2) = (Set_cup (free e1) (Set_dif (free e2) (Set_sng x)))
   @-}

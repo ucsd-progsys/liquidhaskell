@@ -1,5 +1,5 @@
-{-@ LIQUID "--no-termination"   @-}
-{-@ LIQUID "--diff"             @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diff"           @-}
 
 module Foo where
 
@@ -126,38 +126,41 @@ makeBlack (Node _ x l r) = Node B x l r
 -- | Specifications -------------------------------------------------------
 ---------------------------------------------------------------------------
 
--- | Ordered Red-Black Trees
-
-{-@ type ORBT a = RBTree <{\root v -> v < root }, {\root v -> v > root}> a @-}
-
 -- | Red-Black Trees
 
 {-@ type RBT a    = {v: ORBT a | isRB v && isBH v } @-}
 {-@ type RBTN a N = {v: RBT a  | bh v = N }         @-}
 
-{-@ type ORBTL a X = RBT {v:a | v < X} @-}
-{-@ type ORBTG a X = RBT {v:a | X < v} @-}
+-- | Invariant 1: Binary Search Ordering 
+
+{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
+            = Leaf
+            | Node (c    :: Color)
+                   (key  :: a)
+                   (left :: RBTree <l, r> (a <l key>))
+                   (left :: RBTree <l, r> (a <r key>))
+  @-}
+
+{-@ type ORBT a = RBTree <{\root v -> v < root }, {\root v -> v > root}> a @-}
+
+-- | Invariant 2: Black Height Same on All Paths 
+
+{-@ measure isBH        :: RBTree a -> Prop
+    isBH (Leaf)         = true
+    isBH (Node c x l r) = (isBH l && isBH r && bh l = bh r)
+  @-}
+
+{-@ measure bh        :: RBTree a -> Int
+    bh (Leaf)         = 0
+    bh (Node c x l r) = bh l + if (c == R) then 0 else 1 
+  @-}
+
+-- | Invariant 3: Red Nodes have Black Children
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
     isRB (Node c x l r) = isRB l && isRB r && (c == R => (IsB l && IsB r))
   @-}
-
--- | Almost Red-Black Trees
-
-{-@ type ARBT a    = {v: ORBT a | isARB v && isBH v} @-}
-{-@ type ARBTN a N = {v: ARBT a | bh v = N }         @-}
-
-{-@ measure isARB        :: (RBTree a) -> Prop
-    isARB (Leaf)         = true 
-    isARB (Node c x l r) = (isRB l && isRB r)
-  @-}
-
--- | Conditionally Red-Black Tree
-
-{-@ type ARBT2 a L R = {v:ARBTN a {bh L} | (IsB L && IsB R) => isRB v} @-}
-
--- | Color of a tree
 
 {-@ measure col         :: RBTree a -> Color
     col (Node c x l r)  = c
@@ -171,27 +174,24 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ predicate IsB T = not (col T == R) @-}
 
--- | Black Height
+--------------------------------------------------------------------------
+-- | Auxiliary Specifications --------------------------------------------
+--------------------------------------------------------------------------
 
-{-@ measure isBH        :: RBTree a -> Prop
-    isBH (Leaf)         = true
-    isBH (Node c x l r) = (isBH l && isBH r && bh l = bh r)
+-- | Almost Red-Black Trees
+
+{-@ measure isARB        :: (RBTree a) -> Prop
+    isARB (Leaf)         = true 
+    isARB (Node c x l r) = (isRB l && isRB r)
   @-}
 
-{-@ measure bh        :: RBTree a -> Int
-    bh (Leaf)         = 0
-    bh (Node c x l r) = bh l + if (c == R) then 0 else 1 
-  @-}
 
--- | Binary Search Ordering
+-- | Conditionally Red-Black Tree
 
-{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
-            = Leaf
-            | Node (c    :: Color)
-                   (key  :: a)
-                   (left :: RBTree <l, r> (a <l key>))
-                   (left :: RBTree <l, r> (a <r key>))
-  @-}
+{-@ type ARBT2 a L R = {v:ARBTN a {bh L} | (IsB L && IsB R) => isRB v} @-}
+{-@ type ARBT a      = {v: ORBT a | isARB v && isBH v} @-}
+{-@ type ARBTN a N   = {v: ARBT a | bh v = N }         @-}
+
 
 -------------------------------------------------------------------------------
 -- Auxiliary Invariants -------------------------------------------------------
