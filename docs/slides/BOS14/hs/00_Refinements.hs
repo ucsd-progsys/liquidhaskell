@@ -42,7 +42,7 @@ divide x n = x `div` n
 -----------------------------------------------------------------------
 
 {-@ foo :: Int -> Nat -> Int @-}
-foo x y    = divide x (y + 1)
+foo x y    = divide x y
 
 
 
