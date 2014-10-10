@@ -6,41 +6,59 @@ module AbstractRefinements (
     listMax
   , insertSort
   , insertSort'
-  , insertSort''
-  , insertSort'''
   ) where
+
 
 import Data.Set hiding (insert, foldr,size) 
 import Prelude hiding (map, foldr)
 
-listMax     :: [Int] -> Int
+
 
 -----------------------------------------------------------------------
 -- | 0. Abstract Refinements 
 -----------------------------------------------------------------------
 
-{-@ listMax :: forall <p :: Int -> Prop>. {v:[Int<p>] | len v > 0} -> Int<p> @-} 
+
+-- Warmup: How shall we type listMax?
+
+listMax     :: [Int] -> Int
 listMax xs  = foldr1 max xs 
+
+
+
+
 
 
 -- Lets define a few different subsets of Int
 
-{-@ type Even = {v:Int | v mod 2 == 0}      @-}
-{-@ type Odd  = {v:Int | v mod 2 /= 0}      @-}
-{-@ type RGB  = {v:Int | 0 <= v && v < 256} @-}
+-- Even
+-- Odd
+-- RGB
 
 
+-- compute the largest of some lists
 
-{-@ xE :: Even @-}
+{- xE :: Even -}
 xE = listMax [0, 200, 4000, 60] 
 
 
-{-@ xO :: Odd @-}
+
+{- xO :: Odd -}
 xO = listMax [1, 21, 4001, 961] 
 
 
-{-@ xR :: RGB @-}
+
+{- xR :: RGB -}
 xR = listMax [1, 21, 41, 61] 
+
+
+-- Why do we get the errors? How do we fix it?
+
+
+
+
+
+
 
 
 
@@ -48,10 +66,14 @@ xR = listMax [1, 21, 41, 61]
 -- | 1. Abstract Refinement from List's Type 
 -----------------------------------------------------------------------
 
+-- data List a <p> 
 
 
-{-@ data List a <p :: a -> a -> Prop> 
-     = N | C {x :: a, xs :: List<p> a<p x>} @-}
+
+
+
+
+
 
 
 
@@ -60,28 +82,22 @@ xR = listMax [1, 21, 41, 61]
 -----------------------------------------------------------------------
 
 
+{- type IncrList a -} 
+{- type DecrList a -} 
+{- type DiffList a -} 
 
+ups   = undefined
 
-{-@ type IncrList a = List <{\x y -> x <= y}> a @-} 
-{-@ type DecrList a = List <{\x y -> x >= y}> a @-} 
-{-@ type DiffList a = List <{\x y -> x /= y}> a @-} 
+downs = undefined
 
-{-@ ups   :: IncrList Integer @-}
-ups       = 1 `C` 2 `C` 4 `C` N
-
-{-@ downs :: DecrList Integer @-}
-downs     = 100 `C` 20 `C` 4 `C` N
-
-{-@ diffs :: DiffList Integer @-}
-diffs     = 100 `C` 1000 `C` 10 `C` 1 `C`  N
-
+diffs = undefined
 
 
 -----------------------------------------------------------------------
 -- | 3. Insertion Sort: Revisited
 -----------------------------------------------------------------------
 
-{-@ insert         :: x:_ -> xs:_ -> {v:_ | AddElt v x xs && size v = 1 + size xs} @-}
+{- insert         :: _ -> xs:_ -> {v:_ | size v = 1 + size xs} -}
 insert x N         = x `C` N
 insert x (C y ys)
   | x <= y         = x `C` y `C` ys
@@ -89,9 +105,17 @@ insert x (C y ys)
 
 
 
-{-@ insertSort      :: xs:List a -> {v:IncrList a | size v = size xs} @-}
+{- insertSort      :: xs:List a -> {v:IncrList a | EqSize v xs} -}
 insertSort N        = N
 insertSort (C x xs) = insert x (insertSort xs)
+
+
+
+
+
+
+
+
 
 
 
@@ -100,9 +124,17 @@ insertSort (C x xs) = insert x (insertSort xs)
 -----------------------------------------------------------------------
 
 
+insertSort' = undefined
 
-{-@ insertSort' :: xs:List a -> IncrList a @-}
-insertSort' xs = foldr insert N xs
+
+
+
+
+
+
+
+
+
 
 
 
@@ -111,13 +143,19 @@ insertSort' xs = foldr insert N xs
 -- | 4. But, there are limits...
 -----------------------------------------------------------------------
 
--- but why is this not ok?
-
-{-@ insertSort'' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort'' xs   = foldr insert N xs
+-- how big is the list returned by insertSort' ?
 
 
 -- Hmm. Thats a bummer... How do we type `foldr` to verify the above?
+
+
+
+
+
+
+
+
+
 
 
 -----------------------------------------------------------------------
@@ -125,20 +163,28 @@ insertSort'' xs   = foldr insert N xs
 -----------------------------------------------------------------------
 
 
-{-@ ifoldr :: forall a b <p :: List a -> b -> Prop>. 
-                 (xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)>) 
-               -> b<p N> 
-               -> ys:List a
-               -> b<p ys>                            @-}
-ifoldr :: (List a -> a -> b -> b) -> b -> List a -> b
-ifoldr f b N        = b
-ifoldr f b (C x xs) = f xs x (ifoldr f b xs)
+ifoldr = undefined
+
+{- insertSort' :: xs:List a -> {v:IncrList a | size v = size xs} -}
 
 
-{-@ insertSort''' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort''' xs = ifoldr (\_ -> insert) N xs
 
 
+
+
+
+-----------------------------------------------------------------------
+-- | 6. But can you prove that you've permuted the input?
+-----------------------------------------------------------------------
+
+
+-- Lets reason about the set of elements in a container
+
+-- measure elems
+
+{-@ predicate EqSize X Y = size X = size Y @-}
+
+-- predicate EqElems
 
 
 -----------------------------------------------------------------------
@@ -156,14 +202,4 @@ size N        = 0
 
 foldr f acc N        = acc
 foldr f acc (C x xs) = f x (foldr f acc xs)
-
-
-{-@ predicate EqSize X Y = size X  = size Y @-}
-{-@ predicate EqElem X Y = elems X = elems Y @-}
-
-{-@ predicate AddElt V X Xs = elems V = Set_cup (Set_sng X) (elems Xs) @-}
  
-{-@ measure elems ::List a -> (Set a)
-    elems (N)      = (Set_empty 0)
-    elems (C x xs) = (Set_cup (Set_sng x) (elems xs))
-  @-}
