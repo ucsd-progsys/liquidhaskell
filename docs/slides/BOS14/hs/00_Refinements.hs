@@ -6,13 +6,16 @@ module Poo where
 import Prelude hiding (map, foldr, foldr1)
 
 
-divide    :: Int -> Int -> Int
 -- wtAverage :: [(Int, Int)] -> Int
 
+divide    :: Int -> Int -> Int
+divide n 0 = dead "div by zero"
+divide n k = n `div` k
 
 
 {-@ dead :: {v:_ | false} -> a @-}
 dead msg = error msg
+
 
 
 

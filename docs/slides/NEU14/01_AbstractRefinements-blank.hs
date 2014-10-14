@@ -21,34 +21,33 @@ import Prelude hiding (map, foldr)
 
 -- Warmup: How shall we type listMax?
 
+{-@ listMax  :: forall <p :: Int -> Prop>. {v:[Int<p>] | len v > 0}
+             -> Int<p> @-}
 listMax     :: [Int] -> Int
 listMax xs  = foldr1 max xs 
 
 
 
-
-
-
 -- Lets define a few different subsets of Int
 
--- Even
--- Odd
--- RGB
+{-@ type Even = {v: Int | v mod 2 = 0} @-}
+{-@ type Odd  = {v: Int | v mod 2 /= 0} @-}
+{-@ type RGB  = {v: Int | 0 <= v && v <= 255}  @-}
 
 
 -- compute the largest of some lists
 
-{- xE :: Even -}
-xE = listMax [0, 200, 4000, 60] 
+{-@ xE :: Even @-}
+xE = listMax [0, 1] 
 
 
 
-{- xO :: Odd -}
+{-@ xO :: Odd @-}
 xO = listMax [1, 21, 4001, 961] 
 
 
 
-{- xR :: RGB -}
+{-@ xR :: RGB @-}
 xR = listMax [1, 21, 41, 61] 
 
 
@@ -66,7 +65,10 @@ xR = listMax [1, 21, 41, 61]
 -- | 1. Abstract Refinement from List's Type 
 -----------------------------------------------------------------------
 
--- data List a <p> 
+{-@ data List a <p :: a -> a -> Prop> =
+        N
+      | C { x :: a, xs :: List<p> (a<p x>) }
+  @-}
 
 
 
@@ -82,22 +84,26 @@ xR = listMax [1, 21, 41, 61]
 -----------------------------------------------------------------------
 
 
-{- type IncrList a -} 
-{- type DecrList a -} 
-{- type DiffList a -} 
+{-@ type IncrList a = List <{\x1 x2 -> x1 <= x2}> a@-} 
+{-@ type DecrList a = List <{\x1 x2 -> x1 >= x2}> a@-} 
+{-@ type DiffList a = List <{\x1 x2 -> x1 /= x2}> a@-} 
 
-ups   = undefined
+ups, downs  :: List Int
 
-downs = undefined
+{-@ ups :: IncrList Int @-}
+ups   = 1 `C` 2 `C` 3 `C` N
 
-diffs = undefined
+{-@ downs :: DecrList Int @-}
+downs = 10 `C` 8 `C` 6 `C` N
+
+
 
 
 -----------------------------------------------------------------------
 -- | 3. Insertion Sort: Revisited
 -----------------------------------------------------------------------
 
-{- insert         :: _ -> xs:_ -> {v:_ | size v = 1 + size xs} -}
+{-@ insert         :: _ -> xs:_ -> {v:_ | size v = 1 + size xs} @-}
 insert x N         = x `C` N
 insert x (C y ys)
   | x <= y         = x `C` y `C` ys
@@ -105,7 +111,7 @@ insert x (C y ys)
 
 
 
-{- insertSort      :: xs:List a -> {v:IncrList a | EqSize v xs} -}
+{-@ insertSort      :: xs:List a -> {v:IncrList a | EqSize v xs} @-}
 insertSort N        = N
 insertSort (C x xs) = insert x (insertSort xs)
 
@@ -124,7 +130,8 @@ insertSort (C x xs) = insert x (insertSort xs)
 -----------------------------------------------------------------------
 
 
-insertSort' = undefined
+{-@ insertSort' :: xs:List a -> {v:IncrList a | true } @-}
+insertSort' xs = foldr insert N xs 
 
 
 
