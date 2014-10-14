@@ -364,6 +364,18 @@ splitW (WfC γ t@(RApp _ ts rs _))
         ws''  <- concat <$> mapM (rsplitW γ) rs
         return $ ws ++ ws' ++ ws''
 
+splitW (WfC γ (RAllE x tx t))
+  = do  ws  <- splitW (WfC γ tx) 
+        γ'  <- (γ, "splitW") += (x, tx)
+        ws' <- splitW (WfC γ' t)
+        return $ ws ++ ws'
+
+splitW (WfC γ (REx x tx t))
+  = do  ws  <- splitW (WfC γ tx) 
+        γ'  <- (γ, "splitW") += (x, tx)
+        ws' <- splitW (WfC γ' t)
+        return $ ws ++ ws'
+
 splitW (WfC _ t) 
   = errorstar $ "splitW cannot handle: " ++ showpp t
 
