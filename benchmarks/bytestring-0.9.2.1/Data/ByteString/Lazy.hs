@@ -716,6 +716,7 @@ foldr1 f (Chunk c0 cs0) = go c0 cs0
 -- Special folds
 
 -- | /O(n)/ Concatenate a list of ByteStrings.
+{-@ Lazy concat @-}
 {-@ concat :: bs:[ByteString] -> {v:ByteString | (lbLength v) = (lbLengths bs)} @-}
 concat :: [ByteString] -> ByteString
 concat css0 = to css0
@@ -726,6 +727,8 @@ concat css0 = to css0
     to (cs:css)         = go cs css
 
 -- | Map a function over a 'ByteString' and concatenate the results
+
+{-@ Lazy concatMap @-}
 concatMap :: (Word8 -> ByteString) -> ByteString -> ByteString
 concatMap _ Empty        = Empty
 concatMap f (Chunk c0 cs0) = to c0 cs0 0
