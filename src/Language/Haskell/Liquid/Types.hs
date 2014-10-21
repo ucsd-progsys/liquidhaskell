@@ -1398,6 +1398,11 @@ data TError t =
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
   
+  | ErrTermin   { bind :: ![Var]
+                , pos  :: !SrcSpan
+                , msg  :: !Doc
+                } -- ^ Termination Error 
+
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
@@ -1616,7 +1621,7 @@ instance NFData (Annot a) where
 ------------------------------------------------------------------------
 
 data Output a = O { o_vars   :: Maybe [String]
-                  , o_warns  :: [String]
+                  , o_errors :: ! [Error]
                   , o_types  :: !(AnnInfo a)
                   , o_templs :: !(AnnInfo a)
                   , o_bots   :: ![SrcSpan] 
@@ -1628,7 +1633,7 @@ emptyOutput = O Nothing [] mempty mempty [] mempty
 instance Monoid (Output a) where 
   mempty        = emptyOutput  
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-                    , o_warns  = sortNub  $  mappend (o_warns  o1) (o_warns  o2)
+                    , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
                     , o_types  =             mappend (o_types  o1) (o_types  o2) 
                     , o_templs =             mappend (o_templs o1) (o_templs o2) 
                     , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)

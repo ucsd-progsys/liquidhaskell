@@ -272,19 +272,12 @@ exitWithResult cfg target out
   = do {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
-       writeWarns  warns
        writeResult cfg (colorResult r) r
        writeFile   (extFileName Result target) (showFix r)
-       return $ out { o_result = res' }
+       return $ out { o_result = r }
     where
-       r         = o_result out
-       res'      = if null warns then r else Unsafe [] 
-       warns     = if nowarnings cfg then [] else o_warns out
+       r         = o_result out `addErrors` o_errors out
 
-
-
-writeWarns []              = return ()
-writeWarns ws              = colorPhaseLn Angry "Warnings:" "" >> putStrLn (unlines $ nub ws)
 
 
 writeCheckVars Nothing     = return ()
@@ -307,6 +300,10 @@ resDocs _ (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl
 reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 
 
+addErrors r []             = r
+addErrors Safe errs        = Unsafe errs
+addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
+addErrors r  _             = r
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs Full
 
