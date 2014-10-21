@@ -1,0 +1,7 @@
+Failed 6 tests: 
+ ../benchmarks/bytestring-0.9.2.1/Data/ByteString.T.hs -- crash,
+  ../benchmarks/bytestring-0.9.2.1/Data/ByteString.hs -- crash,
+  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.T.hs -- crash,
+  ../benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs -- crash,
+  ../benchmarks/text-0.11.2.3/Data/Text.hs -- type error,
+  ../benchmarks/text-0.11.2.3/Data/Text/Unsafe.hs -- type error
