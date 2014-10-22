@@ -635,8 +635,7 @@ checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
   where [s1, s2]   = getStrata <$> [t1, t2]
-        wrn        =  "Stratum Error : " ++ show s1 ++ " > " ++ show s2 ++ 
-                      "\tat " ++ show (pprint $ loc γ)
+        wrn        =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2) 
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
@@ -700,7 +699,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , scheck     :: !Bool                        -- ^ Check Strata (?)
                      , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
                      , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-                     , logWarn    :: ![String]                    -- ^ ? FIX THIS
+                     , logErrors  :: ![TError SpecType]           -- ^ Errors during coontraint generation
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      } -- deriving (Data, Typeable)
@@ -752,7 +751,7 @@ initCGI cfg info = CGInfo {
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
   , pruneRefs  = not $ noPrune cfg
-  , logWarn    = []
+  , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
   } 
@@ -900,8 +899,8 @@ addPost _ t
 addW   :: WfC -> CG ()  
 addW !w = modify $ \s -> s { hsWfs = w : (hsWfs s) }
 
-addWarning   :: String -> CG ()  
-addWarning w = modify $ \s -> s { logWarn = w : (logWarn s) }
+addWarning   :: TError SpecType -> CG ()  
+addWarning w = modify $ \s -> s { logErrors = w : (logErrors s) }
 
 -- | Used for annotation binders (i.e. at binder sites)
 
@@ -1022,7 +1021,8 @@ instance Freshable CG Integer where
 
 makeDecrIndex :: (Var, SpecType)-> CG [Int]
 makeDecrIndex (x, t) 
-  = do hint <- checkHint' . L.lookup x . specDecr <$> get
+  = do spDecr <- specDecr <$> get
+       hint   <- checkHint' (L.lookup x $ spDecr)
        case dindex of
          Nothing -> addWarning msg >> return []
          Just i  -> return $ fromMaybe [i] hint
@@ -1030,7 +1030,7 @@ makeDecrIndex (x, t)
        ts         = ty_args $ toRTypeRep t
        checkHint' = checkHint x ts isDecreasing
        dindex     = L.findIndex isDecreasing ts
-       msg        = printf "%s: No decreasing parameter" $ showPpr (getSrcSpan x) 
+       msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter") 
 
 recType ((_, []), (_, [], t))
   = t
@@ -1047,13 +1047,13 @@ recType ((vs, indexc), (x, index, t))
                   loc (showPpr x) (showPpr vs)
 
 checkIndex (x, vs, t, index)
-  = do mapM_ (safeLogIndex msg' vs)  index
+  = do mapM_ (safeLogIndex msg' vs) index
        mapM  (safeLogIndex msg  ts) index
     where
-       loc   = showPpr (getSrcSpan x)
+       loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep t
-       msg'  = printf "%s: No decreasing argument on %s with %s" loc (showPpr x) (showPpr vs)
-       msg   = printf "%s: No decreasing parameter" loc
+       msg'  = ErrTermin [x] loc (text $ "No decreasing argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
+       msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
 makeRecType t vs dxs is
   = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
@@ -1068,21 +1068,21 @@ safeLogIndex err ls n
   | otherwise      = return $ Just $ ls !! n
 
 checkHint _ _ _ Nothing 
-  = Nothing
+  = return Nothing
 
 checkHint x ts f (Just ns) | L.sort ns /= ns
-  = errorstar $ printf "%s: The hints should be increasing" loc
-  where loc = showPpr $ getSrcSpan x
+  = addWarning (ErrTermin [x] loc (text "The hints should be increasing")) >> return Nothing
+  where loc = getSrcSpan x
 
 checkHint x ts f (Just ns) 
-  = Just $ catMaybes (checkValidHint x ts f <$> ns)
+  = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
 
 checkValidHint x ts f n
-  | n < 0 || n >= length ts = errorstar err
-  | f (ts L.!! n)           = Just n
-  | otherwise               = errorstar err
-  where err = printf "%s: Invalid Hint %d for %s" loc (n+1) (showPpr x)
-        loc = showPpr $ getSrcSpan x
+  | n < 0 || n >= length ts = addWarning err >> return Nothing
+  | f (ts L.!! n)           = return $ Just n
+  | otherwise               = addWarning err >> return Nothing
+  where err = ErrTermin [x] loc (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x) ++  "\nin\n" ++ show (ts))
+        loc = getSrcSpan x
 
 -------------------------------------------------------------------
 -------------------- Generation: Corebind -------------------------
@@ -1132,12 +1132,12 @@ consCBSizedTys tflag γ (Rec xes)
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
-       ts'       <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
+       ts'      <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
-       is       <- checkSameLens <$> mapM makeDecrIndex (zip xs ts')
+       is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
-       checkEqTypes . L.transpose <$> mapM checkIndex (zip4 xs vs ts is)
+       (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType <$>) <$> xeets
        let xts   = zip xs (Asserted <$> ts)
        γ'       <- foldM extender γ xts
@@ -1148,17 +1148,18 @@ consCBSizedTys tflag γ (Rec xes)
   where
        dmapM f  = sequence . (mapM f <$>)
        (xs, es) = unzip xes
-       collectArgs   = collectArguments . length . ty_binds . toRTypeRep
-       checkEqTypes  = map (checkAll err1 toRSort . catMaybes)
-       checkSameLens = checkAll err2 length
-       err1          = printf "%s: The decreasing parameters should be of same type" loc
-       err2          = printf "%s: All Recursive functions should have the same number of decreasing parameters" loc
-       loc           = showPpr $ getSrcSpan (head xs)
+       collectArgs    = collectArguments . length . ty_binds . toRTypeRep
+       checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
+       checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
+       checkSameLens  = checkAll err2 length
+       err1           = ErrTermin xs loc $ text "The decreasing parameters should be of same type"
+       err2           = ErrTermin xs loc $ text "All Recursive functions should have the same number of decreasing parameters"
+       loc            = getSrcSpan (head xs)
 
-       checkAll _   _ []            = []
+       checkAll _   _ []            = return []
        checkAll err f (x:xs) 
-         | all (==(f x)) (f <$> xs) = (x:xs)
-         | otherwise                = errorstar err
+         | all (==(f x)) (f <$> xs) = return (x:xs)
+         | otherwise                = addWarning err >> return [] 
 
 consCBWithExprs γ (Rec xes) 
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
