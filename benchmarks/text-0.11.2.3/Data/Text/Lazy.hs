@@ -872,6 +872,7 @@ foldr1 f t = S.foldr1 f (stream t)
 {-# INLINE foldr1 #-}
 
 -- | /O(n)/ Concatenate a list of 'Text's.
+{-@ Lazy concat @-}
 {-@ concat :: ts:[Text] -> {v:Text | (ltlength v) = (sum_ltlengths ts)} @-}
 concat :: [Text] -> Text
 concat = to

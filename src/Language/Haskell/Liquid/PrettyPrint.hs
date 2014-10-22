@@ -50,7 +50,6 @@ import qualified Data.Text as T
 import Data.Interned
 import qualified Data.HashMap.Strict as M
 
-
 instance PPrint SrcSpan where
   pprint = pprDoc
 

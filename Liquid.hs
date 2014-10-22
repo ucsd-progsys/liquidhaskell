@@ -83,11 +83,11 @@ prune cfg cbs target info
 solveCs cfg target cgi info dc 
   = do (r, sol) <- solve fx target (hqFiles info) (cgInfoFInfo cgi)
        let names = checkedNames dc
-       let warns = logWarn cgi
+       let warns = logErrors cgi
        let annm  = annotMap cgi
        let res   = ferr sol r
        let out0  = mkOutput cfg res sol annm
-       return    $ out0 { o_vars = names } { o_warns  = warns} { o_result = res }
+       return    $ out0 { o_vars = names } { o_errors  = warns} { o_result = res }
     where 
        fx        = def { FC.solver = smtsolver cfg, FC.real = real cfg }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
