@@ -34,7 +34,7 @@ module Language.Haskell.Liquid.RefType (
   , freeTyVars, tyClasses, tyConName
 
   -- TODO: categorize these!
-  , ofType, ofPredTree, toType
+  , ofType, toType
   , rTyVar, rVar, rApp, rEx 
   , addTyConInfo
   -- , expandRApp
@@ -63,7 +63,6 @@ import Var
 import Literal
 import GHC              hiding (Located)
 import DataCon
-import PrelInfo         (isNumericClass)
 import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Type             (mkClassPred, splitFunTys, expandTypeSynonyms, isPredTy, substTyWith, classifyPredType, PredTree(..), isClassPred)
@@ -213,30 +212,6 @@ instance (PPrint r, Reftable r) => Reftable (RType Class RTyCon RTyVar r) where
   bot         = errorstar "bot on RType"
 
 
--------------------------------------------------------------------------------
--- | TyConable Instances -------------------------------------------------------
--------------------------------------------------------------------------------
-
--- MOVE TO TYPES
-instance TyConable RTyCon where
-  isFun   = isFunTyCon . rtc_tc
-  isList  = (listTyCon ==) . rtc_tc
-  isTuple = TC.isTupleTyCon   . rtc_tc 
-  ppTycon = toFix 
-
--- MOVE TO TYPES
-instance TyConable Symbol where
-  isFun   s = funConName == s
-  isList  s = listConName == s
-  isTuple s = tupConName == s
-  ppTycon = text . symbolString
-
-instance TyConable LocSymbol where
-  isFun   = isFun . val
-  isList  = isList . val
-  isTuple = isTuple . val
-  ppTycon = ppTycon . val
-
 
 -------------------------------------------------------------------------------
 -- | RefTypable Instances -----------------------------------------------------
@@ -251,7 +226,7 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r) => RefTypable p c Symbol r where
+instance (Eq p, PPrint p, TyConable c, Reftable r, PPrint r, PPrint c) => RefTypable p c Symbol r where
   ppCls   = ppClassSymbol
   ppRType = ppr_rtype ppEnv
 
@@ -292,14 +267,16 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert a' a m) t t' 
-eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
-  = eqRSort m t1 t1' && eqRSort m t2 t2'
+eqRSort m t11@(RFun _ t1 t2 _) t22@(RFun _ t1' t2' _) 
+  = -- traceShow ("Comparing " ++ show t11 ++ "\nWITH\n" ++ show t22 ++ "\nIS\n" ++ show (res1 && res2)) 
+     res1 && res2
+    where res1 = eqRSort m t1 t1' 
+          res2 = eqRSort m t2 t2'
 eqRSort m (RAppTy t1 t2 _) (RAppTy t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
-eqRSort m (RApp c ts _ _) (RApp c' ts' _ _)
-  = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
-eqRSort m (RCls c ts) (RCls c' ts')
-  = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
+eqRSort m t1@(RApp c ts _ _) t2@(RApp c' ts' _ _)
+  = res -- if res then res else traceShow ("Comparing " ++ show t1 ++ "\nWITH\n" ++ show t2) res 
+  where res = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
 eqRSort m (RVar a _) (RVar a' _)
   = a == M.lookupDefault a' a' m 
 eqRSort _ (RHole _) _
@@ -333,9 +310,6 @@ instance Hashable RTyVar where
 
 instance Ord RTyCon where
   compare x y = compare (rtc_tc x) (rtc_tc y)
-
-instance Eq RTyCon where
-  x == y = rtc_tc x == rtc_tc y
 
 instance Hashable RTyCon where
   hashWithSalt i = hashWithSalt i . rtc_tc  
@@ -375,8 +349,6 @@ nlzP ps (RAllT v t )
 nlzP ps t@(RApp _ _ _ _)
  = (t, ps)
 nlzP ps (RAllS _ t)
- = (t, ps)
-nlzP ps t@(RCls _ _)
  = (t, ps)
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
@@ -559,7 +531,6 @@ freeTyVars (RAllS _ t)     = freeTyVars t
 freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t' 
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
-freeTyVars (RCls _ ts)     = []
 freeTyVars (RVar α _)      = [α] 
 freeTyVars (RAllE _ _ t)   = freeTyVars t
 freeTyVars (REx _ _ t)     = freeTyVars t
@@ -576,19 +547,15 @@ tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
-tyClasses (RApp _ ts _ _) = concatMap tyClasses ts 
-tyClasses (RCls c ts)     = (c, ts) : concatMap tyClasses ts 
+tyClasses (RApp c ts _ _) 
+  | Just cl <- tyConClass_maybe $ rtc_tc c 
+  = [(cl, ts)] 
+  | otherwise       
+  = []
 tyClasses (RVar α _)      = [] 
 tyClasses (RRTy _ _ _ t)  = tyClasses t
 tyClasses (RHole r)       = []
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
-
-
-
---getTyClasses = everything (++) ([] `mkQ` f)
---  where f ((RCls c ts) :: SpecType) = [(c, ts)]
---        f _                        = []
-
 
 
 ----------------------------------------------------------------
@@ -606,7 +573,6 @@ instance (NFData a, NFData b, NFData c, NFData e) => NFData (RType a b c e) wher
   rnf (RAllS s t)      = rnf s `seq` rnf t
   rnf (RFun x t t' r)  = rnf x `seq` rnf t `seq` rnf t' `seq` rnf r
   rnf (RApp _ ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
-  rnf (RCls c ts)      = c `seq` rnf ts
   rnf (RAllE x t t')   = rnf x `seq` rnf t `seq` rnf t'
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
   rnf (ROth s)         = rnf s
@@ -636,15 +602,6 @@ instance PPrint (RType p c tv r) => Show (RType p c tv r) where
 
 instance PPrint (RTProp p c tv r) => Show (RTProp p c tv r) where
   show = showpp
-
-instance Fixpoint RTyCon where
-  toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
-
-instance PPrint RTyCon where
-  pprint = toFix
-
-instance Show RTyCon where
-  show = showpp  
 
 instance PPrint REnv where
   pprint (REnv m)  = pprint m
@@ -681,8 +638,6 @@ subsFree m s z@(_, _, _) (RFun x t t' r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)     
   = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) r  
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
-subsFree m s z (RCls c ts)     
-  = RCls c (subsFree m s z <$> ts)
 subsFree meet s (α', _, t') t@(RVar α r) 
   | α == α' && not (α `S.member` s) 
   = if meet then t' `strengthen` r else t' 
@@ -798,9 +753,9 @@ ofType_ (FunTy τ τ')
   = rFun dummySymbol (ofType_ τ) (ofType_ τ') 
 ofType_ (ForAllTy α τ)  
   = RAllT (rTyVar α) $ ofType_ τ  
-ofType_ τ
-  | Just t <- ofPredTree (classifyPredType τ)
-  = t
+-- ofType_ τ
+--   | Just t <- ofPredTree (classifyPredType τ)
+--   = t
 ofType_ (TyConApp c τs)
   | Just (αs, τ) <- TC.synTyConDefn_maybe c
   = ofType_ $ substTyWith αs τs τ
@@ -815,11 +770,6 @@ ofType_ (LitTy x)
     fromTyLit (StrTyLit s) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
 ofType_ τ               
   = errorstar ("ofType cannot handle: " ++ showPpr τ)
-
-ofPredTree (ClassPred c τs)
-  = Just $ RCls c (ofType_ <$> τs)
-ofPredTree _
-  = Nothing
 
 ----------------------------------------------------------------
 ------------------- Converting to Fixpoint ---------------------
@@ -890,8 +840,6 @@ toType (RVar (RTV α) _)
   = TyVarTy α
 toType (RApp (RTyCon {rtc_tc = c}) ts _ _)   
   = TyConApp c (toType <$> ts)
-toType (RCls c ts)   
-  = mkClassPred c (toType <$> ts)
 toType (RAllE _ _ t)
   = toType t
 toType (REx _ _ t)
@@ -1059,8 +1007,9 @@ forth4 (_, _, _, x)     = x
 -- | Binders generated by class predicates, typically for constraining tyvars (e.g. FNum)
 -----------------------------------------------------------------------------------------
 
-classBinds (RCls c ts) 
-  | isNumericClass c = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+classBinds (RApp c ts _ _) 
+   | isNumCls c
+   = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds _         = [] 
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α

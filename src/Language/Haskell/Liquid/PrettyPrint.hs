@@ -108,6 +108,7 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
     ppE Lossy = ppEnvShort ppEnv
     ppE Full  = ppEnv
 
+
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)       
@@ -138,8 +139,6 @@ ppr_rtype bb p (RApp c ts rs r)
         | otherwise  = ppTycon
 
 
-ppr_rtype bb p (RCls c ts)
-  = ppr_cls bb p c ts
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype bb p t@(RAllE _ _ _)
@@ -164,7 +163,6 @@ ppSpine (REx _ _ t)      = text "REx" <+> parens (ppSpine t)
 ppSpine (RFun _ i o _)   = ppSpine i <+> text "->" <+> ppSpine o
 ppSpine (RAppTy t t' _)  = text "RAppTy" <+> parens (ppSpine t) <+> parens (ppSpine t')
 ppSpine (RHole r)        = text "RHole"
-ppSpine (RCls c ts)      = text "RCls" <+> parens (ppCls c ts)
 ppSpine (RApp c ts rs _) = text "RApp" <+> parens (pprint c)
 ppSpine (RVar v _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
