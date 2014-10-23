@@ -1,4 +1,4 @@
-module Foo where
+module Foo () where
 
 data F a = F { f :: Int -> a }
 
