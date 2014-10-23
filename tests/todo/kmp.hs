@@ -1,10 +1,7 @@
 {-@ LIQUID "--no-termination" @-}
-
-{-@ LIQUID "-i ."             @-}
+{-@ LIQUID "--short-names"    @-}
 
 module KMP where
-
-import Array
 
 -------------------------------------------------------------
 -- | Do the Search ------------------------------------------
@@ -51,3 +48,43 @@ kmpTable p               = go 1 0 t
                              
       | otherwise        = let j' = t ! j
                            in go i j' t 
+
+
+{-@ type Upto N = {v:Nat | v < N} @-} 
+
+-------------------------------------------------------------
+-- | An Array type ------------------------------------------
+-------------------------------------------------------------
+
+data Arr a = A { alen :: Int
+               , aval :: Int -> a
+               }
+
+{-@ data Arr a <rng :: Int -> a -> Prop>
+      = A { alen :: Nat 
+          , aval :: i:Int -> a<rng i>
+          }
+  @-}
+
+
+{-@ new :: forall <p :: Int -> a -> Prop>.
+             n:Nat -> (i:Upto n -> a<p i>) -> Arr<p> a
+  @-}
+new n v = A { alen = n
+            , aval = \i -> if (0 <= i && i < n)
+                             then v i
+                             else error "Out of Bounds!"
+            }
+
+{-@ (!) :: forall <p :: Int -> a -> Prop>.
+             a:Arr<p> a -> i:Upto (alen a) -> a<p i>
+  @-}
+
+(A _ f) ! i = f i
+  
+{-@ set :: forall <p :: Int -> a -> Prop>.
+             a:Arr<p> a -> i:Upto (alen a) -> a<p i> -> Arr<p> a
+  @-}
+
+set a@(A _ f) i v = a { aval = \j -> if (i == j) then v else f j }
+
