@@ -573,6 +573,10 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
 
+
+splitC (SubC γ t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)) | isClassRTyCon c1 && isClassRTyCon c2
+  = return $ traceShow ("HERE: " ++ (show (t1, t2))) []
+
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
@@ -1422,7 +1426,7 @@ consE γ e'@(App e (Type τ))
        addW        $ WfC γ t
        t'         <- refreshVV t
        instantiatePreds γ e' $
-         traceShow ("Type App \n" ++ (show $ RAllT α te) ++ "\nSUB\t" ++ (show α) ++ "|->" ++ (show t')) $  subsTyVar_meet' (α, t') te
+         traceShow ("Type App \t" ++ (showPpr e') ++ "\n" ++ (show $ RAllT α te) ++ "\nSUB\t" ++ (show α) ++ "|->" ++ (show t')) $  subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
