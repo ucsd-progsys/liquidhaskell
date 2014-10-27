@@ -748,7 +748,7 @@ instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc 
-  isNumCls c = maybe False isNumericClass (tyConClass_maybe $ rtc_tc c)
+  isNumCls c = traceShow ("isNumCls\t" ++ show c) $ maybe False isNumericClass (tyConClass_maybe $ rtc_tc c)
   isClass    = isClassRTyCon
   ppTycon    = toFix 
 
