@@ -380,7 +380,6 @@ expandAlias l = go
     go s (RAllT a t)      = RAllT (symbolRTyVar a) <$> go s t
     go s (RAllP a t)      = RAllP <$> ofBPVar a <*> go s t
     go s (RAllS l t)      = RAllS l <$> go s t
-    go s (RCls c ts)      = RCls <$> lookupGhcClass c <*> mapM (go s) ts
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
     go _ (RHole r)        = RHole <$> resolve l r
@@ -540,11 +539,11 @@ makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
                  let (dc:_) = tyConDataCons tc
                  let αs  = map symbolRTyVar as
                  let as' = [rVar $ symbolTyVar a | a <- as ]
-                 let ms' = [ (s, rFun "" (RCls c (flip RVar mempty <$> as)) t) | (s, t) <- ms]
+                 let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) t) | (s, t) <- ms]
                  vts <- makeSpec cfg vs ms'
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
-                 let t   = RCls (fromJust $ tyConClass_maybe tc) as'
+                 let t   = rCls tc as'
                  let dcp = DataConP l αs [] [] ss' (reverse sts) t
                  return ((dc,dcp),vts)
 
@@ -672,8 +671,6 @@ mapTyVars τ (RAllP _ t)
   = mapTyVars τ t 
 mapTyVars τ (RAllS _ t)   
   = mapTyVars τ t 
-mapTyVars τ (RCls _ ts)     
-  = return ()
 mapTyVars τ (RAllE _ _ t)   
   = mapTyVars τ t 
 mapTyVars τ (REx _ _ t)
@@ -903,7 +900,7 @@ plugHoles tce tyi x f t (Loc l st)
 
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
-    cs'               = [(dummySymbol, RCls c t) | (c,t) <- cs]
+    cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
     initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t st
 
     go :: SpecType -> SpecType -> BareM SpecType
@@ -918,7 +915,6 @@ plugHoles tce tyi x f t (Loc l st)
     go t                (REx b x t')       = REx b x <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
     go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
-    go (RCls _ t)       (RCls c t')        = RCls c <$> zipWithM go t t'
     go t                st                 = throwError err
      where
        err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
@@ -1282,8 +1278,6 @@ ofBareType (RApp tc ts rs r)
 ofBareType (RApp tc ts rs r) 
   = do tyi <- tcEnv <$> get
        liftM3 (bareTCApp tyi r) (lookupGhcTyCon tc) (mapM ofRef rs) (mapM ofBareType ts)
-ofBareType (RCls c ts)
-  = liftM2 RCls (lookupGhcClass c) (mapM ofBareType ts)
 ofBareType (ROth s)
   = return $ ROth s
 ofBareType (RHole r)
@@ -1686,7 +1680,7 @@ checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType
 
 checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
-    cb c ts                  = classBinds (RCls c ts)
+    cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
     insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p) 
     pbinds p                 = (pname p, pvarRType p :: RSort) 
@@ -1786,8 +1780,6 @@ expToBindT (RApp c ts rs r)
   = do ts' <- mapM expToBindT ts
        rs' <- mapM expToBindReft rs
        expToBindRef r >>= addExists . RApp c ts' rs'
-expToBindT (RCls c ts)
-  = liftM (RCls c) (mapM expToBindT ts)
 expToBindT (RAppTy t1 t2 r)
   = do t1' <- expToBindT t1
        t2' <- expToBindT t2

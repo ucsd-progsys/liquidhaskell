@@ -67,6 +67,9 @@ trueRefType (RAllP π t)
 trueRefType (RFun _ t t' _)
   = rFun <$> fresh <*> true t <*> true t'
 
+trueRefType (RApp c ts _  _) | isClass c
+  = rRCls c <$> mapM true ts
+
 trueRefType (RApp c ts rs r)
   = RApp c <$> mapM true ts <*> mapM trueRef rs <*> true r
 
@@ -95,6 +98,9 @@ refreshRefType (RAllP π t)
 refreshRefType (RFun b t t' _)
   | b == dummySymbol = rFun <$> fresh <*> refresh t <*> refresh t'
   | otherwise        = rFun     b     <$> refresh t <*> refresh t'
+
+refreshRefType (RApp rc ts _ _) | isClass rc
+  = return $ rRCls rc ts 
 
 refreshRefType (RApp rc ts rs r)
   = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
