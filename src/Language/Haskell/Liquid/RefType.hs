@@ -267,16 +267,12 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert a' a m) t t' 
-eqRSort m t11@(RFun _ t1 t2 _) t22@(RFun _ t1' t2' _) 
-  = -- traceShow ("Comparing " ++ show t11 ++ "\nWITH\n" ++ show t22 ++ "\nIS\n" ++ show (res1 && res2)) 
-     res1 && res2
-    where res1 = eqRSort m t1 t1' 
-          res2 = eqRSort m t2 t2'
+eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _) 
+  = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RAppTy t1 t2 _) (RAppTy t1' t2' _) 
   = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m t1@(RApp c ts _ _) t2@(RApp c' ts' _ _)
-  = res -- if res then res else traceShow ("Comparing " ++ show t1 ++ "\nWITH\n" ++ show t2) res 
-  where res = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
+  = c == c' && length ts == length ts' && and (zipWith (eqRSort m) ts ts')
 eqRSort m (RVar a _) (RVar a' _)
   = a == M.lookupDefault a' a' m 
 eqRSort _ (RHole _) _
@@ -753,9 +749,6 @@ ofType_ (FunTy τ τ')
   = rFun dummySymbol (ofType_ τ) (ofType_ τ') 
 ofType_ (ForAllTy α τ)  
   = RAllT (rTyVar α) $ ofType_ τ  
--- ofType_ τ
---   | Just t <- ofPredTree (classifyPredType τ)
---   = t
 ofType_ (TyConApp c τs)
   | Just (αs, τ) <- TC.synTyConDefn_maybe c
   = ofType_ $ substTyWith αs τs τ
@@ -1008,9 +1001,10 @@ forth4 (_, _, _, x)     = x
 -----------------------------------------------------------------------------------------
 
 classBinds t@(RApp c ts _ _) 
-   | traceShow ("isNum Cls" ++ show c) (isNumCls c)
-   = traceShow ("Class Binds 2" ++ (show t)) [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
-classBinds t         = traceShow ("Class Binds 1" ++ (show t)) [] 
+   | isNumCls c
+   = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+classBinds t         
+  = [] 
 
 rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 
