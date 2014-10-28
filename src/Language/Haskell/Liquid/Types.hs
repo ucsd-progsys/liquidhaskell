@@ -84,7 +84,7 @@ module Language.Haskell.Liquid.Types (
   , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow 
   , mkUnivs, bkUniv, bkClass
-  , rFun, rCls
+  , rFun, rCls, rRCls
 
   -- * Manipulating `Predicates`
   , pvars, pappSym, pToRef, pApp
@@ -892,7 +892,7 @@ bkClass t
 
 rFun b t t' = RFun b t t' mempty
 rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] mempty
-
+rRCls rc ts = RApp rc ts [] mempty
 
 addTermCond = addObligation OTerm
 
@@ -1106,6 +1106,8 @@ efoldReft cb g f fp = go
     go γ z (RAllT _ t)                  = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RAllS s t)                  = go γ z t
+    go γ z me@(RFun _ (RApp c ts _ _) t' r) 
+       | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')       
     go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
     
@@ -1118,7 +1120,7 @@ efoldReft cb g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref 
-    ho  γ z (RPropP ss r)                = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RPropP ss r)               = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
     ho  γ z (RProp ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
    
     -- folding over [RType]
