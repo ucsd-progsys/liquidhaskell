@@ -354,9 +354,6 @@ splitW (WfC γ (RAllP _ r))
 splitW (WfC γ t@(RVar _ _))
   = bsplitW γ t 
 
-splitW (WfC _ (RCls _ _))
-  = return []
-
 splitW (WfC γ t@(RApp _ ts rs _))
   =  do ws    <- bsplitW γ t 
         γ'    <- γ `extendEnvWithVV` t 
@@ -456,6 +453,10 @@ splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitS $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
 
+splitS (SubC γ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2 
+  = return []
+
+
 splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitS t1' t2'
@@ -472,9 +473,6 @@ splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
 splitS (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
   = bsplitS t1 t2
-
-splitS (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
-  = return []
 
 splitS c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
@@ -575,6 +573,10 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   = splitC $ SubC γ t1 t2' 
   where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
 
+
+splitC (SubC γ t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)) | isClass c1 && c1 == c2
+  = return []
+
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
@@ -591,9 +593,6 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
   = bsplitC γ t1 t2
-
-splitC (SubC _ (RCls c1 _) (RCls c2 _)) | c1 == c2
-  = return []
 
 splitC c@(SubC _ t1 t2) 
   = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
@@ -789,8 +788,8 @@ addCGEnv tx γ (_, x, t')
        let γ' = γ { renv = insertREnv x t (renv γ) }  
        pflag <- pruneRefs <$> get
        is    <- if isBase t 
-                  then liftM single $ addBind x $ rTypeSortedReft' pflag γ' t 
-                  else addClassBind t 
+                  then liftM2 (++) (liftM single $ addBind x $ rTypeSortedReft' pflag γ' t) (addClassBind t)
+                  else return [] -- addClassBind t 
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -1537,7 +1536,6 @@ refreshTy t = refreshVV t >>= refreshArgs
 
 refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
 refreshVV (RAllP p t) = liftM (RAllP p) (refreshVV t)
-refreshVV (RCls c ts) = liftM (RCls c) (mapM refreshVV ts)
 
 refreshVV (REx x t1 t2)
   = do [t1', t2'] <- mapM refreshVV [t1, t2]
@@ -1639,7 +1637,6 @@ instance Show CoreExpr where
   show = showPpr
 
 checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon _ t@(RCls cl ts)   = classToRApp t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
 
 -- checkRPred _ t@(RAll _ _)     = t
