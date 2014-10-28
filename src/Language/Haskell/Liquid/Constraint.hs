@@ -575,7 +575,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 
 
 splitC (SubC γ t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)) | isClassRTyCon c1 && isClassRTyCon c2
-  = return $ traceShow ("HERE: " ++ (show (t1, t2))) []
+  = bsplitC γ t1 t2 -- return $ traceShow ("HERE: " ++ (show (t1, t2))) []
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
