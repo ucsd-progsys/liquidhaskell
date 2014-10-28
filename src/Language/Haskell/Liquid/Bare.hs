@@ -660,7 +660,7 @@ mapTyVars τ (RAllT a t)
 mapTyVars (ForAllTy α τ) t 
   = mapTyVars τ t
 mapTyVars (FunTy τ τ') (RFun _ t t' _) 
-   = mapTyVars (trace ("Fun Compact:\n\n" ++ showPpr (τ, τ') ++ "\nVS\n" ++ show (t, t')) τ) t  >> mapTyVars τ' t'
+   = mapTyVars τ t  >> mapTyVars τ' t'
 mapTyVars (TyConApp _ τs) (RApp _ ts _ _) 
    = zipWithM_ mapTyVars τs ts
 mapTyVars (TyVarTy α) (RVar a _)      
@@ -683,7 +683,7 @@ mapTyVars (AppTy τ τ') (RAppTy t t' _)
 mapTyVars τ (RHole _)
   = return ()
 mapTyVars τ t
-  = trace ("Error: \n" ++ showPpr τ ++ "\nNON COMPACT\n" ++ show t ) $ throwError =<< errmsg <$> get
+  = throwError =<< errmsg <$> get
 
 mapTyRVar α a s@(MTVST αas err)
   = case lookup α αas of
@@ -1652,7 +1652,7 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     ok               = tyCompat x (val t)
     err              = errTypeMismatch x t
 
-tyCompat x t         = traceShow msg (lhs == rhs)
+tyCompat x t         = lhs == rhs
   where 
     lhs :: RSort     = toRSort t
     rhs :: RSort     = ofType $ varType x

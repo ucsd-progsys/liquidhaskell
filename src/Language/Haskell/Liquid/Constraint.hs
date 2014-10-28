@@ -574,8 +574,8 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   where t2' = subsTyVar_meet' (α2, RVar α1 mempty) t2
 
 
-splitC (SubC γ t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)) | isClassRTyCon c1 && isClassRTyCon c2
-  = return $ traceShow ("HERE: " ++ (show (t1, t2))) []
+splitC (SubC γ t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)) | isClass c1 && c1 == c2
+  = return []
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
@@ -859,7 +859,7 @@ addBind x r
        return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
 addClassBind :: SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
-addClassBind t = mapM (uncurry addBind) (traceShow ("Class Binds for \t" ++ (show t)) $ classBinds t)
+addClassBind = mapM (uncurry addBind) . classBinds
 
 -- RJ: What is this `isBind` business?
 pushConsBind act
@@ -870,8 +870,8 @@ pushConsBind act
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
-  = do trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-        modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+       modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- safeHead True . isBind <$> get
        sflag <- scheck                 <$> get 
        if bflag && sflag
@@ -1425,8 +1425,7 @@ consE γ e'@(App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ e' $
-         traceShow ("Type App \t" ++ (showPpr e') ++ "\n" ++ (show $ RAllT α te) ++ "\nSUB\t" ++ (show α) ++ "|->" ++ (show t')) $  subsTyVar_meet' (α, t') te
+       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
