@@ -235,6 +235,8 @@ import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, funConName, listConName, tupConName)
 import CoreSyn (CoreBind)
 
+import Language.Haskell.Liquid.GhcMisc (isFractionalClass)
+
 import System.FilePath ((</>), isAbsolute, takeDirectory)
 
 import Data.Default
@@ -721,11 +723,15 @@ class (Eq c) => TyConable c where
   isFun    :: c -> Bool
   isList   :: c -> Bool
   isTuple  :: c -> Bool
-  isNumCls :: c -> Bool
   ppTycon  :: c -> Doc
   isClass  :: c -> Bool
 
-  isClass _ = False
+  isNumCls  :: c -> Bool
+  isFracCls :: c -> Bool
+
+  isClass   = const False
+  isNumCls  = const False
+  isFracCls = const False
 
 class ( TyConable c
       , Eq p, Eq c, Eq tv
@@ -748,9 +754,11 @@ instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc 
-  isNumCls c = maybe False isNumericClass (tyConClass_maybe $ rtc_tc c)
   isClass    = isClassRTyCon
   ppTycon    = toFix 
+
+  isNumCls c  = maybe False isNumericClass    (tyConClass_maybe $ rtc_tc c)
+  isFracCls c = maybe False isFractionalClass (tyConClass_maybe $ rtc_tc c)
 
 -- MOVE TO TYPES
 instance TyConable Symbol where
