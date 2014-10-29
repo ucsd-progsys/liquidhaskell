@@ -1001,6 +1001,8 @@ forth4 (_, _, _, x)     = x
 -----------------------------------------------------------------------------------------
 
 classBinds t@(RApp c ts _ _) 
+   | isFracCls c
+   = [(rTyVarSymbol a, trueSortedReft FReal) | (RVar a _) <- ts]
    | isNumCls c
    = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds t         
