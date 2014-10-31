@@ -1,14 +1,13 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
+{-@ LIQUID "--diffcheck"    @-}
 {-@ LIQUID "--no-termination" @-}
 
 module Refinements where
 
-
 import Prelude hiding (map, foldr, foldr1)
 
 
-divide    :: Int -> Int -> Int
 wtAverage :: List (Int, Int) -> Int
 
 
@@ -32,17 +31,17 @@ dead msg = error msg
 -----------------------------------------------------------------------
 
 
-{-@ divide :: Int -> Pos -> Int @-}
-divide x 0 = dead "divide-by-zero"
+
+{-@ divide :: _ -> {v:_ | v > 0 } -> Int @-}
+divide     :: Int -> Int -> Int
+divide x 0 = dead 12  -- "divide-by-zero"
 divide x n = x `div` n
+
 
 
 -----------------------------------------------------------------------
 -- | 4. Dividing Safely
 -----------------------------------------------------------------------
-
-{-@ foo :: Int -> Nat -> Int @-}
-foo x y    = divide x y
 
 
 
