@@ -109,9 +109,6 @@ dataConTy m (FunTy t1 t2)
   = rFun dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy α t)          
   = RAllT (rTyVar α) (dataConTy m t)
-dataConTy _ t
-  | Just t' <- ofPredTree (classifyPredType t)
-  = t'
 dataConTy m (TyConApp c ts)        
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
@@ -162,9 +159,6 @@ unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
   = do t1' <- unifyS rt1 pt1
        t2' <- unifyS rt2 pt2
        return $ RAppTy t1' t2' (bUnify r p)
-
-unifyS t@(RCls _ _) (RCls _ _)
-  = return t
 
 unifyS (RVar v a) (RVar _ p)
   = do modify $ \s -> s `S.union` (S.fromList $ pvars p)
@@ -318,7 +312,6 @@ substPred msg su@(π,_ ) (RFun x t t' r)
   where (r', πs)                = splitRPvar π r
 
 substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
-substPred msg su (RCls c ts)    = RCls c (substPred msg su <$> ts)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
 substPred msg su (REx x t t')   = REx   x (substPred msg su t) (substPred msg su t')
 substPred _   _  t              = t
@@ -370,8 +363,6 @@ isPredInType p (RAllP p' t)
   = not (p == p') && isPredInType p t 
 isPredInType p (RApp _ ts _ r) 
   = isPredInURef p r || any (isPredInType p) ts
-isPredInType p (RCls _ ts) 
-  = any (isPredInType p) ts
 isPredInType p (RAllE _ t1 t2) 
   = isPredInType p t1 || isPredInType p t2 
 isPredInType p (RAppTy t1 t2 r) 
@@ -394,8 +385,6 @@ freeArgsPs p (RAllP p' t)
   | otherwise = freeArgsPs p t 
 freeArgsPs p (RApp _ ts _ r) 
   = nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
-freeArgsPs p (RCls _ ts) 
-  = nub $ concatMap (freeArgsPs p) ts
 freeArgsPs p (RAllE _ t1 t2) 
   = nub $ freeArgsPs p t1 ++ freeArgsPs p t2 
 freeArgsPs p (RAppTy t1 t2 r) 
