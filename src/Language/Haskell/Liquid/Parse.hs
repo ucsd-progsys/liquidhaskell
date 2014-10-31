@@ -326,15 +326,13 @@ isPrimBareType _ _                = False
 
 
 
-getClasses (RApp tc ts _ _) 
+getClasses t@(RApp tc ts _ _) 
   | isTuple tc
-  = getClass `fmap` ts 
+  = ts
+  | otherwise 
+  = [t]
 getClasses t 
-  = [getClass t]
-getClass (RApp c ts _ _)
-  = RCls c ts
-getClass t
-  = errorstar $ "Cannot convert " ++ (show t) ++ " to Class"
+  = [t]
 
 dummyP ::  Monad m => m (Reft -> b) -> m b
 dummyP fm 
@@ -643,9 +641,10 @@ classP
     mb Nothing   = []
     mb (Just xs) = xs
     superP = maybeP (parens ( liftM (toRCls <$>)  (bareTypeP `sepBy1` comma)) <* reserved "=>")
-    toRCls (RApp c ts rs r) = RCls c ts
-    toRCls t@(RCls _ _)     = t
-    toRCls t                = errorstar $ "Parse.toRCls called with" ++ show t
+    toRCls x = x
+--     toRCls (RApp c ts rs r) = RCls c ts
+--     toRCls t@(RCls _ _)     = t
+--     toRCls t                = errorstar $ "Parse.toRCls called with" ++ show t
 
 rawBodyP 
   = braces $ do

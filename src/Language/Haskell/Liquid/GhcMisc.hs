@@ -13,6 +13,9 @@
 
 module Language.Haskell.Liquid.GhcMisc where
 
+import PrelNames (fractionalClassKeys)
+import Class     (classKey)
+
 import           Debug.Trace
 
 import           Avail                        (availsToNameSet)
@@ -162,6 +165,8 @@ unTickExpr (Case e b t as)    = Case (unTickExpr e) b t (map unTickAlt as)
 unTickExpr (Cast e c)         = Cast (unTickExpr e) c
 unTickExpr (Tick _ e)         = unTickExpr e
 unTickExpr x                  = x
+
+isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
 -----------------------------------------------------------------------
 ------------------ Generic Helpers for DataConstructors ---------------
