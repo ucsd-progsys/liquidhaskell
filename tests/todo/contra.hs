@@ -3,11 +3,8 @@
 
 module Foo () where
 
-import Language.Haskell.Liquid.Prelude (liquidError, liquidAssert)
+import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Data.IORef
-import Control.Applicative ((<$>))
-import qualified Data.Map as M
-import Prelude hiding (map)
 
 {-@ type Upto N = {v:Nat | v < N} @-} 
 
