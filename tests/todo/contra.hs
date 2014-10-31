@@ -8,7 +8,13 @@ import Data.IORef
 
 {-@ type Upto N = {v:Nat | v < N} @-} 
 
-
+{-@ job :: IO () @-}
+job = do
+  p <- newIORef (0 :: Int)
+  writeIORef p 10
+  v <- readIORef p
+  liquidAssert (v == 0) $ return ()
+  
 {-@ bob :: Nat -> IO () @-}
 bob n = do
   t <- newIO (n+1) (\_ -> 0)
