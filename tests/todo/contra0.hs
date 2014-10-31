@@ -6,7 +6,7 @@ module Foo () where
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Data.IORef
 
-{-@ job :: IO () @-}
+job :: IO () 
 job = do
   p <- newIORef (0 :: Int)
   writeIORef p 10
