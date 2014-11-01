@@ -111,32 +111,33 @@ merge _   ys   = ys
 -- | Infinite Streams
 -------------------------------------------------------------------------
 
-{- data List [sz] a <p :: List a -> Prop>
+{-@ data List [sz] a <p :: List a -> Prop>
       = N | C { x  :: a
               , xs :: List <p> a <<p>>
               }
-  -}
-
-
-{-@ measure emp  :: (List a) -> Prop
-    emp (N)      = true
-    emp (C x xs) = false
   @-}
 
-{- type Stream a = {xs: List <{\v -> not (emp v)}> a | not (emp xs)} @-}
+{-@ measure cons :: (List a) -> Prop
+    cons (C x xs) = true 
+    cons (N)      = false 
+  @-}
 
-{- Lazy repeat @-}
+{-@ type Stream a = {xs: List <{\v -> cons v}> a | cons xs} @-}
+
+{-@ Lazy repeat @-}
                  
-{- repeat :: a -> Stream a @-}
--- repeat   :: a -> List a
--- repeat x = x `C` repeat x
+{-@ repeat :: a -> Stream a @-}
+repeat   :: a -> List a
+repeat x = x `C` repeat x
 
 
-{- take :: Nat -> Stream a -> List a @-}
--- take  :: Int -> List a -> List a
--- take 0 _        = N
--- take n (C x xs) = x `C` take (n-1) xs
--- take _ N        = liquidError "never happens"
+{-@ take        :: n:Nat -> Stream a -> {v:List a | sz v = n} @-}
+take 0 _        = N
+take n (C x xs) = x `C` take (n-1) xs
+take _ N        = liquidError "never happens"
+
+
+
 
 
 
@@ -165,8 +166,7 @@ merge _   ys   = ys
 
 
 -----------------------------------------------------
-
-
+take            :: Int -> List a -> List a
 {-@ invariant {v : List a | 0 <= sz v} @-}
 
 
