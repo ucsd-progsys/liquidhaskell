@@ -1,10 +1,8 @@
-module Termination (fac, tailFac, map) where
+module Termination (fac, tailFac, map, merge) where
 
 import Prelude hiding (gcd, mod, map, repeat, take)
 import Language.Haskell.Liquid.Prelude
 
-map   :: (a -> b) -> List a -> List b
-merge :: (Ord a) => List a -> List a -> List a
 
 
 -------------------------------------------------------------------------
@@ -12,9 +10,13 @@ merge :: (Ord a) => List a -> List a -> List a
 -------------------------------------------------------------------------
 
 fac   :: Int -> Int
-fac 0 = 1
-fac 1 = 1
-fac n = n * fac (n-1)
+fac   = undefined
+
+
+
+
+
+
 
 
 
@@ -62,26 +64,38 @@ range lo hi = undefined
 
 data List a = N | C a (List a)
 
-{-@ map :: (a -> b) -> xs:List a -> List b @-}
-map _ N        = N
-map f (C x xs) = map f (C x xs) -- f x `C` map f xs
+map :: (a -> b) -> List a -> List b
+map = undefined
 
 
-{-@ measure size @-}
-size          :: List a -> Int 
-size (N)      = 0
-size (C x xs) = 1 + size xs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-@ measure size :: List a -> Int
+    size (N)      = 0  
+    size (C x xs) = (1 + size xs)
+  @-}
+
+
 
 
 -------------------------------------------------------------------------
 -- | Default Metrics
 -------------------------------------------------------------------------
 
--- data List ...
 
-
-map' _ N        = N
-map' f (C x xs) = f x `C` map' f xs
+{-@ data List [size] a = N | C {x :: a, xs :: List a } @-}
 
 
 
@@ -89,8 +103,7 @@ map' f (C x xs) = f x `C` map' f xs
 -- | Termination Expressions Metrics
 -------------------------------------------------------------------------
 
-{- merge :: xs:_ -> ys:_ -> _ / [sz xs + sz ys] -}
-
+merge :: (Ord a) => List a -> List a -> List a
 merge (C x xs) (C y ys)
   | x < y      = x `C` merge xs (y `C` ys)
   | otherwise  = y `C` merge (x `C` xs) ys
@@ -164,8 +177,7 @@ merge _   ys   = ys
 -----------------------------------------------------
 
 
-{- invariant {v : List a | 0 <= size v} -}
-
+{-@ invariant {v : List a | 0 <= size v} @-}
 
 
 

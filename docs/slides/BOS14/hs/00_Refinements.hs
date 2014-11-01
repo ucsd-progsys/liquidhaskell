@@ -1,28 +1,19 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
+{-@ LIQUID "--diffcheck"    @-}
 {-@ LIQUID "--no-termination" @-}
 
 module Refinements where
 
-
 import Prelude hiding (map, foldr, foldr1)
 
 
--- wtAverage :: [(Int, Int)] -> Int
-
-divide    :: Int -> Int -> Int
-divide n 0 = dead "div by zero"
-divide n k = n `div` k
-
-
-{-@ dead :: {v:_ | false} -> a @-}
-dead msg = error msg
+wtAverage :: List (Int, Int) -> Int
 
 
 -----------------------------------------------------------------------
 -- | 1. Simple Refinement Types
 -----------------------------------------------------------------------
-
 
 {-@ type Nat = {v:Int | v >= 0} @-}
 {-@ type Pos = {v:Int | v >  0} @-}
@@ -40,17 +31,17 @@ dead msg = error msg
 -----------------------------------------------------------------------
 
 
-{-@ divide :: Int -> Pos -> Int @-}
-divide x 0 = dead "divide-by-zero"
+
+{-@ divide :: _ -> {v:_ | v > 0 } -> Int @-}
+divide     :: Int -> Int -> Int
+divide x 0 = dead 12  -- "divide-by-zero"
 divide x n = x `div` n
+
 
 
 -----------------------------------------------------------------------
 -- | 4. Dividing Safely
 -----------------------------------------------------------------------
-
-{-@ foo :: Int -> Nat -> Int @-}
-foo x y    = divide x y
 
 
 
