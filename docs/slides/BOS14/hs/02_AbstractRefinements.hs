@@ -10,8 +10,8 @@ module AbstractRefinements (
   , insertSort'''
   ) where
 
-import Data.Set hiding (insert, foldr,size) 
-import Prelude hiding (map, foldr)
+import Data.Set hiding (insert, foldr,size,filter, append) 
+import Prelude hiding (map, foldr, filter, append)
 
 listMax     :: [Int] -> Int
 
@@ -136,11 +136,14 @@ ifoldr f b (C x xs) = f xs x (ifoldr f b xs)
 
 
 {-@ insertSort''' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort''' xs = ifoldr (\_ -> insert) N xs
+insertSort''' xs = ifoldr (id (\_ -> insert)) N xs
 
+{-@ append :: xs:List a -> ys:List a -> {v:List a | UnElems v xs ys} @-} 
+append xs ys = ifoldr (\_ -> C) ys xs 
 
-
-
+{-@ filter :: (a -> Bool) -> xs:List a -> {v:List a | SubElems v xs } @-} 
+filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
+   
 -----------------------------------------------------------------------
 -- | Old definitions from 00_Refinements.hs
 -----------------------------------------------------------------------
@@ -158,8 +161,22 @@ foldr f acc N        = acc
 foldr f acc (C x xs) = f x (foldr f acc xs)
 
 
-{-@ predicate EqSize X Y = size X  = size Y @-}
-{-@ predicate EqElem X Y = elems X = elems Y @-}
+{-@ predicate EqSize X Y      = size X  = size Y                      @-}
+{-@ predicate EqElem X Y      = elems X = elems Y                     @-}
+{-@ predicate UnElems X Y Z   = elems X = Set_cup (elems Y) (elems Z) @-}
+{-@ predicate SubElems X Y    = Set_sub (elems X) (elems Y)           @-}
+{-@ predicate SubConsElems X Y Ys = Set_sub (elems X) (Set_cup (Set_sng Y) (elems Ys)) @-}
+
+
+{-@ qual1  :: y:_ -> ys:_ -> {v:_ | SubConsElems v y ys} @-}
+qual1 :: a -> List a -> List a 
+qual1 y ys = undefined 
+
+{-@ qual2  :: y:_ -> ys:_ -> {v:_ | size v <= 1 + size ys} @-}
+qual2 :: a -> List a -> List a 
+qual2 y ys = undefined 
+
+
 
 {-@ predicate AddElt V X Xs = elems V = Set_cup (Set_sng X) (elems Xs) @-}
  
