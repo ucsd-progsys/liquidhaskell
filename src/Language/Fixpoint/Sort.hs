@@ -201,6 +201,9 @@ checkOpTy f e t@(FObj l) t'@(FObj l')
 checkOpTy f e t t'
   = throwError $ errOp e t t'
 
+checkFractional f l
+  = throwError $ errNonFractional l
+
 checkNumeric f l
   = do t <- checkSym f l
        unless (t == FNum) (throwError $ errNonNumeric l)
@@ -241,8 +244,9 @@ checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l') 
 checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
 checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy f _ _ FReal (FObj l)    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l) 
-checkRelTy f _ _ (FObj l) FReal    = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
+checkRelTy f _ _ FReal FReal       = return ()
+checkRelTy f _ _ FReal (FObj l)    = (checkFractional f l) `catchError` (\_ -> throwError $ errNonFractional l) 
+checkRelTy f _ _ (FObj l) FReal    = (checkFractional f l) `catchError` (\_ -> throwError $ errNonFractional l)
 
 checkRelTy _ e Eq t1 t2
   | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
@@ -319,7 +323,9 @@ errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
 errNonFunction t     = printf "Sort %s is not a function" (showFix t)
 
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
-errNonNumerics l l'   = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
+errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
+
+errNonFractional  l  = printf "FObj sort %s is not fractional" (showFix l)
 
 errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
 
