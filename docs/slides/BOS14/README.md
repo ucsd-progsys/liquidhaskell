@@ -8,30 +8,32 @@ Plan
 
 * [10] 02_Measures
     + Show : RBTree-Col-Height.hs
-    + Demo : Elements.hs
+    + Demo : 01_Elements.hs
     ? Show : Eval.hs
 
-* [20] 04_Abstract Refinements
-    + Demo: listMax
+* [5] 04_Abstract Refinements
+    + Demo : 02_AbstractRefinements.hs (listMax)
+	
+* [5] 06_Inductive
+	+ Describe: ?foldn, foldr
+    + Demo:  02_AbstractRefinements.hs (foldr, append, filter)
+	
+* [5] 08_Recursive
+	+ Describe: list-ord
+	+ Demo:  02_AbstractRefinements.hs (insertSort, ifoldr-insertSort)
+	+ Show:  GhcListSort.hs 
 
-    + 06_Inductive
-	  + Describe: ?foldn, foldr
-      + Demo:     foldr, append, filter
+	+ Describe: tree-ord
+	+ Demo:     RBTree-Ord
+	+ Demo:     stream
 
-    + 08_Recursive
-	  + Describe: list-ord
-	  + Demo:     insertSort
-	  + Show:     GHCSort 
-
-	  + Describe: tree-ord
-	  + Demo:     RBTree-Ord
-	  + Demo:     stream
-
-	+ 07_Array
-	  + Describe: Array
-	  + Demo:     KMP
+* [5] 07_Array
+	+ Describe: Array
+	+ Demo:     KMP
   
-* [5]  Results
+* [3] 11_Evaluation.lhs 
+
+* [2] 12_Conclusion.lhs
 
 ----
 
