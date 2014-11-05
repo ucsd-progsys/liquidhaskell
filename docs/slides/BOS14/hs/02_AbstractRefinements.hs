@@ -1,6 +1,7 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diffcheck"      @-}
 
 module AbstractRefinements (
     listMax
@@ -16,7 +17,7 @@ import Prelude hiding (map, foldr, filter, append)
 listMax     :: [Int] -> Int
 
 -----------------------------------------------------------------------
--- | 0. Abstract Refinements 
+-- | #1. Abstract Refinements 
 -----------------------------------------------------------------------
 
 {-@ listMax :: forall <p :: Int -> Prop>. {v:[Int<p>] | len v > 0} -> Int<p> @-} 
@@ -28,7 +29,6 @@ listMax xs  = foldr1 max xs
 {-@ type Even = {v:Int | v mod 2 == 0}      @-}
 {-@ type Odd  = {v:Int | v mod 2 /= 0}      @-}
 {-@ type RGB  = {v:Int | 0 <= v && v < 256} @-}
-
 
 
 {-@ xE :: Even @-}
@@ -44,10 +44,68 @@ xR = listMax [1, 21, 41, 61]
 
 
 
+
+
+
+
+-- > RJ: Return to slides for 06_Inductive
+
+
+
+
+
+
+
+
+
 -----------------------------------------------------------------------
--- | 1. Abstract Refinement from List's Type 
+-- | #2. Induction, as an Abstract Refinement 
 -----------------------------------------------------------------------
 
+
+{-@ ifoldr :: forall a b <p :: List a -> b -> Prop>. 
+                 (xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)>) 
+               -> b<p N> 
+               -> ys:List a
+               -> b<p ys>                            @-}
+ifoldr :: (List a -> a -> b -> b) -> b -> List a -> b
+ifoldr f b N        = b
+ifoldr f b (C x xs) = f xs x (ifoldr f b xs)
+
+{-@ append :: xs:List a -> ys:List a -> {v:List a | UnElems v xs ys} @-} 
+append xs ys = ifoldr (\_ -> C) ys xs 
+
+{-@ filter :: (a -> Bool) -> xs:List a -> {v:List a | SubElems v xs } @-} 
+filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
+
+
+
+
+
+
+-- > RJ: Return to slides for 08_Recursive
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------------------------------------------------
+-- | #2. Abstract Refinement from List's Type 
+-----------------------------------------------------------------------
 
 
 {-@ data List a <p :: a -> a -> Prop> 
@@ -55,11 +113,14 @@ xR = listMax [1, 21, 41, 61]
 
 
 
------------------------------------------------------------------------
--- | 2. Instantiating Abstract Refinements 
------------------------------------------------------------------------
 
 
+
+
+
+-----------------------------------------------------------------------
+-- | 3. Instantiating Abstract Refinements on Lists 
+-----------------------------------------------------------------------
 
 
 {-@ type IncrList a = List <{\x y -> x <= y}> a @-} 
@@ -75,10 +136,8 @@ downs     = 100 `C` 20 `C` 4 `C` N
 {-@ diffs :: DiffList Integer @-}
 diffs     = 100 `C` 1000 `C` 10 `C` 1 `C`  N
 
-
-
 -----------------------------------------------------------------------
--- | 3. Insertion Sort: Revisited
+-- | 4. Insertion Sort
 -----------------------------------------------------------------------
 
 {-@ insert         :: x:_ -> xs:_ -> {v:_ | AddElt v x xs && size v = 1 + size xs} @-}
@@ -87,19 +146,15 @@ insert x (C y ys)
   | x <= y         = x `C` y `C` ys
   | otherwise      = y `C` insert x ys 
 
-
-
-{-@ insertSort      :: xs:List a -> {v:IncrList a | size v = size xs} @-}
+{-@ insertSort      :: xs:List a -> {v:IncrList a | EqElem v xs} @-}
 insertSort N        = N
 insertSort (C x xs) = insert x (insertSort xs)
 
 
 
 -----------------------------------------------------------------------
--- | 3. Insertion Sort: using a `foldr` 
+-- | 5. Insertion Sort: using a `foldr` 
 -----------------------------------------------------------------------
-
-
 
 {-@ insertSort' :: xs:List a -> IncrList a @-}
 insertSort' xs = foldr insert N xs
@@ -107,45 +162,49 @@ insertSort' xs = foldr insert N xs
 
 
 
------------------------------------------------------------------------
--- | 4. But, there are limits...
------------------------------------------------------------------------
+
+
+
+
 
 -- but why is this not ok?
 
 {-@ insertSort'' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort'' xs   = foldr insert N xs
+insertSort'' xs = foldr insert N xs
 
 
--- Hmm. Thats a bummer... How do we type `foldr` to verify the above?
 
 
------------------------------------------------------------------------
--- | 5. Induction, as an Abstract Refinement 
------------------------------------------------------------------------
 
 
-{-@ ifoldr :: forall a b <p :: List a -> b -> Prop>. 
-                 (xs:_ -> x:_ -> b<p xs> -> b<p(C x xs)>) 
-               -> b<p N> 
-               -> ys:List a
-               -> b<p ys>                            @-}
-ifoldr :: (List a -> a -> b -> b) -> b -> List a -> b
-ifoldr f b N        = b
-ifoldr f b (C x xs) = f xs x (ifoldr f b xs)
 
+
+
+
+
+-- we can fix it with ifoldr
 
 {-@ insertSort''' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort''' xs = ifoldr (id (\_ -> insert)) N xs
+insertSort''' xs = ifoldr (\_ -> insert) N xs
 
-{-@ append :: xs:List a -> ys:List a -> {v:List a | UnElems v xs ys} @-} 
-append xs ys = ifoldr (\_ -> C) ys xs 
 
-{-@ filter :: (a -> Bool) -> xs:List a -> {v:List a | SubElems v xs } @-} 
-filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
-   
+
+
+
+
+
+
+
+-- > RJ: Return to slides for "07_Array"
+
+
+
+
+
+
+              
 -----------------------------------------------------------------------
--- | Old definitions from 00_Refinements.hs
+-- | Boilerplate definitions from 00_Refinements.hs
 -----------------------------------------------------------------------
 
 data List a = N | C a (List a)
@@ -160,13 +219,33 @@ size N        = 0
 foldr f acc N        = acc
 foldr f acc (C x xs) = f x (foldr f acc xs)
 
+{-@ predicate EqSize X Y    = size X  = size Y                         @-}
+{-@ predicate EqElem X Y    = elems X = elems Y                        @-}
+{-@ predicate UnElems X Y Z = elems X = Set_cup (elems Y) (elems Z)    @-}
+{-@ predicate SubElems X Y  = Set_sub (elems X) (elems Y)              @-}
+{-@ predicate AddElt V X Xs = elems V = Set_cup (Set_sng X) (elems Xs) @-}
 
-{-@ predicate EqSize X Y      = size X  = size Y                      @-}
-{-@ predicate EqElem X Y      = elems X = elems Y                     @-}
-{-@ predicate UnElems X Y Z   = elems X = Set_cup (elems Y) (elems Z) @-}
-{-@ predicate SubElems X Y    = Set_sub (elems X) (elems Y)           @-}
+{-@ measure elems ::List a -> (Set a)
+    elems (N)      = (Set_empty 0)
+    elems (C x xs) = (Set_cup (Set_sng x) (elems xs))
+  @-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 {-@ predicate SubConsElems X Y Ys = Set_sub (elems X) (Set_cup (Set_sng Y) (elems Ys)) @-}
-
 
 {-@ qual1  :: y:_ -> ys:_ -> {v:_ | SubConsElems v y ys} @-}
 qual1 :: a -> List a -> List a 
@@ -178,9 +257,3 @@ qual2 y ys = undefined
 
 
 
-{-@ predicate AddElt V X Xs = elems V = Set_cup (Set_sng X) (elems Xs) @-}
- 
-{-@ measure elems ::List a -> (Set a)
-    elems (N)      = (Set_empty 0)
-    elems (C x xs) = (Set_cup (Set_sng x) (elems xs))
-  @-}
