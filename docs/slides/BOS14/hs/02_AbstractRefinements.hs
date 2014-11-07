@@ -8,13 +8,14 @@ module AbstractRefinements (
   , insertSort
   , insertSort'
   , insertSort''
-  , insertSort'''
   ) where
 
 import Data.Set hiding (insert, foldr,size,filter, append) 
 import Prelude hiding (map, foldr, filter, append)
 
 listMax     :: [Int] -> Int
+
+
 
 -----------------------------------------------------------------------
 -- | #1. Abstract Refinements 
@@ -72,8 +73,21 @@ ifoldr :: (List a -> a -> b -> b) -> b -> List a -> b
 ifoldr f b N        = b
 ifoldr f b (C x xs) = f xs x (ifoldr f b xs)
 
+
+
+
+
+
+
+
 {-@ append :: xs:List a -> ys:List a -> {v:List a | UnElems v xs ys} @-} 
 append xs ys = ifoldr (\_ -> C) ys xs 
+
+
+
+
+
+
 
 {-@ filter :: (a -> Bool) -> xs:List a -> {v:List a | SubElems v xs } @-} 
 filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
@@ -104,7 +118,7 @@ filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
 
 
 -----------------------------------------------------------------------
--- | #2. Abstract Refinement from List's Type 
+-- | #3. Abstract Refinement from List's Type 
 -----------------------------------------------------------------------
 
 
@@ -119,7 +133,7 @@ filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
 
 
 -----------------------------------------------------------------------
--- | 3. Instantiating Abstract Refinements on Lists 
+-- | #4. Instantiating Abstract Refinements on Lists 
 -----------------------------------------------------------------------
 
 
@@ -137,7 +151,7 @@ downs     = 100 `C` 20 `C` 4 `C` N
 diffs     = 100 `C` 1000 `C` 10 `C` 1 `C`  N
 
 -----------------------------------------------------------------------
--- | 4. Insertion Sort
+-- | 5. Insertion Sort
 -----------------------------------------------------------------------
 
 {-@ insert         :: x:_ -> xs:_ -> {v:_ | AddElt v x xs && size v = 1 + size xs} @-}
@@ -153,7 +167,7 @@ insertSort (C x xs) = insert x (insertSort xs)
 
 
 -----------------------------------------------------------------------
--- | 5. Insertion Sort: using a `foldr` 
+-- | 6. Insertion Sort: using a `foldr` 
 -----------------------------------------------------------------------
 
 {-@ insertSort' :: xs:List a -> IncrList a @-}
@@ -165,28 +179,10 @@ insertSort' xs = foldr insert N xs
 
 
 
-
-
--- but why is this not ok?
+-- Or even better... we can use `ifoldr`
 
 {-@ insertSort'' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort'' xs = foldr insert N xs
-
-
-
-
-
-
-
-
-
-
-
--- we can fix it with ifoldr
-
-{-@ insertSort''' :: xs:List a -> {v:IncrList a | EqSize v xs && EqElem v xs} @-}
-insertSort''' xs = ifoldr (\_ -> insert) N xs
-
+insertSort'' xs = ifoldr (\_ -> insert) N xs
 
 
 
