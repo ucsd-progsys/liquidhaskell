@@ -1,13 +1,12 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
-{-@ LIQUID "--diffcheck"    @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Refinements where
+module Refinements where -- (wtAverage, map, foldr, foldr1, append, append') where
 
 import Prelude hiding (map, foldr, foldr1)
 
-
+divide    :: Int -> Int -> Int
 wtAverage :: List (Int, Int) -> Int
 
 
@@ -15,9 +14,12 @@ wtAverage :: List (Int, Int) -> Int
 -- | 1. Simple Refinement Types
 -----------------------------------------------------------------------
 
-{-@ type Nat = {v:Int | v >= 0} @-}
-{-@ type Pos = {v:Int | v >  0} @-}
+{-@ type Nat     = {v:Int | v >= 0} @-}
+{-@ type Pos     = {v:Int | v >  0} @-}
+{-@ type NonZero = {v:Int | v /= 0} @-}
 
+{-@ six :: Pos @-}
+six = 10 :: Int
 
 -----------------------------------------------------------------------
 -- | 2. Function Contracts: Preconditions & Dead Code 
@@ -31,17 +33,41 @@ dead msg = error msg
 -----------------------------------------------------------------------
 
 
-
-{-@ divide :: _ -> {v:_ | v > 0 } -> Int @-}
-divide     :: Int -> Int -> Int
-divide x 0 = dead 12  -- "divide-by-zero"
+{-@ divide :: Int -> NonZero -> Int @-}
+divide x 0 = dead "divide-by-zero"
 divide x n = x `div` n
 
 
 
+
+avg2 x y   = divide (x+y) 2
+avg3 x y z = divide (x+y+z) 3
+
+
+
+
+
+
 -----------------------------------------------------------------------
--- | 4. Dividing Safely
+-- | But whats the problem here?
 -----------------------------------------------------------------------
+
+avg xs     = divide total n
+  where
+    total  = sum xs
+    n      = length xs
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -55,7 +81,7 @@ infixr 9 `C`
 
  
 -----------------------------------------------------------------------
--- | 4. Measuring the Size of Data
+-- | 5. Measuring the Size of Data
 -----------------------------------------------------------------------
 
 {-@ measure size @-}
@@ -63,62 +89,59 @@ size          :: List a -> Int
 size (C x xs) = 1 + size xs 
 size N        = 0
 
--- data List a where
---   N :: forall a. {v: List a | size v = 0}
---   C :: forall a. x:a -> xs:List a -> {v: List a | size v = 1 + size xs}
-                
+
+{-@ append :: xs:_ -> ys:_ -> {v: _ | size v = size ys + size xs} @-}
+append N        ys = ys
+append (C x xs) ys = C x (append xs ys)
+
 -----------------------------------------------------------------------
--- | 5. A few Higher-Order Functions
+-- | 6. A few Higher-Order Functions
 -----------------------------------------------------------------------
 
-{-@ map              :: (a -> b) -> xs:List a -> {v: List b | size v = size xs} @-}
-map f (N)            = N
-map f (C x xs)       = C (f x) (map f xs) 
+map f (N)      = N
+map f (C x xs) = C (f x) (map f xs) 
 
-{-@ foldr1           :: (a -> a -> a) -> {v: List a | 0 < size v } -> a @-}
+
+foldr                :: (a -> b -> b) -> b -> List a -> b 
+foldr f acc N        = acc
+foldr f acc (C x xs) = f x (foldr f acc xs)
+
+
+
+-- Uh oh. How shall we fix the error?
+
+foldr1               :: (a -> a -> a) -> List a -> a   
 foldr1 f (C x xs)    = foldr f x xs
 foldr1 f N           = dead "foldr1"
 
-foldr f acc N        = acc
-foldr f acc (C x xs) = f x (foldr f acc xs)
- 
+
+
+
+
+
+
 
 -----------------------------------------------------------------------
--- | 5. Weighted-Averages 
+-- | 7. Weighted-Averages 
 -----------------------------------------------------------------------
 
-{-@ wtAverage :: {v : List (Pos, Pos) | size v > 0} -> Int @-}
+-- Yikes, a divide-by-zero. How shall we fix it?
+
 wtAverage wxs = total `divide` weights
   where
     total     = sum $ map (\(w, x) -> w * x) wxs
     weights   = sum $ map (\(w, _) -> w    ) wxs
     sum       = foldr1 (+)
 
-
 -- | Exercise: How would you modify the types to get output `Pos` above? 
 
+
+
+
 -----------------------------------------------------------------------
--- | 5. Ordered Lists: Take 1
+-- | 8. But there are limitations: why does this not work? ...
 -----------------------------------------------------------------------
 
-{- data List a = N | C {x :: a, xs :: List {v:a | x <= v}} @-}
+{-@ append' :: xs:_ -> ys:_ -> {v: _ | size v = size xs + size ys} @-}
+append' xs ys =  foldr C ys xs
 
-okList :: List Int
-okList = 1 `C` 2 `C` 4 `C` N
-
--- Note that adding ordering BREAKS `map`...
-
-
-
-{-@ insert         :: _ -> xs:_ -> {v:_ | size v = 1 + size xs} @-}
-insert x N         = x `C` N
-insert x (C y ys)
-  | x <= y         = x `C` y `C` ys
-  | otherwise      = y `C` insert x ys 
-
-
-
-
-{-@ insertSort     :: (Ord a) => xs:[a] -> {v:List a | size v = len xs} @-}
-insertSort []      = N
-insertSort (x:xs)  = insert x (insertSort xs)

@@ -1,5 +1,5 @@
-{-@ LIQUID "--no-termination"   @-}
-{-@ LIQUID "--diff"             @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diff"           @-}
 
 module Foo where
 
@@ -207,3 +207,7 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ inv :: RBTree a -> {v:RBTree a | Invs v}        @-}
 inv Leaf           = Leaf
 inv (Node c x l r) = Node c x (inv l) (inv r)
+
+{-@ invc :: t:RBTree a -> {v:RBTree a | Invs t }  @-}
+invc Leaf           =  Leaf
+invc (Node c x l r) =  Node c x  (invc l) (invc r)
