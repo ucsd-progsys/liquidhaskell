@@ -17,7 +17,8 @@ divide    :: Int -> Int -> Int
 {-@ type Pos     = {v:Int | v >  0} @-}
 {-@ type NonZero = {v:Int | v /= 0} @-}
 
-{-@ six :: Pos @-}
+
+{-@ six :: NonZero @-}
 six = 10 :: Int
 
 -----------------------------------------------------------------------
@@ -31,6 +32,9 @@ dead msg = error msg
 -- | 3. Function Contracts: Safe Division 
 -----------------------------------------------------------------------
 
+abs :: Int -> Int
+abs x | x > 0     = x
+      | otherwise = 0 - x
 
 {-@ divide :: Int -> NonZero -> Int @-}
 divide x 0 = dead "divide-by-zero"

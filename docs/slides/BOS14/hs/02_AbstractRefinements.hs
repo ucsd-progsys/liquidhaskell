@@ -1,7 +1,6 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--diffcheck"      @-}
 
 module AbstractRefinements (
     listMax
@@ -155,12 +154,14 @@ diffs     = 100 `C` 1000 `C` 10 `C` 1 `C`  N
 -----------------------------------------------------------------------
 
 {-@ insert         :: x:_ -> xs:_ -> {v:_ | AddElt v x xs && size v = 1 + size xs} @-}
+insert :: Int -> List Int -> List Int
 insert x N         = x `C` N
 insert x (C y ys)
   | x <= y         = x `C` y `C` ys
   | otherwise      = y `C` insert x ys 
 
-{-@ insertSort      :: xs:List a -> {v:IncrList a | EqElem v xs} @-}
+{-@ insertSort      :: xs:List Int -> {v:IncrList Int | EqElem v xs} @-}
+insertSort  :: List Int -> List Int
 insertSort N        = N
 insertSort (C x xs) = insert x (insertSort xs)
 
