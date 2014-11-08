@@ -11,10 +11,17 @@ import Data.Set (Set (..))
 
 -- | The set of `elems` of a list
 
+
+
+
+
 {-@ measure elems :: [a] -> (Set a)
     elems ([])    = (Set_empty 0)
     elems (x:xs)  = (Set_cup (Set_sng x) (elems xs))
   @-}
+
+
+
 
 -- | A few handy aliases
 
@@ -72,8 +79,8 @@ elem x (y:ys) = x == y || elem x ys
 -- | 3. Associative Lookups ------------------------------------------------- 
 -----------------------------------------------------------------------------
 
--- | The dread "key-not-found". How can we fix it?
-{-@ find :: key:_ -> {m:_ | ValidKey key m} -> _ @-} 
+-- The dread "key-not-found". How can we fix it?
+{-@ find :: k:_ -> {m:_ | ValidKey k m} -> _ @-}
 find key ((k,v) : kvs)
   | key == k  = v
   | otherwise = find key kvs

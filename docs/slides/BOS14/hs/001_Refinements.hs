@@ -21,6 +21,7 @@ infixr 9 `C`
 -- | A few Higher-Order Functions
 -----------------------------------------------------------------------
 
+{-@ map :: _ -> xs:_ -> {v:_ | size v = size xs} @-}
 map f (N)      = N
 map f (C x xs) = C (f x) (map f xs) 
 
@@ -32,7 +33,7 @@ foldr f acc (C x xs) = f x (foldr f acc xs)
 
 -- Uh oh. How shall we fix the error? Lets move on for now...
 
-foldr1               :: (a -> a -> a) -> List a -> a   
+{-@ foldr1           :: (a -> a -> a) -> {v:List a | size v > 0} -> a @-}   
 foldr1 f (C x xs)    = foldr f x xs
 foldr1 f N           = dead "foldr1"
 
@@ -42,12 +43,13 @@ foldr1 f N           = dead "foldr1"
 -----------------------------------------------------------------------
 
 -- Yikes, a divide-by-zero. How shall we fix it?
-
+{-@ wtAverage :: {v : List (Pos, Pos) | size v > 0} -> Int @-}
 wtAverage wxs = total `divide` weights
   where
     total     = sum $ map (\(w, x) -> w * x) wxs
     weights   = sum $ map (\(w, _) -> w    ) wxs
     sum       = foldr1 (+)
+
 
 -- | Exercise: How would you modify the types to get output `Pos` above? 
 
