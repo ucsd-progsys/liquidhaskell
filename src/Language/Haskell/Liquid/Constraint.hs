@@ -188,7 +188,7 @@ unifyts penv (x, t)     = (x, unify pt t)
 
 measEnv sp xts cbs lts asms hs
   = CGE { loc   = noSrcSpan
-        , renv  = fromListREnv $ second (uRType . val) <$> meas sp
+        , renv  = fromListREnv $ second (val) <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , recs  = S.empty 
