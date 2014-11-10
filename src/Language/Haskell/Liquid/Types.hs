@@ -699,7 +699,6 @@ type RReft      = UReft     Reft
 type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
--- type RefType    = RRType    Reft
 type SpecProp   = RRProp    RReft
 type RRProp r   = Ref       RSort r (RRType r)
 
