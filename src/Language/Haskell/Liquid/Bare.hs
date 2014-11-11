@@ -139,9 +139,11 @@ makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
        return $ sp { tySigs     = tySigs
                    , asmSigs    = asmSigs
                    , ctors      = ctors
-                   , meas       = tx $ ms' ++ varMeasures vars ++ cms' }
+                   , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
+      tx'  = fmap (mapSnd $ fmap uRType)
+
 
 makeGhcSpec2 invs ialias measures su sp
   = return $ sp { invariants = subst su invs 
@@ -1458,7 +1460,7 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
   where 
     errors           =  mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind "measure"     emb tcEnv env) (measSpec   sp)
+                     ++ mapMaybe (checkBind "measure"     emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
@@ -1482,7 +1484,6 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     env              =  ghcSpecEnv sp
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
-    measSpec sp      =  [(x, uRType <$> t) | (x, t) <- meas sp] 
     sigs             =  tySigs sp ++ asmSigs sp
 
 

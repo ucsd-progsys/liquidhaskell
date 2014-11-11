@@ -284,7 +284,7 @@ instance PPrint (CMeasure t) => Show (CMeasure t) where
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
 mapTy f (M n ty eqs) = M n (f ty) eqs
 
-dataConTypes :: MSpec RefType DataCon -> ([(Var, RefType)], [(LocSymbol, RefType)])
+dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
   where 
     measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
@@ -294,7 +294,7 @@ dataConTypes  s = (ctorTys, measTys)
     defsTy      = foldl1' meet . fmap defRefType 
     defsVar     = ctor . safeHead "defsVar" 
 
-defRefType :: Def DataCon -> RefType
+defRefType :: Def DataCon -> RRType Reft
 defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
