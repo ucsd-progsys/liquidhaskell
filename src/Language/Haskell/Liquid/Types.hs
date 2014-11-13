@@ -74,7 +74,7 @@ module Language.Haskell.Liquid.Types (
   , BSort, BPVar
 
   -- * Instantiated RType
-  , BareType, RefType, PrType
+  , BareType, PrType
   , SpecType, SpecProp 
   , RSort
   , UsedPVar, RPVar, RReft
@@ -337,7 +337,7 @@ data GhcSpec = SP {
   , asmSigs    :: ![(Var, Located SpecType)]     -- ^ Assumed Reftypes
   , ctors      :: ![(Var, Located SpecType)]     -- ^ Data Constructor Measure Sigs
                                                  -- eg.  (:) :: a -> xs:[a] -> {v: Int | v = 1 + len(xs) }
-  , meas       :: ![(Symbol, Located RefType)]   -- ^ Measure Types  
+  , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types  
                                                  -- eg.  len :: [a] -> Int
   , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
 
@@ -699,7 +699,6 @@ type RReft      = UReft     Reft
 type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft 
-type RefType    = RRType    Reft
 type SpecProp   = RRProp    RReft
 type RRProp r   = Ref       RSort r (RRType r)
 
