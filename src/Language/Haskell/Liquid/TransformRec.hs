@@ -15,7 +15,6 @@ import           Control.Arrow       (second, (***))
 import           Control.Monad.State
 import           CoreLint
 import           CoreSyn
-import           CoreSubst
 import qualified Data.HashMap.Strict as M
 import           ErrUtils
 import           Id                  (idOccInfo, setIdInfo)
@@ -46,15 +45,14 @@ transformRecExpr cbs
         pg     = inlineFailCases pg0
 
 
-inlineFailCases pg = substExpr [] su pg'
+inlineFailCases :: CoreProgram -> CoreProgram
+inlineFailCases = (go [] <$>)
   where 
-    (pg', su) = runState act emptySubst
-    act       = mapM (go []) pg 
     go su (Rec xes)    = Rec (mapSnd (go' su) <$> xes)
     go su (NonRec x e) = NonRec x (go' su e)
 
     go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e  
-    go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x ex su) e
+    go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x ex su) (go' su e)
 
     go' su (App e1 e2)      = App (go' su e1) (go' su e2)
     go' su (Lam x e)        = Lam x (go' su e)
@@ -62,7 +60,7 @@ inlineFailCases pg = substExpr [] su pg'
     go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt) 
     go' su (Cast e c)       = Cast (go' su e) c
     go' su (Tick t e)       = Tick t (go' su e)
-    go' su e = e
+    go' su e                = e
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
@@ -70,7 +68,7 @@ inlineFailCases pg = substExpr [] su pg'
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
-    addFailExpr x e         _  = error "Internal Error"
+    addFailExpr x e         _  = error "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
