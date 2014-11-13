@@ -64,7 +64,7 @@ inlineFailCases = (go [] <$>)
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
-    isFailId x  = isLocalId x && L.isPrefixOf "fail" (show x)
+    isFailId x  = isLocalId x && L.isPrefixOf "#fail" (show x)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
