@@ -1,14 +1,24 @@
 Todo
 ----
 
-(Common)
+- CREATE 00_Motivation_Bugs.lhs **TUFTS**
+  + sequence, BUGs, 1984, etc.
 
-+ Create 03_Memory.lhs (and associated demo file) from eseidel's BS demo.
-+ Update 10_Termination.lhs (to mirror sequence in 03_Termination.hs)
+- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
 
-(Tufts)
+- CREATE 03_Memory.lhs **TUFTS,BOS**
+  + and associated demo file, from eseidel's BS demo.
 
-+ Create intro sequence, BUGs, 1984, etc.
+- UPDATE 11_Evaluation.lhs **TUFTS,BOS** 
+	+ Add bits about "comments" ---> "types"
+  
+- UPDATE 09_Laziness.lhs **BOS**
+  + use simpler example
+  + show SUBTYPING constraints/FALSE
+  
+- UPDATE 10_Termination.lhs **BOS**
+  + mirror sequence in 03_Termination.hs
+
 
 BOS-Haskell Plan
 ----------------
@@ -88,8 +98,6 @@ Tufts Plan
 		  TODO: Define, show OK tree, show BAD tree.
 
 * [10] 03_Memory
-
-
 
 * [3]  11_Evaluation.lhs 
 		+ Add bits about "comments" ---> "types"
