@@ -25,6 +25,7 @@ import           Type                (mkForAllTys)
 import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
+import           Name (isSystemName)
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Haskell.Liquid.Misc (mapSndM)
 import           Language.Fixpoint.Misc       (mapSnd)
@@ -64,7 +65,7 @@ inlineFailCases = (go [] <$>)
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
-    isFailId x  = isLocalId x && L.isPrefixOf "#fail" (show x)
+    isFailId x  = isLocalId x && (isSystemName $ varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
