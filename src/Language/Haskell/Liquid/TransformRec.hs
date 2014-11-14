@@ -27,9 +27,12 @@ import           Unique              hiding (deriveUnique)
 import           Var
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Haskell.Liquid.Misc (mapSndM)
+import           Language.Fixpoint.Misc       (mapSnd)
 
 import           Data.List                (foldl', isInfixOf)
 import           Control.Applicative      ((<$>))
+
+import qualified Data.List as L
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
@@ -37,8 +40,35 @@ transformRecExpr cbs
   =  {-trace "new cbs"-} pg 
   | otherwise 
   = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
-  where pg     = evalState (transPg cbs) initEnv
+  where pg0    = evalState (transPg cbs) initEnv
         (_, e) = lintCoreBindings [] pg
+        pg     = inlineFailCases pg0
+
+
+inlineFailCases :: CoreProgram -> CoreProgram
+inlineFailCases = (go [] <$>)
+  where 
+    go su (Rec xes)    = Rec (mapSnd (go' su) <$> xes)
+    go su (NonRec x e) = NonRec x (go' su e)
+
+    go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e  
+    go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x ex su) (go' su e)
+
+    go' su (App e1 e2)      = App (go' su e1) (go' su e2)
+    go' su (Lam x e)        = Lam x (go' su e)
+    go' su (Let xs e)       = Let (go su xs) (go' su e)
+    go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt) 
+    go' su (Cast e c)       = Cast (go' su e) c
+    go' su (Tick t e)       = Tick t (go' su e)
+    go' su e                = e
+
+    goalt su (c, xs, e)     = (c, xs, go' su e)
+
+    isFailId x  = isLocalId x && L.isPrefixOf "#fail" (show x)
+    getFailExpr = L.lookup
+
+    addFailExpr x (Lam _ e) su = (x, e):su 
+    addFailExpr x e         _  = error "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
