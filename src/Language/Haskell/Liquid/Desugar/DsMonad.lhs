@@ -341,7 +341,7 @@ newPredVarDs pred
  
 newSysLocalDs, newFailLocalDs :: Type -> DsM Id
 newSysLocalDs  = mkSysLocalM (fsLit "ds")
-newFailLocalDs = mkSysLocalM (fsLit "#fail")
+newFailLocalDs = mkSysLocalM (fsLit "fail")
 
 newSysLocalsDs :: [Type] -> DsM [Id]
 newSysLocalsDs tys = mapM newSysLocalDs tys
