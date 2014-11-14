@@ -25,6 +25,7 @@ import           Type                (mkForAllTys)
 import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
+import           Name (isSystemName)
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Haskell.Liquid.Misc (mapSndM)
 import           Language.Fixpoint.Misc       (mapSnd)
@@ -39,7 +40,7 @@ transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e
   =  {-trace "new cbs"-} pg 
   | otherwise 
-  = error (showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
+  = error ("INITIAL\n" ++ showPpr pg0 ++ "\nTRANSFORMED\n" ++ showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
   where pg0    = evalState (transPg cbs) initEnv
         (_, e) = lintCoreBindings [] pg
         pg     = inlineFailCases pg0
@@ -52,7 +53,7 @@ inlineFailCases = (go [] <$>)
     go su (NonRec x e) = NonRec x (go' su e)
 
     go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e  
-    go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x ex su) (go' su e)
+    go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x (go' su ex) su) e
 
     go' su (App e1 e2)      = App (go' su e1) (go' su e2)
     go' su (Lam x e)        = Lam x (go' su e)
@@ -64,7 +65,7 @@ inlineFailCases = (go [] <$>)
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
-    isFailId x  = isLocalId x && L.isPrefixOf "#fail" (show x)
+    isFailId x  = isLocalId x && (isSystemName $ varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
