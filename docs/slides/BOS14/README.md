@@ -4,10 +4,10 @@ Todo
 - CREATE 00_Motivation_Bugs.lhs **TUFTS**
   + sequence, BUGs, 1984, etc.
 
-- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
-
 - CREATE 03_Memory.lhs **TUFTS,BOS**
   + and associated demo file, from eseidel's BS demo.
+
+- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
 
 - UPDATE 11_Evaluation.lhs **TUFTS,BOS** 
 	+ Add bits about "comments" ---> "types"
@@ -18,6 +18,7 @@ Todo
   
 - UPDATE 10_Termination.lhs **BOS**
   + mirror sequence in 03_Termination.hs
+
 
 
 BOS-Haskell Plan
