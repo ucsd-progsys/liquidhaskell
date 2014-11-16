@@ -20,6 +20,18 @@ Todo
   + mirror sequence in 03_Termination.hs
 
 
+-- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits
+-- the check for the empty case, which is good for performance, but
+-- there is an obligation on the programmer to provide a proof that the
+-- ByteString is non-empty.
+{-@ unsafeHead :: ByteStringNE -> Char @-}
+unsafeHead :: ByteString -> Char
+unsafeHead  = w2c . B.unsafeHead
+{-# INLINE unsafeHead #-}
+
+
+type ByteStringNE = {v:ByteString | 0 < bLength v}
+
 
 BOS-Haskell Plan
 ----------------
