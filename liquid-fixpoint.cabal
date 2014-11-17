@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.2.0.0
+version:             0.2.1.0
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
 license:             BSD3
@@ -24,7 +24,7 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  3. Code for parsing the results from the fixpoint.native binary
                  .
-                 4. The Ocaml fixpoint code
+                 4. The Ocaml fixpoint code and pre-compiled binaries
                  .
                  5. (Deprecated) Z3 binaries if you want to link against the API.
                  .
@@ -32,9 +32,11 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  In addition to the .cabal dependencies you require 
                  .
-                 - A Recent Ocaml compiler
+                 - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
+                   If on Windows, please make sure to place the binary and any associated DLLs
+                   in your "cabal/bin" folder, right next to the fixpoint.native.exe binary.
                  .
-                 - A Z3 Binary (<http://z3.codeplex.com>)
+                 - An ocaml compiler (if installing with -fbuild-external).
 
 Extra-Source-Files: configure
                   , external/fixpoint/Makefile
