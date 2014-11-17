@@ -1,17 +1,18 @@
 Todo
 ----
 
-- CREATE 00_Motivation_Bugs.lhs **TUFTS**
++ CREATE 00_Motivation_Bugs.lhs **TUFTS**
   + sequence, BUGs, 1984, etc.
-
-- CREATE 03_Memory.lhs **TUFTS,BOS**
-  + and associated demo file, from eseidel's BS demo.
-
-- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
 
 - UPDATE 11_Evaluation.lhs **TUFTS,BOS** 
 	+ Add bits about "comments" ---> "types"
-  
+ 
+- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
+
+  **HEREHEREHERE**
+- CREATE 03_Memory.lhs **TUFTS,BOS**
+  + and associated demo file, from eseidel's BS demo.
+
 - UPDATE 09_Laziness.lhs **BOS**
   + use simpler example
   + show SUBTYPING constraints/FALSE
@@ -32,6 +33,18 @@ unsafeHead  = w2c . B.unsafeHead
 
 type ByteStringNE = {v:ByteString | 0 < bLength v}
 
+
+-- | Unsafe 'ByteString' index (subscript) operator, starting from 0, returning a 'Word8'
+-- This omits the bounds check, which means there is an accompanying
+-- obligation on the programmer to ensure the bounds are checked in some
+-- other way.
+
+{-@ type OkIdx B = {v:Nat | v < bLength B} @-}
+
+{-@ unsafeIndex :: b:ByteString -> OkIdx b -> Word8 @-}
+unsafeIndex :: ByteString -> Int -> Word8
+unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
+    inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
 
 BOS-Haskell Plan
 ----------------
@@ -85,15 +98,12 @@ Tufts Plan
 		+ SLAMMER
 		+ NORTHEAST BlackOut
 		+ 2014: GotoFail, HeartBleed, ShellShock.
-
 	    + 1984
-
 	    "In the end we shall make thoughtcrime literally
 		 impossible, because there will be no words to express it."
-
 		+ George Orwell, "1984"
-	    + NEWSPEAK "++ungood";
-		+ HASKELL 	
+	    - NEWSPEAK "++ungood";
+		- HASKELL 	
 
 * [5]  00_Motivation: "Well typed Program Go Wrong"
 	    + No heartbleed because, well no one cares. yet.
