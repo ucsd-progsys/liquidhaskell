@@ -12,7 +12,7 @@ The package includes:
 1. Types for Expressions, Predicates, Constraints, Solutions
 2. Code for serializing the above 
 3. Code for parsing the results from the fixpoint.native binary
-4. The Ocaml fixpoint code
+4. The Ocaml fixpoint code and pre-compiled binaries
 5. (Deprecated) Z3 binaries if you want to link against the API.
 
 Requirements
@@ -20,13 +20,11 @@ Requirements
 
 In addition to the .cabal dependencies you require 
 
-- Recent Ocaml compiler
+- A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
+  If on Windows, please make sure to place the binary and any associated DLLs
+  in your "cabal/bin" folder, right next to the fixpoint.native.exe binary.
 
-One of:
-
-- [Z3 Binary](http://z3.codeplex.com/) Version >= 4.3.2
-
-Make sure that the `z3` executable is available on your $PATH
+- An ocaml compiler (if installing with -fbuild-external).
 
 How To Build and Install
 ------------------------
