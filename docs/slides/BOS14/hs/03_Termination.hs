@@ -31,14 +31,14 @@ gcd a 0 = a
 gcd a b = gcd b (a `mod` b)
 
 
-{-@ mod :: a:Nat -> b:{v:Nat| ((v < a) && (v > 0))} -> {v:Nat | v < b} @-}
+{-@ mod :: a:Nat -> b:{v:Nat| 0 < v && v < a} -> {v:Nat | v < b} @-}
 mod :: Int -> Int -> Int
 mod a b | a - b >  b = mod (a - b) b
         | a - b <  b = a - b
         | a - b == b = 0
 
 -------------------------------------------------------------------------
--- Explicit Metrics #1 
+-- | Explicit Metrics #1 
 -------------------------------------------------------------------------
 
 {-@ tfac :: Nat -> n:Nat -> Nat / [n] @-}
@@ -66,12 +66,12 @@ range lo hi
 
 data List a = N | C a (List a)
 
-{-@ measure sz  :: List a -> Int 
-    sz (C x xs) = 1 + (sz xs)
-    sz (N)      = 0
-  @-}
+{-@ measure size @-}
+size :: List a -> Int 
+size (C x xs) = 1 + size xs
+size (N)      = 0
 
-{-@ map :: (a -> b) -> xs:List a -> (List b) / [sz xs] @-}
+{-@ map :: (a -> b) -> xs:List a -> (List b) / [size xs] @-}
 map _ N        = N
 map f (C x xs) = f x `C` map f xs
 
@@ -81,7 +81,7 @@ map f (C x xs) = f x `C` map f xs
 -- | Default Metrics
 -------------------------------------------------------------------------
 
-{-@ data List [sz] a = N | C {x :: a, xs :: List a } @-}
+{-@ data List [size] a = N | C {x :: a, xs :: List a } @-}
 
 map' _ N        = N
 map' f (C x xs) = f x `C` map' f xs
@@ -92,7 +92,7 @@ map' f (C x xs) = f x `C` map' f xs
 -- | Termination Expressions Metrics
 -------------------------------------------------------------------------
 
-{-@ merge :: xs:_ -> ys:_ -> _ / [sz xs + sz ys] @-}
+{-@ merge :: xs:_ -> ys:_ -> _ / [size xs + size ys] @-}
 
 merge (C x xs) (C y ys)
   | x < y      = x `C` merge xs (y `C` ys)
@@ -111,7 +111,7 @@ merge _   ys   = ys
 -- | Infinite Streams
 -------------------------------------------------------------------------
 
-{-@ data List [sz] a <p :: List a -> Prop>
+{-@ data List [size] a <p :: List a -> Prop>
       = N | C { x  :: a
               , xs :: List <p> a <<p>>
               }
@@ -131,7 +131,7 @@ repeat   :: a -> List a
 repeat x = x `C` repeat x
 
 
-{-@ take        :: n:Nat -> Stream a -> {v:List a | sz v = n} @-}
+{-@ take        :: n:Nat -> Stream a -> {v:List a | size v = n} @-}
 take 0 _        = N
 take n (C x xs) = x `C` take (n-1) xs
 take _ N        = liquidError "never happens"
@@ -167,7 +167,7 @@ take _ N        = liquidError "never happens"
 
 -----------------------------------------------------
 take            :: Int -> List a -> List a
-{-@ invariant {v : List a | 0 <= sz v} @-}
+{-@ invariant {v : List a | 0 <= size v} @-}
 
 
 

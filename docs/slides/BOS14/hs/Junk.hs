@@ -3,7 +3,8 @@
 {-@ LIQUID "--no-termination" @-}
 
 module AbstractRefinements (
-    listMax
+    foo 
+  , listMax
   , insertSort
   , insertSort'
   , insertSort''
@@ -12,15 +13,13 @@ module AbstractRefinements (
 import Data.Set hiding (insert, foldr,size,filter, append) 
 import Prelude hiding (map, foldr, filter, append)
 
-listMax     :: [Int] -> Int
-
-
 
 -----------------------------------------------------------------------
 -- | #1. Abstract Refinements 
 -----------------------------------------------------------------------
 
 {-@ listMax :: forall <p :: Int -> Prop>. {v:[Int<p>] | len v > 0} -> Int<p> @-} 
+listMax     :: [Int] -> Int
 listMax xs  = foldr1 max xs 
 
 
