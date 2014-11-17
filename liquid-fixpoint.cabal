@@ -98,7 +98,7 @@ Executable fixpoint.native
                , containers
                , deepseq
                , directory
-               , filemanip
+               -- , filemanip
                , filepath
                , mtl
                , parsec
@@ -124,7 +124,7 @@ Executable fixpoint
                , containers
                , deepseq
                , directory
-               , filemanip
+               -- , filemanip
                , filepath
                , mtl
                , parsec

@@ -22,9 +22,9 @@ module Language.Fixpoint.Files (
   , getFixpointPath, getZ3LibPath
 
   -- * Various generic utility functions for finding and removing files
-  , getHsTargets
+  -- , getHsTargets
   , getFileInDirs
-  , findFileInDirs
+  -- , findFileInDirs
   , copyFiles
 
 ) where
@@ -37,14 +37,17 @@ import           Data.Maybe                   (fromMaybe)
 import           System.Directory
 import           System.Environment
 import           System.FilePath
-import           System.FilePath.Find
+-- import           System.FilePath.Find
 import           Language.Fixpoint.Misc
 
 ------------------------------------------------------------
 -- | Hardwired Paths and Files -----------------------------
 ------------------------------------------------------------
 
-getFixpointPath = fromMaybe msg <$> findExecutable "fixpoint.native"
+getFixpointPath = fromMaybe msg . msum <$>
+                  sequence [ findExecutable "fixpoint.native"
+                           , findExecutable "fixpoint.native.exe"
+                           ]
   where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
 getZ3LibPath    = dropFileName <$> getFixpointPath
@@ -149,15 +152,15 @@ copyFiles srcs tgt
 
 ----------------------------------------------------------------------------------
 
-getHsTargets p = mapM canonicalizePath =<< files
-  where
-    files
-      | hasTrailingPathSeparator p = getHsSourceFiles p
-      | otherwise                  = return [p]
+-- getHsTargets p = mapM canonicalizePath =<< files
+--   where
+--     files
+--       | hasTrailingPathSeparator p = getHsSourceFiles p
+--       | otherwise                  = return [p]
 
-getHsSourceFiles = find dirs hs
-  where hs   = extension ==? ".hs" ||? extension ==? ".lhs"
-        dirs = liftM (not . ("dist" `isSuffixOf`)) directory
+-- getHsSourceFiles = find dirs hs
+--   where hs   = extension ==? ".hs" ||? extension ==? ".lhs"
+--         dirs = liftM (not . ("dist" `isSuffixOf`)) directory
 
 ---------------------------------------------------------------------------
 
@@ -165,7 +168,7 @@ getHsSourceFiles = find dirs hs
 getFileInDirs :: FilePath -> [FilePath] -> IO (Maybe FilePath)
 getFileInDirs name = findFirst (testM doesFileExist . (</> name))
 
-findFileInDirs ::  FilePath -> [FilePath] -> IO FilePath
-findFileInDirs file dirs
-  = liftM (fromMaybe err) (findFirst (find always (fileName ==? file)) dirs)
-    where err = errorstar $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs
+-- findFileInDirs ::  FilePath -> [FilePath] -> IO FilePath
+-- findFileInDirs file dirs
+--   = liftM (fromMaybe err) (findFirst (find always (fileName ==? file)) dirs)
+--     where err = errorstar $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs

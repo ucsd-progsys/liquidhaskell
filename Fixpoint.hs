@@ -38,7 +38,7 @@ config = Config {
   &= verbosity
   &= program "fixpoint" 
   &= help    "Predicate Abstraction Based Horn-Clause Solver" 
-  &= summary "fixpoint © Copyright 2009-13 Regents of the University of California." 
+  &= summary "fixpoint Copyright 2009-13 Regents of the University of California." 
   &= details [ "Predicate Abstraction Based Horn-Clause Solver"
              , ""
              , "To check a file foo.fq type:"
@@ -50,7 +50,7 @@ getOpts = do md <- cmdArgs config
              putStrLn $ banner md
              return md
 
-banner args =  "Liquid-Fixpoint © Copyright 2009-13 Regents of the University of California.\n" 
+banner args =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n" 
             ++ "All Rights Reserved.\n"
 
 ---------------------------------------------------------------------------------
