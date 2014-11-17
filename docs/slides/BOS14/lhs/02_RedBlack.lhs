@@ -16,16 +16,14 @@ import Language.Haskell.Liquid.Prelude
 
 ok, bad1, bad2 :: RBTree Int
 
+{-@ ok, bad1, bad2 :: RBT Int @-}
+
 ---------------------------------------------------------------------------
 -- | Specifications -------------------------------------------------------
 ---------------------------------------------------------------------------
 
--- | Ordered Red-Black Trees
-
-{-@ type ORBT a = RBTree <{\root v -> v < root }, {\root v -> v > root}> a @-}
-
 -- | Red-Black Trees
-{-@ type RBT a    = {v: ORBT a | isRB v && isBH v } @-}
+{-@ type RBT a    = {v: RBTree a | isRB v && isBH v } @-}
 
 {-@ measure isRB        :: RBTree a -> Prop
     isRB (Leaf)         = true
@@ -33,7 +31,7 @@ ok, bad1, bad2 :: RBTree Int
   @-}
 
 -- | Almost Red-Black Trees
-{-@ type ARBT a    = {v: ORBT a | isARB v && isBH v} @-}
+{-@ type ARBT a    = {v: RBTree a | isARB v && isBH v} @-}
 
 {-@ measure isARB        :: (RBTree a) -> Prop
     isARB (Leaf)         = true 
@@ -64,34 +62,13 @@ ok, bad1, bad2 :: RBTree Int
     bh (Node c x l r) = bh l + if (c == R) then 0 else 1 
   @-}
 
+
 -- | Binary Search Ordering
-{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
-            = Leaf
-            | Node (c     :: Color)
-                   (key   :: a)
-                   (left  :: RBTree <l, r> (a <l key>))
-                   (right :: RBTree <l, r> (a <r key>))
-  @-}
-
--------------------------------------------------------------------------------
--- Auxiliary Invariants -------------------------------------------------------
--------------------------------------------------------------------------------
-
-{-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
-{-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
-{-@ predicate Inv2 V = isRB v => isARB v            @-}
-{-@ predicate Inv3 V = 0 <= bh v                    @-}
-{-@ invariant {v: Color | v = R || v = B}           @-}
-{-@ invariant {v: RBTree a | Invs v}                @-}
-
-{-@ inv :: RBTree a -> {v:RBTree a | Invs v}        @-}
-inv Leaf           = Leaf
-inv (Node c x l r) = Node c x (inv l) (inv r)
-
-{-@ invc :: t:RBTree a -> {v:RBTree a | Invs t }  @-}
-invc Leaf           =  Leaf
-invc (Node c x l r) =  Node c x  (invc l) (invc r)
-  
+{-@ data RBTree a = Leaf
+      | Node { c     :: Color
+             , key   :: a
+             , left  :: RBTree ({v:a | v < key})
+             , right :: RBTree ({v:a | key < v}) } @-}
 \end{code}
 
 </div>
@@ -102,10 +79,11 @@ invc (Node c x l r) =  Node c x  (invc l) (invc r)
 ---------
 
 <img src="../img/RedBlack.png" height=300px>
+
 + <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
 + <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on *all paths*</div>
 + <div class="fragment">**Order Invariant:** Left keys < root < Right keys </div>
-<br>
+
 
 Basic Type 
 ----------
@@ -113,12 +91,11 @@ Basic Type
 \begin{code}
 data Color = R | B
 
-data RBTree a
-  = Leaf
-  | Node { c     :: Color
-         , key   :: a
-         , left  :: RBTree a 
-         , right :: RBTree a }
+data RBTree a = Leaf
+              | Node { c     :: Color
+                     , key   :: a
+                     , left  :: RBTree a 
+                     , right :: RBTree a }
 \end{code}
 
 
@@ -131,7 +108,7 @@ data RBTree a
 \begin{spec}
 measure isRB        :: Tree a -> Prop
 isRB (Leaf)         = true
-isRB (Node c x l r) = c = R => (isB l && isB r)
+isRB (Node c x l r) = c == R => (isB l && isB r)
                       && isRB l && isRB r
 \end{spec}
 </div>
@@ -144,6 +121,8 @@ isB (Leaf)          = true
 isB (Node c x l r)  = c == B
 \end{spec}
 </div>
+
+<!-- BEGIN CUT
 
 1. *Almost* Color Invariant 
 ---------------------------
@@ -162,6 +141,7 @@ isAlmost (Node c x l r) = isRB l && isRB r
 \end{spec}
 </div>
 
+END CUT -->
 
 2. Height Invariant
 -------------------
@@ -172,7 +152,7 @@ Number of `Black` nodes equal on **all paths**
 \begin{spec} 
 measure isBH        :: RBTree a -> Prop
 isBH (Leaf)         =  true
-isBH (Node c x l r) =  bh l = bh r 
+isBH (Node c x l r) =  bh l == bh r 
                     && isBH l && isBH r 
 \end{spec}
 </div>
@@ -185,14 +165,12 @@ where
 measure bh        :: RBTree a -> Int
 bh (Leaf)         = 0
 bh (Node c x l r) = bh l 
-                  + if c = Red then 0 else 1
+                  + if c == R then 0 else 1
 \end{spec}
 </div>
 
 3. Order Invariant
 ------------------
-
-<br>
 
 **Binary Search Ordering**
 
@@ -210,62 +188,55 @@ data RBTree a
 Valid Red-Black Trees
 ---------------------
 
-\begin{spec}
--- Red-Black Trees
-type RBT a  = {v:RBTree a | isRB v && isBH v}
+<br>
 
--- Almost Red-Black Trees
-type ARBT a = {v:RBTree a | isAlmost v && isBH v}
+**Conjoining Specifications**
+
+<br>
+
+\begin{spec}
+type RBT a  = {v:RBTree a | isRB v && isBH v}
 \end{spec}
 
 <br>
 
 [Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
 
-Example: OK Tree
-----------------
-
-**Satisfies All Invariants**
+Ex: Satisfies Invariants
+-------------------------
 
 <img src="../img/rbtree-ok.png" height=200px>
 
 <br>
 
 \begin{code}
-{-@ ok :: RBT Int @-}
 ok = Node R 2 
           (Node B 1 Leaf Leaf)
           (Node B 3 Leaf Leaf)
 \end{code}
 
 
-Example: Bad Tree
------------------
-
-**Violates Order Invariant**
+Ex: Violates Order Invariant
+----------------------------
 
 <img src="../img/rbtree-bad1.png" height=200px>
 
 <br>
 
 \begin{code}
-{-@ bad1 :: RBT Int @-}
 bad1 = Node R 1
           (Node B 2 Leaf Leaf)
           (Node B 3 Leaf Leaf)
 \end{code}
 
-Example: Bad Tree
------------------
-
-**Violates Color Invariant**
+Ex: Violates Color Invariant
+----------------------------
 
 <img src="../img/rbtree-bad2.png" height=200px>
 
 <br>
 
 \begin{code}
-{-@ bad2 :: RBT Int @-}
 bad2 = Node R 2
          (Node R 1 Leaf Leaf)
          (Node B 3 Leaf Leaf)
