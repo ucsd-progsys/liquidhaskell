@@ -67,9 +67,14 @@ Extra-Source-Files: configure
                   , external/z3/ocaml/build-lib.sh
                   , external/z3/ocaml/z3.ml
                   , external/z3/ocaml/*.c
+                  , external/fixpoint/fixpoint.native-*
 
 Flag z3mem
   Description: Link to Z3
+  Default:     False
+
+Flag build-external
+  Description: Build fixpoint.native binary from source (requires ocaml)
   Default:     False
 
 Source-Repository head
