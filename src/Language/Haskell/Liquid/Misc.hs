@@ -48,9 +48,9 @@ third3 f (a,b,c) = (a,b,f c)
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : (zip4 xs1 xs2 xs3 xs4) 
 zip4 _ _ _ _                             = []
 
-getIncludeDir = dropFileName <$> getDataFileName "include/Prelude.spec"
-getCssPath    = getDataFileName "syntax/liquid.css"
-getHqBotPath  = getDataFileName "include/Bot.hquals"
+getIncludeDir = dropFileName <$> (getDataFileName $ "include" </> "Prelude.spec")
+getCssPath    = getDataFileName $ "syntax" </> "liquid.css"
+getHqBotPath  = getDataFileName $ "include" </> "Bot.hquals"
 
 
 maximumWithDefault zero [] = zero
