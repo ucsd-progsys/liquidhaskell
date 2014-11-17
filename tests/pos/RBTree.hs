@@ -187,10 +187,10 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
             = Leaf
-            | Node (c    :: Color)
-                   (key  :: a)
-                   (left :: RBTree <l, r> (a <l key>))
-                   (left :: RBTree <l, r> (a <r key>))
+            | Node (c     :: Color)
+                   (key   :: a)
+                   (left  :: RBTree <l, r> (a <l key>))
+                   (right :: RBTree <l, r> (a <r key>))
   @-}
 
 -------------------------------------------------------------------------------

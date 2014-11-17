@@ -122,7 +122,7 @@ filter f xs = ifoldr (id (\_ x ys -> if f x then C x ys else ys)) N xs
 
 
 {-@ data List a <p :: a -> a -> Prop> 
-     = N | C {x :: a, xs :: List<p> a<p x>} @-}
+     = N | C {hd :: a, tl :: List<p> (a<p hd>) } @-}
 
 
 
@@ -153,19 +153,15 @@ diffs     = 100 `C` 1000 `C` 10 `C` 1 `C`  N
 -- | 5. Insertion Sort
 -----------------------------------------------------------------------
 
-{-@ insert         :: x:_ -> xs:_ -> {v:_ | AddElt v x xs && size v = 1 + size xs} @-}
-insert :: Int -> List Int -> List Int
+{-@ insert         :: x:a -> xs:IncrList a -> {v:IncrList a | AddElt v x xs && size v = 1 + size xs} @-}
 insert x N         = x `C` N
 insert x (C y ys)
-  | x <= y         = x `C` y `C` ys
+  | x < y          = x `C` y `C` ys
   | otherwise      = y `C` insert x ys 
 
-{-@ insertSort      :: xs:List Int -> {v:IncrList Int | EqElem v xs} @-}
-insertSort  :: List Int -> List Int
+{-@ insertSort      :: xs:List a -> IncrList a @-}
 insertSort N        = N
 insertSort (C x xs) = insert x (insertSort xs)
-
-
 
 -----------------------------------------------------------------------
 -- | 6. Insertion Sort: using a `foldr` 
