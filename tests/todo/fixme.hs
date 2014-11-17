@@ -5,17 +5,24 @@ data RBTree a = Leaf
 
 data Color = B | R 
 
-ok :: RBTree Int
-
 {-@ ok :: { v: RBTree Int | false} @-}
-ok = Node R 2
+ok = Node R (2 :: Int)
          (Node B 1 Leaf Leaf)
          (Node B 3 Leaf Leaf)
 
-{-@ data RBTree a <l :: a -> a -> Prop, r :: a -> a -> Prop>
-            = Leaf
-            | Node { c    :: Color
-                   , key  :: a
-                   , left :: RBTree <l, r> (a <l key>)
-                   , left :: RBTree <l, r> (a <r key>) }
+{-@ data RBTree a = Leaf
+                  | Node { c    :: Color
+                         , key  :: a
+                         , left :: RBTree a 
+                         , left :: RBTree a 
+                         }
   @-}
+
+
+{- data RBTree a = Leaf
+                  | Node { c    :: Color
+                         , key  :: a
+                         , left :: RBTree ({v:a | v < key})
+                         , left :: RBTree ({v:a | key < v})
+                         }
+  -}
