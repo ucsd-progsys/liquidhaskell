@@ -4,14 +4,18 @@ Todo
 + CREATE 00_Motivation_Bugs.lhs **TUFTS**
   + sequence, BUGs, 1984, etc.
 
-- UPDATE 11_Evaluation.lhs **TUFTS,BOS** 
++ UPDATE 11_Evaluation.lhs **TUFTS,BOS** 
 	+ Add bits about "comments" ---> "types"
  
-- CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
+**HEREHEREHERE**
+--> CREATE HARDWIRED-RED-BLACK-BST.lhs **TUFTS**
+--> INV 1: COLOR
+--> INV 2: HEIGHT
+--> INV 3: ORDER
 
-  **HEREHEREHERE**
 - CREATE 03_Memory.lhs **TUFTS,BOS**
   + and associated demo file, from eseidel's BS demo.
+
 
 - UPDATE 09_Laziness.lhs **BOS**
   + use simpler example
@@ -20,31 +24,6 @@ Todo
 - UPDATE 10_Termination.lhs **BOS**
   + mirror sequence in 03_Termination.hs
 
-
--- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits
--- the check for the empty case, which is good for performance, but
--- there is an obligation on the programmer to provide a proof that the
--- ByteString is non-empty.
-{-@ unsafeHead :: ByteStringNE -> Char @-}
-unsafeHead :: ByteString -> Char
-unsafeHead  = w2c . B.unsafeHead
-{-# INLINE unsafeHead #-}
-
-
-type ByteStringNE = {v:ByteString | 0 < bLength v}
-
-
--- | Unsafe 'ByteString' index (subscript) operator, starting from 0, returning a 'Word8'
--- This omits the bounds check, which means there is an accompanying
--- obligation on the programmer to ensure the bounds are checked in some
--- other way.
-
-{-@ type OkIdx B = {v:Nat | v < bLength B} @-}
-
-{-@ unsafeIndex :: b:ByteString -> OkIdx b -> Word8 @-}
-unsafeIndex :: ByteString -> Int -> Word8
-unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
-    inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
 
 BOS-Haskell Plan
 ----------------
@@ -85,8 +64,6 @@ BOS-Haskell Plan
 * [3]  11_Evaluation.lhs 
 
 * [2]  12_Conclusion.lhs
-
-
 
 
 Tufts Plan
@@ -194,4 +171,32 @@ Harvard Plan
 * [3] 11_Evaluation.lhs 
 
 * [2] 12_Conclusion.lhs
+
+Bytestring Details
+------------------
+
+-- | A variety of 'head' for non-empty ByteStrings. 'unsafeHead' omits
+-- the check for the empty case, which is good for performance, but
+-- there is an obligation on the programmer to provide a proof that the
+-- ByteString is non-empty.
+{-@ unsafeHead :: ByteStringNE -> Char @-}
+unsafeHead :: ByteString -> Char
+unsafeHead  = w2c . B.unsafeHead
+{-# INLINE unsafeHead #-}
+
+
+type ByteStringNE = {v:ByteString | 0 < bLength v}
+
+
+-- | Unsafe 'ByteString' index (subscript) operator, starting from 0, returning a 'Word8'
+-- This omits the bounds check, which means there is an accompanying
+-- obligation on the programmer to ensure the bounds are checked in some
+-- other way.
+
+{-@ type OkIdx B = {v:Nat | v < bLength B} @-}
+
+{-@ unsafeIndex :: b:ByteString -> OkIdx b -> Word8 @-}
+unsafeIndex :: ByteString -> Int -> Word8
+unsafeIndex (PS x s l) i = assert (i >= 0 && i < l) $
+    inlinePerformIO $ withForeignPtr x $ \p -> peekByteOff p (s+i)
 
