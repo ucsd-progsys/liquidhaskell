@@ -246,11 +246,9 @@ bad2 = Node R 2
 Verified Red-Black Trees
 ------------------------
 
-\begin{spec}
-type RBT a  = {v:RBTree a | isRB v && isBH v}
-\end{spec}
+<br>
 
-**Type System Verifies Correctness of**
+**Types Verify Correctness of**
 
 <br>
 
@@ -258,14 +256,9 @@ type RBT a  = {v:RBTree a | isRB v && isBH v}
 
 + Deletion
 
-+ Lookup
-
-+ ... 
-<br>
-
-**In presence of rotation/rebalancing etc.**
++ Lookup ...
 
 <br>
 
-[Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
+**In presence of rotation & rebalancing** [[details]](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
 
