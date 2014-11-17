@@ -23,13 +23,14 @@ copyFixpoint _ _ pkg lbi = do
   where
   allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
   bin         = bindir allDirs </> "fixpoint.native"
+             ++ if system == "i686-w64-mingw32" then ".exe" else ""
   fixpoint    = "external" </> "fixpoint" </> "fixpoint.native"
              ++ if build then "" else "-" ++ system
   system      = case hostPlatform lbi of
                   Platform I386 Linux -> "i386-linux"
                   Platform X86_64 Linux -> "x86_64-linux"
                   Platform X86_64 OSX -> "x86_64-darwin"
-                  Platform _      Windows -> error "We don't support Windows at the moment, sorry!" -- "i686-w64-mingw32"
+                  Platform _      Windows -> "i686-w64-mingw32"
                   _ -> error "We don't have a prebuilt fixpoint.native for your system, please install with -fbuild-external (requires ocaml)"
   flags       = configConfigurationsFlags $ configFlags lbi
   build       = fromMaybe False $ lookup (FlagName "build-external") flags
