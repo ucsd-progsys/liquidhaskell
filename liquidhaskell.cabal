@@ -1,11 +1,11 @@
 Name:                liquidhaskell
 Version:             0.2.1.0
-Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
+Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
 Description:         Liquid Types for Haskell.
 Homepage:            http://goto.ucsd.edu/liquidhaskell
-License:             GPL
+License:             BSD3
 License-file:        LICENSE
 Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
