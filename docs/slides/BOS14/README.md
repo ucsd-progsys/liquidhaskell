@@ -18,11 +18,13 @@ Todo
   + and associated demo file, from eseidel's BS demo.
 
 - UPDATE 09_Laziness.lhs **BOS**
-  + use simpler example
-  + show SUBTYPING constraints/FALSE
+  + Use math fonts
+  ? use simpler example
+  ? show SUBTYPING constraints/FALSE
   
 - UPDATE 10_Termination.lhs **BOS**
-  + mirror sequence in 03_Termination.hs
+  + link to Termination.hs demo
+  ? mirror sequence in 03_Termination.hs
 
 - UPDATE 08_Recursive
   + Comparison with DT slide (links)
