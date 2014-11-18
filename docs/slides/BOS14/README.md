@@ -14,20 +14,15 @@ Todo
   + INV 3: ORDER
 
 **HEREHEREHERE**
-- CREATE 03_Memory.lhs **TUFTS,BOS**
+
+- CREATE 03_Memory.lhs **TUFTS, BOS**
   + and associated demo file, from eseidel's BS demo.
 
 - UPDATE 09_Laziness.lhs **BOS**
   + Use math fonts
-  ? use simpler example
-  ? show SUBTYPING constraints/FALSE
   
-- UPDATE 10_Termination.lhs **BOS**
++ CHECK 10_Termination.lhs **BOS**
   + link to Termination.hs demo
-  ? mirror sequence in 03_Termination.hs
-
-- UPDATE 08_Recursive
-  + Comparison with DT slide (links)
   
 Comparison with DT
 ------------------

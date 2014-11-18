@@ -1,4 +1,4 @@
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--notermination" @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- #prune

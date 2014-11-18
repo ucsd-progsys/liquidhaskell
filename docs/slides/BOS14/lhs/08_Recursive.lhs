@@ -445,8 +445,6 @@ Binary-Search Ordered Keys
 <br>
 
 [DEMO RBTree-Ord.hs](../hs/RBTree-ord.hs)
-
-
 Example: Infinite Streams 
 -------------------------
 
