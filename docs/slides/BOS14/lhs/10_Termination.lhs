@@ -143,6 +143,18 @@ Need refinements to prove `(a mod b) < b` at *recursive* call!
 Recur On *Smaller* Inputs
 -------------------------
 
+<br>
+
+What of input types other than `Nat` ?
+
+<br>
+
+[DEMO](../hs/04_Termination.hs)
+
+
+Recur On *Smaller* Inputs
+-------------------------
+
 What of input types other than `Nat` ?
 
 \begin{spec}<div/>
