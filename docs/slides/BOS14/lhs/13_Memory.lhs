@@ -4,6 +4,8 @@ Low Level Memory Manipulation
  {#mem}
 -------
 
+<div class="hidden">
+
 \begin{code}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
@@ -23,36 +25,45 @@ import System.IO.Unsafe
 import Language.Haskell.Liquid.Prelude
 \end{code}
 
+</div>
+
 "HeartBleed" in Haskell
 -----------------------
 
 <br>
 
-**Modern languages built on top of C**
+**Modern languages are built on top of C**
 
 <br>
 
+<div class="fragment">
 Implementation errors could open up vulnerabilities
+</div>
+
+
+
 
 "HeartBleed" in Haskell (1/3)
 -----------------------------
-
-<br>
 
 **A String Truncation Function**
 
 <br>
 
+<div class="hidden">
 \begin{spec}
 import Data.ByteString.Char8  (pack, unpack) 
 import Data.ByteString.Unsafe (unsafeTake)
+\end{spec}
+</div>
 
+\begin{spec}
 chop     :: String -> Int -> String
 chop s n = s'
   where 
-    b    = pack s         -- down to low-level         
-    b'   = unsafeTake n b -- take prefix of n chars
-    s'   = unpack b'      -- up to high-level
+    b    = pack s           -- down to low-level
+    b'   = unsafeTake n b   -- grab n chars
+    s'   = unpack b'        -- up to high-level
 \end{spec}
 
 "HeartBleed" in Haskell (2/3)
@@ -60,9 +71,10 @@ chop s n = s'
 
 <img src="../img/overflow.png" height=100px>
 
-<br>
 
-Works  if you use the right *length*
+Works if you use the **valid prefix** size 
+
+<br>
 
 \begin{spec}
 λ> let ex = "Ranjit Loves Burritos"
@@ -77,15 +89,15 @@ Works  if you use the right *length*
 
 <img src="../img/overflow.png" height=100px>
 
-<br>
+Leaks *overflow buffer* if **invalid prefix** size!
 
-Yikes, leaks contents of *overflow buffer* if length too big!
+<br>
 
 \begin{spec}
 λ> let ex = "Ranjit Loves Burritos"
 
 λ> heartBleed ex 30
-"Ranjit Loves Burritos\NUL\NUL\NUL\201\&1j\DC3\SOH\NUL"
+"Ranjit Loves Burritos\NUL\201\&1j\DC3\SOH\NUL"
 \end{spec}
 
 Types Against Overflows
@@ -97,15 +109,13 @@ Types Against Overflows
 
 <br>
 
-<div class="fragment">1. Low-level `Pointer` API </div>
-
-<div class="fragment">2. Intermediate `ByteString` API</div>
-
-<div class="fragment">3. High-level `Application` API</div>
+1. <div class="fragment">Low-level `Pointer` API</div>
+2. <div class="fragment">Lib-level `ByteString` API</div>
+3. <div class="fragment">User-level `Application` API</div>
 
 <br>
 
-<div class="fragment">At each level, errors prevented by types at lower levels</div>
+<div class="fragment">Errors at *each* level are prevented by types at *lower* levels</div>
 
  {#ptr}
 =======
@@ -113,11 +123,30 @@ Types Against Overflows
 1. Low-level Pointer API 
 ------------------------
 
+<br>
+
+Strategy: Specify and Verify Types for
+
+<br>
+
+1. **Low-level `Pointer` API**
+2. Lib-level `ByteString` API
+3. User-level `Application` API
+
+<br>
+
+Errors at *each* level are prevented by types at *lower* levels
+
+
+
+
 1. Low-Level Pointer API
 ========================
 
-API: Pointers
--------------
+API: Types 
+----------
+
+<br>
 
 **Low-level Pointers**
 
@@ -125,54 +154,82 @@ API: Pointers
 data Ptr a         
 \end{spec}
 
-**Exportable Pointers**
+<br>
+
+<div class="fragment">
+**Foreign Pointers**
 
 \begin{spec}
 data ForeignPtr a 
 \end{spec}
 
-Wrapper around `Ptr` that can be exported to/from C.
+<br>
+
+`ForeignPtr` wraps around `Ptr`; can be exported to/from C.
+</div>
+
 
 API: Operations (1/2)
 ---------------------
 
-**Create and Use**
+<div class="fragment">
+**Read** 
 
-\begin{spec}
-malloc   :: Int -> ForeignPtr a
-withFPtr :: ForeignPtr a -> (Ptr a -> IO b) -> IO b
-\end{spec}
-
-<br>
-
-**Read and Write** 
 \begin{spec}
 peek     :: Ptr a -> IO a  
+\end{spec}
+</div>
+
+<br>
+<div class="fragment">
+**Write** 
+
+\begin{spec}
 poke     :: Ptr a -> a -> IO ()
 \end{spec}
+</div>
 
 <br>
 
-**Pointer Arithmetic**
-
+<div class="fragment">
+**Arithmetic**
 \begin{spec}
 plusPtr  :: Ptr a -> Int -> Ptr b 
 \end{spec}
+</div>
 
-Refined Types
--------------
+API: Operations (2/2)
+---------------------
 
-+ malloc :: Int -> 
-+ withForeignPtr
-+ peek
-+ poke
-+ plusPtr
+<div class="fragment">
+**Create**
 
-Example: okPtr
---------------
+\begin{spec}
+malloc  :: Int -> ForeignPtr a
+\end{spec}
+</div>
+
+<br>
+
+<div class="fragment">
+**Unwrap and Use**
+
+\begin{spec}
+withForeignPtr :: ForeignPtr a     -- pointer 
+               -> (Ptr a -> IO b)  -- action 
+               -> IO b             -- result
+\end{spec}
+</div>
+
+Example
+-------
+
+**Allocate a block and write 4 zeros into it**
+
+<div class="fragment">
 
 \begin{code}
-okPtr = do fp <- malloc 4
+zero4 = do fp <- malloc 4
            withForeignPtr fp $ \p -> do
              poke (p `plusPtr` 0) zero 
              poke (p `plusPtr` 1) zero 
@@ -183,17 +240,172 @@ okPtr = do fp <- malloc 4
            zero = 0 :: Word8
 \end{code}
 
+</div>
 
-Example: badPtr
----------------
+Example
+-------
+
+**Allocate a block and write 4 zeros into it**
+
+How to *prevent overflows* e.g. writing 5 or 50 zeros?
+
+<br>
+
+<div class="fragment">
+**Step 1**
+
+*Refine pointers* with allocated size
+</div>
+
+<br>
+
+<div class="fragment">
+**Step 2**
+
+*Track sizes* in pointer operations
+</div>
+
+Refined API: Types
+------------------
+
+<br>
+
+**1. Refine pointers with allocated size**
+
+\begin{spec}
+measure plen  :: Ptr a -> Int 
+measure fplen :: ForeignPtr a -> Int 
+\end{spec}
+
+<br>
+
+<div class="fragment">
+Abbreviations for pointers of size `N`
+
+\begin{spec}
+type PtrN a N        = {v:_ |  plen v  = N} 
+type ForeignPtrN a N = {v:_ |  fplen v = N} 
+\end{spec}
+</div>
 
 
+Refined API: Ops (1/3)
+----------------------
+
+<div class="fragment">
+**Create**
+
+\begin{spec}
+malloc  :: n:Nat -> ForeignPtrN a n
+\end{spec}
+</div>
+
+<br>
+
+<div class="fragment">
+**Unwrap and Use**
+
+\begin{spec}
+withForeignPtr :: fp:ForeignPtr a 
+               -> (PtrN a (fplen fp) -> IO b)  
+               -> IO b             
+\end{spec}
+</div>
+
+Refined API: Ops (2/3)
+----------------------
+
+<br>
+
+**Arithmetic**
+
+Refine type to track *remaining* buffer size
+
+<br>
+
+<div class="fragment">
+\begin{spec}
+plusPtr :: p:Ptr a
+        -> o:{Nat|o <= plen p}   -- in bounds
+        -> PtrN b (plen b - o)   -- remainder
+\end{spec}
+
+</div>
+
+
+
+Refined API: Ops (3/3)
+----------------------
+
+**Read & Write require non-empty remaining buffer**
+
+<br>
+
+<div class="fragment">
+**Read** 
+
+\begin{spec}
+peek :: {v:Ptr a | 0 < plen v} -> IO a  
+\end{spec}
+</div>
+
+<br>
+<div class="fragment">
+**Write** 
+
+\begin{spec}
+poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()  
+\end{spec}
+</div>
+
+<br>
+
+
+
+Ex: Overflow Prevented
+----------------------
+
+How to *prevent overflows* e.g. writing 5 or 50 zeros?
+
+<br>
+
+<div class="fragment">
+
+\begin{code}
+exBad = do fp <- malloc 4
+           withForeignPtr fp $ \p -> do
+             poke (p `plusPtr` 0) zero 
+             poke (p `plusPtr` 1) zero 
+             poke (p `plusPtr` 2) zero 
+             poke (p `plusPtr` 5) zero 
+           return fp
+        where
+           zero = 0 :: Word8
+\end{code}
+
+</div>
 
  {#bs}
 ======
 
 2. ByteString API
 -----------------
+
+<br>
+
+Strategy: Specify and Verify Types for
+
+<br>
+
+1. Low-level `Pointer` API
+2. **Lib-level `ByteString` API**
+3. User-level `Application` API
+
+<br>
+
+Errors at *each* level are prevented by types at *lower* levels
+
+
 
 
 2. ByteString API
@@ -228,6 +440,22 @@ Take From BS
 3. Application API 
 -------------------
 
+
+<br>
+
+Strategy: Specify and Verify Types for
+
+<br>
+
+1. Low-level `Pointer` API
+2. Lib-level `ByteString` API
+3. **User-level `Application` API**
+
+<br>
+
+Errors at *each* level are prevented by types at *lower* levels
+
+
 3. Application API 
 ==================
 
@@ -260,19 +488,31 @@ chop = undefined
 "Bleeding" `chop` rejected by compiler.
 
 
+Recap: Types vs Overflows
+-------------------------
+
+<br>
+
+**Strategy: Specify and Verify Types for**
+
+<br>
+
+1. Low-level `Pointer` API
+2. Lib-level `ByteString` API
+3. User-level `Application` API
+
+<br>
+
+Errors at *each* level are prevented by types at *lower* levels
+
+
+END HERE
 
 
 
 
 
 
-
-What is the "length" of a pointer? It's the number of bytes that are
-addressable from the base of the pointer. We can't compute it, but that
-won't stop us from talking about it in our types. We provide a "ghost"
-measure called `fplen` to refer to this length.
-
-NV: "ghost measure" is more complicated than uninterpreted function
 
 \begin{spec}
 {-@ measure fplen :: ForeignPtr a -> Int @-}
@@ -280,30 +520,21 @@ NV: "ghost measure" is more complicated than uninterpreted function
 
 and use it to define a foreign-pointer to a segment containing *N* bytes
 
-\begin{code}
-{-@ type ForeignN a N = {v:ForeignPtr a | fplen v = N} @-}
-\end{code}
-
 Since we haven't defined any equations for `fplen` we won't get strengthed 
 constructors. Instead, we will *assume* that `malloc` behaves sensibly and
 allocates the number of bytes you asked for.
  
 \begin{code}
-{-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignN a n) @-}
-
-{-@ malloc :: n:Nat -> IO (ForeignN a n) @-}
+{-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
+{-@ type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} @-}
+{-@ malloc :: n:Nat -> IO (ForeignPtrN a n) @-}
 malloc = mallocForeignPtrBytes 
 \end{code}
-
-Now let's create a few `ByteString`s. Here's a `ByteString` with 5 valid 
-indices. 
 
 \begin{code}
 good_bs1 = do fp <- mallocForeignPtrBytes 5
               return $ PS fp 0 5
 \end{code}
-
-
 
 \begin{code}
 data ByteString = PS
