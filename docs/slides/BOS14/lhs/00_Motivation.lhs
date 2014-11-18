@@ -118,8 +118,10 @@ Extend Type System
 
 + To enforce *program specific* properties 
 
+
 Algorithmic Verification
 ========================
+
 
 Tension
 -------

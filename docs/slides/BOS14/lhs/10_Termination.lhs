@@ -189,7 +189,7 @@ Specify a **default measure** `mS :: S -> Int`
 <div class="fragment">
 **Check `body` Under Assumption**
 
-`foo :: {v:s | 0 <= (mS v) < (mS x)} -> T`
+`foo :: {v:s | 0 <= mS v < mS x} -> T`
 </div>
 
 
@@ -307,6 +307,15 @@ A Curious Circularity
 <br>
 
 <div class="fragment"> Meta-theory is tricky, but all ends well.</div>
+
+Termination in Practice
+-----------------------
+
+<img src="../img/tension1.png" height=300px>
+
+96% proved *terminating*
+
+61% proved *automatically*
 
 Recap
 -----
