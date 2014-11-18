@@ -13,18 +13,19 @@ infixr `C`
 
 data L a = N | C a (L a)
 
-{-@ invariant {v: (L a) | 0 <= (llen v)} @-}
+{-@ invariant {v: L a | 0 <= llen v} @-}
 
 mod :: Int -> Int -> Int
-mod a b | a - b >  b = mod (a - b) b
-        | a - b <  b = a - b
-        | a - b == b = 0
+mod a b
+  | a - b >  b = mod (a - b) b
+  | a - b <  b = a - b
+  | a - b == b = 0
 
 merge :: Ord a => L a -> L a -> L a
 \end{code}
 </div>
 
-<!--
+<!-- BEGIN CUT
 
 Dependent != Refinement
 -----------------------
@@ -42,7 +43,7 @@ Dependent != Refinement
 + <div class="fragment">Termination *not* required ...</div> 
 + <div class="fragment">... except, alas, with *lazy* evaluation!</div>
 
--->
+END CUT -->
 
 Refinements & Termination
 -------------------------
@@ -134,8 +135,8 @@ Need refinements to prove `(a mod b) < b` at *recursive* call!
 <div class="fragment">
 \begin{code}
 {-@ mod :: a:Nat 
-        -> b:{v:Nat|(0 < v && v < a)} 
-        -> {v:Nat| v < b}                 @-}
+        -> b:{v:Nat|0 < v && v < a} 
+        -> {v:Nat| v < b}           @-}
 \end{code}
 </div>
 
@@ -234,7 +235,7 @@ Neither input decreases, but their **sum** does.
 
 \begin{code}
 {-@ merge :: Ord a => xs:_ -> ys:_ -> _ 
-          /  [(llen xs) + (llen ys)]     @-}
+          /  [llen xs + llen ys]     @-}
 \end{code}
 
 <br>

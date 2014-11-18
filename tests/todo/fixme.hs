@@ -11,11 +11,6 @@ ok = Node R (2 :: Int)
          (Node B 1 Leaf Leaf)
          (Node B 3 Leaf Leaf)
 
-{-@ measure size @-}
-size :: RBTree a -> Int
-size Leaf = 0
-size (Node _ _ l r) = 1 + size l + size r
-
 
 {-@ data RBTree a = Leaf
                   | Node { c     :: Color
