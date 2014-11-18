@@ -412,8 +412,8 @@ Type
 
 \begin{code}
 data ByteString = PS {
-    bPtr    :: ForeignPtr Word8
-  , bOff    :: !Int
+    bPtr :: ForeignPtr Word8
+  , bOff :: !Int
   , bLen :: !Int
   }
 \end{code}
@@ -426,24 +426,30 @@ Refined Type
 
 \begin{code}
 {-@ data ByteString = PS {
-      bPtr    :: ForeignPtr Word8
-    , bOff    :: {v:Nat|v  <= fplen bPtr}
-    , bLen :: {v:Nat|v + bOff <= fplen bPtr}
+      bPtr :: ForeignPtr Word8
+    , bOff :: {v:Nat| v        <= fplen bPtr}
+    , bLen :: {v:Nat| v + bOff <= fplen bPtr}
     }                                       @-}
 \end{code}
 
-<div class="fragment">
+Refined Type 
+------------
+
+<img src="../img/bytestring.png" height=150px>
+
+<br>
+
 **A Useful Abbreviation**
 
 \begin{spec}
-type ByteStringN N = {v:ByteString | bLen v = N} 
+type ByteStringN N = {v:ByteString| bLen v = N} 
 \end{spec}
+
 
 <div class="hidden">
 \begin{code}
 {-@ type ByteStringN N = {v:ByteString | bLen v = N} @-}
 \end{code}
-</div>
 </div>
 
 
@@ -459,15 +465,16 @@ Legal Bytestrings
 good1 = do fp <- malloc 5
            return $ PS fp 0 5
 
-{-@ good1 :: IO (ByteStringN 3) @-}
+{-@ good2 :: IO (ByteStringN 3) @-}
 good2 = do fp <- malloc 5
            return $ PS fp 2 3
 \end{code}
 
 <br>
 
+<div class="fragment">
 **Note:** *length* of `good2` is `3` which is *less than* allocated size `5`
-
+</div>
 
 Illegal Bytestrings 
 -----------------
@@ -488,41 +495,122 @@ bad2 = do fp <- malloc 3
 Claimed length *exceeds* allocation ... **rejected** at compile time
 </div>
 
-Creating a BS
+API: `create`
 -------------
 
-Pack To BS
-------------
+**Low level ByteString Creation**
+
+<br>
+
+<div class="hidden">
+\begin{code}
+create :: Int -> (Ptr Word8 -> IO ()) -> ByteString
+{-@ create :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
+\end{code}
+</div>
 
 \begin{code}
-{-@ pack  :: str:_ -> ByteStringN (len str) @-}
-pack str  = create' (length str) $ \p -> go p str
-  where
-    go _ []     = return ()
-    go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
+create n fill = unsafePerformIO $ do
+  fp  <- malloc n
+  withForeignPtr fp fill 
+  return $! PS fp 0 n
 \end{code}
 
-Unpack From BS
---------------
+<br>
+
+<div class="fragment">
+Yikes, there is an error! How to fix?
+</div>
+
+API: `unsafeTake`
+-----------------
+
+Extract *prefix* string of size `n`
+
+<br>
+
+<div class="fragment">
+**Specification**
 
 \begin{code}
-{-@ unpack :: b:ByteString -> {v:_ | len v = bLen b} @-}
-unpack :: ByteString -> [Word8]
+{-@ unsafeTake :: n:Nat
+               -> b:{ByteString | n <= bLen b}
+               -> ByteStringN n            @-}
+\end{code}
+</div>
 
+
+<br>
+
+<div class="fragment">
+**Implementation**
+
+\begin{code}
+unsafeTake n (PS x s l) = PS x s n
+\end{code}
+</div>
+
+API: `pack`
+------------
+
+**Specification**
+
+\begin{code}
+{-@ pack :: s:String -> ByteStringN (len s) @-}
+\end{code}
+
+<br>
+
+<div class="fragment">
+
+**Implementation**
+
+\begin{code}
+pack str      = create n $ \p -> go p xs
+  where
+  n           = length str
+  xs          = map c2w str
+  go p (x:xs) = poke p x >> go (plusPtr p 1) xs
+  go _ []     = return  ()
+\end{code}
+
+</div>
+
+API: `unpack` 
+-------------
+
+**Specification**
+
+\begin{spec}
+unpack 
+ :: b:ByteString -> {v:String | len v = bLen b}
+\end{spec}
+
+<br>
+
+<div class="fragment">
+**Implementation**
+
+\begin{spec}
+unpack b = you . get . the . idea -- see source 
+\end{spec}
+</div>
+
+<div class="hidden">
+\begin{code}
 {-@ qualif Unpack(v:a, acc:b, n:int) : len v = 1 + n + len acc @-}
 
-unpack (PS _  _ 0) = []
-unpack (PS ps s l) = unsafePerformIO $ withForeignPtr ps $ \p ->
-   go (p `plusPtr` s) (l - 1) []
+{-@ unpack :: b:ByteString -> {v:String | len v = bLen b} @-}
+unpack :: ByteString -> String 
+unpack (PS _  _ 0)  = []
+unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
+   go (p `plusPtr` s) (l - 1)  []
   where
-   go p 0 acc = peek p          >>= \e -> return (e : acc)
-   go p n acc = peekByteOff p n >>= \e -> go p (n-1) (e : acc)
+   go p 0 acc = peek p >>= \e -> return (w2c e : acc)
+   go p n acc = peek (p `plusPtr` n) >>= \e -> go p (n-1) (w2c e : acc)
 \end{code}
 
-
-Take From BS
-------------
-
+</div>
 
  {#heartbleedredux}
 ==================
@@ -546,15 +634,29 @@ Strategy: Specify and Verify Types for
 
 Errors at *each* level are prevented by types at *lower* levels
 
-
 3. Application API 
 ==================
 
+Revisit "HeartBleed"
+--------------------
 
-Compiler rejects `chop`
------------------------
+Lets revisit our potentially "bleeding" `chop`
 
-chopBAD
+<br>
+
+\begin{code}
+chop     :: String -> Int -> String 
+chop s n = s'
+  where 
+    b    = pack s          -- down to low-level
+    b'   = unsafeTake n b  -- grab n chars
+    s'   = unpack b'       -- up to high-level
+\end{code}
+
+<br>
+
+Yikes! How shall we fix it?
+
 
 A Well Typed `chop`
 -------------------
@@ -568,12 +670,8 @@ chopGOOD
 demo     = [ex6, ex30]
   where
     ex   = "Ranjit Loves Burritos"
-    
     ex6  = chop ex 6
-
     ex30 = chop ex 30
-
-chop = undefined
 \end{code}
 
 "Bleeding" `chop` rejected by compiler.
@@ -597,7 +695,6 @@ Recap: Types vs Overflows
 Errors at *each* level are prevented by types at *lower* levels
 
 
-END HERE
 
 
 
@@ -605,68 +702,11 @@ END HERE
 
 
 
-\begin{spec}
-{-@ measure fplen :: ForeignPtr a -> Int @-}
-\end{spec}
-
-and use it to define a foreign-pointer to a segment containing *N* bytes
-
-Since we haven't defined any equations for `fplen` we won't get strengthed 
-constructors. Instead, we will *assume* that `malloc` behaves sensibly and
-allocates the number of bytes you asked for.
- 
-The crucial invariant is that we should only be able to reach valid memory 
-locations via the offset and length, i.e. the sum `off + len` *must not exceed* 
-the "length" of the pointer.
 
 
-LiquidHaskell won't let us build a `ByteString` that claims to have more valid 
-indices than it *actually* does
-
-even if we try to be sneaky with the length parameter.
 
 
-Creating ByteStrings
---------------------
-
-\begin{code}
-{-@ create' :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
-create'  :: Int -> (Ptr Word8 -> IO ()) -> ByteString
-create' n f = unsafePerformIO $ do
-    fp <- mallocForeignPtrBytes n
-    withForeignPtr fp $ \p -> f p
-    return $! PS fp 0 n
-\end{code}
-
-But this seems horribly unsafe!
-
-What's to stop the parameter `f` from poking any random,
-invalid offset from the pointer it wants to?
-
-We could, e.g.
-
-* create a BS of size `5`, and
-* write a `0` at the index `10`.
-
-ASIDE: have these assumed types around to suppress the type-errors that LH will 
-       show, just remove them when script introduces type
-
-{- assume plusPtr :: p:Ptr a -> n:Int -> Ptr b      @-}
-{- assume poke :: Storable a => Ptr a -> a -> IO () @-}
-
-END ASIDE
-
-\begin{code}
-bad_create = create' 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
-\end{code}
-
-\begin{code}
-good_create = create' 5 $ \p -> poke (p `plusPtr` 2) (0 :: Word8)
-\end{code}
-
-
-ES: CUT
-
+<div class="hidden">
 
 Nested Data
 -----------
@@ -747,8 +787,16 @@ the length of `b`.
 -----------------------------------------------------------------------
 -- Helper Code
 -----------------------------------------------------------------------
+c2w :: Char -> Word8
+c2w = undefined
+
+w2c :: Word8 -> Char
+w2c = undefined
+
+
+
 {-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
-unsafeCreate n f = create' n f -- unsafePerformIO $ create n f
+unsafeCreate n f = create n f -- unsafePerformIO $ create n f
 
 {-@ invariant {v:ByteString   | bLen  v >= 0} @-}
 {-@ invariant {v:[ByteString] | bLens v >= 0} @-}
@@ -773,10 +821,6 @@ unsafeTail (PS ps s l) = liquidAssert (l > 0) $ PS ps (s+1) (l-1)
 {-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLen b) = 0))} @-}
 null :: ByteString -> Bool
 null (PS _ _ l) = liquidAssert (l >= 0) $ l <= 0
-
-{-@ unsafeTake :: n:Nat -> b:{v: ByteString | n <= (bLen v)} -> (ByteStringN n) @-}
-unsafeTake :: Int -> ByteString -> ByteString
-unsafeTake n (PS x s l) = liquidAssert (0 <= n && n <= l) $ PS x s n
 
 {-@ unsafeDrop :: n:Nat
                -> b:{v: ByteString | n <= (bLen v)} 
@@ -821,3 +865,5 @@ nullForeignPtr :: ForeignPtr Word8
 nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
 \end{code}
+
+</div>
