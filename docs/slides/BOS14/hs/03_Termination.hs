@@ -41,7 +41,6 @@ mod a b | a - b >  b = mod (a - b) b
 -- | Explicit Metrics #1 
 -------------------------------------------------------------------------
 
-{-@ tfac :: Nat -> n:Nat -> Nat / [n] @-}
 tfac acc 0 = acc
 tfac acc n = tfac (n * acc) (n-1)
 
@@ -52,7 +51,6 @@ tfac acc n = tfac (n * acc) (n-1)
 -- Explicit Metrics #2 
 -------------------------------------------------------------------------
 
-{-@ range :: lo:Nat -> hi:Nat -> [Nat] / [hi-lo] @-}
 range :: Int -> Int -> [Int]
 range lo hi
   | lo < hi   = lo : range (lo + 1) hi
@@ -81,7 +79,7 @@ map f (C x xs) = f x `C` map f xs
 -- | Default Metrics
 -------------------------------------------------------------------------
 
-{-@ data List [size] a = N | C {x :: a, xs :: List a } @-}
+{-@ data List a = N | C {x :: a, xs :: List a } @-}
 
 map' _ N        = N
 map' f (C x xs) = f x `C` map' f xs
@@ -92,49 +90,10 @@ map' f (C x xs) = f x `C` map' f xs
 -- | Termination Expressions Metrics
 -------------------------------------------------------------------------
 
-{-@ merge :: xs:_ -> ys:_ -> _ / [size xs + size ys] @-}
-
 merge (C x xs) (C y ys)
   | x < y      = x `C` merge xs (y `C` ys)
   | otherwise  = y `C` merge (x `C` xs) ys
 merge _   ys   = ys
-
-
-
-
-
-
-
-
-
--------------------------------------------------------------------------
--- | Infinite Streams
--------------------------------------------------------------------------
-
-{-@ data List [size] a <p :: List a -> Prop>
-      = N | C { x  :: a
-              , xs :: List <p> a <<p>>
-              }
-  @-}
-
-{-@ measure cons :: (List a) -> Prop
-    cons (C x xs) = true 
-    cons (N)      = false 
-  @-}
-
-{-@ type Stream a = {xs: List <{\v -> cons v}> a | cons xs} @-}
-
-{-@ Lazy repeat @-}
-                 
-{-@ repeat :: a -> Stream a @-}
-repeat   :: a -> List a
-repeat x = x `C` repeat x
-
-
-{-@ take        :: n:Nat -> Stream a -> {v:List a | size v = n} @-}
-take 0 _        = N
-take n (C x xs) = x `C` take (n-1) xs
-take _ N        = liquidError "never happens"
 
 
 
@@ -176,3 +135,8 @@ take            :: Int -> List a -> List a
 
 
 
+-- CHEAT CODES, in case I forget :)
+
+{- tfac :: Nat -> n:Nat -> Nat / [n] @-}
+{- range :: lo:Nat -> hi:Nat -> [Nat] / [hi-lo] @-}
+{- merge :: xs:_ -> ys:_ -> _ / [size xs + size ys] @-}

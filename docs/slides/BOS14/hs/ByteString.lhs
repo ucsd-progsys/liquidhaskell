@@ -67,7 +67,7 @@ indices.
 >              poke (p `plusPtr` 0) (0 :: Word8) 
 >              poke (p `plusPtr` 1) (0 :: Word8) 
 >              poke (p `plusPtr` 2) (0 :: Word8) 
->              poke (p `plusPtr` 3) (0 :: Word8) 
+>              poke (p `plusPtr` 6) (0 :: Word8) 
 >            return fp
 
 > good_bs1 = do fp <- mallocForeignPtrBytes 5

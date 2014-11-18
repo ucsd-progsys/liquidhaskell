@@ -66,7 +66,7 @@ Back To the Beginning
 ---------------------
 
 \begin{code}
-{-@ safeDiv :: Int -> {v:Int|v /= 0} -> Int @-}
+{-@ safeDiv :: _ -> {v:_ |v /= 0} -> Int @-}
 safeDiv n 0 = liquidError "div-by-zero!"
 safeDiv n d = n `div` d
 \end{code}
@@ -84,7 +84,7 @@ An Innocent Function
 
 <br>
 
-\begin{spec} <div/>
+\begin{spec}
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -103,7 +103,7 @@ foo n
 explode = let z = 0    
               a = foo z
           in  
-              (\x -> 2013 `safeDiv` z) a 
+              (\x -> 2014 `safeDiv` z) a 
 \end{code}
 
 <br>
@@ -116,7 +116,7 @@ Why is this program **deemed safe**?!
 *Safe* With Eager Eval
 ----------------------
 
-\begin{spec} <div/>
+\begin{spec}
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -125,7 +125,7 @@ foo n
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
-              (\x -> 2013 `safeDiv` z) a 
+              (\x -> 2014 `safeDiv` z) a 
 \end{spec}
 
 <br>
@@ -146,7 +146,7 @@ foo n
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
-              (\x -> 2013 `safeDiv` z) a 
+              (\x -> 2014 `safeDiv` z) a 
 \end{spec}
 
 <br>
@@ -210,7 +210,7 @@ Problem: Divergence
 Eager vs. Lazy Binders 
 ----------------------
 
-\begin{spec} <div/>
+\begin{spec} 
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
 foo n   
   | n > 0     = n - 1
@@ -219,7 +219,7 @@ foo n
 explode = let z = 0     -- :: {v:Int| v = 0}
               a = foo z -- :: {v:Nat| v < z}
           in  
-              (\x -> 2013 `safeDiv` z) a 
+              (\x -> 2014 `safeDiv` z) a 
 \end{spec}
 
 
@@ -234,7 +234,7 @@ Panic! Now what?
 <div class="fragment">
 **Solution** 
 
-Assign *non-trivial* refinements to *non-diverging* terms!
+Assign **non-trivial** refinements to **non-diverging** terms!
 </div>
 
 <br>
@@ -243,7 +243,7 @@ Assign *non-trivial* refinements to *non-diverging* terms!
 
 **Require A Termination Analysis**
 
-Don't worry, its easy...
+Relax. Its *easy* ... using *refinements*
 
 </div>
 

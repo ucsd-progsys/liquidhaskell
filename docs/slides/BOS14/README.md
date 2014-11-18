@@ -24,6 +24,20 @@ Todo
 - UPDATE 10_Termination.lhs **BOS**
   + mirror sequence in 03_Termination.hs
 
+- UPDATE 08_Recursive
+  + Comparison with DT slide (links)
+  
+Comparison with DT
+------------------
+
+-- Grisly HS+DT proof
+https://github.com/jstolarek/dep-typed-wbl-heaps-hs/blob/master/src/TwoPassMerge/CombinedProofs.hs#L68
+
+-- HS (no proof)
+https://github.com/jstolarek/dep-typed-wbl-heaps-hs/blob/master/src/TwoPassMerge/NoProofs.hs#L96
+
+-- HS+LH proof
+https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/WBL.hs#L129
 
 BOS-Haskell Plan
 ----------------
@@ -231,27 +245,11 @@ Low-Level Memory
    + bad call
    
 6. `pack`
-
 7. `unpack`
-
 8. `unsafeTake`
-
 9. `heartBleed` redux.
 
-Is 
-
-`peekByteOff p i`
-
-equivalent to
-
-`peek (p `plusPtr` i)`
-
-?
-
-(Same for `poke`) If so, was going to use a simple low-level memory api:
-
-and then build up the BS functions on those.
-
+`peekByteOff p i == peek (p `plusPtr` i)`
 
 \begin{code}
 module BSCrash where
