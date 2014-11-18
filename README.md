@@ -6,7 +6,6 @@ Requirements
 
 LiquidHaskell requires (in addition to the cabal dependencies)
 
-- recent OCaml compiler
 - SMTLIB2 compatible solver
 
 How To Clone, Build and Install
@@ -20,7 +19,11 @@ directory of the distribution:
     + [Z3](http://z3.codeplex.com/)
     + [CVC4](http://cvc4.cs.nyu.edu/) 
     + [MathSat](http://mathsat.fbk.eu/download.html)
-    
+
+   **IMPORTANT**: if you're on Windows, please make sure the solver
+   is installed in the **same** directory as LiquidHaskell itself
+   (i.e. whereever cabal puts your binaries).
+
 2. Create top-level project directory and clone repositories:
 
     ```
@@ -778,7 +781,7 @@ LH has [flycheck](https://github.com/flycheck/flycheck) integration with emacs.
 
 **Install**
 
-1. Copy `syntax/flycheck-liquid.el` into your emacs path.
+1. Add `(load "~/.cabal/share/<platform>-ghc-7.8.3/liquidhaskell-0.2.1.0/syntax/flycheck-liquid.el)` to your `.emacs`. `<platform>` is the string cabal uses to identify your platform, it will look something like `x86_64-osx` or `i386-linux`.
 2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
 
 **Disable**

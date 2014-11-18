@@ -196,11 +196,11 @@ envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
          where
             envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
 
-copyright = "LiquidHaskell © Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
 mkOpts cfg
-  = do files' <- sortNub . concat <$> mapM getHsTargets (files cfg)
+  = do let files' = sortNub $ files cfg
        -- idirs' <- if null (idirs cfg) then single <$> getIncludeDir else return (idirs cfg)
        id0 <- getIncludeDir
        return  $ cfg { files = files' }

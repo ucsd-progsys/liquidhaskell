@@ -1,11 +1,11 @@
 Name:                liquidhaskell
-Version:             0.2.0.0
-Copyright:           2010-13 Ranjit Jhala, University of California, San Diego.
+Version:             0.2.1.0
+Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
 Description:         Liquid Types for Haskell.
 Homepage:            http://goto.ucsd.edu/liquidhaskell
-License:             GPL
+License:             BSD3
 License-file:        LICENSE
 Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
@@ -32,6 +32,8 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
+          , syntax/*.el
+          , syntax/*.vim
 
 Source-Repository head
   Type:        git
@@ -65,7 +67,7 @@ Executable liquid
                , syb
                , text
                , vector
-               , liquid-fixpoint >= 0.2
+               , liquid-fixpoint >= 0.2.1.0
                , hashable
                , unordered-containers
                , aeson
@@ -143,7 +145,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.2
+                , liquid-fixpoint >= 0.2.1.0
                 , aeson
                 , bytestring
                 , fingertree
