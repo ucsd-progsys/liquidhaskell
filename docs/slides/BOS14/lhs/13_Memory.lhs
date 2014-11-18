@@ -358,12 +358,8 @@ poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()
 \end{spec}
 </div>
 
-<br>
-
-
-
-Ex: Overflow Prevented
-----------------------
+Example: Overflow Prevented
+---------------------------
 
 How to *prevent overflows* e.g. writing 5 or 50 zeros?
 
@@ -406,19 +402,36 @@ Strategy: Specify and Verify Types for
 Errors at *each* level are prevented by types at *lower* levels
 
 
-
-
 2. ByteString API
 =================
 
-BS Type
+Type
 -------
 
-BS Invariant
+<img src="../img/bytestring.png" height=150px>
+
+\begin{code}
+data ByteString = PS {
+    bPtr    :: ForeignPtr Word8
+  , bOff    :: !Int
+  , bLength :: !Int
+  }
+\end{code}
+
+
+Refined Type 
 ------------
 
-BS Examples
------------
+<img src="../img/bytestring.png" height=150px>
+
+\begin{code}
+{-@ data ByteString = PS {
+      bPtr    :: ForeignPtr Word8
+    , bOff    :: {v:Nat|v  <= fplen bPtr}
+    , bLength :: {v:Nat|v + bOff <= fplen bPtr}
+    }                                       @-}
+\end{code}
+
 
 Creating a BS
 -------------
@@ -536,25 +549,11 @@ good_bs1 = do fp <- mallocForeignPtrBytes 5
               return $ PS fp 0 5
 \end{code}
 
-\begin{code}
-data ByteString = PS
-  { bPayload :: ForeignPtr Word8
-  , bOffset  :: !Int
-  , bLength  :: !Int
-  }
-\end{code}
-
 The crucial invariant is that we should only be able to reach valid memory 
 locations via the offset and length, i.e. the sum `off + len` *must not exceed* 
 the "length" of the pointer.
 
-\begin{code}
-{-@ data ByteString = PS
-      { bPayload :: ForeignPtr Word8
-      , bOffset  :: {v:Nat | v           <= fplen bPayload}
-      , bLength  :: {v:Nat | bOffset + v <= fplen bPayload}
-      }  @-}
-\end{code}
+
 Note that the *length* of the BS is *not* the same as the region
 of allocated memory. 
 
@@ -586,6 +585,14 @@ Creating ByteStrings
 --------------------
 
 \begin{code}
+{-@ create' :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
+create'  :: Int -> (Ptr Word8 -> IO ()) -> ByteString
+create' n f = unsafePerformIO $ do
+    fp <- mallocForeignPtrBytes n
+    withForeignPtr fp $ \p -> f p
+    return $! PS fp 0 n
+
+
 create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
 create l f = do
     fp <- mallocForeignPtrBytes l
@@ -675,7 +682,7 @@ Here's a real example from the BS library:
 
 \begin{code}
 pack      :: [Word8] -> ByteString
-pack str  = unsafeCreate (length str) $ \p -> go p str
+pack str  = create' (length str) $ \p -> go p str
   where
     go _ []     = return ()
     go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
