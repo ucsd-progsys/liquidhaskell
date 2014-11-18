@@ -1,15 +1,13 @@
-module BSCrash where
+module HeartBleed where
 
-import Data.ByteString.Char8  as C
-import Data.ByteString        as B
-import Data.ByteString.Unsafe as U
-
+import Data.ByteString.Char8  (pack, unpack) 
+import Data.ByteString.Unsafe (unsafeTake)
 
 heartBleed s n = s'
   where 
-    b          = C.pack s         -- "Ranjit"
-    b'         = U.unsafeTake n b -- 20
-    s'         = C.unpack b'
+    b          = pack s         
+    b'         = unsafeTake n b
+    s'         = unpack b'
 
 -- > let ex = "Ranjit Loves Burritos"
     
