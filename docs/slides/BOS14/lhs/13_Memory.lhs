@@ -414,7 +414,7 @@ Type
 data ByteString = PS {
     bPtr    :: ForeignPtr Word8
   , bOff    :: !Int
-  , bLength :: !Int
+  , bLen :: !Int
   }
 \end{code}
 
@@ -428,10 +428,65 @@ Refined Type
 {-@ data ByteString = PS {
       bPtr    :: ForeignPtr Word8
     , bOff    :: {v:Nat|v  <= fplen bPtr}
-    , bLength :: {v:Nat|v + bOff <= fplen bPtr}
+    , bLen :: {v:Nat|v + bOff <= fplen bPtr}
     }                                       @-}
 \end{code}
 
+<div class="fragment">
+**A Useful Abbreviation**
+
+\begin{spec}
+type ByteStringN N = {v:ByteString | bLen v = N} 
+\end{spec}
+
+<div class="hidden">
+\begin{code}
+{-@ type ByteStringN N = {v:ByteString | bLen v = N} @-}
+\end{code}
+</div>
+</div>
+
+
+
+Legal Bytestrings 
+-----------------
+
+
+<br>
+
+\begin{code}
+{-@ good1 :: IO (ByteStringN 5) @-}
+good1 = do fp <- malloc 5
+           return $ PS fp 0 5
+
+{-@ good1 :: IO (ByteStringN 3) @-}
+good2 = do fp <- malloc 5
+           return $ PS fp 2 3
+\end{code}
+
+<br>
+
+**Note:** *length* of `good2` is `3` which is *less than* allocated size `5`
+
+
+Illegal Bytestrings 
+-----------------
+
+<br>
+
+\begin{code}
+bad1 = do fp <- malloc 3 
+          return $ PS fp 0 10 
+
+bad2 = do fp <- malloc 3
+          return $ PS fp 2 2
+\end{code}
+
+<br>
+
+<div class="fragment">
+Claimed length *exceeds* allocation ... **rejected** at compile time
+</div>
 
 Creating a BS
 -------------
@@ -439,8 +494,31 @@ Creating a BS
 Pack To BS
 ------------
 
+\begin{code}
+{-@ pack  :: str:_ -> ByteStringN (len str) @-}
+pack str  = create' (length str) $ \p -> go p str
+  where
+    go _ []     = return ()
+    go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
+\end{code}
+
 Unpack From BS
 --------------
+
+\begin{code}
+{-@ unpack :: b:ByteString -> {v:_ | len v = bLen b} @-}
+unpack :: ByteString -> [Word8]
+
+{-@ qualif Unpack(v:a, acc:b, n:int) : len v = 1 + n + len acc @-}
+
+unpack (PS _  _ 0) = []
+unpack (PS ps s l) = unsafePerformIO $ withForeignPtr ps $ \p ->
+   go (p `plusPtr` s) (l - 1) []
+  where
+   go p 0 acc = peek p          >>= \e -> return (e : acc)
+   go p n acc = peekByteOff p n >>= \e -> go p (n-1) (e : acc)
+\end{code}
+
 
 Take From BS
 ------------
@@ -537,49 +615,16 @@ Since we haven't defined any equations for `fplen` we won't get strengthed
 constructors. Instead, we will *assume* that `malloc` behaves sensibly and
 allocates the number of bytes you asked for.
  
-\begin{code}
-{-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
-{-@ type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} @-}
-{-@ malloc :: n:Nat -> IO (ForeignPtrN a n) @-}
-malloc = mallocForeignPtrBytes 
-\end{code}
-
-\begin{code}
-good_bs1 = do fp <- mallocForeignPtrBytes 5
-              return $ PS fp 0 5
-\end{code}
-
 The crucial invariant is that we should only be able to reach valid memory 
 locations via the offset and length, i.e. the sum `off + len` *must not exceed* 
 the "length" of the pointer.
 
 
-Note that the *length* of the BS is *not* the same as the region
-of allocated memory. 
-
-Here's a `ByteString` whose pointer region has 5-bytes, but the BS itself
-is of size 4.
-
-\begin{code}
-good_bs2 = do fp <- mallocForeignPtrBytes 5
-              return $ PS fp 2 4
-\end{code}
-
 LiquidHaskell won't let us build a `ByteString` that claims to have more valid 
 indices than it *actually* does
 
-\begin{code}
-bad_bs1 = do
-  fp <- mallocForeignPtrBytes 0 
-  return $ PS fp 0 10 
-\end{code}
-
 even if we try to be sneaky with the length parameter.
 
-\begin{code}
-bad_bs2 = do fp <- mallocForeignPtrBytes 3
-             return $ PS fp 2 2
-\end{code}
 
 Creating ByteStrings
 --------------------
@@ -591,13 +636,6 @@ create' n f = unsafePerformIO $ do
     fp <- mallocForeignPtrBytes n
     withForeignPtr fp $ \p -> f p
     return $! PS fp 0 n
-
-
-create :: Int -> (Ptr Word8 -> IO ()) -> IO ByteString
-create l f = do
-    fp <- mallocForeignPtrBytes l
-    withForeignPtr fp $ \p -> f p
-    return $! PS fp 0 l
 \end{code}
 
 But this seems horribly unsafe!
@@ -619,76 +657,12 @@ ASIDE: have these assumed types around to suppress the type-errors that LH will
 END ASIDE
 
 \begin{code}
-bad_create = create 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
+bad_create = create' 5 $ \p -> poke (p `plusPtr` 10) (0 :: Word8)
 \end{code}
-
-which clearly isn't correct. We'd like to say that the provided
-function can only address locations a up to a certain offset
-from the pointer.
-
-Just as we had `fplen` to talk about the "length" of a `ForeignPtr`,
-we have provided `plen` to talk about the "length" of a `Ptr`, and
-we've defined a helpful alias
-
-\begin{spec}
-{-@ type PtrN a N = {v:Ptr a | plen v = N} @-}
-\end{spec}
-
-which says that a `PtrN a n` has precisely `n` addressable bytes
-from its base.
-
-
-Pointer Arithmetic
-------------------
-
-We have also given `plusPtr` the type
-
-\begin{spec}
-{-@ plusPtr :: p:Ptr a -> n:Int -> {v:Ptr a | plen v = plen p - n} @-}
-\end{spec}
-
-which says that as you increment a `Ptr`, you're left with fewer addressable
-bytes.
-
-Finally, we type `poke` as 
-
-\begin{spec}
-{-@ poke :: Storable a => {v:Ptr a | 0 <= plen v } -> a -> IO () @-}
-\end{spec}
-
-which says that the given `Ptr` must be addressable in order to safely `poke` it.
-
-Now we have all of the necessary tools to *prevent* ourselves from
-shooting ourselves in the foot with functions like `bad_create`.
-
-We'll just give `create` the type
 
 \begin{code}
-{-@ create :: l:Nat -> (PtrN Word8 l -> IO ()) -> IO (ByteStringN l) @-}
-{-@ type ByteStringN N = {v:ByteString | bLength v = N} @-}
+good_create = create' 5 $ \p -> poke (p `plusPtr` 2) (0 :: Word8)
 \end{code}
-
-where the alias describes `ByteString`s of length `N`.
-
-Lo and behold, LiquidHaskell has flagged `bad_create` as unsafe! 
-
-Furthermore, we can write things like
-
-\begin{code}
-good_create = create 5 $ \p -> poke (p `plusPtr` 2) (0 :: Word8)
-\end{code}
-
-Here's a real example from the BS library:
-
-\begin{code}
-pack      :: [Word8] -> ByteString
-pack str  = create' (length str) $ \p -> go p str
-  where
-    go _ []     = return ()
-    go p (x:xs) = poke p x >> go (p `plusPtr` 1) xs
-\end{code}
-
-proving that `pack` will *never* write out-of-bounds!
 
 
 ES: CUT
@@ -714,22 +688,22 @@ The specification is that `group` should produce a list of `ByteStrings`
 We use the type alias
 
 \begin{code}
-{-@ type ByteStringNE = {v:ByteString | bLength v > 0} @-}
+{-@ type ByteStringNE = {v:ByteString | bLen v > 0} @-}
 \end{code}
 
 to specify (safety) and introduce a new measure
 
 \begin{code}
-{-@ measure bLengths  :: [ByteString] -> Int
-    bLengths ([])   = 0
-    bLengths (x:xs) = (bLength x) + (bLengths xs)
+{-@ measure bLens  :: [ByteString] -> Int
+    bLens ([])   = 0
+    bLens (x:xs) = (bLen x + bLens xs)
   @-}
 \end{code}
 
 to specify (precision). The full type-specification looks like this:
 
 \begin{code}
-{-@ group :: b:ByteString -> {v: [ByteStringNE] | bLengths v = bLength b} @-}
+{-@ group :: b:ByteString -> {v: [ByteStringNE] | bLens v = bLen b} @-}
 group xs
     | null xs   = []
     | otherwise = let y = unsafeHead xs
@@ -765,7 +739,7 @@ the length of `b`.
 
 \begin{code}
 {-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 ->
-       bLength x1 + bLength x2 = bLength B}> @-}
+       bLen x1 + bLen x2 = bLen B}> @-}
 \end{code}
 
 
@@ -774,10 +748,10 @@ the length of `b`.
 -- Helper Code
 -----------------------------------------------------------------------
 {-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
-unsafeCreate n f = unsafePerformIO $ create n f
+unsafeCreate n f = create' n f -- unsafePerformIO $ create n f
 
-{-@ invariant {v:ByteString   | bLength  v >= 0} @-}
-{-@ invariant {v:[ByteString] | bLengths v >= 0} @-}
+{-@ invariant {v:ByteString   | bLen  v >= 0} @-}
+{-@ invariant {v:[ByteString] | bLens v >= 0} @-}
 
 {-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p) @-}
 {-@ qualif ForeignPtrN(v:ForeignPtr a, n:int): fplen v = n @-}
@@ -785,39 +759,45 @@ unsafeCreate n f = unsafePerformIO $ create n f
 {-@ qualif PtrLen(v:Ptr a, xs:List b): plen v = len xs @-}
 {-@ qualif PlenEq(v: Ptr a, x: int): x <= (plen v) @-}
 
-{-@ unsafeHead :: {v:ByteString | (bLength v) > 0} -> Word8 @-}
+{-@ unsafeHead :: {v:ByteString | (bLen v) > 0} -> Word8 @-}
+
 unsafeHead :: ByteString -> Word8
 unsafeHead (PS x s l) = liquidAssert (l > 0) $
   unsafePerformIO  $  withForeignPtr x $ \p -> peekByteOff p s
 
-{-@ unsafeTail :: b:{v:ByteString | (bLength v) > 0}
-               -> {v:ByteString | (bLength v) = (bLength b) - 1} @-}
+{-@ unsafeTail :: b:{v:ByteString | (bLen v) > 0}
+               -> {v:ByteString | (bLen v) = (bLen b) - 1} @-}
 unsafeTail :: ByteString -> ByteString
 unsafeTail (PS ps s l) = liquidAssert (l > 0) $ PS ps (s+1) (l-1)
 
-{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLength b) = 0))} @-}
+{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLen b) = 0))} @-}
 null :: ByteString -> Bool
 null (PS _ _ l) = liquidAssert (l >= 0) $ l <= 0
 
-{-@ unsafeTake :: n:Nat -> b:{v: ByteString | n <= (bLength v)} -> (ByteStringN n) @-}
+{-@ unsafeTake :: n:Nat -> b:{v: ByteString | n <= (bLen v)} -> (ByteStringN n) @-}
 unsafeTake :: Int -> ByteString -> ByteString
 unsafeTake n (PS x s l) = liquidAssert (0 <= n && n <= l) $ PS x s n
 
 {-@ unsafeDrop :: n:Nat
-               -> b:{v: ByteString | n <= (bLength v)} 
-               -> {v:ByteString | (bLength v) = (bLength b) - n} @-}
+               -> b:{v: ByteString | n <= (bLen v)} 
+               -> {v:ByteString | (bLen v) = (bLen b) - n} @-}
 unsafeDrop  :: Int -> ByteString -> ByteString
 unsafeDrop n (PS x s l) = liquidAssert (0 <= n && n <= l) $ PS x (s+n) (l-n)
 
-{-@ cons :: Word8 -> b:ByteString -> {v:ByteString | (bLength v) = 1 + (bLength b)} @-}
+{-@ cons :: Word8 -> b:ByteString -> {v:ByteString | (bLen v) = 1 + (bLen b)} @-}
 cons :: Word8 -> ByteString -> ByteString
 cons c (PS x s l) = unsafeCreate (l+1) $ \p -> withForeignPtr x $ \f -> do
         poke p c
         memcpy (p `plusPtr` 1) (f `plusPtr` s) (fromIntegral l)
 
-{-@ empty :: {v:ByteString | (bLength v) = 0} @-} 
+{-@ empty :: {v:ByteString | (bLen v) = 0} @-} 
 empty :: ByteString
 empty = PS nullForeignPtr 0 0
+
+{-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
+{-@ type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} @-}
+{-@ malloc :: n:Nat -> IO (ForeignPtrN a n) @-}
+malloc = mallocForeignPtrBytes 
 
 {-@ assume
     c_memcpy :: dst:(PtrV Word8)

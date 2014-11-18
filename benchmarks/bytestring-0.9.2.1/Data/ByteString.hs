@@ -315,12 +315,7 @@ readCharFromBuffer x y = error "LIQUIDCOMPAT"
 wantReadableHandleLIQUID :: String -> Handle -> (Handle__ -> IO a) -> IO a
 wantReadableHandleLIQUID x y f = error $ show $ liquidCanaryFusion 12 -- "LIQUIDCOMPAT"
 
-{- IN INCLUDE FILE qualif Gimme(v:a, n:b, acc:a): (len v) = (n + 1 + (len acc)) @-}
-{- qualif Zog(v:a, p:a)         : (plen p) <= (plen v)          @-}
-{- qualif Zog(v:a)              : 0 <= (plen v)                 @-}
-
 -- for unfoldrN 
-{- IN INCLUDE FILE qualif PtrDiffUnfoldrN(v:int, i:int, p:Ptr a): (i - v) <= (plen p) @-}
 
 {-@ lengths :: bs:[ByteString] -> {v:Nat | v = (bLengths bs)} @-}
 lengths :: [ByteString] -> Int
