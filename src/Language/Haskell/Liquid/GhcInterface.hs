@@ -395,7 +395,11 @@ specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
 specIncludes ext paths reqs 
   = do let libFile  = extFileNameR ext $ symbolString preludeName
        let incFiles = catMaybes $ reqFile ext <$> reqs 
-       liftIO $ forM (libFile : incFiles) (`findFileInDirs` paths)
+       liftIO $ forM (libFile : incFiles) $ \f -> do
+         mfile <- getFileInDirs f paths
+         case mfile of
+           Just file -> return file
+           Nothing -> errorstar $ "cannot find " ++ f ++ " in " ++ show paths
 
 reqFile ext s 
   | isExtFile ext s 
