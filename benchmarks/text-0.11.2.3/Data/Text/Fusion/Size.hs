@@ -26,6 +26,8 @@ module Data.Text.Fusion.Size
     , isEmpty
     ) where
 
+import Language.Haskell.Liquid.Prelude
+
 #if defined(ASSERTS)
 import Control.Exception (assert)
 #endif
@@ -34,6 +36,12 @@ data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
           | Max   {-# UNPACK #-} !Int -- ^ Upper bound on size.
           | Unknown                   -- ^ Unknown size.
             deriving (Eq, Show)
+
+{-@
+data Size = Exact (getExact::{v:Int | v >= 0})
+          | Max (getMax::{v:Int | v >= 0})
+          | Unknown
+@-}
 
 {-@ type SizeN N = {v:Size | (((getSize v) = n) && (not (isUnknown v)))} @-}
 {-@ measure getSize :: Data.Text.Fusion.Size.Size -> Int
@@ -80,13 +88,26 @@ unknownSize :: Size
 unknownSize = Unknown
 {-# INLINE unknownSize #-}
 
+--LIQUID: need intersection types for type-classes here..
 instance Num Size where
     (+) = addSize
-    (-) = subtractSize
-    (*) = mulSize
+    (-) = \x y -> let y' = (le y x) in subtractSize x y'
+    (*) = \x y -> let y' = n0 y in mulSize x y'
 
-    fromInteger = f where f = Exact . fromInteger
+    fromInteger = f where f = Exact . g0 . fromInteger
                           {-# INLINE f #-}
+
+{-@ assume le :: y:Size -> x:Size -> {v:Size | getSize v <= getSize x} @-}
+le :: Size -> Size -> Size
+le y x = y
+
+{-@ assume n0 :: Size -> {v:Size | getSize v /= 0} @-}
+n0 :: Size -> Size
+n0 x = x
+
+{-@ assume g0 :: Int -> Nat @-}
+g0 :: Int -> Int
+g0 x = x
 
 add :: Int -> Int -> Int
 add m n | mn >=   0 = mn
@@ -102,6 +123,7 @@ addSize (Max   m) (Max   n) = Max   (add m n)
 addSize _          _       = Unknown
 {-# INLINE addSize #-}
 
+{-@ subtractSize :: x:Size -> {v:Size | getSize v <= getSize x} -> Size @-}
 subtractSize :: Size -> Size -> Size
 subtractSize   (Exact m) (Exact n) = Exact (max (m-n) 0)
 subtractSize   (Exact m) (Max   _) = Max   m
@@ -111,12 +133,14 @@ subtractSize a@(Max   _) Unknown   = a
 subtractSize _         _           = Unknown
 {-# INLINE subtractSize #-}
 
+{-@ mul :: Nat -> {v:Nat | v > 0} -> Nat @-}
 mul :: Int -> Int -> Int
 mul m n
     | m <= maxBound `div` n = m * n
     | otherwise             = overflowError
 {-# INLINE mul #-}
 
+{-@ mulSize :: Size -> {v:Size | getSize v /= 0} -> Size @-}
 mulSize :: Size -> Size -> Size
 mulSize (Exact m) (Exact n) = Exact (mul m n)
 mulSize (Exact m) (Max   n) = Max   (mul m n)
@@ -171,6 +195,6 @@ isEmpty (Max   n) = n <= 0
 isEmpty _         = False
 {-# INLINE isEmpty #-}
 
-{-@ overflowError :: Int @-}
+{-@ overflowError :: Nat @-}
 overflowError :: Int
 overflowError = error "Data.Text.Fusion.Size: size overflow"
