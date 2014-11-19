@@ -1,5 +1,5 @@
-Low Level Memory Manipulation
-=============================
+Case Study: Low Level Memory
+============================
 
  {#mem}
 -------

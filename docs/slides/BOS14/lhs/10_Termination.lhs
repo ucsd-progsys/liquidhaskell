@@ -149,7 +149,7 @@ What of input types other than `Nat` ?
 
 <br>
 
-[DEMO](../hs/04_Termination.hs)
+[DEMO](../hs/03_Termination.hs)
 
 
 Recur On *Smaller* Inputs

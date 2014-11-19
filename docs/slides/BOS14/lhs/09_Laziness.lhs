@@ -20,20 +20,6 @@ foo     :: Int -> Int
 Lazy Evaluation?
 ----------------
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
-
-[[Skip]](11_Evaluation.lhs.slides.html)
 
 Lazy Evaluation
 ===============
@@ -113,8 +99,8 @@ Why is this program **deemed safe**?!
 </div>
 
 
-*Safe* With Eager Eval
-----------------------
+*Is Safe* With Eager Eval
+-------------------------
 
 \begin{spec}
 {-@ foo       :: n:Nat -> {v:Nat | v < n} @-}
@@ -130,9 +116,7 @@ explode = let z = 0     -- :: {v:Int| v = 0}
 
 <br>
 
-<div class="fragment">
-**Safe** in Java, ML: program spins away, **never hits** divide-by-zero 
-</div>
+**Safe** in Java, ML: program **never hits** divide-by-zero 
 
 *Unsafe* With Lazy Eval
 -----------------------
@@ -151,20 +135,19 @@ explode = let z = 0     -- :: {v:Int| v = 0}
 
 <br>
 
-**Unsafe** in Haskell: program skips `foo z` and **hits** divide-by-zero!
+**Unsafe** in Haskell: skips `foo z` **hits** divide-by-zero!
 
 Problem: Divergence
 -------------------
 
 What is denoted by:
 
-`e :: {v:Int | P}`
-
+$$ e :: \reft{v}{\Int}{p}$$
 
 <br>
 
 <div class="fragment">
-`e` evaluates to `Int` satisfying `P`  
+$e$ evaluates to $\Int$ that satisfies $p$  
 </div>
 
 <div class="fragment">
@@ -222,10 +205,9 @@ explode = let z = 0     -- :: {v:Int| v = 0}
               (\x -> 2014 `safeDiv` z) a 
 \end{spec}
 
-
 <br>
 
-Inconsistent refinement for `a` is sound for **eager**, unsound for **lazy**
+Inconsistent `a` is sound for **eager**, unsound for **lazy**
 
 
 Panic! Now what?
@@ -234,38 +216,26 @@ Panic! Now what?
 <div class="fragment">
 **Solution** 
 
-Assign **non-trivial** refinements to **non-diverging** terms!
+Assign *non-trivial* refinements to *non-diverging* terms!
 </div>
 
 <br>
 
 <div class="fragment">
+**Harder Problem?**
 
-**Require A Termination Analysis**
-
-Relax. Its *easy* ... using *refinements*
-
+Yikes, doesn't non-divergence mean tracking *permination?*
 </div>
 
 <br>
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=TellingLies.hs" target="_blank">Demo:</a> &nbsp; Disable `"--no-termination"` and see what happens!
+**Relax**
+
+Its *easy* ... since we have *refinements*! [[continue...]](10_Termination.lhs.slides.html)
 </div>
 
-Recap
------
-
-1. Refinements: Types + Predicates
-2. Subtyping: SMT Implication
-3. Measures: Strengthened Constructors
-4. Abstract: Refinements over functions and data
-5. **Lazy Evaluation:** Requires Termination
-6. <div class="fragment">**Termination:** via Refinements!</div>
-
-<br>
 <br>
 
-<div class="fragment">[[continue...]](10_Termination.lhs.slides.html)</div>
 
 

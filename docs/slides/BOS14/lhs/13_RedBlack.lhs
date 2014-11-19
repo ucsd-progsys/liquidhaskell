@@ -1,7 +1,7 @@
 
 
-Multiple Measures: Red-Black Trees
-==================================
+Case Study: Red-Black Trees
+===========================
 
 
 <div class="hidden">
