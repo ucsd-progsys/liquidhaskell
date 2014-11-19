@@ -22,6 +22,7 @@ import Foreign.ForeignPtr
 import Foreign.Ptr
 import Foreign.Storable
 import System.IO.Unsafe
+import Data.ByteString.Internal (c2w, w2c)
 import Language.Haskell.Liquid.Prelude
 \end{code}
 
@@ -61,9 +62,9 @@ import Data.ByteString.Unsafe (unsafeTake)
 chop     :: String -> Int -> String
 chop s n = s'
   where 
-    b    = pack s           -- down to low-level
-    b'   = unsafeTake n b   -- grab n chars
-    s'   = unpack b'        -- up to high-level
+    b    = pack s         -- down to low-level
+    b'   = unsafeTake n b -- grab n chars
+    s'   = unpack b'      -- up to high-level
 \end{spec}
 
 "HeartBleed" in Haskell (2/3)
@@ -644,9 +645,11 @@ Lets revisit our potentially "bleeding" `chop`
 
 <br>
 
+<div class="fragment">
+
 \begin{code}
 chop     :: String -> Int -> String 
-chop s n = s'
+chop s n =  s'
   where 
     b    = pack s          -- down to low-level
     b'   = unsafeTake n b  -- grab n chars
@@ -657,25 +660,40 @@ chop s n = s'
 
 Yikes! How shall we fix it?
 
+</div>
+
 
 A Well Typed `chop`
 -------------------
 
-chopGOOD
+\begin{spec}
+{-@ chop :: s:String
+         -> n:{Nat | n <= len s}
+         -> {v:String | len v = n} @-} 
+chop s n = s'
+  where 
+    b    = pack s          -- down to low-level
+    b'   = unsafeTake n b  -- grab n chars
+    s'   = unpack b'       -- up to high-level
+\end{spec}
+
 
 "HeartBleed" no more
 --------------------
 
+<br>
+
 \begin{code}
 demo     = [ex6, ex30]
   where
-    ex   = "Ranjit Loves Burritos"
-    ex6  = chop ex 6
-    ex30 = chop ex 30
+    ex   = ['R','a','n','j','i','t']
+    ex6  = chop ex 6  -- ok
+    ex30 = chop ex 30 -- out of bounds
 \end{code}
 
-"Bleeding" `chop` rejected by compiler.
+<br>
 
+"Bleeding" `chop ex 30` *rejected* by compiler
 
 Recap: Types vs Overflows
 -------------------------
@@ -692,7 +710,7 @@ Recap: Types vs Overflows
 
 <br>
 
-Errors at *each* level are prevented by types at *lower* levels
+**Errors at *each* level are prevented by types at *lower* levels**
 
 
 
@@ -707,9 +725,11 @@ Errors at *each* level are prevented by types at *lower* levels
 
 
 <div class="hidden">
+Bonus Material
+==============
 
-Nested Data
------------
+Nested ByteStrings 
+------------------
 
 For a more in depth example, let's take a look at `group`,
 which transforms strings like
@@ -774,8 +794,8 @@ accesses are safe. Furthermore, due to the precise specifications given to
 {-@ spanByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
 \end{code}
 
-where `ByteStringPair b` describes a pair of `ByteString`s whose lengths sum to
-the length of `b`.
+where `ByteStringPair b` describes a pair of `ByteString`s whose
+lengths sum to the length of `b`.
 
 \begin{code}
 {-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 ->
@@ -783,17 +803,16 @@ the length of `b`.
 \end{code}
 
 
+
+
+
+
+
+
 \begin{code}
 -----------------------------------------------------------------------
 -- Helper Code
 -----------------------------------------------------------------------
-c2w :: Char -> Word8
-c2w = undefined
-
-w2c :: Word8 -> Char
-w2c = undefined
-
-
 
 {-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
 unsafeCreate n f = create n f -- unsafePerformIO $ create n f

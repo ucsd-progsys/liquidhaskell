@@ -13,12 +13,10 @@ Todo
   + INV 2: HEIGHT
   + INV 3: ORDER
 
-**HEREHEREHERE**
-
-- CREATE 03_Memory.lhs **TUFTS, BOS**
++ CREATE 03_Memory.lhs **TUFTS, BOS**
   + and associated demo file, from eseidel's BS demo.
 
-- UPDATE 09_Laziness.lhs **BOS**
++ UPDATE 09_Laziness.lhs **BOS**
   + Use math fonts
   
 + CHECK 10_Termination.lhs **BOS**
@@ -36,70 +34,58 @@ https://github.com/jstolarek/dep-typed-wbl-heaps-hs/blob/master/src/TwoPassMerge
 -- HS+LH proof
 https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/WBL.hs#L129
 
+
 BOS-Haskell Plan
 ----------------
 
+[35] PART I "refinement types"
+
 * [5]  00_Motivation: "Go Wrong"
 
-* [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar)
-
+* [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar
+    + Demo : hs/000_Refinements.hs
+	+ Demo : hs/001_Refinements.hs
+	
 * [15] 02_Measures
-    + Demo : 00_Refinements.hs (modify score to letter grade)
-    + Demo : 01_Elements.hs
+    + Demo : hs/01_Elements.hs
 
-* [5] 02_RedBlack
-	
-* [10] 03_Memory
+[20] PART II "case studies"
 
-* [??] 10_Termination.lhs
+* [5]  lhs/02_RedBlack.lhs	
+* [15] lhs/13_Memory.lhs
 
-* BREAK
 
-* [10]  04_Abstract Refinements
+[25] PART III "haskell"
+
+* [10] lhs/09_Laziness.lhs
+* [10] lhs/10_Termination.lhs
+* [3]  lhs/11_Evaluation.lhs 
+* [2]  lhs/12_Conclusion.lhs
+
+[20] PART IV "abstract refinements"
+
+* [5]  04_Abstract Refinements.lhs
     + Demo : 02_AbstractRefinements.hs (listMax)
-	
-* [10]  06_Inductive
-	+ Describe: foldr
-    + Demo:  02_AbstractRefinements.hs (foldr, append, filter)
 
-* [10]  08_Recursive
-	+ Describe: list-ord
+* [7] Demo Inductive
+    + Demo:  02_AbstractRefinements.hs (ifoldr, append, filter)
+	  
+* [8] Demo Recursive
 	+ Demo:  02_AbstractRefinements.hs (insertSort, ifoldr-insertSort)
-	+ Show:  GhcListSort.hs 
-	+ Describe: tree-ord
-	+ Demo:     Stream
+	+ Demo:  04_Streams.hs (repeat, take)
 
-* [5] 07_Array
-  	+ Describe: Array
-  	+ Demo:     KMP
-
-* [3]  11_Evaluation.lhs 
-
-* [2]  12_Conclusion.lhs
-
+? [10] Demo Indexed
+	+ Demo: KMP.hs
 
 Tufts Plan
 ----------
 
-* [5] 00_Programs_and_Bugs
-		+ The first BUG
-		+ Morris Worm
-		+ SLAMMER
-		+ NORTHEAST BlackOut
-		+ 2014: GotoFail, HeartBleed, ShellShock.
-	    + 1984
-	    "In the end we shall make thoughtcrime literally
-		 impossible, because there will be no words to express it."
-		+ George Orwell, "1984"
-	    - NEWSPEAK "++ungood";
-		- HASKELL 	
-
-* [5]  00_Motivation: "Well typed Program Go Wrong"
-	    + No heartbleed because, well no one cares. yet.
+* [7]  00_Motivation_Long
+        + Bugs
+		+ Well typed Program Go Wrong
 		
 * [10]  01_SimpleRefinements
         + upto VC, Abs
-		+ CUT Kvar 
 
 * [10] 02_Measures 
         + Demo    : 00_Refinements.hs
@@ -107,11 +93,10 @@ Tufts Plan
 
 * [5]  02_RedBlack 
 		+ Complex : RED-BLACK Trees
-		  HARDWIRE THE BST DEFINITION.
-		  TODO: Define, show OK tree, show BAD tree.
 
-* [10] 03_Memory
-
+* [5] 03_Memory_short?
+		+ Upto just the low-level API?
+		
 * [5]  11_Evaluation.lhs 
 		+ Add bits about "comments" ---> "types"
 		
