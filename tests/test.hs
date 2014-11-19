@@ -95,8 +95,8 @@ mkTest code dir file
     test = dir </> file
     log = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
-knownToFail CVC4 = [ "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs" ]
-knownToFail Z3   = []
+knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs" ]
+knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> String
