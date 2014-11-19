@@ -232,114 +232,6 @@ Multiple Measures: Sets and Duplicates
 
 [DEMO: 01_Elements.hs](../hs/01_Elements.hs)
 
-<!-- BEGIN CUT
-
-Multiple Measures: Red-Black Trees
-==================================
-
- {#asdad}
----------
-
-<img src="../img/RedBlack.png" height=300px>
-
-+ <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
-+ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on *all paths*</div>
-<br>
-
-Basic Type 
-----------
-
-\begin{spec}
-data Tree a = Leaf 
-            | Node Color a (Tree a) (Tree a)
-
-data Color  = Red 
-            | Black
-\end{spec}
-
-Color Invariant 
----------------
-
-`Red` nodes have `Black` children
-
-<div class="fragment">
-\begin{spec}
-measure isRB        :: Tree a -> Prop
-isRB (Leaf)         = true
-isRB (Node c x l r) = c=Red => (isB l && isB r)
-                      && isRB l && isRB r
-\end{spec}
-</div>
-
-<div class="fragment">
-where 
-\begin{spec}
-measure isB         :: Tree a -> Prop 
-isB (Leaf)          = true
-isB (Node c x l r)  = c == Black 
-\end{spec}
-</div>
-
-*Almost* Color Invariant 
-------------------------
-
-<br>
-
-Color Invariant **except** at root. 
-
-<br>
-
-<div class="fragment">
-\begin{spec}
-measure isAlmost        :: Tree a -> Prop
-isAlmost (Leaf)         = true
-isAlmost (Node c x l r) = isRB l && isRB r
-\end{spec}
-</div>
-
-
-Height Invariant
-----------------
-
-Number of `Black` nodes equal on **all paths**
-
-<div class="fragment">
-\begin{spec} 
-measure isBH        :: RBTree a -> Prop
-isBH (Leaf)         =  true
-isBH (Node c x l r) =  bh l = bh r 
-                    && isBH l && isBH r 
-\end{spec}
-</div>
-
-<div class="fragment">
-
-where
-
-\begin{spec}
-measure bh        :: RBTree a -> Int
-bh (Leaf)         = 0
-bh (Node c x l r) = bh l 
-                  + if c = Red then 0 else 1
-\end{spec}
-</div>
-
-Refined Type 
-------------
-
-\begin{spec}
--- Red-Black Trees
-type RBT a  = {v:Tree a | isRB v && isBH v}
-
--- Almost Red-Black Trees
-type ARBT a = {v:Tree a | isAlmost v && isBH v}
-\end{spec}
-
-<br>
-
-[Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
-
-
 Measures vs. Index Types
 ========================
 
@@ -364,7 +256,6 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <div class="fragment">Invaluable in practice!</div>
 
-END CUT -->
 
 Recap
 -----
