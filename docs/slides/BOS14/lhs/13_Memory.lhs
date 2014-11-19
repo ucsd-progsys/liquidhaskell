@@ -299,7 +299,7 @@ Refined API: Ops (1/3)
 \begin{spec}
 malloc  :: n:Nat -> ForeignPtrN a n
 \end{spec}
-</div>
+</div> 
 
 <br>
 
