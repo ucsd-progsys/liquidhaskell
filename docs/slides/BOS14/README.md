@@ -43,31 +43,28 @@ BOS-Haskell Plan
 * [5]  00_Motivation: "Go Wrong"
 
 * [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar
-    + Demo : 000_Refinements.hs
-	+ Demo : 001_Refinements.hs
+    + Demo : hs/000_Refinements.hs
+	+ Demo : hs/001_Refinements.hs
 	
 * [15] 02_Measures
-    + Demo : 01_Elements.hs
+    + Demo : hs/01_Elements.hs
 
 [20] PART II "case studies"
 
-* [5] 02_RedBlack
-	
-* [15] 03_Memory
+* [5]  lhs/02_RedBlack.lhs	
+* [15] lhs/13_Memory.lhs
+
 
 [25] PART III "haskell"
 
-* [10] 09_Laziness.lhs
-
-* [10] 10_Termination.lhs
-
-* [3]  11_Evaluation.lhs 
-
-* [2]  12_Conclusion.lhs
+* [10] lhs/09_Laziness.lhs
+* [10] lhs/10_Termination.lhs
+* [3]  lhs/11_Evaluation.lhs 
+* [2]  lhs/12_Conclusion.lhs
 
 [20] PART IV "abstract refinements"
 
-* [5]  04_Abstract Refinements
+* [5]  04_Abstract Refinements.lhs
     + Demo : 02_AbstractRefinements.hs (listMax)
 
 * [7] Demo Inductive
