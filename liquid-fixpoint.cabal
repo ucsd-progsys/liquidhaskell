@@ -50,9 +50,7 @@ Extra-Source-Files: configure
                   , external/misc/*.ml
                   , external/misc/*.mli
                   , external/ocamlgraph/.depend
-                  , external/ocamlgraph/Makefile
                   , external/ocamlgraph/Makefile.in
-                  , external/ocamlgraph/META
                   , external/ocamlgraph/META.in
                   , external/ocamlgraph/configure
                   , external/ocamlgraph/configure.in
@@ -70,7 +68,10 @@ Extra-Source-Files: configure
                   , external/z3/ocaml/build-lib.sh
                   , external/z3/ocaml/z3.ml
                   , external/z3/ocaml/*.c
-                  , external/fixpoint/fixpoint.native-*
+                  , external/fixpoint/fixpoint.native-i386-linux
+                  , external/fixpoint/fixpoint.native-i686-w64-mingw32
+                  , external/fixpoint/fixpoint.native-x86_64-darwin
+                  , external/fixpoint/fixpoint.native-x86_64-linux
 
 Flag z3mem
   Description: Link to Z3
