@@ -38,6 +38,8 @@ https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/WBL.hs#L129
 BOS-Haskell Plan
 ----------------
 
+[35] PART I "refinement types"
+
 * [5]  00_Motivation: "Go Wrong"
 
 * [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar
@@ -47,59 +49,46 @@ BOS-Haskell Plan
 * [15] 02_Measures
     + Demo : 01_Elements.hs
 
+[20] PART II "case studies"
+
 * [5] 02_RedBlack
 	
-* [10] 03_Memory
+* [15] 03_Memory
 
-* [??] 10_Termination.lhs
+[25] PART III "haskell"
 
-* BREAK
+* [10] 09_Laziness.lhs
 
-* [10]  04_Abstract Refinements
-    + Demo : 02_AbstractRefinements.hs (listMax)
-	
-* [10]  06_Inductive
-	+ Describe: foldr
-    + Demo:  02_AbstractRefinements.hs (foldr, append, filter)
-
-* [10]  08_Recursive
-	+ Describe: list-ord
-	+ Demo:  02_AbstractRefinements.hs (insertSort, ifoldr-insertSort)
-	+ Show:  GhcListSort.hs 
-	+ Describe: tree-ord
-	+ Demo:     Stream
-
-* [5] 07_Array
-  	+ Describe: Array
-  	+ Demo:     KMP
+* [10] 10_Termination.lhs
 
 * [3]  11_Evaluation.lhs 
 
 * [2]  12_Conclusion.lhs
 
+[20] PART IV "abstract refinements"
+
+* [5]  04_Abstract Refinements
+    + Demo : 02_AbstractRefinements.hs (listMax)
+
+* [7] Demo Inductive
+    + Demo:  02_AbstractRefinements.hs (ifoldr, append, filter)
+	  
+* [8] Demo Recursive
+	+ Demo:  02_AbstractRefinements.hs (insertSort, ifoldr-insertSort)
+	+ Demo:  04_Streams.hs (repeat, take)
+
+? [10] Demo Indexed
+	+ Demo: KMP.hs
 
 Tufts Plan
 ----------
 
-* [5] 00_Programs_and_Bugs
-		+ The first BUG
-		+ Morris Worm
-		+ SLAMMER
-		+ NORTHEAST BlackOut
-		+ 2014: GotoFail, HeartBleed, ShellShock.
-	    + 1984
-	    "In the end we shall make thoughtcrime literally
-		 impossible, because there will be no words to express it."
-		+ George Orwell, "1984"
-	    - NEWSPEAK "++ungood";
-		- HASKELL 	
-
-* [5]  00_Motivation: "Well typed Program Go Wrong"
-	    + No heartbleed because, well no one cares. yet.
+* [7]  00_Motivation_Long
+        + Bugs
+		+ Well typed Program Go Wrong
 		
 * [10]  01_SimpleRefinements
         + upto VC, Abs
-		+ CUT Kvar 
 
 * [10] 02_Measures 
         + Demo    : 00_Refinements.hs
@@ -107,11 +96,10 @@ Tufts Plan
 
 * [5]  02_RedBlack 
 		+ Complex : RED-BLACK Trees
-		  HARDWIRE THE BST DEFINITION.
-		  TODO: Define, show OK tree, show BAD tree.
 
-* [10] 03_Memory
-
+* [5] 03_Memory_short?
+		+ Upto just the low-level API?
+		
 * [5]  11_Evaluation.lhs 
 		+ Add bits about "comments" ---> "types"
 		

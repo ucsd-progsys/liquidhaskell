@@ -364,7 +364,7 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <div class="fragment">Invaluable in practice!</div>
 
--->
+END CUT -->
 
 Recap
 -----
