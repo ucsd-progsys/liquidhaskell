@@ -41,7 +41,7 @@ instance IsOption SmtSolver where
   optionName = return "smtsolver"
   optionHelp = return "Use this SMT solver"
   optionCLParser =
-    option (auto . map toUpper)
+    option (fmap (read . map toUpper) str)
       (  long (untag (optionName :: Tagged SmtSolver String))
       <> help (untag (optionHelp :: Tagged SmtSolver String))
       )
