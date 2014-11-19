@@ -1,495 +1,387 @@
-Abstract Refinements {#data}
-============================
+ {#measures}
+============
 
 Recap
 -----
 
-**So far**
+1. <div class="fragment">**Refinements:** Types + Predicates</div>
+2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
-Abstract Invariants from Functions
+<br>
+<br>
+<br>
+
+<div class="fragment">
+So far: only specify properties of *base values* (e.g. `Int`) ...
+</div>
 
 <br>
 
 <div class="fragment">
-
-**Next**
-
-Decouple invariants from **recursive** data structures
+How to specify properties of *structures*?
 </div>
 
 
-
-Decouple Invariants From Data {#recursive} 
-==========================================
-
- {#asd}
--------
-
-Recursive Structures 
---------------------
-
-Lets see another example of decoupling...
-
 <div class="hidden">
+
 \begin{code}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
-module List (insertSort) where
+{-# LIQUID "--no-termination" #-}
+{-# LIQUID "--full" #-}
 
-{-@ LIQUID "--no-termination" @-}
+module Measures where
+import Prelude hiding ((!!), length)
+import Language.Haskell.Liquid.Prelude
 
-mergeSort     :: Ord a => [a] -> [a]
-insertSort :: (Ord a) => [a] -> L a 
-slist :: L Int
-slist' :: L Int
-iGoUp, iGoDn, iDiff :: [Int]
+-- length      :: L a -> Int
+-- (!)         :: L a -> Int -> a
+
 infixr `C`
 \end{code}
+
 </div>
 
-Decouple Invariants From Recursive Data
-=======================================
 
-Recall: Lists
--------------
+ {#meas}
+====================
 
-\begin{code}
-data L a = N 
-         | C { hd :: a, tl :: L a }
-\end{code}
-
-
-Recall: Refined Constructors 
-----------------------------
-
-Define **increasing** Lists with *strengthened constructors*:
-
-\begin{spec} <br>
-data L a where
-  N :: L a
-  C :: hd:a -> tl: L {v:a | hd <= v} -> L a
-\end{spec}
-
-Problem: Decreasing Lists?
---------------------------
-
-What if we need *both* [increasing *and* decreasing lists?](http://hackage.haskell.org/package/base-4.7.0.0/docs/src/Data-List.html#sort)
-
-<br>
-
-<div class="hidden">
-[Separate (indexed) types](http://web.cecs.pdx.edu/~sheard/Code/QSort.html) get quite complicated ...
-</div>
-
-Abstract That Refinement!
--------------------------
-
-\begin{code}
-{-@ data L a <p :: a -> a -> Prop>
-      = N 
-      | C { hd :: a, tl :: L <p> a<p hd> } @-}
-\end{code}
-
-<br>
-
-<div class="fragment"> `p` is a **binary relation** between two `a` values</div>
-
-<br>
-
-<div class="fragment"> Definition relates `hd` with **all** the elements of `tl`</div>
-
-<br>
-
-<div class="fragment"> Recursive: `p` holds for **every pair** of elements!</div>
-
-Example
--------
-
-Consider a list with *three* or more elements 
-
-\begin{spec} <br>
-x1 `C` x2 `C` x3 `C` rest :: L <p> a 
-\end{spec}
-
-Example: Unfold Once
+Measuring Data Types
 --------------------
 
-\begin{spec} <br> 
-x1                 :: a
-x2 `C` x3 `C` rest :: L <p> a<p x1> 
-\end{spec}
-
-Example: Unfold Twice
----------------------
-
-\begin{spec} <br> 
-x1          :: a
-x2          :: a<p x1>  
-x3 `C` rest :: L <p> a<p x1 && p x2> 
-\end{spec}
-
-Example: Unfold Thrice
-----------------------
-
-\begin{spec} <br> 
-x1   :: a
-x2   :: a<p x1>  
-x3   :: a<p x1 && p x2>  
-rest :: L <p> a<p x1 && p x2 && p x3> 
-\end{spec}
-
-<br>
-
-<div class="fragment">
-Note how `p` holds between **every pair** of elements in the list. 
-</div>
-
-A Concrete Example
-------------------
-
-That was a rather *abstract*!
-
-<br>
-
-How can we *use* fact that `p` holds between *every pair*?
-
-<br>
-
-<div class="fragment">**Instantiate** `p` with a *concrete* refinement</div>
+Measuring Data Types
+====================
 
 
-
-Example: Increasing Lists
+Example: Length of a List 
 -------------------------
 
-**Instantiate** `p` with a *concrete* refinement
+Given a type for lists:
 
 <br>
 
 \begin{code}
-{-@ type IncL a = L <{\hd v -> hd <= v}> a @-}
+data L a = N | C a (L a)
 \end{code}
 
+<div class="fragment">
 <br>
 
-<div class="fragment"> Refinement says: &nbsp; `hd` less than **every** `v` in tail,</div>
-
-<br>
-
-<div class="fragment"> i.e., `IncL` denotes **increasing** lists. </div>
+We can define the **length** as:
 
 <br>
 
-<div class="fragment"> [DEMO 02_AbstractRefinements.hs #3](02_AbstractRefinements.hs) </div>
+\begin{code}
+{-@ measure size  :: (L a) -> Int
+    size (N)      = 0
+    size (C x xs) = (1 + size xs)  @-}
+\end{code}
 
-<!-- BEGIN CUT 
+<div class="hidden">
 
-Example: Increasing Lists
+\begin{code}
+{-@ data L [size] a = N | C {hd :: a, tl :: L a } @-}
+{-@ invariant {v: L a | 0 <= size v}              @-} 
+\end{code}
+
+</div>
+
+Example: Length of a List 
 -------------------------
 
-LiquidHaskell *verifies* that `slist` is indeed increasing...
-
-\begin{code}
-{-@ slist :: IncL Int @-}
-slist     = 1 `C` 6 `C` 12 `C` N
-\end{code}
-
-<br> 
-
-<div class="fragment">
-
-... and *protests* that `slist'` is not: 
-
-\begin{code}
-{-@ slist' :: IncL Int @-}
-slist' = 6 `C` 1 `C` 12 `C` N
-\end{code}
-</div>
-
-Insertion Sort
---------------
-
-\begin{code}
-{-@ insertSort :: (Ord a) => [a] -> IncL a @-}
-insertSort     = foldr insert N
-
-insert y N          = y `C` N
-insert y (x `C` xs) 
-  | y < x           = y `C` (x `C` xs)
-  | otherwise       = x `C` insert y xs
-\end{code}
-
-<br>
-
-(Mouseover `insert` to see inferred type.)
-
-Checking GHC Lists
-------------------
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target= "_blank">Demo:</a> 
-Above applies to GHC's List definition:
-
-\begin{spec} <br> 
-data [a] <p :: a -> a -> Prop>
-  = [] 
-  | (:) { h :: a, tl :: [a<p h>]<p> }
+\begin{spec}
+{-@ measure size  :: (L a) -> Int
+    size (N)      = 0
+    size (C x xs) = 1 + size xs  @-}
 \end{spec}
 
-Checking GHC Lists
-------------------
+<br>
 
-Increasing Lists
+We **strengthen** data constructor types
 
 <br>
 
-\begin{code}
-{-@ type Incs a = [a]<{\h v -> h <= v}> @-}
+\begin{spec} <div/>
+data L a where 
+  N :: {v: L a | size v = 0}
+  C :: a -> t:_ -> {v:_| size v = 1 + size t}
+\end{spec}
 
-{-@ iGoUp :: Incs Int @-}
-iGoUp     = [1,2,3]
-\end{code}
-
-Checking GHC Lists
-------------------
-
-Decreasing Lists
-
-<br>
-
-\begin{code}
-{-@ type Decs a = [a]<{\h v -> h >= v}> @-}
-
-{-@ iGoDn :: Decs Int @-}
-iGoDn     = [3,2,1]
-\end{code}
-
-
-Checking GHC Lists
-------------------
-
-Duplicate-free Lists
-
-<br>
-
-\begin{code}
-{-@ type Difs a = [a]<{\h v -> h /= v}> @-}
-
-{-@ iDiff :: Difs Int @-}
-iDiff     = [1,3,2]
-\end{code}
-
-END CUT -->
-
-Example: Sorting Lists
-----------------------
-
-Now we can check all the usual list sorting algorithms 
-
-<br>
-
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Order.hs" target="_blank">Demo:</a> List Sorting
-
-<br>
-<br>
-
-[DEMO GhcListSort.hs](../hs/GhcListSort.hs)
-
-<!-- BEGIN CUT 
-
-Example: `mergeSort` [1/2]
+Measures Are Uninterpreted
 --------------------------
 
-\begin{code}
-{-@ mergeSort  :: (Ord a) => [a] -> Incs a @-}
-mergeSort []   = []
-mergeSort [x]  = [x]
-mergeSort xs   = merge xs1' xs2' 
-  where 
-   (xs1, xs2)  = split xs
-   xs1'        = mergeSort xs1
-   xs2'        = mergeSort xs2
-\end{code}
+\begin{spec} <br>
+data L a where 
+  N :: {v: L a | size v = 0}
+  C :: a -> t:_ -> {v:_| size v = 1 + size t}
+\end{spec}
 
-Example: `mergeSort` [2/2]
+<br>
+
+`size` is an **uninterpreted function** in SMT logic
+
+Measures Are Uninterpreted
 --------------------------
 
-\begin{code}
-split (x:y:zs) = (x:xs, y:ys) 
-  where 
-    (xs, ys)   = split zs
-split xs       = (xs, [])
+<br>
 
-merge xs []    = xs
-merge [] ys    = ys
-merge (x:xs) (y:ys) 
-  | x <= y     = x : merge xs (y:ys)
-  | otherwise  = y : merge (x:xs) ys
-\end{code}
+In SMT, [uninterpreted function](http://fm.csl.sri.com/SSFT12/smt-euf-arithmetic.pdf) $f$ obeys **congruence** axiom:
 
-END CUT -->
+<br>
 
-Example: Binary Trees
----------------------
-
-`Map` from keys of type `k` to values of type `a` 
+$$\forall \overline{x}, \overline{y}. \overline{x} = \overline{y} \Rightarrow
+f(\overline{x}) = f(\overline{y})$$
 
 <br>
 
 <div class="fragment">
-
-Implemented, as a binary tree:
+Other properties of `size` asserted when typing **fold** & **unfold**
+</div>
 
 <br>
 
-\begin{code}
-data Map k a = Tip
-             | Bin Int k a (Map k a) (Map k a)
-\end{code}
+<div class="fragment">
+Crucial for *efficient*, *decidable* and *predictable* verification.
 </div>
 
-Two Abstract Refinements
+Measures Are Uninterpreted
+--------------------------
+
+Other properties of `size` asserted when typing **fold** & **unfold**
+
+<br>
+
+<div class="fragment">
+\begin{spec}**Fold**<br>
+z = C x y     -- z :: {v | size v = 1 + size y}
+\end{spec}
+</div>
+
+<br>
+
+<div class="fragment">
+\begin{spec}**Unfold**<br>
+case z of 
+  N     -> e1 -- z :: {v | size v = 0}
+  C x y -> e2 -- z :: {v | size v = 1 + size y}
+\end{spec}
+</div>
+
+Example: Using Measures
+-----------------------
+
+<br>
+<br>
+
+[DEMO: 001_Refinements.hs](../hs/001_Refinements.hs)
+
+
+
+Multiple Measures
+=================
+
+ {#adasd}
+---------
+
+Can support *many* measures for a type
+
+
+Ex: List Emptiness 
+------------------
+
+Measure describing whether a `List` is empty 
+
+\begin{code}
+{-@ measure isNull :: (L a) -> Prop
+    isNull (N)      = true
+    isNull (C x xs) = false           @-}
+\end{code}
+
+<br>
+
+<div class="fragment">
+LiquidHaskell **strengthens** data constructors
+
+\begin{spec}
+data L a where 
+  N :: {v : L a | isNull v}
+  C :: a -> L a -> {v:(L a) | not (isNull v)}
+\end{spec}
+
+</div>
+
+Conjoining Refinements
+----------------------
+
+Data constructor refinements are **conjoined** 
+
+\begin{spec} 
+data L a where 
+  N :: {v:L a |  size v = 0 
+              && isNull v }
+  C :: a 
+    -> xs:L a 
+    -> {v:L a |  size v = 1 + size xs 
+              && not (isNull v)      }
+\end{spec}
+
+Multiple Measures: Sets and Duplicates
+======================================
+
+ {#elements}
+------------
+
+[DEMO: 01_Elements.hs](../hs/01_Elements.hs)
+
+<!-- BEGIN CUT
+
+Multiple Measures: Red-Black Trees
+==================================
+
+ {#asdad}
+---------
+
+<img src="../img/RedBlack.png" height=300px>
+
++ <div class="fragment">**Color Invariant:** `Red` nodes have `Black` children</div>
++ <div class="fragment">**Height Invariant:** Number of `Black` nodes equal on *all paths*</div>
+<br>
+
+Basic Type 
+----------
+
+\begin{spec}
+data Tree a = Leaf 
+            | Node Color a (Tree a) (Tree a)
+
+data Color  = Red 
+            | Black
+\end{spec}
+
+Color Invariant 
+---------------
+
+`Red` nodes have `Black` children
+
+<div class="fragment">
+\begin{spec}
+measure isRB        :: Tree a -> Prop
+isRB (Leaf)         = true
+isRB (Node c x l r) = c=Red => (isB l && isB r)
+                      && isRB l && isRB r
+\end{spec}
+</div>
+
+<div class="fragment">
+where 
+\begin{spec}
+measure isB         :: Tree a -> Prop 
+isB (Leaf)          = true
+isB (Node c x l r)  = c == Black 
+\end{spec}
+</div>
+
+*Almost* Color Invariant 
 ------------------------
 
-- `l` : relates root `key` with `left`-subtree keys
-- `r` : relates root `key` with `right`-subtree keys
-
 <br>
 
-\begin{code}
-{-@ data Map k a < l :: k -> k -> Prop
-                 , r :: k -> k -> Prop >
-    = Tip
-    | Bin { sz    :: Int
-          , key   :: k
-          , val   :: a
-          , left  :: Map <l,r> k<l key> a
-          , right :: Map <l,r> k<r key> a} @-}
-\end{code}
-
-
-Ex: Binary Search Trees
------------------------
-
-Keys are *Binary-Search* Ordered
-
-<br>
-
-\begin{code}
-{-@ type BST k a = 
-      Map <{\r v -> v < r }, 
-           {\r v -> v > r }> 
-          k a                   @-}
-\end{code}
-
-Ex: Minimum Heaps 
------------------
-
-Root contains *minimum* value
-
-<br>
-
-\begin{code}
-{-@ type MinHeap k a = 
-      Map <{\r v -> r <= v}, 
-           {\r v -> r <= v}> 
-           k a               @-}
-\end{code}
-
-Ex: Maximum Heaps 
------------------
-
-Root contains *maximum* value
-
-<br>
-
-\begin{code}
-{-@ type MaxHeap k a = 
-      Map <{\r v -> r >= v}, 
-           {\r v -> r >= v}> 
-           k a               @-}
-\end{code}
-
-
-Example: Data.Map
------------------
-
-Standard Key-Value container
-
-<br>
-
-- <div class="fragment">1300+ non-comment lines</div>
-
-- <div class="fragment">`insert`, `split`, `merge`,...</div>
-
-- <div class="fragment">Rotation, Rebalance,...</div>
+Color Invariant **except** at root. 
 
 <br>
 
 <div class="fragment">
-SMT & inference crucial for [verification](https://github.com/ucsd-progsys/liquidhaskell/blob/master/benchmarks/esop2013-submission/Base.hs)
+\begin{spec}
+measure isAlmost        :: Tree a -> Prop
+isAlmost (Leaf)         = true
+isAlmost (Node c x l r) = isRB l && isRB r
+\end{spec}
 </div>
 
-<br>
+
+Height Invariant
+----------------
+
+Number of `Black` nodes equal on **all paths**
 
 <div class="fragment">
-<a href="http://goto.ucsd.edu:8090/index.html#?demo=Map.hs" target="_blank">Demo:</a> Binary Search Maps
+\begin{spec} 
+measure isBH        :: RBTree a -> Prop
+isBH (Leaf)         =  true
+isBH (Node c x l r) =  bh l = bh r 
+                    && isBH l && isBH r 
+\end{spec}
 </div>
 
-Example: Red-Black Tree 
------------------------
+<div class="fragment">
+
+where
+
+\begin{spec}
+measure bh        :: RBTree a -> Int
+bh (Leaf)         = 0
+bh (Node c x l r) = bh l 
+                  + if c = Red then 0 else 1
+\end{spec}
+</div>
+
+Refined Type 
+------------
+
+\begin{spec}
+-- Red-Black Trees
+type RBT a  = {v:Tree a | isRB v && isBH v}
+
+-- Almost Red-Black Trees
+type ARBT a = {v:Tree a | isAlmost v && isBH v}
+\end{spec}
 
 <br>
 
-Binary-Search Ordered Keys
+[Details](https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/RBTree.hs)
+
+
+Measures vs. Index Types
+========================
+
+Decouple Property & Type 
+------------------------
+
+Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <br>
-
-[DEMO RBTree-Ord.hs](../hs/RBTree-ord.hs)
-Example: Infinite Streams 
--------------------------
-
-<br>
-
-How to distinguish between **finite** and **infinite** lists?
-
-<br>
-
-[DEMO Streams.hs](../hs/Streams.hs)
-
-
-Recap: Abstract Refinements
----------------------------
 
 <div class="fragment">
 
-Decouple invariants from **functions**
++ Measures **decouple** properties from structures
 
-+ `max`
-+ `foldr`
++ Support **multiple** properties over structures 
+
++ Enable  **reuse** of structures in different contexts                 
 
 </div>
 
 <br>
 
-<div class="fragment">
-Decouple invariants from **data**
+<div class="fragment">Invaluable in practice!</div>
 
-+ `List`
-+ `Tree`
-
-</div>
-
+END CUT -->
 
 Recap
 -----
+
+<br>
+<br>
+
 
 1. Refinements: Types + Predicates
 2. Subtyping: SMT Implication
-3. Measures: Strengthened Constructors
-4. Abstract Refinements over Functions
-5. **Abstract** Refinements over Recursive Data
-6. <div class="fragment">[Evaluation](11_Evaluation.lhs.slides.html)</div>
+3. **Measures:** Strengthened Constructors
+
+<br>
+
+<div class="fragment">Automatic Verification of Collections</div>
+
 <br>
 <br>
 
-<div class="fragment">[[continue...]](11_Evaluation.lhs.slides.html)</div>
+<div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target="_blank">[continue]</a></div>
