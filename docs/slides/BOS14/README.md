@@ -13,12 +13,10 @@ Todo
   + INV 2: HEIGHT
   + INV 3: ORDER
 
-**HEREHEREHERE**
-
-- CREATE 03_Memory.lhs **TUFTS, BOS**
++ CREATE 03_Memory.lhs **TUFTS, BOS**
   + and associated demo file, from eseidel's BS demo.
 
-- UPDATE 09_Laziness.lhs **BOS**
++ UPDATE 09_Laziness.lhs **BOS**
   + Use math fonts
   
 + CHECK 10_Termination.lhs **BOS**
@@ -36,15 +34,17 @@ https://github.com/jstolarek/dep-typed-wbl-heaps-hs/blob/master/src/TwoPassMerge
 -- HS+LH proof
 https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/WBL.hs#L129
 
+
 BOS-Haskell Plan
 ----------------
 
 * [5]  00_Motivation: "Go Wrong"
 
-* [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar)
-
+* [15] 01_SimpleRefinements (upto VC, Abs) but no Kvar
+    + Demo : 000_Refinements.hs
+	+ Demo : 001_Refinements.hs
+	
 * [15] 02_Measures
-    + Demo : 00_Refinements.hs (modify score to letter grade)
     + Demo : 01_Elements.hs
 
 * [5] 02_RedBlack

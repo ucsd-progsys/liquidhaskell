@@ -43,8 +43,8 @@ divide x n = x `div` n
 
 
 
-avg2 x y   = divide (x+y) 2
-avg3 x y z = divide (x+y+z) 3
+avg2 x y   = divide (x + y)     2
+avg3 x y z = divide (x + y + z) 3
 
 
 -----------------------------------------------------------------------
