@@ -290,6 +290,19 @@ unsafeTake :: n:Nat
 
 </div>
 
+ {#cont}
+=========
+
+
+Continue
+--------
+
+<br>
+<br>
+<br>
+
+[[continue...]](12_Conclusion.lhs.slides.html)
+
  {#recap}
 =========
 
@@ -307,4 +320,3 @@ Recap
 <br>
 <br>
 
-<div class="fragment">[[continue...]](12_Conclusion.lhs.slides.html)</div>
