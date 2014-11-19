@@ -27,7 +27,7 @@
 (require 'json)
 (require 'pos-tip nil t)
 (require 'thingatpt)
-(require 'button-lock)
+(require 'button-lock nil t)
 
 ;; (require 'json-mode)
 ;; (require 'ring)
