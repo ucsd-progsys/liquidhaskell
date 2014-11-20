@@ -111,6 +111,16 @@ data ByteString = PS {
 
   @-}
 
+--             fplen ptr = 23
+--               v
+--       |-----------------------|
+-- ptr = "  eric loves burritos  "
+--          |------------------|
+--          ^          ^
+--         off = 2    len = 19
+
+-- ex = PS ptr off len              -- 2 <= 23  &&  (2 + 19) <= 23   ==> SAFE
+
 -- | Some useful abbreviations
 
 {-@ type ByteStringN N = {v:ByteString | bLen v = N} @-}
