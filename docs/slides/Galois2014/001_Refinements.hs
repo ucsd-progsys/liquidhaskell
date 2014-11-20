@@ -1,6 +1,8 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--totality"       @-}
+{- LIQUID "--smtsolver=cvc4" @-}
 
 module Refinements where
 
@@ -33,7 +35,7 @@ foldr f acc (C x xs) = f x (foldr f acc xs)
 
 foldr1           :: (a -> a -> a) -> List a -> a   
 foldr1 f (C x xs)    = foldr f x xs
-foldr1 f N           = die "foldr1"
+-- foldr1 f N           = die "foldr1"
 
 
 -----------------------------------------------------------------------
@@ -48,15 +50,6 @@ size N        = 0
 
 append N        ys = ys
 append (C x xs) ys = C x (append xs ys)
-
-
------------------------------------------------------------------------
--- | But there are limitations: why does this not work? ...
------------------------------------------------------------------------
-
-{-@ append' :: xs:_ -> ys:_ -> {v: _ | size v = size xs + size ys} @-}
-append' xs ys =  foldr C ys  xs
-
 
 
 
@@ -79,8 +72,8 @@ divide x n = x `div` n
 -- | CHEAT AREA 
 -----------------------------------------------------------------------
 
--- # START-ERRORS 3 (foldr1, wtAverage, append')
--- # END-ERRORS   1 (append')
+-- # START-ERRORS 1 (foldr1)
+-- # END-ERRORS   0
 
 {- map    :: _ -> xs:_ -> {v:_ | size v = size xs}               @-}
 {- append :: xs:_ -> ys:_ -> {v: _ | size v = size ys + size xs} @-}

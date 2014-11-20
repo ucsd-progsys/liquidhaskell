@@ -1,6 +1,7 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
+{- LIQUID "--smtsolver=cvc4" @-}
 
 module Refinements where
 
@@ -10,7 +11,16 @@ divide    :: Int -> Int -> Int
 
 
 -----------------------------------------------------------------------
--- | 1. Simple Refinement Types
+-- | Simple Refinement Types
+-----------------------------------------------------------------------
+
+{-@ six :: {v:Int | v = 6} @-}
+six = 6 :: Int
+
+
+
+-----------------------------------------------------------------------
+-- | Type Aliases are nice, we're gonna be liberal in our use of them
 -----------------------------------------------------------------------
 
 {-@ type Nat     = {v:Int | v >= 0} @-}
@@ -18,13 +28,20 @@ divide    :: Int -> Int -> Int
 {-@ type NonZero = {v:Int | v /= 0} @-}
 
 
-{-@ six :: NonZero @-}
-six = 10 :: Int
+-----------------------------------------------------------------------
+-- | Subtyping via Implication
+-----------------------------------------------------------------------
 
+{-@ six' :: NonZero @-}
+six' = six
+
+-- {v:Int | v = 6} <: {v:Int | v /= 0}
+-- ==>
+--          v = 6  =>          v /= 0
 
 
 -----------------------------------------------------------------------
--- | 2. Function Contracts: Preconditions & Dead Code 
+-- | Function Contracts: Preconditions & Dead Code 
 -----------------------------------------------------------------------
 
 {-@ die :: {v:_ | false} -> a @-}
@@ -38,7 +55,7 @@ die msg = error msg
 
 
 -----------------------------------------------------------------------
--- | 3. Function Contracts: Safe Division 
+-- | Function Contracts: Safe Division 
 -----------------------------------------------------------------------
 
 divide x 0 = die "divide-by-zero"
@@ -78,12 +95,6 @@ avg xs     = divide total n
 
 
 
--- | Try to fix the above using `abs`olute values?
-
-abs :: Int -> Int
-abs x | x > 0     = x
-      | otherwise = 0 - x
-
 
 
 
@@ -105,5 +116,4 @@ abs x | x > 0     = x
 -- # START Errors 0
 -- # END   Errors 1 (avg)
 
-{- abs    :: x:Int -> {v:Nat | x <= v} @-}
 {- divide :: Int -> NonZero -> Int     @-}
