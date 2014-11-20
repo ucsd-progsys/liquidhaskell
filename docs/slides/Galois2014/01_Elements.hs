@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
-{- LIQUID "--smtsolver=cvc4" @-}
+{-@ LIQUID "--smtsolver=cvc4" @-}
 module Elems where
 
 import Prelude hiding (elem)
