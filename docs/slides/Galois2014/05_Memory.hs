@@ -2,8 +2,8 @@
 
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
-{- LIQUID "--smtsolver=cvc4" @-}
-{- LIQUID "--diffcheck"     @-}
+{-@ LIQUID "--smtsolver=cvc4" @-}
+{-@ LIQUID "--diffcheck"     @-}
 
 module Memory where
 

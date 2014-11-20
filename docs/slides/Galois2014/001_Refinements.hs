@@ -2,7 +2,7 @@
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--totality"       @-}
-{- LIQUID "--smtsolver=cvc4" @-}
+{-@ LIQUID "--smtsolver=cvc4" @-}
 
 module Refinements where
 

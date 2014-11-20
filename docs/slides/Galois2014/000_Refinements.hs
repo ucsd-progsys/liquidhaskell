@@ -1,7 +1,7 @@
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-warnings"    @-}
 {-@ LIQUID "--no-termination" @-}
-{- LIQUID "--smtsolver=cvc4" @-}
+{-@ LIQUID "--smtsolver=cvc4" @-}
 
 module Refinements where
 
@@ -113,7 +113,7 @@ avg xs     = divide total n
 -- | CHEAT AREA ----------------------------------------------
 --------------------------------------------------------------
 
--- # START Errors 0
+-- # START Errors 1 (divide)
 -- # END   Errors 1 (avg)
 
 {- divide :: Int -> NonZero -> Int     @-}
