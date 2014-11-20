@@ -464,11 +464,11 @@ Legal Bytestrings
 \begin{code}
 {-@ good1 :: IO (ByteStringN 5) @-}
 good1 = do fp <- malloc 5
-           return $ PS fp 0 5
+           return (PS fp 0 5)
 
 {-@ good2 :: IO (ByteStringN 3) @-}
 good2 = do fp <- malloc 5
-           return $ PS fp 2 3
+           return (PS fp 2 3)
 \end{code}
 
 <br>
@@ -484,10 +484,10 @@ Illegal Bytestrings
 
 \begin{code}
 bad1 = do fp <- malloc 3 
-          return $ PS fp 0 10 
+          return (PS fp 0 10)
 
 bad2 = do fp <- malloc 3
-          return $ PS fp 2 2
+          return (PS fp 2 2)
 \end{code}
 
 <br>
@@ -499,29 +499,69 @@ Claimed length *exceeds* allocation ... **rejected** at compile time
 API: `create`
 -------------
 
-**Low level ByteString Creation**
-
-<br>
-
 <div class="hidden">
 \begin{code}
 create :: Int -> (Ptr Word8 -> IO ()) -> ByteString
-{-@ create :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
 \end{code}
 </div>
+
+*Allocate* and *fill* a `ByteString`
+
+<br>
+
+<div class="fragment">
+**Specification**
+\begin{code}
+{-@ create :: n:Nat -> (PtrN Word8 n -> IO ())
+           -> ByteStringN n                @-}
+\end{code}
+</div>
+
+
+<div class="fragment">
+**Implementation**
 
 \begin{code}
 create n fill = unsafePerformIO $ do
   fp  <- malloc n
   withForeignPtr fp fill 
-  return $! PS fp 0 n
+  return (PS fp 0 n)
+\end{code}
+</div>
+
+<!-- CUT
+<div class="fragment">
+Yikes, there is an error! How to fix?
+</div>
+-->
+
+API: `pack`
+------------
+
+**Specification**
+
+\begin{code}
+{-@ pack :: s:String -> ByteStringN (len s) @-}
 \end{code}
 
 <br>
 
 <div class="fragment">
-Yikes, there is an error! How to fix?
+
+**Implementation**
+
+\begin{code}
+pack str      = create n $ \p -> go p xs
+  where
+  n           = length str
+  xs          = map c2w str
+  go p (x:xs) = poke p x >> go (plusPtr p 1) xs
+  go _ []     = return  ()
+\end{code}
+
 </div>
+
+
 
 API: `unsafeTake`
 -----------------
@@ -551,32 +591,6 @@ unsafeTake n (PS x s l) = PS x s n
 \end{code}
 </div>
 
-API: `pack`
-------------
-
-**Specification**
-
-\begin{code}
-{-@ pack :: s:String -> ByteStringN (len s) @-}
-\end{code}
-
-<br>
-
-<div class="fragment">
-
-**Implementation**
-
-\begin{code}
-pack str      = create n $ \p -> go p xs
-  where
-  n           = length str
-  xs          = map c2w str
-  go p (x:xs) = poke p x >> go (plusPtr p 1) xs
-  go _ []     = return  ()
-\end{code}
-
-</div>
-
 API: `unpack` 
 -------------
 
@@ -584,7 +598,7 @@ API: `unpack`
 
 \begin{spec}
 unpack 
- :: b:ByteString -> {v:String | len v = bLen b}
+ :: b:ByteString -> StringN (bLen b)
 \end{spec}
 
 <br>
@@ -601,14 +615,14 @@ unpack b = you . get . the . idea -- see source
 \begin{code}
 {-@ qualif Unpack(v:a, acc:b, n:int) : len v = 1 + n + len acc @-}
 
-{-@ unpack :: b:ByteString -> {v:String | len v = bLen b} @-}
+{-@ unpack :: b:ByteString -> StringN (bLen b) @-}
 unpack :: ByteString -> String 
 unpack (PS _  _ 0)  = []
 unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
    go (p `plusPtr` s) (l - 1)  []
   where
    go p 0 acc = peek p >>= \e -> return (w2c e : acc)
-   go p n acc = peek (p `plusPtr` n) >>= \e -> go p (n-1) (w2c e : acc)
+   go p n acc = peek (p `plusPtr` n) >>=   \e -> go p (n-1) (w2c e : acc)
 \end{code}
 
 </div>
@@ -645,10 +659,18 @@ Lets revisit our potentially "bleeding" `chop`
 
 <br>
 
+<div class="hidden">
+\begin{code}
+{-@ type StringN N = {v:String | len v = N} @-}
+\end{code}
+</div>
 <div class="fragment">
 
 \begin{code}
-chop     :: String -> Int -> String 
+{-@ chop :: s:String
+         -> n:{Nat | n <= len s}
+         -> StringN n
+  @-} 
 chop s n =  s'
   where 
     b    = pack s          -- down to low-level
@@ -656,12 +678,15 @@ chop s n =  s'
     s'   = unpack b'       -- up to high-level
 \end{code}
 
+<!-- BEGIN CUT 
 <br>
 
 Yikes! How shall we fix it?
 
+     END CUT -->
 </div>
 
+<!-- BEGIN CUT
 
 A Well Typed `chop`
 -------------------
@@ -677,6 +702,7 @@ chop s n = s'
     s'   = unpack b'       -- up to high-level
 \end{spec}
 
+END CUT -->
 
 "HeartBleed" no more
 --------------------
@@ -686,9 +712,9 @@ chop s n = s'
 \begin{code}
 demo     = [ex6, ex30]
   where
-    ex   = ['R','a','n','j','i','t']
+    ex   = ['N','o','r','m','a','n']
     ex6  = chop ex 6  -- ok
-    ex30 = chop ex 30 -- out of bounds
+    ex30 = chop ex 30  -- out of bounds
 \end{code}
 
 <br>

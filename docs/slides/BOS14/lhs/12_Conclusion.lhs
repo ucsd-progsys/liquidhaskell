@@ -18,21 +18,23 @@ Conclusion
 Liquid Types 
 ------------
 
+<br>
 
-Use **Types** to lift **Logic + Analysis** to Modern Programs 
+**Types** lift **Program Logic + Analysis** to Modern Programs 
 
 <br>
 
 <div class="fragment"> 
 
 -------------------       ------------------------------------------------
-**Properties:**           Predicates *+ Types*
-**Proofs:**               Verification Conditions *+ Subtyping* 
+**Properties:**           Predicates  *+ Types*
+**Proofs:**               SMT Solvers *+ Subtyping* 
 **Inference:**            Abstract Interpretation *+ Hindley-Milner*
 -------------------       ------------------------------------------------
 
 </div>
 
+<!-- BEGIN CUT
 
 Liquid Types 
 ------------
@@ -64,26 +66,33 @@ Use **Types** to lift **Logic + Analysis** to Modern Programs
 
 </div>
 
+END CUT -->
+
 Current & Future Work
 ---------------------
+
+<br>
 
 **Technology**
 
+<br>
+
 + Speed
-+ Imperative Features (Pointers, Mutation, ...) 
-+ Diagnostics & *Error Messages*
++ Effects
++ *Error Messages*
 
 Current & Future Work
 ---------------------
+
+<br>
 
 **Applications**
 
 <br>
 
 + Testing (!)
-+ Concurrency & Distribution
-+ Probabilistic Behavior
-+ Completion  & Synthesis
++ Concurrency 
++ Code Completion
 
  {#asd}
 =======
@@ -92,8 +101,15 @@ Thank You!
 ----------
 
 <br>
+<br>
 
-[`http://goto.ucsd.edu/liquid`](http://goto.ucsd.edu/liquid)
+`cabal install liquidhaskell`
+
+Thank You!
+----------
 
 <br>
+<br>
+
+[`http://goto.ucsd.edu/liquid`](http://goto.ucsd.edu/liquid)
 
