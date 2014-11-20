@@ -4,21 +4,23 @@
 Recap
 -----
 
+<br>
+<br>
+
 1. <div class="fragment">**Refinements:** Types + Predicates</div>
 2. <div class="fragment">**Subtyping:** SMT Implication</div>
 
 <br>
 <br>
-<br>
 
 <div class="fragment">
-So far: only specify properties of *base values* (e.g. `Int`) ...
+So far: only specify properties of **base values** (e.g. `Int`) ...
 </div>
 
 <br>
 
 <div class="fragment">
-How to specify properties of *structures*?
+How to specify properties of **structures**?
 </div>
 
 
@@ -224,6 +226,22 @@ data L a where
               && not (isNull v)      }
 \end{spec}
 
+Multiple Measures: Red Black Trees
+==================================
+
+ {#elements}
+------------
+
+<br>
+<br>
+<br>
+
+<a href="13_RedBlack.lhs.slides.html" target="_blank">[continue]</a>
+
+
+
+<!-- BEGIN CUT
+
 Multiple Measures: Sets and Duplicates
 ======================================
 
@@ -256,6 +274,8 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 <div class="fragment">Invaluable in practice!</div>
 
+END CUT -->
+
 
 Recap
 -----
@@ -270,9 +290,11 @@ Recap
 
 <br>
 
-<div class="fragment">Automatic Verification of Collections</div>
+<div class="fragment">Automatic Verification of Data Structures</div>
 
 <br>
 <br>
 
+<!-- BEGIN CUT
 <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target="_blank">[continue]</a></div>
+     END CUT -->

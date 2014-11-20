@@ -1,7 +1,7 @@
 
 
-Case Study: Red-Black Trees
-===========================
+Red-Black Trees
+===============
 
 
 <div class="hidden">
@@ -15,8 +15,6 @@ module RBTree (ok, bad1, bad2) where
 import Language.Haskell.Liquid.Prelude
 
 ok, bad1, bad2 :: RBTree Int
-
-{-@ ok, bad1, bad2 :: RBT Int @-}
 
 ---------------------------------------------------------------------------
 -- | Specifications -------------------------------------------------------
@@ -122,7 +120,6 @@ isB (Node c x l r)  = c == B
 \end{spec}
 </div>
 
-<!-- BEGIN CUT
 
 1. *Almost* Color Invariant 
 ---------------------------
@@ -141,7 +138,7 @@ isAlmost (Node c x l r) = isRB l && isRB r
 \end{spec}
 </div>
 
-END CUT -->
+<!-- BEGIN CUT END CUT -->
 
 2. Height Invariant
 -------------------
@@ -195,7 +192,11 @@ Valid Red-Black Trees
 <br>
 
 \begin{spec}
-type RBT a  = {v:RBTree a | isRB v && isBH v}
+-- | Red-Black Trees
+type RBT a  = {v:RBTree a|isRB v && isBH v}
+
+-- | Almost Red-Black Trees
+type ARBT a = {v:RBTree a|isAlmost v && isBH v}
 \end{spec}
 
 <br>
@@ -210,6 +211,7 @@ Ex: Satisfies Invariants
 <br>
 
 \begin{code}
+{-@ ok   :: RBT Int @-}
 ok = Node R 2 
           (Node B 1 Leaf Leaf)
           (Node B 3 Leaf Leaf)
@@ -224,6 +226,7 @@ Ex: Violates Order Invariant
 <br>
 
 \begin{code}
+{-@ bad1 :: RBT Int @-}
 bad1 = Node R 1
           (Node B 2 Leaf Leaf)
           (Node B 3 Leaf Leaf)
@@ -237,14 +240,15 @@ Ex: Violates Color Invariant
 <br>
 
 \begin{code}
-bad2 = Node R 2
+{-@ bad2 :: RBT Int @-}
+bad2 = Node  R 2
          (Node R 1 Leaf Leaf)
          (Node B 3 Leaf Leaf)
 \end{code}
 
 
-Verified Red-Black Trees
-------------------------
+Verified Red-Black Operations 
+-----------------------------
 
 <br>
 

@@ -10,7 +10,11 @@
 The First *Bug* 
 ---------------
 
-<img src="../img/firstbug-crop2.jpg" height=400px>
+<img src="../img/firstbug-crop2.jpg" height=300px>
+
+**Page from Harvard Mark II log**
+
+A dead moth removed from the device
 
 <!-- BEGIN CUT
 
@@ -118,7 +122,7 @@ Immutability by Default
 
 <div class="fragment">
 
-Make *good* designs *easy* and *bad* designs *hard*
+Make **good** designs **easy** and **bad** designs **hard**
 
 </div>
 
@@ -186,7 +190,7 @@ Missing Keys
 \begin{spec}  
 λ> :m +Data.Map 
 λ> let m = fromList [ ("haskell", "lazy")
-                    , ("pyret"  , "eager")]
+                    , ("racket" , "eager")]
 
 λ> m ! "haskell"
 "lazy"
@@ -197,7 +201,7 @@ Missing Keys
 
 <div class="fragment"> 
 \begin{spec}
-λ> m ! "racket"
+λ> m ! "javascript"
 "*** Exception: key is not in the map
 \end{spec}
 </div>
@@ -208,7 +212,7 @@ Segmentation Faults
 <div class="fragment"> 
 \begin{spec}
 λ> :m +Data.Vector 
-λ> let v = fromList ["haskell", "pyret"]
+λ> let v = fromList ["haskell", "racket"]
 λ> unsafeIndex v 0
 "haskell"
 \end{spec}
@@ -230,9 +234,9 @@ Segmentation Faults
 
 \begin{spec}
 λ> :m + Data.Text Data.Text.Unsafe 
-λ> let t = pack "Shriram"
-λ> takeWord16 5 t
-"Shrir"
+λ> let t = pack "Norman"
+λ> takeWord16 4 t
+"Norm"
 \end{spec}
 
 <br>
@@ -244,12 +248,14 @@ Memory overflows **leaking secrets**...
 
 \begin{spec}
 λ> takeWord16 20 t
-"Shriram\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
+"Norman\1912\3148\SOH\NUL\15928\2486\SOH\NUL"
 \end{spec}
 </div>
 
 Goal
 ----
+
+<br>
 
 Extend Type System
 
@@ -258,6 +264,14 @@ Extend Type System
 + To prevent *wider class* of errors
 
 + To enforce *program specific* properties 
+
+<br>
+
+<div class="fragment">
+
+**Without sacrificing automation** 
+
+</div>
 
 Algorithmic Verification
 ========================
@@ -333,7 +347,6 @@ Automatic but **not** Expressive
 
 + Polymorphism ?
 
-
 Refinement Types
 ----------------
 
@@ -341,40 +354,24 @@ Refinement Types
 
 Generalize *Program Logics* with *Types*
 
-<div class="fragment"> 
 <br>
 
 + **Properties:**  Types + Predicates
 
-+ **Proofs:**      Subtyping + Verification Conditions
++ **Proofs:**      Subtyping + SMT Solvers
 
+<!-- BEGIN CUT
 + **Inference:**   Hindley-Milner + Abstract Interpretation
-
-</div>
+  -->
 
 <div class="fragment"> 
   <br>
   Towards reconciling Automation and Expressiveness
 </div>
 
-Refinement Types
-----------------
-
-<br>
 <br>
 
+<div class="fragment"> 
 [[continue]](01_SimpleRefinements.lhs.slides.html)
-
-
-
-
-Plan 
-----
-
-+ Motivation
-+ <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a></div>
-+ <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
-+ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Functions</a>,<a href="08_Inductive.lhs.slides.html" target="_blank">Trees</a>,<a href="07_Array.lhs.slides.html" target= "_blank">Arrays</a></div>
-+ <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
-+ <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
+</div>
 

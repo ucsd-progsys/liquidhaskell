@@ -79,11 +79,15 @@ I: Refinement Types
 
 <br>
 
+<div class="fragment">
 <a href="01_SimpleRefinements.lhs.slides.html" target="_blank">**Refinements**</a>
+</div>
 
 <br>
 
+<div class="fragment">
 <a href="02_Measures.lhs.slides.html" target= "_blank">**Measures**</a>
+</div>
 
 II: Case Studies 
 ----------------

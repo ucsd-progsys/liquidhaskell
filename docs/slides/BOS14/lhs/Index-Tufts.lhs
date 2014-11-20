@@ -1,24 +1,20 @@
 <div class="hidden">
-
 \begin{code}
 main = putStrLn "Easter Egg: to force Makefile"
 \end{code}
-
 </div>
 
+LiquidHaskell 
+==============
 
-
- {#ASD}
-=======
-
-
-Abstract Refinement Types
--------------------------
+Refinement Types for Haskell
+------------------------------
 
 
 <br>
 <br>
 
+<div class="fragment">
 **Ranjit Jhala**
 
 University of California, San Diego
@@ -28,22 +24,50 @@ University of California, San Diego
 
 Joint work with: 
 
-N. Vazou, E. Seidel, P. Rondon, D. Vytiniotis, S. Peyton-Jones
+N. Vazou, E. Seidel, P. Rondon, M. Kawaguchi
+
+D. Vytiniotis, S. Peyton-Jones
+
+</div>
+
+ {#motivation}
+--------------
+
+
+<br>
+<br>
+
+<a href="00_Motivation_Long.lhs.slides.html" target="_blank">[Continue...]</a>
+
+
+Plan
+----
+
+<div class="fragment">
+<a href="01_SimpleRefinements.lhs.slides.html" target="_blank">**Refinement Types**</a>
+</div>
 
 <br>
 
 <div class="fragment">
-[[continue]](00_Motivation.lhs.slides.html)
+<a href="02_Measures.lhs.slides.html" target= "_blank">**Data Structures**</a>
 </div>
 
+<br>
 
-Plan 
-----
+<div class="fragment">
+<a href="14_Memory.lhs.slides.html" target="_blank">**Low-level Memory Safety**</a>
+</div>
 
-+ <a href="00_Motivation.lhs.slides.html" target="_blank">Motivation</a>
-+ <div class="fragment"><a href="01_SimpleRefinements.lhs.slides.html" target="_blank">Refinements</a></div>
-+ <div class="fragment"><a href="02_Measures.lhs.slides.html" target= "_blank">Measures</a></div>
-+ <div class="fragment"><a href="04_AbstractRefinements.lhs.slides.html" target= "_blank">Abstract Refinements:</a> <a href="06_Inductive.lhs.slides.html" target="_blank">Functions</a>,<a href="08_Inductive.lhs.slides.html" target="_blank">Trees</a>,<a href="07_Array.lhs.slides.html" target= "_blank">Arrays</a></div>
-+ <div class="fragment"><a href="11_Evaluation.lhs.slides.html" target="_blank">Evaluation</a></div>
-+ <div class="fragment"><a href="12_Conclusion.lhs.slides.html" target="_blank">Conclusion</a></div>
+<br>
+
+<div class="fragment">
+<a href="11_Evaluation.lhs.slides.html" target="_blank">**Evaluation**</a>
+</div>
+
+<br>
+
+<div class="fragment">
+<a href="12_Conclusion.lhs.slides.html" target="_blank">**Conclusion**</a>
+</div>
 
