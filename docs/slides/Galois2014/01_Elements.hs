@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names"    @-}
+{- LIQUID "--smtsolver=cvc4" @-}
 module Elems where
 
 import Prelude hiding (elem)
@@ -42,11 +45,6 @@ reverse xs           = revAcc xs []
    revAcc (x:xs) acc = revAcc xs (x:acc)
 
 
-
--- But, there are limitations...
-   
-{-@ append'  :: xs:_ -> ys:_ -> {v:_ | UnElts v xs ys} @-}  
-append' xs ys = foldr (:) ys xs
 
 
 -----------------------------------------------------------------------------
@@ -101,8 +99,8 @@ die x = error x
     keys (kv:kvs) = (Set_cup (Set_sng (fst kv)) (keys kvs))
   @-}
 
--- # START ERRORS 2 (find, append')
--- # END   ERRORS 1 (append')
+-- # START ERRORS 1 (find)
+-- # END   ERRORS 0 
 
 {- find :: k:_ -> {m:_ | ValidKey k m} -> _ @-}
 
