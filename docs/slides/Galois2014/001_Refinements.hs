@@ -38,6 +38,12 @@ foldr1 f (C x xs)    = foldr f x xs
 -- foldr1 f N           = die "foldr1"
 
 
+
+-- foldr1 f zs = case zs of
+--   C x xs -> foldr f x xs
+--   N      -> GHC.patError "YIKES"
+
+
 -----------------------------------------------------------------------
 -- | Measuring the Size of Data
 -----------------------------------------------------------------------
@@ -46,6 +52,11 @@ foldr1 f (C x xs)    = foldr f x xs
 size          :: List a -> Int
 size (C x xs) = 1 + size xs 
 size N        = 0
+
+
+-- N :: {v:List a | size v = 0}
+-- C :: x:a -> xs:List a
+--   -> {v:List a | size v = 1 + size xs}
 
 
 append N        ys = ys
