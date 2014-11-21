@@ -567,7 +567,7 @@ instance Show TyConInfo where
 --------------------------------------------------------------------
 
 -- MOVE TO TYPES
-data RType p c tv r
+data RType c tv r
   = RVar { 
       rt_var    :: !tv
     , rt_reft   :: !r 
@@ -575,58 +575,58 @@ data RType p c tv r
   
   | RFun  {
       rt_bind   :: !Symbol
-    , rt_in     :: !(RType p c tv r)
-    , rt_out    :: !(RType p c tv r) 
+    , rt_in     :: !(RType c tv r)
+    , rt_out    :: !(RType c tv r) 
     , rt_reft   :: !r
     }
 
   | RAllT { 
       rt_tvbind :: !tv       
-    , rt_ty     :: !(RType p c tv r)
+    , rt_ty     :: !(RType c tv r)
     }
 
   | RAllP {
-      rt_pvbind :: !(PVar (RType p c tv ()))
-    , rt_ty     :: !(RType p c tv r)
+      rt_pvbind :: !(PVar (RType c tv ()))
+    , rt_ty     :: !(RType c tv r)
     }
 
   | RAllS {
       rt_sbind  :: !(Symbol)
-    , rt_ty     :: !(RType p c tv r)
+    , rt_ty     :: !(RType c tv r)
     }
 
   | RApp  { 
       rt_tycon  :: !c
-    , rt_args   :: ![RType  p c tv r]     
-    , rt_pargs  :: ![RTProp p c tv r] 
+    , rt_args   :: ![RType  c tv r]     
+    , rt_pargs  :: ![RTProp c tv r] 
     , rt_reft   :: !r
     }
 
   | RAllE { 
       rt_bind   :: !Symbol
-    , rt_allarg :: !(RType p c tv r)
-    , rt_ty     :: !(RType p c tv r) 
+    , rt_allarg :: !(RType c tv r)
+    , rt_ty     :: !(RType c tv r) 
     }
 
   | REx { 
       rt_bind   :: !Symbol
-    , rt_exarg  :: !(RType p c tv r) 
-    , rt_ty     :: !(RType p c tv r) 
+    , rt_exarg  :: !(RType c tv r) 
+    , rt_ty     :: !(RType c tv r) 
     }
 
   | RExprArg Expr                               -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
-      rt_arg   :: !(RType p c tv r)
-    , rt_res   :: !(RType p c tv r)
+      rt_arg   :: !(RType c tv r)
+    , rt_res   :: !(RType c tv r)
     , rt_reft  :: !r
     }
 
   | RRTy  {
-      rt_env   :: ![(Symbol, RType p c tv r)]
+      rt_env   :: ![(Symbol, RType c tv r)]
     , rt_ref   :: !r
     , rt_obl   :: !Oblig 
-    , rt_ty    :: !(RType p c tv r)
+    , rt_ty    :: !(RType c tv r)
     }
   | ROth  !Symbol
 
@@ -677,7 +677,7 @@ data Ref τ r t
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.
-type RTProp p c tv r = Ref (RType p c tv ()) r (RType p c tv r)
+type RTProp c tv r = Ref (RType c tv ()) r (RType c tv r)
 
 
 -- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
@@ -696,8 +696,8 @@ data UReft r
   = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
     deriving (Generic, Data, Typeable)
 
-type BRType     = RType LocSymbol LocSymbol Symbol
-type RRType     = RType Class     RTyCon    RTyVar
+type BRType     = RType LocSymbol Symbol
+type RRType     = RType RTyCon    RTyVar
 
 type BSort      = BRType    ()
 type RSort      = RRType    ()
@@ -743,14 +743,14 @@ class (Eq c) => TyConable c where
   isFracCls = const False
 
 class ( TyConable c
-      , Eq p, Eq c, Eq tv
+      , Eq c, Eq tv
       , Hashable tv
       , Reftable r
       , PPrint r
-      ) => RefTypable p c tv r 
+      ) => RefTypable c tv r 
   where
-    ppCls    :: p -> [RType p c tv r] -> Doc
-    ppRType  :: Prec -> RType p c tv r -> Doc 
+--     ppCls    :: p -> [RType c tv r] -> Doc
+    ppRType  :: Prec -> RType c tv r -> Doc 
 
 
 
@@ -864,19 +864,19 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
 -- | Constructor and Destructors for RTypes ----------------------------
 ------------------------------------------------------------------------
 
-data RTypeRep p c tv r
+data RTypeRep c tv r
   = RTypeRep { ty_vars   :: [tv]
-             , ty_preds  :: [PVar (RType p c tv ())]
+             , ty_preds  :: [PVar (RType c tv ())]
              , ty_labels :: [Symbol]
              , ty_binds  :: [Symbol]
-             , ty_args   :: [RType p c tv r]
-             , ty_res    :: (RType p c tv r)
+             , ty_args   :: [RType c tv r]
+             , ty_res    :: (RType c tv r)
              }
 
 fromRTypeRep rep 
   = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip (ty_binds rep) (ty_args rep)) (ty_res rep)
 
-toRTypeRep           :: RType p c tv r -> RTypeRep p c tv r
+toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 toRTypeRep t         = RTypeRep αs πs ls xs ts t''
   where
     (αs, πs, ls, t') = bkUniv  t
@@ -902,7 +902,7 @@ safeBkArrow t           = bkArrow t
 
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs 
 
-bkUniv :: RType t t1 a t2 -> ([a], [PVar (RType t t1 a ())], [Symbol], RType t t1 a t2)
+bkUniv :: RType t1 a t2 -> ([a], [PVar (RType t1 a ())], [Symbol], RType t1 a t2)
 bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t') 
 bkUniv (RAllP π t)      = let (αs, πs, ls, t') = bkUniv t in  (αs, π:πs, ls, t') 
 bkUniv (RAllS s t)      = let (αs, πs, ss, t') = bkUniv t in  (αs, πs, s:ss, t') 
@@ -1000,7 +1000,7 @@ instance Subable r => Subable (UReft r) where
   substf f (U r z l) = U (substf f r) (substf f z) (substf f l) 
   substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
-instance (Reftable r, RefTypable p c tv r) => Subable (RTProp p c tv r) where
+instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
   syms (RProp ss r)     = (fst <$> ss) ++ syms r
 
@@ -1012,7 +1012,7 @@ instance (Reftable r, RefTypable p c tv r) => Subable (RTProp p c tv r) where
   substa f (RPropP ss r) = RPropP ss (substa f r) 
   substa f (RProp ss t) = RProp ss (substa f <$> t)
 
-instance (Subable r, RefTypable p c tv r) => Subable (RType p c tv r) where
+instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
   substa f    = mapReft (substa f) 
   substf f    = emapReft (substf . substfExcept f) [] 
@@ -1052,16 +1052,16 @@ isTrivial t = foldReft (\r b -> isTauto r && b) True t
 instance Functor UReft where
   fmap f (U r p s) = U (f r) p s
 
-instance Functor (RType a b c) where
+instance Functor (RType a b) where
   fmap  = mapReft 
 
 -- instance Fold.Foldable (RType a b c) where
 --   foldr = foldReft
 
-mapReft ::  (r1 -> r2) -> RType p c tv r1 -> RType p c tv r2
+mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (\_ -> f) []
 
-emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType p c tv r1 -> RType p c tv r2
+emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r2
 
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t)         = RAllT α (emapReft f γ t)
@@ -1077,7 +1077,7 @@ emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r
 emapReft _ _ (ROth s)            = ROth  s 
 emapReft f γ (RHole r)           = RHole (f γ r)
 
-emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp p c tv t -> RTProp p c tv s
+emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
 emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
 emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
 
@@ -1101,7 +1101,7 @@ isFunTy (RFun _ t1 t2 _) = True
 isFunTy _                = False
 
 
-mapReftM :: (Monad m) => (r1 -> m r2) -> RType p c tv r1 -> m (RType p c tv r2)
+mapReftM :: (Monad m) => (r1 -> m r2) -> RType c tv r1 -> m (RType c tv r2)
 mapReftM f (RVar α r)         = liftM   (RVar  α)   (f r)
 mapReftM f (RAllT α t)        = liftM   (RAllT α)   (mapReftM f t)
 mapReftM f (RAllP π t)        = liftM   (RAllP π)   (mapReftM f t)
@@ -1115,14 +1115,14 @@ mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f
 mapReftM _ (ROth s)           = return  $ ROth  s 
 mapReftM f (RHole r)          = liftM   RHole       (f r)
 
-mapRefM  :: (Monad m) => (t -> m s) -> (RTProp p c tv t) -> m (RTProp p c tv s)
+mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
 mapRefM  f (RPropP s r)        = liftM   (RPropP s)      (f r)
 mapRefM  f (RProp s t)        = liftM   (RProp s)      (mapReftM f t)
 
--- foldReft :: (r -> a -> a) -> a -> RType p c tv r -> a
+-- foldReft :: (r -> a -> a) -> a -> RType c tv r -> a
 foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv 
 
--- efoldReft :: Reftable r =>(p -> [RType p c tv r] -> [(Symbol, a)])-> (RType p c tv r -> a)-> (SEnv a -> Maybe (RType p c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType p c tv r-> c1
+-- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft cb g f fp = go 
   where
     -- folding over RType 
@@ -1185,10 +1185,10 @@ mapBindRef f (RProp s t)   = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
-ofRSort ::  Reftable r => RType p c tv () -> RType p c tv r 
+ofRSort ::  Reftable r => RType c tv () -> RType c tv r 
 ofRSort = fmap mempty
 
-toRSort :: RType p c tv r -> RType p c tv () 
+toRSort :: RType c tv r -> RType c tv () 
 toRSort = stripQuantifiers . mapBind (const dummySymbol) . fmap (const ())
 
 stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
@@ -1206,10 +1206,10 @@ stripQuantifiersRef r             = r
 
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
 
-rTypeValueVar :: (Reftable r) => RType p c tv r -> Symbol
+rTypeValueVar :: (Reftable r) => RType c tv r -> Symbol
 rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t 
 
-rTypeReft :: (Reftable r) => RType p c tv r -> Reft
+rTypeReft :: (Reftable r) => RType c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase 
 
 -- stripRTypeBase ::  RType a -> Maybe a
