@@ -4,7 +4,7 @@
 
 module LinSpace (dotPV, sameSpace, enumCVP) where
 
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
+import Language.Haskell.Liquid.Prelude (liquidAssume, liquidAssert, liquidError)
 import Prelude hiding (zipWith)
 
 data PVector = PVector { 
@@ -103,9 +103,10 @@ dotPV pv1@(PVector _ mu1 _) pv2@(PVector _ mu2 _)
   = liquidAssert (length mu1 == length mu2) q
   where
     dd          = dotPV (liftPV pv1) (liftPV pv2)
-    Real pv0 rr = orthSpace_ pv1       -- same as orthSpace v2
+    Real pv0 rr = orthSpace_ pv1                         -- same as orthSpace v2
     x           = dd * rr - (head mu1) * (head mu2)
-    (q, 0)      = divMod x (detPV pv0) -- check remainder is 0
+    (q, 0)      = divMod x (liquidAssume (rem /= 0) rem) -- check remainder is 0
+    rem         = detPV pv0
 
 -- ASSERT: (x .+. y) ==> sameSpace x y
 {-@ (.+.) :: x:PVector -> (SameSpace x) -> (SameSpace x) @-}
@@ -147,7 +148,8 @@ getBasis (n::Int) s = worker s []
 
 sizeReduce1 :: PVector -> PVector
 sizeReduce1 pv@(PVector v (m:_) sn@(Real _ r)) = 
-  let c  = div (2*m + r) (2*r) -- division with rounded remainder
+  let c  = div (2*m + r) (liquidAssume (r2 /= 0) r2) -- division with rounded remainder
+      r2 = 2 * r
       n  = length v    
   in  pv  .-.  (c *. (space2vec n sn))
 
