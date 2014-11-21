@@ -37,6 +37,8 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Variance 
+
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc hiding (dcolon, dot)
@@ -455,6 +457,7 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
   | Class   (RClass ty)
+  | Varia   (LocSymbol, [Variance])
 
 -- | For debugging
 instance Show (Pspec a b) where
@@ -511,6 +514,7 @@ mkSpec name xs         = (name,)
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
@@ -525,6 +529,7 @@ specP
     <|> (reserved "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reserved "class"     >> liftM Class  classP    )
     <|> (reserved "import"    >> liftM Impt   symbolP   )
+    <|> try (reserved "data" >> reserved "variance " >> liftM Varia datavarianceP)
     <|> (reserved "data"      >> liftM DDecl  dataDeclP )
     <|> (reserved "include"   >> liftM Incl   filePathP )
     <|> (reserved "invariant" >> liftM Invt   invariantP)
@@ -562,6 +567,14 @@ filePathP     = angles $ many1 pathCharP
   where 
     pathCharP = choice $ char <$> pathChars 
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
+
+datavarianceP = liftM2 (,) (locUpperIdP) (spaces >> many varianceP)
+  
+varianceP = (reserved "bivariant"     >> return Bivariant)
+        <|> (reserved "invariant"     >> return Invariant)
+        <|> (reserved "covariant"     >> return Covariant)
+        <|> (reserved "contravariant" >> return Contravariant)
+        <?> "Invalib variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP    :: Parser ([LocSymbol], (BareType, Maybe [Expr]))
 tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
