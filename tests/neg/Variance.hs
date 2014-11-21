@@ -3,8 +3,6 @@ module Variance where
 {-@ data variance Foo invariant bivariant covariant contravariant @-}
 data Foo a b c d
 
-
-
 {-@ check_covariant :: Foo a b {v:Int | v > 0} c -> Foo a b {v:Int | v = 1} c @-}
 check_covariant :: Foo a b Int c -> Foo a b Int c
 check_covariant r = r
