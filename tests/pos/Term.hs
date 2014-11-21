@@ -1,5 +1,15 @@
 module Term where
 
+
+
+{-@ f :: _ -> xs : [a] -> [a] / [len xs] @-}
+f er [] = error er
+f er (x:xs) = (x+1) : f er xs
+
+{-@ f' :: _ -> xs : [a] -> [a] / [len xs] @-}
+f' er [] = error er
+f' er (x:xs) = x : f' er xs
+
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}
 
