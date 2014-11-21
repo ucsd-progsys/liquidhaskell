@@ -430,6 +430,15 @@ together with the types. For example see (tests/pos/record0.hs)
                          , elems :: {v: [a] | (len v) = size }
                          }
     @-}
+    
+Finally you can specify the variance of type variables for data types.
+For example [see](tests/pos/Variance.hs), where data type `Foo` has four 
+type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant, 
+covariant and contravariant, respectively.
+   
+   data Foo a b c d
+   {-@ data variance Foo invariant bivariant covariant contravariant @-}
+
 
 Modules WITH code: Functions 
 ----------------------------
