@@ -1,22 +1,56 @@
-module Invariant where
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names"    @-}
 
-import Language.Haskell.Liquid.Prelude
+module Foo () where
 
-data F a = F {fx :: a, fy :: a, fzz :: a} 
-         | G {fx :: a, fy :: a}
-
-{-@ data F a = F {fx :: a, fy :: a, fz :: a}
-             | G {fx :: a, fy :: a} 
-  @-}
-
-{-@ using (F a) as  {v : F a | (fy v) = (fx v) } @-}
-
--- F :: x:a -> y:a -> z:a -> { prove this } -> F a
+import Language.Haskell.Liquid.Prelude (liquidAssert)
+import Data.IORef
 
 
-{-@ foo :: x:a -> a-> {v : F a | (fx v) = x} @-}
-foo :: a -> a -> F a
-foo x y = F x y x
+data Foo a b c d
 
-bar (F x y z) = liquidAssert (x > y)
+{-@ data variance IO bivariant @-}
+
+foo :: IO ()
+foo = do a <- return 0 
+         liquidAssert (a == 0) (return ())
+
+foo' :: IO ()
+foo' = bind (return 0) (\a -> liquidAssert (a == 0) (return ()))
+
+{-@ data variance IORef bivariant @-}
+
+{-@ data variance Foo invariant bivariant covariant contravariant @-}
+
+{-@ job' :: IORef {v:Int |  v = 4} -> IO () @-}
+job' :: IORef Int -> IO ()
+job' p = 
+	bind (readIORef p) (\v -> liquidAssert (v == 4) (return ()))
+
+
+{-@ bind :: Monad m => m a -> (a -> m b) -> m b @-}
+bind :: Monad m => m a -> (a -> m b) -> m b
+bind = (>>=)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
