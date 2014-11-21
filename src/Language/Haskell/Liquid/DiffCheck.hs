@@ -132,7 +132,7 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs, let (l, l') = coreDef b, x <- bindersOf b]
+coreDefs cbs = L.sort [D l l' x | b <- cbs, (l, l') <- coreDef b, x <- bindersOf b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
@@ -149,28 +149,31 @@ coreDef b    = meetSpans b eSp vSp
 --   where `spanEnd` is a single line function around 1092 but where
 --   the generated span starts mysteriously at 222 where Data.List is imported. 
 
-meetSpans b Nothing       _       
-  = error $ "INCCHECK: cannot find span for top-level binders: " 
-          ++ showPpr (bindersOf b)
-          ++ "\nRun without --diffcheck option\n"
+meetSpans b Nothing       _ = []
+--  = error $ "DIFFCHECK: cannot find span for top-level binders: " 
+--          ++ showPpr (bindersOf b)
+--          ++ "\nRun without --diffcheck option\n"
 
 meetSpans b (Just (l,l')) Nothing 
-  = (l, l')
+  = [(l, l')]
 meetSpans b (Just (l,l')) (Just (m,_)) 
-  = (max l m, l')
+  = [(max l m, l')]
 
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan b _                = Nothing 
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs             = foldr1 combineSrcSpans [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+catSpans b xs             = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+-- catSpans b xs = case [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z] of
+--   [] -> error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
+--   xs -> foldr1 combineSrcSpans xs
 
 bindFile (NonRec x _) = varFile x
 bindFile (Rec xes)    = varFile $ fst $ head xes 
 
 varFile b = case getSrcSpan b of
               RealSrcSpan z -> srcSpanFile z
-              _             -> error $ "INCCHECK: getFile: no file found for: " ++ showPpr b
+              _             -> error $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
 
 
 bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e
