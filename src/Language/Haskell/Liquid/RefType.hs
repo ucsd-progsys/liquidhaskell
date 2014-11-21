@@ -95,12 +95,14 @@ import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 import Language.Haskell.Liquid.World
 
 import Language.Haskell.Liquid.CoreToLogic (mkLit)
+import Language.Haskell.Liquid.Variance
 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (pprDoc, sDocDoc, typeUniqueString, tracePpr, tvId, getDataConVarUnique, showSDoc, showPpr, showSDocDump)
 import Language.Fixpoint.Names (dropModuleNames, symSepName, funConName, listConName, tupConName)
 import Data.List (sort, isSuffixOf, foldl')
+
 
 pdVar v        = Pr [uPVar v]
 
@@ -324,7 +326,7 @@ rPred     = RAllP
 rEx xts t = foldr (\(x, tx) t -> REx x tx t) t xts   
 rApp c    = RApp (RTyCon c [] (mkTyConInfo c [] [] Nothing)) 
 
-
+--- NV TODO : remove this code!!!
 
 addPds ps (RAllT v t) = RAllT v $ addPds ps t
 addPds ps t           = foldl' (flip rPred) t ps
@@ -1058,15 +1060,25 @@ makeLexReft old acc (e:es) (e':es')
 
 -------------------------------------------------------------------------------
 
-mkTyConInfo :: TyCon -> [Int] -> [Int] -> (Maybe (Symbol -> Expr)) -> TyConInfo
-mkTyConInfo c = TyConInfo pos neg
-  where pos       = neutral ++ [i | (i, b) <- varsigns, b, i /= dindex]
+mkTyConInfo :: TyCon -> VarianceInfo -> VarianceInfo -> (Maybe (Symbol -> Expr)) -> TyConInfo
+
+mkTyConInfo c usertyvar userprvariance f        
+  = TyConInfo (if null usertyvar then defaulttyvar else usertyvar) userprvariance f
+  where 
+        defaulttyvar      = varSignToVariance <$> [0 ..n]
+
+        varSignToVariance i = case filter (\p -> fst p == i) varsigns of 
+                                []       -> Invariant
+                                [(_, b)] -> if b then Covariant else Contravariant
+                                _        -> Bivariant
+
+
+        pos       = neutral ++ [i | (i, b) <- varsigns, b, i /= dindex]
         neg       = neutral ++ [i | (i, b) <- varsigns, not b, i /= dindex]
         varsigns  = L.nub $ concatMap goDCon $ TC.tyConDataCons c
         initmap   = zip (showPpr <$> tyvars) [0..n]
         mkmap vs  = zip (showPpr <$> vs) (repeat dindex) ++ initmap
-        goDCon dc = concatMap (go (mkmap (DataCon.dataConExTyVars dc)) True)
-                              (DataCon.dataConOrigArgTys dc)
+        goDCon dc = concatMap (go (mkmap (DataCon.dataConExTyVars dc)) True) (DataCon.dataConOrigArgTys dc)
         go m pos (ForAllTy v t)  = go ((showPpr v, dindex):m) pos t
         go m pos (TyVarTy v)     = [(varLookup (showPpr v) m, pos)]
         go m pos (AppTy t1 t2)   = go m pos t1 ++ go m pos t2
