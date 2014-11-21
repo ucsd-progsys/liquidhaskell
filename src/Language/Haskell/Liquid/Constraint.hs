@@ -67,6 +67,8 @@ import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Fresh
 
+
+import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Strata
@@ -464,11 +466,9 @@ splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rtc_info c
-       cscov  <- splitSIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
-       cscon  <- splitSIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
-       cscov' <- rsplitSIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
-       cscon' <- rsplitSIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
-       return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
+       csvar  <-  splitsSWithVariance γ' t1s t2s (varianceTyArgs tyInfo)
+       csvar' <- rsplitsSWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       return $ cs ++ csvar ++ csvar'
 
 splitS (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -480,15 +480,11 @@ splitS c@(SubC _ t1 t2)
 splitS (SubR _ _ _)
   = return []
 
-splitSIndexed γ t1s t2s indexes 
-  = concatMapM splitS (zipWith (SubC γ) t1s' t2s')
-  where t1s' = catMaybes $ (!?) t1s <$> indexes
-        t2s' = catMaybes $ (!?) t2s <$> indexes
+splitsSWithVariance γ t1s t2s variants 
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitSIndexed γ t1s t2s indexes 
-  = concatMapM (rsplitS γ) (safeZip "rsplitC" t1s' t2s')
-  where t1s' = catMaybes $ (!?) t1s <$> indexes
-        t2s' = catMaybes $ (!?) t2s <$> indexes
+rsplitsSWithVariance γ t1s t2s variants 
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
 
 bsplitS t1 t2 
   = return $ [(s1, s2)] 
@@ -497,12 +493,20 @@ bsplitS t1 t2
 rsplitCS _ (RPropP _ _, RPropP _ _) 
   = errorstar "RefTypes.rsplitC on RPropP"
 
-rsplitS γ (t1@(RProp s1 r1), t2@(RProp s2 r2))
+rsplitS γ t1@(RProp s1 r1) t2@(RProp s2 r2)
   = splitS (SubC γ (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
-rsplitS _ _  
+rsplitS _ _ _
   = errorstar "rspliS Rpoly - RPropP"
+  
+
+
+splitfWithVariance f t1 t2 Invariant     = liftM2 (++) (f t1 t2) (f t2 t1) -- return []
+splitfWithVariance f t1 t2 Bivariant     = liftM2 (++) (f t1 t2) (f t2 t1)
+splitfWithVariance f t1 t2 Covariant     = f t1 t2
+splitfWithVariance f t1 t2 Contravariant = f t2 t1
+
 
 ------------------------------------------------------------
 splitC :: SubC -> CG [FixSubC]
@@ -584,11 +588,9 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rtc_info c
-       cscov  <- splitCIndexed  γ' t1s t2s $ covariantTyArgs     tyInfo
-       cscon  <- splitCIndexed  γ' t2s t1s $ contravariantTyArgs tyInfo
-       cscov' <- rsplitCIndexed γ' r1s r2s $ covariantPsArgs     tyInfo
-       cscon' <- rsplitCIndexed γ' r2s r1s $ contravariantPsArgs tyInfo
-       return $ cs ++ cscov ++ cscon ++ cscov' ++ cscon'
+       csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       return $ traceShow ("\nConstraints\t" ++ show t1 ++ "\n<:\n"  ++ show tyInfo ++ "\n" ++ show t2) $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
@@ -613,18 +615,13 @@ splitC (SubR γ o r)
     tag = getTag γ
     src = loc γ 
 
-splitCIndexed γ t1s t2s indexes 
-  = concatMapM splitC (zipWith (SubC γ) t1s' t2s')
-  where
-    t1s' = catMaybes $ (!?) t1s <$> indexes
-    t2s' = catMaybes $ (!?) t2s <$> indexes
 
-rsplitCIndexed γ t1s t2s indexes 
-  = concatMapM (rsplitC γ) (safeZip "rsplitC" t1s'' t2s'')
-  where
-    t1s'           = catMaybes $ (!?) t1s <$> indexes
-    t2s'           = catMaybes $ (!?) t2s <$> indexes
-    (t1s'', t2s'') = pad "rsplitCIndexed" F.top t1s' t2s'
+splitsCWithVariance γ t1s t2s variants 
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
+
+rsplitsCWithVariance γ t1s t2s variants 
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
+
 
 
 bsplitC γ t1 t2
@@ -659,15 +656,15 @@ unifyVV t1@(RApp c1 _ _ _) t2@(RApp c2 _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
 
-rsplitC _ (RPropP _ _, RPropP _ _) 
+rsplitC _ (RPropP _ _) (RPropP _ _) 
   = errorstar "RefTypes.rsplitC on RPropP"
 
-rsplitC γ (t1@(RProp s1 r1), t2@(RProp s2 r2))
+rsplitC γ t1@(RProp s1 r1) t2@(RProp s2 r2)
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
        splitC (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
-rsplitC _ _  
+rsplitC _ _ _  
   = errorstar "rsplit Rpoly - RPropP"
 
 

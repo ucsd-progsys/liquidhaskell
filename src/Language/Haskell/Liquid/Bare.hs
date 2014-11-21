@@ -69,6 +69,7 @@ import Language.Haskell.Liquid.RefType          hiding (freeTyVars)
 import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.PredType hiding (unify)
 import Language.Haskell.Liquid.CoreToLogic
+import Language.Haskell.Liquid.Variance
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 
@@ -107,7 +108,7 @@ makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg cbs vars defVars exports specs
   = do name                                    <- gets modName
-       _                                       <- makeRTEnv specs
+       makeRTEnv specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
@@ -713,7 +714,7 @@ meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType Class RTyCon RTyVar RReft))]
+dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType RTyCon RTyVar RReft))]
 dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
@@ -1193,7 +1194,7 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
     l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
+listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Just fsize))]
                    , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt)
                    , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt)])
     where
@@ -1213,9 +1214,11 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [0] [] (Just fsize))]
       fsize      = \x -> EApp (dummyLoc "len") [EVar x]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] [0..(n-2)] [] Nothing)]
+tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
                     , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt)])
   where 
+    tyvarinfo     = replicate n     Covariant
+    pdvarinfo     = replicate (n-1) Covariant
     l0            = dummyPos "LH.Bare.tupleTyDataCons"
     c             = tupleTyCon BoxedTuple n
     dc            = tupleCon BoxedTuple n 
@@ -1355,26 +1358,55 @@ hpropTyCon = symbolTyCon 'w' 24 hpropConName
 ---------------- Bare Predicate: DataCon Definitions ------------------
 -----------------------------------------------------------------------
 
-makeConTypes (name,spec) = inModule name $ makeConTypes' $ Ms.dataDecls spec
+makeConTypes (name,spec) = inModule name $ makeConTypes' (Ms.dataDecls spec) (Ms.dvariance spec)
 
-makeConTypes' :: [DataDecl] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
-makeConTypes' dcs = unzip <$> mapM ofBDataDecl dcs
+makeConTypes' :: [DataDecl] -> [(LocSymbol, [Variance])] -> BareM ([(TyCon, TyConP)], [[(DataCon, Located DataConP)]])
+makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
+  where 
+        group ds vs = merge (L.sort ds) (L.sortBy (\x y -> compare (fst x) (fst y)) vs) 
 
-ofBDataDecl :: DataDecl -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
-ofBDataDecl (D tc as ps ls cts pos sfun)
+        merge (d:ds) (v:vs) 
+          | tycName d == fst v = (Just d, Just v)  : merge ds vs
+          | tycName d <  fst v = (Just d, Nothing) : merge ds (v:vs)
+          | otherwise          = (Nothing, Just v) : merge (d:ds) vs 
+        merge []     vs  = ((Nothing,) . Just) <$> vs
+        merge ds     []  = ((,Nothing) . Just) <$> ds  
+
+
+
+ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
+ofBDataDecl (Just (D tc as ps ls cts pos sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon tc
        cts'       <- mapM (ofBDataCon lc tc' αs ps ls πs) cts
        let tys     = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
        let initmap = zip (uPVar <$> πs) [0..]
-       let varInfo = concatMap (getPsSig initmap True) tys
+       let varInfo = L.nub $  concatMap (getPsSig initmap True) tys
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       return ((tc', TyConP αs πs ls cov contr sfun), (mapSnd (Loc lc) <$> cts'))
+       let defaultPs =  traceShow ("defaultPs for " ++ show tc ++ "\n\n" ++ show varInfo ++ "\n" ++ show tys ) $ varSignToVariance varInfo <$> [0 .. (length πs)]  
+       let (tvarinfo, pvarinfo) = f defaultPs
+       return ((tc', TyConP αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc) <$> cts'))
     where 
-       αs          = RTV . symbolTyVar <$> as
-       lc          = loc tc
+       αs             = RTV . symbolTyVar <$> as
+       n              = length αs
+       lc             = loc tc
+       f defaultPs = case maybe_invariance_info of 
+           {Nothing -> ([], defaultPs); 
+            Just (_,is) -> (take n is, if null (drop n is) then defaultPs else (drop n is))} 
+
+
+       varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of 
+                                []       -> Invariant
+                                [(_, b)] -> if b then Covariant else Contravariant
+                                _        -> Bivariant
+
+ofBDataDecl Nothing (Just (tc, is))
+  = do tc'        <- lookupGhcTyCon tc
+       return ((tc', TyConP [] [] [] tcov tcontr Nothing), [])
+  where 
+    (tcov, tcontr) = (is, []) 
 
 getPsSig m pos (RAllT _ t) 
   = getPsSig m pos t
@@ -1400,6 +1432,8 @@ getPsSigPs _ _   (RHProp _ _) = errorstar "TODO:EFFECTS:getPsSigPs"
 addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 -- ofBPreds = fmap (fmap stringTyVarTy)
+
+
 dataDeclTyConP d 
   = do let αs = fmap (RTV . symbolTyVar) (tycTyVars d)  -- as
        πs    <- mapM ofBPVar (tycPVars d)               -- ps

@@ -38,6 +38,7 @@ import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Variance
 
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
@@ -66,6 +67,7 @@ data Spec ty bndr  = Spec {
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
   , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions  
+  , dvariance  :: ![(LocSymbol, [Variance])]
   }
 
 
@@ -171,6 +173,7 @@ instance Monoid (Spec ty bndr) where
            , imeasures  =           imeasures s1  ++ imeasures s2
            , classes    =           classes s1    ++ classes s1
            , termexprs  =           termexprs s1  ++ termexprs s2
+           , dvariance  =           dvariance s1  ++ dvariance s2  
            }
 
   mempty
@@ -197,6 +200,7 @@ instance Monoid (Spec ty bndr) where
            , imeasures  = []
            , classes    = []
            , termexprs  = []
+           , dvariance  = []
            }
 
 -- MOVE TO TYPES
