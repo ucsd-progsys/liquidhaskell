@@ -236,6 +236,7 @@ import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, fu
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.GhcMisc (isFractionalClass)
+import Language.Haskell.Liquid.Variance
 
 import System.FilePath ((</>), isAbsolute, takeDirectory)
 
@@ -368,8 +369,8 @@ data GhcSpec = SP {
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
-                     , covPs        :: ![Int]    -- ^ indexes of covariant predicate arguments
-                     , contravPs    :: ![Int]    -- ^ indexes of contravariant predicate arguments
+                     , varianceTs   :: !VarianceInfo
+                     , variancePs   :: !VarianceInfo 
                      , sizeFun      :: !(Maybe (Symbol -> Expr))
                      } deriving (Data, Typeable)
 
@@ -429,6 +430,7 @@ instance (NFData a) => NFData (PVar a) where
 
 instance Hashable (PVar a) where
   hashWithSalt i (PV n _ _ xys) = hashWithSalt i n
+
 
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
@@ -493,10 +495,21 @@ newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 instance Symbolic RTyVar where
   symbol (RTV tv) = symbol . T.pack . showPpr $ tv
 
+
+{-
+-- NV TODO: 
+data RTyCon tc s = RTyCon 
+  { rtc_tc    :: !tc            -- ^ GHC Type Constructor
+  , rtc_pvars :: ![PVar s]      -- ^ Predicate Parameters
+  , rtc_info  :: !TyConInfo     -- ^ TyConInfo
+  }
+  deriving (Generic, Data, Typeable)
+-}
+
 data RTyCon = RTyCon 
-  { rtc_tc    :: !TyCon            -- ^ GHC Type Constructor
-  , rtc_pvars :: ![RPVar]          -- ^ Predicate Parameters
-  , rtc_info  :: !TyConInfo        -- ^ TyConInfo
+  { rtc_tc    :: TyCon         -- ^ GHC Type Constructor
+  , rtc_pvars :: ![RPVar]      -- ^ Predicate Parameters
+  , rtc_info  :: !TyConInfo    -- ^ TyConInfo
   }
   deriving (Generic, Data, Typeable)
 
@@ -517,7 +530,7 @@ isProp (PVProp _) = True
 isProp _          = False
 
                
-defaultTyConInfo = TyConInfo [] [] [] [] Nothing
+defaultTyConInfo = TyConInfo [] [] Nothing
 
 instance Default TyConInfo where
   def = defaultTyConInfo
@@ -535,22 +548,19 @@ instance Default TyConInfo where
 --
 --  there will be: 
 -- 
---    covariantTyArgs     = [0, 1, 3], for type arguments a, b and d
---    contravariantTyArgs = [0, 2, 3], for type arguments a, c and d
---    covariantPsArgs     = [0, 2], for predicate arguments p and r
---    contravariantPsArgs = [1, 2], for predicate arguments q and r
+--    varianceTyArgs     = [Bivariant , Covariant, Contravatiant, Invariant]
+--    variancePsArgs     = [Covariant, Contravatiant, Bivariant]
 --
---  does not appear in the data definition, we enforce BOTH
---  con - contra variance
 
 data TyConInfo = TyConInfo
-  { covariantTyArgs     :: ![Int] -- ^ indexes of covariant type arguments
-  , contravariantTyArgs :: ![Int] -- ^ indexes of contravariant type arguments
-  , covariantPsArgs     :: ![Int] -- ^ indexes of covariant predicate arguments
-  , contravariantPsArgs :: ![Int] -- ^ indexes of contravariant predicate arguments
-  , sizeFunction        :: !(Maybe (Symbol -> Expr))
+  { varianceTyArgs  :: !VarianceInfo             -- ^ variance info for type variables
+  , variancePsArgs  :: !VarianceInfo             -- ^ variance info for predicate variables
+  , sizeFunction    :: !(Maybe (Symbol -> Expr)) -- ^ logical function that computes the size of the structure
   } deriving (Generic, Data, Typeable)
 
+
+instance Show TyConInfo where 
+  show (TyConInfo x y _) = show x ++ "\n" ++ show y
 
 --------------------------------------------------------------------
 ---- Unified Representation of Refinement Types --------------------
@@ -781,7 +791,7 @@ instance Fixpoint RTyCon where
 
 
 instance PPrint RTyCon where
-  pprint = toFix
+  pprint (RTyCon c _ i) = (text $ showPpr c) <+> text (show i)
 
 instance Show RTyCon where
   show = showpp  
@@ -807,6 +817,13 @@ data DataDecl   = D { tycName   :: LocSymbol
                                 -- ^ Measure that should decrease in recursive calls
                     }
      --              deriving (Show) 
+
+
+instance Eq DataDecl where
+   d1 == d2 = (tycName d1) == (tycName d2)
+
+instance Ord DataDecl where
+   compare d1 d2 = compare (tycName d1) (tycName d2)
 
 -- | For debugging.
 instance Show DataDecl where
