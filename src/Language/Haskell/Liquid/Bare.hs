@@ -714,7 +714,7 @@ meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
 
 
 -- dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType Class RTyCon RTyVar RReft))]
+dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType RTyCon RTyVar RReft))]
 dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
 
 meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
