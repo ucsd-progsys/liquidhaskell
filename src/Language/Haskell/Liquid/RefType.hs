@@ -45,7 +45,6 @@ module Language.Haskell.Liquid.RefType (
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
   , dataConSymbol, dataConMsReft, dataConReft  
-  , literalFRefType, literalFReft, literalConst
   , classBinds
  
   -- * Manipulating Refinements in RTypes 
@@ -94,7 +93,6 @@ import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 import Language.Haskell.Liquid.World
 
-import Language.Haskell.Liquid.CoreToLogic (mkLit)
 import Language.Haskell.Liquid.Variance
 
 import Language.Haskell.Liquid.Misc
@@ -845,33 +843,6 @@ toType (RRTy _ _ _ t)
 toType t
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 
-
----------------------------------------------------------------
------------------------ Typing Literals -----------------------
----------------------------------------------------------------
-
--- makeRTypeBase :: Type -> Reft -> RefType 
-makeRTypeBase (TyVarTy α)    x       
-  = RVar (rTyVar α) x 
-makeRTypeBase (TyConApp c _) x 
-  = rApp c [] [] x
-makeRTypeBase _              _
-  = error "RefType : makeRTypeBase"
-
-literalFRefType tce l 
-  = makeRTypeBase (literalType l) (literalFReft tce l) 
-
-literalFReft tce = maybe mempty exprReft . snd . literalConst tce
-
- -- exprReft . snd . literalConst tce 
-
--- | `literalConst` returns `Nothing` for unhandled lits because
---    otherwise string-literals show up as global int-constants 
---    which blow up qualifier instantiation. 
-
-literalConst tce l         = (sort, mkLit l)
-  where 
-    sort                   = typeSort tce $ literalType l 
 
 ---------------------------------------------------------------
 ---------------- Annotations and Solutions --------------------
