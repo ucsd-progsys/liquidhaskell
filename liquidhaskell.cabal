@@ -179,8 +179,10 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Literals,
                     Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
+                    Language.Haskell.Liquid.WiredIn,
                     Paths_liquidhaskell,
 
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
