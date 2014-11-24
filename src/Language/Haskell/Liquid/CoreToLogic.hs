@@ -4,14 +4,24 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
 
-module Language.Haskell.Liquid.CoreToLogic ( coreToDef , mkLit, runToLogic, LError(..) ) where
+module Language.Haskell.Liquid.CoreToLogic ( 
+
+  coreToDef , mkLit, runToLogic, LError(..), 
+  logicType, 
+  strengthenResult
+
+  ) where
 
 import GHC hiding (Located)
 import Var
+import Type 
 
 import qualified CoreSyn as C
 import Literal
 import IdInfo
+
+import TysWiredIn
+
 
 import Control.Applicative 
 
@@ -19,9 +29,10 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
-import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc hiding (isDictionary)
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
+import Language.Haskell.Liquid.WiredIn
+import Language.Haskell.Liquid.RefType
 
 
 import qualified Data.HashMap.Strict as M
@@ -30,8 +41,45 @@ import Data.Monoid
 import Data.Functor
 import Data.Either
 
-newtype LogicM a = LM (Either a LError)
 
+import Debug.Trace (trace)
+
+
+logicType :: (Reftable r) => Type -> RRType r
+logicType τ = fromRTypeRep $ t{ty_res = res}
+  where 
+    t   = toRTypeRep $ ofType τ 
+    res = mkResType $ ty_res t
+
+    mkResType t 
+     | isBool t  = propType
+     | otherwise = t
+
+
+isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
+isBool _ = False
+{- 
+CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)} 
+
+CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)} 
+-}
+
+strengthenResult :: Var -> SpecType
+strengthenResult v
+  | isBool res
+  = fromRTypeRep $ rep
+  | otherwise
+  = fromRTypeRep $ rep{ty_res = res `strengthen` r}
+  where rep = toRTypeRep t
+        res = ty_res rep
+        r   = U (exprReft (EApp f [EVar x])) mempty mempty
+        x   = safeHead "strengthenResult" $ ty_binds rep
+        f   = dummyLoc $ dropModuleNames $ simplesymbol v
+        t   = (ofType $ varType v) :: SpecType
+
+simplesymbol = symbol . getName
+
+newtype LogicM a = LM (Either a LError)
 
 data LError = LE String
 
@@ -62,11 +110,31 @@ coreToDef x v e = go $ simplify e
   where
     go (C.Lam a e)  = go e
     go (C.Tick _ e) = go e
-    go (C.Case _ _ _ alts) = mapM goalt alts
-    go e'                 = throw "Measure Functions should have a case at top level"
+    go (C.Case _ _ t alts) 
+      | eqType t boolTy = mapM goalt_prop alts
+      | otherwise       = mapM goalt      alts
+    go e'                  = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic e
+    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic (trace ("ToLogic" ++ show x) e)
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
+
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P) <$> coreToPred (trace ("ToPred" ++ show x) e)
+    goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
+
+
+
+coreToPred :: C.CoreExpr -> LogicM Pred
+coreToPred (C.Let b p)  = subst1 <$> coreToPred p <*>  makesub b
+coreToPred (C.Tick _ p) = coreToPred p
+coreToPred (C.App (C.Var v) e) | ignoreVar v = coreToPred e
+coreToPred (C.Var x)
+  | x == falseDataConId
+  = return PFalse
+  | x == trueDataConId
+  = return PTrue
+coreToPred e                  
+  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
+
 
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
@@ -79,7 +147,7 @@ coreToLogic (C.Lit l)
      Just i -> return i
 coreToLogic (C.Var x)           = return $ EVar $ symbol x
 coreToLogic e@(C.App _ _)       = toLogicApp e 
-coreToLogic e                   = throw ("Cannot transform to Logic" ++ showPpr e)
+coreToLogic e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e   
