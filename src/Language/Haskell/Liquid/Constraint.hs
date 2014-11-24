@@ -590,7 +590,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let tyInfo = rtc_info c
        csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
        csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
-       return $ traceShow ("\nConstraints\t" ++ show t1 ++ "\n<:\n"  ++ show tyInfo ++ "\n" ++ show t2) $ cs ++ csvar ++ csvar'
+       return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
   | a1 == a2
