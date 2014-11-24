@@ -59,7 +59,7 @@ import Data.Generics.Schemes    (everywhere)
 import qualified Data.Text as T
 import Text.Parsec.Pos
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names                  (prims, hpropConName, propConName, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym, takeWhileSym)
+import Language.Fixpoint.Names                  (propConName, hpropConName, prims, takeModuleNames, dropModuleNames, isPrefixOfSym, dropSym, lengthSym, headSym, stripParensSym, takeWhileSym)
 import Language.Fixpoint.Types                  hiding (Def, Predicate, R)
 import Language.Fixpoint.Sort                   (checkSortFull, checkSortedReftFull, checkSorted)
 import Language.Haskell.Liquid.GhcMisc          hiding (L)
@@ -71,6 +71,7 @@ import Language.Haskell.Liquid.PredType hiding (unify)
 import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Variance
 import qualified Language.Haskell.Liquid.Measure as Ms
+import Language.Haskell.Liquid.WiredIn
 
 
 import Data.Maybe
@@ -216,8 +217,8 @@ makeHaskellMeasures cbs _     (name, spec) = Ms.mkMSpec' <$> mapM (makeMeasureDe
 makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition cbs x 
   = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
-    (NonRec v def:_)   -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
-    (Rec [(v, def)]:_) -> (Ms.mkM x (ofType $ varType v)) <$> coreToDef' x v def
+    (NonRec v def:_)   -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
+    (Rec [(v, def)]:_) -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
     _                  -> mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
@@ -235,14 +236,6 @@ simplesymbol = symbol . getName
 strengthenHaskellMeasures :: S.HashSet Var -> [(Var, Located SpecType)]
 strengthenHaskellMeasures hmeas = (\v -> (v, dummyLoc $ strengthenResult v)) <$> (S.toList hmeas)
 
-strengthenResult :: Var -> SpecType
-strengthenResult v
-  = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
-  where rep = toRTypeRep t
-        r   = U (exprReft (EApp f [EVar x])) mempty mempty
-        x   = safeHead "strengthenResult" $ ty_binds rep
-        f   = dummyLoc $ dropModuleNames $ simplesymbol v
-        t   = (ofType $ varType v) :: SpecType
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
@@ -1177,79 +1170,6 @@ instance (Resolvable t) => Resolvable (PVar t) where
 instance Resolvable () where
   resolve l = return 
 
---------------------------------------------------------------------
------- Predicate Types for WiredIns --------------------------------
---------------------------------------------------------------------
-
-maxArity :: Arity 
-maxArity = 7
-
-wiredTyCons     = fst wiredTyDataCons
-wiredDataCons   = snd wiredTyDataCons
-
-wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
-wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
-  where 
-    (tcs, dcs)  = unzip l
-    l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
-
-listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt)
-                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt)])
-    where
-      l0         = dummyPos "LH.Bare.listTyDataCons"
-      c          = listTyCon
-      [tyv]      = tyConTyVars c
-      t          = rVar tyv :: RSort
-      fld        = "fldList"
-      x          = "xListSelector"
-      xs         = "xsListSelector"
-      p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)] 
-      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty                 
-      xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
-      cargs      = [(xs, xst), (x, xt)]
-      fsize      = \x -> EApp (dummyLoc "len") [EVar x]
-
-tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt)])
-  where 
-    tyvarinfo     = replicate n     Covariant
-    pdvarinfo     = replicate (n-1) Covariant
-    l0            = dummyPos "LH.Bare.tupleTyDataCons"
-    c             = tupleTyCon BoxedTuple n
-    dc            = tupleCon BoxedTuple n 
-    tyvs@(tv:tvs) = tyConTyVars c
-    (ta:ts)       = (rVar <$> tyvs) :: [RSort]
-    flds          = mks "fld_Tuple"
-    fld           = "fld_Tuple"
-    x1:xs         = mks ("x_Tuple" ++ show n)
-    ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
-    ups           = uPVar <$> ps
-    pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
-    lt            = rApp c (rVar <$> tyvs) (RPropP [] . pdVarReft <$> ups) mempty
-    xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
-    cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
-    pnames        = mks_ "p"
-    mks  x        = (\i -> symbol (x++ show i)) <$> [1..n]
-    mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
-
-
-pdVarReft = (\p -> U mempty p mempty) . pdVar 
-
-mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
-mkps _  _      _           = error "Bare : mkps"
-
-mkps_ []     _       _          _    ps = ps
-mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
-  where
-    p                                   = PV n (PVProp t) (vv Nothing) args
-    a                                   = (t, f, x)
-mkps_ _     _       _          _    _ = error "Bare : mkps_"
-
 ------------------------------------------------------------------------
 -- | Transforming Raw Strings using GHC Env ----------------------------
 ------------------------------------------------------------------------
@@ -1343,16 +1263,6 @@ mkMeasureSort (Ms.MSpec c mm cm im)
   = Ms.MSpec c <$> forM mm tx <*> forM cm tx <*> forM im tx
     where
       tx m = liftM (\s' -> m {sort = s'}) (ofBareType (sort m))
-
-
-
------------------------------------------------------------------------
--- | LH Primitive TyCons ----------------------------------------------
------------------------------------------------------------------------
-
-propTyCon, hpropTyCon :: TyCon 
-propTyCon  = symbolTyCon 'w' 24 propConName
-hpropTyCon = symbolTyCon 'w' 24 hpropConName  
 
 -----------------------------------------------------------------------
 ---------------- Bare Predicate: DataCon Definitions ------------------
