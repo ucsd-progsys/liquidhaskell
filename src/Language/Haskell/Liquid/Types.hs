@@ -37,7 +37,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refined Type Constructors 
   , RTyCon (RTyCon, rtc_tc, rtc_info)
-  , TyConInfo(..)
+  , TyConInfo(..), defaultTyConInfo
   , rTyConPVs 
   , rTyConPropVs
   , isClassRTyCon
