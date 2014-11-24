@@ -40,11 +40,28 @@ transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e
   =  {-trace "new cbs"-} pg 
   | otherwise 
-  = error ("INITIAL\n" ++ showPpr pg0 ++ "\nTRANSFORMED\n" ++ showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
-  where pg0    = evalState (transPg cbs) initEnv
+  = error ("Type-check" ++ showSDoc (pprMessageBag e))
+  where pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
         (_, e) = lintCoreBindings [] pg
         pg     = inlineFailCases pg0
 
+
+
+
+inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be 
+  = Rec [(x, foldr Lam (sub (M.singleton lbx e') lbe) (αs ++ as))]
+  where
+    (αs, as, be) = collectTyAndValBinders e
+
+    e' = foldl' App (foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
+
+    hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
+    hasLoopBreaker _                               = Nothing
+
+    isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
+
+inlineLoopBreaker bs 
+  = bs
 
 inlineFailCases :: CoreProgram -> CoreProgram
 inlineFailCases = (go [] <$>)
