@@ -20,7 +20,9 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Errors
 import           Language.Haskell.Liquid.CmdLine
 import           Language.Haskell.Liquid.GhcInterface
-import           Language.Haskell.Liquid.Constraint       
+import           Language.Haskell.Liquid.Constraint.Generate       
+import           Language.Haskell.Liquid.Constraint.ToFixpoint      
+import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec   
 import           Language.Haskell.Liquid.Annotate (mkOutput)
 
@@ -54,10 +56,6 @@ liquidOne target info =
      let cbs'' = maybe cbs' DC.newBinds dc
      let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     -- SUPER SLOW: ONLY FOR DESPERATE DEBUGGING
-     -- SUPER SLOW: whenLoud $ do donePhase Loud "START: Write CGI (can be slow!)"
-     -- SUPER SLOW: {-# SCC "writeCGI" #-} writeCGI target cgi 
-     -- SUPER SLOW: donePhase Loud "FINISH: Write CGI"
      out      <- solveCs cfg target cgi info dc
      donePhase Loud "solve"
      let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
@@ -81,7 +79,8 @@ prune cfg cbs target info
     vs            = tgtVars $ spec info
 
 solveCs cfg target cgi info dc 
-  = do (r, sol) <- solve fx target (hqFiles info) (cgInfoFInfo cgi)
+  = do let finfo = cgInfoFInfo info cgi
+       (r, sol) <- solve fx target (hqFiles info) finfo
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
