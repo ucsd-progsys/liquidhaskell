@@ -1,7 +1,7 @@
 
 {-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections #-}
 
-module GhcPlay where
+module Language.Haskell.Liquid.GhcPlay where
 
 import GHC		
 import Outputable
@@ -26,6 +26,7 @@ import TysPrim
 import TysWiredIn
 import DataCon 
 
+
 --import HscMain  (hscTcRnLookupRdrName)
 import TcRnDriver 
 import RdrName
@@ -34,57 +35,77 @@ import RnEnv
 import TcRnMonad
 import ErrUtils
 
-------------------------------------------------------------------
--------------------- Type Checking Raw Strings -------------------
-------------------------------------------------------------------
 
-tcExpr ::  FilePath -> String -> IO Type
-tcExpr f s = 
-    runGhc (Just libdir) $ do
-      df   <- getSessionDynFlags
-      setSessionDynFlags df
-      cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)] []
-      env  <- getSession
-      r    <- liftIO $ hscTcExpr env s 
-      return r
+import Coercion
 
-fileEnv f 
-  = runGhc (Just libdir) $ do
-      df    <- getSessionDynFlags
-      setSessionDynFlags df
-      cm0  <- compileToCoreModule f
-      setContext [(cm_module cm0)] []
-      env   <- getSession
-      return env
+import           Control.Applicative ((<$>))
+import           Control.Arrow       ((***))
+import qualified Data.HashMap.Strict as M
 
-stringNames env s 
-  = do L _ rn          <- hscParseIdentifier env s
-       (_, Just zs)    <- tcRnLookupRdrName env rn
-       return zs
 
-stringTyThing env s 
-  = do L _ rn          <- hscParseIdentifier env s
-       (_, Just (n:_)) <- tcRnLookupRdrName env rn
-       (_, Just t)     <- tcRnLookupName env n
-       return t 
+import Language.Haskell.Liquid.GhcMisc  
 
-{-
+class Subable a where
+  sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
+  subTy :: M.HashMap TyVar Type -> a -> a
 
-t0  <- stringTyThing env "Int"
-t1  <- stringTyThing env "Con"
-t2  <- stringTyThing env "L"
-t3  <- stringTyThing env "sumTo"
+instance Subable CoreExpr where
+  sub s (Var v)        = M.lookupDefault (Var v) v s
+  sub _ (Lit l)        = Lit l
+  sub s (App e1 e2)    = App (sub s e1) (sub s e2)
+  sub s (Lam b e)      = Lam b (sub s e)
+  sub s (Let b e)      = Let (sub s b) (sub s e)
+  sub s (Case e b t a) = Case (sub s e) (sub s b) t (map (sub s) a)
+  sub s (Cast e c)     = Cast (sub s e) c
+  sub s (Tick t e)     = Tick t (sub s e)
+  sub _ (Type t)       = Type t
+  sub _ (Coercion c)   = Coercion c
 
-intTyCon == tyThingTyCon t0
-tyThingDataCon t1
-showPpr $ tyThingTyCon t2
-tyThingId t3
+  subTy s (Var v)      = Var (subTy s v)
+  subTy _ (Lit l)      = Lit l
+  subTy s (App e1 e2)  = App (subTy s e1) (subTy s e2)
+  subTy s (Lam b e)    | isTyVar b = Lam v' (subTy s e)
+   where v' = case M.lookup b s of
+               Nothing          -> b
+               Just (TyVarTy v) -> v
 
-env  <- fileEnv "rangeAdt.hs"
-n0s  <- stringNames env "Int" 
-n1s  <- stringNames env "Con"
-n1s  <- stringNames env "L"
-n2s  <- stringNames env "sumTo"
+  subTy s (Lam b e)      = Lam (subTy s b) (subTy s e)
+  subTy s (Let b e)      = Let (subTy s b) (subTy s e)
+  subTy s (Case e b t a) = Case (subTy s e) (subTy s b) (subTy s t) (map (subTy s) a)
+  subTy s (Cast e c)     = Cast (subTy s e) (subTy s c)
+  subTy s (Tick t e)     = Tick t (subTy s e)
+  subTy s (Type t)       = Type (subTy s t)
+  subTy s (Coercion c)   = Coercion (subTy s c)
 
--}
+instance Subable Coercion where
+  sub _ c                = c
+  subTy _ _              = error "subTy Coercion"
+
+instance Subable (Alt Var) where
+ sub s (a, b, e)   = (a, map (sub s) b,   sub s e)
+ subTy s (a, b, e) = (a, map (subTy s) b, subTy s e)
+
+instance Subable Var where
+ sub s v   | M.member v s = subVar $ s M.! v 
+           | otherwise    = v
+ subTy s v = setVarType v (subTy s (varType v))
+
+subVar (Var x) = x
+subVar  _      = error "sub Var"
+
+instance Subable (Bind Var) where
+ sub s (NonRec x e)   = NonRec (sub s x) (sub s e)
+ sub s (Rec xes)      = Rec ((sub s *** sub s) <$> xes)
+
+ subTy s (NonRec x e) = NonRec (subTy s x) (subTy s e)
+ subTy s (Rec xes)    = Rec ((subTy s  *** subTy s) <$> xes)
+
+instance Subable Type where
+ sub _ e   = e
+ subTy     = substTysWith
+
+substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
+substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
+substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
+substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
+substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)

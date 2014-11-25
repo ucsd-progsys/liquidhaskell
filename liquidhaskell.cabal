@@ -172,6 +172,7 @@ Library
                     Language.Haskell.Liquid.CTags,
                     Language.Haskell.Liquid.CmdLine, 
                     Language.Haskell.Liquid.GhcMisc, 
+                    Language.Haskell.Liquid.GhcPlay, 
                     Language.Haskell.Liquid.Misc, 
                     Language.Haskell.Liquid.CoreToLogic,
                     Language.Haskell.Liquid.Variance,
