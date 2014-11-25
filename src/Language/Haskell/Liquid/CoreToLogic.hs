@@ -60,7 +60,8 @@ logicType τ = fromRTypeRep $ t{ty_res = res}
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
 
-{- 
+{- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
+
 CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)} 
 
 CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)} 
@@ -143,14 +144,6 @@ coreToPred e
 -- coreToPred e                  
 --  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
 
-{-  
-          | PAnd  ![Pred]
-          | POr   ![Pred]
-          | PNot  !Pred
-          | PImp  !Pred !Pred
-          | PIff  !Pred !Pred
--}
-
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
 coreToLogic (C.Let b e)  = subst1 <$> coreToLogic e <*>  makesub b
@@ -177,6 +170,13 @@ toPredApp p
     go f [e]
       | val f == symbol ("not" :: String)
       = PNot <$>  coreToPred e
+    go f es
+      | val f == symbol ("or" :: String)
+      = POr <$> mapM coreToPred es
+      | val f == symbol ("and" :: String)
+      = PAnd <$> mapM coreToPred es
+      | otherwise
+      = (PBexp . (EApp f)) <$> mapM coreToLogic es
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e   
