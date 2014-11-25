@@ -10,3 +10,8 @@ myhead (x:_) = x
 nonEmpty (x:xs) = True 
 nonEmpty []     = False
 
+
+
+{-@ foo  :: x:[a] -> {v: Bool | (Prop v) <=> (nonEmpty x) } @-}
+foo  :: [a] -> Bool
+foo x = nonEmpty x
