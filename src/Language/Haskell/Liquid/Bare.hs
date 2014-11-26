@@ -135,11 +135,13 @@ makeGhcSpec0 cfg defVars exports name sp
                         , tgtVars = targetVars }
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
-  = do tySigs <- makePluggedSigs name embs tyi exports $ tx sigs
-       asmSigs <- makePluggedAsmSigs embs tyi $ tx asms
-       ctors <- makePluggedAsmSigs embs tyi $ tx cs'
-       return $ sp { tySigs     = tySigs
-                   , asmSigs    = asmSigs
+  = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
+       let  tySigs' = [ (x, addTyConInfo embs tyi <$> t) | (x, t) <- tySigs]
+       asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
+       let asmSigs' = [ (x, addTyConInfo embs tyi <$> t) | (x, t) <- asmSigs]
+       ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
+       return $ sp { tySigs     = tySigs'
+                   , asmSigs    = asmSigs'
                    , ctors      = ctors
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where
