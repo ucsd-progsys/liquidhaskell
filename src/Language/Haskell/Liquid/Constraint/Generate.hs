@@ -129,7 +129,7 @@ initEnv info
        f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
+       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv  -- . predsUnify sp
        let bs    = (tx <$> ) <$> [(traceShow "GRETY2" f0) ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -160,15 +160,15 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 -- | TODO: All this *should* happen inside @Bare@ but appears
 --   to happen after certain are signatures are @fresh@-ed,
 --   which is why they are here.
+
 predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
-predsUnify sp  (x, t)    = traceShow ("predsnify for\t" ++ show(x, t)) $ second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
-                             $ unifyts penv                  -- needed to match up some  @TyVars@
-                               (x, t)
+predsUnify sp  x = x -- second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                             
   where
     tce            = tcEmbeds sp 
     tyi            = tyconEnv sp
-    penv           = predEnv  sp
-    
+ 
+{-    
 predEnv            ::  GhcSpec -> F.SEnv PrType
 predEnv sp         = F.fromListSEnv bs
   where
@@ -183,6 +183,8 @@ unifyts penv (x, t)     = (x, t) --  traceShow ("UNIFYTS FOR" ++ show (x,t))  (x
  where
    pt                   = F.lookupSEnv x' penv
    x'                   = F.symbol x
+
+-}   
 ---------------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs
