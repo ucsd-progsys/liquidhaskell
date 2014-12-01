@@ -129,7 +129,7 @@ initEnv info
        f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv  -- . predsUnify sp
+       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [(traceShow "GRETY2" f0) ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
@@ -162,30 +162,13 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 --   which is why they are here.
 
 predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
-predsUnify sp  x = x -- second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
                              
   where
     tce            = tcEmbeds sp 
     tyi            = tyconEnv sp
  
-{-    
-predEnv            ::  GhcSpec -> F.SEnv PrType
-predEnv sp         = F.fromListSEnv bs
-  where
-    bs             = mapFst F.symbol <$> (dcs ++ assms)
-    dcs            = concatMap mkDataConIdsTy pcs
-    pcs            = [(x, dcPtoPredTy x y) | (x, y) <- dconsP sp]
-    assms          = mapSnd (mapReft ur_pred . val) <$> tySigs sp
-    dcPtoPredTy    :: DC.DataCon -> DataConP -> PrType
-    dcPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
-
-unifyts penv (x, t)     = (x, t) --  traceShow ("UNIFYTS FOR" ++ show (x,t))  (x, unify pt t)
- where
-   pt                   = F.lookupSEnv x' penv
-   x'                   = F.symbol x
-
--}   
----------------------------------------------------------------------------------------
+ ---------------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs
   = CGE { loc   = noSrcSpan
