@@ -16,9 +16,9 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Haskell.Liquid.Qualifier
 
-cgInfoFInfoKvars info cgi kvars = cgInfoFInfo info cgi{fixCs = fixCs' ++ trueCs}
+cgInfoFInfoKvars info cgi kvars = cgInfoFInfo info cgi
   where 
-    fixCs'                 = {- concatMap (updateCs kvars) -} (fixCs cgi) 
+    fixCs'                 = concatMap (updateCs kvars) (fixCs cgi) 
     trueCs                 = concatMap (`F.trueSubCKvar` (Ci noSrcSpan Nothing)) kvars
 
 
@@ -34,7 +34,6 @@ cgInfoFInfo info cgi
 --          , F.quals = specQuals cgi
          }
 
-{-
 updateCs kvars cs
   | null lhskvars || F.isFalse rhs
   = [cs] 
@@ -50,5 +49,3 @@ updateCs kvars cs
         rhs      = F.rhsCs cs
         F.Reft(_, lhspds) = lhs
         lhsconcs = [p | F.RConc p <- lhspds]
-
--}

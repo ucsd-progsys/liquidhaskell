@@ -74,7 +74,7 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
 import Control.DeepSeq
 
-
+import Language.Haskell.Liquid.Qualifier
 
 import Language.Haskell.Liquid.Constraint.Types
 
@@ -130,10 +130,10 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
+       let bs    = (tx <$> ) <$> [(traceShow "GRETY2" f0) ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
+       let γ0    = measEnv sp (traceShow ("ASSUMES") $ head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
@@ -160,8 +160,10 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 -- | TODO: All this *should* happen inside @Bare@ but appears
 --   to happen after certain are signatures are @fresh@-ed,
 --   which is why they are here.
-predsUnify sp      = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
-                   . unifyts penv                  -- needed to match up some  @TyVars@
+predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
+predsUnify sp  (x, t)    = traceShow ("predsnify for\t" ++ show(x, t)) $ second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                             $ unifyts penv                  -- needed to match up some  @TyVars@
+                               (x, t)
   where
     tce            = tcEmbeds sp 
     tyi            = tyconEnv sp
@@ -177,7 +179,7 @@ predEnv sp         = F.fromListSEnv bs
     dcPtoPredTy    :: DC.DataCon -> DataConP -> PrType
     dcPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
 
-unifyts penv (x, t)     = (x, unify pt t)
+unifyts penv (x, t)     = (x, t) --  traceShow ("UNIFYTS FOR" ++ show (x,t))  (x, unify pt t)
  where
    pt                   = F.lookupSEnv x' penv
    x'                   = F.symbol x
@@ -204,7 +206,7 @@ measEnv sp xts cbs lts asms hs
       tce = tcEmbeds sp
 
 assm = assm_grty impVars
-grty = assm_grty defVars
+grty x = traceShow "GRETY" $ assm_grty defVars x
 
 assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ] 
   where 
@@ -395,7 +397,7 @@ splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rtc_info c
-       csvar  <-  splitsSWithVariance γ' t1s t2s (varianceTyArgs tyInfo)
+       csvar  <-  splitsSWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
        csvar' <- rsplitsSWithVariance γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
@@ -516,7 +518,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        γ'    <- γ `extendEnvWithVV` t1' 
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
-       let tyInfo = rtc_info c
+       let tyInfo = traceShow ("tyInfo for " ++ show c) $ rtc_info c
        csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
        csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
@@ -611,7 +613,7 @@ initCGI cfg info = CGInfo {
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  =  [] -- qualifiers spc ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
+  , specQuals  = qualifiers spc ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
@@ -630,6 +632,8 @@ initCGI cfg info = CGInfo {
   where 
     tce        = tcEmbeds spc 
     spc        = spec info
+    spec'      = spc { tySigs  = [ (x, (addTyConInfo tce tyi . addTyConInfo tce tyi) <$> t) | (x, t) <- tySigs spc]
+                     , asmSigs = [ (x, (addTyConInfo tce tyi . addTyConInfo tce tyi) <$> t) | (x, t) <- asmSigs spc]}
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
     globs      = F.fromListSEnv . map mkSort $ meas spc
     mkSort     = mapSnd (rTypeSortedReft tce . val)
@@ -1235,7 +1239,7 @@ cconsE γ e (RAllP p t)
 
 cconsE γ e t
   = do te  <- consE γ e
-       te' <- instantiatePreds γ e te >>= addPost γ
+       te' <- instantiatePreds ("cconsE random \n" ++ showPpr e) γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
@@ -1244,16 +1248,16 @@ cconsE γ e t
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
 --   in the body.
        
-instantiatePreds γ e t0@(RAllP π t)
+instantiatePreds str γ e t0@(RAllP π t)
   = do r     <- freshPredRef γ e π
-       let πZZ = {- traceShow ("instantiatePreds 1") -} π
-       let tZZ = {- traceShow ("instantiatePreds 2") -} t
-       let rZZ = {- traceShow ("instantiatePreds 3") -} r
-       let t'  = replacePreds "consE" tZZ [(πZZ, rZZ)]
-       instantiatePreds γ e t'
+       let πZZ =  traceShow ("instantiatePreds 1")  π
+       let tZZ =  traceShow ("instantiatePreds 2")  t
+       let rZZ =  traceShow ("instantiatePreds 3")  r
+       let t'  =  traceShow ("instantiatePreds 4\t" ++ str ++ "\t in \t" ++ (show tZZ) ++ "\n" ++ show (πZZ, rZZ))  $ replacePreds "consE" tZZ [(πZZ, rZZ)]
+       instantiatePreds ("I\t" ++ str) γ e t'
 
-instantiatePreds _ _ t0
-  = return t0
+instantiatePreds str _ _ t0
+  = return $ traceShow ("No instt" ++ show str ) t0
 
 -------------------------------------------------------------------
 -- | @instantiateStrata@ generates fresh @Strata@ vars and substitutes
@@ -1286,7 +1290,7 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 consE γ (Var x)   
   = do t <- varRefType γ x
        addLocA (Just x) (loc γ) (varAnn γ x t)
-       return t
+       return $ traceShow ("Type for\t" ++ showPpr x) t
 
 consE γ (Lit c) 
   = refreshVV $ uRType $ literalFRefType (emb γ) c
@@ -1296,14 +1300,14 @@ consE γ e'@(App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       instantiatePreds ("consE AppTy \t" ++ show te ++ "\nin\n" ++ showPpr e') γ e' $ subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
-       te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
+       te0              <- instantiatePreds ("consE App ") γ e' $ foldr RAllP te πs 
        te'              <- instantiateStrata ls te0
        (γ', te'')       <- dropExists γ te'
-       updateLocA πs (exprLoc e) te'' 
+       updateLocA πs (exprLoc e) (traceShow ("INSTANTIATE PREDS\t" ++ showPpr e' ++ "\nWITH PS\n" ++ show πs) te'') 
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx 
        addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)

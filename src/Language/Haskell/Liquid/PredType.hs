@@ -138,7 +138,8 @@ unifyS (RAllP p t) pt
   = do t' <- unifyS t pt 
        s  <- get
        put $ S.delete (uPVar p) s
-       if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
+       return $ RAllP p t' 
+--        if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
 
 unifyS t (RAllP p pt)
   = do t' <- unifyS t pt 
