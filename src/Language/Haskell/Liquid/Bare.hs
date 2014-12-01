@@ -98,10 +98,15 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
     initEnv  = BE name mempty mempty mempty env
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
-postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
+postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs' }
   -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
+    tySigs'  = [(x, traceShow ("TY  SIG for " ++ show x ++ "\t\t" ++ show t) $ addTyConInfo tce tyi <$> t) | (x, t) <- sigs]
+    asmSigs' = [(x, traceShow ("ASM SIG for " ++ show x ++ "\t\t" ++ show t) $ addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs]
+    tyi      = tyconEnv -- sp
+    tce      = tcEmbeds -- sp
+
 
 
 ------------------------------------------------------------------------------------------------
@@ -136,12 +141,10 @@ makeGhcSpec0 cfg defVars exports name sp
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
-       let  tySigs' = [ (x, addTyConInfo embs tyi <$> t) | (x, t) <- tySigs]
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
-       let asmSigs' = [ (x, addTyConInfo embs tyi <$> t) | (x, t) <- asmSigs]
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
-       return $ sp { tySigs     = tySigs'
-                   , asmSigs    = asmSigs'
+       return $ sp { tySigs     = tySigs
+                   , asmSigs    = asmSigs
                    , ctors      = ctors
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where

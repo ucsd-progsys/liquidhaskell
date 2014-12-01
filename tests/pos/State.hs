@@ -19,10 +19,10 @@ returnST :: a -> ST a s
 returnST x = S $ \s -> (x, s)
 
 
-{-@ bindST :: forall <p :: s -> Prop, q :: a -> s -> Prop, r :: b -> s -> Prop>.
-            ST <p, q> a s 
-         -> (xbind:a -> ST <{v:s<q xbind> | true}, r> b s) 
-         -> ST <p, r> b s
+{-@ bindST :: forall <pbind :: s -> Prop, qbind :: a -> s -> Prop, rbind :: b -> s -> Prop>.
+            ST <pbind, qbind> a s 
+         -> (xbind:a -> ST <{v:s<qbind xbind> | true}, rbind> b s) 
+         -> ST <pbind, rbind> b s
  @-}
 bindST :: ST a s -> (a -> ST b s) -> ST b s
 bindST (S m) k = S $ \s -> let (a, s') = m s in apply (k a) s'
