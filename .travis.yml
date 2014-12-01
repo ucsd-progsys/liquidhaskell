@@ -2,6 +2,7 @@
 branches:
  only:
   - master
+  - test
 
 env:
  - SMT=z3 TESTS=pos
