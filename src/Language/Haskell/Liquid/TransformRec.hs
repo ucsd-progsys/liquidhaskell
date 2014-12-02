@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.TransformRec (
 
 import           Bag
 import           Coercion
-import           Control.Arrow       (second, (***))
+import           Control.Arrow       (second)
 import           Control.Monad.State
 import           CoreLint
 import           CoreSyn
@@ -80,7 +80,7 @@ inlineFailCases = (go [] <$>)
     go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt) 
     go' su (Cast e c)       = Cast (go' su e) c
     go' su (Tick t e)       = Tick t (go' su e)
-    go' su e                = e
+    go' _  e                = e
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
@@ -88,12 +88,11 @@ inlineFailCases = (go [] <$>)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
-    addFailExpr x e         _  = error "internal error" -- this cannot happen
+    addFailExpr _ _         _  = error "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
 
-scopeTr = outerScTr . innerScTr
 transformScope = outerScTr . innerScTr
 
 outerScTr = mapNonRec (go [])
@@ -110,12 +109,12 @@ scTrans x e = mapExpr scTrans $ foldr Let e0 bs
   where (bs, e0)           = go [] x e
         go bs x (Let b e)  | isCaseArg x b = go (b:bs) x e
         go bs x (Tick t e) = second (Tick t) $ go bs x e
-        go bs x e          = (bs, e)
+        go bs _ e          = (bs, e)
 
 type TE = State TrEnv
 
 data TrEnv = Tr { freshIndex  :: !Int
-                , loc         :: SrcSpan
+                , _loc        :: SrcSpan
                 }
 
 initEnv = Tr 0 noSrcSpan
@@ -153,6 +152,8 @@ trans vs ids bs (Let (Rec xes) e)
         e'      = Let (Rec xes') e
         xes'    = (second mkLet) <$> xes
 
+trans _ _ _ _ = error "TransformRec.trans called with invalid input"
+
 makeTrans vs ids (Let (Rec xes) e)
  = do fids    <- mapM (mkFreshIds vs ids) xs
       let (ids', ys) = unzip fids
@@ -167,6 +168,8 @@ makeTrans vs ids (Let (Rec xes) e)
    (xs, es)       = unzip xes
    mkSu ys ids'   = mkSubs ids vs ids' (zip xs ys)
    mkE ys ids' e' = mkCoreLams (vs ++ ids') (sub (mkSu ys ids') e')
+
+makeTrans _ _ _ = error "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (foldl' f e xes)

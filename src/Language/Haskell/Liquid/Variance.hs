@@ -7,7 +7,5 @@ module Language.Haskell.Liquid.Variance (
 import Data.Typeable
 import Data.Data
 
-import Data.Monoid
-
 type VarianceInfo = [Variance]
 data Variance = Invariant | Bivariant | Contravariant | Covariant deriving (Data, Typeable, Show)
