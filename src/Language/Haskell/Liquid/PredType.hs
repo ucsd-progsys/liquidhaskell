@@ -5,14 +5,10 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy
   , dataConPSpecType
   , makeTyConInfo
-  , unify
   , replacePreds
 
   , replacePredsWithRefs
   , pVartoRConc
-
-  -- * Compute `Type` of GHC `CoreExpr`
-  , exprType
 
   -- * Dummy `Type` that represents _all_ abstract-predicates
   , predType
@@ -113,100 +109,6 @@ dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
   = error "ofTypePAppTy"
-
----------------------------------------------------------------------------
--- | Unify PrType with SpecType -------------------------------------------
----------------------------------------------------------------------------
-unify               :: Maybe PrType -> SpecType -> SpecType 
----------------------------------------------------------------------------
-unify (Just pt) rt  = evalState (unifyS rt pt) S.empty
-unify _         t   = t
-
----------------------------------------------------------------------------
-unifyS :: SpecType -> PrType -> State (S.HashSet UsedPVar) SpecType 
----------------------------------------------------------------------------
-
-unifyS (RAllS s t) pt
-  = do t' <- unifyS t pt 
-       return $ RAllS s t'
-
-unifyS t (RAllS s pt) 
-  = do t' <- unifyS t pt 
-       return $ RAllS s t'
-
-unifyS (RAllP p t) pt
-  = do t' <- unifyS t pt 
-       s  <- get
-       put $ S.delete (uPVar p) s
-       if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
-
-unifyS t (RAllP p pt)
-  = do t' <- unifyS t pt 
-       s  <- get
-       put $ S.delete (uPVar p) s
-       if (uPVar p `S.member` s) then return $ RAllP p t' else return t'
-
-unifyS (RAllT (v@(RTV α)) t) (RAllT v' pt) 
-  = do t'    <- unifyS t $ subsTyVar_meet (v', (rVar α) :: RSort, RVar v mempty) pt 
-       return $ RAllT v t'
-
-unifyS (RFun x rt1 rt2 _) (RFun x' pt1 pt2 _)
-  = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 $ substParg (x', EVar x) pt2
-       return $ rFun x t1' t2' 
-
-unifyS (RAppTy rt1 rt2 r) (RAppTy pt1 pt2 p)
-  = do t1' <- unifyS rt1 pt1
-       t2' <- unifyS rt2 pt2
-       return $ RAppTy t1' t2' (bUnify r p)
-
-unifyS (RVar v a) (RVar _ p)
-  = do modify $ \s -> s `S.union` (S.fromList $ pvars p)
-       return $ RVar v $ bUnify a p
-
-unifyS (RApp c ts rs r) (RApp _ pts ps p)
-  = do modify $ \s -> s `S.union` fm
-       ts'   <- zipWithM unifyS ts pts
-       return $ RApp c ts' rs (bUnify r p)
-    where 
-       fm       = S.fromList $ concatMap pvars (p:fps) 
-       fps      = getR <$> ps
-       getR (RPropP _ r) = r
-       getR (RProp _ _ ) = mempty 
-
-unifyS (RAllE x tx t) (RAllE x' tx' t') | x == x'
-  = RAllE x <$> unifyS tx tx' <*> unifyS t t'
-
-unifyS (REx x tx t) (REx x' tx' t') | x == x'
-  = REx x   <$> unifyS tx tx' <*> unifyS t t'
-    
-unifyS t (REx x' tx' t')
-  = REx x' ((\p -> U mempty p mempty) <$> tx') <$> unifyS t t'
-    
-unifyS t@(RVar v a) (RAllE x' tx' t')
-  = RAllE x' ((\p -> U mempty p mempty)<$> tx') <$> (unifyS t t')
-
-unifyS t1 t2                
-  = error ("unifyS" ++ show t1 ++ " with " ++ show t2)
-
--- pToReft p = Reft (vv, [RPvar p]) 
-pToReft  = (\p -> U mempty p mempty) . pdVar 
-
-bUnify r (Pr pvs)              = foldl' meet r $ pToReft <$> pvs
-                                 
--- ORIG unifyRef (RPropP s r) p        = RPropP s $ bUnify r p -- (foldl' meet r      $ pToReft <$> pvs)
--- ORIG unifyRef (RProp s t) (Pr pvs)  = RProp s  $ foldl' strengthen t $ pToReft <$> pvs
-
--- ORIG zipWithZero f xz yz  = go
--- ORIG   where
--- ORIG     go []     ys     = (xz `f`) <$> ys
--- ORIG     go xs     []     = (`f` yz) <$> xs
--- ORIG     go (x:xs) (y:ys) = f x y  : go xs ys
-    
--- ORIG zipWithZero _ _  _  []     []     = []
--- ORIG zipWithZero f xz yz []     (y:ys) = f xz y : zipWithZero f xz yz [] ys
--- ORIG zipWithZero f xz yz (x:xs) []     = f x yz : zipWithZero f xz yz xs []
--- ORIG zipWithZero f xz yz (x:xs) (y:ys) = f x y  : zipWithZero f xz yz xs ys
  
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
@@ -433,35 +335,6 @@ predName   = "Pred"
 wpredName  = "WPred"
 
 symbolType = TyVarTy . symbolTyVar 
-
-----------------------------------------------------------------------------
-exprType :: CoreExpr -> Type
-----------------------------------------------------------------------------
-exprType (Var var)             = idType var
-exprType (Lit lit)             = literalType lit
-exprType (Coercion co)         = coercionType co
-exprType (Let _ body)          = exprType body
-exprType (Case _ _ ty _)       = ty
-exprType (Cast _ co)           = pSnd (coercionKind co)
-exprType (Tick _ e)            = exprType e
-exprType (Lam binder expr)     = mkPiType binder (exprType expr)
-exprType (App e1 (Var v))
-  | isPredType v               = exprType e1
-exprType e@(App _ _)
-  | (f, es) <- collectArgs e   = applyTypeToArgs e (exprType f) es 
-exprType _                     = error "PredType : exprType"
-
--- | @collectArgs@ takes a nested application expression and returns
---   the the function being applied and the arguments to which it is applied
-collectArgs :: Expr b -> (Expr b, [Arg b])
-collectArgs expr          = go expr []
-  where
-    go (App f (Var v)) as
-      | isPredType v      = go f as
-    go (App f a) as       = go f (a:as)
-    go e 	 as       = (e, as)
-
-isPredType v = eqType (idType v) predType
 
 -- | A more efficient version of 'applyTypeToArg' when we have several arguments.
 --   The first argument is just for debugging, and gives some context
