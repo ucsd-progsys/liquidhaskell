@@ -1296,7 +1296,7 @@ ofBDataDecl (Just (D tc as ps ls cts pos sfun)) maybe_invariance_info
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       let defaultPs =  traceShow ("defaultPs for " ++ show tc ++ "\n\n" ++ show varInfo ++ "\n" ++ show tys ) $ varSignToVariance varInfo <$> [0 .. (length πs)]  
+       let defaultPs = varSignToVariance varInfo <$> [0 .. (length πs - 1)]  
        let (tvarinfo, pvarinfo) = f defaultPs
        return ((tc', TyConP αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc) <$> cts'))
     where 
