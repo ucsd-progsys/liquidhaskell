@@ -1,21 +1,19 @@
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -------------------------------------------------------------------------------------
 ------------ Code to convert Core to Administrative Normal Form ---------------------
 -------------------------------------------------------------------------------------
 
 module Language.Haskell.Liquid.ANFTransform (anormalize) where
-import           Coercion (isCoVar, isCoVarType)
 import           CoreSyn
 import           CoreUtils                        (exprType)
 import qualified DsMonad
 import           DsMonad                          (initDs)
-import           FastString                       (fsLit)
 import           GHC                              hiding (exprType)
 import           HscTypes
 import           Id                               (mkSysLocalM)
@@ -30,9 +28,6 @@ import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
-import           Control.Monad.Trans              (lift)
-import           Control.Monad
-import           Control.Applicative              ((<$>))
 import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Types (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
@@ -41,7 +36,6 @@ import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Control.Applicative
-import qualified Data.Text as T
 
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
@@ -137,7 +131,7 @@ normalizeName _ e@(Type _)
 normalizeName _ e@(Lit _)
   = return e
 
-normalizeName γ e@(Coercion _)
+normalizeName _ e@(Coercion _)
   = do x     <- lift $ freshNormalVar $ exprType e
        add  [NonRec x e]
        return $ Var x

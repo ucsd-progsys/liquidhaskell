@@ -205,6 +205,7 @@ Library
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
+   ghc-options: -W -Werror
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 

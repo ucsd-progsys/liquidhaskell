@@ -9,8 +9,6 @@ module Language.Haskell.Liquid.Strata (
 
 import Control.Applicative      ((<$>))
 
-import Debug.Trace (trace)
-import Language.Fixpoint.Misc
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)
 
@@ -19,7 +17,7 @@ s1 <:= s2
   | otherwise                          = True
 
 solveStrata = go True [] [] 
-  where go False solved acc [] = solved
+  where go False solved _   [] = solved
         go True  solved acc [] = go False solved [] $ {-traceShow ("OLD \n" ++ showMap solved acc ) $ -} subsS solved <$> acc
         go mod   solved acc (([], _):ls) = go mod solved acc ls
         go mod   solved acc ((_, []):ls) = go mod solved acc ls
@@ -28,13 +26,6 @@ solveStrata = go True [] []
                                    | noUpdate l  = go mod solved (l:acc) ls 
                                    | otherwise   = go True (solve l ++ solved) (l:acc) ls 
 
-traceSMap s init sol= sol -- trace (s ++ "\n" ++ showMap sol init) sol 
-
-showMap :: [(Symbol, Stratum)] -> [([Stratum], [Stratum])] -> String
-showMap s acc 
-  = "\nMap lenght = " ++ show (length acc) ++ "\n" ++
-    "Solved = (" ++ show (length s) ++ ")\n" ++ show s ++ "\n"
-    ++ concatMap (\xs -> (show xs ++ "\n") ) acc ++ "\n\n"
 
 allSVars (xs, ys) = all isSVar $ xs ++ ys
 noSVar   (xs, ys) = all (not . isSVar) (xs ++ ys)
@@ -71,7 +62,7 @@ instance SubStratum (Annot SpecType) where
   subS su (AnnUse t) = AnnUse $ subS su t
   subS su (AnnDef t) = AnnDef $ subS su t
   subS su (AnnRDf t) = AnnRDf $ subS su t
-  subS su (AnnLoc s) = AnnLoc s
+  subS _  (AnnLoc s) = AnnLoc s
 
 instance SubStratum SpecType where
   subS su t = (\r -> r {ur_strata = subS su (ur_strata r)}) <$> t
