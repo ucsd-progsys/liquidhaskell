@@ -3,14 +3,11 @@ module Language.Haskell.Liquid.Constraint.Types  where
 import CoreSyn
 import SrcLoc           
 
-
 import qualified TyCon   as TC
 import qualified DataCon as DC
 
 
 import Text.PrettyPrint.HughesPJ hiding (first)
-
-
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -25,6 +22,7 @@ import Data.Maybe               (catMaybes)
 import Var
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
 import Language.Haskell.Liquid.RefType  (shiftVV)
 import Language.Haskell.Liquid.PredType (wiredSortedSyms)
@@ -32,101 +30,7 @@ import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc 
 
-
-
 import qualified Language.Haskell.Liquid.CTags      as Tg
-
-
-import Language.Haskell.Liquid.Strata
-
-
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
------------------------------ Helper Types: HEnv -----------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
-
-
-newtype HEnv = HEnv (S.HashSet F.Symbol)
-
-fromListHEnv = HEnv . S.fromList
-elemHEnv x (HEnv s) = x `S.member` s
-
-
-
-
-
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
--------------------------- Helper Types: Invariants --------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
-
-type RTyConInv = M.HashMap RTyCon [SpecType]
-type RTyConIAl = M.HashMap RTyCon [SpecType]
-
-mkRTyConInv    :: [F.Located SpecType] -> RTyConInv 
-mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
-  where 
-    strip      = fourth4 . bkUniv . val 
-
-mkRTyConIAl    = mkRTyConInv . fmap snd
-
-addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _)
-  = case M.lookup c m of
-      Nothing -> t
-      Just ts -> L.foldl' conjoinInvariant' t ts
-addRTyConInv _ t 
-  = t 
-
-addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
-addRInv m (x, t) 
-  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
-  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
-  | otherwise    
-  = (x, t)
-   where
-     ids = [id | tc <- M.keys m
-               , dc <- TC.tyConDataCons $ rtc_tc tc
-               , id <- DC.dataConImplicitIds dc]
-     res = ty_res . toRTypeRep
-     xs  = ty_args $ toRTypeRep t
-
-conjoinInvariant' t1 t2     
-  = conjoinInvariantShift t1 t2
-
-conjoinInvariantShift t1 t2 
-  = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
-
-conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
-  | (c == ic && length ts == length its)
-  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
-
-conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
-  = t { rt_reft = r `F.meet` ir }
-
-conjoinInvariant t@(RVar _ r) (RVar _ ir) 
-  = t { rt_reft = r `F.meet` ir }
-
-conjoinInvariant t _  
-  = t
-
-
-
-data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
-               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
-               }
-
-insertFEnv (FE benv env) ((x, t), i)
-  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
-
-insertsFEnv = L.foldl' insertFEnv
-
-initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
-
 
 
 data CGEnv 
@@ -242,3 +146,92 @@ ppr_CGInfo cgi
   -- -$$ (pprint $ kvProf cgi)
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+----------------------------- Helper Types: HEnv -----------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+
+newtype HEnv = HEnv (S.HashSet F.Symbol)
+
+fromListHEnv = HEnv . S.fromList
+elemHEnv x (HEnv s) = x `S.member` s
+
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-------------------------- Helper Types: Invariants --------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+
+type RTyConInv = M.HashMap RTyCon [SpecType]
+type RTyConIAl = M.HashMap RTyCon [SpecType]
+
+mkRTyConInv    :: [F.Located SpecType] -> RTyConInv 
+mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
+  where 
+    strip      = fourth4 . bkUniv . val 
+
+mkRTyConIAl    = mkRTyConInv . fmap snd
+
+addRTyConInv :: RTyConInv -> SpecType -> SpecType
+addRTyConInv m t@(RApp c _ _ _)
+  = case M.lookup c m of
+      Nothing -> t
+      Just ts -> L.foldl' conjoinInvariant' t ts
+addRTyConInv _ t 
+  = t 
+
+addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
+addRInv m (x, t) 
+  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
+  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
+  | otherwise    
+  = (x, t)
+   where
+     ids = [id | tc <- M.keys m
+               , dc <- TC.tyConDataCons $ rtc_tc tc
+               , id <- DC.dataConImplicitIds dc]
+     res = ty_res . toRTypeRep
+     xs  = ty_args $ toRTypeRep t
+
+conjoinInvariant' t1 t2     
+  = conjoinInvariantShift t1 t2
+
+conjoinInvariantShift t1 t2 
+  = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
+
+conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
+  | (c == ic && length ts == length its)
+  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
+
+conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
+  = t { rt_reft = r `F.meet` ir }
+
+conjoinInvariant t@(RVar _ r) (RVar _ ir) 
+  = t { rt_reft = r `F.meet` ir }
+
+conjoinInvariant t _  
+  = t
+
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+------------------------ Fixpoint Environment --------------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+
+data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
+               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+               }
+
+insertFEnv (FE benv env) ((x, t), i)
+  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
+
+insertsFEnv = L.foldl' insertFEnv
+
+initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)

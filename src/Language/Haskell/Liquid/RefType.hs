@@ -463,7 +463,7 @@ expandRApp :: (PPrint r, Reftable r)
            -> RRType r
            -> RRType r
 -------------------------------------------------------------------------
-expandRApp tce tyi t@(RApp {}) = traceShow ("expandRApp = " ++ show t ++ "\nCompare\n" ++ show rc ++ "\n" ++ show rc' ) $ RApp rc' ts rs' r
+expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
   where
     RApp rc ts rs r            = t
     rc'                        = appRTyCon tce tyi rc ts
