@@ -20,6 +20,8 @@ module Language.Haskell.Liquid.Constraint.Generate (
     
   ) where
 
+import CoreUtils     (exprType)
+
 import CoreSyn
 import SrcLoc           
 import Type             -- (coreEqType)
@@ -593,12 +595,10 @@ initCGI cfg info = CGInfo {
   , fixCs      = []
   , isBind     = []
   , fixWfs     = [] 
-  , globals    = globs
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  = qualifiers spc ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
@@ -620,8 +620,6 @@ initCGI cfg info = CGInfo {
     spec'      = spc { tySigs  = [ (x, (addTyConInfo tce tyi . addTyConInfo tce tyi) <$> t) | (x, t) <- tySigs spc]
                      , asmSigs = [ (x, (addTyConInfo tce tyi . addTyConInfo tce tyi) <$> t) | (x, t) <- asmSigs spc]}
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-    globs      = F.fromListSEnv . map mkSort $ meas spc
-    mkSort     = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits tce info
   = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts]
@@ -1600,11 +1598,9 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq` 
           ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq` 
           ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq` 
-          ({-# SCC "CGIrnf5" #-}  rnf (globals x))    `seq` 
           ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
-          ({-# SCC "CGIrnf9" #-}  rnf (specQuals x))  `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x)) 

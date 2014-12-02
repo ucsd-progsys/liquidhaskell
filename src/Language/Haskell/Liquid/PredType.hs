@@ -5,14 +5,11 @@ module Language.Haskell.Liquid.PredType (
   , dataConTy
   , dataConPSpecType
   , makeTyConInfo
-  , unify
+--   , unify -- TODO: remove this!
   , replacePreds
 
   , replacePredsWithRefs
   , pVartoRConc
-
-  -- * Compute `Type` of GHC `CoreExpr`
-  , exprType
 
   -- * Dummy `Type` that represents _all_ abstract-predicates
   , predType
@@ -434,35 +431,6 @@ predName   = "Pred"
 wpredName  = "WPred"
 
 symbolType = TyVarTy . symbolTyVar 
-
-----------------------------------------------------------------------------
-exprType :: CoreExpr -> Type
-----------------------------------------------------------------------------
-exprType (Var var)             = idType var
-exprType (Lit lit)             = literalType lit
-exprType (Coercion co)         = coercionType co
-exprType (Let _ body)          = exprType body
-exprType (Case _ _ ty _)       = ty
-exprType (Cast _ co)           = pSnd (coercionKind co)
-exprType (Tick _ e)            = exprType e
-exprType (Lam binder expr)     = mkPiType binder (exprType expr)
-exprType (App e1 (Var v))
-  | isPredType v               = exprType e1
-exprType e@(App _ _)
-  | (f, es) <- collectArgs e   = applyTypeToArgs e (exprType f) es 
-exprType _                     = error "PredType : exprType"
-
--- | @collectArgs@ takes a nested application expression and returns
---   the the function being applied and the arguments to which it is applied
-collectArgs :: Expr b -> (Expr b, [Arg b])
-collectArgs expr          = go expr []
-  where
-    go (App f (Var v)) as
-      | isPredType v      = go f as
-    go (App f a) as       = go f (a:as)
-    go e 	 as       = (e, as)
-
-isPredType v = eqType (idType v) predType
 
 -- | A more efficient version of 'applyTypeToArg' when we have several arguments.
 --   The first argument is just for debugging, and gives some context
