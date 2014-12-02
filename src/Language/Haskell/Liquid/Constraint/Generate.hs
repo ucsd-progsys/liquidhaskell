@@ -14,20 +14,13 @@
 -- | This module defines the representation of Subtyping and WF Constraints, and 
 -- the code for syntax-directed constraint generation. 
 
-module Language.Haskell.Liquid.Constraint (
+module Language.Haskell.Liquid.Constraint.Generate (
     
-    -- * Constraint information output by generator 
-    CGInfo (..)
-  
-    -- * Function that does the actual generation
-  , generateConstraints
+   generateConstraints
     
-    -- * Project Constraints to Fixpoint Format
-  , cgInfoFInfo , cgInfoFInfoBot, cgInfoFInfoKvars
-  
-  -- * KVars in constraints, for debug/profile purposes
-  -- , kvars, kvars'
   ) where
+
+import CoreUtils     (exprType)
 
 import CoreSyn
 import SrcLoc           
@@ -61,12 +54,12 @@ import Data.List (foldl')
 import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Sort (pruneUnsortedReft)
 
 import Language.Haskell.Liquid.Fresh
 
+import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
@@ -80,9 +73,10 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, getSourcePos, pprDoc, tickSrcSpan, hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Qualifier
 import Language.Haskell.Liquid.Literals
 import Control.DeepSeq
+
+import Language.Haskell.Liquid.Constraint.Types
 
 import Debug.Trace (trace)
 import IdInfo
@@ -166,28 +160,19 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 -- | TODO: All this *should* happen inside @Bare@ but appears
 --   to happen after certain are signatures are @fresh@-ed,
 --   which is why they are here.
-predsUnify sp      = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
-                   . unifyts penv                  -- needed to match up some  @TyVars@
+
+-- NV : still some sigs do not get TyConInfo
+
+predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
+predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
+                             
   where
     tce            = tcEmbeds sp 
     tyi            = tyconEnv sp
-    penv           = predEnv  sp
-    
-predEnv            ::  GhcSpec -> F.SEnv PrType
-predEnv sp         = F.fromListSEnv bs
-  where
-    bs             = mapFst F.symbol <$> (dcs ++ assms)
-    dcs            = concatMap mkDataConIdsTy pcs
-    pcs            = [(x, dcPtoPredTy x y) | (x, y) <- dconsP sp]
-    assms          = mapSnd (mapReft ur_pred . val) <$> tySigs sp
-    dcPtoPredTy    :: DC.DataCon -> DataConP -> PrType
-    dcPtoPredTy dc = fmap ur_pred . dataConPSpecType dc
-
-unifyts penv (x, t)     = (x, unify pt t)
- where
-   pt                   = F.lookupSEnv x' penv
-   x'                   = F.symbol x
----------------------------------------------------------------------------------------
+ 
+ ---------------------------------------------------------------------------------------
+ ---------------------------------------------------------------------------------------
+ ---------------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs
   = CGE { loc   = noSrcSpan
@@ -230,41 +215,7 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
 -- | Helpers: Reading/Extending Environment Bindings -------------------
 ------------------------------------------------------------------------
 
-data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
-               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
-               }
 
-insertFEnv (FE benv env) ((x, t), i)
-  = FE (F.insertsIBindEnv [i] benv) (F.insertSEnv x t env)
-
-insertsFEnv = L.foldl' insertFEnv
-
-initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
-
-data CGEnv 
-  = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
-        , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
-        , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
-        , fenv   :: !FEnv              -- ^ Fixpoint Environment
-        , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-        , invs   :: !RTyConInv         -- ^ Datatype invariants 
-        , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants 
-        , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
-        , assms  :: !REnv              -- ^ Top-level variables with assumed types
-        , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
-        , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
-        , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
-        , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-        , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
-        , holes :: !HEnv               -- ^ Types with holes, will need refreshing
-        } -- deriving (Data, Typeable)
-
-instance PPrint CGEnv where
-  pprint = pprint . renv
-
-instance Show CGEnv where
-  show = showpp
 
 getTag :: CGEnv -> F.Tag
 getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
@@ -296,38 +247,6 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
 
-
------------------------------------------------------------------
-------------------- Constraints: Types --------------------------
------------------------------------------------------------------
-
-data SubC     = SubC { senv  :: !CGEnv
-                     , lhs   :: !SpecType
-                     , rhs   :: !SpecType 
-                     }
-              | SubR { senv  :: !CGEnv
-                     , oblig :: !Oblig
-                     , ref   :: !RReft
-                     }
-
-data WfC      = WfC  !CGEnv !SpecType 
-              -- deriving (Data, Typeable)
-
-type FixSubC  = F.SubC Cinfo
-type FixWfC   = F.WfC Cinfo
-
-instance PPrint SubC where
-  pprint c = pprint (senv c)
-           $+$ ((text " |- ") <+> ( (pprint (lhs c)) 
-                             $+$ text "<:" 
-                             $+$ (pprint (rhs c))))
-
-instance PPrint WfC where
-  pprint (WfC w r) = pprint w <> text " |- " <> pprint r 
-
-instance SubStratum SubC where
-  subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
-  subS _  c              = c
 
 ------------------------------------------------------------
 ------------------- Constraint Splitting -------------------
@@ -467,7 +386,7 @@ splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp c  t1s r1s _ = t1'
        let RApp c' t2s r2s _ = t2'
        let tyInfo = rtc_info c
-       csvar  <-  splitsSWithVariance γ' t1s t2s (varianceTyArgs tyInfo)
+       csvar  <-  splitsSWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
        csvar' <- rsplitsSWithVariance γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
@@ -669,59 +588,6 @@ rsplitC _ _ _
   = errorstar "rsplit Rpoly - RPropP"
 
 
------------------------------------------------------------
--------------------- Generation: Types --------------------
------------------------------------------------------------
-
-data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
-                     , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
-                     , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
-                     , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-                     , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings 
-                     , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
-                     , globals    :: !F.FEnv                      -- ^ ? global measures
-                     , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
-                     , binds      :: !F.BindEnv                   -- ^ set of environment binders
-                     , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
-                     , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
-                     , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
-                     , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
-                     , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
-                     , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
-                     , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
-                     , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
-                     , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
-                     , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS 
-                     , tcheck     :: !Bool                        -- ^ Check Termination (?) 
-                     , scheck     :: !Bool                        -- ^ Check Strata (?)
-                     , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
-                     , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-                     , logErrors  :: ![TError SpecType]           -- ^ Errors during coontraint generation
-                     , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars 
-                     , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
-                     } -- deriving (Data, Typeable)
-
-instance PPrint CGInfo where 
-  pprint cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
-
-ppr_CGInfo cgi 
-  =  (text "*********** Constraint Information ***********")
-  -- -$$ (text "*********** Haskell SubConstraints ***********")
-  -- -$$ (pprintLongList $ hsCs  cgi)
-  -- -$$ (text "*********** Haskell WFConstraints ************")
-  -- -$$ (pprintLongList $ hsWfs cgi)
-  -- -$$ (text "*********** Fixpoint SubConstraints **********")
-  -- -$$ (F.toFix  $ fixCs cgi)
-  -- -$$ (text "*********** Fixpoint WFConstraints ************")
-  -- -$$ (F.toFix  $ fixWfs cgi)
-  -- -$$ (text "*********** Fixpoint Kut Variables ************")
-  -- -$$ (F.toFix  $ kuts cgi)
-  -- -$$ (text "*********** Literals in Source     ************")
-  -- -$$ (pprint $ lits cgi)
-  -- -$$ (text "*********** KVar Distribution *****************")
-  -- -$$ (pprint $ kvProf cgi)
-  -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
-
 type CG = State CGInfo
 
 initCGI cfg info = CGInfo {
@@ -731,12 +597,10 @@ initCGI cfg info = CGInfo {
   , fixCs      = []
   , isBind     = []
   , fixWfs     = [] 
-  , globals    = globs
   , freshIndex = 0
   , binds      = F.emptyBindEnv
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
-  , specQuals  =  qualifiers spc ++ specificationQualifiers (maxParams cfg) (info {spec = spec'})
   , tyConEmbed = tce  
   , kuts       = F.ksEmpty 
   , lits       = coreBindLits tce info 
@@ -755,11 +619,7 @@ initCGI cfg info = CGInfo {
   where 
     tce        = tcEmbeds spc 
     spc        = spec info
-    spec'      = spc { tySigs  = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- tySigs spc]
-                     , asmSigs = [ (x, addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs spc]}
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-    globs      = F.fromListSEnv . map mkSort $ meas spc
-    mkSort     = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits tce info
   = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts]
@@ -1373,11 +1233,11 @@ cconsE γ e t
        
 instantiatePreds γ e t0@(RAllP π t)
   = do r     <- freshPredRef γ e π
-       let πZZ = {- traceShow ("instantiatePreds 1") -} π
-       let tZZ = {- traceShow ("instantiatePreds 2") -} t
-       let rZZ = {- traceShow ("instantiatePreds 3") -} r
-       let t'  = replacePreds "consE" tZZ [(πZZ, rZZ)]
-       instantiatePreds γ e t'
+       let πZZ =  π -- traceShow ("instantiatePreds 1")  π
+       let tZZ =  t -- traceShow ("instantiatePreds 2")  t
+       let rZZ =  r -- traceShow ("instantiatePreds 3")  r
+       let t'  =  replacePreds "consE" tZZ [(πZZ, rZZ)]
+       instantiatePreds  γ e t'
 
 instantiatePreds _ _ t0
   = return t0
@@ -1738,11 +1598,9 @@ instance NFData CGInfo where
           ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq` 
           ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq` 
           ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq` 
-          ({-# SCC "CGIrnf5" #-}  rnf (globals x))    `seq` 
           ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
           ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
           ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
-          ({-# SCC "CGIrnf9" #-}  rnf (specQuals x))  `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
           ({-# SCC "CGIrnf10" #-} rnf (kvProf x)) 
@@ -1843,61 +1701,6 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 
-
--------------------------------------------------------------------
--- | Strengthening Binders with TyCon Invariants ------------------
--------------------------------------------------------------------
-
-type RTyConInv = M.HashMap RTyCon [SpecType]
-type RTyConIAl = M.HashMap RTyCon [SpecType]
-
--- mkRTyConInv    :: [Located SpecType] -> RTyConInv 
-mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
-  where 
-    strip      = fourth4 . bkUniv . val 
-
-mkRTyConIAl    = mkRTyConInv . fmap snd
-
-addRTyConInv :: RTyConInv -> SpecType -> SpecType
-addRTyConInv m t@(RApp c _ _ _)
-  = case M.lookup c m of
-      Nothing -> t
-      Just ts -> foldl' conjoinInvariant' t ts
-addRTyConInv _ t 
-  = t 
-
-addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
-addRInv m (x, t) 
-  | x `elem` ids , (RApp c _ _ _) <- res t, Just invs <- M.lookup c m
-  = (x, addInvCond t (mconcat $ catMaybes (stripRTypeBase <$> invs))) 
-  | otherwise    
-  = (x, t)
-   where
-     ids = [id | tc <- M.keys m
-               , dc <- TC.tyConDataCons $ rtc_tc tc
-               , id <- DC.dataConImplicitIds dc]
-     res = ty_res . toRTypeRep
-     xs  = ty_args $ toRTypeRep t
-
-conjoinInvariant' t1 t2     
-  = conjoinInvariantShift t1 t2
-
-conjoinInvariantShift t1 t2 
-  = conjoinInvariant t1 (shiftVV t2 (rTypeValueVar t1)) 
-
-conjoinInvariant (RApp c ts rs r) (RApp ic its _ ir) 
-  | (c == ic && length ts == length its)
-  = RApp c (zipWith conjoinInvariantShift ts its) rs (r `F.meet` ir)
-
-conjoinInvariant t@(RApp _ _ _ r) (RVar _ ir) 
-  = t { rt_reft = r `F.meet` ir }
-
-conjoinInvariant t@(RVar _ r) (RVar _ ir) 
-  = t { rt_reft = r `F.meet` ir }
-
-conjoinInvariant t _  
-  = t
-
 ---------------------------------------------------------------
 ----- Refinement Type Environments ----------------------------
 ---------------------------------------------------------------
@@ -1912,43 +1715,5 @@ deleteREnv x (REnv env)   = REnv (M.delete x env)
 insertREnv x y (REnv env) = REnv (M.insert x y env)
 lookupREnv x (REnv env)   = M.lookup x env
 memberREnv x (REnv env)   = M.member x env
--- domREnv (REnv env)        = M.keys env
--- emptyREnv                 = REnv M.empty
 
-cgInfoFInfoBot cgi = cgInfoFInfo cgi { specQuals = [] }
 
-cgInfoFInfoKvars cgi kvars = cgInfoFInfo cgi{fixCs = fixCs' ++ trueCs}
-  where 
-    fixCs'                 = concatMap (updateCs kvars) (fixCs cgi) 
-    trueCs                 = concatMap (`F.trueSubCKvar` (Ci noSrcSpan Nothing)) kvars
-
-cgInfoFInfo cgi
-  = F.FI { F.cm    = M.fromList $ F.addIds $ fixCs cgi
-         , F.ws    = fixWfs cgi  
-         , F.bs    = binds cgi 
-         , F.gs    = globals cgi 
-         , F.lits  = lits cgi 
-         , F.kuts  = kuts cgi 
-         , F.quals = specQuals cgi
-         }
-
-updateCs kvars cs
-  | null lhskvars || F.isFalse rhs
-  = [cs] 
-  | all (`elem` kvars) lhskvars && null lhsconcs
-  = []
-  | any (`elem` kvars) lhskvars
-  = [F.removeLhsKvars cs kvars]
-  | otherwise 
-  = [cs]
-  where lhskvars = F.reftKVars lhs
-        rhskvars = F.reftKVars rhs
-        lhs      = F.lhsCs cs
-        rhs      = F.rhsCs cs
-        F.Reft(_, lhspds) = lhs
-        lhsconcs = [p | F.RConc p <- lhspds]
-
-newtype HEnv = HEnv (S.HashSet F.Symbol)
-
-fromListHEnv = HEnv . S.fromList
-elemHEnv x (HEnv s) = x `S.member` s

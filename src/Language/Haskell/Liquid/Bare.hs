@@ -98,11 +98,12 @@ makeGhcSpec cfg name cbs vars defVars exports env specs
     initEnv  = BE name mempty mempty mempty env
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
-postProcess cbs sp@(SP {..}) = sp { tySigs = sigs, texprs = ts }
+postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs' }
   -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
-
+    tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
@@ -135,9 +136,9 @@ makeGhcSpec0 cfg defVars exports name sp
                         , tgtVars = targetVars }
 
 makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
-  = do tySigs <- makePluggedSigs name embs tyi exports $ tx sigs
-       asmSigs <- makePluggedAsmSigs embs tyi $ tx asms
-       ctors <- makePluggedAsmSigs embs tyi $ tx cs'
+  = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
+       asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
+       ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
        return $ sp { tySigs     = tySigs
                    , asmSigs    = asmSigs
                    , ctors      = ctors
@@ -1295,7 +1296,7 @@ ofBDataDecl (Just (D tc as ps ls cts pos sfun)) maybe_invariance_info
        let neutral = [0 .. (length πs)] L.\\ (fst <$> varInfo)
        let cov     = neutral ++ [i | (i, b)<- varInfo, b, i >=0]
        let contr   = neutral ++ [i | (i, b)<- varInfo, not b, i >=0]
-       let defaultPs =  traceShow ("defaultPs for " ++ show tc ++ "\n\n" ++ show varInfo ++ "\n" ++ show tys ) $ varSignToVariance varInfo <$> [0 .. (length πs)]  
+       let defaultPs = varSignToVariance varInfo <$> [0 .. (length πs - 1)]  
        let (tvarinfo, pvarinfo) = f defaultPs
        return ((tc', TyConP αs πs ls tvarinfo pvarinfo sfun), (mapSnd (Loc lc) <$> cts'))
     where 
