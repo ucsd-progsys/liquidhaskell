@@ -102,12 +102,8 @@ postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asm
   -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
-    tySigs'  = [(x, traceShow ("TY  SIG for " ++ show x ++ "\t\t" ++ show t) $ addTyConInfo tce tyi <$> t) | (x, t) <- sigs]
-    asmSigs' = [(x, traceShow ("ASM SIG for " ++ show x ++ "\t\t" ++ show t) $ addTyConInfo tce tyi <$> t) | (x, t) <- asmSigs]
-    tyi      = tyconEnv -- sp
-    tce      = tcEmbeds -- sp
-
-
+    tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
