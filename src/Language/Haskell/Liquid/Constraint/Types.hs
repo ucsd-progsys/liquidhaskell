@@ -201,12 +201,10 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
                      , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings 
                      , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
-                     , globals    :: !F.FEnv                      -- ^ ? global measures
                      , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
                      , binds      :: !F.BindEnv                   -- ^ set of environment binders
                      , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
                      , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
-                     , specQuals  :: ![F.Qualifier]               -- ^ ? qualifiers in source files
                      , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
                      , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
                      , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
