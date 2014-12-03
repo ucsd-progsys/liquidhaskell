@@ -483,9 +483,9 @@ remove_var (n, eqn@(EqnInfo { eqn_pats = WildPat _ : ps})) = (n, eqn { eqn_pats 
 remove_var _  = panic "Check.remove_var: equation does not begin with a variable"
 
 -----------------------
+{-
 eqnPats :: (EqnNo, EquationInfo) -> [Pat Id]
 eqnPats (_, eqn) = eqn_pats eqn
-
 okGroup :: [(EqnNo, EquationInfo)] -> Bool
 -- True if all equations have at least one pattern, and
 -- all have the same number of patterns
@@ -493,12 +493,12 @@ okGroup [] = True
 okGroup (e:es) = n_pats > 0 && and [length (eqnPats e) == n_pats | e <- es]
                where
                  n_pats = length (eqnPats e)
-
+-}
 -- Half-baked print
-pprGroup :: [(EqnNo, EquationInfo)] -> SDoc
-pprEqnInfo :: (EqnNo, EquationInfo) -> SDoc
-pprGroup es = vcat (map pprEqnInfo es)
-pprEqnInfo e = ppr (eqnPats e)
+-- pprGroup :: [(EqnNo, EquationInfo)] -> SDoc
+-- pprEqnInfo :: (EqnNo, EquationInfo) -> SDoc
+-- pprGroup es = vcat (map pprEqnInfo es)
+-- pprEqnInfo e = ppr (eqnPats e)
 
 
 firstPatN :: (EqnNo, EquationInfo) -> Pat Id
