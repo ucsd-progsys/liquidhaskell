@@ -5,8 +5,6 @@
 
 module Language.Haskell.Liquid.Prelude where
 
-import GHC.Base
-
 -------------------------------------------------------------------
 --------------------------- Arithmetic ----------------------------
 -------------------------------------------------------------------
@@ -65,6 +63,7 @@ gt x y = x > y
 ------------------------ Specifications ---------------------------
 -------------------------------------------------------------------
 
+
 {-@ assume liquidAssertB :: x:{v:Bool | (Prop v)} -> {v: Bool | (Prop v)} @-}
 {-# NOINLINE liquidAssertB #-}
 liquidAssertB :: Bool -> Bool
@@ -73,17 +72,17 @@ liquidAssertB b = b
 {-@ assume liquidAssert :: {v:Bool | (Prop v)} -> a -> a  @-}
 {-# NOINLINE liquidAssert #-}
 liquidAssert :: Bool -> a -> a 
-liquidAssert b x = x
+liquidAssert _ x = x
 
 {-@ assume liquidAssume :: b:Bool -> a -> {v: a | (Prop b)}  @-}
 {-# NOINLINE liquidAssume #-}
 liquidAssume :: Bool -> a -> a 
-liquidAssume b x = x
+liquidAssume _ x = x
 
 {-@ assume liquidAssumeB :: forall <p :: a -> Prop>. (a<p> -> {v:Bool| ((Prop v) <=> true)}) -> a -> a<p> @-}
 liquidAssumeB :: (a -> Bool) -> a -> a
 liquidAssumeB p x | p x = x
-                 | otherwise = error "liquidAssumeB fails"
+                  | otherwise = error "liquidAssumeB fails"
 
 
 
@@ -95,14 +94,14 @@ liquidError = error
 {-@ assume crash  :: forall a . x:{v:Bool | (Prop v)} -> a @-}
 {-# NOINLINE crash #-}
 crash :: Bool -> a 
-crash b = undefined 
+crash = undefined 
 
 {-# NOINLINE force #-}
-force x = True 
+force = True 
 
 {-# NOINLINE choose #-}
 choose :: Int -> Int
-choose x = undefined 
+choose = undefined 
 
 -------------------------------------------------------------------
 ----------- Modular Arithmetic Wrappers ---------------------------
@@ -124,4 +123,6 @@ isOdd x = x `mod` 2 == 1
 {-@ assert safeZipWith :: (a -> b -> c) -> xs : [a] -> ys:{v:[b] | len(v) = len(xs)} -> {v : [c] | len(v) = len(xs)} @-}
 safeZipWith :: (a->b->c) -> [a]->[b]->[c]
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
+safeZipWith _ []     []     = []
+safeZipWith _ _ _ = error "safeZipWith: cannot happen!"      
 

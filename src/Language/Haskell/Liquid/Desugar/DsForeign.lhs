@@ -53,7 +53,6 @@ import Platform
 import Config
 import OrdList
 import Pair
-import Util
 import Hooks
 
 import Data.Maybe
@@ -151,19 +150,19 @@ dsCImport :: Id
           -> Safety
           -> Maybe Header
           -> DsM ([Binding], SDoc, SDoc)
-dsCImport id co (CLabel cid) cconv _ _ = do
-   dflags <- getDynFlags
-   let ty = pFst $ coercionKind co
-       fod = case tyConAppTyCon_maybe (dropForAlls ty) of
-             Just tycon
-              | tyConUnique tycon == funPtrTyConKey ->
-                 IsFunction
-             _ -> IsData
-   (resTy, foRhs) <- resultWrapper ty
+dsCImport id co (CLabel _) _ _ _ = do
+   -- dflags <- getDynFlags
+   -- let ty = pFst $ coercionKind co
+   --     fod = case tyConAppTyCon_maybe (dropForAlls ty) of
+   --           Just tycon
+   --            | tyConUnique tycon == funPtrTyConKey ->
+   --               IsFunction
+   --           _ -> IsData
+   -- (resTy, foRhs) <- resultWrapper ty
    -- ASSERT(fromJust resTy `eqType` addrPrimTy)    -- typechecker ensures this
    let rhs = let x = x in x -- foRhs (Lit (MachLabel cid stdcall_info fod))
    let rhs' = Cast rhs co
-   let stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
+   -- let stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
    return ([(id, rhs')], empty, empty)
 
 dsCImport id co (CFunction target) cconv@PrimCallConv safety _
@@ -176,16 +175,16 @@ dsCImport id co CWrapper cconv _ _
 -- For stdcall labels, if the type was a FunPtr or newtype thereof,
 -- then we need to calculate the size of the arguments in order to add
 -- the @n suffix to the label.
-fun_type_arg_stdcall_info :: DynFlags -> CCallConv -> Type -> Maybe Int
-fun_type_arg_stdcall_info dflags StdCallConv ty
-  | Just (tc,[arg_ty]) <- splitTyConApp_maybe ty,
-    tyConUnique tc == funPtrTyConKey
-  = let
-       (_tvs,sans_foralls)        = tcSplitForAllTys arg_ty
-       (fe_arg_tys, _orig_res_ty) = tcSplitFunTys sans_foralls
-    in Just $ sum (map (widthInBytes . typeWidth . typeCmmType dflags . getPrimTyOf) fe_arg_tys)
-fun_type_arg_stdcall_info _ _other_conv _
-  = Nothing
+-- fun_type_arg_stdcall_info :: DynFlags -> CCallConv -> Type -> Maybe Int
+-- fun_type_arg_stdcall_info dflags StdCallConv ty
+--   | Just (tc,[arg_ty]) <- splitTyConApp_maybe ty,
+--    tyConUnique tc == funPtrTyConKey
+--   = let
+--        (_tvs,sans_foralls)        = tcSplitForAllTys arg_ty
+--        (fe_arg_tys, _orig_res_ty) = tcSplitFunTys sans_foralls
+--     in Just $ sum (map (widthInBytes . typeWidth . typeCmmType dflags . getPrimTyOf) fe_arg_tys)
+-- fun_type_arg_stdcall_info _ _other_conv _
+--   = Nothing
 \end{code}
 
 
@@ -776,7 +775,7 @@ getPrimTyOf ty
   -- with a single primitive-typed argument (see TcType.legalFEArgTyCon).
   | otherwise =
   case splitDataProductType_maybe rep_ty of
-     Just (_, _, data_con, [prim_ty]) ->
+     Just (_, _, _, [prim_ty]) ->
         -- ASSERT(dataConSourceArity data_con == 1)
         -- ASSERT2(isUnLiftedType prim_ty, ppr prim_ty)
         prim_ty

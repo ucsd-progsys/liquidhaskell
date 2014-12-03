@@ -14,9 +14,7 @@ import           Data.Aeson
 import           Data.Hashable
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
-import qualified Data.Text                           as T
-import           Data.List                           (sortBy, intersperse)
-import           Data.Function                       (on)
+import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              hiding (intersperse)
@@ -39,7 +37,7 @@ tidyError sol
   . tidyErrContext sol
   . applySolution sol
 
-tidyErrContext s err@(ErrSubType {})
+tidyErrContext _ err@(ErrSubType {})
   = err { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
       (θ, c') = tidyCtx xs $ ctx err 
@@ -148,16 +146,16 @@ blankLine    = sizedText 5 " "
 ppError' :: (PPrint a) => Tidy -> Doc -> TError a -> Doc
 -----------------------------------------------------------------------
 
-ppError' _ dSp (ErrAssType _ OTerm s r)
+ppError' _ dSp (ErrAssType _ OTerm _ _)
   = dSp <+> text "Termination Check"
 
-ppError' _ dSp (ErrAssType _ OInv s r)
+ppError' _ dSp (ErrAssType _ OInv _ _)
   = dSp <+> text "Invariant Check"
 
-ppError' Lossy dSp (ErrSubType _ s c tA tE)
+ppError' Lossy dSp (ErrSubType _ _ _ _ _)
   = dSp <+> text "Liquid Type Mismatch"
 
-ppError' Full  dSp (ErrSubType _ s c tA tE)
+ppError' Full  dSp (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ sepVcat blankLine
               [ nests 2 [ text "Inferred type" 
@@ -236,19 +234,6 @@ ppError' _ _ (ErrOther _ s)
 
 ppVar v = text "`" <> pprint v <> text "'"
 
-
--- instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
---   pprint = ppTable
-
--- ppXTS xts'      = vcat $ ppXT n <$> xts
---   where 
---     n           = 1 + maximum [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
---     keySize     = length . render . pprint
---     xts         = sortBy (compare `on` fst) xts' -- $ M.toList m
---     thresh      = 6
---     
--- ppXT n (x,t)    = pprint x $$ nest n (colon <+> pprint t)  
---   where x       = rTypeValueVar t
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)

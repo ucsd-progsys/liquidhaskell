@@ -38,17 +38,14 @@ import            Var
 import qualified  Data.HashSet                  as S    
 import qualified  Data.HashMap.Strict           as M    
 import qualified  Data.List                     as L
-import            Data.Function                   (on)
 import            System.Directory                (copyFile, doesFileExist)
-import            Language.Fixpoint.Misc          (traceShow)
 import            Language.Fixpoint.Types         (FixResult (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (errSpan, AnnInfo (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Types   (AnnInfo (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.GhcInterface
 import            Language.Haskell.Liquid.GhcMisc
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import            Text.PrettyPrint.HughesPJ       (text, render, Doc)
-import            Control.Monad                   (forM, forM_)
+import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
 
 import qualified  Data.ByteString               as B
 import qualified  Data.ByteString.Lazy          as LB
@@ -149,24 +146,18 @@ coreDef b    = meetSpans b eSp vSp
 --   where `spanEnd` is a single line function around 1092 but where
 --   the generated span starts mysteriously at 222 where Data.List is imported. 
 
-meetSpans b Nothing       _ = []
---  = error $ "DIFFCHECK: cannot find span for top-level binders: " 
---          ++ showPpr (bindersOf b)
---          ++ "\nRun without --diffcheck option\n"
-
-meetSpans b (Just (l,l')) Nothing 
+meetSpans _ Nothing       _ 
+  = []
+meetSpans _ (Just (l,l')) Nothing 
   = [(l, l')]
-meetSpans b (Just (l,l')) (Just (m,_)) 
+meetSpans _ (Just (l,l')) (Just (m,_)) 
   = [(max l m, l')]
 
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan b _                = Nothing 
+lineSpan _ _                = Nothing 
 
 catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs             = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
--- catSpans b xs = case [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z] of
---   [] -> error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
---   xs -> foldr1 combineSrcSpans xs
 
 bindFile (NonRec x _) = varFile x
 bindFile (Rec xes)    = varFile $ fst $ head xes 
@@ -193,7 +184,7 @@ exprSpans (App e a)       = exprSpans e ++ exprSpans a
 exprSpans (Let b e)       = bindSpans b ++ exprSpans e
 exprSpans (Cast e _)      = exprSpans e
 exprSpans (Case e x _ cs) = getSrcSpan x : exprSpans e ++ concatMap altSpans cs 
-exprSpans e               = [] 
+exprSpans _               = [] 
 
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 
@@ -312,7 +303,7 @@ adjustResult lm cm (Unsafe es)    = errorsResult Unsafe      $ adjustErrors lm c
 adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
 adjustResult _  _  r              = r
 
-errorsResult f []                 = Safe
+errorsResult _ []                 = Safe
 errorsResult f es                 = f es
 
 adjustErrors lm cm                = mapMaybe adjustError
@@ -334,21 +325,13 @@ isCheckedSpan _  _                = False
 isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine  
 
 adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp 
-adjustSpan lm sp                  = Just sp 
+adjustSpan _  sp                  = Just sp 
 adjustReal lm rsp
   | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp 
   
--- DELETE unCheckedDefs cd                  = filter (not . isCheckedError cm) 
--- DELETE   where 
--- DELETE     cm                            = checkedItv cd
--- DELETE    
--- DELETE isCheckedError cm e
--- DELETE   | RealSrcSpan sp <- errSpan e  = isCheckedSpan sp
--- DELETE   | otherwise                    = False
-
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
 -- in the diff and returns @Nothing@ otherwise.
@@ -411,47 +394,4 @@ instance FromJSON a => FromJSON (AnnInfo a)
 instance ToJSON (Output Doc)
 instance FromJSON (Output Doc)
 
--- Move to Fixpoint
--- instance ToJSON   Symbol  
--- instance FromJSON Symbol  
--- instance ToJSON   Subst 
--- instance FromJSON Subst
--- instance ToJSON   Sort
--- instance FromJSON Sort
--- instance ToJSON   SymConst 
--- instance FromJSON SymConst
--- instance ToJSON   Constant 
--- instance FromJSON Constant
--- instance ToJSON   Bop  
--- instance FromJSON Bop 
--- instance ToJSON   Brel  
--- instance FromJSON Brel
--- instance ToJSON   LocSymbol 
--- instance FromJSON LocSymbol 
--- instance ToJSON   FTycon 
--- instance FromJSON FTycon 
--- instance ToJSON   Expr 
--- instance FromJSON Expr 
--- instance ToJSON   Pred 
--- instance FromJSON Pred 
--- instance ToJSON   Refa 
--- instance FromJSON Refa 
--- instance ToJSON   Reft
--- instance FromJSON Reft
--- 
--- -- Move to Types
--- instance ToJSON   Predicate 
--- instance FromJSON Predicate 
--- instance ToJSON   LParseError 
--- instance FromJSON LParseError 
--- instance ToJSON   Oblig 
--- instance FromJSON Oblig 
--- instance ToJSON   Stratum
--- instance FromJSON Stratum
--- instance ToJSON   RReft
--- instance FromJSON RReft
--- instance ToJSON   UsedPVar
--- instance FromJSON UsedPVar
--- instance ToJSON   EMsg 
--- instance FromJSON EMsg
 

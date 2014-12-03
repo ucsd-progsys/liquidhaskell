@@ -15,57 +15,40 @@ module Language.Haskell.Liquid.GhcInterface (
   ) where
 import IdInfo
 import InstEnv
-import qualified Data.Foldable as F
 import Bag (bagToList)
 import ErrUtils
-import Panic
 import GHC hiding (Target)
 import DriverPhases (Phase(..))
 import DriverPipeline (compileFile)
 import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
-import TidyPgm      (tidyProgram)
 import Literal
 import CoreSyn
 
 import Var
-import Name         (getSrcSpan)
 import CoreMonad    (liftIO)
 import DataCon
-import qualified TyCon as TC
-import HscMain
-import Module
 import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
-import System.FilePath ( replaceExtension
-                       , dropExtension
-                       , takeFileName
-                       , splitFileName
-                       , combine
-                       , dropFileName 
-                       , normalise)
+import System.FilePath ( replaceExtension, normalise)
 
 import DynFlags
-import Control.Arrow (second)
-import Control.Monad (filterM, foldM, zipWithM, when, forM, forM_, liftM, (<=<))
+import Control.Monad (filterM, foldM, when, forM, forM_, liftM)
 import Control.DeepSeq
 import Control.Applicative  hiding (empty)
 import Data.Monoid hiding ((<>))
-import Data.List (partition, intercalate, foldl', find, (\\), delete, nub)
-import Data.Maybe (fromMaybe, catMaybes, maybeToList)
+import Data.List (foldl', find, (\\), delete, nub)
+import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
-import qualified Data.HashMap.Strict as M
-import qualified Data.Text           as T
-
+  
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Directory (removeFile, createDirectory, doesFileExist)
 import Language.Fixpoint.Types hiding (Expr) 
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
@@ -75,7 +58,6 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.CmdLine (withPragmas)
 import Language.Haskell.Liquid.Parse
 
-import Language.Fixpoint.Parse          hiding (brackets, comma)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
@@ -126,7 +108,7 @@ getGhcInfo' cfg0 target
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
-derivedVars cbs Nothing    = []
+derivedVars _    Nothing    = []
 
 derivedVs :: CoreProgram -> DFunId -> [Id]
 derivedVs cbs fd = concatMap bindersOf cbf ++ deps
@@ -140,7 +122,7 @@ derivedVs cbs fd = concatMap bindersOf cbf ++ deps
 
         dep (DFunUnfolding _ _ e)         = concatMap grapDep  e
         dep (CoreUnfolding {uf_tmpl = e}) = grapDep  e
-        dep f                             = []
+        dep _                             = []
 
         grapDep :: CoreExpr -> [Id]
         grapDep e           = freeVars S.empty e
@@ -198,53 +180,13 @@ getGhcModGuts1 fn = do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
-       let deriv = getDerivedDictionaries mod_guts mod_p
+       let deriv = getDerivedDictionaries mod_guts 
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
-
-getDerivedDictionaries cm mod = dFuns -- filter ((`elem` pdFuns) . shortPpr) dFuns 
-  where hsmod    = unLoc $ pm_parsed_source mod
-        decls    = unLoc <$> hsmodDecls hsmod
-        tyClD    = [d  | TyClD  d <- decls]
-        tyDec    = filter isDataDecl tyClD
-        inst     = mkInst <$> tyDec
-        mkInst x = (tcdLName x, dd_derivs $ tcdDataDefn x)
-        mkDic    = \(x, y) -> "$f" ++ showPpr y ++ showPpr x
-
-        pdFuns   = mkDic <$> [(c, d) | (c, ds) <- inst, d <- F.concat ds]
-        dFuns    = is_dfun <$> (instEnvElts $ mg_inst_env cm)
-   
-        shortPpr = symbolString . dropModuleNames . symbol
-
--- Generates Simplified ModGuts (INLINED, etc.) but without SrcSpan
-getGhcModGutsSimpl1 fn = do
-   modGraph <- getModuleGraph
-   case find ((== fn) . msHsFilePath) modGraph of
-     Just modSummary -> do
-       mod_guts   <- coreModule `fmap` (desugarModule =<< typecheckModule =<< liftM ignoreInline (parseModule modSummary))
-       hsc_env    <- getSession
-       simpl_guts <- liftIO $ hscSimplify hsc_env mod_guts
-       (cg,_)     <- liftIO $ tidyProgram hsc_env simpl_guts
-       liftIO $ putStrLn "************************* CoreGuts ****************************************"
-       liftIO $ putStrLn (showPpr $ cg_binds cg)
-       return $! (miModGuts Nothing mod_guts) { mgi_binds = cg_binds cg } 
-     Nothing         -> error "GhcInterface : getGhcModGutsSimpl1"
-
-peepGHCSimple fn 
-  = do z <- compileToCoreSimplified fn
-       liftIO $ putStrLn "************************* peepGHCSimple Core Module ************************"
-       liftIO $ putStrLn $ showPpr z
-       liftIO $ putStrLn "************************* peepGHCSimple Bindings ***************************"
-       liftIO $ putStrLn $ showPpr (cm_binds z)
-       errorstar "Done peepGHCSimple"
+getDerivedDictionaries cm = is_dfun <$> (instEnvElts $ mg_inst_env cm)
 
 cleanFiles :: FilePath -> IO ()
--- deleteBinFilez fn = mapM_ (tryIgnore "delete binaries" . removeFileIfExists) 
---                   $ (fn `replaceExtension`) `fmap` exts
---   where 
---     exts = ["hi", "o"]
-
 cleanFiles fn 
   = do forM_ bins (tryIgnore "delete binaries" . removeFileIfExists)
        tryIgnore "create temp directory" $ createDirectory dir 
@@ -298,19 +240,12 @@ moduleSpec cfg cbs vars defVars target mg tgtSpec impSpecs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       exports    = mgi_exports mg
-      name       = mgi_namestring mg
       impNames   = map (getModString.fst) impSpecs
       addImports = mapM (addContext . IIDecl . qualImportDecl . getModName . fst)
 
 allDepNames = concatMap (map declNameString . ms_textual_imps)
 
 declNameString = moduleNameString . unLoc . ideclName . unLoc
-
-depNames       = map fst        . dep_mods      . mgi_deps
-dirImportNames = map moduleName . moduleEnvKeys . mgi_dir_imps  
-targetName     = dropExtension  . takeFileName 
--- starName fn    = combine dir ('*':f) where (dir, f) = splitFileName fn
-starName       = ("*" ++)
 
 patErrorName    = "PatErr"
 realSpecName    = "Real"
@@ -375,21 +310,6 @@ moduleFile paths name ext
          Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise
   = liftIO $ getFileInDirs (extModuleName name ext) paths
-
-isJust Nothing = False
-isJust (Just a) = True
-
---moduleImports ext paths names 
---  = liftIO $ liftM catMaybes $ forM extNames (namePath paths)
---    where extNames = (`extModuleName` ext) <$> names 
--- namePath paths fileName = getFileInDirs fileName paths
-
---namePath_debug paths name 
---  = do res <- getFileInDirs name paths
---       case res of
---         Just p  -> putStrLn $ "namePath: name = " ++ name ++ " expanded to: " ++ (show p) 
---         Nothing -> putStrLn $ "namePath: name = " ++ name ++ " not found in: " ++ (show paths)
---       return res
 
 specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
 specIncludes ext paths reqs 
@@ -517,8 +437,6 @@ instance CBVisitable AltCon where
 
 extendEnv = foldl' (flip S.insert)
 
--- names     = (map varName) . bindings
--- 
 bindings (NonRec x _) 
   = [x]
 bindings (Rec  xes  ) 

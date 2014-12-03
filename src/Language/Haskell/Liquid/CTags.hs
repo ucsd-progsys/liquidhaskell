@@ -22,12 +22,11 @@ module Language.Haskell.Liquid.CTags (
 import Var
 import CoreSyn
 
--- import qualified Data.List              as L
 import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
-import Language.Fixpoint.Misc         (mapSnd, traceShow)
+import Language.Fixpoint.Misc         (mapSnd)
 import Language.Fixpoint.Types     (Tag)
 import Language.Haskell.Liquid.GhcInterface (freeVars)
 
