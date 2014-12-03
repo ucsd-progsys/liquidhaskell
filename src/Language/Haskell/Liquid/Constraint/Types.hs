@@ -12,8 +12,6 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
-
 
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
@@ -128,7 +126,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
 instance PPrint CGInfo where 
   pprint cgi =  {-# SCC "ppr_CGI" #-} ppr_CGInfo cgi
 
-ppr_CGInfo cgi 
+ppr_CGInfo _cgi 
   =  (text "*********** Constraint Information ***********")
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)
@@ -196,7 +194,6 @@ addRInv m (x, t)
                , dc <- TC.tyConDataCons $ rtc_tc tc
                , id <- DC.dataConImplicitIds dc]
      res = ty_res . toRTypeRep
-     xs  = ty_args $ toRTypeRep t
 
 conjoinInvariant' t1 t2     
   = conjoinInvariantShift t1 t2

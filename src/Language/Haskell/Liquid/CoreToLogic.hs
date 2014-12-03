@@ -40,9 +40,6 @@ import Language.Haskell.Liquid.RefType
 import qualified Data.HashMap.Strict as M
 
 import Data.Monoid
-import Data.Functor
-import Data.Either
-
 
 import Debug.Trace (trace)
 
@@ -90,19 +87,19 @@ data LError = LE String
 instance Monad LogicM where
 	return = LM . Left
 	(LM (Left x))  >>= f = f x
-	(LM (Right x)) >>= f = LM (Right x)
+	(LM (Right x)) >>= _ = LM (Right x)
 
 instance Functor LogicM where
 	fmap f (LM (Left x))  = LM $ Left $ f x
-	fmap f (LM (Right x)) = LM $ Right x
+	fmap _ (LM (Right x)) = LM $ Right x
 
 instance Applicative LogicM where
 	pure = LM . Left
 
-	(LM (Left f))  <*> (LM (Left x))  = LM $ Left (f x)
-	(LM (Right f)) <*> (LM (Left x))  = LM $ Right f
-	(LM (Left f))  <*> (LM (Right x)) = LM $ Right x
-	(LM (Right f)) <*> (LM (Right x)) = LM $ Right x
+	(LM (Left f) ) <*> (LM (Left x))  = LM $ Left (f x)
+	(LM (Right f)) <*> (LM (Left _))  = LM $ Right f
+	(LM (Left _) ) <*> (LM (Right x)) = LM $ Right x
+	(LM (Right _)) <*> (LM (Right x)) = LM $ Right x
 
 throw :: String -> LogicM a
 throw = LM . Right . LE
@@ -110,14 +107,14 @@ throw = LM . Right . LE
 runToLogic (LM x) = x
 
 coreToDef :: LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def DataCon]
-coreToDef x v e = go $ inline_preds $ simplify e
+coreToDef x _ e = go $ inline_preds $ simplify e
   where
-    go (C.Lam a e)  = go e
+    go (C.Lam _  e) = go e
     go (C.Tick _ e) = go e
     go (C.Case _ _ t alts) 
       | eqType t boolTy = mapM goalt_prop alts
       | otherwise       = mapM goalt      alts
-    go e'                  = throw "Measure Functions should have a case at top level"
+    go _                = throw "Measure Functions should have a case at top level"
 
     goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic (trace ("ToLogic" ++ show x) e)
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
@@ -249,7 +246,7 @@ class Simplify a where
   inline   :: (Id -> Bool) -> a -> a
 
 instance Simplify C.CoreExpr where
-  simplify e@(C.Var x) 
+  simplify e@(C.Var _) 
     = e
   simplify e@(C.Lit _) 
     = e
@@ -269,11 +266,14 @@ instance Simplify C.CoreExpr where
     = C.Let (simplify xes) (simplify e)
   simplify (C.Case e x t alts) 
     = C.Case (simplify e) x t (simplify <$> alts)
-  simplify (C.Cast e c)    
+  simplify (C.Cast e _)    
     = simplify e
   simplify (C.Tick _ e) 
     = simplify e
-
+  simplify (C.Coercion c)
+    = C.Coercion c
+  simplify (C.Type t)
+    = C.Type t  
 
   inline p (C.Let (C.NonRec x ex) e) | p x
                                = sub (M.singleton x (inline p ex)) e
@@ -283,8 +283,10 @@ instance Simplify C.CoreExpr where
   inline p (C.Case e x t alts) = C.Case (inline p e) x t (inline p <$> alts)
   inline p (C.Cast e c)        = C.Cast (inline p e) c
   inline p (C.Tick t e)        = C.Tick t (inline p e)
-  inline p (C.Var x)           = C.Var x
-  inline p (C.Lit l)           = C.Lit l
+  inline _ (C.Var x)           = C.Var x
+  inline _ (C.Lit l)           = C.Lit l
+  inline _ (C.Coercion c)      = C.Coercion c
+  inline _ (C.Type t)          = C.Type t
 
 
 instance Simplify C.CoreBind where

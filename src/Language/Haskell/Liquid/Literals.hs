@@ -2,7 +2,6 @@ module Language.Haskell.Liquid.Literals (
 	literalFRefType, literalFReft, literalConst
 	) where 
 
-import Type
 import TypeRep
 import Literal
 
@@ -17,7 +16,6 @@ import Data.Monoid
 ----------------------- Typing Literals -----------------------
 ---------------------------------------------------------------
 
--- makeRTypeBase :: Type -> Reft -> RefType 
 makeRTypeBase (TyVarTy α)    x       
   = RVar (rTyVar α) x 
 makeRTypeBase (TyConApp c _) x 
@@ -29,8 +27,6 @@ literalFRefType tce l
   = makeRTypeBase (literalType l) (literalFReft tce l) 
 
 literalFReft tce = maybe mempty exprReft . snd . literalConst tce
-
- -- exprReft . snd . literalConst tce 
 
 -- | `literalConst` returns `Nothing` for unhandled lits because
 --    otherwise string-literals show up as global int-constants 

@@ -6,27 +6,19 @@ module Language.Haskell.Liquid.Parse
 
 import Control.Monad
 import Text.Parsec
-import Text.Parsec.Error ( messageString 
-                         , errorMessages
-                         , newErrorMessage
-                         , errorPos
-                         , Message (..)) 
+import Text.Parsec.Error (newErrorMessage, Message (..)) 
 import Text.Parsec.Pos   (newPos) 
 
 import qualified Text.Parsec.Token as Token
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Monoid
-import Data.Text (Text)
-import qualified Data.Text as T
-import Data.Interned
 
 import Control.Applicative ((<$>), (<*), (<*>))
-import Data.Char (toLower, isLower, isSpace, isAlpha)
+import Data.Char (isLower, isSpace, isAlpha)
 import Data.List (foldl', partition)
-import Data.Monoid (mempty)
 
-import GHC (mkModuleName, ModuleName)
+import GHC (mkModuleName)
 import Text.PrettyPrint.HughesPJ    (text)
 
 import Language.Preprocessor.Unlit (unlit)
@@ -34,7 +26,6 @@ import Language.Preprocessor.Unlit (unlit)
 import Language.Fixpoint.Types hiding (Def, R)
 
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance 
@@ -107,8 +98,6 @@ parseErrorError f e = ErrParse sp msg e
     pos             = errorPos e
     sp              = sourcePosSrcSpan pos 
     msg             = text $ "Error Parsing Specification from: " ++ f
-    -- lpe             = LPE pos (eMsgs e)
-    eMsgs           = fmap messageString . errorMessages 
 
 ---------------------------------------------------------------------------
 remParseError       :: SourceName -> String -> String -> ParseError 
@@ -278,13 +267,6 @@ mkPredVarType t
     ts        = toRSort <$> ty_args trep
     err       = "Predicate Variable with non-Prop output sort: " ++ showpp t
 
---   = do t <- bareTypeP
---        let trep = toRTypeRep t
---        if isPropBareType $ ty_res trep
---          then return $ zip (ty_binds trep) (toRSort <$> (ty_args trep)) 
---          else parserFail $ "Predicate Variable with non-Prop output sort: " ++ showpp t
-
-
 xyP lP sepP rP
   = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
 
@@ -293,16 +275,6 @@ data ArrowSym = ArrowFun | ArrowPred
 arrowP
   =   (reserved "->" >> return ArrowFun)
   <|> (reserved "=>" >> return ArrowPred)
-
-positionNameP = dummyNamePos <$> getPosition
-
-dummyNamePos pos = "dummy." ++ name ++ ['.'] ++ line ++ ['.'] ++ col
-    where 
-      name       = san <$> sourceName pos
-      line       = show $ sourceLine pos  
-      col        = show $ sourceColumn pos  
-      san '/'    = '.'
-      san c      = toLower c
 
 bareFunP  
   = do b  <- try bindP <|> dummyBindP 
@@ -484,10 +456,9 @@ instance Show (Pspec a b) where
   show (CMeas  _) = "CMeas"  
   show (IMeas  _) = "IMeas"  
   show (Class  _) = "Class" 
+  show (Varia  _) = "Varia"
 
 
-
--- mkSpec                 ::  String -> [Pspec ty LocSymbol] -> Measure.Spec ty LocSymbol
 mkSpec name xs         = (name,)
                        $ Measure.qualifySpec (symbol name)
                        $ Measure.Spec
@@ -548,9 +519,6 @@ specP
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral
-
-lazyP :: Parser Symbol
-lazyP = binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
@@ -713,7 +681,7 @@ nilPatP  = mkNilPat  <$> brackets whiteSpace
 
 mkTupPat zs     = (tupDataCon (length zs), zs)
 mkNilPat _      = (dummyLoc "[]", []    )
-mkConsPat x c y = (dummyLoc ":" , [x, y])
+mkConsPat x _ y = (dummyLoc ":" , [x, y])
 tupDataCon n    = dummyLoc $ symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 
@@ -799,89 +767,3 @@ instance Inputable BareType where
 
 instance Inputable (Measure BareType LocSymbol) where
   rr' = doParse' measureP
- 
-{-
----------------------------------------------------------------
---------------------------- Testing ---------------------------
----------------------------------------------------------------
-
-sa  = "0"
-sb  = "x"
-sc  = "(x0 + y0 + z0) "
-sd  = "(x+ y * 1)"
-se  = "_|_ "
-sf  = "(1 + x + _|_)"
-sg  = "f(x,y,z)"
-sh  = "(f((x+1), (y * a * b - 1), _|_))"
-si  = "(2 + f((x+1), (y * a * b - 1), _|_))"
-
-s0  = "true"
-s1  = "false"
-s2  = "v > 0"
-s3  = "(0 < v && v < 100)"
-s4  = "(x < v && v < y+10 && v < z)"
-s6  = "[(v > 0)]"
-s6' = "x"
-s7' = "(x <=> y)"
-s8' = "(x <=> a = b)"
-s9' = "(x <=> (a <= b && b < c))"
-
-s7  = "{ v: Int | [(v > 0)] }"
-s8  = "x:{ v: Int | v > 0 } -> {v : Int | v >= x}"
-s9  = "v = x+y"
-s10 = "{v: Int | v = x + y}"
-
-s11 = "x:{v:Int | true } -> {v:Int | true }" 
-s12 = "y : {v:Int | true } -> {v:Int | v = x }"
-s13 = "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}"
-s14 = "x:{v:a  | true} -> y:{v:b | true } -> {v:a | (x < v && v < y) }"
-s15 = "x:Int -> Bool"
-s16 = "x:Int -> y:Int -> {v:Int | v = x + y}"
-s17 = "a"
-s18 = "x:a -> Bool"
-s20 = "forall a . x:Int -> Bool"
-
-s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }" 
-
-r0  = (rr s0) :: Pred
-r0' = (rr s0) :: [Refa]
-r1  = (rr s1) :: [Refa]
-
-
-e1, e2  :: Expr  
-e1  = rr "(k_1 + k_2)"
-e2  = rr "k_1" 
-
-o1, o2, o3 :: FixResult Integer
-o1  = rr "SAT " 
-o2  = rr "UNSAT [1, 2, 9,10]"
-o3  = rr "UNSAT []" 
-
--- sol1 = doParse solution1P "solution: k_5 := [0 <= VV_int]"
--- sol2 = doParse solution1P "solution: k_4 := [(0 <= VV_int)]" 
-
-b0, b1, b2, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13 :: BareType
-b0  = rr "Int"
-b1  = rr "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}"
-b2  = rr "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x - y}"
-b4  = rr "forall a . x : a -> Bool"
-b5  = rr "Int -> Int -> Int"
-b6  = rr "(Int -> Int) -> Int"
-b7  = rr "({v: Int | v > 10} -> Int) -> Int"
-b8  = rr "(x:Int -> {v: Int | v > x}) -> {v: Int | v > 10}"
-b9  = rr "x:Int -> {v: Int | v > x} -> {v: Int | v > 10}"
-b10 = rr "[Int]"
-b11 = rr "x:[Int] -> {v: Int | v > 10}"
-b12 = rr "[Int] -> String"
-b13 = rr "x:(Int, [Bool]) -> [(String, String)]"
-
--- b3 :: BareType
--- b3  = rr "x:Int -> y:Int -> {v:Bool | ((v is True) <=> x = y)}"
-
-m1 = ["len :: [a] -> Int", "len (Nil) = 0", "len (Cons x xs) = 1 + len(xs)"]
-m2 = ["tog :: LL a -> Int", "tog (Nil) = 100", "tog (Cons y ys) = 200"]
-
-me1, me2 :: Measure BareType Symbol 
-me1 = (rr $ intercalate "\n" m1) 
-me2 = (rr $ intercalate "\n" m2)
--}
