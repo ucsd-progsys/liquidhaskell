@@ -33,7 +33,7 @@ cSizeInt = fromIntegral
 
 {-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-}
 mkPtr   :: Addr# -> Ptr b
-mkPtr x = undefined -- Ptr x 
+mkPtr = undefined -- Ptr x 
 
 
 {-@ isNullPtr :: p:(Ptr a) -> {v:Bool | ((Prop v) <=> (isNullPtr p)) } @-}
@@ -43,11 +43,11 @@ isNullPtr p = (p == nullPtr)
 
 {-@ fpLen :: p:(ForeignPtr a) -> {v:Int | v = (fplen p) } @-}
 fpLen :: ForeignPtr a -> Int
-fpLen p = undefined
+fpLen = undefined
 
 {-@ pLen :: p:(Ptr a) -> {v:Int | v = (plen p) } @-}
 pLen :: Ptr a -> Int
-pLen p = undefined
+pLen = undefined
 
 {-@ deref :: p:Ptr a -> {v:a | v = (deref p)} @-}
 deref :: Ptr a -> a

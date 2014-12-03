@@ -1,49 +1,21 @@
-
-{-# LANGUAGE NoMonomorphismRestriction, TypeSynonymInstances, FlexibleInstances, TupleSections #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE TupleSections             #-}
 
 module Language.Haskell.Liquid.GhcPlay where
 
 import GHC		
-import Outputable
-import HscTypes 
 import CoreSyn
-import Type     (mkTyConTy)
 import Var
-import Name     (getSrcSpan)
-import CoreMonad (liftIO)
-import GHC.Paths (libdir)
-
-import System.Environment (getArgs)
-import DynFlags (defaultDynFlags)
-import Serialized 
-import Annotations 
-import CorePrep
-import VarEnv
-
-import HscMain
 import TypeRep
-import TysPrim
-import TysWiredIn
-import DataCon 
-
-
---import HscMain  (hscTcRnLookupRdrName)
-import TcRnDriver 
-import RdrName
-import OccName
-import RnEnv
 import TcRnMonad
-import ErrUtils
-
-
 import Coercion
 
-import           Control.Applicative ((<$>))
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 
-
-import Language.Haskell.Liquid.GhcMisc  
+import Language.Haskell.Liquid.GhcMisc ()
 
 class Subable a where
   sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
@@ -66,8 +38,8 @@ instance Subable CoreExpr where
   subTy s (App e1 e2)  = App (subTy s e1) (subTy s e2)
   subTy s (Lam b e)    | isTyVar b = Lam v' (subTy s e)
    where v' = case M.lookup b s of
-               Nothing          -> b
-               Just (TyVarTy v) -> v
+               Just (TyVarTy v) -> v      
+               _                -> b
 
   subTy s (Lam b e)      = Lam (subTy s b) (subTy s e)
   subTy s (Let b e)      = Let (subTy s b) (subTy s e)
@@ -109,3 +81,4 @@ substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
 substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
 substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
 substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
+substTysWith _ (LitTy t)       = LitTy t

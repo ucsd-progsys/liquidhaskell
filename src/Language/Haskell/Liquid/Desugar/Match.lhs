@@ -275,12 +275,13 @@ Wadler-chapter @match@ (p.~93, last clause), and @match_unmixed_blk@
 corresponds roughly to @matchVarCon@.
 
 \begin{code}
+
 match :: [Id]             -- Variables rep\'ing the exprs we\'re matching with
       -> Type             -- Type of the case expression
       -> [EquationInfo]   -- Info about patterns, etc. (type synonym below)
       -> DsM MatchResult  -- Desugared result!
 
-match [] ty eqns
+match [] _ eqns
   = -- ASSERT2( not (null eqns), ppr ty )
     return (foldr1 combineMatchResults match_results)
   where

@@ -20,11 +20,6 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
--- import Language.Fixpoint.Misc
--- import Data.Monoid
-
-
--- import Debug.Trace
 
 data AnnMap  = Ann { 
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
@@ -35,16 +30,11 @@ data AnnMap  = Ann {
 data Status = Safe | Unsafe | Error | Crash 
               deriving (Eq, Ord, Show)
 
-emptyAnnMap  = Ann M.empty [] 
-
 data Annotation = A { 
     typ :: Maybe String         -- ^ type  string
   , err :: Maybe String         -- ^ error string 
   , lin :: Maybe (Int, Int)     -- ^ line number, total width of lines i.e. max (length (show lineNum)) 
   } deriving (Show)
-
-getFirstMaybe x@(Just _) _ = x
-getFirstMaybe Nothing y    = y
 
 
 -- | Formats Haskell source code using HTML and mouse-over annotations 
@@ -160,7 +150,8 @@ stitch ((x,y):xys) ((Right x'):rest)
   = error "stitch"
 stitch _ []
   = []
-
+stitch _ _ 
+  = error "stitch: cannot happen"
 
 splitSrcAndAnns ::  String -> (String, AnnMap) 
 splitSrcAndAnns s = 
@@ -183,13 +174,6 @@ tokenModule toks
        return $ concatMap snd toks''
 
 breakS = "MOUSEOVER ANNOTATIONS" 
-
--- annotParse :: String -> String -> AnnMap
--- annotParse mname    = Ann . M.map reduce . group . parseLines mname 0 . lines
---   where 
---     group                 = foldl' (\m (k, v) -> inserts k v m) M.empty 
---     reduce anns@((x,_):_) = (x, mconcat $ map snd anns)
---     inserts k v m         = M.insert k (v : M.lookupDefault [] k m) m
 
 annotParse :: String -> String -> AnnMap
 annotParse mname s = Ann (M.fromList ts) [(x,y,"") | (x,y) <- es] Safe
@@ -224,25 +208,12 @@ parseLines mname i (x:f:l:c:n:rest)
 parseLines _ i _              
   = error $ "Error Parsing Annot Input on Line: " ++ show i
 
--- stringAnnotation s 
---   | "ERROR" `isPrefixOf` s = A Nothing (Just s)
---   | otherwise              = A (Just s) Nothing
-
--- takeFileName s = map slashWhite s
---   where slashWhite '/' = ' '
-
 instance Show AnnMap where
   show (Ann ts es _ ) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
                                 ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
       
 ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
 ppAnnotErr (L (l, c), L (l', c')) = printf " \n%d\n%d\n0\n%d\n%d\n\n\n\n" l c l' c'
-
---     where ppAnnot (L (l, c), (x,s)) =  x ++ "\n" 
---                                     ++ show l ++ "\n"
---                                     ++ show c ++ "\n"
---                                     ++ show (length $ lines s) ++ "\n"
---                                     ++ s ++ "\n\n\n"
 
 
 ---------------------------------------------------------------------------------
@@ -260,7 +231,6 @@ inlines s = lines' s id
   where
   lines' []             acc = [acc []]
   lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id	-- DOS
---lines' ('\^M':s)      acc = acc ['\n'] : lines' s id	-- MacOS
   lines' ('\n':s)       acc = acc ['\n'] : lines' s id	-- Unix
   lines' (c:s)          acc = lines' s (acc . (c:))
 
@@ -284,7 +254,6 @@ allProg name  = go
     go (x:xs) | end `isPrefixOf `x
               = Lit x: classify xs
     go (x:xs) = Code x: go xs
-
 
 
 -- | Join up chunks of code\/comment that are next to each other.

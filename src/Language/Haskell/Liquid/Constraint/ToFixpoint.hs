@@ -4,9 +4,6 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint (
 
 	) where
 
-import SrcLoc           (noSrcSpan)
-
-
 import qualified Language.Fixpoint.Types        as F
 import Language.Haskell.Liquid.Constraint.Types
 

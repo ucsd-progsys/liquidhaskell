@@ -27,36 +27,27 @@ module Language.Haskell.Liquid.CmdLine (
 ) where
 
 import           Control.Applicative                 ((<$>))
-import           Control.DeepSeq
 import           Control.Monad
 
-import qualified Data.HashMap.Strict                 as M
-import           Data.List                           (foldl', nub)
-import           Data.Maybe
+import           Data.List                           (nub)
 import           Data.Monoid
-import qualified Data.Text                           as T
-import qualified Data.Text.IO                        as TIO
 
 import           System.Console.CmdArgs              hiding (Loud)
-import           System.Console.CmdArgs.Verbosity    (whenLoud)
 import           System.Directory                    (doesDirectoryExist, canonicalizePath, getCurrentDirectory)
 import           System.Environment                  (lookupEnv, withArgs)
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import           Language.Fixpoint.Config            hiding (Config, config,
-                                                      real)
+import           Language.Fixpoint.Config            hiding (Config, real)
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Names             (dropModuleNames)
-import           Language.Fixpoint.Types             hiding (config)
+import           Language.Fixpoint.Types             
 import           Language.Haskell.Liquid.Annotate
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.Types       hiding (config, name, typ)
 
-import           Name
-import           SrcLoc                              (SrcSpan)
 import           Text.Parsec.Pos                     (newPos)
 import           Text.PrettyPrint.HughesPJ
 
@@ -288,7 +279,7 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
     tidy                   = if shortErrors cfg then Lossy else Full
     writeDoc c (i, d)      = writeBlock c i $ lines $ render d
-    writeBlock c _ []      = return ()
+    writeBlock _ _ []      = return ()
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 

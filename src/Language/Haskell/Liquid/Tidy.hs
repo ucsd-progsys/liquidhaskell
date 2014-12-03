@@ -15,21 +15,16 @@ module Language.Haskell.Liquid.Tidy (
   , isTmpSymbol
   ) where
 
-import Outputable   (showPpr) -- hiding (empty)
 import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
-import Data.Maybe (fromMaybe)
 
-
-import Language.Fixpoint.Misc 
 import Language.Fixpoint.Names              (symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar) 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.RefType hiding (shiftVV)
 
 -------------------------------------------------------------------------
@@ -100,7 +95,6 @@ tidyFunBinds t = mapBind tx $ substa tx t
 tidyTyVars :: SpecType -> SpecType  
 tidyTyVars t = subsTyVarsAll αβs t 
   where 
-    -- zz   = [(a, b) | (a, _, (RVar b _)) <- αβs]
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs 
     αs   = L.nub (tyVars t)
     βs   = map (rVar . stringTyVar) pool
@@ -125,6 +119,7 @@ tyVars (REx _ _ t)     = tyVars t
 tyVars (RExprArg _)    = []
 tyVars (RRTy _ _ _ t)  = tyVars t
 tyVars (ROth _)        = []
+tyVars (RHole _)       = []
 
 subsTyVarsAll ats = go
   where 
@@ -143,6 +138,7 @@ funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2
 funBinds (RVar _ _)       = [] 
 funBinds (ROth _)         = []
 funBinds (RRTy _ _ _ t)   = funBinds t
-funBinds (RAppTy t1 t2 r) = funBinds t1 ++ funBinds t2
-funBinds (RExprArg e)     = []
+funBinds (RAppTy t1 t2 _) = funBinds t1 ++ funBinds t2
+funBinds (RExprArg _)     = []
+funBinds (RHole _)        = []
 

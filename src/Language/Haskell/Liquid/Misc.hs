@@ -4,10 +4,8 @@ module Language.Haskell.Liquid.Misc where
 
 import Control.Applicative
 import System.FilePath
-import qualified Data.Text as T
 
 import Language.Fixpoint.Misc (errorstar)
-import Language.Fixpoint.Types
 
 import Paths_liquidhaskell
 
@@ -22,7 +20,7 @@ safeIndex err n ls
 (x:_)  !? 0 = Just x
 (_:xs) !? n = xs !? (n-1)
 
-safeFromJust err (Just x) = x
+safeFromJust _  (Just x) = x
 safeFromJust err _        = errorstar err
 
 addFst3   a (b, c) = (a, b, c)
@@ -74,7 +72,7 @@ mapN _ _ []     = []
  
 pad _ f [] ys   = (f <$> ys, ys)
 pad _ f xs []   = (xs, f <$> xs)
-pad msg f xs ys
+pad msg _ xs ys
   | nxs == nys  = (xs, ys)
   | otherwise   = errorstar $ "pad: " ++ msg
   where

@@ -43,7 +43,7 @@ module Language.Haskell.Liquid.Types (
   , isClassRTyCon
  
   -- * Refinement Types 
-  , RType (..), Ref(..), RTProp (..)
+  , RType (..), Ref(..), RTProp
   , RTyVar (..)
   , RTAlias (..)
 
@@ -185,20 +185,16 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
-import FastString                               (fsLit)
-import SrcLoc                                   (noSrcSpan, mkGeneralSrcSpan, SrcSpan)
+import SrcLoc                                   (noSrcSpan, SrcSpan)
 import TyCon 
 import DataCon
 import Name                                     (getName)
 import NameSet
 import Module                                   (moduleNameFS)
-import Class                                    (classTyCon)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
 import Var
-import Unique
-import Literal
 import Text.Printf
-import GHC                                      (Class, HscEnv, ModuleName, Name, moduleNameString)
+import GHC                                      (HscEnv, ModuleName, moduleNameString)
 import GHC.Generics
 import Language.Haskell.Liquid.GhcMisc 
 
@@ -207,10 +203,10 @@ import PrelInfo         (isNumericClass)
 
 import TysWiredIn                               (listTyCon)
 import Control.Arrow                            (second)
-import Control.Monad                            (liftM, liftM2, liftM3)
+import Control.Monad                            (liftM, liftM2, liftM3, liftM4)
 import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
-import Control.Applicative                      ((<$>), (<*>))
+import Control.Applicative                      ((<$>))
 import Data.Typeable                            (Typeable)
 import Data.Generics                            (Data)   
 import Data.Monoid                              hiding ((<>))
@@ -218,29 +214,26 @@ import qualified  Data.Foldable as F
 import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
 import qualified  Data.HashSet as S
-import            Data.Function                (on)
-import            Data.Maybe                   (maybeToList, fromMaybe)
+import            Data.Maybe                   (fromMaybe)
 import            Data.Traversable             hiding (mapM)
-import            Data.List                    (isSuffixOf, nub, union, unionBy)
+import            Data.List                    (nub)
 import            Data.Text                    (Text)
 import qualified  Data.Text                    as T
-import            Data.Aeson        hiding     (Result)      
-import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
+import Text.Parsec.Pos              (SourcePos) 
 import Text.Parsec.Error            (ParseError) 
 import Text.PrettyPrint.HughesPJ    
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
--- import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, funConName, listConName, tupConName)
 import CoreSyn (CoreBind)
 
-import Language.Haskell.Liquid.GhcMisc (isFractionalClass)
 import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Misc (mapSndM)
 
-import System.FilePath ((</>), isAbsolute, takeDirectory)
 
 import Data.Default
+
 -----------------------------------------------------------------------------
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
@@ -286,9 +279,6 @@ class PPrint a where
 showpp :: (PPrint a) => a -> String 
 showpp = render . pprint 
 
-showEMsg :: (PPrint a) => a -> EMsg 
-showEMsg = EMsg . showpp 
-
 instance PPrint a => PPrint (Maybe a) where
   pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
 
@@ -306,7 +296,7 @@ data PPEnv
        }
 
 ppEnv           = ppEnvPrintPreds
-ppEnvCurrent    = PP False False False False
+_ppEnvCurrent    = PP False False False False
 ppEnvPrintPreds = PP True False False False
 ppEnvShort pp   = pp { ppShort = True }
 
@@ -416,7 +406,7 @@ instance Ord (PVar t) where
 
 instance Functor PVKind where
   fmap f (PVProp t) = PVProp (f t)
-  fmap f (PVHProp)  = PVHProp
+  fmap _ (PVHProp)  = PVHProp
 
 instance Functor PVar where
   fmap f (PV x t v txys) = PV x (f <$> t) v (mapFst3 f <$> txys)
@@ -429,7 +419,7 @@ instance (NFData a) => NFData (PVar a) where
   rnf (PV n t v txys) = rnf n `seq` rnf v `seq` rnf t `seq` rnf txys
 
 instance Hashable (PVar a) where
-  hashWithSalt i (PV n _ _ xys) = hashWithSalt i n
+  hashWithSalt i (PV n _ _ _) = hashWithSalt i n
 
 
 --------------------------------------------------------------------
@@ -507,11 +497,9 @@ data RTyCon = RTyCon
 
 
 isClassRTyCon = isClassTyCon . rtc_tc
-rTyConInfo   = rtc_info 
-rTyConTc     = rtc_tc
-rTyConPVs    = rtc_pvars
-rTyConPropVs = filter isPropPV . rtc_pvars
-isPropPV     = isProp . ptype
+rTyConPVs     = rtc_pvars
+rTyConPropVs  = filter isPropPV . rtc_pvars
+isPropPV      = isProp . ptype
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV
@@ -835,21 +823,6 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
                      , rtVArgs = f <$> rtVArgs rt
                      }
 
--- | Datacons
-
--- JUNK data BDataCon a 
--- JUNK   = BDc a       -- ^ Raw named data constructor
--- JUNK   | BTup Int    -- ^ Tuple constructor + arity
--- JUNK   deriving (Eq, Ord, Show)
--- JUNK 
--- JUNK instance Functor BDataCon where
--- JUNK   fmap f (BDc x)  = BDc (f x)
--- JUNK   fmap f (BTup i) = BTup i
--- JUNK 
--- JUNK instance Hashable a => Hashable (BDataCon a) where
--- JUNK   hashWithSalt i (BDc x)  = hashWithSalt i x
--- JUNK   hashWithSalt i (BTup j) = hashWithSalt i j
-
 ------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ----------------------------
 ------------------------------------------------------------------------
@@ -937,11 +910,11 @@ instance Subable Stratum where
   syms (SVar s) = [s]
   syms _        = []
   subst su (SVar s) = SVar $ subst su s
-  subst su s        = s
+  subst _ s         = s
   substf f (SVar s) = SVar $ substf f s
-  substf f s        = s
+  substf _ s        = s
   substa f (SVar s) = SVar $ substa f s
-  substa f s        = s
+  substa _ s        = s
 
 instance Subable Strata where
   syms s     = concatMap syms s
@@ -953,20 +926,23 @@ instance Reftable Strata where
   isTauto []         = True
   isTauto _          = False
 
-  ppTy s             = error "ppTy on Strata" 
-  toReft s           = mempty
+  ppTy _             = error "ppTy on Strata" 
+  toReft _           = mempty
   params s           = [l | SVar l <- s]
-  bot s              = []
-  top s              = []
+  bot _              = []
+  top _              = []
+
+  ofReft = error "TODO: Strata.ofReft"
 
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
-  -- ppTy (U r p) d     = ppTy r (ppTy p d) 
   ppTy               = ppTy_ureft
   toReft (U r ps _)  = toReft r `meet` toReft ps
   params (U r _ _)   = params r
   bot (U r _ s)      = U (bot r) (Pr []) (bot s)
   top (U r p s)      = U (top r) (top p) (top s)
+
+  ofReft = error "TODO: UReft.ofReft"
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) && (isTauto $ ur_strata u)
 
@@ -985,22 +961,26 @@ ppr_str [] = empty
 ppr_str s  = text "^" <> pprint s
 
 instance Subable r => Subable (UReft r) where
-  syms (U r p s)     = syms r ++ syms p 
+  syms (U r p _)     = syms r ++ syms p 
   subst s (U r z l)  = U (subst s r) (subst s z) (subst s l)
   substf f (U r z l) = U (substf f r) (substf f z) (substf f l) 
   substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
  
 instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
-  syms (RProp ss r)     = (fst <$> ss) ++ syms r
+  syms (RProp  ss r)     = (fst <$> ss) ++ syms r
+  syms (RHProp _  _)     = error "TODO: PHProp.syms"
 
   subst su (RPropP ss r) = RPropP ss (subst su r)
-  subst su (RProp ss t) = RProp ss (subst su <$> t)
+  subst su (RProp  ss t) = RProp ss (subst su <$> t)
+  subst _  (RHProp _  _) = error "TODO: PHProp.subst"
 
   substf f (RPropP ss r) = RPropP ss (substf f r) 
-  substf f (RProp ss t) = RProp ss (substf f <$> t)
+  substf f (RProp  ss t) = RProp ss (substf f <$> t)
+  substf _ (RHProp _  _) = error "TODO PHProp.substf"
   substa f (RPropP ss r) = RPropP ss (substa f r) 
-  substa f (RProp ss t) = RProp ss (substa f <$> t)
+  substa f (RProp  ss t) = RProp ss (substa f <$> t)
+  substa _ (RHProp _  _) = error "TODO PHProp.substa"
 
 instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
   syms        = foldReft (\r acc -> syms r ++ acc) [] 
@@ -1024,6 +1004,8 @@ instance Reftable Predicate where
   toReft (Pr ps@(p:_))        = Reft (parg p, pToRef <$> ps)
   toReft _                    = mempty
   params                      = errorstar "TODO: instance of params for Predicate"
+
+  ofReft = error "TODO: Predicate.ofReft"
 
 
 pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
@@ -1069,7 +1051,8 @@ emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
 emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
-emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
+emapRef  f γ (RProp  s t)         = RProp s $ emapReft f γ t
+emapRef  _ _ (RHProp _ _)         = error "TODO: PHProp empaReft"
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
@@ -1087,7 +1070,7 @@ isFunTy (RAllE _ _ t)    = isFunTy t
 isFunTy (RAllS _ t)      = isFunTy t
 isFunTy (RAllT _ t)      = isFunTy t
 isFunTy (RAllP _ t)      = isFunTy t
-isFunTy (RFun _ t1 t2 _) = True
+isFunTy (RFun _ _ _ _)   = True
 isFunTy _                = False
 
 
@@ -1104,10 +1087,12 @@ mapReftM _ (RExprArg e)       = return  $ RExprArg e
 mapReftM f (RAppTy t t' r)    = liftM3  RAppTy (mapReftM f t) (mapReftM f t') (f r)
 mapReftM _ (ROth s)           = return  $ ROth  s 
 mapReftM f (RHole r)          = liftM   RHole       (f r)
+mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
-mapRefM  f (RPropP s r)        = liftM   (RPropP s)      (f r)
-mapRefM  f (RProp s t)        = liftM   (RProp s)      (mapReftM f t)
+mapRefM  f (RPropP s r)       = liftM   (RPropP s)     (f r)
+mapRefM  f (RProp  s t)       = liftM   (RProp s)      (mapReftM f t)
+mapRefM  _ (RHProp _ _)       = error "TODO PHProp.mapRefM"
 
 -- foldReft :: (r -> a -> a) -> a -> RType c tv r -> a
 foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv 
@@ -1119,7 +1104,7 @@ efoldReft cb g f fp = go
     go γ z me@(RVar _ r)                = f γ (Just me) r z 
     go γ z (RAllT _ t)                  = go γ z t
     go γ z (RAllP p t)                  = go (fp p γ) z t
-    go γ z (RAllS s t)                  = go γ z t
+    go γ z (RAllS _ t)                  = go γ z t
     go γ z me@(RFun _ (RApp c ts _ _) t' r) 
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')       
     go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
@@ -1128,14 +1113,15 @@ efoldReft cb g f fp = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
-    go γ z me@(RRTy e r o t)            = f γ (Just me) r (go γ z t)
+    go γ z me@(RRTy _ r _ t)            = f γ (Just me) r (go γ z t)
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref 
     ho  γ z (RPropP ss r)               = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp ss t)                = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RProp  ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  _ _ (RHProp _  _)               = error "TODO: RHProp.ho"
    
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts 
@@ -1154,7 +1140,8 @@ mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f t'                = f t' 
 mapBotRef _ (RPropP s r)    = RPropP s $ r
-mapBotRef f (RProp s t)    = RProp s $ mapBot f t
+mapBotRef f (RProp  s t)    = RProp  s $ mapBot f t
+mapBotRef _ (RHProp _ _)    = error "TODO: RHProp.mapBotRef" 
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1171,7 +1158,8 @@ mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
 mapBindRef f (RPropP s r)   = RPropP (mapFst f <$> s) r
-mapBindRef f (RProp s t)   = RProp (mapFst f <$> s) $ mapBind f t
+mapBindRef f (RProp  s t)   = RProp  (mapFst f <$> s) $ mapBind f t
+mapBindRef _ (RHProp _ _)   = error "TODO: RHProp.mapBindRef"
 
 
 --------------------------------------------------
@@ -1218,14 +1206,14 @@ mapRBase f (RApp c ts rs r) = RApp c ts rs $ f r
 mapRBase f (RVar a r)       = RVar a $ f r
 mapRBase f (RFun x t1 t2 r) = RFun x t1 t2 $ f r
 mapRBase f (RAppTy t1 t2 r) = RAppTy t1 t2 $ f r   
-mapRBase f t                = t
+mapRBase _ t                = t
 
 
 
 makeLType :: Stratum -> SpecType -> SpecType
 makeLType l t = fromRTypeRep trep{ty_res = mapRBase f $ ty_res trep}
   where trep = toRTypeRep t
-        f (U r p s) = U r p [l]
+        f (U r p _) = U r p [l]
 
 
 makeDivType = makeLType SDiv 
@@ -1527,7 +1515,7 @@ instance Show ModName where
   show = getModString
 
 instance Symbolic ModName where
-  symbol (ModName t m) = symbol m
+  symbol (ModName _ m) = symbol m
 
 instance Symbolic ModuleName where
   symbol = symbol . moduleNameFS
@@ -1669,13 +1657,13 @@ instance Functor AnnInfo where
 
 
 instance NFData a => NFData (AnnInfo a) where
-  rnf (AI x) = () 
+  rnf (AI _) = () 
 
 instance NFData (Annot a) where
-  rnf (AnnDef x) = ()
-  rnf (AnnRDf x) = ()
-  rnf (AnnUse x) = ()
-  rnf (AnnLoc x) = ()
+  rnf (AnnDef _) = ()
+  rnf (AnnRDf _) = ()
+  rnf (AnnUse _) = ()
+  rnf (AnnLoc _) = ()
 
 ------------------------------------------------------------------------
 -- | Output ------------------------------------------------------------
