@@ -34,7 +34,6 @@ import Outputable
 import FastString
 import TcType
 import ListSetOps( getNth )
-import Util
 \end{code}
 
 List comprehensions may be desugared in one of two ways: ``ordinary''
@@ -209,7 +208,7 @@ deListComp :: [ExprStmt Id] -> CoreExpr -> DsM CoreExpr
 
 deListComp [] _ = panic "deListComp"
 
-deListComp (LastStmt body _ : quals) list
+deListComp (LastStmt body _ : _) list
   =     -- Figure 7.4, SLPJ, p 135, rule C above
     -- ASSERT( null quals )
     do { core_body <- dsLExpr body
@@ -316,7 +315,7 @@ dfListComp :: Id -> Id      -- 'c' and 'n'
 
 dfListComp _ _ [] = panic "dfListComp"
 
-dfListComp c_id n_id (LastStmt body _ : quals)
+dfListComp c_id n_id (LastStmt body _ : _)
   = -- ASSERT( null quals )
     do { core_body <- dsLExpr body
        ; return (mkApps (Var c_id) [core_body, Var n_id]) }
@@ -516,7 +515,7 @@ dePArrComp [] _ _ = panic "dePArrComp"
 --
 --  <<[:e' | :]>> pa ea = mapP (\pa -> e') ea
 --
-dePArrComp (LastStmt e' _ : quals) pa cea
+dePArrComp (LastStmt e' _ : _) pa cea
   = -- ASSERT( null quals )
     do { mapP <- dsDPHBuiltin mapPVar
        ; let ty = parrElemType cea
@@ -674,7 +673,7 @@ dsMcStmts (L loc stmt : lstmts) = putSrcSpanDs loc (dsMcStmt stmt lstmts)
 ---------------
 dsMcStmt :: ExprStmt Id -> [ExprLStmt Id] -> DsM CoreExpr
 
-dsMcStmt (LastStmt body ret_op) stmts
+dsMcStmt (LastStmt body ret_op) _
   = -- ASSERT( null stmts )
     do { body' <- dsLExpr body
        ; ret_op' <- dsExpr ret_op

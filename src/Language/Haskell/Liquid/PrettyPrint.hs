@@ -23,7 +23,6 @@ module Language.Haskell.Liquid.PrettyPrint (
   , ppSpine
   ) where
 
-import Type                             (tidyType)
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
 import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
@@ -37,17 +36,13 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Text.Parsec.Pos              (SourcePos, newPos, sourceName, sourceLine, sourceColumn) 
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
-import Control.Applicative ((<*>), (<$>))
+import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort, sortBy)
 import Data.Function (on)
 import Data.Monoid   (mempty)
-import Data.Aeson    
-import qualified Data.Text as T
-import Data.Interned
 import qualified Data.HashMap.Strict as M
 
 instance PPrint SrcSpan where
@@ -158,13 +153,14 @@ ppr_rtype _ _ (RHole r)
 
 ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
 ppSpine (RAllP _ t)      = text "RAllP" <+> parens (ppSpine t)
+ppSpine (RAllS _ t)      = text "RAllS" <+> parens (ppSpine t)
 ppSpine (RAllE _ _ t)    = text "RAllE" <+> parens (ppSpine t)
 ppSpine (REx _ _ t)      = text "REx" <+> parens (ppSpine t)
 ppSpine (RFun _ i o _)   = ppSpine i <+> text "->" <+> ppSpine o
 ppSpine (RAppTy t t' _)  = text "RAppTy" <+> parens (ppSpine t) <+> parens (ppSpine t')
-ppSpine (RHole r)        = text "RHole"
-ppSpine (RApp c ts rs _) = text "RApp" <+> parens (pprint c)
-ppSpine (RVar v _)       = text "RVar"
+ppSpine (RHole _)        = text "RHole"
+ppSpine (RApp c _ _ _)   = text "RApp" <+> parens (pprint c)
+ppSpine (RVar _ _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
 ppSpine (ROth s)         = text "ROth" <+> text (symbolString s)
 ppSpine (RRTy _ _ _ _)   = text "RRTy"
@@ -197,7 +193,7 @@ ppAllExpr bb p t
           split zs (RAllE x t t') = split ((x,t):zs) t'
           split zs t	            = (reverse zs, t)
 
-ppReftPs bb rs 
+ppReftPs _ rs 
   | all isTauto rs   = empty
   | not (ppPs ppEnv) = empty 
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ pprint <$> rs
@@ -251,7 +247,7 @@ ppr_pvar_def pprv (PV s t _ xts)
     dargs = [pprv t | (t,_,_) <- xts]
 
 ppr_pvar_kind pprv (PVProp t) = pprv t <+> arrow <+> ppr_name propConName  
-ppr_pvar_kind pprv (PVHProp)  = ppr_name hpropConName 
+ppr_pvar_kind _    (PVHProp)  = ppr_name hpropConName 
 ppr_name                      = text . symbolString 
     
 instance PPrint RTyVar where
@@ -264,7 +260,9 @@ ppr_tyvar_short = text . showPpr
 
 instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t s (RType b c p)) where
   pprint (RPropP ss s) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprint (RProp  ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprint (RHProp ss _) = ppRefArgs (fst <$> ss) <+> text "world"
+
 
 ppRefArgs [] = empty
 ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
@@ -273,7 +271,7 @@ ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (U r p s)
+  pprint (U r p _)
     | isTauto r  = pprint p
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r

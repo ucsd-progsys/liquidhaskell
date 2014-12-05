@@ -133,11 +133,11 @@ dsStrictBind (AbsBinds { abs_tvs = [], abs_ev_vars = []
        ; ds_binds <- dsTcEvBinds ev_binds
        ; return (mkCoreLets ds_binds body2) }
 
-dsStrictBind (FunBind { fun_id = L _ fun, fun_matches = matches, fun_co_fn = co_fn 
+dsStrictBind (FunBind { fun_id = L _ fun, fun_matches = matches
                       , fun_tick = tick, fun_infix = inf }) body
                 -- Can't be a bang pattern (that looks like a PatBind)
                 -- so must be simply unboxed
-  = do { (args, rhs) <- matchWrapper (FunRhs (idName fun ) inf) matches
+  = do { (_, rhs) <- matchWrapper (FunRhs (idName fun ) inf) matches
 --        ; MASSERT( null args ) -- Functions aren't lifted
 --        ; MASSERT( isIdHsWrapper co_fn )
        ; let rhs' = mkOptTickBox tick rhs
@@ -419,7 +419,7 @@ dsExpr (RecordCon (L _ data_con_id) con_expr rbinds) = do
 
         mk_arg (arg_ty, lbl)    -- Selector id has the field label as its name
           = case findField (rec_flds rbinds) lbl of
-              (rhs:rhss) -> -- ASSERT( null rhss )
+              (rhs:_) -> -- ASSERT( null rhss )
                             dsLExpr rhs
               []         -> mkErrorAppDs rEC_CON_ERROR_ID arg_ty (ppr lbl)
         unlabelled_bottom arg_ty = mkErrorAppDs rEC_CON_ERROR_ID arg_ty empty
@@ -468,7 +468,7 @@ But if x::T a b, then
 So we need to cast (T a Int) to (T a b).  Sigh.
 
 \begin{code}
-dsExpr expr@(RecordUpd record_expr (HsRecFields { rec_flds = fields })
+dsExpr (RecordUpd record_expr (HsRecFields { rec_flds = fields })
                        cons_to_upd in_inst_tys out_inst_tys)
   | null fields
   = dsLExpr record_expr
@@ -743,7 +743,7 @@ dsDo stmts
     goL [] = panic "dsDo"
     goL (L loc stmt:lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
   
-    go _ (LastStmt body _) stmts
+    go _ (LastStmt body _) _
       = {- ASSERT( null stmts ) -} dsLExpr body
         -- The 'return' op isn't used for 'do' expressions
 

@@ -4,12 +4,8 @@ module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
 
-import IdInfo (IdDetails(..))
-import Var (idDetails)
-
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.GhcMisc  (getSourcePos)
 import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Types
@@ -20,7 +16,6 @@ import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (fromMaybe)
 import qualified Data.HashSet as S
-import qualified Data.Text    as T
 import Data.Bifunctor           (second) 
 
 -----------------------------------------------------------------------------------
@@ -34,12 +29,6 @@ specificationQualifiers k info
         , q <- refTypeQuals (getSourcePos x) (tcEmbeds $ spec info) (val t)
         , length (q_params q) <= k + 1
     ]
-  where
-    isClassOp (idDetails -> ClassOpId _) = True
-    isClassOp _                          = False
-    isDataCon (idDetails -> DataConWorkId _) = True
-    isDataCon (idDetails -> DataConWrapId _) = True
-    isDataCon _                              = False
 
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
@@ -92,7 +81,7 @@ refTypeQuals' l tce t0        = go emptySEnv t0
     go γ t@(RVar _ _)         = refTopQuals l tce t0 γ t     
     go γ (RAllT _ t)          = go γ t 
     go γ (RAllP _ t)          = go γ t 
-    go γ t@(RAppTy t1 t2 r)   = go γ t1 ++ go γ t2 ++ refTopQuals l tce t0 γ t
+    go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ refTopQuals l tce t0 γ t
     go γ (RFun x t t' _)      = (go γ t) 
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
     go γ t@(RApp c ts rs _)   = (refTopQuals l tce t0 γ t) 
@@ -104,8 +93,9 @@ refTypeQuals' l tce t0        = go emptySEnv t0
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
     go _ _                    = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
-    goRef g (RProp s t)  _    = go (insertsSEnv g s) t
+    goRef g (RProp  s t)  _   = go (insertsSEnv g s) t
     goRef _ (RPropP _ _)  _   = []
+    goRef _ (RHProp _ _)  _   = errorstar "TODO: EFFECTS"
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 refTopQuals l tce t0 γ t 

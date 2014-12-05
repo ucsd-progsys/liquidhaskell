@@ -16,22 +16,17 @@ module Language.Haskell.Liquid.Measure (
 
 import GHC hiding (Located)
 import Var
-import qualified Outputable as O 
 import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 
-import qualified Data.List as L 
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
-import qualified Data.Text as T
+import Data.List (foldl1')
+
 import Data.Monoid hiding ((<>))
-import Data.List (foldl1', union, nub)
-import Data.Either (partitionEithers)
 import Data.Bifunctor
-import Data.Text (Text)
 import Control.Applicative      ((<$>))
-import Control.Exception        (assert)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)

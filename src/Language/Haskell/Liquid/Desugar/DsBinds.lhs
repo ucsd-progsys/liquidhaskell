@@ -44,7 +44,7 @@ import Unique( Unique )
 import Digraph
 
 
-import TyCon      ( isTupleTyCon, tyConDataCons_maybe )
+import TyCon      ( tyConDataCons_maybe )
 import TcEvidence
 import TcType
 import Type

@@ -25,7 +25,6 @@ import TysWiredIn
 import PrelNames
 import Module
 import Name
-import Util
 import SrcLoc
 import Outputable
 \end{code}
