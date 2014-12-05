@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.TransformRec (
 
 import           Bag
 import           Coercion
-import           Control.Arrow       (second, (***))
+import           Control.Arrow       (second)
 import           Control.Monad.State
 import           CoreLint
 import           CoreSyn
@@ -27,6 +27,7 @@ import           Unique              hiding (deriveUnique)
 import           Var
 import           Name (isSystemName)
 import           Language.Haskell.Liquid.GhcMisc
+import           Language.Haskell.Liquid.GhcPlay
 import           Language.Haskell.Liquid.Misc (mapSndM)
 import           Language.Fixpoint.Misc       (mapSnd)
 
@@ -35,16 +36,34 @@ import           Control.Applicative      ((<$>))
 
 import qualified Data.List as L
 
+
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e
   =  {-trace "new cbs"-} pg 
   | otherwise 
-  = error ("INITIAL\n" ++ showPpr pg0 ++ "\nTRANSFORMED\n" ++ showPpr pg ++ "Type-check" ++ showSDoc (pprMessageBag e))
-  where pg0    = evalState (transPg cbs) initEnv
+  = error ("Type-check" ++ showSDoc (pprMessageBag e))
+  where pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
         (_, e) = lintCoreBindings [] pg
         pg     = inlineFailCases pg0
 
+
+
+
+inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be 
+  = Rec [(x, foldr Lam (sub (M.singleton lbx e') lbe) (αs ++ as))]
+  where
+    (αs, as, be) = collectTyAndValBinders e
+
+    e' = foldl' App (foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
+
+    hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
+    hasLoopBreaker _                               = Nothing
+
+    isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
+
+inlineLoopBreaker bs 
+  = bs
 
 inlineFailCases :: CoreProgram -> CoreProgram
 inlineFailCases = (go [] <$>)
@@ -61,7 +80,7 @@ inlineFailCases = (go [] <$>)
     go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt) 
     go' su (Cast e c)       = Cast (go' su e) c
     go' su (Tick t e)       = Tick t (go' su e)
-    go' su e                = e
+    go' _  e                = e
 
     goalt su (c, xs, e)     = (c, xs, go' su e)
 
@@ -69,12 +88,11 @@ inlineFailCases = (go [] <$>)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su 
-    addFailExpr x e         _  = error "internal error" -- this cannot happen
+    addFailExpr _ _         _  = error "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
 
-scopeTr = outerScTr . innerScTr
 transformScope = outerScTr . innerScTr
 
 outerScTr = mapNonRec (go [])
@@ -91,12 +109,12 @@ scTrans x e = mapExpr scTrans $ foldr Let e0 bs
   where (bs, e0)           = go [] x e
         go bs x (Let b e)  | isCaseArg x b = go (b:bs) x e
         go bs x (Tick t e) = second (Tick t) $ go bs x e
-        go bs x e          = (bs, e)
+        go bs _ e          = (bs, e)
 
 type TE = State TrEnv
 
 data TrEnv = Tr { freshIndex  :: !Int
-                , loc         :: SrcSpan
+                , _loc        :: SrcSpan
                 }
 
 initEnv = Tr 0 noSrcSpan
@@ -134,6 +152,8 @@ trans vs ids bs (Let (Rec xes) e)
         e'      = Let (Rec xes') e
         xes'    = (second mkLet) <$> xes
 
+trans _ _ _ _ = error "TransformRec.trans called with invalid input"
+
 makeTrans vs ids (Let (Rec xes) e)
  = do fids    <- mapM (mkFreshIds vs ids) xs
       let (ids', ys) = unzip fids
@@ -148,6 +168,8 @@ makeTrans vs ids (Let (Rec xes) e)
    (xs, es)       = unzip xes
    mkSu ys ids'   = mkSubs ids vs ids' (zip xs ys)
    mkE ys ids' e' = mkCoreLams (vs ++ ids') (sub (mkSu ys ids') e')
+
+makeTrans _ _ _ = error "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (foldl' f e xes)
@@ -190,71 +212,6 @@ mkAlive x
   = setIdInfo x (setOccInfo (idInfo x) NoOccInfo)
   | otherwise
   = x
-
-class Subable a where
-  sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
-  subTy :: M.HashMap TyVar Type -> a -> a
-
-instance Subable CoreExpr where
-  sub s (Var v)        = M.lookupDefault (Var v) v s
-  sub _ (Lit l)        = Lit l
-  sub s (App e1 e2)    = App (sub s e1) (sub s e2)
-  sub s (Lam b e)      = Lam b (sub s e)
-  sub s (Let b e)      = Let (sub s b) (sub s e)
-  sub s (Case e b t a) = Case (sub s e) (sub s b) t (map (sub s) a)
-  sub s (Cast e c)     = Cast (sub s e) c
-  sub s (Tick t e)     = Tick t (sub s e)
-  sub _ (Type t)       = Type t
-  sub _ (Coercion c)   = Coercion c
-
-  subTy s (Var v)      = Var (subTy s v)
-  subTy _ (Lit l)      = Lit l
-  subTy s (App e1 e2)  = App (subTy s e1) (subTy s e2)
-  subTy s (Lam b e)    | isTyVar b = Lam v' (subTy s e)
-   where v' = case M.lookup b s of
-               Nothing          -> b
-               Just (TyVarTy v) -> v
-
-  subTy s (Lam b e)      = Lam (subTy s b) (subTy s e)
-  subTy s (Let b e)      = Let (subTy s b) (subTy s e)
-  subTy s (Case e b t a) = Case (subTy s e) (subTy s b) (subTy s t) (map (subTy s) a)
-  subTy s (Cast e c)     = Cast (subTy s e) (subTy s c)
-  subTy s (Tick t e)     = Tick t (subTy s e)
-  subTy s (Type t)       = Type (subTy s t)
-  subTy s (Coercion c)   = Coercion (subTy s c)
-
-instance Subable Coercion where
-  sub _ c                = c
-  subTy _ _              = error "subTy Coercion"
-
-instance Subable (Alt Var) where
- sub s (a, b, e)   = (a, map (sub s) b,   sub s e)
- subTy s (a, b, e) = (a, map (subTy s) b, subTy s e)
-
-instance Subable Var where
- sub s v   | M.member v s = subVar $ s M.! v 
-           | otherwise    = v
- subTy s v = setVarType v (subTy s (varType v))
-
-subVar (Var x) = x
-subVar  _      = error "sub Var"
-
-instance Subable (Bind Var) where
- sub s (NonRec x e)   = NonRec (sub s x) (sub s e)
- sub s (Rec xes)      = Rec ((sub s *** sub s) <$> xes)
-
- subTy s (NonRec x e) = NonRec (subTy s x) (subTy s e)
- subTy s (Rec xes)    = Rec ((subTy s  *** subTy s) <$> xes)
-
-instance Subable Type where
- sub _ e   = e
- subTy     = substTysWith
-
-substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
-substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
-substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete v s) t)
-substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
-substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
 
 mapNonRec f (NonRec x xe:xes) = NonRec x xe : f x (mapNonRec f xes)
 mapNonRec f (xe:xes)          = xe : mapNonRec f xes

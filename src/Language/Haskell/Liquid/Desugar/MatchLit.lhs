@@ -44,11 +44,7 @@ import BasicTypes
 import DynFlags
 import Util
 import FastString
-import Control.Monad
 
-import Data.Int
-import Data.Traversable (traverse)
-import Data.Word
 \end{code}
 
 %************************************************************************
@@ -156,7 +152,7 @@ conversionNames
 
 \begin{code}
 warnAboutOverflowedLiterals :: DynFlags -> HsOverLit Id -> DsM ()
-warnAboutOverflowedLiterals dflags lit
+warnAboutOverflowedLiterals _ _
 --  | wopt Opt_WarnOverflowedLiterals dflags
 --  , Just (i, tc) <- getIntegralLit lit
 --   = if      tc == intTyConName    then check i tc (undefined :: Int)
@@ -204,7 +200,7 @@ but perhaps that does not matter too much.
 warnAboutEmptyEnumerations :: DynFlags -> LHsExpr Id -> Maybe (LHsExpr Id) -> LHsExpr Id -> DsM ()
 -- Warns about [2,3 .. 1] which returns the empty list
 -- Only works for integral types, not floating point
-warnAboutEmptyEnumerations dflags fromExpr mThnExpr toExpr
+warnAboutEmptyEnumerations _ _ _ _
 --   | wopt Opt_WarnEmptyEnumerations dflags
 --   , Just (from,tc) <- getLHsIntegralLit fromExpr
 --   , Just mThn      <- traverse getLHsIntegralLit mThnExpr
@@ -232,7 +228,7 @@ warnAboutEmptyEnumerations dflags fromExpr mThnExpr toExpr
 --     else return ()
 -- 
   | otherwise = return ()
-
+{-
 getLHsIntegralLit :: LHsExpr Id -> Maybe (Integer, Name)
 -- See if the expression is an Integral literal
 -- Remember to look through automatically-added tick-boxes! (Trac #8384)
@@ -247,6 +243,7 @@ getIntegralLit (OverLit { ol_val = HsIntegral i, ol_type = ty })
   | Just tc <- tyConAppTyCon_maybe ty
   = Just (i, tyConName tc)
 getIntegralLit _ = Nothing
+-}
 \end{code}
 
 
@@ -402,7 +399,7 @@ litValKey (HsIntegral i)   False = MachInt i
 litValKey (HsIntegral i)   True  = MachInt (-i)
 litValKey (HsFractional r) False = MachFloat (fl_value r)
 litValKey (HsFractional r) True  = MachFloat (negate (fl_value r))
-litValKey (HsIsString s)   neg   = {- ASSERT( not neg) -} MachStr (fastStringToByteString s)
+litValKey (HsIsString s)   _   = {- ASSERT( not neg) -} MachStr (fastStringToByteString s)
 \end{code}
 
 %************************************************************************

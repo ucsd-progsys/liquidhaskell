@@ -157,7 +157,9 @@ Library
                     Language.Haskell.Liquid.List, 
                     Language.Haskell.Liquid.PrettyPrint, 
                     Language.Haskell.Liquid.Bare,
-                    Language.Haskell.Liquid.Constraint, 
+                    Language.Haskell.Liquid.Constraint.Types, 
+                    Language.Haskell.Liquid.Constraint.Generate, 
+                    Language.Haskell.Liquid.Constraint.ToFixpoint, 
                     Language.Haskell.Liquid.Measure, 
                     Language.Haskell.Liquid.Parse, 
                     Language.Haskell.Liquid.GhcInterface, 
@@ -172,6 +174,7 @@ Library
                     Language.Haskell.Liquid.CTags,
                     Language.Haskell.Liquid.CmdLine, 
                     Language.Haskell.Liquid.GhcMisc, 
+                    Language.Haskell.Liquid.GhcPlay, 
                     Language.Haskell.Liquid.Misc, 
                     Language.Haskell.Liquid.CoreToLogic,
                     Language.Haskell.Liquid.Variance,
@@ -179,8 +182,10 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Literals,
                     Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
+                    Language.Haskell.Liquid.WiredIn,
                     Paths_liquidhaskell,
 
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
@@ -200,6 +205,7 @@ Library
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
    --ghc-options: -O -W
+   ghc-options: -W -Werror
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 

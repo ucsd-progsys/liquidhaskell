@@ -21,61 +21,44 @@ import           Debug.Trace
 import           Avail                        (availsToNameSet)
 import           CoreSyn                      hiding (Expr)
 import           CostCentre
-import           FamInstEnv                   (FamInst)
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
-import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFile, srcSpanFileName_maybe, srcSpanStartLine, srcSpanStartCol)
+import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFileName_maybe)
 
 import           Language.Fixpoint.Names      (dropModuleNames)
-import           Language.Fixpoint.Misc       (errorstar, stripParens)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Language.Fixpoint.Types      hiding (SESearch(..))
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
-import           OccName                      (mkTyVarOcc, mkTcOcc)
+import           OccName                      (mkTyVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
-import           DynamicLoading
-import           ErrUtils
-import           Exception
-import           Panic                        (GhcException(..), throwGhcException)
-import           RnNames                      (gresFromAvails)
-import           HscMain
-import           HscTypes                     (HscEnv(..), FindResult(..), ModIface(..), lookupTypeHscEnv)
+import           Panic                        (throwGhcException)
+import           HscTypes                     (HscEnv(..), FindResult(..))
 import           FastString
 import           TcRnDriver
-import           OccName
-
 
 import           RdrName
-import           Type                         (liftedTypeKind, eqType)
+import           Type                         (liftedTypeKind)
 import           TypeRep
 import           Var
--- import           TyCon                        (mkSuperKindTyCon)
 import qualified TyCon                        as TC
-import qualified DataCon                      as DC
-import           FastString                   (uniq, unpackFS, fsLit)
 import           Data.Char                    (isLower, isSpace)
-import           Data.Maybe
 import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
 import           Data.Aeson                 
-import qualified Data.Text                    as T
 import qualified Data.Text.Encoding           as T
 import qualified Data.Text.Unsafe             as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
-import           Control.Exception            (assert, throw)
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
--- import           Language.Haskell.Liquid.Types
 
--- import qualified Pretty                       as P
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 
 -----------------------------------------------------------------------
@@ -116,9 +99,7 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan z                 = noSrcSpan -- errorstar msg
---   where msg = "tickSrcSpan: unhandled tick: " ++ showPpr z
-
+tickSrcSpan _                 = noSrcSpan 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
 -----------------------------------------------------------------------
@@ -313,7 +294,7 @@ collectValBinders' expr = go [] expr
     go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
-ignoreLetBinds e@(Let (NonRec x xe) e') 
+ignoreLetBinds (Let (NonRec _ _) e') 
   = ignoreLetBinds e'
 ignoreLetBinds e 
   = e

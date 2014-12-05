@@ -17,11 +17,8 @@ import           GHC                      ( SrcSpan (..)
                                           , srcSpanStartCol
                                           , srcSpanEndCol
                                           , srcSpanStartLine
-                                          , srcSpanEndLine
-                                          , RealSrcSpan (..))
-import           Var                      (Var (..))
-import           TypeRep                  (Prec(..))
-import           Text.PrettyPrint.HughesPJ hiding (first, second)
+                                          , srcSpanEndLine)
+import           Text.PrettyPrint.HughesPJ hiding (first)
 import           GHC.Exts                 (groupWith, sortWith)
 
 import           Data.Char                (isSpace)
@@ -32,9 +29,7 @@ import           Data.Maybe               (mapMaybe)
 import           Data.Aeson               
 import           Control.Arrow            hiding ((<+>))
 import           Control.Applicative      ((<$>))
-import           Control.DeepSeq
 import           Control.Monad            (when, forM_)
-import           Data.Monoid
 
 import           System.FilePath          (takeFileName, dropFileName, (</>)) 
 import           System.Directory         (findExecutable, copyFile)
@@ -54,7 +49,7 @@ import           Language.Fixpoint.Types hiding (Def (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
-import           Language.Haskell.Liquid.Errors
+import           Language.Haskell.Liquid.Errors ()
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 
@@ -95,7 +90,7 @@ annotate cfg srcF out
        bots       = o_bots   out
        tyHtmlF    = extFileName Html                   srcF  
        tpHtmlF    = extFileName Html $ extFileName Cst srcF 
-       annF       = extFileName Annot srcF
+       _annF      = extFileName Annot srcF
        jsonF      = extFileName Json  srcF  
        vimF       = extFileName Vim   srcF
        showWarns  = not $ nowarnings cfg
@@ -260,6 +255,7 @@ pickOneA xas = case (rs, ds, ls, us) of
                  (_, x:_, _, _) -> [x]
                  (_, _, x:_, _) -> [x]
                  (_, _, _, x:_) -> [x]
+                 (_, _, _, _  ) -> [ ]
   where 
     rs = [x | x@(_, AnnRDf _) <- xas]
     ds = [x | x@(_, AnnDef _) <- xas]
@@ -404,8 +400,8 @@ ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
 -- | A Little Unit Test --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-anns :: AnnTypes  
-anns = i [(5,   i [( 14, A1 { ident = "foo"
+_anns :: AnnTypes  
+_anns = i [(5,   i [( 14, A1 { ident = "foo"
                             , ann   = "int -> int"
                             , row   = 5
                             , col   = 14

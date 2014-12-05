@@ -31,68 +31,14 @@ module Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) where
 import Language.Haskell.Liquid.Desugar.Desugar (deSugarWithLoc)
 
 import Module 
-import Packages
-import RdrName
-import HsSyn
-import CoreSyn
-import StringBuffer
-import Parser
 import Lexer
-import SrcLoc
-import TcRnDriver
-import TcIface          ( typecheckIface )
 import TcRnMonad
-import IfaceEnv         ( initNameCache )
-import LoadIface        ( ifaceStats, initExternalPackageState )
-import PrelInfo
-import MkIface
-import SimplCore
-import TidyPgm
-import CorePrep
-import CoreToStg        ( coreToStg )
-import qualified StgCmm ( codeGen )
-import StgSyn
-import CostCentre
-import ProfInit
-import TyCon
-import Name
-import SimplStg         ( stg2stg )
-import Cmm
-import CmmParse         ( parseCmmFile )
-import CmmBuildInfoTables
-import CmmPipeline
-import CmmInfo
-import CodeOutput
-import NameEnv          ( emptyNameEnv )
-import NameSet          ( emptyNameSet )
-import InstEnv
-import FamInstEnv
-import Fingerprint      ( Fingerprint )
-import Hooks
 
-import DynFlags
 import ErrUtils
 
-import Outputable
-import HscStats         ( ppSourceStats )
 import HscTypes
-import MkExternalCore   ( emitExternalCore )
-import FastString
-import UniqFM           ( emptyUFM )
-import UniqSupply
 import Bag
 import Exception
-import qualified Stream
-import Stream (Stream)
-
-import Util
-
-import Data.List
-import Control.Monad
-import Data.Maybe
-import Data.IORef
-import System.FilePath as FilePath
-import System.Directory
 
 
 -- -----------------------------------------------------------------------------
@@ -107,12 +53,6 @@ logWarnings :: WarningMessages -> Hsc ()
 logWarnings w = Hsc $ \_ w0 -> return ((), w0 `unionBags` w)
 
 
--- | log warning in the monad, and if there are errors then
--- throw a SourceError exception.
-logWarningsReportErrors :: Messages -> Hsc ()
-logWarningsReportErrors (warns,errs) = do
-    logWarnings warns
-    when (not $ isEmptyBag errs) $ throwErrors errs
 
 -- | Throw some errors.
 throwErrors :: ErrorMessages -> Hsc a
