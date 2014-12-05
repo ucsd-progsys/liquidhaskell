@@ -3,6 +3,8 @@ Refinement Types
 ================
 
 
+\begin{comment}
+
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
@@ -11,6 +13,8 @@ module Intro where
 import Prelude hiding                   (abs)
 import Language.Haskell.Liquid.Prelude  (liquidAssert)
 \end{code}
+
+\end{comment}
 
 What is a Refinement Type?
 --------------------------
@@ -63,14 +67,14 @@ one' = 1 :: Int
 
 Lets look at the error message:
 
-\begin{spec}
+\begin{verbatim}
  02-basic.lhs:58:8: Error: Liquid Type Mismatch
    Inferred type
      VV : Int | VV == (1  :  int)
   
    not a subtype of Required type
      VV : Int | VV == 0
- \end{spec}
+ \end{verbatim}
 
 The message says that the expression `1 :: Int` has the type `{v:Int | v == 1}` which
 is *not* (a subtype of) the *required* type `{v:Int | v == 0}`, as indeed the value `1`
@@ -230,9 +234,9 @@ is not merely of type `String`, but in fact has the the refined type
 LH arrives at this conclusion by using the fact that in the first
 equation for `divide` the *denominator* parameter is in fact
 
-\begin{spec}
+\begin{verbatim}
 0 :: {v: Int | v == 0}
-\end{spec}
+\end{verbatim}
 
 which *contradicts* the precondition (i.e. input) type.
 
@@ -407,8 +411,7 @@ call site `i' :: NonZero`, thereby satisfying the precondition
 for `divide` and verifying that the program has no pesky
 divide-by-zero errors.
 
-Conclusion
-----------
+**Conclusion**
 
 This concludes our quick introduction to Refinement Types and
 LiquidHaskell. Hopefully you have some sense of how to 
@@ -421,17 +424,3 @@ LiquidHaskell. Hopefully you have some sense of how to
    (SMT solvers) to track and establish the key relationships between 
    program values.
 
-
-Polymorphism
-------------
-
-**Containers**
-
-+ Lists
-+ Maps
-
-
-**Higher-Order Functions**
-
-+ map
-+ fold
