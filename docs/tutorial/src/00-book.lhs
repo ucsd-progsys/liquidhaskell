@@ -1,17 +1,15 @@
 ---
-title:         "Programming with LiquidHaskell"
-author:        Ranjit Jhala, Eric Seidel, Niki Vazou
+title:         "LiquidHaskell"
+author:        Ranjit Jhala
 date:          Sep 5th, 2014
 documentclass: book
 toc:           true
 ---
 
-\begin{comment}
 \begin{code}
 module Ch3 where
-main = putStrLn "Hello"
+main = putStrLn "Ch3"
 \end{code}
-\end{comment}
 
 
 Introduction

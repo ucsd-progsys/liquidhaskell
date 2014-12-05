@@ -1,7 +1,6 @@
 Polymorphism
 ------------
 
-\begin{comment}
 
 \begin{code}
 {-@ LIQUID "--short-names" @-}
@@ -9,12 +8,10 @@ Polymorphism
 module Intro where
 
 import Prelude hiding                   (abs)
-import Language.Haskell.Liquid.Prelude  (liquidAssert)
 
 main = undefined
 \end{code}
 
-\end{comment}
 
 
 Containers
