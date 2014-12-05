@@ -55,7 +55,6 @@ types, all of which we find to be extremely useful, and hence highly
 recommended over the command line option.
 
 
-\begin{comment}
 
 \begin{code}
 module Ch0 where
@@ -63,4 +62,3 @@ module Ch0 where
 main = putStrLn "Hello"
 \end{code}
 
-\end{comment}

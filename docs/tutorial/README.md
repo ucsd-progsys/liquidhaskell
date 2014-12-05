@@ -9,8 +9,12 @@
 2. Refinement Types
    + Basic: Nat, Pos, Rng
    + Functions: Die, Div, avg2, avg3, scale
-   + Polymorphism:
-   + Containers: Lists, Maps,...
+
+3. Polymorphism & HOFs
+
+   + Polymorphism
+	 + Lists
+	 
    + HOFs: map, fold,...
 
 		title: "Refinement Types 101"

@@ -3,7 +3,6 @@ Refinement Types
 ================
 
 
-\begin{comment}
 
 \begin{code}
 {-@ LIQUID "--short-names" @-}
@@ -14,7 +13,6 @@ import Prelude hiding                   (abs)
 import Language.Haskell.Liquid.Prelude  (liquidAssert)
 \end{code}
 
-\end{comment}
 
 What is a Refinement Type?
 --------------------------
@@ -29,14 +27,14 @@ Haskell expressions, that constrain the set of values described
 by the type. This lets you specify sophisticated invariants of
 the underlying values. 
 
-As our first example, let us define some refinement types:
+Let us define some refinement types:
 
 \begin{code}
 {-@ type Zero    = {v:Int | v == 0} @-}
 {-@ type NonZero = {v:Int | v /= 0} @-}
 \end{code}
 
-The binder `v` is called the *value variable*.
+ASIDE The binder `v` is called the *value variable*.
 Hence, `Zero` describes the *set of* `Int` values that are equal to `0`,
 that is, the singleton set containing just `0`, and `NonZero` describes
 the set of `Int` values that are *not* equal to `0`, that is, the set
