@@ -2,22 +2,17 @@
 Refinement Types
 ================
 
-
-
+\begin{comment}
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
 module Intro where
 
 import Prelude hiding                   (abs)
-import Language.Haskell.Liquid.Prelude  (liquidAssert)
 \end{code}
+\end{comment}
 
-
-What is a Refinement Type?
---------------------------
-
-In a nutshell, 
+\newthought{What is a Refinement Type?} In a nutshell, 
 
 $$\mbox{Refinement Types} = \mbox{Types} + \mbox{Logical Predicates}$$
 
@@ -27,24 +22,23 @@ Haskell expressions, that constrain the set of values described
 by the type. This lets you specify sophisticated invariants of
 the underlying values. 
 
-Let us define some refinement types:
+\newthought{Example} Let us define some refinement types:
 
 \begin{code}
 {-@ type Zero    = {v:Int | v == 0} @-}
 {-@ type NonZero = {v:Int | v /= 0} @-}
 \end{code}
 
-ASIDE The binder `v` is called the *value variable*.
+The binder `v` is called the *value variable*.
 Hence, `Zero` describes the *set of* `Int` values that are equal to `0`,
 that is, the singleton set containing just `0`, and `NonZero` describes
 the set of `Int` values that are *not* equal to `0`, that is, the set
-`..., -2, -1, 1, 2, ...`.
-
-**Note:** We will use `@`-marked comments to write refinement type 
+`1, -1, 2, -2, ...` and so on.
+\footnotetext{We will use `@`-marked comments to write refinement type 
 annotations the Haskell source file, making these types, quite literally,
-machine-checked comments!
+machine-checked comments!}
 
-Lets use these types! We can write:
+\newthought{To use these types} we can write:
 
 \begin{code}
 {-@ zero :: Zero @-}
@@ -56,7 +50,7 @@ two   = 2 :: Int
 three = 3 :: Int
 \end{code}
 
-and so on. Of course, LH will grumble if we try to say nonsensical things like:
+\newthought{LH will complain} if we try to say nonsensical things like:
 
 \begin{code}
 {-@ one' :: Zero @-}
