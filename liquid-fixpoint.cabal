@@ -92,7 +92,7 @@ Source-Repository head
 -- asked.
 Executable fixpoint.native
   Main-is: Fixpoint.hs
-  Build-Depends: base >= 4 && < 5
+  Build-Depends: base >= 4.7 && < 5
                , array
                , syb
                , cmdargs
@@ -118,7 +118,7 @@ Executable fixpoint.native
 
 Executable fixpoint
   Main-is:       Fixpoint.hs
-  Build-Depends: base >= 4 && < 5
+  Build-Depends: base >= 4.7 && < 5
                , array
                , syb
                , cmdargs
@@ -156,7 +156,7 @@ Library
                    Language.Fixpoint.SmtLib2,
                    Language.Fixpoint.Misc
   
-  Build-Depends: base >= 4 && < 5
+  Build-Depends: base >= 4.7 && < 5
                , array
                , attoparsec
                , syb
