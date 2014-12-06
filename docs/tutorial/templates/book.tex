@@ -1,5 +1,4 @@
 \documentclass{tufte-book}
-
 \usepackage{comment}
 
 \usepackage{microtype}
@@ -23,20 +22,43 @@
   \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
   \renewcommand\allcapsspacing[1]{{\addfontfeature{LetterSpace=15}#1}}
   \renewcommand\smallcapsspacing[1]{{\addfontfeature{LetterSpace=10}#1}}
-  
 \fi
+
+
+
 
 \usepackage{natbib}
 \bibliographystyle{plainnat}
 
+%% If you want to treat source as markdown
 \usepackage{listings}
 \lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
 
-$if(highlighting-macros)$
-$highlighting-macros$
-$endif$
 
+\usepackage{color}
 \usepackage{fancyvrb}
+%% If you want to treat source as LHS (using pandoc)
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+
+\newenvironment{Shaded}{}{}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{{#1}}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{{#1}}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{{#1}}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{{#1}}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{{#1}}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{{#1}}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{{#1}}}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{{#1}}}
+\newcommand{\RegionMarkerTok}[1]{{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{{#1}}}}
+\newcommand{\NormalTok}[1]{{#1}}
+
+
 \usepackage{longtable,booktabs}
 \usepackage{graphicx}
 \makeatletter
@@ -59,55 +81,40 @@ $endif$
 
 \urlstyle{same}  % don't use monospace font for urls
 
-$if(links-as-notes)$
-% Make links footnotes instead of hotlinks:
-\renewcommand{\href}[2]{#2\footnote{\url{#1}}}
-$endif$
+%% % Make links footnotes instead of hotlinks:
+%% \renewcommand{\href}[2]{#2\footnote{\url{#1}}}
 
-$if(strikeout)$
+
 \usepackage[normalem]{ulem}
 % avoid problems with \sout in headers with hyperref:
 \pdfstringdefDisableCommands{\renewcommand{\sout}{}}
-$endif$
-
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
 
-$if(numbersections)$
+% $if(numbersections)$
 \setcounter{secnumdepth}{5}
-$else$
-\setcounter{secnumdepth}{0}
-$endif$
-$if(verbatim-in-note)$
-\VerbatimFootnotes % allows verbatim text in footnotes
-$endif$
+% $else$
+% \setcounter{secnumdepth}{0}
+% $endif$
 
-$if(title)$
-\title{$title$$if(subtitle)$\\\vspace{0.5em}{\large $subtitle$}$endif$}
-$endif$
-
-$if(author)$
-\author{$for(author)$$author$$sep$ \and $endfor$}
-$endif$
-
-\date{$date$}
-
-$for(header-includes)$
-
-$header-includes$
-
-$endfor$
-
-% \usepackage{mathpazo}
-% \usepackage{inconsolata}
-
+\usepackage{mathpazo}
 \usepackage{inconsolata}
+
+\VerbatimFootnotes % allows verbatim text in footnotes
+
+\title{LiquidHaskell} 
+
+\author{Ranjit Jhala}
+
+\date{\today}
+
 
 \begin{document}
 
 \maketitle
+
 
 \newpage
 
@@ -139,10 +146,12 @@ under the License.\index{license}
 \tableofcontents
 }
 
-% \listoftables
+\listoftables
 
-% \listoffigures
+\listoffigures
 
-$body$
+\input{00-intro}
+\input{01-install}
+\input{02-basic}
 
 \end{document}
