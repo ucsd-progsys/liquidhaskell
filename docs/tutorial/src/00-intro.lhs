@@ -19,19 +19,21 @@ Introduction
 One of the great things about Haskell is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
 nipping, in the bud, a large swathe of run-time errors.
+
+Well-Typed Programs Do Go Wrong
+-------------------------------
+
 Alas, well-typed programs *do* go quite wrong, in a variety of ways.
 
-Division by Zero
-----------------
-
-Consider this innocuous function that averages a list of integers.
+\newthought{Division by Zero} This innocuous function computes the average
+of a list of integers:
 
 \begin{code}
 average    :: [Int] -> Int
 average xs = sum xs `div` length xs
 \end{code}
 
-When run with a \emph{valid}, non-empty list of numbers, we get the
+When run with a non-empty list of numbers, we get the
 desired result:
 
 \begin{verbatim}
@@ -39,27 +41,24 @@ ghci> average [10, 20, 30, 40]
 25
 \end{verbatim}
 
-But if we call it with an \emph{invalid} input,
-we get a rather unpleasant and unexpected crash.
-
+However, if we call it with an empty list, we get a rather unpleasant crash:
+\footnotetext{
+We might solve this problem by writing \cc{average} more \emph{defensively},
+perhaps returning a \cc{Maybe} or \cc{Either} value.
+However, this merely kicks the can down the road.
+Ultimately, we will 
+want to extract the \cc{Int} from the \cc{Maybe} and if the inputs were
+invalid to start with, then at that point we would be stuck with the same issue.
+}
 \begin{verbatim}
 ghci> average []
 *** Exception: divide by zero
 \end{verbatim}
 
-We might solve this problem by writing `average` more 
-*defensively*, perhaps returning a `Maybe` or `Either` value.
-However, this merely kicks the can down the road, as ultimately,
-we're going to want to extract the `Int` from the `Maybe` and
-if the inputs were invalid to start with, then at that point
-we'd be stuck.
-
-Missing Keys
-------------
-
-Key-value maps are the new lists. They are important enough to have
-become the backbone of modern languages like Go, Python, JavaScript
-and Lua, and they're widely used in Haskell too.
+\newthought{Missing Keys}
+Associative key-value maps are the new lists; they come "built-in"
+with modern languages like Go, Python, JavaScript and Lua; and of
+course, they're widely used in Haskell too.
 
 \begin{verbatim}
 ghci> :m +Data.Map 
@@ -80,13 +79,11 @@ ghci> m ! "javascript"
 
 \footnotetext{Again, one could use a `Maybe` but its just deferring the inevitable.}
 
-Segmentation Faults
--------------------
-
+\newthought{Segmentation Faults}
 Say what? How can one possibly get a segmentation fault with a *safe*
 language like Haskell. Well, here's the thing: every safe language is
 built on a foundation of machine code, or at the very least, `C`.
-For example, consider the ubiquitous `vector` library:
+Consider the ubiquitous `vector` library:
 
 \begin{verbatim}
 ghci> :m +Data.Vector 
@@ -103,17 +100,15 @@ ghci> unsafeIndex v 3
 'ghci' terminated by signal SIGSEGV ...
 \end{verbatim}
 
-\footnotetext{Why use a function marked `unsafe`?
+\footnotetext{Why use a function marked \cc{unsafe}?
 First we have to thank the developers for carefully marking
 it as such, because in general, given the many layers of abstraction,
-it is hard to know which functions are indeed "safe".
+it is hard to know which functions are indeed safe".
 Second, because its very fast. Third, even if we used
-the safe variant, we'd get a *run-time* exception which
-is only marginally better.}
+the safe variant, we'd get a \emph{run-time} exception
+which is only marginally better.}
 
-Heart Bleeds
-------------
-
+\newthought{Heart Bleeds}
 Finally, for certain kinds of programs, there is a fate worse than death.
 `text` is a high-performance string processing library for Haskell, that
 is used, for example, to build web services.
@@ -125,7 +120,7 @@ ghci> takeWord16 5 t
 "Volta"
 \end{verbatim}
 
-However, a cunning adversary can use invalid, or rather,
+A cunning adversary can use invalid, or rather,
 *well-crafted*, inputs that go well outside the size of
 the given text` to read extra bytes and thus *extract secrets*
 without anyone being any the wiser.
@@ -180,6 +175,52 @@ Do you
 
 Then this tutorial is for you!
 
+
+Getting Started
+---------------
+
+
+First things first; lets see how to install and LiquidHaskell.
+
+\newthought{Dependencies}
+LiquidHaskell requires, in addition to the cabal dependencies
+
+1. An `SMTLIB2` compatible solver executable, e.g. one of
+    + [Z3](http://z3.codeplex.com/)
+    + [CVC4](http://cvc4.cs.nyu.edu/) 
+    + [MathSat](http://mathsat.fbk.eu/download.html)
+   
+2. A recent [`ocaml` compiler](http://caml.inria.fr/ocaml/release.en.html)
+
+\newthought{Install}
+Once you have the above on your system, simply do:
+
+    cabal install liquidhaskell
+
+\newthought{Run}
+Once you have installed LiquidHaskell -- i.e. the binary `liquid` --
+on your system, you can either use it at the command line, or
+from within Emacs or Vim.
+
+\newthought{Command Line} execution simply requires you type:
+
+    liquid /path/to/file.hs
+
+You will see a report of `SAFE` or `UNSAFE` together with type errors at
+various points in the source.
+
+\newthought{Emacs} has an LiquidHaskell `flycheck` plugin, described
+[here](https://github.com/ucsd-progsys/liquidhaskell#emacs)
+
+\newthought{Vim} has an LiquidHaskell `syntastic` checker, described
+[here](https://github.com/ucsd-progsys/liquidhaskell#vim)
+
+The `Emacs` and `Vim` plugins run `liquid` in the background as you
+edit any Haskell file, highlight errors, and display the inferred
+types, all of which we find to be extremely useful, and hence
+*strongly* recommended over the command line option.
+
+
 Sample Code
 -----------
 
@@ -190,3 +231,4 @@ the code for it is available at
 
 We *strongly* recommend you grab the code, and follow along
 at home, and especially, that you do the various exercises.
+

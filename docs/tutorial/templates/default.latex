@@ -30,7 +30,10 @@
 \bibliographystyle{plainnat}
 
 \usepackage{listings}
-\lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
+\lstnewenvironment{lcode}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
+\lstMakeShortInline[language=Haskell]@
+
+\newcommand\cc[1]{\texttt{#1}}
 
 $if(highlighting-macros)$
 $highlighting-macros$
