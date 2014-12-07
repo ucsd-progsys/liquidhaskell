@@ -1,12 +1,10 @@
 Measures
 ========
 
-\begin{comment}
 \begin{code}
-module Ch3 where
+module Ch4 where
 main = putStrLn "Hello"
 \end{code}
-\end{comment}
 
 + Nat   : Even/Odd
 + Lists : head, tail, null
