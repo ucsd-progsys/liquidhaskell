@@ -1,3 +1,5 @@
+{- Example of AVL trees by Mike Beaumont  -}
+
 module AVL  where
  
 {-@ data Tree [ht] = Nil | Tree (x::Int) (l::Tree) (r::Tree) @-}
