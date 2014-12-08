@@ -22,7 +22,10 @@ Haskell expressions, that constrain the set of values described
 by the type. This lets us specify sophisticated invariants of
 the underlying values. 
 
-\newthought{Example} Let us define some refinement types:
+Defining Types
+--------------
+
+Let us define some refinement types:
 
 \begin{code}
 {-@ type Zero    = {v:Int | v == 0} @-}
@@ -50,7 +53,10 @@ two   = 2 :: Int
 three = 3 :: Int
 \end{code}
 
-\newthought{LH will complain} if we try to say nonsensical things like:
+Errors
+------
+
+LH will complain if we try to say nonsensical things like:
 
 \begin{code}
 {-@ one' :: Zero @-}
@@ -81,18 +87,15 @@ as indeed the value `1` is not equal to `0`.
 Subtyping
 ---------
 
-What is this business of *subtyping*?
-
-Suppose we have some more refinements of `Int` 
+What is this business of *subtyping*? Suppose we have some more refinements of `Int` 
 
 \begin{code}
-{-@ type Nat  = {v:Int | 0 <= v}        @-}
-{-@ type Even = {v:Int | v mod 2 == 0 } @-}
+{-@ type Nat   = {v:Int | 0 <= v}        @-}
+{-@ type Even  = {v:Int | v mod 2 == 0 } @-}
+{-@ type Lt100 = {v:Int | v < 100}       @-}
 \end{code}
 
-What is the *right* type for `zero`?
-
-It can be `Zero` of course, as we saw above, but also `Nat`:
+\newthought{Typing Zero} What is the *right* type for `zero`? It can be `Zero` of course, but also `Nat`:
 
 \begin{code}
 {-@ zero' :: Nat @-}
@@ -109,25 +112,24 @@ zero''     = zero
 and also any other satisfactory refinement, such as:
 
 \begin{code}
-{-@ type Lt100 = {v:Int | v < 100} @-}
-
 {-@ zero''' :: Lt100  @-}
 zero'''     = zero 
 \end{code}
 
 \footnotetext{We use a different names `zero'`, `zero''` etc. for
-a silly technical reason -- LiquidHaskell **requires** that we ascribe
+a silly technical reason -- LiquidHaskell requires that we ascribe
 a single refinement type to a top-level name.}
 
+\newthought{Subtyping via Implication}
+`Zero` is the *most precise* type for `0::Int`. We say most precise
+because it is *subtype* of `Nat` and `Even` and `{v:Int | v < 100}`.
+Intuitively, this is because the set of values defined by `Zero` is
+a *subset* of the values defined by `Nat`, `Even` and `Lt100`,
+because logically,
 
-How does this work? Well, `Zero` which is the *most precise type* for `0::Int`
-is a *subtype* of `Nat` and `Even` and `{v:Int | v < 100}`. Intuitively, this
-is because intuitively, the set of values defined by `Zero` is a *subset* of
-the values defined by `Nat`, `Even` and `Lt100`, because logically,
-
-+ $$v = 0 \Rightarrow 0 \leq v$$
-+ $$v = 0 \Rightarrow v mod 2 == 0$$
-+ $$v = 0 \Rightarrow v < 100 $$
++ $v = 0 \Rightarrow 0 \leq v$
++ $v = 0 \Rightarrow v mod 2 == 0$
++ $v = 0 \Rightarrow v < 100$
 
 In general, we can *combine* multiple refinements (as long as all of them hold of course!)
 
