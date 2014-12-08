@@ -184,6 +184,11 @@ toPredApp p
     go f [e]
       | val f == symbol ("not" :: String)
       = PNot <$>  coreToPred e
+    go f [e1, e2]
+      | val f == symbol ("||" :: String)
+      = POr <$> mapM coreToPred [e1, e2]
+      | val f == symbol ("&&" :: String)
+      = PAnd <$> mapM coreToPred [e1, e2]
     go f es
       | val f == symbol ("or" :: String)
       = POr <$> mapM coreToPred es
