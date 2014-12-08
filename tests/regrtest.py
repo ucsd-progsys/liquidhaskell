@@ -138,6 +138,7 @@ demosIgnored = { "Composition.hs"
 regtestdirs  = [ ("pos", {}, 0)
                , ("neg", {}, 1)
                , ("crash", {}, 2)
+               , ("parser/pos", {}, 0)
                ]
 
 benchtestdirs = [ ("../web/demos", demosIgnored, 0)
