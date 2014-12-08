@@ -1,8 +1,19 @@
-module ListSort  where
+module Fixme where
 
-{-@ type GN N = {v:a | v >= N}  @-}
+{-@ measure containsV @-}
+{-@ measure binderContainsV @-}
 
-{-@ mergesort :: x:a -> GN x @-}
-mergesort :: a -> a
-mergesort x  = x
 
+binderContainsV ::  Binder n -> Bool
+binderContainsV B = True
+
+data Binder n = B
+data TT n = P Int Int (TT n) | V Int | Other | Bind Int (Binder n) (TT n)
+
+containsV :: TT n -> Bool
+containsV (P nt n ty)     = containsV ty
+containsV (V i)           = True
+containsV (Bind n b body) = (binderContainsV b) || (containsV body)
+-- containsV (App f arg)     = (containsV f) || (containsV arg)
+-- containsV (Proj tm i)     = containsV tm
+containsV _               = False

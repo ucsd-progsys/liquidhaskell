@@ -517,7 +517,9 @@ specP
     <|> (reservedToken "LIQUID"    >> liftM Pragma pragmaP   )
     <|> ({- DEFAULT -}           liftM Asrts  tyBindsP  )
 
-reservedToken str = reserved (str ++ " ")
+reservedToken str = try(string str >> spaces1) 
+
+spaces1 = satisfy isSpace >> spaces
 
 pragmaP :: Parser (Located String)
 pragmaP = locParserP stringLiteral
