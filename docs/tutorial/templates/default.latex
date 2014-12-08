@@ -108,6 +108,9 @@ $endfor$
 
 \usepackage{inconsolata}
 
+% \newcommand\footnotetext[1]{#1} 
+% \newcommand\myfootnote[1]{\footnotetext{#1}} 
+
 \begin{document}
 
 \maketitle
