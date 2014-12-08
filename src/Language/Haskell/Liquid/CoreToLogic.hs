@@ -137,7 +137,7 @@ coreToPred (C.Var x)
   = return PTrue
 coreToPred p@(C.App _ _) = toPredApp p  
 coreToPred e
-  = PBexp <$> coreToLogic e
+  = PBexp <$> coreToLogic e  
 -- coreToPred e                  
 --  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
 
@@ -152,8 +152,25 @@ coreToLogic (C.Lit l)
      Just i -> return i
 coreToLogic (C.Var x)           = return $ EVar $ symbol x
 coreToLogic e@(C.App _ _)       = toLogicApp e 
+coreToLogic (C.Case e b _ alts) | eqType (varType b) boolTy
+  = checkBoolAlts alts >>= coreToIte e 
 coreToLogic e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
+checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
+checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
+  | false == falseDataCon, true == trueDataCon
+  = return (efalse, etrue)
+checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
+  | false == falseDataCon, true == trueDataCon
+  = return (efalse, etrue)
+checkBoolAlts alts
+  = throw ("checkBoolAlts failed on " ++ showPpr alts)  
+
+coreToIte e (efalse, etrue)
+  = do p  <- coreToPred e
+       e1 <- coreToLogic efalse 
+       e2 <- coreToLogic etrue
+       return $ EIte p e2 e1
 
 toPredApp :: C.CoreExpr -> LogicM Pred
 toPredApp p 
