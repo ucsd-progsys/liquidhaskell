@@ -222,7 +222,7 @@ makeMeasureDefinition cbs x
     binders (Rec xes)    = fst <$> xes  
 
     coreToDef' x v def = case (runToLogic $ coreToDef x v def) of 
-                           Left x         -> return  x
+                           Left l         -> return  l
                            Right (LE str) -> mkError str
 
     mkError str = throwError $ ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       

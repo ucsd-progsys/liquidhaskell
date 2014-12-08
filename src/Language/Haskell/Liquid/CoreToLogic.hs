@@ -41,8 +41,7 @@ import qualified Data.HashMap.Strict as M
 
 import Data.Monoid
 
-import Debug.Trace (trace)
-
+-- import Debug.Trace (trace)
 
 logicType :: (Reftable r) => Type -> RRType r
 logicType τ = fromRTypeRep $ t{ty_res = res}
@@ -116,10 +115,10 @@ coreToDef x _ e = go $ inline_preds $ simplify e
       | otherwise       = mapM goalt      alts
     go _                = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic (trace ("ToLogic" ++ show x) e)
+    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic e
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P) <$> coreToPred (trace ("ToPred" ++ show x) e)
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P) <$> coreToPred e
     goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
 
     inline_preds = inline (eqType boolTy . varType)
@@ -298,7 +297,7 @@ instance Simplify C.CoreExpr where
     = C.Type t  
 
   inline p (C.Let (C.NonRec x ex) e) | p x
-                               = sub (M.singleton x (inline p ex)) e
+                               = sub (M.singleton x (inline p ex)) (inline p e)
   inline p (C.Let xes e)       = C.Let (inline p xes) (inline p e)  
   inline p (C.App e1 e2)       = C.App (inline p e1) (inline p e2)
   inline p (C.Lam x e)         = C.Lam x (inline p e)
