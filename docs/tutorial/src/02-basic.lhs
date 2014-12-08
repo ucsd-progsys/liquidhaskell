@@ -19,7 +19,7 @@ $$\mbox{Refinement Types} = \mbox{Types} + \mbox{Logical Predicates}$$
 That is, refinement types allow us to decorate types with 
 *logical predicates*, which you can think of as *boolean-valued*
 Haskell expressions, that constrain the set of values described
-by the type. This lets you specify sophisticated invariants of
+by the type. This lets us specify sophisticated invariants of
 the underlying values. 
 
 \newthought{Example} Let us define some refinement types:
@@ -38,7 +38,7 @@ the set of `Int` values that are *not* equal to `0`, that is, the set
 annotations the Haskell source file, making these types, quite literally,
 machine-checked comments!}
 
-\newthought{To use these types} we can write:
+\newthought{To use} these types we can write:
 
 \begin{code}
 {-@ zero :: Zero @-}
@@ -68,9 +68,15 @@ Lets look at the error message:
      VV : Int | VV == 0
  \end{verbatim}
 
-The message says that the expression `1 :: Int` has the type `{v:Int | v == 1}` which
-is *not* (a subtype of) the *required* type `{v:Int | v == 0}`, as indeed the value `1`
-is not equal to `0`.
+The message says that the expression `1 :: Int` has the type
+
+    {v:Int | v == 1}
+
+which is *not* (a subtype of) the *required* type
+
+    {v:Int | v == 0}
+
+as indeed the value `1` is not equal to `0`.
 
 Subtyping
 ---------
@@ -93,15 +99,14 @@ It can be `Zero` of course, as we saw above, but also `Nat`:
 zero'     = zero 
 \end{code}
 
-and also `Even`
+and also `Even`:
 
 \begin{code}
 {-@ zero'' :: Even @-}
 zero''     = zero 
 \end{code}
 
-and also any other satisfactory refinement
-
+and also any other satisfactory refinement, such as:
 
 \begin{code}
 {-@ type Lt100 = {v:Int | v < 100} @-}
@@ -110,9 +115,9 @@ and also any other satisfactory refinement
 zero'''     = zero 
 \end{code}
 
-(Aside: we use a different names `zero'`, `zero''` etc. for a silly technical 
-reason -- LiquidHaskell requires that we ascribe a single refinement type to 
-a top-level name.)
+\footnotetext{We use a different names `zero'`, `zero''` etc. for
+a silly technical reason -- LiquidHaskell **requires** that we ascribe
+a single refinement type to a top-level name.}
 
 
 How does this work? Well, `Zero` which is the *most precise type* for `0::Int`
