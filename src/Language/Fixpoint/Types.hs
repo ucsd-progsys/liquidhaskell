@@ -63,6 +63,7 @@ module Language.Fixpoint.Types (
   , pAnd, pOr, pIte
   , isTautoPred
   , symConstLits
+  , zero
 
   -- * Generalizing Embedding with Typeclasses
   , Symbolic (..)
@@ -647,6 +648,7 @@ exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
 exprReft      = relReft Eq
 notExprReft   = relReft Ne
 uexprReft     = relReft Ueq
+
 
 -- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
 -- notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
