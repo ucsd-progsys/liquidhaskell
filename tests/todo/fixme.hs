@@ -16,6 +16,6 @@ ok = Node R (2 :: Int)
                   | Node { c     :: Color
                          , key   :: a
                          , left  :: RBTree ({v:a | v < key})
-                         , right :: RBTree ({v:a | key < v})
+                         , left  :: RBTree ({v:a | key < v})
                          }
   @-}
