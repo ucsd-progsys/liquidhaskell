@@ -1384,6 +1384,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
+  | ErrTermSpec { pos :: !SrcSpan
+                , var :: !Doc
+                , exp :: !Expr
+                , msg :: !Doc
+                } -- ^ sort error in specification
   | ErrDupAlias { pos  :: !SrcSpan
                 , var  :: !Doc
                 , kind :: !Doc

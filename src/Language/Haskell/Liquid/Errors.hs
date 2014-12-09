@@ -174,6 +174,11 @@ ppError' _ dSp (ErrTySpec _ v t s)
     $+$ (pprint v <+> dcolon <+> pprint t)
     $+$ (nest 4 $ pprint s)
 
+ppError' _ dSp (ErrTermSpec _ v e s)
+  = dSp <+> text "Bad Termination Specification"
+    $+$ (pprint v <+> dcolon <+> pprint e)
+    $+$ (nest 4 $ pprint s)
+
 ppError' _ dSp (ErrInvt _ t s)
   = dSp <+> text "Bad Invariant Specification"
     $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
