@@ -15,7 +15,8 @@
    + Polymorphism
 	 + Lists
 	 
-   + HOFs: map, fold,...
+   + HOFs
+	 + map, fold,...
 
 		title: "Refinement Types 101"
 		title: "Bounding Vectors"
@@ -30,15 +31,23 @@ letterScore :: Letter -> Rng 40 90
 offScore    :: Off    -> Rng 0  10
 score       :: Grade  -> Rng 1  100
 
-3. Measures
+4. Measures
 
-   + Nat   : Even/Odd
-   + Lists : head, tail, null
-   + Lists : len: map, append, filter
+	Boolean
+	+ Nat   : Even/Odd/Value?
 
+	Integer
+	+ Lists : head, tail, null
+	+ Lists : len: map, append, filter, foldr1, average
+   
 		title: "Safely Catching A List By Its Tail"
 
-4. Case Study: Kmeans
+	EXERCISE: do the above examples using PROP valued measure.
+	
+	Sets
+   + Example: Eval.hs
+	
+5. Case Study: Kmeans
 
 		title: "KMeans Clustering I"
 
@@ -46,7 +55,6 @@ score       :: Grade  -> Rng 1  100
    + Data.Set
 	    title: "talking about sets"
 
-   + Example: Eval.hs
    
 6. Case Study: AlphaConvert (tests/pos/alphaconvert-List.hs) 
 

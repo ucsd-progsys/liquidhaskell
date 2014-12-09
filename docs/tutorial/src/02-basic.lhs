@@ -56,33 +56,41 @@ three = 3 :: Int
 Errors
 ------
 
-LH will complain if we try to say nonsensical things like:
+If we try to say nonsensical things like:
 
 \begin{code}
 {-@ one' :: Zero @-}
 one' = 1 :: Int
 \end{code}
 
-Lets look at the error message:
+\noindent
+LH will complain with an error message:
 
 \begin{verbatim}
- 02-basic.lhs:58:8: Error: Liquid Type Mismatch
-   Inferred type
-     VV : Int | VV == (1  :  int)
-  
-   not a subtype of Required type
-     VV : Int | VV == 0
- \end{verbatim}
+    02-basic.lhs:58:8: Error: Liquid Type Mismatch
+       Inferred type
+         VV : Int | VV == (1  :  int)
+      
+       not a subtype of Required type
+         VV : Int | VV == 0
+\end{verbatim}
 
+\noindent
 The message says that the expression `1 :: Int` has the type
 
+\begin{verbatim}
     {v:Int | v == 1}
+\end{verbatim}
 
+\noindent
 which is *not* (a subtype of) the *required* type
 
+\begin{verbatim}
     {v:Int | v == 0}
+\end{verbatim}
 
-as indeed the value `1` is not equal to `0`.
+\noindent
+as `1` is not equal to `0`.
 
 Subtyping
 ---------
@@ -95,13 +103,14 @@ What is this business of *subtyping*? Suppose we have some more refinements of `
 {-@ type Lt100 = {v:Int | v < 100}       @-}
 \end{code}
 
-\newthought{Typing Zero} What is the *right* type for `zero`? It can be `Zero` of course, but also `Nat`:
+\newthought{Typing Zero} What is the type of `zero`? `Zero` of course, but also `Nat`:
 
 \begin{code}
 {-@ zero' :: Nat @-}
 zero'     = zero 
 \end{code}
 
+\noindent
 and also `Even`:
 
 \begin{code}
@@ -109,6 +118,7 @@ and also `Even`:
 zero''     = zero 
 \end{code}
 
+\noindent
 and also any other satisfactory refinement, such as:
 
 \begin{code}
@@ -116,64 +126,62 @@ and also any other satisfactory refinement, such as:
 zero'''     = zero 
 \end{code}
 
-\footnotetext{We use a different names `zero'`, `zero''` etc. for
-a silly technical reason -- LiquidHaskell requires that we ascribe
-a single refinement type to a top-level name.}
+\footnotetext{We use a different names `zero'`, `zero''` etc. as
+(currently) LH supports \emph{at most} one refinement type
+for each top-level name.}
 
-\newthought{Subtyping via Implication}
-`Zero` is the *most precise* type for `0::Int`. We say most precise
-because it is *subtype* of `Nat` and `Even` and `{v:Int | v < 100}`.
-Intuitively, this is because the set of values defined by `Zero` is
-a *subset* of the values defined by `Nat`, `Even` and `Lt100`,
-because logically,
+\newthought{Subtyping and Implication}
+`Zero` is the *most precise* type for `0::Int`.
+We say most precise because it is *subtype* of `Nat`, `Even` and `Lt100`.
+This is because the *set of values* defined by `Zero` is a *subset* of
+the values defined by `Nat`, `Even` and `Lt100`, as the following
+*logical implications* are valid:
 
 + $v = 0 \Rightarrow 0 \leq v$
-+ $v = 0 \Rightarrow v mod 2 == 0$
++ $v = 0 \Rightarrow v \ \mbox{mod}\ 2 = 0$
 + $v = 0 \Rightarrow v < 100$
 
-In general, we can *combine* multiple refinements (as long as all of them hold of course!)
+\newthought{Composing Refinements}
+In logic, if $P \Rightarrow Q$ and $P \Rightarrow R$ then $P \Rightarrow Q \wedge R$.
+Thus, when a term satisfies multiple refinements, we can compose those
+refinements with `&&`:
 
 \begin{code}
-{-@ zero''' :: {v: Int | 0 <= v &&  v mod 2 == 0 && v < 100 } @-}
+{-@ zero''' :: {v: Int | 0 <= v && v mod 2 == 0 && v < 100 } @-}
 zero'''' :: Int
 zero'''' = 0
 \end{code}
 
-Finally, we could write a single type that captures all the properties above:
-
-\begin{code}
-{-@ zero_ :: {v: Int | 0 <= v && (v mod 2 = 0) && v < 100} @-}
-zero_     =  0 :: Int
-\end{code}
-
-The key points are:
+\newthought{In Summary} the key points about refinement types are:
 
 1. A refinement type is just a type *decorated* with logical predicates.
-2. A value can have *different* refinement types that describe different properties.
-3. If we *erase* the logical predicates we get back *exactly* the usual Haskell types that we know and love.
-4. A vanilla Haskell type, say `Int` has the trivial refinement `true` i.e. is really `{v: Int | true}`.
+2. A term can have *different* refinements for different properties.
+3. When we *erase* the predicates we get the standard Haskell types.
+
+\footnotetext{Dually, a standard Haskell type, has the trivial refinement `true`. For example, `Int` is equivalent to `{v:Int | true}`.}
 
 Writing Specifications
 ----------------------
 
-Next, lets use refinement types to write more interesting specifications.
+Lets write some more interesting specifications.
 
-First, we can write a wrapper around the usual `error` function 
+\newthought{Typing Error} We can wrap the usual `error` function:
 
 \begin{code}
-{-@ die :: {v: String | false } -> a  @-}
+{-@ die :: {v:String | false} -> a  @-}
 die     :: String -> a
-die     = error
+die msg = error msg
 \end{code}
 
-The interesting thing about the type signature for `error'` is that the
-input type has the refinement `false`. That is, the function must only be
-called with `String`s that satisfy the predicate `false`.
+The interesting thing about `die` is that the
+input type has the refinement `false`, meaning
+the function must only be called with `String`s
+that satisfy the predicate `false`.
 
-Huh? Of course, there are *no* such values!
-
-Indeed! Thus, a program containing `die` typechecks *only* when LiquidHaskell
-can prove that `die` is *never called*. For example, LH will *accept*
+This seems bizarre; isn't it *impossible* to satisfy `false`?
+Indeed! Thus, a program containing `die` typechecks
+*only* when LH can prove that `die` is *never called*.
+For example, LH will *accept*
 
 \begin{code}
 cantDie = if 1 + 1 == 3
@@ -181,8 +189,10 @@ cantDie = if 1 + 1 == 3
             else ()
 \end{code}
 
-because it reasons that the branch is always `False` and so `die` cannot be called,
-but will *reject* 
+\noindent
+by inferring that the branch condition is
+always `False` and so `die` cannot be called.
+However, LH will *reject* 
 
 \begin{code}
 canDie = if 1 + 1 == 2
@@ -190,16 +200,17 @@ canDie = if 1 + 1 == 2
            else ()
 \end{code}
 
-because of course, the branch may (will!) be `True` and so `die` can be called.
+\noindent
+as the branch may (will!) be `True` and so `die` can be called.
 
 
 
 
-Refining Function Types : Preconditions
----------------------------------------
+Refining Function Types: Preconditions
+--------------------------------------
 
-Lets use the above to write a *divide* function that *only accepts* non-zero
-denominators. 
+Lets use `die` to write a *safe division* function that
+*only accepts* non-zero denominators. 
 
 \begin{code}
 divide'     :: Int -> Int -> Int
@@ -207,43 +218,41 @@ divide' n 0 = die "divide by zero"
 divide' n d = n `div` d
 \end{code}
 
-From the above, it is pretty clear that `div` is only called with non-zero
-divisor's *but* we have just swept the problem from one place to another; LH
-reports an error at the call to `"die"` because of course, what if `divide'`
+From the above, it is clear to *us* that `div` is only
+called with non-zero divisors. However, LH reports an
+error at the call to `"die"` because, what if `divide'`
 is actually invoked with a `0` divisor?
 
 We can specify that will not happen, with a *precondition* that says that
-the second argument is non-zero.
-
-and now write a proper and safe:
+the second argument is non-zero:
 
 \begin{code}
 {-@ divide :: Int -> NonZero -> Int @-}
 divide     :: Int -> Int -> Int
-divide n 0 = die "divide by zero"
+divide _ 0 = die "divide by zero"
 divide n d = n `div` d
 \end{code}
 
-How *does* LH verify the above function? 
-
-The key step is that LH deduces that the expression `"divide by zero"`
-is not merely of type `String`, but in fact has the the refined type
-`{v:String | false}` *in the context* in which the call to `die'` occurs.
-
-LH arrives at this conclusion by using the fact that in the first
-equation for `divide` the *denominator* parameter is in fact
+\newthought{To Verify} that `divide` never calls `die`, LH infers
+that `"divide by zero"` is not merely of type `String`, but in fact
+has the the refined type `{v:String | false}` *in the context* in
+which the call to `die'` occurs. LH arrives at this conclusion by
+using the fact that in the first equation for `divide` the
+*denominator* parameter is in fact
 
 \begin{verbatim}
-0 :: {v: Int | v == 0}
+    0 :: {v: Int | v == 0}
 \end{verbatim}
 
+\noindent
 which *contradicts* the precondition (i.e. input) type.
-
 Thus, by contradition, LH deduces that the first equation is
 *dead code* and hence `die` will not be called at run-time.
 
-Of course, this requires that when we *use* `divide` we only
-supply provably non-zero arguments, so:
+\newthought{Establishing Preconditions}
+The above signature forces us to ensure that that when we
+*use* `divide`, we only supply provably `NonZero` arguments.
+Hence, these two uses of `divide` are fine: 
 
 \begin{code}
 avg2 x y   = divide (x + y) 2
@@ -251,9 +260,7 @@ avg2 x y   = divide (x + y) 2
 avg3 x y z = divide (x + y + z) 3
 \end{code}
 
-are just fine.
-
-**Exercise** Consider the general list-averaging function below.
+\newthought{Exercise} Consider the general list-averaging function below.
 
 \begin{code}
 avg       :: [Int] -> Int
@@ -264,11 +271,11 @@ avg xs    = divide total n
 \end{code}
 
 1. Why does LH flag an error at `n` ?
-2. How can you modify the code so LH verifies it?
+2. How can you change the code so LH verifies it?
 
 
-Refining Function Types : Postconditions
-----------------------------------------
+Refining Function Types: Postconditions
+---------------------------------------
 
 Next, lets see how we can use refinements to describe the *outputs* of a
 function. Consider the following simple *absolute value* function
