@@ -1456,7 +1456,7 @@ replaceLocalBindsOne v
              Nothing -> return ()
              Just es -> do
                let es'  = substa (f env) es
-               case checkTerminationExpr "termination" emb fenv (v, Loc l t', es') of
+               case checkTerminationExpr emb fenv (v, Loc l t', es') of
                  Just err -> Ex.throw err
                  Nothing ->  modify (second $ M.insert v es')
 
@@ -1493,17 +1493,18 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkTerminationExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
-checkTerminationExpr s emb env (v, Loc l t, es) = mkErr <$> go es
+checkTerminationExpr :: (Eq v, PPrint v) =>  TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
+checkTerminationExpr emb env (v, Loc l t, es) = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where 
-    mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
-    go es   = (foldl (\err e -> err <|> checkSorted env' e) Nothing es)  `mappend` (foldl (\err e -> err <|> checkSorted env' (cmpZero e)) Nothing es)  
+    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
+    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
+    go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
+    go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
     xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le zero 
-
 
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
