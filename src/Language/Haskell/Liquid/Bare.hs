@@ -1456,9 +1456,9 @@ replaceLocalBindsOne v
              Nothing -> return ()
              Just es -> do
                let es'  = substa (f env) es
-               case checkExpr "termination" emb fenv (v, Loc l t', es') of
+               case checkTerminationExpr "termination" emb fenv (v, Loc l t', es') of
                  Just err -> Ex.throw err
-                 Nothing -> modify (second $ M.insert v es')
+                 Nothing ->  modify (second $ M.insert v es')
 
            
 
@@ -1493,15 +1493,18 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
-checkExpr s emb env (v, Loc l t, es) = mkErr <$> go es
+checkTerminationExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
+checkTerminationExpr s emb env (v, Loc l t, es) = mkErr <$> go es
   where 
     mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
-    go      = foldl (\err e -> err <|> checkSorted env' e) Nothing  
+    go es   = (foldl (\err e -> err <|> checkSorted env' e) Nothing es)  `mappend` (foldl (\err e -> err <|> checkSorted env' (cmpZero e)) Nothing es)  
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
     xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
-    rSort   = rTypeSortedReft emb 
+    rSort   = rTypeSortedReft emb
+    cmpZero = PAtom Le zero 
+
+
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)
