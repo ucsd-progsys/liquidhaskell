@@ -312,12 +312,12 @@ annotation
     {-@ Decrease ack 1 2 @-}
 
 An alternative way to express this specification is by annotating 
-the function's type with the appropriate decreasing expressions.
+the function's type with the appropriate *numeric* decreasing expressions.
 As an example, you can give `ack` a type
 
     {-@ ack :: m:Nat -> n:Nat -> Nat / [m,n] @-}
     
-stating that the expressions `[m, n]` are lexicographically decreasing.
+stating that the *numeric* expressions `[m, n]` are lexicographically decreasing.
 
 Decreasing expressions can be arbitrary refinement expressions, e.g., 
 
