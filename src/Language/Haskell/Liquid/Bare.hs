@@ -1373,6 +1373,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
+                     ++ checkDouplicateFieldNames                  (dconsP sp)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1386,6 +1387,14 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
+checkDouplicateFieldNames = catMaybes . map go
+  where
+    go (_d, dts)        = checkNoDups (dc_loc dts) (fst <$> tyArgs dts)
+    checkNoDups l xs | Just x <- firstDuplicate xs = Just $ ErrOther (sourcePosSrcSpan l) (text "Dup" <+> pprint x)
+                     | otherwise                   =  Nothing
 
 
 -- RJ: This is not nice. More than 3 elements should be a record.
