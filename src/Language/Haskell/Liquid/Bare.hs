@@ -209,7 +209,11 @@ makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
        
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' = return mempty
-makeHaskellMeasures cbs _     (_   , spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs) (S.toList $ Ms.hmeas spec)
+makeHaskellMeasures cbs _     (_   , spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs') (S.toList $ Ms.hmeas spec)
+  where 
+    cbs'                  = concatMap unrec cbs
+    unrec cb@(NonRec _ _) = [cb]
+    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition cbs x 
