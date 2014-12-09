@@ -23,5 +23,4 @@ containsV (Bind b body) = (binderContainsV b) || (containsV body)
 containsV _               = False
 
 
-prop1 = liquidAssert (containsV $ V 7)
-prop2 = liquidAssert (containsV $ Bind (M (V 5)) Other)
+prop1 = liquidAssert (containsV $ Other)
