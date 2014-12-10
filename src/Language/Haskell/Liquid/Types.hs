@@ -1384,6 +1384,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
+  | ErrTermSpec { pos :: !SrcSpan
+                , var :: !Doc
+                , exp :: !Expr
+                , msg :: !Doc
+                } -- ^ sort error in specification
   | ErrDupAlias { pos  :: !SrcSpan
                 , var  :: !Doc
                 , kind :: !Doc
@@ -1393,6 +1398,11 @@ data TError t =
   | ErrDupSpecs { pos :: !SrcSpan
                 , var :: !Doc
                 , locs:: ![SrcSpan]
+                } -- ^ multiple specs for same binder error 
+
+  | ErrBadData  { pos :: !SrcSpan
+                , var :: !Doc
+                , msg :: !Doc
                 } -- ^ multiple specs for same binder error 
 
   | ErrInvt     { pos :: !SrcSpan

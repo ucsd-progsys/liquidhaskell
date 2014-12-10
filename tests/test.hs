@@ -51,7 +51,10 @@ unitTests
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2) 
-    ]
+    , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                    []           ExitSuccess
+    , testGroup "errorcrash"  <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
+    , testGroup "errorpos"    <$> dirTests "tests/parser/pos"                     []           ExitSuccess
+   ]
 
 benchTests
   = group "Benchmarks" [ 
