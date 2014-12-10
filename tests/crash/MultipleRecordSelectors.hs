@@ -1,6 +1,9 @@
 {-@ LIQUID "--no-termination" @-}
 module RedBlack  where
 
+
+-- data F = F {fx :: Int, fx :: Int}
+
 data RBTree a = Leaf 
               | Node Color a !(RBTree a) !(RBTree a)
 
