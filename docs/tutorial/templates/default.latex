@@ -8,6 +8,29 @@
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{fixltx2e} 
+\usepackage{xspace} 
+
+%% EXERCISE: HANDROLLED
+\usepackage{chngcntr}
+\newcounter{theexercise} \setcounter{theexercise}{0}
+\newcommand\exercise{\stepcounter{theexercise} \medskip \noindent\textsc{Exercise \arabic{chapter}.\arabic{theexercise}.}\ }
+\counterwithin{theexercise}{chapter}
+\newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
+
+
+%% \newcounter{exccounter}
+%% \newenvironment{Exercise}{
+%% \bigskip\noindent
+%% \refstepcounter{exccounter}
+%% \newthought{Exercise \thechapter.\theexccounter}
+%% \newline
+%% \begin{enumerate}
+%%   \setlength{\itemsep}{1pt}
+%%   \setlength{\parskip}{0pt}
+%%   \setlength{\parsep}{0pt}
+%% }{\end{enumerate}}
+
+
 
 \ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
   \usepackage[T1]{fontenc}
@@ -148,6 +171,8 @@ under the License.\index{license}
 % \listoftables
 
 % \listoffigures
+
+\mainmatter
 
 $body$
 
