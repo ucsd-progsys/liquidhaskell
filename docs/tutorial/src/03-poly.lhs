@@ -1,7 +1,7 @@
 Polymorphism
-------------
+============
 
-
+\begin{comment}
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
@@ -11,7 +11,7 @@ import Prelude hiding                   (abs)
 
 main = undefined
 \end{code}
-
+\end{comment}
 
 
 Containers

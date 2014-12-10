@@ -103,7 +103,7 @@ What is this business of *subtyping*? Suppose we have some more refinements of `
 {-@ type Lt100 = {v:Int | v < 100}       @-}
 \end{code}
 
-\newthought{Typing Zero} What is the type of `zero`? `Zero` of course, but also `Nat`:
+\newthought{What is the type of} `zero`? `Zero` of course, but also `Nat`:
 
 \begin{code}
 {-@ zero' :: Nat @-}
@@ -256,11 +256,10 @@ Hence, these two uses of `divide` are fine:
 
 \begin{code}
 avg2 x y   = divide (x + y) 2
-
 avg3 x y z = divide (x + y + z) 3
 \end{code}
 
-\newthought{Exercise} Consider the general list-averaging function below.
+\exercise Consider the general list-averaging function:
 
 \begin{code}
 avg       :: [Int] -> Int
@@ -272,7 +271,6 @@ avg xs    = divide total n
 
 1. Why does LH flag an error at `n` ?
 2. How can you change the code so LH verifies it?
-
 
 Refining Function Types: Postconditions
 ---------------------------------------
@@ -299,31 +297,29 @@ deducing that `n` is trivially non-negative when `0 < n` and that in
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
 indeed non-negative (lets not worry about underflows for the moment.)
 
+\footnotetext{
 LH is able to automatically make these arithmetic deductions
 by using an [SMT solver](http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories)
 which has decision built-in procedures for arithmetic, to reason about
-the logical refinements.
-
+the logical refinements.}
 
 Testing Values: Booleans and Propositions
 -----------------------------------------
 
 In the above example, we *compute* a value that is guaranteed to be a `Nat`.
-
-What if instead, we wish to *test* if a value satisfies some property, say, is `NonZero` ?
-
-Suppose we want to write a command-line "calculator" that takes two numbers and divides them.
+Sometimes, we need to *test* if a value satisfies some property, e.g., is `NonZero`.
+For example, lets write a command-line "calculator" that takes two numbers and divides them.
 
 \begin{code}
-repl = do putStrLn "Enter numerator"
+calc = do putStrLn "Enter numerator"
           n <- readLn :: IO Int
           putStrLn "Enter denominator"
           d <- readLn :: IO Int
           putStrLn (result n d)
-          repl 
+          calc 
 \end{code}
 
-The `result` function checks if `d` is strictly positive (and hence, non-zero), and does
+The function `result` checks if `d` is strictly positive (and hence, non-zero), and does
 the division, or otherwise complains to the user.
 
 \begin{code}
@@ -332,43 +328,49 @@ result n d
   | otherwise    = "Humph, please enter positive denominator!"
 \end{code}
 
-`isPositive` is a simple test that returns a `True` if its input is strictly greater than `0`
-or `False` otherwise:
+Finally, `isPositive` is a test that returns a `True` if its input is strictly
+greater than `0` or `False` otherwise:
 
 \begin{code}
 isPositive :: Int -> Bool
 isPositive x = x > 0
 \end{code}
 
-We type it as:
+\newthought{To verify} the call to `divide` inside `result` we need to tell LH that
+the division only happens with a `NonZero` value `d`. However, the non-zero-ness is
+established via the *test* that occurs inside the guard `isPositive d`, and so we
+require a post-condition that states that `isPositive` only returns `True` when the
+argument is strictly positive:
 
 \begin{code}
 {-@ isPositive :: x:Int -> {v:Bool | Prop v <=> x > 0} @-}
 \end{code}
 
-Read `Prop v` as `v` is equal to `True`, and  `not (Prop v)` as `v` is equal to `False`.
+In the above, read `Prop v` as `v` is equal to `True`;
+dually, read `not (Prop v)` as `v` is equal to `False`.
+Hence, the output type (postcondition) states that
+`isPositive x` returns `True` if and only if `x` was in
+fact strictly greater than `0`.
 
-That is, the output type (postcondition) states that `isPositive x` returns `True` if and only if
-`x` was in fact strictly greater than `0`. In this way, we can *test* raw values that are read from
-the user to establish that they satistfy some property (here, `Pos` and hence `NonZero`) in order
+Thus, we can write post-conditions for plain-old `Bool`-valued
+*tests* to establish that user-supplied values satisfy some
+desirable property (here, `Pos` and hence `NonZero`) in order
 to safely perform some computation on it.
 
-**Exercise**
+\exercise What happens if you *delete* the type for `isPositive` ?
 
-+ What if you DELETE the spec for isPositive ?
+\exercise Can you *change* the type for `isPositive` while preserving safety?
 
-+ How can you CHANGE the spec for isPositive while preserving safety?
-
-
-**Exercise** Consider the following [assert](https://www.haskell.org/hoogle/?hoogle=assert) function
+\exercise Consider the following [assert](https://www.haskell.org/hoogle/?hoogle=assert) function:
 
 \begin{code}
 {-@ lAssert  :: Bool -> a -> a @-}
 lAssert True  x = x
-lAssert False _ = die "yikes, assert failure!" 
+lAssert False _ = die "yikes, assertion fails!"
 \end{code}
 
-We can use the function as follows:
+\noindent
+We can use the function as:
 
 \begin{code}
 yes :: ()
@@ -378,14 +380,14 @@ no :: ()
 no = lAssert (1 + 1 == 3) ()
 \end{code}
 
-Add suitable refinements in the type for `lAssert` so that:
+\noindent
+Write a suitable refinement type signature for `lAssert` so that:
 
 1. `lAssert` is accepted,
 2. `yes` is accepted, but,
 3. `no` is rejected.
 
-**Hint** How will you specify a precondition that `lAssert` is only called with `True`?
-
+\hint You need a precondition that `lAssert` is only called with `True`.
 
 Putting It All Together
 -----------------------
@@ -403,23 +405,22 @@ truncate i max
       max'     = abs max 
 \end{code}
 
-`truncate i n` simply returns `i` if its absolute value is less the
+`truncate i n` returns `i` if its absolute value is less the
 upper bound `max`, and otherwise *truncates* the value at the maximum.
-LH verifies that the use of `divide` is safe by inferring that 
-at the call site
+LH verifies that the use of `divide` is safe by inferring that:
 
-1. `i' > max'` from the branch condition.
-2. `0 <= i'`   from the `abs` postcondition (click on `i'`).
-3. `0 <= max'` from the `abs` postcondition (click on `max'`).
+1. `max' < i'` from the branch condition,
+2. `0 <= i'`   from the `abs` postcondition, and
+3. `0 <= max'` from the `abs` postcondition. 
 
 From the above, LH infers that `i' /= 0`. That is, at the
 call site `i' :: NonZero`, thereby satisfying the precondition
 for `divide` and verifying that the program has no pesky
 divide-by-zero errors.
 
-**Conclusion**
 
-This concludes our quick introduction to Refinement Types and
+
+\newthought{This concludes} our quick introduction to Refinement Types and
 LiquidHaskell. Hopefully you have some sense of how to 
 
 1. **Specify** fine-grained properties of values by decorating their

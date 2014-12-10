@@ -71,3 +71,13 @@ score       :: Grade  -> Rng 1  100
 10. Case Study: Red-Black
 
 11. Case Study: Weighted Biased Heaps
+
+
+elems        :: [a] -> Set a
+elems ([])   = Set.empty
+elems (x:xs) = Set.union (Set.singleton x) (elems xs)
+
+len :: [a] -> Set a
+len ([])   = Set.empty
+len  (x:xs) = 1 GHC.BASE.THIS.THAT.+ len xs
+
