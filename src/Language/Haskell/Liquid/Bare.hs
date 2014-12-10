@@ -70,6 +70,8 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.WiredIn
 
 
+import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
+
 import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
@@ -209,7 +211,11 @@ makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
        
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' = return mempty
-makeHaskellMeasures cbs _     (_   , spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs) (S.toList $ Ms.hmeas spec)
+makeHaskellMeasures cbs _     (_   , spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs') (S.toList $ Ms.hmeas spec)
+  where 
+    cbs'                  = concatMap unrec cbs
+    unrec cb@(NonRec _ _) = [cb]
+    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition cbs x 
@@ -222,7 +228,7 @@ makeMeasureDefinition cbs x
     binders (Rec xes)    = fst <$> xes  
 
     coreToDef' x v def = case (runToLogic $ coreToDef x v def) of 
-                           Left x         -> return  x
+                           Left l         -> return  l
                            Right (LE str) -> mkError str
 
     mkError str = throwError $ ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       
@@ -1369,6 +1375,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
+                     ++ checkDouplicateFieldNames                  (dconsP sp)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1382,6 +1389,17 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
+checkDouplicateFieldNames = catMaybes . map go
+  where
+    go (d, dts)        = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
+    checkNoDups l d xs = mkErr l d <$> firstDuplicate xs 
+
+    mkErr l d x = ErrBadData (sourcePosSrcSpan l) 
+                             (pprint d) 
+                             (text "Multiple declarations of record selector" <+> pprintSymbol x)
 
 
 -- RJ: This is not nice. More than 3 elements should be a record.
@@ -1456,9 +1474,9 @@ replaceLocalBindsOne v
              Nothing -> return ()
              Just es -> do
                let es'  = substa (f env) es
-               case checkExpr "termination" emb fenv (v, Loc l t', es') of
+               case checkTerminationExpr emb fenv (v, Loc l t', es') of
                  Just err -> Ex.throw err
-                 Nothing -> modify (second $ M.insert v es')
+                 Nothing ->  modify (second $ M.insert v es')
 
            
 
@@ -1493,15 +1511,19 @@ checkBind s emb tcEnv env (v, Loc l t) = checkTy msg emb tcEnv env' t
     msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-checkExpr :: (Eq v, PPrint v) => String -> TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
-checkExpr s emb env (v, Loc l t, es) = mkErr <$> go es
+checkTerminationExpr :: (Eq v, PPrint v) =>  TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error 
+checkTerminationExpr emb env (v, Loc l t, es) = (mkErr <$> go es) <|> (mkErr' <$> go' es)
   where 
-    mkErr   = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t 
-    go      = foldl (\err e -> err <|> checkSorted env' e) Nothing  
+    mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression" <+> pprint v))
+    mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (text "termination expression is not numeric"))
+    go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
+    go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
     xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
-    rSort   = rTypeSortedReft emb 
+    rSort   = rTypeSortedReft emb
+    cmpZero = PAtom Le zero 
+
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)

@@ -1,6 +1,9 @@
 {-@ LIQUID "--no-termination" @-}
 module RedBlack  where
 
+
+-- data F = F {fx :: Int, fx :: Int}
+
 data RBTree a = Leaf 
               | Node Color a !(RBTree a) !(RBTree a)
 
@@ -16,6 +19,6 @@ ok = Node R (2 :: Int)
                   | Node { c     :: Color
                          , key   :: a
                          , left  :: RBTree ({v:a | v < key})
-                         , right :: RBTree ({v:a | key < v})
+                         , left  :: RBTree ({v:a | key < v})
                          }
   @-}
