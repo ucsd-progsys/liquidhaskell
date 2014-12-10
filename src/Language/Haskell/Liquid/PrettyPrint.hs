@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.PrettyPrint (
   -- * Printing a List with many large items
   , pprintLongList
   , ppSpine
+  , pprintSymbol
   ) where
 
 import ErrUtils                         (ErrMsg)
@@ -44,6 +45,11 @@ import Data.List    (sort, sortBy)
 import Data.Function (on)
 import Data.Monoid   (mempty)
 import qualified Data.HashMap.Strict as M
+
+
+
+pprintSymbol :: Symbol -> Doc
+pprintSymbol x = char '‘' <> pprint x <> char '’'
 
 instance PPrint SrcSpan where
   pprint = pprDoc

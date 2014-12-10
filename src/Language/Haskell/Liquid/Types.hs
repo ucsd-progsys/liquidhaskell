@@ -1400,6 +1400,11 @@ data TError t =
                 , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error 
 
+  | ErrBadData  { pos :: !SrcSpan
+                , var :: !Doc
+                , msg :: !Doc
+                } -- ^ multiple specs for same binder error 
+
   | ErrInvt     { pos :: !SrcSpan
                 , inv :: !t
                 , msg :: !Doc

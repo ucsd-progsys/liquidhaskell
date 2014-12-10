@@ -70,6 +70,8 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.WiredIn
 
 
+import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
+
 import Data.Maybe
 import qualified Data.List           as L
 import qualified Data.HashSet        as S
@@ -1373,6 +1375,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
+                     ++ checkDouplicateFieldNames                  (dconsP sp)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1386,6 +1389,17 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
+checkDouplicateFieldNames = catMaybes . map go
+  where
+    go (d, dts)        = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
+    checkNoDups l d xs = mkErr l d <$> firstDuplicate xs 
+
+    mkErr l d x = ErrBadData (sourcePosSrcSpan l) 
+                             (pprint d) 
+                             (text "Multiple declarations of record selector" <+> pprintSymbol x)
 
 
 -- RJ: This is not nice. More than 3 elements should be a record.

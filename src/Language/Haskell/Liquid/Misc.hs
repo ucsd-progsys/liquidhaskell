@@ -7,7 +7,17 @@ import System.FilePath
 
 import Language.Fixpoint.Misc (errorstar)
 
+import Data.List              (sort)
+
 import Paths_liquidhaskell
+
+firstDuplicate :: Ord a => [a] -> Maybe a
+firstDuplicate = go . sort
+  where
+    go (y:x:xs) | x == y    = Just x 
+                | otherwise = go (x:xs)
+    go _                    = Nothing            
+
 
 safeIndex err n ls 
   | n >= length ls
