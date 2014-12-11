@@ -101,17 +101,17 @@ getGhcInfo' cfg0 target
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
-      logicmap           <- makeLogicMap 
+      logicmap           <- liftIO makeLogicMap 
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
       return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
 
 
-coreToLogicFileName = "include/CoreToLogic.lg"
-
 makeLogicMap 
-  = parseSymbolToLogic coreToLogicFileName <$> (liftIO $ readFile coreToLogicFileName)
+  = do lg    <- getCoreToLogicPath
+       lspec <- readFile lg
+       return $ parseSymbolToLogic lg lspec
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
