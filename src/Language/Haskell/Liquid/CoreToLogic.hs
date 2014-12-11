@@ -132,10 +132,10 @@ coreToDef x _ e = go $ inline_preds $ simplify e
       | otherwise       = mapM goalt      alts
     go _                = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E . traceShow ("coreToLogic\t from \n" ++ showPpr e ++ "\nFor\n" ++ showPpr (show x, d))) <$> coreToLogic e
+    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E {- . traceShow ("coreToLogic\t from \n" ++ showPpr e) -} ) <$> coreToLogic e
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P . traceShow ("coreToPred\t from \t " ++ showPpr e)) <$> coreToPred  e
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P {- . traceShow ("coreToPred\t from \t " ++ showPpr e) -} ) <$> coreToPred  e
     goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
 
     inline_preds = inline (eqType boolTy . varType)
@@ -218,8 +218,8 @@ toLogicApp e
   =  do let (f, es) = splitArgs e
         args       <- mapM coreToLogic es
         lmap       <- symbolMap <$> getState
-        ff         <- tosymbol f
-        (\x -> makeApp (EApp ff args) lmap x args) <$> tosymbol' f
+        def         <- (`EApp` args) <$> tosymbol f
+        (\x -> makeApp def lmap x args) <$> tosymbol' f
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
