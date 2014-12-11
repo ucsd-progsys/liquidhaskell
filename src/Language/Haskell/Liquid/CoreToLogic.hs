@@ -218,19 +218,20 @@ toLogicApp e
   =  do let (f, es) = splitArgs e
         args       <- mapM coreToLogic es
         lmap       <- symbolMap <$> getState
-        (\x -> makeApp lmap x args) <$> tosymbol' f
+        ff         <- tosymbol f
+        (\x -> makeApp (EApp ff args) lmap x args) <$> tosymbol' f
 
-makeApp :: LogicMap -> Located Symbol-> [Expr] -> Expr
-makeApp _ f [e1, e2] | Just op <- M.lookup (val f) bops
+makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
+makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
   = EBin op e1 e2
 
-makeApp lmap f es 
-  = eAppWithMap lmap f es EApp
+makeApp def lmap f es 
+  = eAppWithMap lmap f es def
 
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap 
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
-       return $ eAppWithMap lmap f' [] (const $ const $ EVar $ symbol x)
+       return $ eAppWithMap lmap f' [] (EVar $ symbol x)
 
 brels :: M.HashMap Symbol Brel
 brels = M.fromList [ (symbol ("==" :: String), Eq)
