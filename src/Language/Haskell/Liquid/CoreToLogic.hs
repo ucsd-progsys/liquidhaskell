@@ -47,14 +47,17 @@ import Data.Monoid
 -- import Debug.Trace (trace)
 
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t{ty_res = res}
+logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
   where 
     t   = toRTypeRep $ ofType τ 
     res = mkResType $ ty_res t
+    (binds, args) =  unzip $ dropWhile isClassBind $ zip (ty_binds t) (ty_args t)
+    
+    isClassBind   = isClassType . snd
 
     mkResType t 
-     | isBool t  = propType
-     | otherwise = t
+     | isBool t   = propType
+     | otherwise  = t
 
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
@@ -129,10 +132,10 @@ coreToDef x _ e = go $ inline_preds $ simplify e
       | otherwise       = mapM goalt      alts
     go _                = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E {- . traceShow "coreToLogic\t" -} ) <$> coreToLogic e
+    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E . traceShow ("coreToLogic\t from \n" ++ showPpr e ++ "\nFor\n" ++ showPpr (show x, d))) <$> coreToLogic e
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P {- . traceShow "coreToPred\t"  -} ) <$> coreToPred  e
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P . traceShow ("coreToPred\t from \t " ++ showPpr e)) <$> coreToPred  e
     goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
 
     inline_preds = inline (eqType boolTy . varType)
