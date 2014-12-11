@@ -149,9 +149,7 @@ checkIte f p e1 e2
   = do tp <- checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
-       if t1 == t2 
-         then return t1
-         else throwError (errIte e1 e2 t1 t2) 
+       ((`apply` t1) <$> unify [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
 
 -- | Helper for checking cast expressions 
 
@@ -159,10 +157,7 @@ checkCst f t (EApp g es)
   = checkApp f (Just t) g es
 checkCst f t e           
   = do t' <- checkExpr f e
-       if t == t' 
-         then return t
-         else throwError (errCast e t' t)
-
+       ((`apply` t) <$> unify [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
 checkApp f to g es
   = snd <$> checkApp' f to g es
