@@ -40,7 +40,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs 
   , rTyConPropVs
-  , isClassRTyCon
+  , isClassRTyCon, isClassType 
  
   -- * Refinement Types 
   , RType (..), Ref(..), RTProp
@@ -524,6 +524,11 @@ isClassRTyCon = isClassTyCon . rtc_tc
 rTyConPVs     = rtc_pvars
 rTyConPropVs  = filter isPropPV . rtc_pvars
 isPropPV      = isProp . ptype
+
+
+
+isClassType (RApp c _ _ _) = isClass c
+isClassType _              = False
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV

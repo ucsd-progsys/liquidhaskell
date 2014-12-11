@@ -1632,7 +1632,7 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
   where 
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' (traceShow "BODY" body)
   where 
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
     xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
