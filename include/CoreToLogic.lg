@@ -1,0 +1,6 @@
+define Data.Set.Base.singleton x = (Set_sng x)
+define Data.Set.Base.union x y = (Set_cup x y)
+define Data.Set.Base.intersection x y = (Set_cap x y)
+define Data.Set.Base.difference x y = (Set_dif x y)
+define Data.Set.Base.intersection x y = (Set_cap x y)
+define Data.Set.Base.empty = (Set_empty 0)

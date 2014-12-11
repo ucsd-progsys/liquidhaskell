@@ -1,7 +1,9 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Parse
-  (hsSpecificationP, lhsSpecificationP, specSpecificationP)
+  ( hsSpecificationP, lhsSpecificationP, specSpecificationP
+  , parseSymbolToLogic
+  )
   where
 
 import Control.Monad
@@ -119,6 +121,25 @@ remLineCol src rem = (line, col)
     srcLines       = lines  $ src
     remLines       = lines  $ rem
 
+
+
+
+
+----------------------------------------------------------------------------------
+-- Parse to Logic  ---------------------------------------------------------------
+----------------------------------------------------------------------------------
+
+parseSymbolToLogic = parseWithError toLogicP 
+
+toLogicP
+  = toLogicMap <$> many toLogicOneP 
+
+toLogicOneP
+  = do reserved "define"
+       (x:xs) <- many1 symbolP
+       reserved "="
+       e      <- exprP 
+       return (x, xs, e)
 
 
 ----------------------------------------------------------------------------------

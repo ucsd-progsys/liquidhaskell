@@ -182,6 +182,9 @@ module Language.Haskell.Liquid.Types (
   , getStrata
   , makeDivType, makeFinType
 
+  -- * CoreToLogic
+  , LogicMap, toLogicMap, eAppWithMap
+
   )
   where
 
@@ -354,6 +357,27 @@ data GhcSpec = SP {
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
   }
+
+type LogicMap = M.HashMap Symbol LMap 
+
+data LMap = LMap { lvar  :: Symbol
+                 , largs :: [Symbol] 
+                 , lexpr :: Expr
+                 }
+
+instance Show LMap where
+  show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t|->\t" ++ show e           
+
+
+toLogicMap = M.fromList . map toLMap
+  where 
+    toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
+
+eAppWithMap lmap f es app
+  | Just (LMap _ xs e) <- M.lookup (val f) lmap 
+  = subst (mkSubst $ zip xs es) e
+  | otherwise
+  = app f es
 
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
