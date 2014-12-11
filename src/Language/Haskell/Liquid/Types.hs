@@ -373,11 +373,11 @@ toLogicMap = M.fromList . map toLMap
   where 
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
-eAppWithMap lmap f es app
+eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (val f) lmap 
   = subst (mkSubst $ zip xs es) e
   | otherwise
-  = app f es
+  = def
 
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
