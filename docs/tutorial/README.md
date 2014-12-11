@@ -12,72 +12,61 @@
 
 3. Polymorphism & HOFs
 
+   BLOG: "Bounding Vectors"
+   
    + Polymorphism
 	 + Lists
 	 
    + HOFs
 	 + map, fold,...
 
-		title: "Refinement Types 101"
 		title: "Bounding Vectors"
-
-000-Refinements.hs
-
-data Grade  = Grade Letter Off
-data Letter = A | B | C | D
-data Offset = Plus | Minus | None 
-
-letterScore :: Letter -> Rng 40 90
-offScore    :: Off    -> Rng 0  10
-score       :: Grade  -> Rng 1  100
 
 4. Measures
 
-	Boolean
-	+ Nat   : Even/Odd/Value?
-
+    Prop	
+    + head, tail, null
+	+ len: map, append, filter, foldr1,wtAverage (!)
+	+ EX: risers
+	+ EX: "map-reduce"
+	
 	Integer
-	+ Lists : head, tail, null
-	+ Lists : len: map, append, filter, foldr1, average
-   
-		title: "Safely Catching A List By Its Tail"
+    + zipWith
+	+ dotProd
+	+ insertSort
+    + quickSort // partition :: (a -> Bool) -> xs:[a] -> Pair (List a) (List a) / len (fst v) + len (snd v) = len xs
+    data Pair a b = { fst :: a, snd :: b}
 
-	EXERCISE: do the above examples using PROP valued measure.
+	+ EX: take/drop
+	+ EX:prop_join_split
+
+	+ EX: transpose
+	+ EX: matMult
+    + EX: data Matrix a = { rows :: Nat
+	                      , cols :: Nat
+		        		  , elts :: Grid a rows cols }
+					
+	+ EX: kmeans-using-"map-reduce"
 	
 	Sets
-   + Example: Eval.hs
 	
-5. Case Study: Kmeans
-
-		title: "KMeans Clustering I"
-
-5. Sets
-   + Data.Set
-	    title: "talking about sets"
-
+    + Example: Eval.hs
    
-6. Case Study: AlphaConvert (tests/pos/alphaconvert-List.hs) 
+    EX: write a `noDup` measure
+	EX: write a `nub`  function
 
-7. Abstract Refinements
+
+5. Abstract Refinements
+
   + Copy from FLOPS/IHP talk sequence
 
-8. Termination
+6. Termination
+
   + Copy from BLOG/PAPER sequence
   + HW Exercises
 
+7. Case Study: Red-Black Trees **OR** Weighted Biased Heaps
 
-9. Case Study: Low-level Pointers
-
-10. Case Study: Red-Black
-
-11. Case Study: Weighted Biased Heaps
-
-
-elems        :: [a] -> Set a
-elems ([])   = Set.empty
-elems (x:xs) = Set.union (Set.singleton x) (elems xs)
-
-len :: [a] -> Set a
-len ([])   = Set.empty
-len  (x:xs) = 1 GHC.BASE.THIS.THAT.+ len xs
-
+   + EX: AVL TREE (insert/delete/member)
+   
+8. Case Study: Low-level Pointers
