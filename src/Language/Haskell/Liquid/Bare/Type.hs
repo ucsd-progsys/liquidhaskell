@@ -201,14 +201,11 @@ failRTAliasApp (RApp (Loc l _) _ _ _) rta
     err = ErrIllegalAliasApp (sourcePosSrcSpan l) dname dpos
 
     (dname, dpos)
-      = go rta
-
-    go (Left (_, rta))
-      = (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
-    go (Right rta)
-      = (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
-failRTAliasApp _ _
-  = errorstar "Bare.Type.failRTAliasApp called with invalid input"
+      = case rta of
+          Left (_, rta) ->
+            (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
+          Right rta ->
+            (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
 
 -- TODO: Why aren't pargs handled here? Should they be?
 expandRTAliasApp :: BareType -> RTBareOrSpec -> TypeM RReft SpecType
