@@ -5,6 +5,9 @@ module Language.Haskell.Liquid.Misc where
 import Control.Applicative
 import System.FilePath
 
+import qualified Data.List as L
+import qualified Data.Text as T
+
 import Language.Fixpoint.Misc (errorstar)
 
 import Data.List              (sort)
@@ -88,5 +91,9 @@ pad msg _ xs ys
   where
     nxs         = length xs
     nys         = length ys
-                        
-                  
+
+
+
+ordNub :: Ord a => [a] -> [a]
+ordNub = map head . L.group . L.sort
+

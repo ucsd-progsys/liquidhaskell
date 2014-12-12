@@ -228,6 +228,15 @@ ppError' _ dSp (ErrMismatch _ x τ t)
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t
 
+ppError' _ dSp (ErrAliasCycle pos acycle)
+  = dSp <+> text "Cyclic Refined Type Alias Definitions"
+    $+$ text "The following alias definitions form a cycle:"
+    $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
+  where
+    describe (pos, name)
+      = text "Type alias:"     <+> pprint name
+        $+$ text "Defined at:" <+> pprint pos
+
 ppError' _ dSp (ErrIllegalAliasApp _ dn dl)
   = dSp <+> text "Refinement Type Alias cannot be used in this context"
     $+$ text "Type alias:" <+> pprint dn
