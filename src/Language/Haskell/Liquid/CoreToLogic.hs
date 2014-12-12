@@ -3,10 +3,11 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
+{-# LANGUAGE EmptyDataDecls         #-}
 
 module Language.Haskell.Liquid.CoreToLogic ( 
 
-  coreToDef , mkLit, runToLogic, LError(..), 
+  coreToDef , mkLit, runToLogic,
   logicType, 
   strengthenResult
 
@@ -23,7 +24,6 @@ import IdInfo
 
 import TysWiredIn
 
-
 import Control.Applicative 
 
 import Language.Fixpoint.Misc
@@ -37,24 +37,31 @@ import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.RefType
 
 
+
 import qualified Data.HashMap.Strict as M
 
 import Data.Monoid
 
+
+
 -- import Debug.Trace (trace)
 
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t{ty_res = res}
+logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
   where 
     t   = toRTypeRep $ ofType τ 
     res = mkResType $ ty_res t
+    (binds, args) =  unzip $ dropWhile isClassBind $ zip (ty_binds t) (ty_args t)
+    
 
     mkResType t 
-     | isBool t  = propType
-     | otherwise = t
+     | isBool t   = propType
+     | otherwise  = t
 
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
+
+isClassBind   = isClassType . snd
 
 {- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
 
@@ -66,44 +73,59 @@ CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@log
 strengthenResult :: Var -> SpecType
 strengthenResult v
   | isBool res
-  = fromRTypeRep $ rep{ty_res = res `strengthen` r}
+  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $  
+    fromRTypeRep $ rep{ty_res = res `strengthen` r, ty_binds = xs}
   | otherwise
-  = fromRTypeRep $ rep{ty_res = res `strengthen` r'}
+  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $ 
+    fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
   where rep = toRTypeRep t
         res = ty_res rep
+        xs  = intSymbol (symbol ("x" :: String)) <$> [1..]
         r'  = U (exprReft (EApp f [EVar x]))         mempty mempty
         r   = U (propReft (PBexp $ EApp f [EVar x])) mempty mempty
-        x   = safeHead "strengthenResult" $ ty_binds rep
+        x   = safeHead "strengthenResult" $ fst $  unzip $ dropWhile isClassBind $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
+
 simplesymbol = symbol . getName
 
-newtype LogicM a = LM (Either a LError)
+newtype LogicM a = LM {runM :: LState -> Either a Error}
 
-data LError = LE String
+data LState = LState { symbolMap :: LogicMap 
+                     , mkError   :: String -> Error
+                     }
+
 
 instance Monad LogicM where
-	return = LM . Left
-	(LM (Left x))  >>= f = f x
-	(LM (Right x)) >>= _ = LM (Right x)
+  return = LM . const . Left
+  (LM m) >>= f 
+    = LM $ \s -> case m s of 
+                (Left x) -> (runM (f x)) s 
+                (Right x) -> Right x
 
 instance Functor LogicM where
-	fmap f (LM (Left x))  = LM $ Left $ f x
-	fmap _ (LM (Right x)) = LM $ Right x
+  fmap f (LM m) = LM $ \s -> case m s of 
+                              (Left  x) -> Left $ f x
+                              (Right x) -> Right x
 
 instance Applicative LogicM where
-	pure = LM . Left
-
-	(LM (Left f) ) <*> (LM (Left x))  = LM $ Left (f x)
-	(LM (Right f)) <*> (LM (Left _))  = LM $ Right f
-	(LM (Left _) ) <*> (LM (Right x)) = LM $ Right x
-	(LM (Right _)) <*> (LM (Right x)) = LM $ Right x
+  pure = LM . const . Left
+  (LM f) <*> (LM m) 
+    = LM $ \s -> case (f s, m s) of 
+                  (Left f , Left x ) -> Left $ f x
+                  (Right f, Left _ ) -> Right f
+                  (Left _ , Right x) -> Right x
+                  (Right _, Right x) -> Right x
 
 throw :: String -> LogicM a
-throw = LM . Right . LE
+throw str = LM $ \s -> Right $ (mkError s) str
 
-runToLogic (LM x) = x
+getState :: LogicM LState
+getState = LM $ Left 
+
+runToLogic lmap ferror (LM m) 
+  = m $ LState {symbolMap = lmap, mkError = ferror}
 
 coreToDef :: LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def DataCon]
 coreToDef x _ e = go $ inline_preds $ simplify e
@@ -115,10 +137,10 @@ coreToDef x _ e = go $ inline_preds $ simplify e
       | otherwise       = mapM goalt      alts
     go _                = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic e
+    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E {- . traceShow ("coreToLogic\t from \n" ++ showPpr e) -} ) <$> coreToLogic e
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P) <$> coreToPred e
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P {- . traceShow ("coreToPred\t from \t " ++ showPpr e) -} ) <$> coreToPred  e
     goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
 
     inline_preds = inline (eqType boolTy . varType)
@@ -149,7 +171,7 @@ coreToLogic (C.Lit l)
   = case mkLit l of 
      Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
      Just i -> return i
-coreToLogic (C.Var x)           = return $ EVar $ symbol x
+coreToLogic (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLogic e@(C.App _ _)       = toLogicApp e 
 coreToLogic (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e 
@@ -194,19 +216,27 @@ toPredApp p
       | val f == symbol ("and" :: String)
       = PAnd <$> mapM coreToPred es
       | otherwise
-      = (PBexp . (EApp f)) <$> mapM coreToLogic es
+      = PBexp <$> toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e   
   =  do let (f, es) = splitArgs e
         args       <- mapM coreToLogic es
-        (`makeApp` args) <$> tosymbol f
+        lmap       <- symbolMap <$> getState
+        def         <- (`EApp` args) <$> tosymbol f
+        (\x -> makeApp def lmap x args) <$> tosymbol' f
 
-makeApp f [e1, e2] | Just op <- M.lookup (val f) bops
+makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
+makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
   = EBin op e1 e2
 
-makeApp f args 
-  = EApp f args
+makeApp def lmap f es 
+  = eAppWithMap lmap f es def
+
+eVarWithMap :: Id -> LogicMap -> LogicM Expr
+eVarWithMap x lmap 
+  = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
+       return $ eAppWithMap lmap f' [] (EVar $ symbol x)
 
 brels :: M.HashMap Symbol Brel
 brels = M.fromList [ (symbol ("==" :: String), Eq)
@@ -218,13 +248,15 @@ brels = M.fromList [ (symbol ("==" :: String), Eq)
                    ]
 
 bops :: M.HashMap Symbol Bop
-bops = M.fromList [ (symbol ("+" :: String), Plus)
-                  , (symbol ("-" :: String), Minus)
-                  , (symbol ("*" :: String), Times)
-                  , (symbol ("/" :: String), Div)
-                  , (symbol ("%" :: String), Mod)
+bops = M.fromList [ (numSymbol "+", Plus)
+                  , (numSymbol "-", Minus)
+                  , (numSymbol "*", Times)
+                  , (numSymbol "/", Div)
+                  , (numSymbol "%", Mod)
                   ] 
-
+  where
+    numSymbol :: String -> Symbol
+    numSymbol =  symbol . (++) "GHC.Num."
 
 splitArgs e = (f, reverse es)
  where
@@ -237,6 +269,9 @@ splitArgs e = (f, reverse es)
 
 tosymbol (C.Var x) = return $ dummyLoc $ simpleSymbolVar x
 tosymbol  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
+
+tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
+tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 makesub (C.NonRec x e) =  (symbol x,) <$> coreToLogic e
 makesub  _             = throw "Cannot make Logical Substitution of Recursive Definitions"
@@ -257,6 +292,7 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
 
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
+simpleSymbolVar' = symbol . showPpr . getName
 
 isDictionary v   = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
