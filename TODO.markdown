@@ -1,6 +1,15 @@
 TODO
 ====
 
+
+promotion of haskell functions to measures
+------------------------------------------
+
++ test that promotion happens on proper functions (inductive with 1 ADT argument)
++ make sure that user and derived signature are met
++ make Haskell's function post conditions invariants
+
+
 * benchmarks: Data.Bytestring
     ? readsPrec
     ? big constants issue : _word64 34534523452134213524525 due to (deriving Typeable)
