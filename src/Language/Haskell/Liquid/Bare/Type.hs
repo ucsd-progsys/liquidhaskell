@@ -213,11 +213,7 @@ expandRTAliasApp (RApp (Loc l c) ts _ r)
   = go
   where
     go (Left (mod, rtb))
-      = do st <- lift $ inModule mod $ withVArgs l (rtVArgs rtb) $ ofBareType (rtPos rtb) (rtBody rtb)
-           let rts = mapRTAVars symbolRTyVar $ rtb { rtBody = st }
-           lift $ setRTAlias c $ Right rts
-           r' <- resolveReft r
-           expandRTAliasApp' l rts ts r'
+      = errorstar $ "expandRTAliasApp: Failed on " ++ show (mod, rtName rtb)
     go (Right rts)
       = do r'  <- resolveReft r
            env <- ask

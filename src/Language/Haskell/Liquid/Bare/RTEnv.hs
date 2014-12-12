@@ -13,7 +13,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
+import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Types (Symbol, dummyPos)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
@@ -41,11 +41,12 @@ makeRTEnv specs
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
        
 makeRTAliases xts
-  = do let aliases = map snd xts
-           table   = buildAliasTable aliases
-           graph   = buildAliasGraph aliases
+  = do let table   = buildAliasTable xts
+           graph   = buildAliasGraph table $ map snd xts
        checkCyclicAliases table graph
-       mapM_ expBody xts
+
+       let ordered = genExpandOrder table graph
+       mapM_ expBody ordered
   where
     expBody (mod,xt) = inModule mod $ do
                              let l = rtPos xt
@@ -66,60 +67,64 @@ makeREAliases xts     = mapM_ expBody xts
                           body <- withVArgs l (rtVArgs xt) $ expandExpr l $ rtBody xt
                           setREAlias (rtName xt) $ Right $ xt { rtBody = body }
 
+type AliasTable = M.HashMap Symbol (ModName, RTAlias Symbol BareType)
 
-buildAliasTable :: [RTAlias Symbol BareType] -> M.HashMap Symbol (RTAlias Symbol BareType)
+buildAliasTable :: [(ModName, RTAlias Symbol BareType)] -> AliasTable
 buildAliasTable
-  = M.fromList . map (\alias -> (rtName alias, alias))
+  = M.fromList . map (\(mod, rta) -> (rtName rta, (mod, rta)))
 
 
 type Graph t = [Node t]
 type Node  t = (t, t, [t])
 
+buildAliasGraph :: AliasTable -> [RTAlias Symbol BareType] -> Graph Symbol
+buildAliasGraph table
+  = map (buildAliasNode table)
 
-buildAliasGraph :: [RTAlias Symbol BareType] -> Graph Symbol
-buildAliasGraph
-  = map buildAliasNode
+buildAliasNode :: AliasTable -> RTAlias Symbol BareType -> Node Symbol
+buildAliasNode table alias
+  = (rtName alias, rtName alias, buildAliasEdges table $ rtBody alias)
 
-buildAliasNode :: RTAlias Symbol BareType -> Node Symbol
-buildAliasNode alias
-  = (rtName alias, rtName alias, buildAliasEdges $ rtBody alias)
+buildAliasEdges :: AliasTable -> BareType -> [Symbol]
+buildAliasEdges table
+  = ordNub . go
+  where go (RApp (Loc _ c) ts rs _)
+          = curr ++ concat (map go ts ++ map go (mapMaybe ref rs))
+          where
+            curr 
+              = case M.lookup c table of
+                  Nothing -> [ ]
+                  Just _  -> [c]
 
-buildAliasEdges :: BareType -> [Symbol]
-buildAliasEdges
-  = ordNub . buildAliasEdges'
+            ref (RPropP _ _) = Nothing
+            ref (RProp  _ t) = Just t
+            ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildAliasEdges"
 
-buildAliasEdges' :: BareType -> [Symbol]
-buildAliasEdges' (RApp (Loc _ c) ts rs _)
-  = c : concat (map buildAliasEdges' ts ++ map buildAliasEdges' (mapMaybe go rs))
-  where
-    go (RPropP _ _) = Nothing
-    go (RProp  _ t) = Just t
-    go (RHProp _ _) = errorstar "TODO:EFFECTS:buildAliasEdges'"
-buildAliasEdges' (RVar _ _)
-  = []
-buildAliasEdges' (RFun _ t1 t2 _)
-  = buildAliasEdges' t1 ++ buildAliasEdges' t2
-buildAliasEdges' (RAppTy t1 t2 _)
-  = buildAliasEdges' t1 ++ buildAliasEdges' t2
-buildAliasEdges' (RAllE _ t1 t2)
-  = buildAliasEdges' t1 ++ buildAliasEdges' t2
-buildAliasEdges' (REx _ t1 t2)
-  = buildAliasEdges' t1 ++ buildAliasEdges' t2
-buildAliasEdges' (RAllT _ t)
-  = buildAliasEdges' t
-buildAliasEdges' (RAllP _ t)
-  = buildAliasEdges' t
-buildAliasEdges' (RAllS _ t)
-  = buildAliasEdges' t
-buildAliasEdges' (ROth _)
-  = []
-buildAliasEdges' (RExprArg _)
-  = []
-buildAliasEdges' (RHole _)
-  = []
+        go (RVar _ _)
+          = []
+        go (RFun _ t1 t2 _)
+          = go t1 ++ go t2
+        go (RAppTy t1 t2 _)
+          = go t1 ++ go t2
+        go (RAllE _ t1 t2)
+          = go t1 ++ go t2
+        go (REx _ t1 t2)
+          = go t1 ++ go t2
+        go (RAllT _ t)
+          = go t
+        go (RAllP _ t)
+          = go t
+        go (RAllS _ t)
+          = go t
+        go (ROth _)
+          = []
+        go (RExprArg _)
+          = []
+        go (RHole _)
+          = []
 
 
-checkCyclicAliases :: M.HashMap Symbol (RTAlias Symbol BareType) -> Graph Symbol -> BareM ()
+checkCyclicAliases :: AliasTable -> Graph Symbol -> BareM ()
 checkCyclicAliases table graph
   = case mapMaybe go $ stronglyConnComp graph of
       [] ->
@@ -142,6 +147,16 @@ checkCyclicAliases table graph
       = case M.lookup sym table of
           Nothing ->
             errorstar $ "checkCyclicAliases: Dangling alias symbol: " ++ show sym
-          Just alias ->
+          Just (_, alias) ->
             (sourcePosSrcSpan $ rtPos alias, pprint sym)
+
+
+genExpandOrder :: AliasTable -> Graph Symbol -> [(ModName, RTAlias Symbol BareType)]
+genExpandOrder table graph 
+  = map (fromJust . flip M.lookup table) $ traceShow "symOrder: " symOrder
+  where
+    (digraph, lookupVertex, _)
+      = graphFromEdges graph
+    symOrder
+      = map (fst3 . lookupVertex) $ reverse $ topSort digraph
 
