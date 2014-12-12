@@ -53,7 +53,6 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
     res = mkResType $ ty_res t
     (binds, args) =  unzip $ dropWhile isClassBind $ zip (ty_binds t) (ty_args t)
     
-    isClassBind   = isClassType . snd
 
     mkResType t 
      | isBool t   = propType
@@ -61,6 +60,8 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
 
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
+
+isClassBind   = isClassType . snd
 
 {- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
 
@@ -72,16 +73,20 @@ CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@log
 strengthenResult :: Var -> SpecType
 strengthenResult v
   | isBool res
-  = fromRTypeRep $ rep{ty_res = res `strengthen` r}
+  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $  
+    fromRTypeRep $ rep{ty_res = res `strengthen` r, ty_binds = xs}
   | otherwise
-  = fromRTypeRep $ rep{ty_res = res `strengthen` r'}
+  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $ 
+    fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
   where rep = toRTypeRep t
         res = ty_res rep
+        xs  = intSymbol (symbol ("x" :: String)) <$> [1..]
         r'  = U (exprReft (EApp f [EVar x]))         mempty mempty
         r   = U (propReft (PBexp $ EApp f [EVar x])) mempty mempty
-        x   = safeHead "strengthenResult" $ ty_binds rep
+        x   = safeHead "strengthenResult" $ fst $  unzip $ dropWhile isClassBind $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
+
 
 simplesymbol = symbol . getName
 
@@ -211,7 +216,7 @@ toPredApp p
       | val f == symbol ("and" :: String)
       = PAnd <$> mapM coreToPred es
       | otherwise
-      = (PBexp . (EApp f)) <$> mapM coreToLogic es
+      = PBexp <$> toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e   
