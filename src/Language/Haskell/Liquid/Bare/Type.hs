@@ -48,7 +48,7 @@ type TypeM r = ReaderT (TypeEnv r) BareM
 
 data TypeEnv r = TE { te_lookupTyCon :: LocSymbol -> BareM TyCon
                     , te_resolveReft :: r -> BareM r
-                    , te_appRTAlias  :: BRType r -> RTBareOrSpec -> TypeM r (RRType r)
+                    , te_appRTAlias  :: BRType r -> RTAlias RTyVar SpecType -> TypeM r (RRType r)
                     }
 
 lookupTyCon :: LocSymbol -> TypeM r TyCon
@@ -61,7 +61,7 @@ resolveReft r
   = do f <- asks te_resolveReft
        lift $ f r
 
-appRTAlias :: BRType r -> RTBareOrSpec -> TypeM r (RRType r)
+appRTAlias :: BRType r -> RTAlias RTyVar SpecType -> TypeM r (RRType r)
 appRTAlias t rta
   = do f <- asks te_appRTAlias
        f t rta
@@ -193,32 +193,22 @@ ofSyms
 --------------------------------------------------------------------------------
 
 -- TODO: Condense this a bit
-failRTAliasApp :: BRType r -> RTBareOrSpec -> TypeM r (RRType r)
+failRTAliasApp :: BRType r -> RTAlias RTyVar SpecType -> TypeM r (RRType r)
 failRTAliasApp (RApp (Loc l _) _ _ _) rta
   = Ex.throw err
   where
     err :: Error
-    err = ErrIllegalAliasApp (sourcePosSrcSpan l) dname dpos
-
-    (dname, dpos)
-      = case rta of
-          Left (_, rta) ->
-            (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
-          Right rta ->
-            (pprint $ rtName rta, sourcePosSrcSpan $ rtPos rta)
+    err = ErrIllegalAliasApp (sourcePosSrcSpan l) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta)
+failRTAliasApp _ _
+  = errorstar "Bare.Type.failRTAliasApp called with invalid input"
 
 -- TODO: Why aren't pargs handled here? Should they be?
-expandRTAliasApp :: BareType -> RTBareOrSpec -> TypeM RReft SpecType
-expandRTAliasApp (RApp (Loc l c) ts _ r)
-  = go
-  where
-    go (Left (mod, rtb))
-      = errorstar $ "expandRTAliasApp: Failed on " ++ show (mod, rtName rtb)
-    go (Right rts)
-      = do r'  <- resolveReft r
-           env <- ask
-           lift $ withVArgs l (rtVArgs rts) $ runReaderT (expandRTAliasApp' l rts ts r') env
-expandRTAliasApp _
+expandRTAliasApp :: BareType -> RTAlias RTyVar SpecType -> TypeM RReft SpecType
+expandRTAliasApp (RApp (Loc l _) ts _ r) rta
+  = do r'  <- resolveReft r
+       env <- ask
+       lift $ withVArgs l (rtVArgs rta) $ runReaderT (expandRTAliasApp' l rta ts r') env
+expandRTAliasApp _ _
   = errorstar "Bare.Type.expandRTAliasApp called with invalid input"
 
 expandRTAliasApp' :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> TypeM RReft SpecType

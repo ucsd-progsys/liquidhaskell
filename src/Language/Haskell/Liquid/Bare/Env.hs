@@ -67,7 +67,7 @@ withVArgs l vs act = do
   return res
 
 mkExprAlias l v
-  = setRTAlias v (Right (RTA v [] [] (RExprArg (EVar $ symbol v)) l))
+  = setRTAlias v (RTA v [] [] (RExprArg (EVar $ symbol v)) l)
 
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
