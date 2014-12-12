@@ -9,6 +9,8 @@ promotion of haskell functions to measures
 + make sure that user and derived signature are met
 + make Haskell's function post conditions invariants
 
+benchmarks
+-----------
 
 * benchmarks: Data.Bytestring
     ? readsPrec
