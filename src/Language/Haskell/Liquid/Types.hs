@@ -1502,6 +1502,11 @@ data TError t =
                 , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
 
+  | ErrIllegalAliasApp { pos   :: !SrcSpan
+                       , dname :: !Doc
+                       , dpos  :: !SrcSpan
+                       } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
+
   | ErrAliasApp { pos   :: !SrcSpan
                 , nargs :: !Int
                 , dname :: !Doc
@@ -1612,6 +1617,7 @@ getModString = moduleNameString . getModName
 type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
                            (RTAlias RTyVar SpecType)
 
+-- TODO: Wrap "Symbol" in a newtype for expanded/'finished' Pred/Expr
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
 
