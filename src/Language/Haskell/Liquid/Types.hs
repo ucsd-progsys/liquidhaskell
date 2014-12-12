@@ -139,7 +139,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinement Type Aliases
   , RTEnv (..)
-  , RTBareOrSpec
   , mapRT, mapRP, mapRE
 
   -- * Final Result
@@ -1617,9 +1616,6 @@ getModString = moduleNameString . getModName
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
-                           (RTAlias RTyVar SpecType)
-
 -- TODO: Wrap "Symbol" in a newtype for expanded/'finished' Pred/Expr
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
@@ -1627,7 +1623,7 @@ type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
 type RTExprAlias  = Either (ModName, RTAlias Symbol Expr)
                            (RTAlias Symbol Expr)
 
-data RTEnv   = RTE { typeAliases :: M.HashMap Symbol RTBareOrSpec
+data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
                    , predAliases :: M.HashMap Symbol RTPredAlias
                    , exprAliases :: M.HashMap Symbol RTExprAlias
                    }

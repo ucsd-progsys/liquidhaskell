@@ -6,7 +6,6 @@ import Control.Applicative
 import System.FilePath
 
 import qualified Data.List as L
-import qualified Data.Text as T
 
 import Language.Fixpoint.Misc (errorstar)
 

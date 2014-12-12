@@ -8,13 +8,12 @@ import Control.Applicative ((<$>))
 import Control.Monad.State
 import Data.Graph hiding (Graph)
 import Data.Maybe
-import Text.PrettyPrint.HughesPJ
 
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar, fst3)
-import Language.Fixpoint.Types (Symbol, dummyPos)
+import Language.Fixpoint.Misc (errorstar, fst3, traceShow)
+import Language.Fixpoint.Types (Symbol)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (ordNub)
@@ -29,8 +28,7 @@ import Language.Haskell.Liquid.Bare.Type
 
 --- Refinement Type Aliases
 makeRTEnv specs
-  = do forM_ rts $ \(mod, rta) -> setRTAlias (rtName rta) $ Left (mod, rta)
-       forM_ pts $ \(mod, pta) -> setRPAlias (rtName pta) $ Left (mod, pta)
+  = do forM_ pts $ \(mod, pta) -> setRPAlias (rtName pta) $ Left (mod, pta)
        forM_ ets $ \(mod, eta) -> setREAlias (rtName eta) $ Left (mod, eta)
        makeREAliases ets
        makeRPAliases pts
@@ -39,7 +37,7 @@ makeRTEnv specs
        rts = (concat [(m,) <$> Ms.aliases  s | (m, s) <- specs])
        pts = (concat [(m,) <$> Ms.paliases s | (m, s) <- specs])
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
-       
+
 makeRTAliases xts
   = do let table   = buildAliasTable xts
            graph   = buildAliasGraph table $ map snd xts
@@ -51,7 +49,7 @@ makeRTAliases xts
     expBody (mod,xt) = inModule mod $ do
                              let l = rtPos xt
                              body <- withVArgs l (rtVArgs xt) $ ofBareType l $ rtBody xt
-                             setRTAlias (rtName xt) $ Right $ mapRTAVars symbolRTyVar $ xt { rtBody = body }
+                             setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body }
 
 makeRPAliases xts     = mapM_ expBody xts
   where 
@@ -73,6 +71,12 @@ buildAliasTable :: [(ModName, RTAlias Symbol BareType)] -> AliasTable
 buildAliasTable
   = M.fromList . map (\(mod, rta) -> (rtName rta, (mod, rta)))
 
+fromAliasSymbol :: AliasTable -> Symbol -> (ModName, RTAlias Symbol BareType)
+fromAliasSymbol table sym
+  = fromMaybe err $ M.lookup sym table
+  where
+    err = errorstar $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
+
 
 type Graph t = [Node t]
 type Node  t = (t, t, [t])
@@ -83,7 +87,7 @@ buildAliasGraph table
 
 buildAliasNode :: AliasTable -> RTAlias Symbol BareType -> Node Symbol
 buildAliasNode table alias
-  = (rtName alias, rtName alias, buildAliasEdges table $ rtBody alias)
+  = (rtName alias, rtName alias, traceShow (show $ rtName alias) $ buildAliasEdges table $ rtBody alias)
 
 buildAliasEdges :: AliasTable -> BareType -> [Symbol]
 buildAliasEdges table
@@ -100,8 +104,6 @@ buildAliasEdges table
             ref (RProp  _ t) = Just t
             ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildAliasEdges"
 
-        go (RVar _ _)
-          = []
         go (RFun _ t1 t2 _)
           = go t1 ++ go t2
         go (RAppTy t1 t2 _)
@@ -116,12 +118,18 @@ buildAliasEdges table
           = go t
         go (RAllS _ t)
           = go t
+
+        go (RVar _ _)
+          = []
         go (ROth _)
           = []
         go (RExprArg _)
           = []
         go (RHole _)
           = []
+
+        go (RRTy _ _ _ _)
+          = errorstar "Bare.RTEnv.buildAliasEdges used with RRTy"
 
 
 checkCyclicAliases :: AliasTable -> Graph Symbol -> BareM ()
@@ -142,18 +150,17 @@ checkCyclicAliases table graph
       = ErrAliasCycle { pos    = fst $ locate rta
                       , acycle = map locate scc
                       }
+    err []
+      = errorstar "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
 
     locate sym
-      = case M.lookup sym table of
-          Nothing ->
-            errorstar $ "checkCyclicAliases: Dangling alias symbol: " ++ show sym
-          Just (_, alias) ->
-            (sourcePosSrcSpan $ rtPos alias, pprint sym)
+      = (sourcePosSrcSpan $ rtPos alias, pprint sym)
+      where (_, alias) = fromAliasSymbol table sym
 
 
 genExpandOrder :: AliasTable -> Graph Symbol -> [(ModName, RTAlias Symbol BareType)]
 genExpandOrder table graph 
-  = map (fromJust . flip M.lookup table) $ traceShow "symOrder: " symOrder
+  = map (fromAliasSymbol table) $ traceShow "symOrder: " symOrder
   where
     (digraph, lookupVertex, _)
       = graphFromEdges graph

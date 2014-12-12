@@ -228,7 +228,7 @@ ppError' _ dSp (ErrMismatch _ x τ t)
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t
 
-ppError' _ dSp (ErrAliasCycle pos acycle)
+ppError' _ dSp (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic Refined Type Alias Definitions"
     $+$ text "The following alias definitions form a cycle:"
     $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
