@@ -48,8 +48,8 @@ import Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
+import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.Reft
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.Type
 

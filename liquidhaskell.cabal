@@ -195,13 +195,13 @@ Library
                     Language.Haskell.Liquid.Bare.Check
                     Language.Haskell.Liquid.Bare.ConType
                     Language.Haskell.Liquid.Bare.Env
+                    Language.Haskell.Liquid.Bare.Expand
                     Language.Haskell.Liquid.Bare.Existential
                     Language.Haskell.Liquid.Bare.GhcSpec
                     Language.Haskell.Liquid.Bare.Lookup
                     Language.Haskell.Liquid.Bare.Measure
                     Language.Haskell.Liquid.Bare.Misc
                     Language.Haskell.Liquid.Bare.Plugged
-                    Language.Haskell.Liquid.Bare.Reft
                     Language.Haskell.Liquid.Bare.Resolve
                     Language.Haskell.Liquid.Bare.RTEnv
                     Language.Haskell.Liquid.Bare.Sort

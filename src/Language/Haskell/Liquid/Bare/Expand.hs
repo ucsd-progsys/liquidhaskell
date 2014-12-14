@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bare.Reft (
+module Language.Haskell.Liquid.Bare.Expand (
     expandReft
 
   , expandPred
