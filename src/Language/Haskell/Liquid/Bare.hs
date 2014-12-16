@@ -898,6 +898,7 @@ plugHoles tce tyi x f t (Loc l st)
     go (RVar _ _)       v@(RVar _ _)       = return v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
+    go (RAllT a t)      t'                 = RAllT a <$> go t t'
     go t                (RAllE b a t')     = RAllE b a <$> go t t'
     go t                (REx b x t')       = REx b x <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
