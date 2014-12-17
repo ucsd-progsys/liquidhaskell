@@ -84,16 +84,17 @@ import Debug.Trace (trace)
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv
+makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv -> Either Error LogicMap
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
-makeGhcSpec cfg name cbs vars defVars exports env specs
+makeGhcSpec cfg name cbs vars defVars exports env lmap specs
   
   = throwOr (throwOr return . checkGhcSpec specs . postProcess cbs) =<< execBare act initEnv
   where
     act      = makeGhcSpec' cfg cbs vars defVars exports specs
     throwOr  = either Ex.throw
-    initEnv  = BE name mempty mempty mempty env
+    initEnv  = BE name mempty mempty mempty env lmap'
+    lmap'    = case lmap of {Left e -> Ex.throw e; Right x -> x}
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
 postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs' }
@@ -210,28 +211,32 @@ makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
        return (measures, cms', ms', cs', xs')
        
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
-makeHaskellMeasures _   name' (name, _   ) | name /= name' = return mempty
-makeHaskellMeasures cbs _     (_   , spec) = Ms.mkMSpec' <$> mapM (makeMeasureDefinition cbs') (S.toList $ Ms.hmeas spec)
+makeHaskellMeasures _   name' (name, _   ) | name /= name' 
+  = return mempty
+makeHaskellMeasures cbs _     (_   , spec) 
+  = do lmap <- gets logicEnv
+       Ms.mkMSpec' <$> mapM (makeMeasureDefinition lmap cbs') (S.toList $ Ms.hmeas spec)
   where 
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
-makeMeasureDefinition :: [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
-makeMeasureDefinition cbs x 
+makeMeasureDefinition :: LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
+makeMeasureDefinition lmap cbs x 
   = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
     (NonRec v def:_)   -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
     (Rec [(v, def)]:_) -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
-    _                  -> mkError "Cannot extract measure from haskell function"
+    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
     binders (Rec xes)    = fst <$> xes  
 
-    coreToDef' x v def = case (runToLogic $ coreToDef x v def) of 
-                           Left l         -> return  l
-                           Right (LE str) -> mkError str
+    coreToDef' x v def = case (runToLogic lmap mkError $ coreToDef x v def) of 
+                           Left l  -> return  l
+                           Right e -> throwError e
 
-    mkError str = throwError $ ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       
+    mkError :: String -> Error
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)                       
 
 simplesymbol = symbol . getName
 
@@ -715,7 +720,9 @@ data BareEnv = BE { modName  :: !ModName
                   , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
-                  , hscEnv   :: HscEnv }
+                  , hscEnv   :: HscEnv 
+                  , logicEnv :: LogicMap
+                  }
 
 setModule m b = b { modName = m }
 
@@ -891,6 +898,7 @@ plugHoles tce tyi x f t (Loc l st)
     go (RVar _ _)       v@(RVar _ _)       = return v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
+    go (RAllT a t)      t'                 = RAllT a <$> go t t'
     go t                (RAllE b a t')     = RAllE b a <$> go t t'
     go t                (REx b x t')       = REx b x <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
@@ -982,7 +990,7 @@ lookupGhcThing name f x
 
 -- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x
-  = do (BE mod _ _ _ env) <- get
+  = do BE {modName = mod, hscEnv = env} <- get
        ns                 <- liftIO $ lookupName env mod x
        mts                <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
        case catMaybes mts of
