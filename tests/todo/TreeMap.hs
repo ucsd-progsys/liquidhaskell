@@ -1,14 +1,22 @@
 module Trees where
 
-data Tree a = Leaf a | Node [Tree a]
+data Tree a = Leaf a | Node { kids :: [Tree a]} 
+
+{-@ data Tree [sizes] a = Leaf {val :: a} | Node { kids :: {vv: [{v: (Tree a) | size v < sizes vv}]}} @-}
 
 {-@ measure size  @-}
-{-@ size           :: Tree a -> Nat @-}
-size (Leaf x)  = 1
-size (Node xs) = sizes xs
+{-@ measure sizes  @-}
 
-{-@ measure sizes @-}
-{-@ sizes         :: [Tree a] -> Nat @-}
+{-@ invariant {v: [Tree a] | sizes v >= 0  } @-}
+{-@ invariant {v: Tree a | size v >= 0  } @-}
+
+{-@ size           :: x:Tree a -> Nat / [size x, 0] @-}
+size :: Tree a -> Int
+size (Leaf x)  = 1
+size (Node xs) = 1 + sizes xs
+
+{-@ sizes         :: xs:[Tree a] -> Nat / [sizes xs, len xs] @-}
+sizes :: [Tree a ] -> Int
 sizes []      = 0
 sizes (t:ts)  = size t + sizes ts
 
