@@ -19,17 +19,17 @@
 	 
    + HOFs
 	 + map, fold,...
-
 		title: "Bounding Vectors"
 
 4. Measures
-
+  
     Prop	
     + head, tail, null
 	+ len: map, append, filter, foldr1,wtAverage (!)
 	+ EX: risers
 	+ EX: "map-reduce"
-	
+
+
 	Integer
     + zipWith
 	+ dotProd
@@ -38,7 +38,8 @@
     data Pair a b = { fst :: a, snd :: b}
 
 	+ EX: take/drop
-	+ EX:prop_join_split
+    + EX: append/reverse
+    + EX:prop_join_split
 
 	+ EX: transpose
 	+ EX: matMult
@@ -55,6 +56,7 @@
     EX: write a `noDup` measure
 	EX: write a `nub`  function
 
+---
 
 5. Abstract Refinements
 

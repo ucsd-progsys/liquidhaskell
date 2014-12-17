@@ -295,7 +295,7 @@ returns non-negative values
 LH *verifies* that `abs` indeed enjoys the above type by
 deducing that `n` is trivially non-negative when `0 < n` and that in 
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
-indeed non-negative (lets not worry about underflows for the moment.)
+indeed non-negative. \footnotetext{Lets not worry about underflows for the moment.}
 
 \footnotetext{
 LH is able to automatically make these arithmetic deductions
@@ -312,15 +312,16 @@ For example, lets write a command-line "calculator" that takes two numbers and d
 
 \begin{code}
 calc = do putStrLn "Enter numerator"
-          n <- readLn :: IO Int
+          n <- readLn
           putStrLn "Enter denominator"
-          d <- readLn :: IO Int
+          d <- readLn 
           putStrLn (result n d)
           calc 
 \end{code}
 
-The function `result` checks if `d` is strictly positive (and hence, non-zero), and does
-the division, or otherwise complains to the user.
+The function `result` checks if `d` is strictly positive
+(and hence, non-zero), and does the division, or otherwise
+complains to the user:
 
 \begin{code}
 result n d
@@ -328,38 +329,38 @@ result n d
   | otherwise    = "Humph, please enter positive denominator!"
 \end{code}
 
-Finally, `isPositive` is a test that returns a `True` if its input is strictly
-greater than `0` or `False` otherwise:
+In the above, `isPositive` is a test that returns a `True` if
+its input is strictly greater than `0` or `False` otherwise:
 
 \begin{code}
 isPositive :: Int -> Bool
 isPositive x = x > 0
 \end{code}
 
-\newthought{To verify} the call to `divide` inside `result` we need to tell LH that
-the division only happens with a `NonZero` value `d`. However, the non-zero-ness is
-established via the *test* that occurs inside the guard `isPositive d`, and so we
-require a post-condition that states that `isPositive` only returns `True` when the
-argument is strictly positive:
+\newthought{To verify} the call to `divide` inside `result`
+we need to tell LH that the division only happens with a `NonZero`
+value `d`. However, the non-zero-ness is established via the *test*
+that occurs inside the guard `isPositive d`. Hence, we require a
+*post-condition* that states that `isPositive` only returns `True`
+when the argument is strictly positive:
 
 \begin{code}
 {-@ isPositive :: x:Int -> {v:Bool | Prop v <=> x > 0} @-}
 \end{code}
 
-In the above, read `Prop v` as `v` is equal to `True`;
-dually, read `not (Prop v)` as `v` is equal to `False`.
+In the above signature, read `Prop v` as "`v` is `True`";
+dually, read `not (Prop v)` as "`v` is `False`.
 Hence, the output type (postcondition) states that
 `isPositive x` returns `True` if and only if `x` was in
-fact strictly greater than `0`.
-
-Thus, we can write post-conditions for plain-old `Bool`-valued
-*tests* to establish that user-supplied values satisfy some
-desirable property (here, `Pos` and hence `NonZero`) in order
-to safely perform some computation on it.
+fact strictly greater than `0`. In other words, we can
+write post-conditions for plain-old `Bool`-valued *tests*
+to establish that user-supplied values satisfy some desirable
+property (here, `Pos` and hence `NonZero`) in order to then
+safely perform some computation on it.
 
 \exercise What happens if you *delete* the type for `isPositive` ?
-
-\exercise Can you *change* the type for `isPositive` while preserving safety?
+Can you *change* the type for `isPositive` (i.e. write some other type)
+to while preserving safety?
 
 \exercise Consider the following [assert](https://www.haskell.org/hoogle/?hoogle=assert) function:
 
@@ -381,11 +382,8 @@ no = lAssert (1 + 1 == 3) ()
 \end{code}
 
 \noindent
-Write a suitable refinement type signature for `lAssert` so that:
-
-1. `lAssert` is accepted,
-2. `yes` is accepted, but,
-3. `no` is rejected.
+Write a suitable refinement type signature for `lAssert` so that
+`lAssert` and `yes` are accepted but `no` is rejected.
 
 \hint You need a precondition that `lAssert` is only called with `True`.
 
