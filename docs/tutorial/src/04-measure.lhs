@@ -53,13 +53,15 @@ safeHead xs
 null N = True
 null _ = False
 
--- SHOW zipWith
-
-
 -- SHOW map, foldr, foldr1, wtAverage (BAD), wtAverage (GOOD)
 
--- EX: write sig for take, drop
+-- EX: risers
 
+-- SHOW zipWith
+-- SHOW dotProd
+-- SHOW matMult (using dotProd/transpose)
+
+-- EX: write sig for take, drop
 -- EX: what is the SIG for reverseHelper s.t. reverse checks?
 
 {-@ reverse :: xs:List a -> ListN a (size xs) @-}
@@ -90,15 +92,11 @@ reverseHelper (x :+: xs) acc = reverseHelper xs (x :+: acc)
    transpose :: n:Nat -> m:Nat -> Grid a n m -> Grid a m n
 -}
 
+{- EX: write a function kmeans (using map-reduce) -}
+
 \end{code}
 
-\begin{comment}
-\end{comment}
-
-+ Lists : head, tail, null
-
-+ Lists : len: map, append, filter
-
+LINKS 
 + Case Study 1: AlphaConvert (tests/pos/alphaconvert-List.hs) 
 
 + Case Study 2: Kmeans
