@@ -16,6 +16,7 @@ Cabal-version:       >=1.18
 data-files: include/*.hquals
           , include/*.hs
           , include/*.spec
+          , include/CoreToLogic.lg
           , include/Control/*.spec
           , include/Data/*.hquals
           , include/Data/*.spec

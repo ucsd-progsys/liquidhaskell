@@ -40,7 +40,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs 
   , rTyConPropVs
-  , isClassRTyCon
+  , isClassRTyCon, isClassType 
  
   -- * Refinement Types 
   , RType (..), Ref(..), RTProp
@@ -181,6 +181,9 @@ module Language.Haskell.Liquid.Types (
   , isSVar
   , getStrata
   , makeDivType, makeFinType
+
+  -- * CoreToLogic
+  , LogicMap, toLogicMap, eAppWithMap
 
   )
   where
@@ -355,6 +358,27 @@ data GhcSpec = SP {
   , tyconEnv   :: M.HashMap TyCon RTyCon
   }
 
+type LogicMap = M.HashMap Symbol LMap 
+
+data LMap = LMap { lvar  :: Symbol
+                 , largs :: [Symbol] 
+                 , lexpr :: Expr
+                 }
+
+instance Show LMap where
+  show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t|->\t" ++ show e           
+
+
+toLogicMap = M.fromList . map toLMap
+  where 
+    toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
+
+eAppWithMap lmap f es def
+  | Just (LMap _ xs e) <- M.lookup (val f) lmap 
+  = subst (mkSubst $ zip xs es) e
+  | otherwise
+  = def
+
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
@@ -500,6 +524,11 @@ isClassRTyCon = isClassTyCon . rtc_tc
 rTyConPVs     = rtc_pvars
 rTyConPropVs  = filter isPropPV . rtc_pvars
 isPropPV      = isProp . ptype
+
+
+
+isClassType (RApp c _ _ _) = isClass c
+isClassType _              = False
 
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV
