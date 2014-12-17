@@ -4,11 +4,12 @@ data Tree a = Leaf a | Node [Tree a]
 
 {-@ measure size  @-}
 {-@ size           :: Tree a -> Nat @-}
-size (Leaf x)  = 1
+size (Leaf _)  = 1
 size (Node xs) = sizes xs
 
 {-@ measure sizes @-}
-{-@ sizes         :: [Tree a] -> Nat @-}
+{-@ sizes     :: [Tree a] -> Nat @-}
+sizes         :: [Tree a] -> Int
 sizes []      = 0
 sizes (t:ts)  = size t + sizes ts
 
