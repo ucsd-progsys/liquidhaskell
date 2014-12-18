@@ -36,12 +36,11 @@ sizes (t:ts)  = size t + sizes ts
 {-@ tmap :: _ -> tt:Tree a -> Tree b / [size tt, 1, 0] @-}
 -- tmap f tt = case tt of
 tmap f (Leaf x) = Leaf (f x)
-tmap f tt@(Node ts) = Node (goo f (Node ts) (lemmasize (Node ts))) -- [liquidAssert (size t < size tt) t | t <- ts]
+tmap f tt@(Node ts) = Node (goo f (Node ts) (lemmasize ts (Node ts))) -- [liquidAssert (size t < size tt) t | t <- ts]
 
-{-@ Lazy lemmasize @-}
-{-@ lemmasize :: tt:Tree a -> [{v:Tree a | size v < size tt}] @-}
-lemmasize :: Tree a  -> [Tree a]
-lemmasize (Node (t:ts)) = t : lemmasize (Node ts)
+{-@ lemmasize :: ts:[Tree a] -> tt:{v:Tree a | ts = subtrees v} -> [{v:Tree a | size v < size tt}] @-}
+lemmasize :: [Tree a] -> Tree a  -> [Tree a]
+lemmasize _ (Node (t:ts)) = t : lemmasize ts (Node ts)
 
 
 {-@ goo :: (a -> b) -> tt:Tree a -> ts:[{v: Tree a | size v < size tt}] -> [Tree b] / [size tt, 0, len ts] @-}
