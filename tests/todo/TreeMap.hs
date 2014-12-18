@@ -26,14 +26,14 @@ sizes (t:ts)  = size t + sizes ts
 
 {- data Tree a [sizes] @-}
 
-{-@ tmap :: _ -> tt:Tree a -> Tree a / [size tt] @-}
+{-@ tmap :: _ -> tt:Tree a -> Tree a @-}
 tmap f tt = case tt of
              Leaf x  -> Leaf (x)
              Node ts -> Node (goo tt ts) -- [liquidAssert (size t < size tt) t | t <- ts]
 
 
 
-{-@ goo :: tt:Tree a -> [{v: Tree a | size v < size tt}] -> [Tree a] @-}
+{-@ goo :: tt:Tree a -> ts:[{v: Tree a | true}] -> [Tree a] / [len ts] @-}
 goo :: Tree a -> [Tree a] -> [Tree a]
 goo tt [] = []
 goo tt (t:ts) = t : goo tt ts
