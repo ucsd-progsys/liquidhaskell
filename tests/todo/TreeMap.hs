@@ -1,8 +1,8 @@
 module Trees where
 
-{-@ LIQUID "--no-termination" @-}
+{- LIQUID "--no-termination" @-}
 
--- import Language.Haskell.Liquid.Prelude
+import Language.Haskell.Liquid.Prelude
 
 data Tree a = Leaf a | Node [Tree a] 
 
@@ -26,13 +26,20 @@ sizes (t:ts)  = size t + sizes ts
 
 {- data Tree a [sizes] @-}
 
-{-@ tmap :: (a -> b) -> tt:Tree a -> Tree b / [size tt, 0] @-}
+{-@ tmap :: _ -> tt:Tree a -> Tree a / [size tt] @-}
 tmap f tt = case tt of
-             Leaf x  -> Leaf (f x)
-             Node ts -> Node (maps f tt ts)
+             Leaf x  -> Leaf (x)
+             Node ts -> Node (goo tt ts) -- [liquidAssert (size t < size tt) t | t <- ts]
 
-{-@ maps :: (a -> b) -> tt:Tree a -> ts:[{v:Tree a | size v < size tt}] -> [Tree b] / [size tt, len ts] @-} 
-maps _ _  []     = []
-maps f tt (t:ts) = tmap f t : maps f tt ts
+
+
+{-@ goo :: tt:Tree a -> [{v: Tree a | size v < size tt}] -> [Tree a] @-}
+goo :: Tree a -> [Tree a] -> [Tree a]
+goo tt [] = []
+goo tt (t:ts) = t : goo tt ts
+
+{- maps :: (a -> b) -> tt:Tree a -> ts:[{v:Tree a | size v < size tt}] -> [Tree b] / [size tt, len ts] @-} 
+-- maps _ _  []     = []
+-- maps f tt (t:ts) = tmap f t : maps f tt ts
 
 {-@ qualif SZ(v:Tree a, x:Tree a): size v < size x @-}
