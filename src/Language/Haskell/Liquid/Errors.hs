@@ -146,6 +146,9 @@ blankLine    = sizedText 5 " "
 ppError' :: (PPrint a) => Tidy -> Doc -> TError a -> Doc
 -----------------------------------------------------------------------
 
+ppError' _ dSp (ErrAssType _ OCons _ _)
+  = dSp <+> text "Constraint Check"
+
 ppError' _ dSp (ErrAssType _ OTerm _ _)
   = dSp <+> text "Termination Check"
 

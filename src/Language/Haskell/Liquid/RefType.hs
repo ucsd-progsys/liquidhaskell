@@ -512,6 +512,7 @@ freeTyVars (REx _ _ t)     = freeTyVars t
 freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole _)       = []
+freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 

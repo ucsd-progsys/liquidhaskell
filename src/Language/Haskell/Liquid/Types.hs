@@ -644,6 +644,7 @@ data RType c tv r
 data Oblig 
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
+  | OCons -- ^ Obligation that proves constraints
   deriving (Generic, Data, Typeable)
 
 ignoreOblig (RRTy _ _ _ t) = t
@@ -652,6 +653,7 @@ ignoreOblig t              = t
 instance Show Oblig where
   show OTerm = "termination-condition"
   show OInv  = "invariant-obligation"
+  show OCons = "constraint-obligation"
 
 instance PPrint Oblig where
   pprint = text . show
@@ -1196,19 +1198,20 @@ ofRSort ::  Reftable r => RType c tv () -> RType c tv r
 ofRSort = fmap mempty
 
 toRSort :: RType c tv r -> RType c tv () 
-toRSort = stripQuantifiers . mapBind (const dummySymbol) . fmap (const ())
+toRSort = stripAnnotations . mapBind (const dummySymbol) . fmap (const ())
 
-stripQuantifiers (RAllT α t)      = RAllT α (stripQuantifiers t)
-stripQuantifiers (RAllP _ t)      = stripQuantifiers t
-stripQuantifiers (RAllS _ t)      = stripQuantifiers t
-stripQuantifiers (RAllE _ _ t)    = stripQuantifiers t
-stripQuantifiers (REx _ _ t)      = stripQuantifiers t
-stripQuantifiers (RFun x t t' r)  = RFun x (stripQuantifiers t) (stripQuantifiers t') r
-stripQuantifiers (RAppTy t t' r)  = RAppTy (stripQuantifiers t) (stripQuantifiers t') r
-stripQuantifiers (RApp c ts rs r) = RApp c (stripQuantifiers <$> ts) (stripQuantifiersRef <$> rs) r
-stripQuantifiers t                = t
-stripQuantifiersRef (RProp s t)   = RProp s $ stripQuantifiers t
-stripQuantifiersRef r             = r
+stripAnnotations (RAllT α t)      = RAllT α (stripAnnotations t)
+stripAnnotations (RAllP _ t)      = stripAnnotations t
+stripAnnotations (RAllS _ t)      = stripAnnotations t
+stripAnnotations (RAllE _ _ t)    = stripAnnotations t
+stripAnnotations (REx _ _ t)      = stripAnnotations t
+stripAnnotations (RFun x t t' r)  = RFun x (stripAnnotations t) (stripAnnotations t') r
+stripAnnotations (RAppTy t t' r)  = RAppTy (stripAnnotations t) (stripAnnotations t') r
+stripAnnotations (RApp c ts rs r) = RApp c (stripAnnotations <$> ts) (stripAnnotationsRef <$> rs) r
+stripAnnotations (RRTy _ _ _ t)   = stripAnnotations t
+stripAnnotations t                = t
+stripAnnotationsRef (RProp s t)   = RProp s $ stripAnnotations t
+stripAnnotationsRef r             = r
 
 
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)

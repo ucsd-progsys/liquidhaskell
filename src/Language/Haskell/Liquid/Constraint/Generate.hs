@@ -334,6 +334,9 @@ splitS (SubC γ (RRTy e r o t1) t2)
        c2 <- splitS (SubC γ t1 t2)
        return $ c1 ++ c2
 
+splitS (SubC γ t1 (RRTy _ _ _ t2)) 
+  = splitS (SubC γ t1 t2)
+
 splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitS t1 t2 
         cs'      <- splitS  (SubC γ r2 r1) 
@@ -446,6 +449,13 @@ splitC (SubC γ (RAllE x tx t1) t2)
 splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
+
+-- NV: and HERE
+splitC (SubC γ t1 (RRTy _ _ OCons t2))
+  = splitC (SubC γ t1 t2)
+
+splitC (SubC γ (RRTy _ _ OCons t1) t2)
+  = splitC (SubC γ t1 t2)
 
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
