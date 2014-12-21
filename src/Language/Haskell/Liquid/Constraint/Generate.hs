@@ -540,7 +540,14 @@ rsplitsCWithVariance γ t1s t2s variants
 
 
 bsplitC γ t1 t2
-  = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+  = do checkStratum γ t1 t2 
+       pflag <- pruneRefs <$> get
+       γ' <- γ ++= ("bsplitC", v, t1) 
+       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  [F.RConc $ constraintToLogic γ' (lcs γ')])}
+       let t1' = t1 `strengthen` r
+       return $ bsplitC' γ' t1' t2 pflag
+  where
+    F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
@@ -550,9 +557,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = F.subC γ' F.PTrue (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+  = F.subC γ' grd (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
-  = F.subC γ' F.PTrue r1'  r2' Nothing tag ci
+  = F.subC γ' grd r1'  r2' Nothing tag ci
   | otherwise
   = []
   where 
@@ -564,6 +571,7 @@ bsplitC' γ t1 t2 pflag
     err    = Just $ ErrSubType src (text "subtype") g t1 t2 
     src    = loc γ
     REnv g = renv γ 
+    grd    = F.PTrue
 
 
 
