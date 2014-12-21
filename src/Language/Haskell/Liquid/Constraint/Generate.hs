@@ -69,6 +69,7 @@ import Language.Haskell.Liquid.Literals
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
+import Language.Haskell.Liquid.Constraint.Constraint
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -179,6 +180,7 @@ measEnv sp xts cbs lts asms hs
         , trec  = Nothing
         , lcb   = M.empty
         , holes = fromListHEnv hs
+        , lcs   = mempty
         } 
     where
       tce = tcEmbeds sp
@@ -328,11 +330,8 @@ splitS (SubC γ (RAllE _ _ t1) t2)
 splitS (SubC γ t1 (RAllE _ _ t2))
   = splitS (SubC γ t1 t2)
 
-splitS (SubC γ (RRTy e r o t1) t2) 
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
-       c1 <- splitS (SubR γ' o r)
-       c2 <- splitS (SubC γ t1 t2)
-       return $ c1 ++ c2
+splitS (SubC γ (RRTy _ _ _ t1) t2) 
+  = splitS (SubC γ t1 t2)
 
 splitS (SubC γ t1 (RRTy _ _ _ t2)) 
   = splitS (SubC γ t1 t2)
@@ -744,9 +743,13 @@ addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e 
        addC (SubR γ' OInv r) "precondition" >> return t
 
-addPost γ (RRTy e r o t) 
+addPost γ (RRTy e r OTerm t) 
   = do γ' <- foldM (\γ (x, t) -> γ ++= ("addPost", x,t)) γ e 
-       addC (SubR γ' o r) "precondition" >> return t
+       addC (SubR γ' OTerm r) "precondition" >> return t
+
+addPost _ (RRTy _ _ OCons t) 
+  = return t
+
 addPost _ t  
   = return t
 
@@ -1096,7 +1099,7 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e spect
+       cconsE γπ e (traceShow ("type for " ++ show x) spect)
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -1180,6 +1183,10 @@ cconsE γ e@(Let b@(NonRec x _) ee) t
                 cconsE γ' ee t
   where
        isDefLazyVar = L.isPrefixOf "fail" . showPpr
+
+
+cconsE γ e (RRTy [(_, cs)] _ OCons t)
+  = cconsE (addConstraints cs γ) e t
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
@@ -1542,7 +1549,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _)
+  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
@@ -1611,9 +1618,6 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
     snap                 = mapThd3 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
-grapBindsWithType tx γ 
-  = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
-
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
 
@@ -1676,19 +1680,5 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 
----------------------------------------------------------------
------ Refinement Type Environments ----------------------------
----------------------------------------------------------------
-
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
-
-toListREnv (REnv env)     = M.toList env
-filterREnv f (REnv env)   = REnv $ M.filter f env
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-memberREnv x (REnv env)   = M.member x env
-
-
