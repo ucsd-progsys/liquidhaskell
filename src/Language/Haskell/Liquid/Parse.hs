@@ -232,7 +232,14 @@ bareAllExprP
 bareConstraintP
   = do ct   <- braces bareTypeP
        t    <- bareTypeP 
-       return $ RRTy [(dummySymbol, ct)] mempty OCons t 
+       return $ rrTy ct t 
+
+
+rrTy ct t = fromRTypeRep rep{ty_res = t'}
+  where 
+    rep = toRTypeRep t
+    t'  = RRTy [(dummySymbol, ct)] mempty OCons (ty_res rep) 
+
 
 bareExistsP 
   = do reserved "exists"
