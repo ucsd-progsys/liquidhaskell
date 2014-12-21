@@ -25,7 +25,7 @@ incr :: Int -> Int
 incr x = x + 1
 
 
-{-@ incr2 :: x:Nat -> {v:Nat | v == x + 2} @-}
+{-@ incr2 :: x:Nat -> {v:Nat | v == x + 3} @-}
 incr2 :: Int -> Int
 incr2 = cmp incr incr
 
