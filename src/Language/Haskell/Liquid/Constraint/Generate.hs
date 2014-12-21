@@ -449,12 +449,17 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
--- NV: and HERE
-splitC (SubC γ t1 (RRTy _ _ OCons t2))
-  = splitC (SubC γ t1 t2)
-
-splitC (SubC γ (RRTy _ _ OCons t1) t2)
-  = splitC (SubC γ t1 t2)
+splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+       c1 <- splitC (SubC γ' t1' t2')
+       c2 <- splitC (SubC γ  t1  t2 )
+       return $ c1 ++ c2
+  where
+    trep = toRTypeRep t
+    xs   = init $ ty_binds trep
+    ts   = init $ ty_args  trep
+    t2'  = ty_res   trep
+    t1'  = last $ ty_args trep
 
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
@@ -1107,7 +1112,7 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e (traceShow ("type for " ++ show x) spect)
+       cconsE γπ e spect
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
