@@ -461,6 +461,8 @@ splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
     t2'  = ty_res   trep
     t1'  = last $ ty_args trep
 
+
+
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
        c1 <- splitC (SubR γ' o  r )
@@ -1299,7 +1301,8 @@ consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
        te'              <- instantiateStrata ls te0
-       (γ', te'')       <- dropExists γ te'
+       (γ', te''')      <- dropExists γ te'
+       te''             <- dropConstraints γ te'''
        updateLocA πs (exprLoc e) te'' 
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx 
@@ -1392,6 +1395,20 @@ checkUnbound γ e x t
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
+
+
+dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+       addC (SubC  γ' t1 t2)  "dropConstraints"
+       dropConstraints γ  t
+  where
+    trep = toRTypeRep ct
+    xs   = init $ ty_binds trep
+    ts   = init $ ty_args  trep
+    t2   = ty_res   trep
+    t1   = last $ ty_args trep
+
+dropConstraints _ t = return t
 
 -------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()

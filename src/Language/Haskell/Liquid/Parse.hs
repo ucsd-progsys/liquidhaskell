@@ -235,10 +235,10 @@ bareConstraintP
        return $ rrTy ct t 
 
 
-rrTy ct t = fromRTypeRep rep{ty_res = t'}
-  where 
-    rep = toRTypeRep t
-    t'  = RRTy [(dummySymbol, ct)] mempty OCons (ty_res rep) 
+rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t -- fromRTypeRep rep{ty_res = t'}
+--   where 
+--     rep = toRTypeRep t
+--     t'  = RRTy [(dummySymbol, ct)] mempty OCons (ty_res rep) 
 
 
 bareExistsP 
