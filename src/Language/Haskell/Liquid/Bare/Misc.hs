@@ -26,10 +26,9 @@ import Data.Maybe (isNothing)
 import qualified Data.List as L
 
 import Language.Fixpoint.Misc (sortDiff, sortNub)
-import Language.Fixpoint.Names (symbolString)
 import Language.Fixpoint.Types (Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
-import Language.Haskell.Liquid.GhcMisc (showPpr, stringTyVar)
+import Language.Haskell.Liquid.GhcMisc (showPpr)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
 
@@ -110,6 +109,9 @@ mapTyRVar α a s@(MTVST αas err)
               | otherwise -> throwError err
       Nothing             -> return $ MTVST ((α,a):αas) err
 
+
+
+
 mkVarExpr v 
   | isFunVar v = EApp (varFunSymbol v) []
   | otherwise  = EVar (symbol v)
@@ -132,5 +134,4 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
 
 
 
-symbolRTyVar = rTyVar . stringTyVar . symbolString
 

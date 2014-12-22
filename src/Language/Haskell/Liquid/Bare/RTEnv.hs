@@ -17,13 +17,13 @@ import Language.Fixpoint.Types (Symbol)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (ordNub)
+import Language.Haskell.Liquid.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.Misc (symbolRTyVar)
 import Language.Haskell.Liquid.Bare.Type
 
 --- Refinement Type Aliases

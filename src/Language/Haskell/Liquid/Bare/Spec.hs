@@ -41,7 +41,7 @@ import Language.Fixpoint.Types (Qualifier(..), Symbol, symbol)
 
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4)
-import Language.Haskell.Liquid.RefType (generalize, rVar)
+import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -49,7 +49,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Bare.Check (checkDefAsserts)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.Misc (joinVar, symbolRTyVar)
+import Language.Haskell.Liquid.Bare.Misc (joinVar)
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.Type
 
