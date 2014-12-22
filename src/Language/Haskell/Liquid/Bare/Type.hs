@@ -39,7 +39,6 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.Misc (symbolRTyVar)
 import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
