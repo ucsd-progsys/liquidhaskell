@@ -12,6 +12,7 @@ import Prelude hiding (filter)
                   (x:a -> Bool<q x>) -> [a] -> [a<p>]
   @-}
 
+filter :: (a -> Bool) -> [a] -> [a]
 filter f (x:xs)
   | f x       = x : filter f xs
   | otherwise = filter f xs
