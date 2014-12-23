@@ -1199,9 +1199,17 @@ cconsE γ e@(Let b@(NonRec x _) ee) t
   where
        isDefLazyVar = L.isPrefixOf "fail" . showPpr
 
+cconsE γ e (RAllP p t)
+  = cconsE γ' e t''
+  where
+    t'         = replacePredsWithRefs su <$> t
+    su         = (uPVar p, pVartoRConc p)
+    (css, t'') = splitConstraints t'
+    γ'         = foldl (flip addConstraints) γ css 
 
-cconsE γ e (RRTy [(_, cs)] _ OCons t)
-  = cconsE (addConstraints cs γ) e t
+
+-- cconsE γ e (RRTy [(_, cs)] _ OCons t)
+--   = cconsE (addConstraints cs γ) e t
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
@@ -1229,18 +1237,16 @@ cconsE γ e@(Cast e' _) t
   = do t' <- castTy γ (exprType e) e'
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
-cconsE γ e (RAllP p t)
-  = cconsE γ e t'
-  where
-    t' = replacePredsWithRefs su <$> t
-    su = (uPVar p, pVartoRConc p)
-
 cconsE γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
+splitConstraints (RRTy [(_, cs)] _ OCons t) 
+  = let (css, t') = splitConstraints t in (cs:css, t')
+splitConstraints t                       
+  = ([], t) 
 -------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
@@ -1396,11 +1402,11 @@ checkUnbound γ e x t
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
 
-
+dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
        addC (SubC  γ' t1 t2)  "dropConstraints"
-       dropConstraints γ  t
+       dropConstraints γ t
   where
     trep = toRTypeRep ct
     xs   = init $ ty_binds trep

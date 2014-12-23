@@ -905,6 +905,8 @@ bkUniv t                = ([], [], [], t)
 bkClass (RFun _ (RApp c t _ _) t' _)  
   | isClass c 
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
+bkClass (RRTy e r o t)
+  = let (cs, t') = bkClass t in (cs, RRTy e r o t')
 bkClass t                                              
   = ([], t)
 
