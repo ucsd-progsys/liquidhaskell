@@ -164,6 +164,7 @@ bareTypeP
  <|> bareAllS
  <|> bareAllExprP
  <|> bareExistsP
+ <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
  <|> try (angles (do t <- parens $ bareTypeP
@@ -228,6 +229,18 @@ bareAllExprP
        t  <- bareTypeP
        return $ foldr (uncurry RAllE) t zs
  
+bareConstraintP
+  = do ct   <- braces bareTypeP
+       t    <- bareTypeP 
+       return $ rrTy ct t 
+
+
+rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t -- fromRTypeRep rep{ty_res = t'}
+--   where 
+--     rep = toRTypeRep t
+--     t'  = RRTy [(dummySymbol, ct)] mempty OCons (ty_res rep) 
+
+
 bareExistsP 
   = do reserved "exists"
        zs <- brackets $ sepBy1 exBindP comma 

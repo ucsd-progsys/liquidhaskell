@@ -158,6 +158,7 @@ Library
                     Language.Haskell.Liquid.List, 
                     Language.Haskell.Liquid.PrettyPrint, 
                     Language.Haskell.Liquid.Bare,
+                    Language.Haskell.Liquid.Constraint.Constraint, 
                     Language.Haskell.Liquid.Constraint.Types, 
                     Language.Haskell.Liquid.Constraint.Generate, 
                     Language.Haskell.Liquid.Constraint.ToFixpoint, 

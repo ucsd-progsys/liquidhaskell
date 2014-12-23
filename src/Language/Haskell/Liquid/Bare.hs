@@ -383,7 +383,7 @@ expandAlias l = go
     go _ (ROth s)         = return $ ROth s
     go _ (RExprArg e)     = return $ RExprArg e
     go _ (RHole r)        = RHole <$> resolve l r
-    go _ (RRTy _ _ _ _)   = errorstar "Bare.expandAlias called on RRTy" 
+    go s (RRTy e r o t)   = RRTy <$> mapM (mapSndM (go s)) e <*> resolve l r <*> return o <*> go s t 
 
 
 lookupExpandRTApp l s (RApp lc@(Loc _ c) ts rs r) = do
@@ -661,6 +661,8 @@ mapTyVars τ (RAllS _ t)
   = mapTyVars τ t 
 mapTyVars τ (RAllE _ _ t)   
   = mapTyVars τ t 
+mapTyVars τ (RRTy _ _ _ t)   
+  = mapTyVars τ t 
 mapTyVars τ (REx _ _ t)
   = mapTyVars τ t 
 mapTyVars _ (RExprArg _)
@@ -901,6 +903,7 @@ plugHoles tce tyi x f t (Loc l st)
     go (RAllT a t)      t'                 = RAllT a <$> go t t'
     go t                (RAllE b a t')     = RAllE b a <$> go t t'
     go t                (REx b x t')       = REx b x <$> go t t'
+    go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
     go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
     go t                st                 = throwError err
