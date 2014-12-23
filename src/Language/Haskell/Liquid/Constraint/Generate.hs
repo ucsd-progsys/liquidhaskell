@@ -69,6 +69,7 @@ import Language.Haskell.Liquid.Literals
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
+import Language.Haskell.Liquid.Constraint.Constraint
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -179,6 +180,7 @@ measEnv sp xts cbs lts asms hs
         , trec  = Nothing
         , lcb   = M.empty
         , holes = fromListHEnv hs
+        , lcs   = mempty
         } 
     where
       tce = tcEmbeds sp
@@ -328,11 +330,11 @@ splitS (SubC γ (RAllE _ _ t1) t2)
 splitS (SubC γ t1 (RAllE _ _ t2))
   = splitS (SubC γ t1 t2)
 
-splitS (SubC γ (RRTy e r o t1) t2) 
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
-       c1 <- splitS (SubR γ' o r)
-       c2 <- splitS (SubC γ t1 t2)
-       return $ c1 ++ c2
+splitS (SubC γ (RRTy _ _ _ t1) t2) 
+  = splitS (SubC γ t1 t2)
+
+splitS (SubC γ t1 (RRTy _ _ _ t2)) 
+  = splitS (SubC γ t1 t2)
 
 splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _)) 
   =  do cs       <- bsplitS t1 t2 
@@ -447,6 +449,20 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
+splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+       c1 <- splitC (SubC γ' t1' t2')
+       c2 <- splitC (SubC γ  t1  t2 )
+       return $ c1 ++ c2
+  where
+    trep = toRTypeRep t
+    xs   = init $ ty_binds trep
+    ts   = init $ ty_args  trep
+    t2'  = ty_res   trep
+    t1'  = last $ ty_args trep
+
+
+
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
        c1 <- splitC (SubR γ' o  r )
@@ -531,7 +547,14 @@ rsplitsCWithVariance γ t1s t2s variants
 
 
 bsplitC γ t1 t2
-  = checkStratum γ t1 t2 >> pruneRefs <$> get >>= return . bsplitC' γ t1 t2
+  = do checkStratum γ t1 t2 
+       pflag <- pruneRefs <$> get
+       γ' <- γ ++= ("bsplitC", v, t1) 
+       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  [F.RConc $ constraintToLogic γ' (lcs γ')])}
+       let t1' = t1 `strengthen` r
+       return $ bsplitC' γ' t1' t2 pflag
+  where
+    F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
@@ -541,9 +564,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
-  = F.subC γ' F.PTrue (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+  = F.subC γ' grd (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
   | F.isNonTrivialSortedReft r2'
-  = F.subC γ' F.PTrue r1'  r2' Nothing tag ci
+  = F.subC γ' grd r1'  r2' Nothing tag ci
   | otherwise
   = []
   where 
@@ -555,6 +578,7 @@ bsplitC' γ t1 t2 pflag
     err    = Just $ ErrSubType src (text "subtype") g t1 t2 
     src    = loc γ
     REnv g = renv γ 
+    grd    = F.PTrue
 
 
 
@@ -734,9 +758,13 @@ addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e 
        addC (SubR γ' OInv r) "precondition" >> return t
 
-addPost γ (RRTy e r o t) 
+addPost γ (RRTy e r OTerm t) 
   = do γ' <- foldM (\γ (x, t) -> γ ++= ("addPost", x,t)) γ e 
-       addC (SubR γ' o r) "precondition" >> return t
+       addC (SubR γ' OTerm r) "precondition" >> return t
+
+addPost _ (RRTy _ _ OCons t) 
+  = return t
+
 addPost _ t  
   = return t
 
@@ -1171,6 +1199,10 @@ cconsE γ e@(Let b@(NonRec x _) ee) t
   where
        isDefLazyVar = L.isPrefixOf "fail" . showPpr
 
+
+cconsE γ e (RRTy [(_, cs)] _ OCons t)
+  = cconsE (addConstraints cs γ) e t
+
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
        cconsE γ' e t 
@@ -1269,7 +1301,8 @@ consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
        te'              <- instantiateStrata ls te0
-       (γ', te'')       <- dropExists γ te'
+       (γ', te''')      <- dropExists γ te'
+       te''             <- dropConstraints γ te'''
        updateLocA πs (exprLoc e) te'' 
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx 
@@ -1362,6 +1395,20 @@ checkUnbound γ e x t
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
+
+
+dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+       addC (SubC  γ' t1 t2)  "dropConstraints"
+       dropConstraints γ  t
+  where
+    trep = toRTypeRep ct
+    xs   = init $ ty_binds trep
+    ts   = init $ ty_args  trep
+    t2   = ty_res   trep
+    t1   = last $ ty_args trep
+
+dropConstraints _ t = return t
 
 -------------------------------------------------------------------------------------
 cconsCase :: CGEnv -> Var -> SpecType -> [AltCon] -> (AltCon, [Var], CoreExpr) -> CG ()
@@ -1532,7 +1579,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _)
+  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
@@ -1601,9 +1648,6 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
     snap                 = mapThd3 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
-grapBindsWithType tx γ 
-  = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
-
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
 
@@ -1666,19 +1710,5 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 
----------------------------------------------------------------
------ Refinement Type Environments ----------------------------
----------------------------------------------------------------
-
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m
-
-toListREnv (REnv env)     = M.toList env
-filterREnv f (REnv env)   = REnv $ M.filter f env
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-memberREnv x (REnv env)   = M.member x env
-
-

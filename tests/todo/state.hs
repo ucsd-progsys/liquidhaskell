@@ -1,57 +1,74 @@
-module StateMonad where
-
-data ST s a = S (s -> (a, s))
-
-{-@ data ST s a <p1 :: old:s -> s -> Prop>
-     = S (x::(f:s -> (a, s<p1 f>))) 
-  @-}
-
-{-@
-apply :: forall s a <p1 :: old:s -> s -> Prop>.
-          ST <p1> s a-> f:s -> (a, s<p1 f>)
-  @-}
-apply :: ST s a -> s -> (a, s)
-apply (S f) x = f x
+module Compose where
 
 
 
--- TODO >>= does not parse...
-{-@
-seq :: forall <p1 :: old:s -> s -> Prop>.
-        ST <p1> s a -> (a ->  ST <p1> s b) -> ST <p1> s b
-  @-}
-seq :: ST s a -> (a -> ST s b) -> ST s b
-m `seq` k = S $ \s -> 
-  let (a, s') = apply m s in apply (k a) s'
 
--- The above test is UNSAFE becase it requires
--- the S :: x:s -> exists[y:s<p1 x>]. (a, s<p1 y>)
---
-{-
-seq' :: forall <p1 :: old:s -> s -> Prop>.
-        ST <p1> s a -> (a ->  ST <p1> s b) -> 
-        x:s -> exists[y:s<p1 x>]. (a, s<p1 y>)
-  @-}
--- seq' :: ST s a -> (a -> ST s b) -> ST s b
--- m `seq'` k = S $ \s -> 
---   let (a, s') = apply m s in apply (k a) s'
+data ST s a = ST {runState :: s -> s}
+
+{-@ data ST s a <p :: s -> Prop, q :: s -> s -> Prop> = ST (runState :: x:s<p> -> s<q x>) @-}
 
 
-{-@ fresh :: ST <\st -> {v:Int|v=st+1}> Int Int@-}
-fresh :: ST Int Int
-fresh = S (\n -> (n, n+1))
 
-{-@ bar :: (Int, {v:Int|v>=0}) @-}
-bar :: (Int, Int)
-bar = apply fresh 0
 
--- foo 0 = return []
--- 
--- foo n = do x <- foo 
---            xs <- foo $ n-1
---            return $ x :xs
--- 
-       
+{-@ 
+cmp :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
+              , pre  :: s -> Prop, postg :: s -> s -> Prop
+              , post :: s -> s -> Prop
+              >. 
+       {y:s -> s<postg y> -> s<pref>}
+       {x:s<pre> -> z:s<postg x> -> s<postf z> -> s<post x> }
+       f:(ST <pref, postf> s a)
+    -> g:(ST <pre , postg> s b)
+    ->   (ST <pre , post > s b)
+@-}
+
+cmp :: ST s a
+    -> ST s b
+    -> ST s b
+
+cmp (ST f) (ST g) = ST $ \s -> f (g s)
+
+
+{-@ incr :: ST <{\x -> x >= 0}, {\x v -> v = x + 1}> Nat Int @-}
+incr :: ST Int Int 
+incr = ST $ \x -> x + 1
+
+{-@ incr2 :: ST <{\x -> x >= 0}, {\x v -> v = x + 4}> Nat Int @-}
+incr2 :: ST Int Int 
+incr2 = cmp incr incr
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
