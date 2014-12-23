@@ -1199,9 +1199,17 @@ cconsE γ e@(Let b@(NonRec x _) ee) t
   where
        isDefLazyVar = L.isPrefixOf "fail" . showPpr
 
+cconsE γ e (RAllP p t)
+  = cconsE γ' e t''
+  where
+    t'         = replacePredsWithRefs su <$> t
+    su         = (uPVar p, pVartoRConc p)
+    (css, t'') = splitConstraints t'
+    γ'         = foldl (flip addConstraints) γ css 
 
-cconsE γ e (RRTy [(_, cs)] _ OCons t)
-  = cconsE (addConstraints cs γ) e t
+
+-- cconsE γ e (RRTy [(_, cs)] _ OCons t)
+--   = cconsE (addConstraints cs γ) e t
 
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
@@ -1229,18 +1237,19 @@ cconsE γ e@(Cast e' _) t
   = do t' <- castTy γ (exprType e) e'
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e) 
 
-cconsE γ e (RAllP p t)
-  = cconsE γ e t'
-  where
-    t' = replacePredsWithRefs su <$> t
-    su = (uPVar p, pVartoRConc p)
-
 cconsE γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
+splitConstraints (RRTy [(_, cs)] _ OCons t) 
+  = let (css, t') = splitConstraints t in (cs:css, t')
+-- HACK: constraints should be before classes
+splitConstraints (RFun x t1 t2 r)
+  = let (css, t2') = splitConstraints t2 in  (css, RFun x t1 t2' r)
+splitConstraints t                       
+  = ([], traceShow "NO Constraints" t) 
 -------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
@@ -1302,7 +1311,7 @@ consE γ e'@(App e a)
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
        te'              <- instantiateStrata ls te0
        (γ', te''')      <- dropExists γ te'
-       te''             <- dropConstraints γ te'''
+       te''             <- dropConstraints γ (traceShow ("TO DROP CONSTRAINTS" ++ show te)  (flipCC te'''))
        updateLocA πs (exprLoc e) te'' 
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx 
@@ -1363,6 +1372,11 @@ castTy γ τ e
        cconsE γ e t
        trueTy τ 
 
+
+-- HACK!
+flipCC (RFun x t1 (RRTy e r o t2) r') = RRTy e r o (RFun x t1 t2 r')
+flipCC t = t 
+
 singletonReft = uTop . F.symbolReft . F.symbol 
 
 -- | @consElimE@ is used to *synthesize* types by **existential elimination** 
@@ -1396,11 +1410,11 @@ checkUnbound γ e x t
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
 
-
+dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
        addC (SubC  γ' t1 t2)  "dropConstraints"
-       dropConstraints γ  t
+       dropConstraints γ (traceShow ("Constraits = " ++ show ct) t)
   where
     trep = toRTypeRep ct
     xs   = init $ ty_binds trep
