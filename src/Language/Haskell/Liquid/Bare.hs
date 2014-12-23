@@ -882,7 +882,7 @@ plugHoles tce tyi x f t (Loc l st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l . mkArrow αs ps' (ls1 ++ ls2) cs' <$> go rt' st'''
+       Loc l . mkArrow αs ps' (ls1 ++ ls2) [] . pushCls cs' <$> go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -909,6 +909,10 @@ plugHoles tce tyi x f t (Loc l st)
     go t                st                 = throwError err
      where
        err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+
+    pushCls cs (RRTy e r o t) = RRTy e r o (pushCls cs t)
+    pushCls cs t              = foldr (uncurry rFun) t cs 
+
 
 addRefs :: TCEmb TyCon
      -> M.HashMap TyCon RTyCon
