@@ -19,6 +19,7 @@ import Data.Maybe               (catMaybes)
 
 import Var
 
+
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
@@ -29,7 +30,6 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Misc 
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-
 
 data CGEnv 
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
@@ -48,7 +48,12 @@ data CGEnv
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
         , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
         , holes :: !HEnv               -- ^ Types with holes, will need refreshing
+        , lcs   :: !LConstraint  -- ^ Logical Constraints
         } -- deriving (Data, Typeable)
+
+
+data LConstraint = LC [SpecType]
+
 
 instance PPrint CGEnv where
   pprint = pprint . renv
@@ -213,6 +218,27 @@ conjoinInvariant t@(RVar _ r) (RVar _ ir)
 
 conjoinInvariant t _  
   = t
+
+
+
+grapBindsWithType tx γ 
+  = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+
+---------------------------------------------------------------
+----- Refinement Type Environments ----------------------------
+---------------------------------------------------------------
+
+
+
+toListREnv (REnv env)     = M.toList env
+filterREnv f (REnv env)   = REnv $ M.filter f env
+fromListREnv              = REnv . M.fromList
+deleteREnv x (REnv env)   = REnv (M.delete x env)
+insertREnv x y (REnv env) = REnv (M.insert x y env)
+lookupREnv x (REnv env)   = M.lookup x env
+memberREnv x (REnv env)   = M.member x env
+
+
 
 
 ------------------------------------------------------------------------------
