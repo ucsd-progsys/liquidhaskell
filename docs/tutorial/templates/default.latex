@@ -18,6 +18,31 @@
 \newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
 
 
+\usepackage{fancyvrb}
+\usepackage{xcolor}
+
+% spec 
+\DefineVerbatimEnvironment%
+  {spec}{Verbatim}
+  {}
+
+% error 
+\DefineVerbatimEnvironment%
+  {liquiderror}{Verbatim}
+  {}
+
+% shell 
+\DefineVerbatimEnvironment%
+  {shell}{Verbatim}
+  {}
+
+% orig 
+\DefineVerbatimEnvironment%
+  {redverbatim}{Verbatim}
+  {formatcom=\color{red}}
+
+
+
 %% \newcounter{exccounter}
 %% \newenvironment{Exercise}{
 %% \bigskip\noindent
@@ -62,7 +87,6 @@ $if(highlighting-macros)$
 $highlighting-macros$
 $endif$
 
-\usepackage{fancyvrb}
 \usepackage{longtable,booktabs}
 \usepackage{graphicx}
 \makeatletter

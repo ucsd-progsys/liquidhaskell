@@ -85,12 +85,12 @@ language like Haskell. Well, here's the thing: every safe language is
 built on a foundation of machine code, or at the very least, `C`.
 Consider the ubiquitous `vector` library:
 
-\begin{verbatim}
+\begin{shell}
 ghci> :m +Data.Vector 
 ghci> let v = fromList ["haskell", "ocaml"]
 ghci> unsafeIndex v 0
 "haskell"
-\end{verbatim}
+\end{shell}
 
 However, invalid inputs at the safe upper levels could percolate all
 the way down and stir a mutiny down below:

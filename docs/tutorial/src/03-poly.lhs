@@ -2,117 +2,197 @@ Polymorphism
 ============
 
 \begin{comment}
-
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
 
-module VectorBounds (
-    safeLookup 
-  , unsafeLookup, unsafeLookup'
-  , absoluteSum, absoluteSum'
-  , dotProduct
-  , sparseProduct, sparseProduct'
-  ) where
+module VectorBounds where
+-- (
+--     safeLookup 
+--   , unsafeLookup, unsafeLookup'
+--   , absoluteSum, absoluteSum'
+--   , dotProduct
+--   , sparseProduct, sparseProduct'
+--   , eeks
+--   , startE
+--   ) where
 
-import Prelude      hiding (length)
+import Prelude      hiding (abs, length)
 import Data.List    (foldl')
 import Data.Vector  hiding (foldl') 
-
 \end{code}
 \end{comment}
 
-Containers
-----------
+Refinement types start to shine when we want to establish
+properties of *polymorphic*, datatypes and higher-order
+functions. Rather than discuss these notions abstractly,
+lets illustrate them with a [classic][dmlarray] use-case.
 
-+ Lists
+\newthought{Array Bounds Checking} aims to ensure that the
+indices used to look up an array, are indeed *valid* for
+the array, i.e. are between `0` and the *size* of the array.
+For example, suppose we create an `array` with two elements,
+and then attempt to look it up at various indices:
 
-Higher-Order Functions
-----------------------
+\begin{code}
+twoLangs  = fromList ["haskell", "javascript"]
 
-+ map
-+ fold
+eeks      = [ok, yup, nono]
+  where
+    ok    = twoLangs ! 0
+    yup   = twoLangs ! 1
+    nono  = twoLangs ! 3
+\end{code}
 
+If we try to *run* the above, we get a nasty shock:
 
-Today, lets look at a classic use-case for refinement types, namely, 
-the static verification of **vector access bounds**. Along the way, 
-we'll see some examples that illustrate how LiquidHaskell reasons 
-about *recursion*, *higher-order functions*, *data types*, and 
+\begin{shell}
+Prelude> :l 03-poly.lhs
+[1 of 1] Compiling VectorBounds     ( 03-poly.lhs, interpreted )
+Ok, modules loaded: VectorBounds.
+*VectorBounds> eeks
+Loading package ... done.
+"*** Exception: ./Data/Vector/Generic.hs:249 ((!)): index out of bounds (3,2)
+\end{shell}
+
+The exception says we're trying to look up `array` at
+index `3` whereas the size of `array` is just `2`.
+
+If you load this file in a suitably LH-configured editor
+(e.g. Vim or Emacs), you will literally see the error
+*without* running the code. Next, lets see how LH checks
+`ok` and `yup` but flags `nono`, and along the way,
+learn how LiquidHaskell reasons about *recursion*,
+*higher-order functions*, *data types*, and
 *polymorphism*.
 
 
-Specifying Bounds for Vectors
------------------------------
+Specification: Vector Bounds
+----------------------------
 
-One [classical][dmlarray] use-case for refinement types is to verify
-the safety of accesses of arrays and vectors and such, by proving that
-the indices used in such accesses are *within* the vector bounds. 
-Lets see how to do this with LiquidHaskell by writing a few short
-functions that manipulate vectors, in particular, those from the 
-popular [vector][vec] library. 
+First, lets see how to *specify* array bounds safety by *refining* 
+the types for the [key functions][vecspec] exported by `Data.Vector`. 
+In particular we need a way to
 
-First things first. Lets **specify** bounds safety by *refining* 
-the types for the [key functions][vecspec] exported by the module 
-`Data.Vector`. 
+1. *define* the size of a `Vector`
+2. *compute* the size of a `Vector`
+3. *restrict* the indices to those that are valid for a given size.
 
-Specifications for `Data.Vector`
-
-\begin{spec}
-module spec Data.Vector where
-
-import GHC.Base
-
-measure vlen  ::   (Vector a) -> Int 
-assume length :: x:(Vector a) -> {v:Int | v = (vlen x)}
-assume !      :: x:(Vector a) -> {v:Int | 0 <= v && v < (vlen x)} -> a 
-\end{spec}
-
-In particular, we 
-
-- **define** a *property* called `vlen` which denotes the size of the vector,
-- **assume** that the `length` function *returns* an integer equal to the vector's size, and
-- **assume** that the lookup function `!` *requires* an index between `0` and the vector's size.
-
-There are several things worth paying close attention to in the above snippet.
-
-**Measures**
-
-[Recall][listtail] that measures define auxiliary (or so-called **ghost**)
-properties of data values that are useful for specification and verification, 
-but which *don't actually exist at run-time*. Thus, they will 
-*only appear in specifications*, i.e. inside type refinements, but *never* 
-inside code. Often we will use helper functions like `length` in this case, 
-which *pull* or *materialize* the ghost values from the refinement world 
-into the actual code world.
-
-**Assumes**
-
-We write `assume` because in this scenario we are not *verifying* the
-implementation of `Data.Vector`, we are simply *using* the properties of
-the library to verify client code.  If we wanted to verify the library
-itself, we would ascribe the above types to the relevant functions in the
-Haskell source for `Data.Vector`. 
-
-**Dependent Refinements**
-
-Notice that in the function type (e.g. for `length`) we have *named* the *input*
-parameter `x` so that we can refer to it in the *output* refinement. 
-
-In this case, the type 
+\newthought{Importing Specifications}
+We can write specifications for imported modules -- for which we *lack* --
+the code either directly in the source file or better, in `.spec` files
+which can be reused by different client modules.
+For example, we can write specifications for `Data.Vector` inside
+`/include/Data/Vector.spec` which contains:
 
 \begin{spec}
-assume length   :: x:(Vector a) -> {v : Int | v = (vlen x)}
+-- | Define the size 
+measure vlen  :: Vector a -> Int 
+
+-- | Compute the size 
+assume length :: x:Vector a -> {v:Int | v = vlen x}
+
+-- | Restrict the indices 
+assume !      :: x:Vector a -> {v:Nat | v < vlen x} -> a 
 \end{spec}
 
-states that the `Int` output is exactly equal to the size of the input `Vector` named `x`.
+\newthought{Measures} are used to define *properties* (of Haskell data values) that  
+are useful for specification and verification. Thus, think of `vlen` as the *actual*
+size of a `Vector` (regardless of how that was computed).
 
-In other words, the output refinement **depends on** the input value, which
-crucially allows us to write properties that *relate* different program values.
+\newthought{Assumes} are used to *specify* types describing the semantics of
+functions that we cannot verify e.g. because we don't have the code
+for them. Here, we are assuming that the library function `Data.Vector.length`
+indeed computes the size of the input vector. Furthermore, we are stipulating
+that the lookup function `(!)` requires an index that is betwen `0` and the real
+size of the input vector `x`.
 
-**Verifying a Simple Wrapper**
+\newthought{Dependent Refinements} are used to describe relationships
+*between* the elements of a specification. For example, notice how the
+signature for `length` names the input with the binder `x` that then
+appears in the output type to constrain the output `Int`. Similarly,
+the signature for `(!)` names the input vector `x` so that the index
+can be constrained to be valid for `x`.  Thus dependency is essential
+for writing properties that connect different program values.
+
+\newthought{Aliases} are extremely useful for defining shorthands for commonly
+occuring types. For example, we can define `Vector`s of a given size `N` as:
+
+\begin{code}
+{-@ type VectorN a N = {v:Vector a | vlen v == N} @-}
+\end{code}
+
+and now use this to type `twoLangs` above as:
+
+\begin{code}
+{-@ twoLangs  :: VectorN String 2 @-}
+\end{code}
+
+
+Verification: Vector Lookup
+---------------------------
 
 Lets try write some simple functions to sanity check the above specifications. 
-First, consider an *unsafe* vector lookup function:
+
+First, consider a function that returns the starting element of a `Vector`:
+
+\begin{code}
+startElem vec = vec ! 0
+\end{code}
+
+When we check the above, we get an error:
+
+\begin{liquiderror}
+     src/03-poly.lhs:127:23: Error: Liquid Type Mismatch
+       Inferred type
+         VV : Int | VV == ?a && VV == (0  :  int)
+      
+       not a subtype of Required type
+         VV : Int | VV >= 0 && VV < vlen vec
+      
+       In Context
+         VV  : Int | VV == ?a && VV == (0  :  int)
+         vec : (Vector a) | 0 <= vlen vec
+         ?a  : Int | ?a == (0  :  int)
+\end{liquiderror}
+
+Intuitively LH is saying that `0` is *not* a valid index because it is not
+between `0` and `vlen vec`. Say what? Well, what if `vec` had *no* elements!
+
+Ah, of course. A formal verifier doesn't make *off by one* errors (thankfully!)
+
+We can fix the problem in one of two ways:
+
+1. *Require* that the input `vec` be non-empty.
+2. *Return* an output if `vec` is non-empty, or
+
+Here's an implementation of the first approach, where we require the input
+to be non-empty.
+
+\begin{code}
+{-@ startElem' :: VectorNE a -> a @-}
+startElem' vec = vec ! 0
+\end{code}
+
+where `VectorNE` describes non-empty `Vector`s:
+
+\begin{code}
+{-@ type VectorNE a = {v:Vector a | 0 < vlen v} @-}
+\end{code}
+
+\exercise Replace the `undefined` with an *implementation* of `startElem''`
+which accepts *all* `Vector`s but returns a value only when the input `vec`
+is not empty. 
+
+\begin{code}
+startElem''     :: Vector a -> Maybe a 
+startElem'' vec = undefined
+\end{code}
+
+HEREHEREHERE
+
+First, consider an *unsafe* vector lookup function, that is merely a wrapper
+around `(!)`:
 
 \begin{code}
 unsafeLookup vec index = vec ! index
@@ -125,7 +205,7 @@ requirement in the input type
 
 \begin{code}
 {-@ unsafeLookup :: vec:Vector a 
-                 -> {v: Int | (0 <= v && v < (vlen vec))} 
+                 -> {v: Int | 0 <= v && v < vlen vec} 
                  -> a 
   @-}
 \end{code}
@@ -164,9 +244,8 @@ unsafeLookup' :: Vector a -> Int -> a
 unsafeLookup' x i = x ! i
 \end{code}
 
-
-Our First Recursive Function
-----------------------------
+Verification: Our First Recursive Function
+------------------------------------------
 
 OK, with the tedious preliminaries out of the way, lets write some code!
 
@@ -175,22 +254,22 @@ the elements of an integer vector.
 
 \begin{code}
 absoluteSum       :: Vector Int -> Int 
-absoluteSum vec   = if 0 < n then go 0 0 else 0
+absoluteSum vec
+  | 0 < n         = go 0 0
+  | otherwise     = 0
   where
-    go acc i 
-      | i /= n    = go (acc + abz (vec ! i)) (i + 1)
-      | otherwise = acc 
     n             = length vec
+    go acc i 
+      | i /= n    = go (acc + abs (vec ! i)) (i + 1)
+      | otherwise = acc 
+    abs k
+      | 0 < k     = k
+      | otherwise = 0 - k    
 \end{code}
 
-where the function `abz` is the absolute value function from [before][ref101].
+where the function `abz` is the absolute value function.
 
-\begin{code}
-abz n = if 0 <= n then n else (0 - n) 
-\end{code}
-
-Digression: Introducing Errors  
-------------------------------
+**EXERCISE** 
 
 If you are following along in the demo page -- I heartily 
 recommend that you try the following modifications, 
@@ -206,11 +285,10 @@ In the *former* case, LiquidHaskell will *verify* safety, but
 in the *latter* case, it will grumble that your program is *unsafe*. 
 
 Do you understand why? 
-(Thanks to [smog_alado][smog_alado] for pointing this out :))
 
 
-Refinement Type Inference
--------------------------
+Refinement Inference
+--------------------
 
 LiquidHaskell happily verifies `absoluteSum` -- or, to be precise, 
 the safety of the vector accesses `vec ! i`. The verification works 
@@ -231,13 +309,13 @@ we can go ahead and strengthen its type to specify that the output is
 non-negative.
 
 \begin{code}
-{-@ absoluteSum :: Vector Int -> {v: Int | 0 <= v}  @-} 
+{-@ absoluteSum :: Vector Int -> Nat @-} 
 \end{code}
 
 **What happens if:** You *replace* the output type for `absoluteSum` with `{v: Int | 0 < v }` ?
 
-Bottling Recursion With a Higher-Order `loop`
----------------------------------------------
+Higher-Order Functions: Bottling Recursion in a `loop`
+------------------------------------------------------
 
 Next, lets refactor the above low-level recursive function 
 into a generic higher-order `loop`.
@@ -308,9 +386,9 @@ if `x` is a 10-dimensional vector while `y` has only 3-dimensions?
 
 A nasty:
 
-\begin{verbatim}
+\begin{spec}
     *** Exception: ./Data/Vector/Generic.hs:244 ((!)): index out of bounds ...
-\end{verbatim}
+\end{spec}
 
 *Yech*. 
 
@@ -328,8 +406,8 @@ have the same dimensions quite easily
 after which LiquidHaskell will gladly verify that the implementation of
 `dotProduct` is indeed safe!
 
-Refining Data Types
--------------------
+Refining Data Types: Sparse Vectors
+-----------------------------------
 
 Next, suppose we want to write a *sparse dot product*, that is, 
 the dot product of a vector and a **sparse vector** represented
@@ -340,7 +418,7 @@ by a list of index-value tuples.
 We can represent the sparse vector with a **refinement type alias** 
 
 \begin{code}
-{-@ type SparseVector a N = [({v: Int | (Btwn 0 v N)}, a)] @-}
+{-@ type SparseVector a N = [({v:Int | Btwn 0 v N}, a)] @-}
 \end{code}
 
 As with usual types, the alias `SparseVector` on the left is just a 
@@ -418,17 +496,14 @@ Walk the mouse over to `i` to see this inferred type. (You can also hover over
 Thus, the inference mechanism saves us a fair bit of typing and allows us to
 reuse existing polymorphic functions over containers and such without ceremony.
 
-Conclusion
-----------
+**Conclusion**
 
 That's all for now folks! Hopefully the above gives you a reasonable idea of
 how one can use refinements to verify size related properties, and more
 generally, to specify and verify properties of recursive, and polymorphic
-functions operating over datatypes. Next time, we'll look at how we can
-teach LiquidHaskell to think about properties of recursive structures
-like lists and trees.
-
-[smog_alado]: http://www.reddit.com/user/smog_alado
+functions operating over datatypes. Read on to learn how we can teach
+LiquidHaskell to reason about properties of data types like like lists
+and trees.
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
