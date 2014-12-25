@@ -3,23 +3,27 @@ Polymorphism
 
 \begin{comment}
 \begin{code}
-{-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--diff"           @-}
 {-@ LIQUID "--no-termination" @-}
 
-module VectorBounds where
--- (
---     safeLookup 
---   , unsafeLookup, unsafeLookup'
---   , absoluteSum, absoluteSum'
---   , dotProduct
---   , sparseProduct, sparseProduct'
---   , eeks
---   , startE
---   ) where
+module VectorBounds 
+   ( safeLookup 
+   , unsafeLookup
+   , vectorSum, vectorSum'
+   , absoluteSum, absoluteSum' 
+   , dotProduct
+   , sparseProduct, sparseProduct'
+   , eeks
+   , startElem, startElem'
+   , Sparse (..)
+   ) where
 
 import Prelude      hiding (abs, length)
 import Data.List    (foldl')
 import Data.Vector  hiding (foldl') 
+
+sparseProduct, sparseProduct'  :: Vector Int -> Sparse Int -> Int
 \end{code}
 \end{comment}
 
@@ -115,8 +119,11 @@ the signature for `(!)` names the input vector `x` so that the index
 can be constrained to be valid for `x`.  Thus dependency is essential
 for writing properties that connect different program values.
 
-\newthought{Aliases} are extremely useful for defining shorthands for commonly
-occuring types. For example, we can define `Vector`s of a given size `N` as:
+\newthought{Aliases} are extremely useful for defining shorthands for
+commonly occuring types. Just as we enjoy abstractions when programming,
+we will find it handy to have abstractions in the specification mechanism.
+To this end, LiquidHaskell supports *type aliases*. For example, we can
+define `Vector`s of a given size `N` as:
 
 \begin{code}
 {-@ type VectorN a N = {v:Vector a | vlen v == N} @-}
@@ -128,6 +135,18 @@ and now use this to type `twoLangs` above as:
 {-@ twoLangs  :: VectorN String 2 @-}
 \end{code}
 
+Similarly, we can define an alias for `Int` values between `Lo` and `Hi`:
+
+\begin{code}
+{-@ type Btwn Lo Hi = {v:Int | Lo <= v && v < Hi} @-}
+\end{code}
+
+\noindent
+after which we can specify `(!)` as:
+
+\begin{spec}
+(!) :: x:Vector a -> Btwn 0 (vlen x) -> a
+\end{spec}
 
 Verification: Vector Lookup
 ---------------------------
@@ -137,6 +156,7 @@ Lets try write some simple functions to sanity check the above specifications.
 First, consider a function that returns the starting element of a `Vector`:
 
 \begin{code}
+startElem     :: Vector a -> a
 startElem vec = vec ! 0
 \end{code}
 
@@ -189,130 +209,82 @@ startElem''     :: Vector a -> Maybe a
 startElem'' vec = undefined
 \end{code}
 
-HEREHEREHERE
-
-First, consider an *unsafe* vector lookup function, that is merely a wrapper
-around `(!)`:
+\exercise Consider `unsafeLookup` which is essentially a wrapper around the `(!)`
+with the arguments flipped:
 
 \begin{code}
-unsafeLookup vec index = vec ! index
+{-@ unsafeLookup :: Int -> Vector a -> a @-}
+unsafeLookup index vec = vec ! index
 \end{code}
 
-If we run this through LiquidHaskell, it will spit back a type error for
-the expression `x ! i` because (happily!) it cannot prove that `index` is
-between `0` and the `vlen vec`. Of course, we can specify the bounds 
-requirement in the input type
+Modify the *specification* for `unsafeLookup` (i.e. the text between `{-@ ... @-}`)
+to make the *implementation* typecheck.
 
-\begin{code}
-{-@ unsafeLookup :: vec:Vector a 
-                 -> {v: Int | 0 <= v && v < vlen vec} 
-                 -> a 
-  @-}
-\end{code}
-
-then LiquidHaskell is happy to verify the lookup. Of course, now the burden
-of ensuring the index is valid is pushed to clients of `unsafeLookup`.
-
-Instead, we might write a *safe* lookup function that performs the *bounds check*
-before looking up the vector:
+\exercise Write a `safeLookup` function that fills in the implementation of `ok`
+to performs a *bounds check* before looking up the vector.
 
 \begin{code}
 {-@ safeLookup :: Vector a -> Int -> Maybe a @-}
 safeLookup x i 
-  | 0 <= i && i < length x = Just (x ! i)
-  | otherwise              = Nothing 
-\end{code}
-
-**Predicate Aliases**
-
-The type for `unsafeLookup` above is rather verbose as we have to spell out
-the upper and lower bounds and conjoin them. Just as we enjoy abstractions
-when programming, we will find it handy to have abstractions in the
-specification mechanism. To this end, LiquidHaskell supports 
-*predicate aliases*, which are best illustrated by example
-
-\begin{code}
-{-@ predicate Btwn Lo I Hi = (Lo <= I && I < Hi) @-}
-{-@ predicate InBounds I A = (Btwn 0 I (vlen A)) @-}
-\end{code}
-
-Now, we can simplify the type for the unsafe lookup function to
-
-\begin{code}
-{-@ unsafeLookup' :: x:Vector a -> {v:Int | (InBounds v x)} -> a @-}
-unsafeLookup' :: Vector a -> Int -> a
-unsafeLookup' x i = x ! i
+  | ok        = Just (x ! i)
+  | otherwise = Nothing 
+  where
+    ok        = undefined
 \end{code}
 
 Verification: Our First Recursive Function
 ------------------------------------------
 
-OK, with the tedious preliminaries out of the way, lets write some code!
-
-To start: a vanilla recursive function that adds up the absolute values of
-the elements of an integer vector.
+Ok, lets write some code! Lets start with a recursive
+function that adds up the values of the elements of an
+`Int` vector.
 
 \begin{code}
-absoluteSum       :: Vector Int -> Int 
-absoluteSum vec
-  | 0 < n         = go 0 0
-  | otherwise     = 0
+-- >>> vectorSum (fromList [1, -2, 3])
+-- 2 
+
+vectorSum         :: Vector Int -> Int 
+vectorSum vec     = go 0 0
   where
-    n             = length vec
     go acc i 
-      | i /= n    = go (acc + abs (vec ! i)) (i + 1)
+      | i < sz    = go (acc + (vec ! i)) (i + 1)
       | otherwise = acc 
-    abs k
-      | 0 < k     = k
-      | otherwise = 0 - k    
+    sz            = length vec
 \end{code}
 
-where the function `abz` is the absolute value function.
+\exercise What happens if you *replace* the guard with `i <= sz` ? Why?
 
-**EXERCISE** 
+\exercise Write a variant of the above function that computes the
+ `absoluteSum` of the elements of the vector.
 
-If you are following along in the demo page -- I heartily 
-recommend that you try the following modifications, 
-one at a time, and see what happens.
+\begin{code}
+-- >>> absoluteSum (fromList [1, -2, 3])
+-- 6
 
-**What happens if:** 
-
-1. You *remove* the check `0 < n` (see `absoluteSumNT` in the demo code)
-
-2. You *replace* the guard with `i <= n`
-
-In the *former* case, LiquidHaskell will *verify* safety, but
-in the *latter* case, it will grumble that your program is *unsafe*. 
-
-Do you understand why? 
+{-@ absoluteSum :: Vector Int -> Nat @-}
+absoluteSum     :: Vector Int -> Int
+absoluteSum     = undefined
+\end{code}
 
 
 Refinement Inference
 --------------------
 
-LiquidHaskell happily verifies `absoluteSum` -- or, to be precise, 
-the safety of the vector accesses `vec ! i`. The verification works 
-out because LiquidHaskell is able to automatically infer a suitable 
-type for `go`. Shuffle your mouse over the identifier above to see 
-the inferred type. Observe that the type states that the first 
-parameter `acc` (and the output) is `0 <= V`. That is, the returned
-value is non-negative.
+LiquidHaskell verifies `vectorSum` -- or, to be precise, the safety of
+the vector accesses `vec ! i`.  The verification works out because
+LiquidHaskell is able to *automatically infer* \footnotetext{In your editor, click on `go` to see the inferred type.}
 
-More importantly, the type states that the second parameter `i` is 
-`0 <= V` and `V <= n` and `V <= (vlen vec)`. That is, the parameter `i` 
-is between `0` and the vector length (inclusive). LiquidHaskell uses these 
-and the test that `i /= n` to establish that `i` is in fact between `0` 
-and `(vlen vec)` thereby verifing safety. 
+\begin{spec}
+go :: Int -> {v:Int | v >= 0 && v <= sz} -> Int
+\end{spec}
 
-In fact, if we want to use the function externally (i.e. in another module) 
-we can go ahead and strengthen its type to specify that the output is 
-non-negative.
+\noindent which states that the second parameter `i` is
+between `0` and the length of `vec` (inclusive). LiquidHaskell
+uses these and the test that `i < sz` to establish that `i` is
+in fact between `0` and `(vlen vec)` thereby verifing safety. 
 
-\begin{code}
-{-@ absoluteSum :: Vector Int -> Nat @-} 
-\end{code}
+\exercise Can you explain why the type for `go` has `v <= sz` instead of `v < sz` ?
 
-**What happens if:** You *replace* the output type for `absoluteSum` with `{v: Int | 0 < v }` ?
 
 Higher-Order Functions: Bottling Recursion in a `loop`
 ------------------------------------------------------
@@ -322,47 +294,43 @@ into a generic higher-order `loop`.
 
 \begin{code}
 loop :: Int -> Int -> a -> (Int -> a -> a) -> a 
-loop lo hi base f = go base lo
+loop lo hi base f =  go base lo
   where
     go acc i     
-      | i /= hi   = go (f i acc) (i + 1)
+      | i < hi    = go (f i acc) (i + 1)
       | otherwise = acc
 \end{code}
 
-**Using `loop` to compute `absoluteSum`**
-
-We can now use `loop` to implement `absoluteSum` like so:
+We can now use `loop` to implement `vectorSum`:
 
 \begin{code}
-absoluteSum' vec = if 0 < n then loop 0 n 0 body else 0
-  where body     = \i acc -> acc + (vec ! i)
-        n        = length vec
+vectorSum'      :: Vector Int -> Int 
+vectorSum' vec  = loop 0 n 0 body
+  where
+    body i acc  = acc + (vec ! i)
+    n           = length vec
 \end{code}
 
-LiquidHaskell verifies `absoluteSum'` without any trouble.
+LiquidHaskell verifies `vectorSum'` without any trouble.
 
-It is very instructive to see the type that LiquidHaskell *infers* 
-for `loop` -- it looks something like
+\newthought{Inference} is a rather convenient option.
+Lets see what LiquidHaskell *infers* for `loop`:
 
-\begin{code}
-{-@ loop :: lo: {v: Int | (0 <= v) }  
-         -> hi: {v: Int | (lo <= v) } 
-         -> a 
-         -> (i: {v: Int | (Btwn lo v hi)} -> a -> a)
-         -> a 
-  @-}
-\end{code}
+\begin{spec}
+loop :: lo:Nat -> hi:{Nat | lo <= hi} -> a -> (Btwn lo hi -> a -> a) -> a
+\end{spec}
 
-In english, the above type states that 
+\noindent In english, the above type states that 
 
 - `lo` the loop *lower* bound is a non-negative integer
 - `hi` the loop *upper* bound is a greater than `lo`,
 - `f`  the loop *body* is only called with integers between `lo` and `hi`.
 
-Inference is a rather convenient option -- it can be tedious to have to keep 
-typing things like the above! Of course, if we wanted to make `loop` a
-public or exported function, we could use the inferred type to generate 
-an explicit signature too.
+\noindent
+It can be tedious to have to keep typing things like the above.
+Of course, if we wanted to make `loop` a public or exported
+function, we could use the inferred type to generate an
+explicit signature too.
 
 At the call `loop 0 n 0 body` the parameters `lo` and `hi` are
 instantiated with `0` and `n` respectively (which, by the way
@@ -371,80 +339,101 @@ thus LiquidHaskell concludes that `body` is only called with
 values of `i` that are *between* `0` and `(vlen vec)`, which
 shows the safety of the call `vec ! i`.
 
-**Using `loop` to compute `dotProduct`**
-
-Here's another use of `loop` -- this time to compute the `dotProduct` 
-of two vectors. 
+\exercise Complete the implementation of `absoluteSum'` below.
+When you are done, what is the type that is inferred for `body`?
 
 \begin{code}
+-- >>> absoluteSum' (fromList [1, -2, 3])
+-- 6
+
+{-@ absoluteSum' :: Vector Int -> Nat @-}
+absoluteSum'     :: Vector Int -> Int
+absoluteSum' vec = loop 0 n 0 body
+  where
+    n            = length vec
+    body i acc   = undefined
+\end{code}
+
+\exercise Lets use `loop` to compute the `dotProduct` of two vectors:
+
+\begin{code}
+-- >>> dotProduct (fromList [1,2,3]) (fromList [4,5,6])
+-- 32 
+
+{-@ dotProduct :: x:Vector Int -> y:Vector Int -> Int @-}
 dotProduct     :: Vector Int -> Vector Int -> Int
-dotProduct x y = loop 0 (length x) 0 (\i -> (+ (x ! i) * (y ! i))) 
+dotProduct x y = loop 0 sz 0 body 
+  where
+    sz         = length x
+    body i acc = acc + (x ! i)  *  (y ! i)
 \end{code}
 
-The gimlet-eyed reader will realize that the above is quite unsafe -- what
-if `x` is a 10-dimensional vector while `y` has only 3-dimensions? 
-
-A nasty:
-
-\begin{spec}
-    *** Exception: ./Data/Vector/Generic.hs:244 ((!)): index out of bounds ...
-\end{spec}
-
-*Yech*. 
-
-This is precisely the sort of unwelcome surprise we want to do away with at 
-compile-time. Refinements to the rescue! We can specify that the vectors 
-have the same dimensions quite easily
-
-\begin{code}
-{-@ dotProduct :: x:(Vector Int) 
-               -> y:{v: (Vector Int) | (vlen v) = (vlen x)} 
-               -> Int 
-  @-}
-\end{code}
-
-after which LiquidHaskell will gladly verify that the implementation of
-`dotProduct` is indeed safe!
+\noindent Why does LiquidHaskell flags an error in the above?
+Fix the code or specification to get a correct `dotProduct`.
 
 Refining Data Types: Sparse Vectors
 -----------------------------------
 
-Next, suppose we want to write a *sparse dot product*, that is, 
-the dot product of a vector and a **sparse vector** represented
-by a list of index-value tuples.
-
-**Representing Sparse Vectors**
-
-We can represent the sparse vector with a **refinement type alias** 
+While the standard `Vector` is great for *dense* arrays,
+often we have to manipulate *sparse* vectors where most
+elements are just `0`. We might represent such vectors
+as a list of index-value tuples:
 
 \begin{code}
-{-@ type SparseVector a N = [({v:Int | Btwn 0 v N}, a)] @-}
+data Sparse a = SP { spSize  :: Int
+                   , spElems :: [(Int, a)] } 
 \end{code}
 
-As with usual types, the alias `SparseVector` on the left is just a 
-shorthand for the (longer) type on the right, it does not actually 
-define a new type. Thus, the above alias is simply a refinement of
-Haskell's `[(Int, a)]` type, with a size parameter `N` that facilitates 
-easy specification reuse. In this way, refinements let us express 
-invariants of containers like lists in a straightforward manner. 
+\noindent Implicitly, all indices *other* than those in the list
+have the value `0` (or the equivalent value for the type `a`).
 
-**Aside:** If you are familiar with the *index-style* length 
-encoding e.g. as found in [DML][dml] or [Agda][agdavec], then note
-that despite appearances, our `SparseVector` definition is *not* 
-indexed. Instead, we deliberately choose to encode properties 
-with logical refinement predicates, to facilitate SMT based 
-checking and inference.
-
-**Verifying Uses of Sparse Vectors**
-
-Next, we can write a recursive procedure that computes the sparse product
+\newthought{Data Invariants} Unfortunately, Haskell's type system
+does not make it easy to represent the fact that every *legal* `Sparse`
+vector has indices that are between `0` and `spSize`. Fortunately, this is
+easy to describe as a data type refinement in LiquidHaskell:
 
 \begin{code}
-{-@ sparseProduct :: (Num a) => x:(Vector a) 
-                             -> SparseVector a (vlen x) 
-                             -> a 
-  @-}
-sparseProduct x y  = go 0 y
+{-@ data Sparse a = SP { spSize  :: Nat 
+                       , spElems :: [(Btwn 0 spSize, a)]} @-}
+\end{code}
+
+\noindent In the above, we specify that `spSize` is non-negative,
+and each index is indeed valid. Consequently LiquidHaskell verifies:
+
+\begin{code}
+okSP :: Sparse String
+okSP= SP 5 [(0, "cat"), (3, "dog")]
+\end{code}
+
+\noindent but rejects:
+
+\begin{code}
+badSP :: Sparse String
+badSP = SP 5 [(0, "cat"), (6, "dog")]
+\end{code}
+
+\newthought{Field Measures} It is convenient to write an alias
+for sparse vectors of a given size `N`; note that the field name
+`spSize` are *measures*, like `vlen`, and can be used inside
+refinements:
+
+\begin{code}
+{-@ type SparseN a N = {v:Sparse a | spSize v == N} @-} 
+\end{code}
+
+\noindent The alias `SparseN` is just a 
+shorthand for the (longer) type on the right, it does not
+*define* a new type. If you are familiar with the *index-style*
+length encoding e.g. as found in [DML][dml] or [Agda][agdavec],
+then note that despite  appearances, our `Sparse` definition
+is *not* indexed.
+
+\newthought{Sparse Products}
+Lets write a recursive procedure that computes the sparse product
+
+\begin{code}
+{-@ sparseProduct :: x:Vector Int  -> SparseN Int (vlen x) -> Int @-}
+sparseProduct x (SP _ y) = go 0 y
   where 
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
     go sum []            = sum
@@ -452,58 +441,50 @@ sparseProduct x y  = go 0 y
 
 LiquidHaskell verifies the above by using the specification for `y` to
 conclude that for each tuple `(i, v)` in the list, the value of `i` is 
-within the bounds of the vector `x`, thereby proving the safety of the 
-access `x ! i`.
+within the bounds of the vector `x`, thereby proving `x ! i` safe.
 
 Refinements and Polymorphism
 ----------------------------
 
 The sharp reader will have undoubtedly noticed that the sparse product 
-can be more cleanly expressed as a [fold][foldl]. 
-
-Indeed! Let us recall the type of the `foldl` operation
+can be more cleanly expressed as a [fold][foldl]:
 
 \begin{spec}
 foldl' :: (a -> b -> a) -> a -> [b] -> a
 \end{spec}
 
-Thus, we can simply fold over the sparse vector, accumulating the `sum`
+\noindent We can simply fold over the sparse vector, accumulating the `sum`
 as we go along
 
 \begin{code}
-{-@ sparseProduct' :: (Num a) => x:(Vector a) 
-                             -> SparseVector a (vlen x) 
-                             -> a 
-  @-}
-sparseProduct' x y  = foldl' body 0 y   
+{-@ sparseProduct' :: x:Vector Int -> SparseN Int (vlen x) -> Int  @-}
+sparseProduct' x (SP _ y) = foldl' body 0 y   
   where 
-    body sum (i, v) = sum + (x ! i) * v
+    body sum (i, v)       = sum + (x ! i)  * v
 \end{code}
 
+\noindent
 LiquidHaskell digests this too, without much difficulty. 
-
 The main trick is in how the polymorphism of `foldl'` is instantiated. 
 
-1. The GHC type inference engine deduces that at this site, the type variable
-   `b` from the signature of `foldl'` is instantiated to the Haskell type `(Int, a)`. 
+1. The GHC type inference engine deduces that at this site,
+   the type variable `b` from the signature of `foldl'` is
+   instantiated to the Haskell type `(Int, a)`. 
 
-2. Correspondingly, LiquidHaskell infers that in fact `b` can be instantiated
-   to the *refined* type `({v: Int | (Btwn 0 v (vlen x))}, a)`. 
-   
-Walk the mouse over to `i` to see this inferred type. (You can also hover over
-`foldl'`above to see the rather more verbose fully instantiated type.)
+2. Correspondingly, LiquidHaskell infers that in fact `b`
+   can be instantiated to the *refined* `(Btwn 0 v (vlen x), a)`. 
 
 Thus, the inference mechanism saves us a fair bit of typing and allows us to
 reuse existing polymorphic functions over containers and such without ceremony.
 
-**Conclusion**
+Conclusion
+----------
 
-That's all for now folks! Hopefully the above gives you a reasonable idea of
+Hopefully the above gives you a reasonable idea of
 how one can use refinements to verify size related properties, and more
 generally, to specify and verify properties of recursive, and polymorphic
 functions operating over datatypes. Read on to learn how we can teach
-LiquidHaskell to reason about properties of data types like like lists
-and trees.
+LiquidHaskell to reason about *structural* properties of data types.
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
