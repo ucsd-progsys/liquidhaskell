@@ -242,7 +242,6 @@ function that adds up the values of the elements of an
 \begin{code}
 -- >>> vectorSum (fromList [1, -2, 3])
 -- 2 
-
 vectorSum         :: Vector Int -> Int 
 vectorSum vec     = go 0 0
   where
@@ -252,7 +251,7 @@ vectorSum vec     = go 0 0
     sz            = length vec
 \end{code}
 
-\exercise What happens if you *replace* the guard with `i <= sz` ? Why?
+\exercise What happens if you *replace* the guard with `i <= sz`?
 
 \exercise Write a variant of the above function that computes the
  `absoluteSum` of the elements of the vector.
@@ -260,7 +259,6 @@ vectorSum vec     = go 0 0
 \begin{code}
 -- >>> absoluteSum (fromList [1, -2, 3])
 -- 6
-
 {-@ absoluteSum :: Vector Int -> Nat @-}
 absoluteSum     :: Vector Int -> Int
 absoluteSum     = undefined
@@ -283,13 +281,13 @@ between `0` and the length of `vec` (inclusive). LiquidHaskell
 uses these and the test that `i < sz` to establish that `i` is
 in fact between `0` and `(vlen vec)` thereby verifing safety. 
 
-\exercise Can you explain why the type for `go` has `v <= sz` instead of `v < sz` ?
+\exercise Why does `go`'s type have `v <= sz` instead of `v < sz` ?
 
 
 Higher-Order Functions: Bottling Recursion in a `loop`
 ------------------------------------------------------
 
-Next, lets refactor the above low-level recursive function 
+Lets refactor the above low-level recursive function 
 into a generic higher-order `loop`.
 
 \begin{code}
@@ -311,10 +309,7 @@ vectorSum' vec  = loop 0 n 0 body
     n           = length vec
 \end{code}
 
-LiquidHaskell verifies `vectorSum'` without any trouble.
-
-\newthought{Inference} is a rather convenient option.
-Lets see what LiquidHaskell *infers* for `loop`:
+\newthought{Inference} is a convenient option. LiquidHaskell finds:
 
 \begin{spec}
 loop :: lo:Nat -> hi:{Nat | lo <= hi} -> a -> (Btwn lo hi -> a -> a) -> a
@@ -328,9 +323,8 @@ loop :: lo:Nat -> hi:{Nat | lo <= hi} -> a -> (Btwn lo hi -> a -> a) -> a
 
 \noindent
 It can be tedious to have to keep typing things like the above.
-Of course, if we wanted to make `loop` a public or exported
-function, we could use the inferred type to generate an
-explicit signature too.
+If we wanted to make `loop` a public or exported function, we
+could use the inferred type to generate an explicit signature.
 
 At the call `loop 0 n 0 body` the parameters `lo` and `hi` are
 instantiated with `0` and `n` respectively (which, by the way
@@ -345,7 +339,6 @@ When you are done, what is the type that is inferred for `body`?
 \begin{code}
 -- >>> absoluteSum' (fromList [1, -2, 3])
 -- 6
-
 {-@ absoluteSum' :: Vector Int -> Nat @-}
 absoluteSum'     :: Vector Int -> Int
 absoluteSum' vec = loop 0 n 0 body
@@ -354,12 +347,11 @@ absoluteSum' vec = loop 0 n 0 body
     body i acc   = undefined
 \end{code}
 
-\exercise Lets use `loop` to compute the `dotProduct` of two vectors:
+\exercise Lets use `loop` to compute `dotProduct`s:
 
 \begin{code}
 -- >>> dotProduct (fromList [1,2,3]) (fromList [4,5,6])
 -- 32 
-
 {-@ dotProduct :: x:Vector Int -> y:Vector Int -> Int @-}
 dotProduct     :: Vector Int -> Vector Int -> Int
 dotProduct x y = loop 0 sz 0 body 
@@ -368,7 +360,7 @@ dotProduct x y = loop 0 sz 0 body
     body i acc = acc + (x ! i)  *  (y ! i)
 \end{code}
 
-\noindent Why does LiquidHaskell flags an error in the above?
+\noindent Why does LiquidHaskell flag an error in the above?
 Fix the code or specification to get a correct `dotProduct`.
 
 Refining Data Types: Sparse Vectors
@@ -429,19 +421,20 @@ then note that despite  appearances, our `Sparse` definition
 is *not* indexed.
 
 \newthought{Sparse Products}
-Lets write a recursive procedure that computes the sparse product
+Lets write a function to compute a sparse product
 
 \begin{code}
-{-@ sparseProduct :: x:Vector Int  -> SparseN Int (vlen x) -> Int @-}
+{-@ sparseProduct :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
 sparseProduct x (SP _ y) = go 0 y
   where 
     go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
     go sum []            = sum
 \end{code}
 
-LiquidHaskell verifies the above by using the specification for `y` to
-conclude that for each tuple `(i, v)` in the list, the value of `i` is 
-within the bounds of the vector `x`, thereby proving `x ! i` safe.
+LiquidHaskell verifies the above by using the specification
+to conclude that for each tuple `(i, v)` in the list `y`, the
+value of `i` is within the bounds of the vector `x`, thereby
+proving `x ! i` safe.
 
 Refinements and Polymorphism
 ----------------------------
@@ -457,7 +450,7 @@ foldl' :: (a -> b -> a) -> a -> [b] -> a
 as we go along
 
 \begin{code}
-{-@ sparseProduct' :: x:Vector Int -> SparseN Int (vlen x) -> Int  @-}
+{-@ sparseProduct' :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
 sparseProduct' x (SP _ y) = foldl' body 0 y   
   where 
     body sum (i, v)       = sum + (x ! i)  * v
@@ -477,14 +470,12 @@ The main trick is in how the polymorphism of `foldl'` is instantiated.
 Thus, the inference mechanism saves us a fair bit of typing and allows us to
 reuse existing polymorphic functions over containers and such without ceremony.
 
-Conclusion
-----------
-
-Hopefully the above gives you a reasonable idea of
-how one can use refinements to verify size related properties, and more
-generally, to specify and verify properties of recursive, and polymorphic
-functions operating over datatypes. Read on to learn how we can teach
-LiquidHaskell to reason about *structural* properties of data types.
+\newthought{Thats all} for now! Hopefully the above gives you
+a reasonable idea of how one can use refinements to verify size
+related properties, and more generally, to specify and verify
+properties of recursive, and polymorphic functions operating
+over datatypes. Read on to learn how we can teach LiquidHaskell
+to reason about *structural* properties of data types.
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
