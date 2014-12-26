@@ -97,7 +97,7 @@ reverseHelper (x :+: xs) acc = reverseHelper xs (x :+: acc)
 \end{code}
 
 LINKS 
-+ Case Study 1: AlphaConvert (tests/pos/alphaconvert-List.hs) 
 
++ Case Study 1: AlphaConvert (tests/pos/alphaconvert-List.hs) 
 + Case Study 2: Kmeans
 

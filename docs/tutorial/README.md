@@ -1,16 +1,18 @@
 # LiquidHaskell Tutorial
 
-1. Install
+0. Install
    + Z3
    + Ocaml
    + cabal install
    + emacs
 
-2. Refinement Types
+--- Part I: Refinement Types
+
+1. Refinement Types
    + Basic: Nat, Pos, Rng
    + Functions: Die, Div, avg2, avg3, scale
 
-3. Polymorphism & HOFs
+2. Polymorphism & HOFs
 
    BLOG: "Bounding Vectors"
    
@@ -21,16 +23,29 @@
 	 + map, fold,...
 		title: "Bounding Vectors"
 
-4. Measures
-  
+3. Refining Datatypes
+
+data Sparse =
+data List a = Nil | Cons { hd :: a, tl :: [{v:a | hd <= v}] }
+data Heap a = ...
+data BST a  = ...
+
+--- **HEREHEREHERE**
+
+--- Part II: Measures
+
+4. Propositions
+http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
+
     Prop	
     + head, tail, null
 	+ len: map, append, filter, foldr1,wtAverage (!)
 	+ EX: risers
 	+ EX: "map-reduce"
 
+5. Numbers 
 
-	Integer
+	Int
     + zipWith
 	+ dotProd
 	+ insertSort
@@ -48,27 +63,38 @@
 		        		  , elts :: Grid a rows cols }
 					
 	+ EX: kmeans-using-"map-reduce"
-	
-	Sets
-	
+
+6. Sets
     + Example: Eval.hs
-   
     EX: write a `noDup` measure
 	EX: write a `nub`  function
 
----
+--- Part III : Applications & Case Studies
 
-5. Abstract Refinements
+7. Case Study: Totality
 
-  + Copy from FLOPS/IHP talk sequence
-
-6. Termination
+8. Case Study: Termination
 
   + Copy from BLOG/PAPER sequence
   + HW Exercises
 
-7. Case Study: Red-Black Trees **OR** Weighted Biased Heaps
-
-   + EX: AVL TREE (insert/delete/member)
+9. Case Study: Red-Black Trees **OR** Weighted Biased Heaps
+  + EX: AVL TREE (insert/delete/member)
    
-8. Case Study: Low-level Pointers
+10. Case Study: Low-level Pointers
+
+--- Part IV : Abstract Refinements 
+
+11. Abstract Refinements I (code)
+  + Copy from FLOPS/IHP talk sequence
+  + Vanilla/Code [compose, foldr, ...]
+
+12. Abstract Refinements II (data)
+  + RecRef [List, BST]
+  + Arrays
+
+13. Abstract Refinements III (constraints)
+  + compose
+  + filter
+  + state 
+
