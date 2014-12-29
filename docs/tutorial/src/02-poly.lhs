@@ -37,9 +37,11 @@ the array, i.e. are between `0` and the *size* of the array.
 For example, suppose we create an `array` with two elements,
 and then attempt to look it up at various indices:
 
-\begin{code}
+\begin{spec}
 twoLangs  = fromList ["haskell", "javascript"]
+\end{spec} 
 
+\begin{code}
 eeks      = [ok, yup, nono]
   where
     ok    = twoLangs ! 0
@@ -99,9 +101,10 @@ assume length :: x:Vector a -> {v:Int | v = vlen x}
 assume !      :: x:Vector a -> {v:Nat | v < vlen x} -> a 
 \end{spec}
 
-\newthought{Measures} are used to define *properties* (of Haskell data values) that  
-are useful for specification and verification. Thus, think of `vlen` as the *actual*
-size of a `Vector` (regardless of how that was computed).
+\newthought{Measures} are used to define *properties* of
+Haskell data values that are useful for specification and
+verification. Think of `vlen` as the *actual*
+size of a `Vector` regardless of how the size was computed.
 
 \newthought{Assumes} are used to *specify* types describing the semantics of
 functions that we cannot verify e.g. because we don't have the code
@@ -131,7 +134,8 @@ define `Vector`s of a given size `N` as:
 and now use this to type `twoLangs` above as:
 
 \begin{code}
-{-@ twoLangs  :: VectorN String 2 @-}
+{-@ twoLangs :: VectorN String 2 @-}
+twoLangs     = fromList ["haskell", "javascript"]
 \end{code}
 
 Similarly, we can define an alias for `Int` values between `Lo` and `Hi`:
@@ -150,9 +154,8 @@ after which we can specify `(!)` as:
 Verification: Vector Lookup
 ---------------------------
 
-Lets try write some simple functions to sanity check the above specifications. 
-
-First, consider a function that returns the starting element of a `Vector`:
+Lets try write some functions to sanity check the specifications.
+First, find the starting element of a `Vector` 
 
 \begin{code}
 startElem     :: Vector a -> a
@@ -175,28 +178,24 @@ When we check the above, we get an error:
          ?a  : Int | ?a == (0  :  int)
 \end{liquiderror}
 
-Intuitively LH is saying that `0` is *not* a valid index because it is not
-between `0` and `vlen vec`. Say what? Well, what if `vec` had *no* elements!
+\noindent LiquidHaskell is saying that `0` is *not* a valid index
+as it is not between `0` and `vlen vec`. Say what? Well, what if
+`vec` had *no* elements! Fortunately, a formal verifier doesn't
+make *off by one* errors.
 
-Ah, of course. A formal verifier doesn't make *off by one* errors (thankfully!)
-
-We can fix the problem in one of two ways:
+\newthought{Fix} We can fix the problem in one of two ways:
 
 1. *Require* that the input `vec` be non-empty.
 2. *Return* an output if `vec` is non-empty, or
 
-Here's an implementation of the first approach, where we require the input
-to be non-empty.
+Here's an implementation of the first approach, where we define
+and use an alias `NEVector` for non-empty `Vector`s
 
 \begin{code}
-{-@ startElem' :: VectorNE a -> a @-}
+{-@ type NEVector a = {v:Vector a | 0 < vlen v} @-}
+
+{-@ startElem' :: NEVector a -> a @-}
 startElem' vec = vec ! 0
-\end{code}
-
-where `VectorNE` describes non-empty `Vector`s:
-
-\begin{code}
-{-@ type VectorNE a = {v:Vector a | 0 < vlen v} @-}
 \end{code}
 
 \exercise Replace the `undefined` with an *implementation* of `startElem''`
@@ -220,7 +219,7 @@ Modify the *specification* for `unsafeLookup` (i.e. the text between `{-@ ... @-
 to make the *implementation* typecheck.
 
 \exercise Write a `safeLookup` function that fills in the implementation of `ok`
-to performs a *bounds check* before looking up the vector.
+to performs a *bounds check* before the access.
 
 \begin{code}
 {-@ safeLookup :: Vector a -> Int -> Maybe a @-}
@@ -434,12 +433,15 @@ The main trick is in how the polymorphism of `foldl'` is instantiated.
 Thus, the inference mechanism saves us a fair bit of typing and allows us to
 reuse existing polymorphic functions over containers and such without ceremony.
 
-\newthought{Thats all} for now! Hopefully the above gives you
-a reasonable idea of how one can use refinements to verify size
-related properties, and more generally, to specify and verify
-properties of recursive, and polymorphic functions operating
-over datatypes. Read on to learn how we can teach LiquidHaskell
-to reason about *structural* properties of data types.
+Recap
+-----
+
+Hopefully this chapter gave you a reasonable
+idea of how one can use refinements to verify size related properties,
+and more generally, to specify and verify properties of recursive,
+and polymorphic functions operating over datatypes.
+Read on to learn how we can teach LiquidHaskell to reason about
+*structural* properties of data types.
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
