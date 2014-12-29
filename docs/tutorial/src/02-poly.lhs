@@ -16,14 +16,13 @@ module VectorBounds
    , sparseProduct, sparseProduct'
    , eeks
    , startElem, startElem'
-   , Sparse (..)
    ) where
 
 import Prelude      hiding (abs, length)
 import Data.List    (foldl')
 import Data.Vector  hiding (foldl') 
 
-sparseProduct, sparseProduct'  :: Vector Int -> Sparse Int -> Int
+sparseProduct, sparseProduct'  :: Vector Int -> [(Int, Int)] -> Int
 \end{code}
 \end{comment}
 
@@ -71,8 +70,8 @@ learn how LiquidHaskell reasons about *recursion*,
 *polymorphism*.
 
 
-Specification: Vector Bounds
-----------------------------
+Specification: Vector Bounds {#vectorbounds}
+--------------------------------------------
 
 First, lets see how to *specify* array bounds safety by *refining* 
 the types for the [key functions][vecspec] exported by `Data.Vector`. 
@@ -372,48 +371,13 @@ elements are just `0`. We might represent such vectors
 as a list of index-value tuples:
 
 \begin{code}
-data Sparse a = SP { spSize  :: Int
-                   , spElems :: [(Int, a)] } 
+{-@ type SparseN a N = [(Btwn 0 N, a)] @-}
 \end{code}
 
 \noindent Implicitly, all indices *other* than those in the list
 have the value `0` (or the equivalent value for the type `a`).
 
-\newthought{Data Invariants} Unfortunately, Haskell's type system
-does not make it easy to represent the fact that every *legal* `Sparse`
-vector has indices that are between `0` and `spSize`. Fortunately, this is
-easy to describe as a data type refinement in LiquidHaskell:
-
-\begin{code}
-{-@ data Sparse a = SP { spSize  :: Nat 
-                       , spElems :: [(Btwn 0 spSize, a)]} @-}
-\end{code}
-
-\noindent In the above, we specify that `spSize` is non-negative,
-and each index is indeed valid. Consequently LiquidHaskell verifies:
-
-\begin{code}
-okSP :: Sparse String
-okSP= SP 5 [(0, "cat"), (3, "dog")]
-\end{code}
-
-\noindent but rejects:
-
-\begin{code}
-badSP :: Sparse String
-badSP = SP 5 [(0, "cat"), (6, "dog")]
-\end{code}
-
-\newthought{Field Measures} It is convenient to write an alias
-for sparse vectors of a given size `N`; note that the field name
-`spSize` are *measures*, like `vlen`, and can be used inside
-refinements:
-
-\begin{code}
-{-@ type SparseN a N = {v:Sparse a | spSize v == N} @-} 
-\end{code}
-
-\noindent The alias `SparseN` is just a 
+\newthought{Alias} `SparseN` is just a 
 shorthand for the (longer) type on the right, it does not
 *define* a new type. If you are familiar with the *index-style*
 length encoding e.g. as found in [DML][dml] or [Agda][agdavec],
@@ -424,10 +388,10 @@ is *not* indexed.
 Lets write a function to compute a sparse product
 
 \begin{code}
-{-@ sparseProduct :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
-sparseProduct x (SP _ y) = go 0 y
+{-@ sparseProduct        :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
+sparseProduct x y        = go 0 y
   where 
-    go sum ((i, v) : y') = go (sum + (x ! i) * v) y' 
+    go sum ((i, v) : y') = go (sum + (x ! i) *  v) y' 
     go sum []            = sum
 \end{code}
 
@@ -450,10 +414,10 @@ foldl' :: (a -> b -> a) -> a -> [b] -> a
 as we go along
 
 \begin{code}
-{-@ sparseProduct' :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
-sparseProduct' x (SP _ y) = foldl' body 0 y   
+{-@ sparseProduct'  :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
+sparseProduct' x y  = foldl' body 0 y   
   where 
-    body sum (i, v)       = sum + (x ! i)  * v
+    body sum (i, v) = sum + (x ! i)  * v
 \end{code}
 
 \noindent
