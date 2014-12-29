@@ -41,6 +41,8 @@ http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching
     Prop	
     + head, tail, null
 
+HEREHEREHEREHERE
+
     + len: map, append, foldr1, wtAverage (!)
 
     + EX: risers
