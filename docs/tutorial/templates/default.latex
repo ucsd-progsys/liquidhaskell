@@ -21,6 +21,7 @@
 \usepackage{fancyvrb}
 \usepackage{xcolor}
 
+
 % spec 
 \DefineVerbatimEnvironment%
   {spec}{Verbatim}
@@ -157,9 +158,6 @@ $endfor$
 
 % \newcommand\footnotetext[1]{#1} 
 % \newcommand\myfootnote[1]{\footnotetext{#1}} 
-% \newcommand{\mynote}[2]{{\sf {#1} $\clubsuit$ {#2} $\clubsuit$}}
-% \newcommand{\todo}[1]{{\color{red}\mynote{TODO:}{#1}}}
-
 
 \begin{document}
 

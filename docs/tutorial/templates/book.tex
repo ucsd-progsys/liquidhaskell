@@ -113,6 +113,41 @@
 \newcommand\cc[1]{\texttt{#1}}
 \newcommand\myfootnote[1]{\footnotetext{#1}} 
 
+
+
+
+%% EXERCISE: HANDROLLED
+\usepackage{chngcntr}
+\newcounter{theexercise} \setcounter{theexercise}{0}
+\newcommand\exercise{\stepcounter{theexercise} \medskip \noindent\textsc{Exercise \arabic{chapter}.\arabic{theexercise}.}\ }
+\counterwithin{theexercise}{chapter}
+\newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
+
+
+% spec 
+\DefineVerbatimEnvironment%
+  {spec}{Verbatim}
+  {}
+
+% error 
+\DefineVerbatimEnvironment%
+  {liquiderror}{Verbatim}
+  {}
+
+% shell 
+\DefineVerbatimEnvironment%
+  {shell}{Verbatim}
+  {}
+
+% orig 
+\DefineVerbatimEnvironment%
+  {redverbatim}{Verbatim}
+  {formatcom=\color{red}}
+
+
+
+
+
 \begin{document}
 
 \maketitle
