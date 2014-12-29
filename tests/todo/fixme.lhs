@@ -1,9 +1,5 @@
-module Goo where
-
-import Prelude hiding (sum, map, foldr1)
-
-wtAverage :: [(Int, Int)] -> Int
-wtAverage wxs = div totElems totWeight 
+{-@ wtAverage :: NEList (Pos, Pos) -> Int @-}
+wtAverage wxs = divide totElems totWeight 
   where
     elems     = map (\(w, x) -> w * x) wxs
     weights   = map (\(w, _) -> w    ) wxs
@@ -14,7 +10,5 @@ wtAverage wxs = div totElems totWeight
 map _ []      = []
 map f (x:xs)  = f x : map f xs 
 
-sum :: [Int] -> Int
-sum []        = error "cannot add up empty list"
+sum []        = die "cannot add up empty list"
 sum _         = foldr1 (+)
-
