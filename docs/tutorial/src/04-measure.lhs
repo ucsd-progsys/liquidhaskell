@@ -37,7 +37,7 @@ size1, size2 :: [a] -> Int
 \end{comment}
 
 
-Computing Averages
+Partial Functions 
 ------------------
 
 As a motivating example, let us return to problem of ensuring
@@ -96,8 +96,8 @@ Uh oh. LiquidHaskell wags its finger at us!
          elems : Int
 \end{liquiderror}
 
-Indeed, there is no way to prove that the divisor is `NonZero`,
-because it *can* be `0` -- when the list is *empty*. Thus, we
+\newthought{We cannot prove} that the divisor is `NonZero`,
+because it *can be* `0` -- when the list is *empty*. Thus, we
 need a way of specifying that the input to `avgMany` is indeed
 non-empty!
 
@@ -105,26 +105,28 @@ Lifting Functions to Measures
 -----------------------------
 
 \newthought{How} shall we tell LiquidHaskell that a list is *non-empty*?
-
 Recall the notion of `measure` previously [introduced](#vectorbounds)
 to describe the size of a `Data.Vector`. In that spirit, lets write
-a `measure` that computes whether a list is not empty:
+a function that computes whether a list is not empty:
 
 \begin{code}
-{-@ measure notEmpty @-}
 notEmpty       :: [a] -> Bool 
 notEmpty []    = False
 notEmpty (_:_) = True 
 \end{code}
 
-A `measure` is simply a *total* Haskell function,
+\newthought{A measure} is a *total* Haskell function,
 
 1. With a *single* equation per data constructor, and 
-2. Guaranteed to terminate, via structural recursion.
+2. Guaranteed to *terminate*, typically via structural recursion.
 
-The declaration `measure notEmpty` tells LiquidHaskell to *lift*
-the function up into the refinement logic, allowing us to use it
-inside refinements.
+\noindent
+We can tell LiquidHaskell to *lift* a function meeting
+the above requirements into the refinement logic by declaring:
+
+\begin{code}
+{-@ measure notEmpty @-}
+\end{code}
 
 
 Using Measures
@@ -164,6 +166,7 @@ average xs = divide total elems
 `average'` that returns `Nothing` for empty lists:
 
 \begin{code}
+average'      :: [Int] -> Maybe Int
 average' xs
   | ok        = Just $ divide total elems 
   | otherwise = Nothing 
@@ -178,7 +181,7 @@ average' xs
 is that they help establish properties not just of your *implementations*
 but equally, or more importantly, of your *specifications*. In that spirit,
 can you explain why the following two variants of `size` are *rejected*
-by LiquidHaskell?
+by LiquidHaskell? 
 
 \begin{code}
 {-@ size1    :: xs:(NEList a) -> Pos @-}
@@ -199,7 +202,10 @@ Now that we can talk about non-empty lists, we can ensure
 the safety of various list-manipulating functions which
 are only well-defined on non-empty lists and which crash
 with unexpected run-time errors otherwise.
-For example, we can type the potentially dangerous `head` and `tail` as:
+
+\newthought{Heads and Tails}
+For example, we can type the potentially dangerous `head`
+and `tail` as:
 
 \begin{code}
 {-@ head    :: NEList a -> a @-}
@@ -216,38 +222,43 @@ LiquidHaskell deduces that the second equations are
 callers only supply non-empty arguments.
 
 
-\newthought{Non-Empty Groups}
-Lets use the above to write a function that eliminates stuttering:
+\newthought{Groups}
+Lets use the above to write a function that chunks sequences
+into non-empty groups of equal elements:
 
 \begin{code}
--- >>> eliminateStutter "ssstringssss liiiiiike thisss"
--- "strings like this"
-eliminateStutter xs = map head $ groupEq xs 
-
+{-@ groupEq         :: (Eq a) => [a] -> [NEList a] @-}
 groupEq []          = []
 groupEq (x:xs)      = (x:ys) : groupEq zs
   where
     (ys, zs)        = span (x ==) xs
 \end{code}
 
-which gathers consecutive equal elements in the list into a single list.
-By using the fact that *each element* in the output returned by 
-`groupEq` is in fact of the form `x:ys`, LiquidHaskell infers that
-`groupEq` returns a *list of non-empty lists*. 
-(Hover over the `groupEq` identifier in the code above to see this.)
-Next, by automatically instantiating the type parameter for the `map` 
-in `eliminateStutter` to `(len v) > 0` LiquidHaskell deduces `head` 
-is only called on non-empty lists, thereby verifying the safety of 
-`eliminateStutter`. (Hover your mouse over `map` above to see the
-instantiated type for it!)
+\noindent By using the fact that *each element* in the
+output returned by `groupEq` is in fact of the form `x:ys`,
+LiquidHaskell infers that `groupEq` returns a `[NEList a]`
+that is, a list of *non-empty lists*.
 
-
-
-We can now write a signature for `foldr1` below so that the call
-to `die` is provably safe (i.e. does not happen)
+\newthought{We can use `groupEq`} to write a function that
+eliminates stuttering from a String:
 
 \begin{code}
-{-@ foldr1      :: (a -> a -> a) -> [a] -> a @-} 
+-- >>> eliminateStutter "ssstringssss liiiiiike thisss"
+-- "strings like this"
+eliminateStutter xs = map head $ groupEq xs
+\end{code}
+
+\noindent
+LiquidHaskell automatically instantiates the type parameter
+for `map` in `eliminateStutter` to `notEmpty v` to deduce that
+`head` is only called on non-empty lists.
+
+\newthought{Folds} One of my favorite folds is `foldr1` which
+uses the first element of the sequence as the initial value. Of course,
+it should only be called with non-empty sequences!
+
+\begin{code}
+{-@ foldr1      :: (a -> a -> a) -> NEList a -> a @-} 
 foldr1 f (x:xs) = foldr f x xs
 foldr1 _ []     = die "foldr1" 
 
@@ -256,6 +267,27 @@ foldr _ acc []     = acc
 foldr f acc (x:xs) = f x (foldr f acc xs)
 \end{code}
 
+\newthought{Sum}
+Thanks to the precondition, LiquidHaskell will prove that
+the `die` code is indeed dead. Thus, we can write
+
+\begin{code}
+{-@ sum :: (Num a) => NEList a -> a  @-}
+sum []  = die "cannot add up empty list"
+sum xs  = foldr1 (+) xs
+\end{code}
+
+\noindent Consequently, we can only invoke `sum` on non-empty lists, so:
+
+\begin{code}
+sumOk  = sum [1,2,3,4,5]
+
+sumBad = sum []
+\end{code}
+
+\exercise The function below computes a weighted average of its input.
+Unfortunately, LiquidHaskell is not very happy about it. Can you figure out
+why, and fix the code or specification appropriately?
 
 \begin{code}
 {-@ wtAverage :: NEList (Pos, Pos) -> Int @-}
@@ -265,12 +297,65 @@ wtAverage wxs = divide totElems totWeight
     weights   = map (\(w, _) -> w    ) wxs
     totElems  = sum elems 
     totWeight = sum weights 
+    sum       = foldr1 (+)
 
-{-@ map       :: (a -> b) -> [a] -> [b]  @-}
+map       :: (a -> b) -> [a] -> [b] 
 map _ []      = []
 map f (x:xs)  = f x : map f xs 
-
-sum []        = die "cannot add up empty list"
-sum xs        = foldr1 (+) xs
 \end{code}
+
+\hint On what variables are the errors? How are those variables' values computed?
+Can you think of a better specification for the function(s) doing those computations?
+
+
+\exercise
+Non-empty lists pop up in many places, and it is rather convenient
+to have the type system track non-emptiness without having to make
+up special types. Consider the `risers` function popularized by
+[Neil Mitchell][risersMitchell]
+
+\begin{code}
+risers           :: (Ord a) => [a] -> [[a]]
+risers []        = []
+risers [x]       = [[x]]
+risers (x:y:etc)
+  | x <= y       = (x:s) : ss
+  | otherwise    = [x] : (s : ss)
+    where 
+      (s, ss)    = safeSplit $ risers (y:etc)
+
+{-@ safeSplit    :: NEList a -> (a, [a]) @-}
+safeSplit (x:xs) = (x, xs)
+safeSplit _      = die "don't worry, be happy"
+\end{code}
+
+\noindent The call to `safeSplit` requires its input be non-empty,
+and LiquidHaskell does not believe that the call inside `risers`
+meets this requirement. Can you devise a specification for `risers`
+that allows LiquidHaskell to verify the call to `safeSplit` that
+`risers` will not die?
+
+Recap
+-----
+
+In this chapter we saw how LiquidHaskell lets you 
+
+1. Define *structural properties* of data types, 
+
+2. Use refinements over these properties to describe key
+   invariants that establish, at compile-time, the safety
+   of operations that might otherwise fail on unexpected
+   values at run-time, all while,
+
+3. Working with plain Haskell types, here, Lists, without
+   having to [make up new types][risersApple] which can have
+   the unfortunate effect of adding a multitude of constructors
+   and conversions which often clutter implementations and specifications.
+
+\noindent 
+Of course, We can do a lot more with measures, so lets press on!
+
+
+[risersMitchell]: http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
+[risersApple]: http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
 

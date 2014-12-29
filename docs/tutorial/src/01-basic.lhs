@@ -417,8 +417,10 @@ for `divide` and verifying that the program has no pesky
 divide-by-zero errors.
 
 
+Recap
+-----
 
-\newthought{This concludes} our quick introduction to Refinement Types and
+This concludes our quick introduction to Refinement Types and
 LiquidHaskell. Hopefully you have some sense of how to 
 
 1. **Specify** fine-grained properties of values by decorating their
