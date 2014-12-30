@@ -361,8 +361,8 @@ dotProduct x y = loop 0 sz 0 body
 \noindent Why does LiquidHaskell flag an error in the above?
 Fix the code or specification to get a correct `dotProduct`.
 
-Refining Data Types: Sparse Vectors
------------------------------------
+Sparse Vectors {#sparsetype}
+----------------------------
 
 While the standard `Vector` is great for *dense* arrays,
 often we have to manipulate *sparse* vectors where most
@@ -399,8 +399,8 @@ to conclude that for each tuple `(i, v)` in the list `y`, the
 value of `i` is within the bounds of the vector `x`, thereby
 proving `x ! i` safe.
 
-Refinements and Polymorphism
-----------------------------
+Refinements and Polymorphism {#foldlinst}
+-----------------------------------------
 
 The sharp reader will have undoubtedly noticed that the sparse product 
 can be more cleanly expressed as a [fold][foldl]:

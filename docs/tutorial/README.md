@@ -23,9 +23,8 @@
 	 + map, fold,...
 		title: "Bounding Vectors"
 
---- **HEREHEREHERE**
 
-3. Refining Datatypes
+3. Refining Datatypes [TODO]
 
 data Sparse =
 data List a = Nil | Cons { hd :: a, tl :: [{v:a | hd <= v}] }
@@ -36,17 +35,6 @@ data BST a  = ...
 --- Part II: Measures
 
 4. Propositions
-http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
-
-    Prop	
-    + head, tail, null
-
-HEREHEREHEREHERE
-
-    + len: map, append, foldr1, wtAverage (!)
-
-    + EX: risers
-	+ EX: "map-reduce"
 
 5. Numbers 
 
@@ -68,6 +56,7 @@ HEREHEREHEREHERE
 		        		  , elts :: Grid a rows cols }
 					
 	+ EX: kmeans-using-"map-reduce"
+	+ EX: "map-reduce"
 
 6. Sets
     + Example: Eval.hs
@@ -105,36 +94,6 @@ HEREHEREHEREHERE
 
 
 \begin{code}
-data List a = N | (:+:) a (List a)
-
-infixr 9 :+:
-
-{- invariant {v:List a | 0 <= size v} @-}
-{-@ measure size @-}
-{-@ size :: List a -> Nat @-}
-size :: List a -> Int  
-size N          = 0
-size (_ :+: xs) = 1 + size xs
-
-{-@ type NEList a = {v:List a | size v > 0} @-} 
-
-{-@ head :: NEList a -> a @-} 
-head (x :+: _) = x
-head N         = die "head: N"
-
--- EX: what is a signature for `null` such that `safeHead` typechecks
-safeHead xs
-  | null xs   = Nothing
-  | otherwise = Just $ head xs 
-
-{-@ null :: xs:List a -> {v:_ | Prop v <=> size xs = 0} @-}
-null N = True
-null _ = False
-
--- SHOW map, foldr, foldr1, wtAverage (BAD), wtAverage (GOOD)
-
--- EX: risers
-
 -- SHOW zipWith
 -- SHOW dotProd
 -- SHOW matMult (using dotProd/transpose)
