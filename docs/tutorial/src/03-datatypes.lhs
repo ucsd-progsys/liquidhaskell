@@ -344,5 +344,8 @@ append (x :< xs) ys = x :< append xs ys
 Ordered Trees
 ------------- 
 
-**HEREHEREHERE** 
 
+A [Binary Search Tree](http://en.wikipedia.org/wiki/Binary_search_tree)
+is a tree whose nodes are ordered to make membership lookup efficient:
+each root lies (strictly) between the elements belonging in the left
+and right subtrees hanging off the the root.
