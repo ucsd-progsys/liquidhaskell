@@ -17,6 +17,8 @@
 \counterwithin{theexercise}{chapter}
 \newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
 
+\newcommand\todo{\medskip\noindent\emph{\textbf{TODO}}\xspace}
+
 
 \usepackage{fancyvrb}
 \usepackage{xcolor}

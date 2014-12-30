@@ -1,5 +1,5 @@
-Measures
-========
+Boolean Measures
+=================
 
 
 In the last two chapters, we saw how refinements could be used to
@@ -17,7 +17,7 @@ such structures.
 
 module Measures where
 
-import Prelude hiding(foldr, foldr1, map, sum, head, tail)
+import Prelude hiding(foldr, foldr1, map, sum, head, tail, null)
 
 main = putStrLn "Hello"
 
@@ -193,7 +193,7 @@ size2 []     =  0
 size2 (_:xs) =  1 + size2 xs
 \end{code}
 
-**TODO:SOLUTION**
+\todo **solution**
 
 A Safe List API
 ---------------
@@ -221,6 +221,18 @@ LiquidHaskell deduces that the second equations are
 *dead code* thanks to the precondition, which ensures
 callers only supply non-empty arguments.
 
+\exercise Write down a specification for `null` such that `safeHead` is verified:
+
+\begin{code}
+safeHead      :: [a] -> Maybe a
+safeHead xs
+  | null xs   = Nothing
+  | otherwise = Just $ head xs  
+
+{-@ null      :: xs:[a] -> Bool @-}
+null []       = True 
+null (_:_)    = False
+\end{code}
 
 \newthought{Groups}
 Lets use the above to write a function that chunks sequences
@@ -239,7 +251,7 @@ output returned by `groupEq` is in fact of the form `x:ys`,
 LiquidHaskell infers that `groupEq` returns a `[NEList a]`
 that is, a list of *non-empty lists*.
 
-\newthought{We can use `groupEq`} to write a function that
+We can use `groupEq` to write a function that
 eliminates stuttering from a String:
 
 \begin{code}
