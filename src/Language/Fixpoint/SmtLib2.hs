@@ -44,9 +44,7 @@ import Language.Fixpoint.Config (SMTSolver (..))
 import Language.Fixpoint.Files
 import Language.Fixpoint.Types
 
-import Control.Arrow
 import Control.Monad
-import Control.Monad.IO.Class
 import Data.Char
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
@@ -60,13 +58,9 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.Process
-import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose, hReady)
+import System.IO            (openFile, IOMode (..), Handle, hFlush, hClose)
 import Control.Applicative  ((<$>), (<|>), (*>), (<*))
 
-import Text.Parsec.Text.Lazy ()
-import Text.Parsec.Char
-import Text.Parsec.Combinator
-import Text.Parsec.Prim (ParsecT, runPT, getState, setInput, try)
 import qualified Data.Attoparsec.Text as A
 
 {- Usage:
@@ -248,9 +242,9 @@ smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 smtPreamble Z3 me 
   = do smtWrite me "(get-info :version)"
        r <- (!!1) . T.splitOn "\"" <$> smtReadRaw me
-       case r of
-         "4.3.2" -> return $ z3_432_options ++ z3Preamble
-         _       -> return $ z3_options ++ z3Preamble
+       case T.words r of
+         "4.3.2" : _  -> return $ z3_432_options ++ z3Preamble
+         _            -> return $ z3_options ++ z3Preamble
 smtPreamble _  _  
   = return smtlibPreamble
 
