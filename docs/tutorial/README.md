@@ -14,7 +14,7 @@
 
 4. Propositions
 
-5. Numbers **HEREHEREHEREHERE** 
+5. Numbers [TODO] **<--- HEREHEREHEREHERE** 
 
 	Int
     + zipWith
@@ -36,7 +36,7 @@
 	+ EX: kmeans-using-"map-reduce"
 	+ EX: "map-reduce"
 
-6. Sets
+6. Sets [TODO]
     + Example: Eval.hs
     EX: write a `noDup` measure
 	EX: write a `nub`  function
@@ -46,14 +46,13 @@
 7. Case Study: Totality
 
 8. Case Study: Termination
-
   + Copy from BLOG/PAPER sequence
   + HW Exercises
 
-9. Case Study: Red-Black Trees **OR** Weighted Biased Heaps
+9. Case Study: Red-Black Trees **OR** Weighted Biased Heaps [TODO]
   + EX: AVL TREE (insert/delete/member)
    
-10. Case Study: Low-level Pointers
+10. Case Study: Low-level Pointers [TODO]
 
 --- Part IV : Abstract Refinements 
 
