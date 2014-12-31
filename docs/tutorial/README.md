@@ -1,42 +1,20 @@
 # LiquidHaskell Tutorial
 
 0. Install
-   + Z3
-   + Ocaml
-   + cabal install
-   + emacs
 
 --- Part I: Refinement Types
 
 1. Refinement Types
-   + Basic: Nat, Pos, Rng
-   + Functions: Die, Div, avg2, avg3, scale
 
 2. Polymorphism & HOFs
 
-   BLOG: "Bounding Vectors"
-   
-   + Polymorphism
-	 + Lists
-	 
-   + HOFs
-	 + map, fold,...
-		title: "Bounding Vectors"
-
-
-3. Refining Datatypes [TODO]
-
-data Sparse =
-data List a = Nil | Cons { hd :: a, tl :: [{v:a | hd <= v}] }
-data Heap a = ...
-data BST a  = ...
-
+3. Refining Datatypes
 
 --- Part II: Measures
 
 4. Propositions
 
-5. Numbers 
+5. Numbers **HEREHEREHEREHERE** 
 
 	Int
     + zipWith

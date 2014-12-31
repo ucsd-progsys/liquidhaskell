@@ -101,7 +101,7 @@ because it *can be* `0` -- when the list is *empty*. Thus, we
 need a way of specifying that the input to `avgMany` is indeed
 non-empty!
 
-Lifting Functions to Measures
+Lifting Functions to Measures {#usingmeasures}
 -----------------------------
 
 \newthought{How} shall we tell LiquidHaskell that a list is *non-empty*?
@@ -129,19 +129,18 @@ the above requirements into the refinement logic by declaring:
 \end{code}
 
 
-Using Measures {#usingmeasures}
---------------
 
+\newthought{Non-Empty Lists}
 To use the newly defined measure, we define an alias for 
 non-empty lists, i.e. the *subset* of plain old Haskell
 lists `[a]` for which the predicate `notEmpty` holds
                 
 \begin{code}
-{-@ type NEList a = {v:[a] | notEmpty v}      @-}
+{-@ type NEList a = {v:[a] | notEmpty v} @-}
 \end{code}
 
 
-We can now refine the API to establish the safety of
+We can now refine various signatures to establish the safety of
 the list-average function.
 
 \newthought{Size} First, we specify that `size` returns
@@ -193,9 +192,9 @@ size2 []     =  0
 size2 (_:xs) =  1 + size2 xs
 \end{code}
 
-\todo **solution**
+\todo {} **solution**
 
-A Safe List API
+A Safe List API 
 ---------------
 
 Now that we can talk about non-empty lists, we can ensure
@@ -292,9 +291,9 @@ sum xs  = foldr1 (+) xs
 \noindent Consequently, we can only invoke `sum` on non-empty lists, so:
 
 \begin{code}
-sumOk  = sum [1,2,3,4,5]
+sumOk  = sum [1,2,3,4,5]    -- accepted by LH
 
-sumBad = sum []
+sumBad = sum []             -- rejected by LH
 \end{code}
 
 \exercise The function below computes a weighted average of its input.
@@ -311,7 +310,7 @@ wtAverage wxs = divide totElems totWeight
     totWeight = sum weights 
     sum       = foldr1 (+)
 
-map       :: (a -> b) -> [a] -> [b] 
+map           :: (a -> b) -> [a] -> [b] 
 map _ []      = []
 map f (x:xs)  = f x : map f xs 
 \end{code}
@@ -323,8 +322,8 @@ Can you think of a better specification for the function(s) doing those computat
 \exercise
 Non-empty lists pop up in many places, and it is rather convenient
 to have the type system track non-emptiness without having to make
-up special types. Consider the `risers` function popularized by
-[Neil Mitchell][risersMitchell]
+up special types. Consider the `risers` function: \footnotetext{Popularized by
+[Neil Mitchell](http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html)}
 
 \begin{code}
 risers           :: (Ord a) => [a] -> [[a]]
@@ -345,7 +344,7 @@ safeSplit _      = die "don't worry, be happy"
 and LiquidHaskell does not believe that the call inside `risers`
 meets this requirement. Can you devise a specification for `risers`
 that allows LiquidHaskell to verify the call to `safeSplit` that
-`risers` will not die?
+`risers` will not `die`?
 
 Recap
 -----
@@ -360,14 +359,12 @@ In this chapter we saw how LiquidHaskell lets you
    values at run-time, all while,
 
 3. Working with plain Haskell types, here, Lists, without
-   having to [make up new types][risersApple] which can have
-   the unfortunate effect of adding a multitude of constructors
+   having to [make up new types](http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html)
+   which can have the unfortunate effect of adding a multitude of constructors
    and conversions which often clutter implementations and specifications.
 
 \noindent 
 Of course, We can do a lot more with measures, so lets press on!
 
 
-[risersMitchell]: http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
-[risersApple]: http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
 

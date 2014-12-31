@@ -230,8 +230,8 @@ safeLookup x i
     ok        = undefined
 \end{code}
 
-Verification: Our First Recursive Function
-------------------------------------------
+Inference: Our First Recursive Function
+---------------------------------------
 
 Ok, lets write some code! Lets start with a recursive
 function that adds up the values of the elements of an
@@ -263,9 +263,7 @@ absoluteSum     = undefined
 \end{code}
 
 
-Refinement Inference
---------------------
-
+\newthought{Inference}
 LiquidHaskell verifies `vectorSum` -- or, to be precise, the safety of
 the vector accesses `vec ! i`.  The verification works out because
 LiquidHaskell is able to *automatically infer* \footnotetext{In your editor, click on `go` to see the inferred type.}
@@ -277,7 +275,7 @@ go :: Int -> {v:Int | v >= 0 && v <= sz} -> Int
 \noindent which states that the second parameter `i` is
 between `0` and the length of `vec` (inclusive). LiquidHaskell
 uses these and the test that `i < sz` to establish that `i` is
-in fact between `0` and `(vlen vec)` thereby verifing safety. 
+between `0` and `(vlen vec)` to prove safety. 
 
 \exercise Why does `go`'s type have `v <= sz` instead of `v < sz` ?
 
@@ -361,8 +359,8 @@ dotProduct x y = loop 0 sz 0 body
 \noindent Why does LiquidHaskell flag an error in the above?
 Fix the code or specification to get a correct `dotProduct`.
 
-Sparse Vectors {#sparsetype}
-----------------------------
+Refinements and Polymorphism {#sparsetype}
+----------------------------------------
 
 While the standard `Vector` is great for *dense* arrays,
 often we have to manipulate *sparse* vectors where most
@@ -399,9 +397,7 @@ to conclude that for each tuple `(i, v)` in the list `y`, the
 value of `i` is within the bounds of the vector `x`, thereby
 proving `x ! i` safe.
 
-Refinements and Polymorphism {#foldlinst}
------------------------------------------
-
+\newthought{Folds}
 The sharp reader will have undoubtedly noticed that the sparse product 
 can be more cleanly expressed as a [fold][foldl]:
 
@@ -420,12 +416,11 @@ sparseProduct' x y  = foldl' body 0 y
 \end{code}
 
 \noindent
-LiquidHaskell digests this too, without much difficulty. 
+LiquidHaskell digests this without difficulty. 
 The main trick is in how the polymorphism of `foldl'` is instantiated. 
 
-1. The GHC type inference engine deduces that at this site,
-   the type variable `b` from the signature of `foldl'` is
-   instantiated to the Haskell type `(Int, a)`. 
+1. GHC infers that at this site, the type variable `b` from the
+   signature of `foldl'` is instantiated to the Haskell type `(Int, a)`. 
 
 2. Correspondingly, LiquidHaskell infers that in fact `b`
    can be instantiated to the *refined* `(Btwn 0 v (vlen x), a)`. 
@@ -436,12 +431,14 @@ reuse existing polymorphic functions over containers and such without ceremony.
 Recap
 -----
 
-Hopefully this chapter gave you a reasonable
-idea of how one can use refinements to verify size related properties,
-and more generally, to specify and verify properties of recursive,
-and polymorphic functions operating over datatypes.
-Read on to learn how we can teach LiquidHaskell to reason about
-*structural* properties of data types.
+
+This chapter gave you an idea of how one can use refinements
+to verify size related properties, and more generally, to
+specify and verify properties of recursive and polymorphic
+functions. Next, lets see how we can use LiquidHaskell to
+prevent the creation of illegal values by refining data
+type definitions.
+
 
 [vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
 [vec]:      http://hackage.haskell.org/package/vector
