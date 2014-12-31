@@ -129,7 +129,7 @@ the above requirements into the refinement logic by declaring:
 \end{code}
 
 
-Using Measures
+Using Measures {#usingmeasures}
 --------------
 
 To use the newly defined measure, we define an alias for 

@@ -14,7 +14,7 @@ module RefinedDatatypes
          Sparse (..)
 
          -- * Sparse: Functions
-       , dotProd, dotProd', add, fromList  
+       , dotProd, dotProd', plus, fromList  
 
          -- * Sparse: Examples
        , okSP, badSP, test1, test2
@@ -27,18 +27,30 @@ module RefinedDatatypes
 
           -- * OrdList: Functions
        ,  insertSort, insertSort', mergeSort, quickSort
+
+          -- * BST: Data
+       , BST (..)
+
+          -- * BST: Functions 
+       , mem, add, delMin, del, bstSort, toBST, toIL
+
+          -- * BST: Examples
+       , okBST, badBST 
+                                              
        )
       where
 
-import Prelude      hiding (abs, length)
+import Prelude      hiding (abs, length, min)
 import Data.List    (foldl')
-import Data.Vector  hiding (foldl', foldr, fromList) 
+import Data.Vector  hiding (singleton, foldl', foldr, fromList) 
 import Data.Maybe   (fromJust)
 
 dotProd, dotProd' :: Vector Int -> Sparse Int -> Int
 test1 :: Sparse String
 test2 :: Sparse Int
 
+{-@ die :: {v:_ | false} -> a @-}
+die msg = error msg
 \end{code}
 \end{comment}
 
@@ -113,14 +125,16 @@ Consequently, LiquidHaskell verifies:
 
 \begin{code}
 okSP :: Sparse String
-okSP = SP 5 [(0, "cat"), (3, "dog")]
+okSP = SP 5 [ (0, "cat")
+            , (3, "dog") ] 
 \end{code}
 
 \noindent but rejects, due to the invalid index:
 
 \begin{code}
 badSP :: Sparse String
-badSP = SP 5 [(0, "cat"), (6, "dog")]
+badSP = SP 5 [ (0, "cat")
+             , (6, "dog") ]
 \end{code}
 
 \newthought{Field Measures} It is convenient to write an alias
@@ -194,11 +208,11 @@ vectors of the *same* dimension, yielding an output of that dimension.
 When you are done, the following code should typecheck:
 
 \begin{code}
-add     :: (Num a) => Sparse a -> Sparse a -> Sparse a
-add x y = undefined 
+plus     :: (Num a) => Sparse a -> Sparse a -> Sparse a
+plus x y = undefined 
 
 {-@ test2 :: SparseN Int 3 @-}   
-test2    = add vec1 vec2 
+test2    = plus vec1 vec2 
   where 
     vec1 = SP 3 [(0, 12), (2, 9)]
     vec2 = SP 3 [(0, 8),  (1, 100)]
@@ -344,8 +358,214 @@ append (x :< xs) ys = x :< append xs ys
 Ordered Trees
 ------------- 
 
+As a last example of refined data types, let us consider binary search ordered
+trees, defined thus:
 
-A [Binary Search Tree](http://en.wikipedia.org/wiki/Binary_search_tree)
-is a tree whose nodes are ordered to make membership lookup efficient:
-each root lies (strictly) between the elements belonging in the left
-and right subtrees hanging off the the root.
+\begin{code}
+data BST a = Leaf
+           | Node { root  :: a
+                  , left  :: BST a
+                  , right :: BST a }
+\end{code}
+
+\newthought{Binary Search} [ordered trees](http://en.wikipedia.org/wiki/Binary_search_tree) enjoy the property that each `root` lies (strictly) between
+the elements belonging in the `left` and `right` subtrees hanging
+off the the root. The ordering invariant makes it easy to check
+whether a certain value occurs in the tree.  If the tree is empty
+i.e. a Leaf, then the value does not occur in the tree.  If the given
+value is at the root then the value does occur in the tree.  If it is
+less than (respectively greater than) the root, we recursively check
+whether the value occurs in the left (respectively right) subtree.
+
+\begin{figure}[t!]
+\includegraphics{img/bst.png}
+\caption{Binary Search Tree}
+\end{figure}
+
+\noindent Figure~\ref{fig:bst} shows a binary search tree whose nodes
+are labeled with a subset of values from `1` to `9`. We might represent
+such a tree with the Haskell value:
+
+\begin{code}
+okBST :: BST Int
+okBST =  Node 6 
+             (Node 2
+                 (Node 1 Leaf Leaf)
+                 (Node 4 Leaf Leaf))
+             (Node 9
+                 (Node 7 Leaf Leaf)
+                 Leaf)
+\end{code}
+
+\newthought{Legal} Of course, the Haskell type says nothing about the
+ordering invariant, and hence, cannot prevent us from creating illegal
+`BST` values that violate the invariant. We can remedy this with a
+refined data definition that captures the invariant:
+
+\begin{code}
+{-@ data BST a = Leaf
+               | Node { root  :: a
+                      , left  :: BST {v:a | v < root}
+                      , right :: BST {v:a | root < v} }
+  @-}
+\end{code}
+
+
+\newthought{Refined Data Constructors} As before, the above data definition
+creates a refined "smart" constructor for `BST`
+
+\begin{spec}
+data BST a where
+  Leaf :: BST a
+  Node :: r:a -> BST {v:a | v < r} -> BST {v:a | r < v} -> BST a
+\end{spec}
+
+\noindent which *prevents* us from creating illegal trees
+
+\begin{code}
+badBST :: BST Int
+badBST =  Node 6 
+             (Node 4
+                 (Node 1 Leaf Leaf)
+                 (Node 2 Leaf Leaf))    -- Out of order, rejected by LH 
+             (Node 9
+                 (Node 7 Leaf Leaf)
+                 Leaf)
+\end{code}
+
+\exercise Can a `BST Int` contain duplicates?
+
+\newthought{Membership} 
+Next, lets write some functions to create and manipulate
+these trees. First, a function to check whether a value
+belongs in the tree:
+
+\begin{code}
+mem                 :: (Ord a) => a -> BST a -> Bool
+mem _ Leaf          = False
+mem k (Node k' l r)
+  | k == k'         = True
+  | k <  k'         = mem k l
+  | otherwise       = mem k r 
+\end{code}
+
+\newthought{Singleton} As an easy warm-up, a function to create
+a `BST` with a single given element:
+
+\begin{code}
+one   :: a -> BST a
+one x = Node x Leaf Leaf
+\end{code}
+
+\newthought{Insertion} Next, lets write a function that adds an
+element to a `BST`.
+\footnote{Amusingly, while typing out the below I swapped the
+`k` and `k'` which caused LiquidHaskell to complain. See for yourself.}
+
+\begin{code}
+add                  :: (Ord a) => a -> BST a -> BST a
+add k' Leaf          = one k'
+add k' t@(Node k l r)
+  | k' < k           = Node k (add k' l) r
+  | k  < k'          = Node k l (add k' r)
+  | otherwise        = t 
+\end{code}
+
+\newthought{Minimum} Next, lets write a function to delete the *minimum*
+element from a `BST`. This function will return a *pair* of outputs --
+the smallest element and the remainder of the tree. We can say that the
+output element is indeed the smallest, by saying that the remainder's
+elements exceed the element. To this end, lets define a helper type:
+\footnote{This helper type approach is rather verbose. We should be able
+to just use plain old pairs and specify the above requirement as a
+*dependency* between the pairs' elements. Later, we will see how to
+do so using [abstract refinements](#dependentpairs)}
+
+\begin{code}
+data MinPair a = MP { minElt :: a, rest :: BST a }
+\end{code}
+
+\noindent We can specify that `minElt` is indeed smaller than all
+the elements in `rest` via the data type refinement:
+
+\begin{code}
+{-@ data MinPair a = MP { minElt :: a, rest :: BST {v:a | minElt < v} } @-}
+\end{code}
+
+\noindent Finally, we can write the code to compute `MinPair`
+
+\begin{code}
+delMin                 :: (Ord a) => BST a -> MinPair a
+delMin (Node k Leaf r) = MP k r
+delMin (Node k l r)    = MP k' (Node k l' r)
+  where
+    MP k' l'           = delMin l 
+delMin Leaf            = die "Don't say I didn't say I didn't warn ya!"
+\end{code}
+
+\newthought{Deletion} Use `delMin` to complete the implementation
+of `del` which removes a given element from a `BST` (if it is present).
+
+\begin{code}
+del :: (Ord a) => a -> BST a -> BST a
+del k' t@(Node k l Leaf)
+  | k' == k         = l
+  | otherwise       = t
+del k' (Node k l r)
+  | k' == k         = Node km l r'
+  | k' <  k         = Node k (del k' l) r
+  | otherwise       = Node k l (del k' r)
+  where
+    MP km r'        = delMin r 
+del _ t             = t
+\end{code}
+
+\exercise The function `delMin` is only sensible for non-empty trees.
+[Read ahead](#usingmeasures) to learn how to specify and verify that
+it is only called with such trees, and then apply that technique here
+to verify the call to `die` in `delMin`.
+
+\exercise Complete the implementation of `toIL` to obtain a `BST`
+based sorting routine `bstSort`.
+
+\begin{code}
+bstSort :: (Ord a) => [a] -> IncList a
+bstSort = toIL . toBST
+
+toBST   :: (Ord a) => [a] -> BST a
+toBST   = foldr add Leaf  
+
+toIL    :: BST a -> IncList a
+toIL    = undefined
+\end{code}
+
+\hint This exercise will be a lot easier after you finish the
+`quickSort` implementation above. Note that the signature for
+`toIL` makes it impossible for you to just convert the `BST`
+to a raw list and then sort it.
+
+Recap
+-----
+
+In this chapter we saw how LiquidHaskell lets you refine data
+type definitions to capture sophisticated invariants. These
+definitions are internally represented by refining the types
+of the data constructors, automatically making them "smart"  in
+that they preclude the creation of illegal values that violate
+the invariants. We will see much more of this handy technique
+in future chapters.
+
+\newthought{Abstracting Refinements} One recurring theme in
+this chapter was that we had to create new versions of standard
+datatypes, just in order to specify certain invariants.
+For example, we had to write a special list type, with its own
+*copies* of nil and cons. Similarly, to implement `delMin` we had
+to create our own pair type. This is a bit *icky* -- there should
+be a way to just slap the desired invariants on to *existing* types,
+thereby facilitating reuse. To this end, we need a way to
+*abstract refinements* from the definitions of datatypes or
+functions in the same way we abstract the *element type* `a`
+from containers like `[a]` or `BST a`.
+Fortunately, there is such a way, and we will see it soon,
+but if you are curious, [read ahead!](http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf)
+
