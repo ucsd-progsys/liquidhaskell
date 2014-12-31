@@ -178,15 +178,14 @@ for the type parameters of `foldl'`, saving us a fair
 bit of typing and enabling the use of the elegant
 polymorphic, higher-order combinators we know and love.
 
-\exercise **Sanitization** Invariants are all well
+\exercise {} **[Sanitization]** Invariants are all well
 and good for data computed *inside* our programs.
 The only way to ensure the legality of data coming
 from *outside*, i.e. from the "real world", is to
 writing a sanitizer that will check the appropriate
 invariants before constructing a `Sparse` vector.
 Write the specification and implementation of a
-sanitizer `fromList`, such that the following
-code typechecks:
+sanitizer `fromList`, so that the following typechecks:
 
 \begin{code}
 fromList          :: Int   -> [(Int, a)] -> Maybe (Sparse a)
@@ -196,8 +195,7 @@ fromList dim elts = undefined
 test1             = fromJust $ fromList  3 [(0, "cat"), (2, "mouse")]
 \end{code}
 
-
-\exercise Write the specification and implementation
+\exercise {} **[Addition]** Write the specification and implementation
 of a function `plus` that performs the addition of two `Sparse`
 vectors of the *same* dimension, yielding an output of that dimension.
 When you are done, the following code should typecheck:
@@ -505,7 +503,7 @@ delMin (Node k l r)    = MP k' (Node k l' r)
 delMin Leaf            = die "Don't say I didn't say I didn't warn ya!"
 \end{code}
 
-\exercise Use `delMin` to complete the implementation
+\exercise {} **[Deletion]** Use `delMin` to complete the implementation
 of `del` which *deletes* a given element from a `BST`,
 if it is present.
 
