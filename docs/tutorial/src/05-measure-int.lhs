@@ -72,7 +72,6 @@ two `Vector`s using a fold:
 dotProd       :: (Num a) => Vector a -> Vector a -> a
 dotProd vx vy = sum (prod xs ys)
   where
-    sum       = foldl' (+) 0
     prod      = zipWith (\x y -> x * y)
     xs        = vElts vx
     ys        = vElts vy
@@ -339,7 +338,6 @@ test5 = [ take 2  ["cat", "dog", "mouse"]
 function that `partition`s a list using a user supplied predicate:
 
 \begin{code}
-{-@ partition :: xs:_ -> {v:_ | 1 + len (first v) + len (second v) = len x} @-}
 partition _ []     = ([], [])
 partition f (x:xs)
   | f x            = (x:ys, zs)
@@ -348,8 +346,9 @@ partition f (x:xs)
     (ys, zs)       = partition f xs
 \end{code}
 
-We would like to specify that the *sum* of the output tuple's dimensions
-equal the input list's dimension. Lets write measures to access the elements of the output:
+We would like to specify that the *sum* of the output tuple's
+dimensions equal the input list's dimension.
+Lets write measures to access the elements of the output:
 
 \begin{code}
 {-@ measure first @-}
@@ -362,21 +361,69 @@ second (_, y) = y
 \noindent We can use the above to type `partition` as
 
 \begin{code}
+{-@ partition :: (a -> Bool) -> xs:_ -> ListPair a (len xs) @-}
 \end{code}
 
+\noindent using an alias for a pair of lists whose total dimension equals `N`
+
+\begin{code}
+{-@ type ListPair a N = {v:([a], [a]) | len (first v) + len (second v) = N} @-}
+\end{code}
+
+
+Dimension Safe Vector API
 -------------------------
 
-\newthought{Legal Vectors}
+We can use the dimension aware lists to create a safe vector API.
 
-\newthought{Vector Addition}
+\newthought{Legal Vectors} are those whose `vDim` field actually equals the size of the underlying list:
 
-\newthought{Vector Multiplication}
+\begin{code}
+{-@ data Vector a = V { vDim  :: Nat
+                      , vElts :: ListN a vDim}
+  @-}
+\end{code}
+
+\noindent 
+The refined data type prevents the creation of illegal vectors:
+
+\begin{code}
+okVec  = V 2 [10, 20]       -- accepted by LH
+
+badVec = V 2 [10, 20, 30]   -- rejected by LH
+\end{code}
+
+\newthought{Binary Operations} We want to apply various binary
+operations to *compatible* vectors, i.e. vectors with equal
+dimensions. To this end, it is handy to have an alias for
+vectors of a given size:
+
+\begin{code}
+{-@ type VectorN a N = {v:Vector a | vDim v = N} @-}
+\end{code}
+
+\noindent We can now write a generic binary operator:
+
+\begin{code}
+{-@ vBin :: (a -> b -> c) -> vx:Vector a -> vy:VectorN b (vDim vx) -> VectorN c (vDim vx) @-}
+vBin     :: (a -> b -> c) -> Vector a -> Vector b -> Vector c
+vBin op (V n xs) (V _ ys) = V n (zipWith op xs ys)
+\end{code}
+
+\newthought{Dot Product} Finally, we can implement a wholemeal,
+dimension safe dot product operator as:
+
+\begin{code}
+{-@ dotProduct :: (Num a) => x:Vector a -> VectorN a (vDim x) -> a @-}
+dotProduct x y = sum $ vElts $ vBin (*) x y 
+\end{code}
 
 
 Dimension Safe Matrix API 
 -------------------------
 
 \newthought{Legal Matrices}
+
 
 \newthought{Matrix Multiplication}
 
