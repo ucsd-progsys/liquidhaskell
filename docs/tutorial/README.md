@@ -18,7 +18,6 @@
 
 	Int
     + zipWith
-	+ dotProd
 	+ insertSort
     + quickSort // partition :: (a -> Bool) -> xs:[a] -> Pair (List a) (List a) / len (fst v) + len (snd v) = len xs
     data Pair a b = { fst :: a, snd :: b}

@@ -89,7 +89,7 @@ between `0` and the dimension. Unfortunately, Haskell's
 type system does not make it easy to ensure that
 *illegal vectors are not representable*.
 \footnotetext{The standard approach is to use abstract types and
-[smart constructors](https://www.haskell.org/haskellwiki/Smart_constructors)
+[smart constructors][smart-ctr-wiki]
 but even then there is only the informal guarantee that the
 smart constructor establishes the right invariants.}
 
@@ -118,6 +118,7 @@ data Sparse a where
   SP :: spDim:Nat -> spElems:[(Btwn 0 spDim, a)] -> Sparse a 
 \end{spec}
 
+{#autosmart}
 \noindent In other words, by using refined input types for `SP`
 we have automatically converted it into a *smart* constructor that
 ensures that *every* instance of a `Sparse` is legal.
@@ -362,7 +363,7 @@ data BST a = Leaf
 \end{code}
 
 \newthought{Binary Search Trees}
-enjoy the [property](http://en.wikipedia.org/wiki/Binary_search_tree)
+enjoy the [property][bst-wiki]
 that each `root` lies (strictly) between the elements belonging in the
 `left` and `right` subtrees hanging off the the root. The ordering
 invariant makes it easy to check whether a certain value occurs in the
@@ -479,7 +480,7 @@ elements exceed the element. To this end, lets define a helper type:
 \footnotetext{This helper type approach is rather verbose. We should be able
 to just use plain old pairs and specify the above requirement as a
 *dependency* between the pairs' elements. Later, we will see how to
-do so using [abstract refinements](http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf).}
+do so using [abstract refinements][vazou13].}
 
 \begin{code}
 data MinPair a = MP { minElt :: a, rest :: BST a }
