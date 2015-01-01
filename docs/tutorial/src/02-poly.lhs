@@ -1,4 +1,4 @@
-Polymorphism
+Polymorphism {#vectorbounds}
 ============
 
 \begin{comment}
@@ -439,14 +439,4 @@ functions. Next, lets see how we can use LiquidHaskell to
 prevent the creation of illegal values by refining data
 type definitions.
 
-
-[vecspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
-[vec]:      http://hackage.haskell.org/package/vector
-[dml]:      http://www.cs.bu.edu/~hwxi/DML/DML.html
-[agdavec]:  http://code.haskell.org/Agda/examples/Vec.agda
-[ref101]:   /blog/2013/01/01/refinement-types-101.lhs/ 
-[ref102]:   /blog/2013/01/27/refinements-101-reax.lhs/ 
-[foldl]:    http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
-[listtail]: /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
-[dmlarray]: http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
 

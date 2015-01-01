@@ -4,17 +4,21 @@ author:        Ranjit Jhala
 date:          Sep 5th, 2014
 documentclass: book
 toc:           true
+bibliography: sw.bib
 ---
+
 
 \begin{comment}
 \begin{code}
-module Ch3 where
+module Introduction where
 main = putStrLn "Ch3"
 \end{code}
 \end{comment}
 
 Introduction
 ============
+
+
 
 One of the great things about Haskell is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
@@ -187,9 +191,9 @@ LiquidHaskell requires, in addition to the cabal dependencies
 the binary executable for an `SMTLIB2` compatible solver, e.g.
 one of
 
-    + [Z3](http://z3.codeplex.com/)
-    + [CVC4](http://cvc4.cs.nyu.edu/) 
-    + [MathSat](http://mathsat.fbk.eu/download.html)
+    + [Z3][z3]
+    + [CVC4][cvc4]
+    + [MathSat][mathsat]
    
 \newthought{Install}
 Once you have the above on your system, simply do:
@@ -213,17 +217,49 @@ in the background as you edit any Haskell file, highlight errors, and
 display the inferred types, all of which we find to be extremely useful.
 Hence we *strongly recommend* these over the command line option.
 
-+ Emacs' `flycheck` plugin is described [here](https://github.com/ucsd-progsys/liquidhaskell#emacs)
-+ Vim's `syntastic` checker is described[here](https://github.com/ucsd-progsys/liquidhaskell#vim)
++ Emacs' `flycheck` plugin is described  [here][liquid-emacs]
++ Vim's `syntastic` checker is described [here][liquid-vim]
 
 Sample Code
 -----------
 
 This entire tutorial is written in literate Haskell.
-All the code for it is available at
-
-    http://github.com/ucsd-pl/liquidhaskell-tutorial.git 
-
+All the code for it is available [on github][liquid-tutorial]
 We *strongly* recommend you grab the code, and follow along
 at home, and especially, that you do the various exercises.
+
+[dml]:             http://www.cs.bu.edu/~hwxi/DML/DML.html
+[vecspec]:         https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec
+[vec]:             http://hackage.haskell.org/package/vector
+[agdavec]:         http://code.haskell.org/Agda/examples/Vec.agda
+[ref101]:          /blog/2013/01/01/refinement-types-101.lhs/ 
+[ref102]:          /blog/2013/01/27/refinements-101-reax.lhs/ 
+[data-list]:       http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
+[foldl]:           http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html
+[listtail]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
+[dmlarray]:        http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
+[liquid-tutorial]: http://github.com/ucsd-pl/liquidhaskell-tutorial.git 
+[liquid-emacs]:    https://github.com/ucsd-progsys/liquidhaskell#emacs)
+[liquid-vim]:      https://github.com/ucsd-progsys/liquidhaskell#vim)
+[z3]:              http://z3.codeplex.com/)
+[cvc4]:            http://cvc4.cs.nyu.edu/) 
+[mathsat]:         http://mathsat.fbk.eu/download.html)
+[smt-wiki]:        http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories
+[hoogle-assert]:   https://www.haskell.org/hoogle/?hoogle=assert
+[bst-wiki]:        http://en.wikipedia.org/wiki/Binary_search_tree
+[vazou13]:         http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
+[smart-ctr-wiki]:  https://www.haskell.org/haskellwiki/Smart_constructors
+[mitchell-riser]:  http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
+[apple-riser]:     http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
+[safeList]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
+[kmeansI]:         /blog/2013/02/16/kmeans-clustering-I.lhs/
+[kmeansII]:        /blog/2013/02/17/kmeans-clustering-II.lhs/
+[URL-take]:        https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334
+[URL-groupBy]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
+[URL-transpose]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose
+[maru]:            http://www.youtube.com/watch?v=8uDuls5TyNE
+[URL-kmeans]:      http://hackage.haskell.org/package/kmeans
+
+[bird-pearls]: http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383
+[hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
 

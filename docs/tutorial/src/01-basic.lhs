@@ -2,7 +2,7 @@
 Refinement Types
 ================
 
-\begin{comment}
+\begin{comment[]}
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
@@ -299,7 +299,7 @@ indeed non-negative. \footnotetext{Lets not worry about underflows for the momen
 
 \footnotetext{
 LH is able to automatically make these arithmetic deductions
-by using an [SMT solver](http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories)
+by using an [SMT solver][smt-wiki]
 which has decision built-in procedures for arithmetic, to reason about
 the logical refinements.}
 
@@ -362,7 +362,7 @@ safely perform some computation on it.
 Can you *change* the type for `isPositive` (i.e. write some other type)
 to while preserving safety?
 
-\exercise Consider the following [assert](https://www.haskell.org/hoogle/?hoogle=assert) function:
+\exercise Consider the following [assert][hoogle-assert] function:
 
 \begin{code}
 {-@ lAssert  :: Bool -> a -> a @-}

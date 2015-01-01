@@ -5,6 +5,9 @@ LHS2TEX=pandoc \
 	--to=latex \
 	--chapters
 
+## CITATION HACKERY
+# pandoc --from=markdown+lhs --chapters --latex-engine=pdflatex --template=templates/default.latex --filter templates/inside.hs --metadata bibliography=sw.bib dist/pbook.lhs -o dist/pbook.pdf
+
 
 lhsObjects  := $(wildcard src/*.lhs)
 texObjects  := $(patsubst %.lhs,%.tex,$(wildcard src/*.lhs))

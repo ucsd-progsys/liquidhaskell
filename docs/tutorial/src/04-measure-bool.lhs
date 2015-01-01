@@ -1,5 +1,5 @@
-Boolean Measures
-=================
+Boolean Measures {#boolmeasures}
+================
 
 
 In the last two chapters, we saw how refinements could be used to
@@ -323,7 +323,7 @@ Can you think of a better specification for the function(s) doing those computat
 Non-empty lists pop up in many places, and it is rather convenient
 to have the type system track non-emptiness without having to make
 up special types. Consider the `risers` function: \footnotetext{Popularized by
-[Neil Mitchell](http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html)}
+[Neil Mitchell][mitchell-riser]}
 
 \begin{code}
 risers           :: (Ord a) => [a] -> [[a]]
@@ -359,7 +359,7 @@ In this chapter we saw how LiquidHaskell lets you
    values at run-time, all while,
 
 3. Working with plain Haskell types, here, Lists, without
-   having to [make up new types](http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html)
+   having to [make up new types][apple-riser]
    which can have the unfortunate effect of adding a multitude of constructors
    and conversions which often clutter implementations and specifications.
 
