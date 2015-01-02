@@ -19,6 +19,8 @@ import Data.Maybe               (catMaybes)
 
 import Var
 
+import           Language.Fixpoint.Names      (dropModuleNames)
+
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Strata
@@ -36,6 +38,7 @@ data CGEnv
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
+        , denv   :: !DEnv              -- ^ Dictionary Environment
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 
@@ -239,7 +242,27 @@ lookupREnv x (REnv env)   = M.lookup x env
 memberREnv x (REnv env)   = M.member x env
 
 
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+------------------------ Dictionay Environment -------------------------------
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
+data DEnv = DEnv (M.HashMap Var (M.HashMap F.Symbol SpecType))
+
+dempty = DEnv M.empty
+dinsert (DEnv denv) x xts = DEnv $ M.insert x (M.fromList xts') denv
+  where 
+    xts'     = mapFst go <$> xts
+    go       = F.symbol . drop 2 . show 
+
+dlookup (DEnv denv) x     = M.lookup x denv
+
+
+dhasinfo Nothing _ = Nothing
+dhasinfo (Just xts) x = traceShow ("lookup " ++ show x' ++ "\tin\t" ++ show xts) $ M.lookup x' xts
+  where
+     x' = (dropModuleNames $ F.symbol $ show x)
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
