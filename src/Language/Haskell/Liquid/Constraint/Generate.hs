@@ -39,7 +39,7 @@ import Control.Monad.State
 import Control.Applicative      ((<$>))
 
 import Data.Monoid              (mconcat, mempty, mappend)
-import Data.Maybe               (fromMaybe, catMaybes)
+import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -62,7 +62,9 @@ import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
-import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, tickSrcSpan, hasBaseTypeVar, showPpr)
+import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
+                                                , hasBaseTypeVar, showPpr
+                                                , isDictionary, isDictionaryExpression)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -70,6 +72,8 @@ import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
+
+import Debug.Trace (trace)
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -169,6 +173,7 @@ measEnv sp xts cbs lts asms hs
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
+        , denv  = dempty
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , ial   = mkRTyConIAl    $ ialiases   sp
@@ -1105,6 +1110,11 @@ consCB _ _ γ (Rec xes)
        mapM_ (consBind True γ') xets
        return γ' 
 
+consCB _ _ γ (NonRec x e) | isDictionary x
+  = do t  <- trueTy (varType x)
+       γ' <- addDictionary γ x e
+       extender γ' (x, Assumed t)
+
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
@@ -1114,7 +1124,7 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e spect
+       cconsE γπ e (traceShow ("Type for " ++ show x ++ "\nin \n" ++ showPpr e) spect)
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -1126,13 +1136,32 @@ consBind isRec γ (x, e, Assumed spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted spect -- Nothing
+       return $ Asserted (traceShow ("Type for 1 " ++ show x) spect) -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
-       return $ Asserted t
+       return $ Asserted (traceShow ("Type for 2 " ++ show x) t)
+
+
+addDictionary γ x e 
+  = do ts     <- mapM (γ `fieldType`) xs
+       let xts = zip xs ts
+       let γ'  = γ {denv = dinsert (denv γ) x xts}
+       return (trace ("Fields = " ++ show xts) γ')
+  where
+   xs = fields [] e
+
+   fields acc (App _ (Type _))   = reverse acc
+   fields acc (App e (Var x))    = fields (x:acc) e 
+   fields acc (App e (Tick _ a)) = fields acc (App e a) 
+   fields acc (Tick _ e)         = fields acc e
+   fields _   e                  = errorstar ("Cannot grap fields in " ++ showPpr e) 
+
+   fieldType  γ x = case lookupREnv (F.symbol x) (grtys γ) of 
+                     Just t  -> return t
+                     Nothing -> trueTy (varType x)
 
 noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
 
@@ -1228,7 +1257,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x) 
   = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
-       addIdA x (AnnDef ty) 
+       addIdA x (AnnDef (traceShow ("add type for " ++ show x ++ "\nIn\n" ++  showPpr e) ty)) 
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
@@ -1302,6 +1331,31 @@ consE γ e'@(App e (Type τ))
        addW        $ WfC γ t
        t'         <- refreshVV t
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+
+consE γ e'@(App e a) | isDictionary a               
+  = if isJust tt 
+      then return $ traceShow ("Type of\t" ++ showPpr e') (fromJust tt)
+      else do ([], πs, ls, te) <- bkUniv <$> consE γ e
+              te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
+              te'              <- instantiateStrata ls te0
+              (γ', te''')      <- dropExists γ te'
+              te''             <- dropConstraints γ te'''
+              updateLocA πs (exprLoc e) te'' 
+              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+              pushConsBind      $ cconsE γ' a tx 
+              let     dinfo = dlookup (denv γ) d
+              t <- addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+              return $ (traceShow ("Dictionary info for " ++ show d ++ "\tIS \t"  ++ show dinfo ++ "\nIN\n" ++ showPpr e ++ "\t?\t") t)
+  where
+--     mtype = grepfunname e `dhasinfo` dinfo
+    grepfunname (App x (Type _)) = grepfunname x
+    grepfunname (Var x)          = x
+    grepfunname e                = errorstar $ "grepfunname on \t" ++ showPpr e  
+    mdict                        = isDictionaryExpression a       
+    isDictionary _               = isJust mdict
+    d = fromJust mdict
+    dinfo = dlookup (denv γ) d
+    tt = dhasinfo dinfo $ grepfunname e
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
@@ -1585,7 +1639,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
+  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

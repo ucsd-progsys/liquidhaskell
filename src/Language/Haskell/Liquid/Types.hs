@@ -191,7 +191,6 @@ module Language.Haskell.Liquid.Types (
 import SrcLoc                                   (noSrcSpan, SrcSpan)
 import TyCon 
 import DataCon
-import Name                                     (getName)
 import NameSet
 import Module                                   (moduleNameFS)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
@@ -228,7 +227,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
-import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, funConName, listConName, tupConName)
+import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
@@ -1788,15 +1787,6 @@ hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 instance Symbolic DataCon where
   symbol = symbol . dataConWorkId
 
-instance Symbolic Var where
-  symbol = varSymbol
-
-varSymbol ::  Var -> Symbol
-varSymbol v 
-  | us `isSuffixOfSym` vs = vs
-  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
-  where us  = symbol $ showPpr $ getDataConVarUnique v
-        vs  = symbol $ getName v
 
 instance PPrint DataCon where
   pprint = text . showPpr
