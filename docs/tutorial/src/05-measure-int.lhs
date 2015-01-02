@@ -11,7 +11,8 @@ module NumericMeasures (
   -- * Types
     Vector (..)
   , Matrix (..)
-  , dotProduct, transpose, transpose'
+  , dotProd, matProd
+  , dotProduct, matProduct, transpose
   , vecFromList, matFromList
   , map, take,drop, for, zip, zipOrNull, partition, reverse
   , first, second, size
@@ -27,8 +28,10 @@ import Prelude  hiding  (map, zipWith, zip, take, drop, reverse)
 {-@ die :: {v:_ | false} -> a @-}
 die msg = error msg
 take, drop, take' :: Int -> [a] -> [a]
+txgo          :: Int -> Int -> Vector (Vector a) -> Vector (Vector a)
 \end{code}
 
+\begin{comment}
 Plan
 ----
 
@@ -37,6 +40,7 @@ Plan
 3. Dimension-aware List API 
 4. Dimension-safe Vectors and Matrices
 5. Case Study: K-Means Clustering
+\end{comment}
 
 Many of the programs we have seen so far, for example those in
 [here](#vectorbounds), suffer from *indexitis*
@@ -97,11 +101,12 @@ a high-level "iterator" over the elements of the matrix.
 
 \begin{code}
 matProd       :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matProd mx my = M (mRow mx) (mCol my) elts
+matProd (M rx cx xs) my@(M ry cy ys)
+                 = M rx cy elts
   where
-    elts      = for (mElts mx) $ \xi ->
-                  for (mElts my) $ \yj ->
-                    dotProduct xi yj
+    elts         = for xs $ \xi ->
+                     for ys $ \yj ->
+                       dotProd xi yj
 \end{code}
 
 \newthought{Iteration} In the above, the "iteration" embodied
@@ -407,6 +412,28 @@ okVec  = V 2 [10, 20]       -- accepted by LH
 badVec = V 2 [10, 20, 30]   -- rejected by LH
 \end{code}
 
+\newthought{Access} Next, lets write some functions to access the elements of a vector:
+
+\begin{code}
+{-@ vCons        :: a -> x:Vector a -> {v:Vector a | vDim v = vDim x + 1} @-}
+vCons x (V n xs) = V (n+1) (x:xs)
+
+{-@ type VectorNE a = {v:Vector a | vDim v > 0} @-}
+
+{-@ vHd :: VectorNE a -> a @-}
+vHd (V _ (x:_)) = x
+vHd _           = die "nope"
+
+{-@ vTl          :: x:VectorNE a -> {v:Vector a | vDim v = vDim x - 1} @-}
+vTl (V n (_:xs)) = V (n-1) xs 
+vTl _           = die "nope"
+\end{code}
+
+\newthought{Iteration} It is straightforward to see that:
+
+\begin{code}
+{-@ for :: x:Vector a -> (a -> b) -> VectorN b (vDim x) @-}
+\end{code}
 \newthought{Binary Operations} We want to apply various binary
 operations to *compatible* vectors, i.e. vectors with equal
 dimensions. To this end, it is handy to have an alias for
@@ -501,22 +528,20 @@ bad2 = M 2 3 (V 2 [ V 2 [1, 2]
 
 \exercise Modify the definitions of `bad1` and `bad2` so that they are legal matrices.
 
-\exercise Write a function to construct a `Matrix` from a nested list.
+\exercise \singlestar Write a function to construct a `Matrix` from a nested list.
 
 \begin{code}
 {-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
 matFromList      :: [[a]] -> Maybe (Matrix a)
-matFromList []   =  Nothing                       -- no meaningful dimensions! 
+matFromList []   = Nothing                       -- no meaningful dimensions! 
 matFromList xss@(xs:_)
-  | ok           = Just (M r c (vecFromList vs))
+  | ok           = Just (M r c vs) 
   | otherwise    = Nothing 
   where
-    ok           = size vs == r && c > 0
     r            = size xss
     c            = size xs
-    vs           = vecs c xss 
-    {-@ vecs :: c:Int -> _ -> [VectorN a c] @-}
-    vecs c xss   = [vecFromList xs | xs <- xss, size xs == c]  
+    ok           = undefined
+    vs           = undefined 
 \end{code}
 
 \exercise {} \doublestar Refine the specification for `matFromList` so that the
@@ -557,13 +582,15 @@ the `dotProduct` of the rows of the first matrix with
 the columns of the second.
 
 \begin{code}
+{-@ matProduct   :: (Num a) => x:Matrix a -> y:{Matrix a  | mCol x = mRow y} -> Matrix a @-}
 matProduct       :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matProduct mx my = M (mRow mx) (mCol my) elts
+matProduct (M rx cx xs) my@(M ry cy ys)
+                 = M rx cy elts
   where
-    elts         = for (mElts mx) $ \xi ->
-                     for (mElts my) $ \yj ->
+    elts         = for xs $ \xi ->
+                     for ys' $ \yj ->
                        dotProduct xi yj
-    my'          = transpose my 
+    M _ _ ys'    = transpose my 
 \end{code}
 
 \newthought{Transposition} To iterate over the columns of
@@ -583,125 +610,20 @@ straightforward: each *output row* is simply the list of `head`s of
 the *input rows*:
 
 \begin{code}
-transpose :: Matrix a -> Matrix a
-transpose = undefined
+{-@ transpose          :: m:Matrix a -> MatrixN a (mCol m) (mRow m) @-}
+transpose (M r c rows) = M c r $ txgo c r rows
 
-{-@ type ListNM a R C = (ListN (ListN a C) R)  @-}
-
-{-@ matToList :: m:Matrix a -> ListNM a (mRow m) (mCol m) @-}
-
-{-@ vecList ::   x:Vector a -> ListN a (vDim x)  @-}
-vecList = vElts --  (V _ xs) = xs 
-
-matToList m = [ vecList v | v <- matRows m ] 
-  where
-
-{-@ matRows :: m:Matrix a -> ListN (VectorN a (mCol m)) (mRow m) @-}
-matRows     = vecList . mElts 
-    
-{-@ transpose'   :: c:Nat -> r:Pos -> ListNM a r c -> ListNM a c r @-}
-transpose'       :: Int -> Int -> [[a]] -> [[a]]
-transpose' 0 _ _ = []
-transpose' c r ((col00 : col01s) : row1s)
-  = row0' : row1s'
-    where
-      row0'     = col00  : [ col0  | (col0 : _)  <- row1s ]
-      rest      = col01s : [ col1s | (_ : col1s) <- row1s ]
-      row1s'    = transpose' (c-1) r rest
+{-@ txgo      :: c:Nat -> r:Nat -> VectorN (VectorN a c) r -> VectorN (VectorN a r) c @-}
+txgo c r rows = undefined
 \end{code}
 
+\exercise \doublestar
+Use the `Vector` API to Complete the implementation of `txgo`. For inspiration,
+you might look at the implementation of `Data.List.transpose`
+from the [prelude][URL-transpose]. Better still, don't.
 
+Recap
+-----
 
-\newthought{Matrix Transposition}
-
-The `transpose` operation flips the rows and columns. I confess that I
-can never really understand matrices without concrete examples,
-and even then, barely.
-We will use a `Matrix a m n` to represent a *single cluster* of `m` points
-each of which has `n` dimensions. We will transpose the matrix to make it
-easy to *sum* and *average* the points along *each* dimension, in order to
-compute the *center* of the cluster.
-
-LiquidHaskell verifies that
-
-Try to work it out for yourself on pencil and paper.
-
-If you like you can get a hint by seeing how LiquidHaskell figures it out.
-Lets work *backwards*.
-
-LiquidHaskell verifies the output type by inferring that
-
-\begin{spec}
-row0'        :: (List a r)
-row1s'       :: List (List a r) (c - 1) -- i.e. Matrix a (c - 1) r
-\end{spec}
-
-and so, by simply using the *measure-refined* type for `:`
-
-\begin{spec}
-(:)          :: x:a -> xs:[a] -> { v : [a] | len v = 1 + len xs }
-\end{spec}
-
-LiquidHaskell deduces that
-
-\begin{spec}
-row0 : rows' :: List (List a r) c
-\end{spec}
-
-That is,
-
-\begin{spec}
-row0 : rows' :: Matrix a c r
-\end{spec}
-
-Excellent! Now, lets work backwards. How does it infer the types of `row0'` and `row1s'`?
-
-The first case is easy: `row0'` is just the list of *heads* of each row, hence a `List a r`.
-
-Now, lets look at `row1s'`. Notice that `row1s` is the matrix of all *except* the first row of the input Matrix, and so
-
-\begin{spec}
-row1s        :: Matrix a (r-1) c
-\end{spec}
-
-and so, as
-
-\begin{spec}
-col01s       :: List a (c-1)
-col1s        :: List a (c-1)
-\end{spec}
-
-LiquidHaskell deduces that since `rest` is the concatenation of `r-1` tails from `row1s`
-
-\begin{spec}
-rest         = col01s : [ col1s | (_ : col1s) <- row1s ]
-\end{spec}
-
-the type of `rest` is
-
-\begin{spec}
-rest         :: List (List a (c - 1)) r
-\end{spec}
-
-which is just
-
-\begin{spec}
-rest         :: Matrix a r (c-1)
-\end{spec}
-
-Now, LiquidHaskell deduces `row1s' :: Matrix a (c-1) r` by inductively
-plugging in the output type of the recursive call, thereby checking the
-function's signature.
-
-*Whew!* That was a fair bit of work, wasn't it!
-
-Happily, we didn't have to do *any* of it. Instead, using the SMT solver,
-LiquidHaskell ploughs through calculations like that and guarantees to us
-that `transpose` indeed flips the dimensions of the inner and outer lists.
-
-**Aside: Comprehensions vs. Map** Incidentally, the code above is essentially
-that of `transpose` [from the Prelude][URL-transpose] with some extra
-local variables for exposition. You could instead use a `map head` and `map tail`
-and I encourage you to go ahead and [see for yourself.][demo]
-
+TODO **HEREHEREHERE** 
 
