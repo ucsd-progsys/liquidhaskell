@@ -7,11 +7,22 @@ Numeric Measures
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-termination" @-}
 
-module NumericMeasures where
+module NumericMeasures (
+  -- * Types
+    Vector (..)
+  , Matrix (..)
+  , dotProduct, transpose, transpose'
+  , vecFromList, matFromList
+  , map, take,drop, for, zip, zipOrNull, partition, reverse
+  , first, second, size
+  , test1, test2, test3, test4, test5, test6
+  , ok23
+  , ok32 
+  ) where
 
-import qualified Data.List as L
+-- import qualified Data.List as L
 import Data.List (foldl')
-import Prelude  hiding  (map, zipWith, zip, take, drop)
+import Prelude  hiding  (map, zipWith, zip, take, drop, reverse)
 
 {-@ die :: {v:_ | false} -> a @-}
 die msg = error msg
@@ -58,11 +69,13 @@ matrices as nested vectors:
 data Vector a = V { vDim  :: Int
                   , vElts :: [a]
                   }
-
+              deriving (Eq)
+                         
 data Matrix a = M { mRow  :: Int
                   , mCol  :: Int
                   , mElts :: Vector (Vector a)
                   }
+              deriving (Eq)
 \end{code}
 
 \newthought{Vector Product} We can write the dot product of
@@ -88,7 +101,7 @@ matProd mx my = M (mRow mx) (mCol my) elts
   where
     elts      = for (mElts mx) $ \xi ->
                   for (mElts my) $ \yj ->
-                    dotProd xi yj
+                    dotProduct xi yj
 \end{code}
 
 \newthought{Iteration} In the above, the "iteration" embodied
@@ -261,6 +274,7 @@ for `zipOrNull` such that the code below is verified by
 LiquidHaskell:
 
 \begin{code}
+zipOrNull       :: [a] -> [b] -> [(a, b)]
 zipOrNull [] _  = []
 zipOrNull _ []  = []
 zipOrNull xs ys = zipWith (,) xs ys
@@ -272,7 +286,7 @@ test1     = zipOrNull [0, 1] [True, False]
 test2 = zipOrNull [] [True, False]
 
 {-@ test3 :: {v: _ | len v = 0} @-}
-test3 = zipOrNull [0, 1] []
+test3 = zipOrNull ["cat", "dog"] []
 \end{code}
 
 \hint Yes, the type is rather gross; it uses a bunch of
@@ -380,7 +394,7 @@ We can use the dimension aware lists to create a safe vector API.
 
 \begin{code}
 {-@ data Vector a = V { vDim  :: Nat
-                      , vElts :: ListN a vDim}
+                      , vElts :: ListN a vDim }
   @-}
 \end{code}
 
@@ -422,12 +436,14 @@ dotProduct x y = sum $ vElts $ vBin (*) x y
 *creates* a `Vector` from a plain old list.
 
 \begin{code}
-vecFromList :: [a] -> Maybe (Vector a)
-vecFromList = undefined
+{-@ vecFromList :: xs:[a] -> VectorN a (len xs) @-} -- REMOVE ME
+vecFromList     :: [a] -> Vector a
+vecFromList xs  = undefined
 
-test6 = do vx <- vecFromList [1,2,3]
-           vy <- vecFromList [4,5,6]
-           return $ dotProduct vx vy -- should be accepted by LH
+test6  = dotProduct vx vy    -- should be accepted by LH
+  where 
+    vx = vecFromList [1,2,3]
+    vy = vecFromList [4,5,6]
 \end{code}
 
 Dimension Safe Matrix API 
@@ -443,11 +459,19 @@ of each inner vector is `mCol`. We can specify legality in a
 refined data definition: 
 
 \begin{code}
-{-@ data Matrix a = M { mRow  :: Nat 
-                      , mCol  :: Nat
+{-@ data Matrix a = M { mRow  :: Pos
+                      , mCol  :: Pos 
                       , mElts :: VectorN (VectorN a mCol) mRow
                       }
   @-}
+\end{code}
+
+\noindent Notice that we avoid disallow degenerate matrices by
+requiring the dimensions to be positive.
+
+\begin{code}
+
+{-@ type Pos = {v:Int | 0 < v} @-}
 \end{code}
 
 \noindent It is convenient to have an alias for matrices of a given size:
@@ -456,71 +480,149 @@ refined data definition:
 {-@ type MatrixN a R C = {v:Matrix a | mRow v = R && mCol v = C} @-}
 \end{code}
 
-\noindent after which we can check that:
+\noindent after LiquidHaskell accepts:
 
 \begin{code}
-{-@ okMatrix :: MatrixN Int 3 2 @-}
-okMatrix  :: Matrix Int
-okMatrix  = M 2 3 (V 2 [ V 3 [1, 2, 3]
-                   , V 3 [4, 5, 6] ]
-              )
+ok23      = M 2 3 (V 2 [ V 3 [1, 2, 3]
+                       , V 3 [4, 5, 6] ])
 \end{code}
 
+\noindent as it is indeed legal, but rejects the following as they are not:
 
-\newthought{Matrix Multiplication}
+\begin{code}
+bad1 :: Matrix Int
+bad1 = M 2 3 (V 2 [ V 3 [1, 2   ]
+                  , V 3 [4, 5, 6]])
 
-\newthought{Matrix Transposition}
+bad2 :: Matrix Int
+bad2 = M 2 3 (V 2 [ V 2 [1, 2]
+                  , V 2 [4, 5] ])
+\end{code}
 
-The last basic operation that we will require is a means to
-*transpose* a `Matrix`, which itself is just a list of lists:
+\exercise Modify the definitions of `bad1` and `bad2` so that they are legal matrices.
 
-The `transpose` operation flips the rows and columns. I confess that I
-can never really understand matrices without concrete examples,
-and even then, barely.
+\exercise Write a function to construct a `Matrix` from a nested list.
 
-So, lets say we have a *matrix*
+\begin{code}
+{-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
+matFromList      :: [[a]] -> Maybe (Matrix a)
+matFromList []   =  Nothing                       -- no meaningful dimensions! 
+matFromList xss@(xs:_)
+  | ok           = Just (M r c (vecFromList vs))
+  | otherwise    = Nothing 
+  where
+    ok           = size vs == r && c > 0
+    r            = size xss
+    c            = size xs
+    vs           = vecs c xss 
+    {-@ vecs :: c:Int -> _ -> [VectorN a c] @-}
+    vecs c xss   = [vecFromList xs | xs <- xss, size xs == c]  
+\end{code}
 
-\begin{spec}
-m1  :: Matrix Int 4 2
-m1  =  [ [1, 2]
-       , [3, 4]
-       , [5, 6]
-       , [7, 8] ]
-\end{spec}
+\exercise {} \doublestar Refine the specification for `matFromList` so that the
+following is accepted by LiquidHaskell:
 
-then the matrix `m2 = transpose 2 3 m1` should be
+\begin{code}
+{-@ mat23 :: Maybe (MatrixN Integer 2 2) @-} 
+mat23     = matFromList [ [1, 2]
+                        , [3, 4] ]
 
-\begin{spec}
-m2 :: Matrix Int 2 4
-m2  =  [ [1, 3, 5, 7]
-       , [2, 4, 6, 8] ]
-\end{spec}
+{-@ measure cols @-}
+{-@ cols   :: [[a]] -> Nat @-}
+cols (r:_) = size r
+cols []    = 0
 
-We will use a `Matrix a m n` to represent a *single cluster* of `m` points
-each of which has `n` dimensions. We will transpose the matrix to make it
-easy to *sum* and *average* the points along *each* dimension, in order to
-compute the *center* of the cluster.
+{-@ measure size @-}
+{-@ size    :: xs:[a] -> {v:Nat | v = size xs && v = len xs} @-}
+size        :: [a] -> Int
+size (_:rs) = 1 + size rs
+size []     = 0
+\end{code}
 
+\hint It is easy to specify the number of rows from `xss`.
+How will you figure out the number of columns? A measure
+may be useful.
+
+\newthought{Matrix Multiplication} Ok, lets now implement
+matrix multiplication. You'd think we did it already, but
+in fact the implementation at the top of this chapter
+is all wrong.
+\footnotetext{You could run it of course, or you could
+just replace `dotProd` with our type-safe `dotProduct`
+and see what happens!}
+Indeed, you cannot just multiply any two matrices: the
+number of *columns* of the first must equal to the *rows*
+of the second -- after which point the result comprises
+the `dotProduct` of the rows of the first matrix with
+the columns of the second.
+
+\begin{code}
+matProduct       :: (Num a) => Matrix a -> Matrix a -> Matrix a
+matProduct mx my = M (mRow mx) (mCol my) elts
+  where
+    elts         = for (mElts mx) $ \xi ->
+                     for (mElts my) $ \yj ->
+                       dotProduct xi yj
+    my'          = transpose my 
+\end{code}
+
+\newthought{Transposition} To iterate over the columns of
+`my` we just `transpose` it so the columns become rows.
+
+\begin{code}
+-- >>> ok32 == transpose ok23
+-- True
+ok32 = M 3 2 (V 3 [ V 2 [1, 4]
+                  , V 2 [2, 5]
+                  , V 2 [3, 6] ])
+\end{code}
+
+\noindent
 As you can work out from the above, the code for `transpose` is quite
 straightforward: each *output row* is simply the list of `head`s of
 the *input rows*:
 
 \begin{code}
-transpose       :: Int -> Int -> [[a]] -> [[a]]
-transpose 0 _ _ = []
-transpose c r ((col00 : col01s) : row1s)
+transpose :: Matrix a -> Matrix a
+transpose = undefined
+
+{-@ type ListNM a R C = (ListN (ListN a C) R)  @-}
+
+{-@ matToList :: m:Matrix a -> ListNM a (mRow m) (mCol m) @-}
+
+{-@ vecList ::   x:Vector a -> ListN a (vDim x)  @-}
+vecList = vElts --  (V _ xs) = xs 
+
+matToList m = [ vecList v | v <- matRows m ] 
+  where
+
+{-@ matRows :: m:Matrix a -> ListN (VectorN a (mCol m)) (mRow m) @-}
+matRows     = vecList . mElts 
+    
+{-@ transpose'   :: c:Nat -> r:Pos -> ListNM a r c -> ListNM a c r @-}
+transpose'       :: Int -> Int -> [[a]] -> [[a]]
+transpose' 0 _ _ = []
+transpose' c r ((col00 : col01s) : row1s)
   = row0' : row1s'
     where
       row0'     = col00  : [ col0  | (col0 : _)  <- row1s ]
       rest      = col01s : [ col1s | (_ : col1s) <- row1s ]
-      row1s'    = transpose (c-1) r rest
+      row1s'    = transpose' (c-1) r rest
 \end{code}
+
+
+
+\newthought{Matrix Transposition}
+
+The `transpose` operation flips the rows and columns. I confess that I
+can never really understand matrices without concrete examples,
+and even then, barely.
+We will use a `Matrix a m n` to represent a *single cluster* of `m` points
+each of which has `n` dimensions. We will transpose the matrix to make it
+easy to *sum* and *average* the points along *each* dimension, in order to
+compute the *center* of the cluster.
 
 LiquidHaskell verifies that
-
-\begin{code}
-{- transpose :: c:Int -> r:PosInt -> Matrix a r c -> Matrix a c r @-}
-\end{code}
 
 Try to work it out for yourself on pencil and paper.
 
