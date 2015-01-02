@@ -414,15 +414,57 @@ vBin op (V n xs) (V _ ys) = V n (zipWith op xs ys)
 dimension safe dot product operator as:
 
 \begin{code}
-{-@ dotProduct :: (Num a) => x:Vector a -> VectorN a (vDim x) -> a @-}
+{-@ dotProduct :: (Num a) => x:Vector a -> y:VectorN a (vDim x) -> a @-}
 dotProduct x y = sum $ vElts $ vBin (*) x y 
 \end{code}
 
+\exercise Complete the *specification* and *implementation* of `vecFromList` which
+*creates* a `Vector` from a plain old list.
+
+\begin{code}
+vecFromList :: [a] -> Maybe (Vector a)
+vecFromList = undefined
+
+test6 = do vx <- vecFromList [1,2,3]
+           vy <- vecFromList [4,5,6]
+           return $ dotProduct vx vy -- should be accepted by LH
+\end{code}
 
 Dimension Safe Matrix API 
 -------------------------
 
-\newthought{Legal Matrices}
+The same methods let us create a dimension safe Matrix API which
+ensures that only legal matrices are created and that operations
+are performed on compatible matrices.
+
+\newthought{Legal Matrices} are those where the dimension of the
+outer vector equals the number of rows `mRow` and the dimension
+of each inner vector is `mCol`. We can specify legality in a
+refined data definition: 
+
+\begin{code}
+{-@ data Matrix a = M { mRow  :: Nat 
+                      , mCol  :: Nat
+                      , mElts :: VectorN (VectorN a mCol) mRow
+                      }
+  @-}
+\end{code}
+
+\noindent It is convenient to have an alias for matrices of a given size:
+
+\begin{code}
+{-@ type MatrixN a R C = {v:Matrix a | mRow v = R && mCol v = C} @-}
+\end{code}
+
+\noindent after which we can check that:
+
+\begin{code}
+{-@ okMatrix :: MatrixN Int 3 2 @-}
+okMatrix  :: Matrix Int
+okMatrix  = M 2 3 (V 2 [ V 3 [1, 2, 3]
+                   , V 3 [4, 5, 6] ]
+              )
+\end{code}
 
 
 \newthought{Matrix Multiplication}
@@ -431,10 +473,6 @@ Dimension Safe Matrix API
 
 The last basic operation that we will require is a means to
 *transpose* a `Matrix`, which itself is just a list of lists:
-
-\begin{code}
-{- type Matrix a Rows Cols = (List (List a Cols) Rows) @-}
-\end{code}
 
 The `transpose` operation flips the rows and columns. I confess that I
 can never really understand matrices without concrete examples,
