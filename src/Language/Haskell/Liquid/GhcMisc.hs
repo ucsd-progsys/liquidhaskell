@@ -299,7 +299,7 @@ ignoreLetBinds (Let (NonRec _ _) e')
 ignoreLetBinds e 
   = e
 
-isDictionary x = L.isPrefixOf "$d" (symbolString $ dropModuleNames $ symbol x)
+isDictionary x = L.isPrefixOf "$f" (symbolString $ dropModuleNames $ symbol x)
 isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
 
 
