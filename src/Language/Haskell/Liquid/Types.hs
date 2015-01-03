@@ -185,6 +185,9 @@ module Language.Haskell.Liquid.Types (
   -- * CoreToLogic
   , LogicMap, toLogicMap, eAppWithMap
 
+  -- * Refined Instances
+  , RInstance(..)
+
   )
   where
 
@@ -808,6 +811,15 @@ instance Show RTyCon where
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
+
+
+data RInstance t = RI { riclass :: LocSymbol
+                      , ritype  :: t 
+                      , risigs  :: [(LocSymbol, t)]
+                      }
+
+instance Functor RInstance where
+  fmap f (RI x t xts) = RI x (f t) (mapSnd f <$> xts) 
 
 -- | Data type refinements
 data DataDecl   = D { tycName   :: LocSymbol

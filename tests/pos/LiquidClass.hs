@@ -9,8 +9,11 @@ class Compare a where
 	cmin :: a -> a -> a
 
 instance Compare Int where	
-	{-@ $ccmax :: Odd -> Int -> Odd @-}
-	{- $ccmin :: Int -> Int -> Int @-}
+{-@ instance Compare Int where 
+	cmax :: Odd -> Odd -> Odd ;
+	cmin :: Int -> Int -> Int
+  @-}
+
 	cmax y x = if x >= y then x else y
   	cmin y x = if x >= y then x else y
 

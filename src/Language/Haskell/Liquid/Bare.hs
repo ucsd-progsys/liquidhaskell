@@ -796,15 +796,21 @@ makeTargetVars name vs ss
 
 makeAssertSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs (Ms.sigs spec ++ Ms.localSigs spec)
+  = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec) 
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.sigs spec
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs $ Ms.asmSigs spec
+  = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.asmSigs spec
+
+
+grepClassAsserts  = concatMap go 
+   where
+    go    = map goOne . risigs
+    goOne = traceShow "RESULT" . mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
                    -> [(ModName,Var,Located SpecType)]
@@ -820,9 +826,9 @@ makeDefaultMethods defVs sigs
     , let Just (m,_,t) = mb
     ]
 
-makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
+makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
-makeLocalSpec cfg mod vs lvs xbs
+makeLocalSpec cfg mod vs lvs cbs xbs
   = do env   <- get
        vbs1  <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        unless (noCheckUnknown cfg)   $ checkDefAsserts env vbs1 xbs1
@@ -830,7 +836,8 @@ makeLocalSpec cfg mod vs lvs xbs
        vts2  <- makeSpec cfg vs xbs2
        return $ vts1 ++ vts2
   where
-    (xbs1, xbs2)        = L.partition (modElem mod . fst) xbs
+    xbs1 = xbs1' ++ cbs
+    (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
     dupSnd (x, y)       = (dropMod x, (x, y))
     expand3 (x, (y, w)) = (x, y, w)
     dropMod             = fmap (dropModuleNames . symbol)
