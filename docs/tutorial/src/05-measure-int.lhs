@@ -1,6 +1,7 @@
 Numeric Measures
 ================
 
+\begin{comment}
 \begin{code}
 
 {-@ LIQUID "--diff"           @-}
@@ -21,8 +22,6 @@ module NumericMeasures (
   , ok32 
   ) where
 
--- import qualified Data.List as L
-import Data.List (foldl')
 import Prelude  hiding  (map, zipWith, zip, take, drop, reverse)
 
 {-@ die :: {v:_ | false} -> a @-}
@@ -31,7 +30,6 @@ take, drop, take' :: Int -> [a] -> [a]
 txgo          :: Int -> Int -> Vector (Vector a) -> Vector (Vector a)
 \end{code}
 
-\begin{comment}
 Plan
 ----
 
@@ -101,7 +99,7 @@ a high-level "iterator" over the elements of the matrix.
 
 \begin{code}
 matProd       :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matProd (M rx cx xs) my@(M ry cy ys)
+matProd (M rx _ xs) (M _ cy ys)
                  = M rx cy elts
   where
     elts         = for xs $ \xi ->
@@ -272,7 +270,7 @@ to be the smaller of `Y` and `Z`.
 {-@ predicate Min X Y Z = (if X < Y then X = Y else X = Z) @-}
 \end{code}
 
-\exercise In my experience, `zip` as shown above is far too
+\exercisen{Zip Unless Empty} In my experience, `zip` as shown above is far too
 permissive and lets all sorts of bugs into my code. As middle
 ground, consider `zipOrNull` below. Write a specification
 for `zipOrNull` such that the code below is verified by
@@ -288,16 +286,16 @@ zipOrNull xs ys = zipWith (,) xs ys
 test1     = zipOrNull [0, 1] [True, False]
 
 {-@ test2 :: {v: _ | len v = 0} @-}
-test2 = zipOrNull [] [True, False]
+test2     = zipOrNull [] [True, False]
 
 {-@ test3 :: {v: _ | len v = 0} @-}
-test3 = zipOrNull ["cat", "dog"] []
+test3     = zipOrNull ["cat", "dog"] []
 \end{code}
 
 \hint Yes, the type is rather gross; it uses a bunch of
       disjunctions `||` , conjunctions `&&` and implications `=>`.
 
-\exercise {} **[Reverse]** Consider the code below that reverses
+\exercisen{Reverse} Consider the code below that reverses
 a list using the tail-recursive `go`. Fix the signature for `go`
 so that LiquidHaskell can prove the specification for `reverse`.
 
@@ -326,7 +324,7 @@ take' n (x:xs) = x : take' (n-1) xs
 take' _ _      = die "won't  happen"
 \end{code}
 
-\exercise {} **[Drop]** is the yang to `take`'s yin: it returns the
+\exercisen{Drop} is the yang to `take`'s yin: it returns the
 remainder after extracting the first `k` elements: 
 
 \begin{code}
@@ -338,7 +336,7 @@ drop _ _      = die "won't happen"
 test4 = drop 1 ["cat", "dog", "mouse"] 
 \end{code}
 
-\exercise {} The version `take'` above is too restrictive;
+\exercisen{Take it easy} The version `take'` above is too restrictive;
 it insists that the list actually have at least `n` elements.
 Modify the signature for the *real* `take` function so that
 the code below is accepted by LiquidHaskell:
@@ -459,11 +457,10 @@ dimension safe dot product operator as:
 dotProduct x y = sum $ vElts $ vBin (*) x y 
 \end{code}
 
-\exercise Complete the *specification* and *implementation* of `vecFromList` which
+\exercisen{Creating Vectors} Complete the *specification* and *implementation* of `vecFromList` which
 *creates* a `Vector` from a plain old list.
 
 \begin{code}
-{-@ vecFromList :: xs:[a] -> VectorN a (len xs) @-} -- REMOVE ME
 vecFromList     :: [a] -> Vector a
 vecFromList xs  = undefined
 
@@ -514,7 +511,8 @@ ok23      = M 2 3 (V 2 [ V 3 [1, 2, 3]
                        , V 3 [4, 5, 6] ])
 \end{code}
 
-\noindent as it is indeed legal, but rejects the following as they are not:
+\exercisen{Legal Matrix} Modify the definitions of `bad1` and `bad2`
+so that they are legal matrices accepted by LiquidHaskell.
 
 \begin{code}
 bad1 :: Matrix Int
@@ -526,9 +524,7 @@ bad2 = M 2 3 (V 2 [ V 2 [1, 2]
                   , V 2 [4, 5] ])
 \end{code}
 
-\exercise Modify the definitions of `bad1` and `bad2` so that they are legal matrices.
-
-\exercise \singlestar Write a function to construct a `Matrix` from a nested list.
+\exercisen{Creating Matrices} \singlestar Write a function to construct a `Matrix` from a nested list.
 
 \begin{code}
 {-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
