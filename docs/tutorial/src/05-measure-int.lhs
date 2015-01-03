@@ -457,8 +457,9 @@ dimension safe dot product operator as:
 dotProduct x y = sum $ vElts $ vBin (*) x y 
 \end{code}
 
-\exercisen{Creating Vectors} Complete the *specification* and *implementation* of `vecFromList` which
-*creates* a `Vector` from a plain old list.
+\exercisen{Vector Constructor} Complete the *specification* and
+*implementation* of `vecFromList` which *creates* a `Vector` from
+a plain old list.
 
 \begin{code}
 vecFromList     :: [a] -> Vector a
@@ -524,7 +525,7 @@ bad2 = M 2 3 (V 2 [ V 2 [1, 2]
                   , V 2 [4, 5] ])
 \end{code}
 
-\exercisen{Creating Matrices} \singlestar Write a function to construct a `Matrix` from a nested list.
+\exercisen{Matrix Constructor} \singlestar Write a function to construct a `Matrix` from a nested list.
 
 \begin{code}
 {-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
@@ -540,7 +541,7 @@ matFromList xss@(xs:_)
     vs           = undefined 
 \end{code}
 
-\exercise {} \doublestar Refine the specification for `matFromList` so that the
+\exercisen{Refined Matrix Constructor} \doublestar Refine the specification for `matFromList` so that the
 following is accepted by LiquidHaskell:
 
 \begin{code}
@@ -578,9 +579,11 @@ the `dotProduct` of the rows of the first matrix with
 the columns of the second.
 
 \begin{code}
-{-@ matProduct   :: (Num a) => x:Matrix a -> y:{Matrix a  | mCol x = mRow y} -> Matrix a @-}
-matProduct       :: (Num a) => Matrix a -> Matrix a -> Matrix a
-matProduct (M rx cx xs) my@(M ry cy ys)
+{-@ matProduct   :: (Num a) => x:Matrix a
+                            -> y:{Matrix a  | mCol x = mRow y}
+                            -> MatrixN a (mRow x) (mCol y)
+  @-}
+matProduct (M rx _ xs) my@(M _ cy _)
                  = M rx cy elts
   where
     elts         = for xs $ \xi ->
@@ -600,26 +603,47 @@ ok32 = M 3 2 (V 3 [ V 2 [1, 4]
                   , V 2 [3, 6] ])
 \end{code}
 
-\noindent
-As you can work out from the above, the code for `transpose` is quite
-straightforward: each *output row* is simply the list of `head`s of
-the *input rows*:
+\exercisen{Matrix Transposition} \doublestar
+Use the `Vector` API to Complete the implementation of `txgo`.
+For inspiration, you might look at the implementation of
+`Data.List.transpose` from the [prelude][URL-transpose].
+Better still, don't.
 
 \begin{code}
 {-@ transpose          :: m:Matrix a -> MatrixN a (mCol m) (mRow m) @-}
 transpose (M r c rows) = M c r $ txgo c r rows
 
-{-@ txgo      :: c:Nat -> r:Nat -> VectorN (VectorN a c) r -> VectorN (VectorN a r) c @-}
+{-@ txgo      :: c:Nat -> r:Nat
+              -> VectorN (VectorN a c) r
+              -> VectorN (VectorN a r) c
+  @-}
 txgo c r rows = undefined
 \end{code}
 
-\exercise \doublestar
-Use the `Vector` API to Complete the implementation of `txgo`. For inspiration,
-you might look at the implementation of `Data.List.transpose`
-from the [prelude][URL-transpose]. Better still, don't.
+\hint From the `ok23` and `ok32` example `transpose` works by
+stripping out the `head`s of each input row, to create the
+corresponding output row.
 
 Recap
 -----
 
-TODO **HEREHEREHERE** 
+In this chapter, we saw how to use measures to describe
+numeric properties of structures like lists (`Vector`)
+and nested lists (`Matrix`). To recap:
+
+1. Measures are *structurally recursive* functions, with a single
+   equation per data constructor,
+
+2. Measures can be used to create refined data definitions
+   that prevent the creation of illegal values,
+
+3. Measures can then be used to enable safe wholemeal programming,
+   via dimension-aware APIs that ensure that operators only apply to
+   compatible values. 
+
+We can use numeric measures to encode various other properties
+of structures; in subsequent chapters we will see examples ranging
+from high-level [height-balanced trees](#case-study-wbl), to low-level
+safe [pointer arithmetic](#case-study-pointers).
+
 
