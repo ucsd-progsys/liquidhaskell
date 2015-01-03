@@ -464,7 +464,7 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
   | Class   (RClass ty)
-  | RInst   (LocSymbol, ty, [(LocSymbol, ty)])
+  | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
 
 -- | For debugging
@@ -523,6 +523,7 @@ mkSpec name xs         = (name,)
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
+  , Measure.rinstance  = [i | RInst  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
@@ -656,7 +657,7 @@ instanceP
        t  <- locUpperIdP
        as <- classParams  
        ts <- sepBy tyBindP semi
-       return (c, RApp t ((`RVar` mempty) <$> as) [] mempty, ts)
+       return $ RI c (RApp t ((`RVar` mempty) <$> as) [] mempty) ts
   where 
     classParams
        =  (reserved "where" >> return [])
