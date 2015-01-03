@@ -12,8 +12,10 @@
 
 %% EXERCISE: HANDROLLED
 \usepackage{chngcntr}
+
 \newcounter{theexercise} \setcounter{theexercise}{0}
 \newcommand\exercise{\stepcounter{theexercise} \medskip \noindent\textsc{Exercise \arabic{chapter}.\arabic{theexercise}.}\ }
+\newcommand\exercisen[1]{\stepcounter{theexercise} \medskip \noindent\textsc{Exercise \arabic{chapter}.\arabic{theexercise}. [#1]}\ }
 \counterwithin{theexercise}{chapter}
 \newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
 \newcommand\singlestar{\ensuremath{\star}}
