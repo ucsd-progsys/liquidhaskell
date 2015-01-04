@@ -186,7 +186,7 @@ module Language.Haskell.Liquid.Types (
   , LogicMap, toLogicMap, eAppWithMap
 
   -- * Refined Instances
-  , RInstance(..)
+  , RDEnv, DEnv(..), RInstance(..)
 
   )
   where
@@ -358,6 +358,7 @@ data GhcSpec = SP {
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
+  , dicts      :: DEnv Var SpecType                  -- ^ Dictionary Environment
   }
 
 type LogicMap = M.HashMap Symbol LMap 
@@ -809,17 +810,26 @@ instance Show RTyCon where
   show = showpp  
 
 --------------------------------------------------------------------------
--- | Values Related to Specifications ------------------------------------
+-- | Refined Instances ---------------------------------------------------
 --------------------------------------------------------------------------
-
 
 data RInstance t = RI { riclass :: LocSymbol
                       , ritype  :: t 
                       , risigs  :: [(LocSymbol, t)]
                       }
 
+data DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty))
+
+type RDEnv = DEnv Var SpecType
+
 instance Functor RInstance where
   fmap f (RI x t xts) = RI x (f t) (mapSnd f <$> xts) 
+
+
+--------------------------------------------------------------------------
+-- | Values Related to Specifications ------------------------------------
+--------------------------------------------------------------------------
+
 
 -- | Data type refinements
 data DataDecl   = D { tycName   :: LocSymbol

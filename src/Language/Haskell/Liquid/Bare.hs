@@ -68,6 +68,7 @@ import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Variance
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.WiredIn
+import Language.Haskell.Liquid.Dictionaries
 
 
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
@@ -123,10 +124,36 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
+         >>= makeSpecDictionaries vars specs
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty dempty
 
+
+
+makeSpecDictionaries vars specs sp
+  = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary vars) specs
+       return $ sp {dicts = ds}
+
+makeSpecDictionary vars (_, spec)  
+  = mapM (makeSpecDictionaryOne vars) (Ms.rinstance spec)
+
+makeSpecDictionaryOne vars (RI x t xts) 
+  = do t'  <-  mkTy t
+       ts' <- mapM mkTy ts
+       let (d, dts) = makeDictionary $ RI x t' (zip xs ts')
+       let v = mylookupName vars d   
+       return (v, dts)
+  where 
+    mkTy     = expandRTAlias (loc x)
+    (xs, ts) = unzip xts
+
+
+mylookupName :: [Var] -> Symbol -> Var 
+mylookupName vs x
+  = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vs) of 
+     [(_, x)] -> x
+     _ -> errorstar (show x ++ "\tnot in\n" ++ show vs ++ show [(v,x,(dropModuleNames $ symbol $ show  v),  show x == show (dropModuleNames $ symbol  v)) | v<- vs])
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
