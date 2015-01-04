@@ -37,3 +37,7 @@ instance Compare Int where
 {-@ foo :: Odd -> Odd -> Odd @-}
 foo :: Int -> Int -> Int
 foo x y = cmax x y 
+
+{-@ unsafe :: Odd -> Odd -> Odd @-}
+unsafe :: Int -> Int -> Int
+unsafe x y = cmin x y 

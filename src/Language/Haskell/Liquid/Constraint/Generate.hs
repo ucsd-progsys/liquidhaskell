@@ -56,6 +56,7 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
@@ -173,7 +174,7 @@ measEnv sp xts cbs lts asms hs
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
-        , denv  = dempty
+        , denv  = dicts sp
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , ial   = mkRTyConIAl    $ ialiases   sp
@@ -1145,10 +1146,10 @@ consBind isRec γ (x, e, Unknown)
        return $ Asserted (traceShow ("Type for 2 " ++ show x) t)
 
 
-addDictionary γ x e 
+addDictionary γ _ e 
   = do ts     <- mapM (γ `fieldType`) xs
        let xts = zip xs ts
-       let γ'  = γ {denv = dinsert (denv γ) x xts}
+       let γ'  = γ -- {denv = dinsert (denv γ) x xts}
        return (trace ("Fields = " ++ show xts) γ')
   where
    xs = fields [] e
