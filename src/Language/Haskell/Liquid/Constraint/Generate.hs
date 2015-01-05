@@ -74,8 +74,6 @@ import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
-import Debug.Trace (trace)
-
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -1145,24 +1143,7 @@ consBind isRec γ (x, e, Unknown)
        addIdA x (defAnn isRec t)
        return $ Asserted (traceShow ("Type for 2 " ++ show x) t)
 
-
-addDictionary γ _ e 
-  = do ts     <- mapM (γ `fieldType`) xs
-       let xts = zip xs ts
-       let γ'  = γ -- {denv = dinsert (denv γ) x xts}
-       return (trace ("Fields = " ++ show xts) γ')
-  where
-   xs = fields [] e
-
-   fields acc (App _ (Type _))   = reverse acc
-   fields acc (App e (Var x))    = fields (x:acc) e 
-   fields acc (App e (Tick _ a)) = fields acc (App e a) 
-   fields acc (Tick _ e)         = fields acc e
-   fields _   e                  = errorstar ("Cannot grap fields in " ++ showPpr e) 
-
-   fieldType  γ x = case lookupREnv (F.symbol x) (grtys γ) of 
-                     Just t  -> return t
-                     Nothing -> trueTy (varType x)
+addDictionary γ _ _ = return γ 
 
 noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
 
