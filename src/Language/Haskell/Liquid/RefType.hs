@@ -445,10 +445,18 @@ expandRApp :: (PPrint r, Reftable r)
 expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
   where
     RApp rc ts rs r            = t
-    rc'                        = appRTyCon tce tyi rc ts
+    rc'                        = appRTyCon tce tyi rc as
     pvs                        = rTyConPVs rc'
     rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
+    n                          = length fVs
+    fVs                        = tyConTyVars $ rtc_tc rc
+    as                         = choosen n ts (rVar <$> fVs)
+  
+    choosen 0 _ _           = []
+    choosen i (x:xs) (_:ys) = x:choosen (i-1) xs ys
+    choosen i []     (y:ys) = y:choosen (i-1) [] ys
+    choosen _ _ _           = errorstar "choosen: this cannot happen"
 
 expandRApp _ _ t               = t
 
