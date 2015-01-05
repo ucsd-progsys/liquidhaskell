@@ -204,7 +204,8 @@ bstratumP
 
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
-  =  liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+  =  holeRefP
+ <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy bareTypeP comma) predicatesP
  <|> try (liftM5 bCon locUpperIdP stratumP predicatesP (return []) (return mempty))
  <|> liftM3 bRVar lowerIdP stratumP monoPredicateP 
