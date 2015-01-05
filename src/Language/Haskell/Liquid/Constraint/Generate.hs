@@ -65,7 +65,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr
-                                                , isDictionary, isDictionaryExpression)
+                                                , isDictionary)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -73,6 +73,8 @@ import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
+
+import Debug.Trace (trace)
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -360,8 +362,8 @@ splitS (SubC γ t1 (RAllP p t))
   where t' = fmap (replacePredsWithRefs su) t
         su = (uPVar p, pVartoRConc p)
 
-splitS (SubC _ t1@(RAllP _ _) t2) 
-  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitS (SubC γ  t1@(RAllP _ _) t2) 
+  = errorstar $ showpp (loc γ) ++  ":\tPredicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -493,8 +495,8 @@ splitC (SubC γ t1 (RAllP p t))
   where t' = fmap (replacePredsWithRefs su) t
         su = (uPVar p, pVartoRConc p)
 
-splitC (SubC _ t1@(RAllP _ _) t2) 
-  = errorstar $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitC (SubC γ t1@(RAllP _ _) t2) 
+  = errorstar $ showpp (loc γ) ++ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -743,8 +745,8 @@ pushConsBind act
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
-  = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-       modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = do trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+         modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
        sflag <- scheck                 <$> get 
        if bflag && sflag
@@ -1109,15 +1111,25 @@ consCB _ _ γ (Rec xes)
        mapM_ (consBind True γ') xets
        return γ' 
 
-consCB _ _ γ (NonRec x e) | isDictionary x
+consCB _ _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (varType x)
-       γ' <- addDictionary γ x e
-       extender γ' (x, Assumed t)
+       extender γ (traceShow "Dictionary" x, Assumed t)
+
+consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
+  = do t'      <- trueTy τ
+       addW    $ WfC γ t'
+       t         <- refreshVV t'
+       let xts = dmap (f t) $ fromJust $ dlookup (denv γ) w
+       let  γ' = γ{denv = dinsert (denv γ) x xts }
+       t  <- trueTy (varType x)
+       extender γ' (traceShow ("HEHE Dictionary" ++ show xts) x, Assumed t)
+  where f t' (RAllT α te) = subsTyVar_meet' (α, t') te
+        f _ _ = error "NOOOOO"
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender γ (x, to')
+       extender γ (traceShow "Not Dictionary" x, to')
 
 consBind isRec γ (x, e, Asserted spect) 
   = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
@@ -1142,8 +1154,6 @@ consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
        return $ Asserted (traceShow ("Type for 2 " ++ show x) t)
-
-addDictionary γ _ _ = return γ 
 
 noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
 
@@ -1333,9 +1343,12 @@ consE γ e'@(App e a) | isDictionary a
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
     grepfunname e                = errorstar $ "grepfunname on \t" ++ showPpr e  
-    mdict                        = isDictionaryExpression a       
-    isDictionary _               = isJust mdict
-    d = fromJust mdict
+    mdict w                      = case w of 
+                                     Var x    -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}    
+                                     Tick _ e -> mdict e
+                                     _        -> Nothing    
+    isDictionary _               = isJust (mdict a)
+    d = fromJust (mdict a)
     dinfo = dlookup (denv γ) d
     tt = dhasinfo dinfo $ grepfunname e
 

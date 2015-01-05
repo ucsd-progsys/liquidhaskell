@@ -41,13 +41,17 @@ dfromList = DEnv . M.fromList
 
 dempty = DEnv M.empty
 
+dmap f xts = M.map f xts
+
+dinsert (DEnv denv) x xts = DEnv $ M.insert x xts denv
+
+{-
 
 dinsert (DEnv denv) x xts = DEnv $ M.insert x (M.fromList xts') denv
   where 
     xts'     = mapFst go <$> xts
     go       = symbol . drop 2 . show 
 
-{-
 dinsert (DEnv denv) x xts = DEnv $ M.insert x (M.fromList xts') denv
   where 
     xts'     = mapFst go <$> xts
