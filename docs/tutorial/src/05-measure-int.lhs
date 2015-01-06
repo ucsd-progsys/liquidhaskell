@@ -28,6 +28,7 @@ import Prelude  hiding  (map, zipWith, zip, take, drop, reverse)
 die msg = error msg
 take, drop, take' :: Int -> [a] -> [a]
 txgo          :: Int -> Int -> Vector (Vector a) -> Vector (Vector a)
+quickSort        :: (Ord a) => [a] -> [a]
 \end{code}
 
 Plan
@@ -128,8 +129,7 @@ of the various aggreates. For example,
   dimensions; the number of columns of `mx` must equal the
   number of rows  of `my`. Otherwise, again, rather than an
   error, we will get the wrong output. \footnotetext{In fact,
-  while the above implementation happily breezes past GHC it
-  is quite wrong!}
+  while the implementation of  `matProd` breezes past GHC it is quite wrong!}
 
 
 Specifying List Dimensions
@@ -387,6 +387,20 @@ second (_, y) = y
 {-@ type ListPair a N = {v:([a], [a]) | len (first v) + len (second v) = N} @-}
 \end{code}
 
+\exercisen{QuickSort} Use the `partition` function above to implement `quickSort`:
+
+\begin{code}
+-- >> quickSort [1,4,3,2]
+-- [1,2,3,4]
+
+{-@ quickSort    :: (Ord a) => xs:List a -> ListN a (len xs) @-}
+quickSort []     = []
+quickSort (x:xs) = undefined
+
+{-@ test10 :: ListN String 2 @-}
+test10 = quickSort test4 
+\end{code}
+
 
 Dimension Safe Vector API
 -------------------------
@@ -528,7 +542,6 @@ bad2 = M 2 3 (V 2 [ V 2 [1, 2]
 \exercisen{Matrix Constructor} \singlestar Write a function to construct a `Matrix` from a nested list.
 
 \begin{code}
-{-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
 matFromList      :: [[a]] -> Maybe (Matrix a)
 matFromList []   = Nothing                       -- no meaningful dimensions! 
 matFromList xss@(xs:_)
@@ -539,20 +552,6 @@ matFromList xss@(xs:_)
     c            = size xs
     ok           = undefined
     vs           = undefined 
-\end{code}
-
-\exercisen{Refined Matrix Constructor} \doublestar Refine the specification for `matFromList` so that the
-following is accepted by LiquidHaskell:
-
-\begin{code}
-{-@ mat23 :: Maybe (MatrixN Integer 2 2) @-} 
-mat23     = matFromList [ [1, 2]
-                        , [3, 4] ]
-
-{-@ measure cols @-}
-{-@ cols   :: [[a]] -> Nat @-}
-cols (r:_) = size r
-cols []    = 0
 
 {-@ measure size @-}
 {-@ size    :: xs:[a] -> {v:Nat | v = size xs && v = len xs} @-}
@@ -561,9 +560,29 @@ size (_:rs) = 1 + size rs
 size []     = 0
 \end{code}
 
+\exercisen{Refined Matrix Constructor} \doublestar Refine the
+specification for `matFromList` so that the following is
+accepted by LiquidHaskell:
+
+\begin{code}
+{-@ mat23 :: Maybe (MatrixN Integer 2 2) @-} 
+mat23     = matFromList [ [1, 2]
+                        , [3, 4] ]
+\end{code}
+
 \hint It is easy to specify the number of rows from `xss`.
 How will you figure out the number of columns? A measure
 may be useful.
+
+
+\begin{comment}
+-- DELETE ME
+{-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
+{-@ measure cols @-}
+{-@ cols   :: [[a]] -> Nat @-}
+cols (r:_) = size r
+cols []    = 0
+\end{comment}
 
 \newthought{Matrix Multiplication} Ok, lets now implement
 matrix multiplication. You'd think we did it already, but
@@ -615,14 +634,13 @@ transpose (M r c rows) = M c r $ txgo c r rows
 
 {-@ txgo      :: c:Nat -> r:Nat
               -> VectorN (VectorN a c) r
-              -> VectorN (VectorN a r) c
-  @-}
+              -> VectorN (VectorN a r) c @-}
 txgo c r rows = undefined
 \end{code}
 
-\hint From the `ok23` and `ok32` example `transpose` works by
-stripping out the `head`s of each input row, to create the
-corresponding output row.
+\hint As shown by `ok23` and `ok32`, `transpose` works by
+stripping out the `head`s of the input rows, to create the
+corresponding output rows.
 
 Recap
 -----

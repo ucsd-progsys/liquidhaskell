@@ -259,7 +259,6 @@ at home, and especially, that you do the various exercises.
 [URL-transpose]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose
 [maru]:            http://www.youtube.com/watch?v=8uDuls5TyNE
 [URL-kmeans]:      http://hackage.haskell.org/package/kmeans
-
 [bird-pearls]: http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383
 [hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
 
