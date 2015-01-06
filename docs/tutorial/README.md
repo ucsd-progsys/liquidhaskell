@@ -14,8 +14,7 @@
 
 4. Propositions
 
-5. Numbers [TODO] **<--- HEREHEREHEREHERE** 
-
+5. Numbers [TODO]
 	Int
     + zipWith
 	+ insertSort
@@ -32,8 +31,11 @@
 	                      , cols :: Nat
 		        		  , elts :: Grid a rows cols }
 					
-	+ EX: kmeans-using-"map-reduce"
-	+ EX: "map-reduce"
+	- EX: kmeans-using-"map-reduce"
+	- EX: "map-reduce"
+
+    + FIX the len --> size issue **<--- HEREHEREHEREHERE* 
+
 
 6. Sets [TODO]
     + Example: Eval.hs

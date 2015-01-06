@@ -18,8 +18,8 @@
 \newcommand\exercisen[1]{\stepcounter{theexercise} \medskip \noindent\textsc{Exercise \arabic{chapter}.\arabic{theexercise}. [#1]}\ }
 \counterwithin{theexercise}{chapter}
 \newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
-\newcommand\singlestar{\ensuremath{\star}}
-\newcommand\doublestar{\ensuremath{\star\star}}
+\newcommand\singlestar{\ensuremath{\star} \xspace}
+\newcommand\doublestar{\ensuremath{\star\star} \xspace}
 
 \newcommand\todo{\medskip\noindent\emph{\textbf{TODO}}\xspace}
 
