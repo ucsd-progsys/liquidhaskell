@@ -24,18 +24,11 @@
 
 ;;; Code:
 (eval-when-compile (require 'cl))
+(require 'auto-complete)
 (require 'json)
 (require 'pos-tip nil t)
 (require 'thingatpt)
-(require 'button-lock nil t)
-
-;; (require 'json-mode)
-;; (require 'ring)
-;; (require 'etags)
-;; (require 'flymake)
-;; (require 'eldoc)
-;; (require 'log4e)
-;; (require 'yaxception)
+(require 'button-lock)
 
 ;; ------------------------------------------------------------------------
 ;; A structure to represent positions 
@@ -205,7 +198,6 @@
 ;; DEBUG 	    (position-string pos) 
 ;; DEBUG 	    ident)))
 
-
 (defun liquid-ident-at-pos (pos)
   "Return the identifier at a given position"
   (thing-at-point 'word))
@@ -226,12 +218,14 @@
   "Popup help about anything at point."
   (interactive)
   (let* ((pos    (liquid-get-position))
-	 (ident  (liquid-ident-at-pos pos))
-	 (sorry  (format "No information for %s" ident))
+         (ident  (liquid-ident-at-pos pos))
+         (sorry  (format "No information for %s" ident))
          (annot  (liquid-annot-at-pos pos)))
     (if annot 
-	(liquid-tip-popup annot)
-        (liquid-tip-popup sorry))))
+        (liquid-tip-popup annot)
+      (hdevtools/show-type-info)
+      ;; (liquid-tip-popup sorry)
+      )))
 
 
 ;;;###autoload
@@ -240,9 +234,7 @@
   (interactive)
   (progn (if mode (setq liquid-tip-mode mode))
 	 (button-lock-mode 1)
-	 (button-lock-set-button liquid-id-regexp 'liquid-tip-show)
-	 ;; DEBUG (button-lock-set-button "yoga" 'liquid-tip-show)
-	 ;; DEBUG (button-lock-set-button "mydiv" 'liquid-tip-show)
+	 (button-lock-set-button liquid-id-regexp 'liquid-tip-show :mouse-face nil :face nil :face-policy nil :mouse-binding 'double-mouse-1)
 	 ))
 
 ;;;###autoload
@@ -253,23 +245,19 @@
 	 (file (position-file pos)))
     (liquid-annot-set file mode)))
 
-;; DEBUG (defface my-tooltip
-;; DEBUG   '((t
-;; DEBUG      :background "gray85"
-;; DEBUG      :foreground "black"
-;; DEBUG      :inherit variable-pitch))
-;; DEBUG   "Face for my tooltip.")
-;; DEBUG 
-;; DEBUG (defface my-tooltip-highlight
-;; DEBUG   '((t
-;; DEBUG      :background "blue"
-;; DEBUG      :foreground "white"
-;; DEBUG      :inherit my-tooltip))
-;; DEBUG   "Face for my tooltip highlighted.")
-;; DEBUG 
-;; DEBUG (let ((str (propertize "foo\nbar\nbaz" 'face 'my-tooltip)))
-;; DEBUG   (put-text-property 6 11 'face 'my-tooltip-highlight str)
-;; DEBUG   (pos-tip-show-no-propertize str 'my-tooltip))
+
+;; For simple, ascii popups, use:
+;;    (liquid-tip-init 'ascii) 
+;; For emacs', balloon based popups, use:
+;;    (liquid-tip-init 'balloon)
+;; or just
+;;    (liquid-tip-init 'balloon)
+
+;; Reload annotations after check
+(add-hook 'flycheck-after-syntax-check-hook
+	  (lambda () (liquid-tip-update 'flycheck)))
+
+
 
 (provide 'liquid-tip)
 
