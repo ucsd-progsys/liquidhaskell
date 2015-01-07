@@ -29,6 +29,7 @@
 (require 'pos-tip nil t)
 (require 'thingatpt)
 (require 'button-lock)
+(require 'hdevtools)
 
 ;; ------------------------------------------------------------------------
 ;; A structure to represent positions 
