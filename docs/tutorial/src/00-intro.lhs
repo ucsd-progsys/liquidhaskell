@@ -15,7 +15,7 @@ main = putStrLn "Ch3"
 \end{code}
 \end{comment}
 
-Introduction
+Introduction {#intro}
 ============
 
 
@@ -254,6 +254,7 @@ at home, and especially, that you do the various exercises.
 [safeList]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
 [kmeansI]:         /blog/2013/02/16/kmeans-clustering-I.lhs/
 [kmeansII]:        /blog/2013/02/17/kmeans-clustering-II.lhs/
+[blog-set]:        /blog/2013/03/26/talking-about-sets.lhs/
 [URL-take]:        https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/List.lhs#L334
 [URL-groupBy]:     http://hackage.haskell.org/packages/archive/base/latest/doc/html/Data-List.html#v:groupBy
 [URL-transpose]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose
@@ -261,4 +262,8 @@ at home, and especially, that you do the various exercises.
 [URL-kmeans]:      http://hackage.haskell.org/package/kmeans
 [bird-pearls]: http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383
 [hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
-
+[smt-set]:       http://www.kroening.com/smt-lib-lsm.pdf)
+[sbv]:      https://github.com/LeventErkok/sbv
+[setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
+[mccarthy]: http://www-formal.stanford.edu/jmc/towards.ps
+[z3cal]:    http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf

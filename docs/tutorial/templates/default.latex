@@ -20,8 +20,12 @@
 \newcommand\hint{\medskip\noindent\emph{Hint:}\xspace}
 \newcommand\singlestar{\ensuremath{\star} \xspace}
 \newcommand\doublestar{\ensuremath{\star\star} \xspace}
-
 \newcommand\todo{\medskip\noindent\emph{\textbf{TODO}}\xspace}
+
+\newcommand\tcap[2]{(\mathtt{intersection}\ #1\ #2)}
+\newcommand\tcup[2]{(\mathtt{union}\ #1\ #2)}
+\newcommand\tsng[1]{(\mathtt{singleton}\ #1)}
+
 
 
 \usepackage{fancyvrb}
@@ -47,6 +51,11 @@
 \DefineVerbatimEnvironment%
   {redverbatim}{Verbatim}
   {formatcom=\color{red}}
+
+% ghci 
+\DefineVerbatimEnvironment%
+  {ghci}{Verbatim}
+  {}
 
 
 
