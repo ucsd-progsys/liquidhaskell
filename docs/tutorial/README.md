@@ -14,7 +14,7 @@
 
 4. Propositions
 
-5. Numbers [TODO]
+5. Numbers
 	Int
     + zipWith
 	+ insertSort
@@ -34,10 +34,9 @@
 	- EX: kmeans-using-"map-reduce"
 	- EX: "map-reduce"
 
-    + FIX the len --> size issue **<--- HEREHEREHEREHERE* 
 
 
-6. Sets [TODO]
+6. Sets [TODO] **<--- HEREHEREHEREHERE** 
     + Example: Eval.hs
     EX: write a `noDup` measure
 	EX: write a `nub`  function
