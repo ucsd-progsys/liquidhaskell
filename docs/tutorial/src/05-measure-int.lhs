@@ -1,4 +1,4 @@
-Numeric Measures
+Numeric Measures {#numericmeasure}
 ================
 
 \begin{comment}
