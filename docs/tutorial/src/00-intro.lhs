@@ -264,6 +264,8 @@ at home, and especially, that you do the various exercises.
 [hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
 [smt-set]:       http://www.kroening.com/smt-lib-lsm.pdf)
 [sbv]:      https://github.com/LeventErkok/sbv
+[leon]:     http://lara.epfl.ch/w/leon
+
 [setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
 [mccarthy]: http://www-formal.stanford.edu/jmc/towards.ps
 [z3cal]:    http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf
