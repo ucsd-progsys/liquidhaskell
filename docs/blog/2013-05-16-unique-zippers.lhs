@@ -240,7 +240,7 @@ differentiate []     = Nothing
 differentiate (x:xs) = Just $ Zipper x [] xs
 \end{code}
 
-And vise versal, all elements of a unique zipper 
+And vice versa, all elements of a unique zipper 
 can construct a unique list.
 
 \begin{code}

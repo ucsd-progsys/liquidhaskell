@@ -6,9 +6,12 @@ Elemental Measures {#setmeasure}
 
 \begin{comment}
 \begin{code}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--diff"           @-}
+
 module Sets where
-import Data.Set hiding (partition, filter, split, elems)
-import Prelude  hiding (partition, elem, reverse, filter)
+import Data.Set hiding (insert, partition, filter, split, elems)
+import Prelude  hiding (elem, reverse, filter)
 
 main :: IO ()
 main = return ()
@@ -16,6 +19,9 @@ main = return ()
 {-@ die :: {v:_ | false} -> a @-}
 die msg = error msg
 
+isUnique, isNotUnique :: [Int]
+mergeSort :: (Ord a) => [a] -> [a]
+range :: Int -> Int -> [Int]
 \end{code}
 \end{comment}
 
@@ -215,7 +221,6 @@ describes a different approach for using SMT solvers
 from Haskell and Scala respectively, directly via an
 embedded DSL.}
 
-
 Content-Aware List API
 ----------------------
 
@@ -236,8 +241,8 @@ elems (x:xs) = singleton x `union` elems xs
 \end{code}
 
 \newthought{Strengthened Constructors}
-Recall, that as before, the above definition automatically strengthens
-the types for the constructors:
+Recall, that as before, the above definition automatically
+strengthens the types for the constructors:
 
 \begin{spec}
 data [a] where
@@ -248,53 +253,59 @@ data [a] where
 Next, to make the specifications concise, let's define a few predicate aliases:
 
 \begin{code}
-{- type ListEq  a X  = {v:[a] | elems v = elems X}                      @-}
-{- type ListSub a X  = {v:[a] | Set_sub (elems v) (elems X)}            @-}
-{- type ListUn a X Y = {v:[a] | elems v = Set_cup (elems X) (elems Y) } @-}
-{-@ predicate EqElts  X Y     = elems X = elems Y                       @-}
-{-@ predicate SubElts X Y     = Set_sub (elems X) (elems Y)             @-}
-{-@ predicate UnElts  X Y Z   = elems X = Set_cup (elems Y) (elems Z)   @-}
+{-@ predicate EqElts  X Y   = elems X = elems Y                       @-}
+{-@ predicate SubElts X Y   = Set_sub (elems X) (elems Y)             @-}
+{-@ predicate Empty   X     = elems X = Set_empty 0                   @-}
+{-@ predicate UnElts  X Y Z = elems X = Set_cup (elems Y) (elems Z)   @-}
+{-@ predicate UnElt   X Y Z = elems X = Set_cup (Set_sng Y) (elems Z) @-}
+{-@ predicate Elem    X Y   = Set_mem X (elems Y)                     @-}
 \end{code}
+
 
 \newthought{Append}
 First, here's good old `append`, but now with a specification that states
 that the output indeed includes the elements from both the input lists.
 
 \begin{code}
-{-@ append       :: xs:[a] -> ys:[a] -> {v:[a] | UnElts v xs ys} @-}
-append []     ys = ys
-append (x:xs) ys = x : append xs ys
+{-@ append'       :: xs:[a] -> ys:[a] -> {v:[a] | UnElts v xs ys} @-}
+append' []     ys = ys
+append' (x:xs) ys = x : append' xs ys
 \end{code}
 
-\newthought{Filter}
-
-\exercisen{Reverse}
-
-
-\exercisen{Partition} Write down a specification 
-for `partition` such that the following "theorem" is proved by
-LiquidHaskell.
-\hint You may want to remind yourself about the "dimension-aware"
-signature for `partition` from [the earlier chapter](#listreducing).
+\exercisen{Reverse} Write down a type for `revHelper` so that `reverse'`
+is verified by LiquidHaskell:
 
 \begin{code}
-{-@ partition   :: (a -> Bool) -> [a] -> ([a], [a]) @-}
-partition _ []  = ([], [])
-partition f (x:xs)
-   | f x        = (x:ys, zs)
-   | otherwise  = (ys, x:zs)
-   where
-     (ys, zs)   = partition f xs
-    
-{-@ prop_partition_append  :: _ -> _ -> True @-}
-prop_partition_append f xs = elems xs == elems xs'
-  where
-    xs'      =  append ys zs
-    (ys, zs) =  partition f xs 
+{-@ reverse' :: xs:[a] -> {v:[a] | EqElts v xs} @-}
+reverse' xs = revHelper [] xs
+
+revHelper acc []     = acc
+revHelper acc (x:xs) = revHelper (x:acc) xs
 \end{code}
 
-\exercisen{Membership} Write down a signature for `elem` that suffices
-to verify `test1` and `test2` by LiquidHaskell.
+\exercisen{Partition} \singlestar Write down a
+specification for `split` such that the subsequent
+"theorem" `prop_partition_appent` is proved by LiquidHaskell.
+
+\begin{code}
+split            :: Int -> [a] -> ([a], [a])
+split 0 xs       = ([], xs)
+split n (x:y:zs) = (x:xs, y:ys) where (xs, ys) = split (n-1) zs
+split _ xs       = ([], xs)
+
+{-@ prop_split_append  :: _ -> _ -> True @-}
+prop_split_append n xs = elems xs == elems xs'
+  where
+    xs'      =  append' ys zs
+    (ys, zs) =  split n xs 
+\end{code}
+
+\hint You may want to remind yourself about the
+"dimension-aware" signature for `partition` from
+[the earlier chapter](#listreducing).
+
+\exercisen{Membership} Write down a signature for `elem`
+that suffices to verify `test1` and `test2` by LiquidHaskell.
 
 \begin{code}
 {-@ elem      :: (Eq a) => a -> [a] -> Bool @-}
@@ -315,12 +326,203 @@ Next, lets use the refined list API to prove that
 various list-sorting routines return *permutations*
 of their inputs, that is, return output lists whose
 elements are the *same as* those of the input lists.
+Since we are focusing on the elements, lets not
+distract ourselves with the ordering invariant
+just, and reuse plain old lists.
+\footnotetext{See [this](blog-ord-list) for how to
+specify and verify order with plain old lists.}
 
-isort
-qsort
+\newthought{InsertionSort} is the simplest of all the
+list sorting routines; we build up an (ordered) output
+list `insert`ing each element of the input list into
+the appropriate position of the output:
 
-Well-Scopedness 
----------------
+\begin{code}
+insert x []     = [x]
+insert x (y:ys)
+  | x <= y      = x : y : ys
+  | otherwise   = y : insert x ys
+\end{code}
+
+\noindent Thus, the output of `insert` has all the
+elements of the input `xs`, plus the new element `x`:
+
+\begin{code}
+{-@ insert :: x:a -> xs:[a] -> {v:[a] | UnElt v x xs } @-}
+\end{code}
+
+\noindent Which then lets us prove that the output of the sorting routine indeed
+has the elements of the input:
+
+\begin{code}
+{-@ insertSort    :: (Ord a) => xs:[a] -> {v:[a] | EqElts v xs} @-}
+insertSort []     = []
+insertSort (x:xs) = insert x (insertSort xs)
+\end{code}
+
+\exercisen{Merge}
+Write down a specification of `merge` such that the subsequent property is
+verified by LiquidHaskell:
+
+\begin{code}
+{-@ merge :: xs:_ -> ys:_ -> {v:_ | UnElts v xs ys} @-}
+merge (x:xs) (y:ys)
+  | x <= y           = x : merge xs (y:ys)
+  | otherwise        = y : merge (x:xs) ys
+merge [] ys          = ys
+merge xs []          = xs
+
+{-@ prop_merge_app   :: _ -> _ -> True   @-}
+prop_merge_app xs ys = elems zs == elems zs'
+  where
+    zs               = append' xs ys
+    zs'              = merge   xs ys
+\end{code}
+
+\exercisen{MergeSort} \doublestar Once you write the correct type
+for `merge` above, you should be able to prove the
+surprising signature for `mergeSort` below.
+
+\begin{code}
+{-@ mergeSort :: (Ord a) => xs:[a] -> {v:[a] | Empty v} @-}
+mergeSort []  = []
+mergeSort xs  = merge (mergeSort ys) (mergeSort zs)
+  where
+   (ys, zs)   = split mid xs
+   mid        = length xs `div` 2
+\end{code}
+
+\noindent First, make sure you are able verify the given
+signature. Next, obviously we don't want `mergeSort` to
+return the empty list, so there's a bug somewhere in the
+code. Find and fix it, so that you *cannot* prove that the
+output is empty, but *can* prove that `EqElts v xs`.
 
 Uniqueness
 ----------
+
+Often, we want to enforce the invariant that a particular collection
+contains *no duplicates*; as multiple copies in a collection of file
+handles or system resources can create unpleasant leaks.
+For example, the [XMonad](xmonad) window manager creates a
+sophisticated *zipper* data structure to hold the list of
+active user windows, and carefully maintains the invariant
+that that there are no duplicates. Next, lets see how to specify
+and verify this invariant using LiquidHaskell, first for lists, and
+then for a simplified zipper.
+
+\newthought{Specifying Uniqueness} How would we even describe the
+fact that a list has no duplicates? There are in fact multiple
+different ways, but the simplest is a *measure*:
+
+\begin{code}
+{-@ measure unique @-}
+unique        :: (Ord a) => [a] -> Bool
+unique []     = True
+unique (x:xs) = unique xs && not (member x (elems xs)) 
+\end{code}
+
+\noindent We can define an alias for duplicate-free lists
+
+\begin{code}
+{-@ type UList a = {v:[a] | unique v }@-}
+\end{code}
+
+\noindent and then do a quick sanity check, that the
+right lists are indeed `unique`
+
+\begin{code}
+{-@ isUnique    :: UList Int @-}
+isUnique        = [1, 2, 3]        -- accepted by LH
+
+{-@ isNotUnique :: UList Int @-}
+isNotUnique     = [1, 2, 3, 1]     -- rejected by LH
+\end{code}
+
+\newthought{Filter}  Lets write some functions that preserve
+`unique`ness. For example, `filter` returns a subset of its
+elements. Hence, if the input was unique, the output is too:
+
+\begin{code}
+{-@ filter      :: _ -> xs:UList a -> {v: UList a | SubElts v xs} @-}
+filter _ []     = []
+filter f (x:xs)
+  | f x         = x : xs' 
+  | otherwise   = xs' 
+  where
+    xs'         = filter f xs
+\end{code}
+
+\exercisen{Reverse} \singlestar
+When we `reverse` their order, the set of elements is unchanged,
+and hence unique (if the input was unique). Why does LiquidHaskell
+reject the below? Can you fix things so that we can prove that the
+output is a `UList a`?
+
+\begin{code}
+{-@ reverse     :: UList a -> UList a @-}
+reverse         = go []
+  where
+    go a []     = a
+    go a (x:xs) = go (x:a) xs 
+\end{code}
+
+\newthought{Nub} One way to create a `unique` list is to start
+with an ordinary list and throw away elements that we have `seen`
+already.
+
+\begin{code}
+nub xs                = go [] xs 
+  where
+    go seen []        = seen
+    go seen (x:xs)
+      | x `isin` seen = go seen     xs
+      | otherwise     = go (x:seen) xs
+\end{code}
+
+\noindent The key membership test is done by `isin`, whose output
+is `True` exactly when the element is in the given list.
+\footnotetext{Which should be clear by now, if you did the exercise above \ldots}
+
+\begin{code}
+{-@ isin :: x:_ -> ys:_ -> {v:Bool | Prop v <=> Elem x ys }@-}
+isin x (y:ys)
+  | x == y    = True
+  | otherwise = x `isin` ys
+isin _ []     = False
+\end{code}
+
+\exercisen{Append} \singlestar Why does appending two `UList`s not return a `UList`?
+Fix the type signature below so that you can prove that the output
+is indeed `unique`.
+
+\begin{code}
+{-@ append       :: UList a -> UList a -> UList a @-}
+append []     ys = ys
+append (x:xs) ys = x : append xs ys
+\end{code}
+
+\exercisen{Range} \doublestar In the below `range i j` returns the list of all `Int` between `i` and `j`.
+Yet, LiquidHaskell refuses to acknowledge that the output is indeed a `UList`. Modify the
+specification and implementation, if needed, to obtain an equivalent of `range` which *provably*
+returns a `UList Int`.
+
+\begin{code}
+{-@ type Btwn I J = {v:_ | I <= v && v < J} @-}
+                   
+{-@ range     :: i:Int -> j:Int -> UList (Btwn i j) @-}
+range i j
+  | i < j     = i : range (i+1) j
+  | otherwise = [] 
+\end{code}
+
+Unique Zippers
+--------------
+
+**HEREHEREHERE**
+
++ TYPE
++ CREATE (integreate/diff)
++ REVERSE
++ REFOCUS 
+ 
