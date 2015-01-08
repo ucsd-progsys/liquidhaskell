@@ -8,7 +8,7 @@ Elemental Measures {#setmeasure}
 \begin{code}
 module Sets where
 import Data.Set hiding (filter, split, elems)
-import Prelude  hiding (reverse, filter)
+import Prelude  hiding (elem, reverse, filter)
 
 main :: IO ()
 main = return ()
@@ -126,10 +126,12 @@ member       :: x:a -> s:Set a -> {v:Bool | Prop v <=> member x s}
 \newthought{Asserting Properties} Lets write our theorems
 as [QuickCheck](quickcheck) style *properties*, that is,
 as functions from arbitrary inputs to a `Bool` output
-that must always be `True`. Lets write an alias for the value `True`:
+that must always be `True`. Lets define aliases for
+the singletons `True` and `False`:
 
 \begin{code}
-{-@ type True = {v:Bool | Prop v} @-}
+{-@ type True  = {v:Bool |      Prop v } @-}
+{-@ type False = {v:Bool | not (Prop v)} @-}
 \end{code}
 
 \noindent We can use `True` to state and prove theorems. For example,
@@ -211,19 +213,26 @@ describes a different approach for using SMT solvers
 from Haskell and Scala respectively, directly via an
 embedded DSL.}
 
+
+Element-Aware List API
+----------------------
+
+
+Elements
+
 Permutations
 ------------
 
-While the above is a nice warm up exercise to understanding how
-LiquidHaskell reasons about sets, our overall goal is not to prove 
-theorems about set operators, but instead to specify and verify 
-properties of programs. As our first example, lets prove that various
-list-sorting routines return *permutations* of their inputs, that is,
-return output lists whose elements are the *same as* those of the input lists.
+While the above is a nice warm up exercise to understanding
+how LiquidHaskell reasons about sets, our overall goal is
+not to prove theorems about set operators, but instead to
+specify and verify properties of programs. Lets start off
+by refining the list API to precisely track the list elements.
 
-\newthought{Elements of a List} To specify the permutation property,
-we need a way to talk about the set of elements in a list. At this
-point, hopefully you know what we'rge going to do: write a measure!
+\newthought{Elements of a List} To specify the permutation
+property, we need a way to talk about the set of elements
+in a list. At this point, hopefully you know what we're
+going to do: write a measure!
 
 \begin{code}
 {-@ measure elems @-}
@@ -232,6 +241,49 @@ elems []     = empty
 elems (x:xs) = singleton x `union` elems xs
 \end{code}
 
+Next, to make the specifications concise, let's define a few predicate aliases:
+
+\begin{code}
+{-@ type ListEq  a X  = {v:[a] | elems v = elems X}                    @-}
+{-@ type ListSub a X  = {v:[a] | isSubsetOf (elems v) (elems X)}       @-}
+{-@ type ListUn a X Y = {v:[a] | elems v = union (elems x) (elems y) } @-}
+{-@ predicate EqElts  X Y      = elems X = elems Y                     @-}
+{-@ predicate SubElts X Y      = isSubsetOf (elems X) (elems Y)        @-}
+{-@ predicate UnionElts X Y Z  = elems X = Set_cup (elems Y) (elems Z) @-}
+\end{code}
+
+\newthought{Append}
+
+\exercisen{Reverse}
+
+\newthought{Filter}
+
+\exercisen{Partition}
+
+\exercisen{Membership}
+
+\begin{code}
+elem          :: (Eq a) => a -> [a] -> Bool
+elem x (y:ys) = x == y || elem x ys
+elem _ []     = False
+
+{-@ test1 :: True @-}
+test1      = elem 'a' "cat"
+
+{-@ test2 :: False @-}
+test2      = elem 'a' "dog" 
+\end{code}
+
+Permutations
+------------
+
+Next, lets use the refined list API to prove that
+various list-sorting routines return *permutations*
+of their inputs, that is, return output lists whose
+elements are the *same as* those of the input lists.
+
+isort
+qsort
 
 Well-Scopedness 
 ---------------
