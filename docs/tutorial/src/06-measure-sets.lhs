@@ -263,6 +263,7 @@ Next, to make the specifications concise, let's define a few predicate aliases:
 \exercisen{Membership}
 
 \begin{code}
+{-@ elem      :: (Eq a) => x:a -> xs:[a] -> {v:Bool | Prop v <=> (member x (elems xs))} @-}
 elem          :: (Eq a) => a -> [a] -> Bool
 elem x (y:ys) = x == y || elem x ys
 elem _ []     = False
