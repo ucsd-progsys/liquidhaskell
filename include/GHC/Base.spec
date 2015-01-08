@@ -23,6 +23,10 @@ fst (a,b) = a
 measure snd :: (a,b) -> b
 snd (a,b) = b
 
+qualif Fst(v:a, y:b): (v = (fst y)) 
+qualif Snd(v:a, y:b): (v = (snd y))
+
+
 invariant {v: [a] | len(v) >= 0 }
 map       :: (a -> b) -> xs:[a] -> {v: [b] | len(v) = len(xs)}
 (++)      :: xs:[a] -> ys:[a] -> {v:[a] | (len v) = (len xs) + (len ys)}
