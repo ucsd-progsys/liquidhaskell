@@ -7,8 +7,8 @@ Elemental Measures {#setmeasure}
 \begin{comment}
 \begin{code}
 module Sets where
-import Data.Set hiding (filter, split, elems)
-import Prelude  hiding (elem, reverse, filter)
+import Data.Set hiding (partition, filter, split, elems)
+import Prelude  hiding (partition, elem, reverse, filter)
 
 main :: IO ()
 main = return ()
@@ -156,12 +156,14 @@ implies _    _     = False
 that $x < 100 \wedge y < 100 \Rightarrow x + y < 200$.
 
 \begin{code}
-{-@ prop_x_y_200     :: _ -> _ -> True @-}
+{-@ prop_x_y_200 :: _ -> _ -> True @-}
 prop_x_y_200 x y = False -- fill in the appropriate body to obtain the theorem. 
 \end{code}
 
 
-\newthought{Intersection is Commutative} Ok, lets prove things about sets and their operators! First, lets check that  `intersection` is commutative:
+\newthought{Intersection is Commutative} Ok, lets prove things about
+sets and their operators! First, lets check that  `intersection` is
+commutative:
 
 \begin{code}
 {-@ prop_intersection_comm :: _ -> _ -> True @-}
@@ -214,20 +216,12 @@ from Haskell and Scala respectively, directly via an
 embedded DSL.}
 
 
-Element-Aware List API
+Content-Aware List API
 ----------------------
 
-
-Elements
-
-Permutations
-------------
-
-While the above is a nice warm up exercise to understanding
-how LiquidHaskell reasons about sets, our overall goal is
-not to prove theorems about set operators, but instead to
-specify and verify properties of programs. Lets start off
-by refining the list API to precisely track the list elements.
+Our overall goal is to verify properties of programs.
+Lets start off by refining the list API to precisely
+track the list elements.
 
 \newthought{Elements of a List} To specify the permutation
 property, we need a way to talk about the set of elements
@@ -241,38 +235,77 @@ elems []     = empty
 elems (x:xs) = singleton x `union` elems xs
 \end{code}
 
+\newthought{Strengthened Constructors}
+Recall, that as before, the above definition automatically strengthens
+the types for the constructors:
+
+\begin{spec}
+data [a] where
+  []  :: {v:[a] | v = empty }
+  (:) :: x:a -> xs:[a] -> {v:[a] | elems v = union (singleton x) (elems xs)}
+\end{spec}
+
 Next, to make the specifications concise, let's define a few predicate aliases:
 
 \begin{code}
-{-@ type ListEq  a X  = {v:[a] | elems v = elems X}                    @-}
-{-@ type ListSub a X  = {v:[a] | isSubsetOf (elems v) (elems X)}       @-}
-{-@ type ListUn a X Y = {v:[a] | elems v = union (elems x) (elems y) } @-}
-{-@ predicate EqElts  X Y      = elems X = elems Y                     @-}
-{-@ predicate SubElts X Y      = isSubsetOf (elems X) (elems Y)        @-}
-{-@ predicate UnionElts X Y Z  = elems X = Set_cup (elems Y) (elems Z) @-}
+{- type ListEq  a X  = {v:[a] | elems v = elems X}                      @-}
+{- type ListSub a X  = {v:[a] | Set_sub (elems v) (elems X)}            @-}
+{- type ListUn a X Y = {v:[a] | elems v = Set_cup (elems X) (elems Y) } @-}
+{-@ predicate EqElts  X Y     = elems X = elems Y                       @-}
+{-@ predicate SubElts X Y     = Set_sub (elems X) (elems Y)             @-}
+{-@ predicate UnElts  X Y Z   = elems X = Set_cup (elems Y) (elems Z)   @-}
 \end{code}
 
 \newthought{Append}
+First, here's good old `append`, but now with a specification that states
+that the output indeed includes the elements from both the input lists.
 
-\exercisen{Reverse}
+\begin{code}
+{-@ append       :: xs:[a] -> ys:[a] -> {v:[a] | UnElts v xs ys} @-}
+append []     ys = ys
+append (x:xs) ys = x : append xs ys
+\end{code}
 
 \newthought{Filter}
 
-\exercisen{Partition}
+\exercisen{Reverse}
 
-\exercisen{Membership}
+
+\exercisen{Partition} Write down a specification 
+for `partition` such that the following "theorem" is proved by
+LiquidHaskell.
+\hint You may want to remind yourself about the "dimension-aware"
+signature for `partition` from [the earlier chapter](#listreducing).
 
 \begin{code}
-{-@ elem      :: (Eq a) => x:a -> xs:[a] -> {v:Bool | Prop v <=> (member x (elems xs))} @-}
-elem          :: (Eq a) => a -> [a] -> Bool
+{-@ partition   :: (a -> Bool) -> [a] -> ([a], [a]) @-}
+partition _ []  = ([], [])
+partition f (x:xs)
+   | f x        = (x:ys, zs)
+   | otherwise  = (ys, x:zs)
+   where
+     (ys, zs)   = partition f xs
+    
+{-@ prop_partition_append  :: _ -> _ -> True @-}
+prop_partition_append f xs = elems xs == elems xs'
+  where
+    xs'      =  append ys zs
+    (ys, zs) =  partition f xs 
+\end{code}
+
+\exercisen{Membership} Write down a signature for `elem` that suffices
+to verify `test1` and `test2` by LiquidHaskell.
+
+\begin{code}
+{-@ elem      :: (Eq a) => a -> [a] -> Bool @-}
 elem x (y:ys) = x == y || elem x ys
 elem _ []     = False
 
 {-@ test1 :: True @-}
-test1      = elem 'a' "cat"
+test1      = elem 2 [1,2,3]
 
 {-@ test2 :: False @-}
-test2      = elem 'a' "dog" 
+test2      = elem 2 [1,3] 
 \end{code}
 
 Permutations
