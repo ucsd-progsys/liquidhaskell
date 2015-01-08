@@ -322,7 +322,7 @@ reverse xs        = go [] xs
 
 \hint How big is the list returned by `go`?
 
-Lists: Size Reducing API 
+Lists: Size Reducing API {#listreducing} 
 ------------------------
 
 Next, lets look at some functions that truncate lists, in one way or another.
