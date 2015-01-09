@@ -104,7 +104,7 @@ postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asm
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
     tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
-    dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts :: DEnv Var SpecType
+    dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
@@ -143,9 +143,9 @@ makeSpecDictionaryOne embs vars (RI x t xts)
   = do t'  <-  mkTy t
        tyi <- gets tcEnv
        ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
-       let (d, dts) = makeDictionary $ RI x t' $ zip xs (traceShow "TRANFORMED" ts')
+       let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
        let v = mylookupName vars d   
-       return $ traceShow "Dictionaries" (v, dts)
+       return (v, dts)
   where 
     mkTy  t = mkSpecType (loc x) t
     mkTy' t = generalize  <$> mkTy t
@@ -599,7 +599,7 @@ varsAfter f s lvs
 txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
 addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r) 
-  = traceShow "addSymSort" $ RApp rc ts (zipWith addSymSortRef pvs rargs) r'
+  = RApp rc ts (zipWith addSymSortRef pvs rargs) r'
   where
     rc'                = appRTyCon tce tyi rc ts
     pvs                = rTyConPVs rc' 
@@ -839,7 +839,7 @@ makeAssumeSpec cmod cfg vs lvs (mod,spec)
 grepClassAsserts  = concatMap go 
    where
     go    = map goOne . risigs
-    goOne = traceShow "RESULT" . mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
+    goOne = mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
                    -> [(ModName,Var,Located SpecType)]
@@ -986,9 +986,7 @@ makeInvariants' ts = mapM mkI ts
   where 
     mkI (Loc l t)  = (Loc l) . generalize <$> mkSpecType l t
 
-mkSpecType l t =  mkSpecType' l (ty_preds $ toRTypeRep t)  (traceShow ("mkSpecType " ++ show ps) t)
-  where
-    ps = ty_preds $ toRTypeRep t
+mkSpecType l t =  mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
