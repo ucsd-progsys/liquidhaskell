@@ -41,6 +41,9 @@ dfromList = DEnv . M.fromList
 
 dempty = DEnv M.empty
 
+dmapty :: (a -> b) -> DEnv v a -> DEnv v b
+dmapty f (DEnv e) = DEnv (M.map (M.map f) e)
+
 dmap f xts = M.map f xts
 
 dinsert (DEnv denv) x xts = DEnv $ M.insert x xts denv

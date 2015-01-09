@@ -517,7 +517,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp _ t2s r2s _ = t2'
        let tyInfo = rtc_info c
        csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       csvar' <- rsplitsCWithVariance γ' r1s r2s $ traceShow ("splitC " ++ show (t1, t2)) $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
@@ -1116,9 +1116,9 @@ consCB _ _ γ (NonRec x _) | isDictionary x
        extender γ (traceShow "Dictionary" x, Assumed t)
 
 consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
-  = do t'      <- trueTy τ
-       addW    $ WfC γ t'
-       t         <- refreshVV t'
+  = do t      <- trueTy τ
+       addW    $ WfC γ t
+--        t         <- refreshVV t'
        let xts = dmap (f t) $ fromJust $ dlookup (denv γ) w
        let  γ' = γ{denv = dinsert (denv γ) x xts }
        t  <- trueTy (varType x)
@@ -1322,7 +1322,8 @@ consE γ e'@(App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       return $ traceShow ("Type App " ++ showPpr e') tt
 
 consE γ e'@(App e a) | isDictionary a               
   = if isJust tt 
