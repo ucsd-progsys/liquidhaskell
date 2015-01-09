@@ -191,14 +191,14 @@ LiquidHaskell requires, in addition to the cabal dependencies
 the binary executable for an `SMTLIB2` compatible solver, e.g.
 one of
 
-    + [Z3][z3]
-    + [CVC4][cvc4]
-    + [MathSat][mathsat]
++ [Z3](z3)
++ [CVC4](cvc4)
++ [MathSat](mathsat)
    
 \newthought{Install}
 Once you have the above on your system, simply do:
 
-    cabal install liquidhaskell
+     $ cabal install liquidhaskell
 
 \newthought{Run}
 Once you have installed LiquidHaskell -- i.e. the binary `liquid` --
@@ -207,7 +207,7 @@ from within Emacs or Vim.
 
 \newthought{Command Line} execution simply requires you type:
 
-    liquid /path/to/file.hs
+     $ liquid /path/to/file.hs
 
 You will see a report of `SAFE` or `UNSAFE` together with type errors at
 various points in the source.
@@ -239,11 +239,11 @@ at home, and especially, that you do the various exercises.
 [listtail]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
 [dmlarray]:        http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
 [liquid-tutorial]: http://github.com/ucsd-pl/liquidhaskell-tutorial.git 
-[liquid-emacs]:    https://github.com/ucsd-progsys/liquidhaskell#emacs)
-[liquid-vim]:      https://github.com/ucsd-progsys/liquidhaskell#vim)
-[z3]:              http://z3.codeplex.com/)
-[cvc4]:            http://cvc4.cs.nyu.edu/) 
-[mathsat]:         http://mathsat.fbk.eu/download.html)
+[liquid-emacs]:    https://github.com/ucsd-progsys/liquidhaskell#emacs
+[liquid-vim]:      https://github.com/ucsd-progsys/liquidhaskell#vim
+[z3]:              http://z3.codeplex.com/
+[cvc4]:            http://cvc4.cs.nyu.edu/ 
+[mathsat]:         http://mathsat.fbk.eu/download.html
 [smt-wiki]:        http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories
 [hoogle-assert]:   https://www.haskell.org/hoogle/?hoogle=assert
 [bst-wiki]:        http://en.wikipedia.org/wiki/Binary_search_tree
