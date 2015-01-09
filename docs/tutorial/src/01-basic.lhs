@@ -2,13 +2,14 @@
 Refinement Types
 ================
 
-\begin{comment[]}
+\begin{comment}
 \begin{code}
 {-@ LIQUID "--short-names" @-}
 {-@ LIQUID "--no-termination" @-}
 module Intro where
 
 import Prelude hiding                   (abs)
+divide     :: Int -> Int -> Int
 \end{code}
 \end{comment}
 
@@ -223,12 +224,11 @@ called with non-zero divisors. However, LH reports an
 error at the call to `"die"` because, what if `divide'`
 is actually invoked with a `0` divisor?
 
-We can specify that will not happen, with a *precondition* that says that
-the second argument is non-zero:
+We can specify that will not happen, with a *precondition*
+that says that the second argument is non-zero:
 
 \begin{code}
 {-@ divide :: Int -> NonZero -> Int @-}
-divide     :: Int -> Int -> Int
 divide _ 0 = die "divide by zero"
 divide n d = n `div` d
 \end{code}
@@ -259,7 +259,7 @@ avg2 x y   = divide (x + y) 2
 avg3 x y z = divide (x + y + z) 3
 \end{code}
 
-\exercise Consider the general list-averaging function:
+\exercisen{List Average} Consider the general list-averaging function:
 
 \begin{code}
 avg       :: [Int] -> Int
@@ -362,7 +362,7 @@ safely perform some computation on it.
 Can you *change* the type for `isPositive` (i.e. write some other type)
 to while preserving safety?
 
-\exercise Consider the following [assert][hoogle-assert] function:
+\exercisen{Assertions} Consider the following [assert](hoogle-assert) function:
 
 \begin{code}
 {-@ lAssert  :: Bool -> a -> a @-}

@@ -312,12 +312,12 @@ split xs       = (xs, [])
 Second, we need a function that *combines* two ordered lists
 
 \begin{code}
-merge                    :: (Ord a) => IncList a -> IncList a -> IncList a 
-merge xs  Emp            = xs
-merge Emp ys             = ys
-merge (x:< xs) (y :< ys) 
-  | x <= y               = x :< merge xs (y :< ys)
-  | otherwise            = y :< merge (x :< xs) ys
+merge         :: (Ord a) => IncList a -> IncList a -> IncList a 
+merge xs  Emp = xs
+merge Emp ys  = ys
+merge (x :< xs) (y :< ys) 
+  | x <= y    = x :< merge xs (y :< ys)
+  | otherwise = y :< merge (x :< xs) ys
 \end{code}
 
 \noindent 
