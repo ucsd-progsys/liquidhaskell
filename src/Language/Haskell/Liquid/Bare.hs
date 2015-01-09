@@ -98,12 +98,13 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
     lmap'    = case lmap of {Left e -> Ex.throw e; Right x -> x}
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
-postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs' }
+postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts' }
   -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
     tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
+    dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts :: DEnv Var SpecType
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
@@ -639,9 +640,8 @@ addSymSortRef' p (RProp s t)
 -- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ _) (RPropP s r)
 -- EFFECTS:   = RProp s $ (ofRSort t) `strengthen` r
 
-
-addSymSortRef' p pp@(RPropP _ r@(U _ (Pr [up]) _)) 
-  = traceShow ("addSymSortRef from \t" ++ show pp) $ RProp xts ((ofRSort $ pvType p) `strengthen` r)
+addSymSortRef' p (RPropP _ r@(U _ (Pr [up]) _)) 
+  = RProp xts ((ofRSort $ pvType p) `strengthen` r)
     where
       xts = safeZip "addRefSortMono" xs ts
       xs  = snd3 <$> pargs up
