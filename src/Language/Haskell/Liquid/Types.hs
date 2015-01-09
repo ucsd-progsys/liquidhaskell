@@ -800,7 +800,8 @@ instance Fixpoint RTyCon where
 
 
 instance PPrint RTyCon where
-  pprint (RTyCon c _ i) = (text $ showPpr c) <+> text (show i)
+  pprint = text . showPpr . rtc_tc  
+
 
 instance Show RTyCon where
   show = showpp  
