@@ -362,8 +362,8 @@ splitS (SubC γ t1 (RAllP p t))
   where t' = fmap (replacePredsWithRefs su) t
         su = (uPVar p, pVartoRConc p)
 
-splitS (SubC γ  t1@(RAllP _ _) t2) 
-  = errorstar $ showpp (loc γ) ++  ":\tPredicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitS (SubC _ t1@(RAllP _ _) t2) 
+  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -495,8 +495,8 @@ splitC (SubC γ t1 (RAllP p t))
   where t' = fmap (replacePredsWithRefs su) t
         su = (uPVar p, pVartoRConc p)
 
-splitC (SubC γ t1@(RAllP _ _) t2) 
-  = errorstar $ showpp (loc γ) ++ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+splitC (SubC _ t1@(RAllP _ _) t2) 
+  = errorstar $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2 
@@ -517,7 +517,7 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp _ t2s r2s _ = t2'
        let tyInfo = rtc_info c
        csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsCWithVariance γ' r1s r2s $ traceShow ("splitC " ++ show (t1, t2)) $ variancePsArgs tyInfo
+       csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _)) 
@@ -745,8 +745,8 @@ pushConsBind act
 
 addC :: SubC -> String -> CG ()  
 addC !c@(SubC γ t1 t2) _msg 
-  = do trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-         modify $ \s -> s { hsCs  = c : (hsCs s) }
+  = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+       modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
        sflag <- scheck                 <$> get 
        if bflag && sflag
@@ -1113,7 +1113,7 @@ consCB _ _ γ (Rec xes)
 
 consCB _ _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (varType x)
-       extender γ (traceShow "Dictionary" x, Assumed t)
+       extender γ (x, Assumed t)
 
 consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
   = do t      <- trueTy τ
@@ -1122,20 +1122,20 @@ consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
        let xts = dmap (f t) $ fromJust $ dlookup (denv γ) w
        let  γ' = γ{denv = dinsert (denv γ) x xts }
        t  <- trueTy (varType x)
-       extender γ' (traceShow ("HEHE Dictionary" ++ show xts) x, Assumed t)
+       extender γ' (x, Assumed t)
   where f t' (RAllT α te) = subsTyVar_meet' (α, t') te
-        f _ _ = error "NOOOOO"
+        f _ _ = error "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender γ (traceShow "Not Dictionary" x, to')
+       extender γ (x, to')
 
 consBind isRec γ (x, e, Asserted spect) 
   = do let γ'         = (γ `setLoc` getSrcSpan x) `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e (traceShow ("Type for " ++ show x ++ "\nin \n" ++ showPpr e) spect)
+       cconsE γπ e spect
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -1147,13 +1147,13 @@ consBind isRec γ (x, e, Assumed spect)
        γπ    <- foldM addPToEnv γ' πs
        cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
-       return $ Asserted (traceShow ("Type for 1 " ++ show x) spect) -- Nothing
+       return $ Asserted spect -- Nothing
   where πs   = ty_preds $ toRTypeRep spect
 
 consBind isRec γ (x, e, Unknown)
   = do t     <- consE (γ `setBind` x) e
        addIdA x (defAnn isRec t)
-       return $ Asserted (traceShow ("Type for 2 " ++ show x) t)
+       return $ Asserted t
 
 noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
 
@@ -1249,7 +1249,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x) 
   = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
-       addIdA x (AnnDef (traceShow ("add type for " ++ show x ++ "\nIn\n" ++  showPpr e) ty)) 
+       addIdA x (AnnDef ty) 
 
 cconsE γ (Tick tt e) t   
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
@@ -1322,12 +1322,11 @@ consE γ e'@(App e (Type τ))
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       return $ traceShow ("Type App " ++ showPpr e') tt
+       instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
 
 consE γ e'@(App e a) | isDictionary a               
   = if isJust tt 
-      then return $ traceShow ("Type of\t" ++ showPpr e') (fromJust tt)
+      then return $ fromJust tt
       else do ([], πs, ls, te) <- bkUniv <$> consE γ e
               te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
               te'              <- instantiateStrata ls te0
@@ -1337,10 +1336,8 @@ consE γ e'@(App e a) | isDictionary a
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
               pushConsBind      $ cconsE γ' a tx 
               let     dinfo = dlookup (denv γ) d
-              t <- addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
-              return $ (traceShow ("Dictionary info for " ++ show d ++ "\tIS \t"  ++ show dinfo ++ "\nIN\n" ++ showPpr e ++ "\t?\t") t)
+              addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
   where
---     mtype = grepfunname e `dhasinfo` dinfo
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
     grepfunname e                = errorstar $ "grepfunname on \t" ++ showPpr e  
