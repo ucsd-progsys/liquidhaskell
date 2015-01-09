@@ -639,8 +639,9 @@ addSymSortRef' p (RProp s t)
 -- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ _) (RPropP s r)
 -- EFFECTS:   = RProp s $ (ofRSort t) `strengthen` r
 
-addSymSortRef' p (RPropP _ r@(U _ (Pr [up]) _)) 
-  = RProp xts ((ofRSort $ pvType p) `strengthen` r)
+
+addSymSortRef' p pp@(RPropP _ r@(U _ (Pr [up]) _)) 
+  = traceShow ("addSymSortRef from \t" ++ show pp) $ RProp xts ((ofRSort $ pvType p) `strengthen` r)
     where
       xts = safeZip "addRefSortMono" xs ts
       xs  = snd3 <$> pargs up
