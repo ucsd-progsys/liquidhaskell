@@ -269,5 +269,7 @@ at home, and especially, that you do the various exercises.
 [setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
 [mccarthy]: http://www-formal.stanford.edu/jmc/towards.ps
 [z3cal]:    http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf
+[xmonad-stackset]: http://hackage.haskell.org/package/xmonad-0.11/docs/XMonad-StackSet.html
 
 [xmonad]:   http://xmonad.org/
+[wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)

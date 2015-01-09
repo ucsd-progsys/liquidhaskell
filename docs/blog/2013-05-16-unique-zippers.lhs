@@ -156,6 +156,7 @@ filter p (x:xs)
 
 Unique Zipper
 =============
+
 A [zipper][http://en.wikipedia.org/wiki/Zipper_(data_structure)] is an aggregate data stucture 
 that is used to arbitrary traverse the structure and update its contents.
 We define a zipper as a data type that contains 

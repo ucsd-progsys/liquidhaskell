@@ -22,6 +22,11 @@ die msg = error msg
 isUnique, isNotUnique :: [Int]
 mergeSort :: (Ord a) => [a] -> [a]
 range :: Int -> Int -> [Int]
+
+-- TODO: qualifier needed for focus* ? not clear. Eric: can you check?
+{- q0 :: x:a ->  {v:[a] | not (Elem x v)} @-}
+q0   :: a -> [a]
+q0 _ = []
 \end{code}
 \end{comment}
 
@@ -253,12 +258,13 @@ data [a] where
 Next, to make the specifications concise, let's define a few predicate aliases:
 
 \begin{code}
-{-@ predicate EqElts  X Y   = elems X = elems Y                       @-}
-{-@ predicate SubElts X Y   = Set_sub (elems X) (elems Y)             @-}
-{-@ predicate Empty   X     = elems X = Set_empty 0                   @-}
-{-@ predicate UnElts  X Y Z = elems X = Set_cup (elems Y) (elems Z)   @-}
-{-@ predicate UnElt   X Y Z = elems X = Set_cup (Set_sng Y) (elems Z) @-}
-{-@ predicate Elem    X Y   = Set_mem X (elems Y)                     @-}
+{-@ predicate EqElts  X Y   = elems X = elems Y                         @-}
+{-@ predicate SubElts X Y   = Set_sub (elems X) (elems Y)               @-}
+{-@ predicate DisjElts X Y  = Set_empty 0 = Set_cap (elems X) (elems Y) @-}
+{-@ predicate Empty   X     = elems X = Set_empty 0                     @-}
+{-@ predicate UnElts  X Y Z = elems X = Set_cup (elems Y) (elems Z)     @-}
+{-@ predicate UnElt   X Y Z = elems X = Set_cup (Set_sng Y) (elems Z)   @-}
+{-@ predicate Elem    X Y   = Set_mem X (elems Y)                       @-}
 \end{code}
 
 
@@ -453,16 +459,17 @@ filter f (x:xs)
     xs'         = filter f xs
 \end{code}
 
-\exercisen{Reverse} \singlestar
+\exercisen{Reverse} \singlestar 
 When we `reverse` their order, the set of elements is unchanged,
 and hence unique (if the input was unique). Why does LiquidHaskell
 reject the below? Can you fix things so that we can prove that the
 output is a `UList a`?
 
 \begin{code}
-{-@ reverse     :: UList a -> UList a @-}
+{-@ reverse     :: xs:UList a -> UList a    @-}
 reverse         = go []
-  where
+  where 
+    {-@ go      :: acc:[a] -> xs:[a] -> [a] @-}
     go a []     = a
     go a (x:xs) = go (x:a) xs 
 \end{code}
@@ -480,9 +487,10 @@ nub xs                = go [] xs
       | otherwise     = go (x:seen) xs
 \end{code}
 
-\noindent The key membership test is done by `isin`, whose output
-is `True` exactly when the element is in the given list.
-\footnotetext{Which should be clear by now, if you did the exercise above \ldots}
+\noindent The key membership test is done by `isin`,
+whose output is `True` exactly when the element is
+in the given list. \footnotetext{Which should be
+clear by now, if you did the exercise above \ldots}
 
 \begin{code}
 {-@ isin :: x:_ -> ys:_ -> {v:Bool | Prop v <=> Elem x ys }@-}
@@ -492,9 +500,10 @@ isin x (y:ys)
 isin _ []     = False
 \end{code}
 
-\exercisen{Append} \singlestar Why does appending two `UList`s not return a `UList`?
-Fix the type signature below so that you can prove that the output
-is indeed `unique`.
+\exercisen{Append} \singlestar Why does appending two
+`UList`s not return a `UList`? Fix the type signature
+below so that you can prove that the output is indeed
+`unique`.
 
 \begin{code}
 {-@ append       :: UList a -> UList a -> UList a @-}
@@ -502,27 +511,129 @@ append []     ys = ys
 append (x:xs) ys = x : append xs ys
 \end{code}
 
-\exercisen{Range} \doublestar In the below `range i j` returns the list of all `Int` between `i` and `j`.
-Yet, LiquidHaskell refuses to acknowledge that the output is indeed a `UList`. Modify the
-specification and implementation, if needed, to obtain an equivalent of `range` which *provably*
-returns a `UList Int`.
+\exercisen{Range} \doublestar In the below `range i j`
+returns the list of all `Int` between `i` and `j`.
+Yet, LiquidHaskell refuses to acknowledge that the
+output is indeed a `UList`. Modify the specification
+and implementation, if needed, to obtain an equivalent
+of `range` which *provably* returns a `UList Int`.
 
 \begin{code}
 {-@ type Btwn I J = {v:_ | I <= v && v < J} @-}
                    
 {-@ range     :: i:Int -> j:Int -> UList (Btwn i j) @-}
 range i j
-  | i < j     = i : range (i+1) j
+  | i < j     = i : range (i + 1) j
   | otherwise = [] 
 \end{code}
 
 Unique Zippers
 --------------
 
-**HEREHEREHERE**
+A [zipper](wiki-zipper) is an aggregate data stucture 
+that is used to arbitrarily traverse the structure and
+update its contents. For example, a zipper for a list is
+a data type that contains an element (called `focus`)
+that we are currently `focus`-ed on, a list of elements
+to the `left` of (i.e. before) the focus, and a list of
+elements to the `right` (i.e. after) the focus.
 
-+ TYPE
-+ CREATE (integreate/diff)
-+ REVERSE
-+ REFOCUS 
- 
+
+\begin{code}
+data Zipper a = Zipper {
+    focus  :: a      
+  , left   :: [a]    
+  , right  :: [a]
+  }  
+\end{code}
+
+\newthought{XMonad} is a wonderful tiling window manager, that uses
+a [zipper](xmonad-stackset) to store the set of windows being managed.
+Xmonad requires the crucial invariant that the values in the zipper
+be unique, i.e. have no duplicates.
+
+\newthought{Refined Zipper}  
+We can specify that all the values in the zipper are unique
+by refining the `Zipper` data declaration to express that
+both the lists in the structure are unique, disjoint,
+and do not include `focus`.
+
+\begin{code}
+{-@ data Zipper a = Zipper {
+      focus :: a
+    , left  :: {v: UList a | not (Elem focus v)}
+    , right :: {v: UList a | not (Elem focus v) && DisjElts v left }
+    } @-}
+\end{code}
+
+\newthought{Constructing Zippers}
+Our refined type makes *illegal states unrepresentable*;
+by construction, we will ensure that every `Zipper` is
+free of duplicates. Of course, it is straightforward to
+create a valid `Zipper` from a `unique` list:
+
+\begin{code}
+{-@ differentiate    :: UList a -> Maybe (Zipper a) @-}
+differentiate []     = Nothing
+differentiate (x:xs) = Just $ Zipper x [] xs
+\end{code}
+
+\exercisen{Deconstructing Zippers} \singlestar
+\noindent Dually, the elements of a unique zipper tumble out
+into a unique list. Strengthen the types of `reverse` and `append`
+above so that LiquidHaskell accepts the below signatures for `integrate`:
+
+\begin{code}
+{-@ integrate            :: Zipper a -> UList a @-}
+integrate (Zipper x l r) = reverse l `append` (x : r)
+\end{code}
+
+\newthought{Shifting Focus} We can shift the focus element
+left or right while preserving the invariants:
+
+\begin{code}
+focusLeft                      :: Zipper a -> Zipper a
+focusLeft (Zipper t [] rs)     = Zipper x xs []     where (x:xs) = reverse (t:rs)
+focusLeft (Zipper t (l:ls) rs) = Zipper l ls (t:rs)
+
+focusRight                     :: Zipper a -> Zipper a
+focusRight                     = reverseZipper . focusLeft . reverseZipper
+
+reverseZipper                  :: Zipper a -> Zipper a
+reverseZipper (Zipper t ls rs) = Zipper t rs ls
+\end{code}
+
+\newthought{Filter} Finally, using the filter operation on lists
+allows LiquidHaskell to prove that filtering a zipper 
+also preserves uniqueness.
+\begin{code}
+filterZipper :: (a -> Bool) -> Zipper a -> Maybe (Zipper a)
+filterZipper p (Zipper f ls rs) = case filter p (f:rs) of
+    f':rs' -> Just $ Zipper f' (filter p ls) rs'      -- maybe move focus right 
+    []     -> case filter p ls of                     -- filter back left
+                    f':ls' -> Just $ Zipper f' ls' [] -- else left
+                    []     -> Nothing
+\end{code}
+
+Recap
+-----
+
+In this chapter, we saw how SMT solvers can let us reason precisely about
+the actual *contents* of data structures, via the theory of sets. We can
+
+* Lift the set-theoretic primitives to (refined) Haskell functions from
+  the `Data.Set` library,
+
+* Use the functions to define measures like `elems` that characterize
+  the contents of structures, and `unique` that describe high-level
+  application specific properties.
+
+* Use LiquidHaskell to then specify and verify that implementations
+  enjoy various functional correctness properties, e.g. that sorting
+  routines return permutations of their inputs, and various zipper
+  operators preserve uniqueness.
+
+Next, we present a variety of *case-studies* illustrating the techniques
+so far on particular application domains.
+
+
