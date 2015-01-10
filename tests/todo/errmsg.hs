@@ -17,7 +17,7 @@ foo _ []     = False
 elements  []    = empty
 elements (x:xs) = singleton x `union` elements xs
 
-{-@ append :: xs:_ -> ys:_ -> {v:_ | elements v = union (elements xs) (elements ys) }@-}
+{- append :: xs:_ -> ys:_ -> {v:_ | elements v = union (elements xs) (elements ys) }@-}
 append :: [a] -> [a] -> [a]
 append = undefined 
 

@@ -8,7 +8,7 @@ import Prelude hiding (snd, fst)
 
 data ST a s = S (s -> (a, s))
 {-@ data ST a s <post :: s -> a -> s -> Prop> 
-       = S (ys::(x:s -> ((a, s)<post x>)))
+       = S (ys::(x:s -> ((a, s)<\xx -> {v:s<post x xx> | true} > )))
   @-}
 
 {-@ returnST :: xState:a 
