@@ -35,13 +35,17 @@
 	- EX: "map-reduce"
 
 
-
 6. Sets [TODO] **<--- HEREHEREHEREHERE** 
     + Example: Eval.hs
-    EX: write a `noDup` measure
-	EX: write a `nub`  function
 
 --- Part III : Applications & Case Studies
+
+7. Case Study: Associative Maps
+    + Motivation (failed lookups)
+    + API
+    + Library
+    + Client
+    
 
 7. Case Study: Totality
 
