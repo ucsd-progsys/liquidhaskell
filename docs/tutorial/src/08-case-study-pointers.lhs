@@ -1,5 +1,5 @@
-Case Study: Preventing Buffer Overflows
-=======================================
+Case Study: Pointers Without Overflows
+======================================
 
 \begin{comment}
 \begin{code}
