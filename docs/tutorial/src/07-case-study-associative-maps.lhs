@@ -269,9 +269,9 @@ in the `Expr` must be contained in the `keys` of the environment `G`:
 {-@ type ClosedExpr G = {v:Expr | Subset (free v) (keys G)} @-}
 \end{code}
 
-\newthought{Closed Evaluation Never Goes Wrong} Now, we can prove that
-`eval` will not crash with unbound variables, as long as it is invoked
-with suitable environments:
+\newthought{Closed Evaluation} never goes wrong, i.e. we can
+ensure that `eval` will not crash with unbound variables, as
+long as it is invoked with suitable environments:
 
 \begin{code}
 {-@ eval :: g:Env -> ClosedExpr g -> Val @-}
