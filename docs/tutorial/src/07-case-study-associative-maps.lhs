@@ -9,19 +9,18 @@ Case Study: Associative Maps
 
 module AssocativeMap where
 
-import Data.Set hiding ()
-
+import Data.Set hiding (elems)
 -- | Boilerplate 
 
 {-@ die :: {v:_ | false} -> a @-}
 die x   = error x
 
--    - | Haskell Definitions
+-- | Haskell Definitions
 
-d    ata Map k v = Node { key   :: k
-                        , value :: v
-                        , left  :: Map k v
-                        , right :: Map k v }
+data Map k v = Node { key   :: k
+                    , value :: v
+                    , left  :: Map k v
+                    , right :: Map k v }
              | Tip 
 
 lemma_notMem :: k -> Map k v -> Bool 
@@ -30,7 +29,8 @@ get    :: (Ord k) => k -> Map k v -> v
 get'   :: (Ord k) => k -> Map k v -> v 
 mem    :: (Ord k) => k -> Map k v -> Bool
 emp    :: Map k v
-
+elems  :: (Ord a) => [a] -> Set a
+fresh  :: [Int] -> Int
 -- | Predicate Aliases
 {-@ predicate NoKey M       = Empty (keys M)                        @-}
 {-@ predicate HasKey K M    = Set_mem K (keys M)                    @-}
@@ -542,6 +542,24 @@ mem k' (Node k _ l r)
 mem _ Tip     = False
 \end{code}
 
+\exercisen{Fresh} \doublestar To make sure you really understand this business of
+ghosts values and proofs, complete the implementation of the following function which
+returns a `fresh` integer that is *distinct* from all the values in its input list:
+
+\begin{code}
+{-@ fresh :: xs:[Int] -> {v:Int | not (Elem v xs)} @-}
+fresh = undefined
+\end{code}
+
+\noindent To refresh your memory, here are the definitions for `Elem`
+we [saw earlier](#listelems)
+
+\begin{code}
+{-@ predicate Elem X Ys  = Set_mem X (elems Ys) @-}
+{-@ measure elems @-}
+elems []     = empty
+elems (x:xs) = (singleton x) `union` (elems xs)
+\end{code}
 
 Recap
 -----

@@ -198,8 +198,8 @@ describes a different approach for using SMT solvers
 from Haskell and Scala respectively, directly via an
 embedded DSL.}
 
-Content-Aware List API
-----------------------
+Content-Aware List API {#listelems}
+----------------------------------
 
 Our overall goal is to verify properties of programs.
 Lets start off by refining the list API to precisely
