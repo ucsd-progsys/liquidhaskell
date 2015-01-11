@@ -1,11 +1,7 @@
-Case Study: Low Level Memory
-============================
+Case Study: Preventing Buffer Overflows
+=======================================
 
- {#mem}
--------
-
-<div class="hidden">
-
+\begin{comment}
 \begin{code}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
@@ -25,8 +21,7 @@ import System.IO.Unsafe
 import Data.ByteString.Internal (c2w, w2c)
 import Language.Haskell.Liquid.Prelude
 \end{code}
-
-</div>
+\end{comment}
 
 "HeartBleed" in Haskell
 -----------------------
@@ -41,11 +36,6 @@ import Language.Haskell.Liquid.Prelude
 Implementation errors could open up vulnerabilities
 </div>
 
-
-
-
-"HeartBleed" in Haskell (1/3)
------------------------------
 
 **A String Truncation Function**
 
@@ -67,8 +57,6 @@ chop s n = s'
     s'   = unpack b'      -- up to high-level
 \end{spec}
 
-"HeartBleed" in Haskell (2/3)
------------------------------
 
 <img src="../img/overflow.png" height=100px>
 
@@ -78,15 +66,13 @@ Works if you use the **valid prefix** size
 <br>
 
 \begin{spec}
-λ> let ex = "Ranjit Loves Burritos"
+ghci> let ex = "Ranjit Loves Burritos"
 
-λ> heartBleed ex 10
+ghci> heartBleed ex 10
 "Ranjit Lov"
 \end{spec}
 
 
-"HeartBleed" in Haskell (3/3)
------------------------------
 
 <img src="../img/overflow.png" height=100px>
 
@@ -95,16 +81,14 @@ Leaks *overflow buffer* if **invalid prefix** size!
 <br>
 
 \begin{spec}
-λ> let ex = "Ranjit Loves Burritos"
+ghci> let ex = "Ranjit Loves Burritos"
 
-λ> heartBleed ex 30
+ghci> heartBleed ex 30
 "Ranjit Loves Burritos\NUL\201\&1j\DC3\SOH\NUL"
 \end{spec}
 
-Types Against Overflows
------------------------
+\newthought{Types Against Overflows}
 
-<br>
 
 **Strategy: Specify and Verify Types for**
 
@@ -118,13 +102,9 @@ Types Against Overflows
 
 <div class="fragment">Errors at *each* level are prevented by types at *lower* levels</div>
 
- {#ptr}
-=======
-
 1. Low-level Pointer API 
 ------------------------
 
-<br>
 
 Strategy: Specify and Verify Types for
 
@@ -138,16 +118,8 @@ Strategy: Specify and Verify Types for
 
 Errors at *each* level are prevented by types at *lower* levels
 
+\newthought{API: Types}
 
-
-
-1. Low-Level Pointer API
-========================
-
-API: Types 
-----------
-
-<br>
 
 **Low-level Pointers**
 
@@ -170,8 +142,7 @@ data ForeignPtr a
 </div>
 
 
-API: Operations (1/2)
----------------------
+\newthought{Operations (1/2)}
 
 <div class="fragment">
 **Read** 
@@ -199,8 +170,7 @@ plusPtr  :: Ptr a -> Int -> Ptr b
 \end{spec}
 </div>
 
-API: Operations (2/2)
----------------------
+\newthought{Operations (2/2)}
 
 <div class="fragment">
 **Create**
@@ -222,8 +192,7 @@ withForeignPtr :: ForeignPtr a     -- pointer
 \end{spec}
 </div>
 
-Example
--------
+\newthought{Example}
 
 **Allocate a block and write 4 zeros into it**
 
@@ -243,8 +212,7 @@ zero4 = do fp <- malloc 4
 
 </div>
 
-Example
--------
+\newthought{Example}
 
 **Allocate a block and write 4 zeros into it**
 
@@ -267,7 +235,6 @@ How to *prevent overflows* e.g. writing 5 or 50 zeros?
 </div>
 
 Refined API: Types
-------------------
 
 <br>
 
@@ -291,7 +258,6 @@ type ForeignPtrN a N = {v:_ |  fplen v = N}
 
 
 Refined API: Ops (1/3)
-----------------------
 
 <div class="fragment">
 **Create**
@@ -314,7 +280,6 @@ withForeignPtr :: fp:ForeignPtr a
 </div>
 
 Refined API: Ops (2/3)
-----------------------
 
 <br>
 
@@ -333,10 +298,7 @@ plusPtr :: p:Ptr a
 
 </div>
 
-
-
 Refined API: Ops (3/3)
-----------------------
 
 **Read & Write require non-empty remaining buffer**
 
@@ -359,8 +321,7 @@ poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()
 \end{spec}
 </div>
 
-Example: Overflow Prevented
----------------------------
+\newthought{Overflow Prevented}
 
 How to *prevent overflows* e.g. writing 5 or 50 zeros?
 
@@ -382,9 +343,6 @@ exBad = do fp <- malloc 4
 
 </div>
 
- {#bs}
-======
-
 2. ByteString API
 -----------------
 
@@ -402,12 +360,8 @@ Strategy: Specify and Verify Types for
 
 Errors at *each* level are prevented by types at *lower* levels
 
+\newthought{Type}
 
-2. ByteString API
-=================
-
-Type
--------
 
 <img src="../img/bytestring.png" height=150px>
 
@@ -420,8 +374,7 @@ data ByteString = PS {
 \end{code}
 
 
-Refined Type 
-------------
+\newthought{Refined Type}
 
 <img src="../img/bytestring.png" height=150px>
 
@@ -433,8 +386,6 @@ Refined Type
     }                                       @-}
 \end{code}
 
-Refined Type 
-------------
 
 <img src="../img/bytestring.png" height=150px>
 
@@ -453,10 +404,7 @@ type ByteStringN N = {v:ByteString| bLen v = N}
 \end{code}
 </div>
 
-
-
-Legal Bytestrings 
------------------
+\newthought{Legal Bytestrings}
 
 
 <br>
@@ -477,8 +425,7 @@ good2 = do fp <- malloc 5
 **Note:** *length* of `good2` is `3` which is *less than* allocated size `5`
 </div>
 
-Illegal Bytestrings 
------------------
+\newthought{Illegal Bytestrings}
 
 <br>
 
@@ -496,8 +443,7 @@ bad2 = do fp <- malloc 3
 Claimed length *exceeds* allocation ... **rejected** at compile time
 </div>
 
-API: `create`
--------------
+\newthought{`create`}
 
 <div class="hidden">
 \begin{code}
@@ -535,8 +481,7 @@ Yikes, there is an error! How to fix?
 </div>
 -->
 
-API: `pack`
-------------
+\newthought{`pack`}
 
 **Specification**
 
@@ -563,8 +508,7 @@ pack str      = create n $ \p -> go p xs
 
 
 
-API: `unsafeTake`
------------------
+\newthought{`unsafeTake`}
 
 Extract *prefix* string of size `n`
 
@@ -591,8 +535,7 @@ unsafeTake n (PS x s l) = PS x s n
 \end{code}
 </div>
 
-API: `unpack` 
--------------
+\newthought{`unpack` }
 
 **Specification**
 
@@ -627,13 +570,8 @@ unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
 
 </div>
 
- {#heartbleedredux}
-==================
-
-
 3. Application API 
 -------------------
-
 
 <br>
 
@@ -649,11 +587,7 @@ Strategy: Specify and Verify Types for
 
 Errors at *each* level are prevented by types at *lower* levels
 
-3. Application API 
-==================
-
-Revisit "HeartBleed"
---------------------
+\newthought{HeartBleed Revisited}
 
 Lets revisit our potentially "bleeding" `chop`
 
@@ -704,8 +638,7 @@ chop s n = s'
 
 END CUT -->
 
-"HeartBleed" no more
---------------------
+\newthought{"HeartBleed" no more}
 
 <br>
 
@@ -720,39 +653,6 @@ demo     = [ex6, ex30]
 <br>
 
 "Bleeding" `chop ex 30` *rejected* by compiler
-
-Recap: Types vs Overflows
--------------------------
-
-<br>
-
-**Strategy: Specify and Verify Types for**
-
-<br>
-
-1. Low-level `Pointer` API
-2. Lib-level `ByteString` API
-3. User-level `Application` API
-
-<br>
-
-**Errors at *each* level are prevented by types at *lower* levels**
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div class="hidden">
-Bonus Material
-==============
 
 Nested ByteStrings 
 ------------------
@@ -828,6 +728,22 @@ lengths sum to the length of `b`.
        bLen x1 + bLen x2 = bLen B}> @-}
 \end{code}
 
+Recap: Types Against Overflows
+------------------------------
+
+<br>
+
+**Strategy: Specify and Verify Types for**
+
+<br>
+
+1. Low-level `Pointer` API
+2. Lib-level `ByteString` API
+3. User-level `Application` API
+
+<br>
+
+**Errors at *each* level are prevented by types at *lower* levels**
 
 
 
@@ -835,6 +751,7 @@ lengths sum to the length of `b`.
 
 
 
+\begin{comment}
 \begin{code}
 -----------------------------------------------------------------------
 -- Helper Code
@@ -911,4 +828,4 @@ nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
 \end{code}
 
-</div>
+\end{comment}

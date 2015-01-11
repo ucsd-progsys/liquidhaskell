@@ -1,4 +1,4 @@
-Refined Datatypes
+Refined Datatypes {#refineddatatypes}
 =================
 
  
@@ -349,8 +349,8 @@ append Emp       ys = ys
 append (x :< xs) ys = x :< append xs ys 
 \end{code}
 
-Ordered Trees
-------------- 
+Ordered Trees {#binarysearchtree}
+---------------------------------  
 
 As a last example of refined data types, let us consider binary search ordered
 trees, defined thus:
