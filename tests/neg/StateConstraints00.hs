@@ -25,7 +25,7 @@ instance Foo (ST s) where
   return x     = ST $ \s -> (x, s)
  
 
-{-@ foo :: w:a -> ST <{v:a | v = w}>  Bool a @-}
+{-@ foo :: w:a -> ST <{v:a | v > w}>  Bool a @-}
 foo :: a -> ST Bool a
 foo x = return x
 

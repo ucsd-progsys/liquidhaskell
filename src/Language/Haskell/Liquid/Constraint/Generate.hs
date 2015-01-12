@@ -74,8 +74,6 @@ import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
-import Debug.Trace (trace)
-
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -1335,7 +1333,6 @@ consE γ e'@(App e a) | isDictionary a
               updateLocA πs (exprLoc e) te'' 
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
               pushConsBind      $ cconsE γ' a tx 
-              let     dinfo = dlookup (denv γ) d
               addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
   where
     grepfunname (App x (Type _)) = grepfunname x
