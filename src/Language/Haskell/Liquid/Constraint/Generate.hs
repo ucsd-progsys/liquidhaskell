@@ -1109,6 +1109,8 @@ consCB _ _ γ (Rec xes)
        mapM_ (consBind True γ') xets
        return γ' 
 
+-- | NV: Dictionaries are not checked, because 
+-- | class methods' preconditions are not satisfied
 consCB _ _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (varType x)
        extender γ (x, Assumed t)
@@ -1119,7 +1121,7 @@ consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
 --        t         <- refreshVV t'
        let xts = dmap (f t) $ fromJust $ dlookup (denv γ) w
        let  γ' = γ{denv = dinsert (denv γ) x xts }
-       t  <- trueTy (varType x)
+       t      <- trueTy (varType x)
        extender γ' (x, Assumed t)
   where f t' (RAllT α te) = subsTyVar_meet' (α, t') te
         f _ _ = error "consCB on Dictionary: this should not happen"
