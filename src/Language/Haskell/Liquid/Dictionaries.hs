@@ -23,7 +23,7 @@ makeDictionary :: RInstance SpecType -> (Symbol, M.HashMap Symbol SpecType)
 makeDictionary (RI c t xts) = (makeDictionaryName c t, M.fromList (mapFst val <$> xts))
 
 makeDictionaryName :: Located Symbol -> SpecType -> Symbol
-makeDictionaryName t (RApp c _ _ _) = traceShow ("Symbol from " ++ show (t, c)) $  symbol ("$f" ++ (symbolString $ val t) ++ c')
+makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ (symbolString $ val t) ++ c')
   where 
   	c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
@@ -47,19 +47,6 @@ dmapty f (DEnv e) = DEnv (M.map (M.map f) e)
 dmap f xts = M.map f xts
 
 dinsert (DEnv denv) x xts = DEnv $ M.insert x xts denv
-
-{-
-
-dinsert (DEnv denv) x xts = DEnv $ M.insert x (M.fromList xts') denv
-  where 
-    xts'     = mapFst go <$> xts
-    go       = symbol . drop 2 . show 
-
-dinsert (DEnv denv) x xts = DEnv $ M.insert x (M.fromList xts') denv
-  where 
-    xts'     = mapFst go <$> xts
-    go       = symbol . drop 2 . show 
--}
 
 dlookup (DEnv denv) x     = M.lookup x denv
 

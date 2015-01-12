@@ -144,18 +144,16 @@ makeSpecDictionaryOne embs vars (RI x t xts)
        tyi <- gets tcEnv
        ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
-       let v = mylookupName vars d   
+       let v = lookupName d   
        return (v, dts)
   where 
-    mkTy  t = mkSpecType (loc x) t
-    mkTy' t = generalize  <$> mkTy t
+    mkTy  t  = mkSpecType (loc x) t
+    mkTy' t  = generalize  <$> mkTy t
     (xs, ts) = unzip xts
-
-mylookupName :: [Var] -> Symbol -> Var 
-mylookupName vs x
-  = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vs) of 
-     [(_, x)] -> x
-     _ -> errorstar (show x ++ "\tnot in\n" ++ show vs ++ show [(v,x,(dropModuleNames $ symbol $ show  v),  show x == show (dropModuleNames $ symbol  v)) | v<- vs])
+    lookupName x 
+             = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of 
+                [(_, x)] -> x
+                _ -> errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
