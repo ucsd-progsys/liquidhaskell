@@ -1118,13 +1118,15 @@ consCB _ _ γ (NonRec x _) | isDictionary x
 consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
   = do t      <- trueTy τ
        addW    $ WfC γ t
---        t         <- refreshVV t'
-       let xts = dmap (f t) $ fromJust $ dlookup (denv γ) w
+       let xts = dmap (f t) $ safeFromJust (show w ++ "Not a dictionary"  ) $ dlookup (denv γ) w
        let  γ' = γ{denv = dinsert (denv γ) x xts }
        t      <- trueTy (varType x)
        extender γ' (x, Assumed t)
   where f t' (RAllT α te) = subsTyVar_meet' (α, t') te
         f _ _ = error "consCB on Dictionary: this should not happen"
+        isDictionary = isJust . dlookup (denv γ)
+
+
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
