@@ -73,11 +73,12 @@ foo = do return 0
 incr2 :: ST Int Int
 incr2 = incr >> incr
 
-{-@ incr3 :: ST <{\x -> true}, {\x v -> v = x + 1}, {\x v -> v = x}>  Int Int @-}
+{-@ incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> v = x + 2}>  Int Int @-}
 incr3 :: ST Int Int
 incr3 
-  = do x <- incr
-       return x
+  = do incr
+       incr
+       incr
 
 {-
 {- incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> v = x + 3}>  Int Int @-}
