@@ -67,19 +67,28 @@ incr = ST $ \x ->  (x, x + 1)
 
 {-@ foo :: ST <{\x -> true}, {\x v -> true}, {\x v -> v = 0}>  Bool Int @-}
 foo :: ST Bool Int
-foo = return 0
+foo = do return 0
 
 {-@ incr2 :: ST <{\x -> true}, {\x v -> v = x + 2}, {\x v -> v = x + 1}>  Int Int @-}
 incr2 :: ST Int Int
 incr2 = incr >> incr
 
-{-@ incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> v = x + 3}>  Int Int @-}
+{-@ incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> true}>  Int Int @-}
 incr3 :: ST Int Int
 incr3 
- = do x1 <- incr 
-      x2 <- incr 
-      incr
+  = do x <- incr
+       incr
+       incr
+       return x
 
+{-
+{- incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> v = x + 3}>  Int Int @-}
+incr3 :: ST Int Int
+incr3 
+ = do incr 
+      incr 
+      incr
+-}
 
 run :: (Int, Int)
 {-@ run :: ({v:Int |  v = 1}, {v:Int |  v = 2}) @-}
