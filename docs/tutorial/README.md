@@ -45,10 +45,11 @@
 
 --- Part IV: Tips and Tricks
 
-13. Tips: Induction
-
-14. Tips: Materializing Proofs
-
+13. Tips:
+     + Inductive strengthening 
+     + Materializing Proofs
+     + Assumes/Dynamic Checking
+     
 15. Tricks: Totality
 
 16. Tricks: Termination
