@@ -6,6 +6,11 @@
 - Experimental support for lifting haskell functions to measures
 If you annotate a Haskell function `foo` with {-@ measure foo @-}, LiquidHaskell will attempt to derive an equivalent measure from `foo`'s definition. This should help eliminate some boilerplate measures that used to be required.
 
+- Refining class instances. For example
+
+{-@ instance Compare Int where 
+    cmax :: Odd -> Odd -> Odd @-}
+
 ## 0.2.0.0
 
 - Move to GHC-7.8.3
