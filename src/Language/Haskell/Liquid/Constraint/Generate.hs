@@ -64,8 +64,7 @@ import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr
-                                                , isDictionary)
+                                                , hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -1114,6 +1113,9 @@ consCB _ _ γ (Rec xes)
 consCB _ _ γ (NonRec x _) | isDictionary x
   = do t  <- trueTy (varType x)
        extender γ (x, Assumed t)
+  where     
+    isDictionary = isJust . dlookup (denv γ)
+
 
 consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
   = do t      <- trueTy τ
