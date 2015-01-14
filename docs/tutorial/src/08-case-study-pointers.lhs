@@ -311,11 +311,8 @@ plusPtr :: p:Ptr a
         -> PtrN b (plen b - o)      -- remaining size 
 \end{spec}
 
-\newthought{Overflow Prevented}
-
-**HEREHEREHEREHERE**
-
-How to *prevent overflows* e.g. writing 5 or 50 zeros?
+\newthought{Types Prevent Overflows} Lets revisit the zero-fill example
+from above to understand how the refinements help detect the error:
 
 \begin{code}
 exBad = do fp <- mallocForeignPtrBytes 4
@@ -329,24 +326,81 @@ exBad = do fp <- mallocForeignPtrBytes 4
            zero = 0 :: Word8
 \end{code}
 
-\newthought{Assumptions vs Guarantees}
+
+\noindent Lets read the tea leaves for the above error to understand what they say:
+
+\begin{liquiderror}
+  Error: Liquid Type Mismatch
+   Inferred type
+     VV : {VV : Int | VV == ?a && VV == 5}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV <= plen p}
+  
+   In Context
+     zero : {zero : Word8 | zero == ?b}
+     VV   : {VV : Int | VV == ?a && VV == (5  :  int)}
+     fp   : {fp : ForeignPtr a | fplen fp == ?c && 0 <= fplen fp}
+     ?a   : {fix##63#a : Int | ?a == 5}
+     ?c   : {fix##63#c : Int | ?c == 4}
+     p    : {p : Ptr a | fplen fp == plen p && ?c <= plen p && ?b <= plen p && zero <= plen p}
+     ?b   : {fix##63#b : Integer | ?b == 0}
+\end{liquiderror}
+
+\noindent The error says we're bumping `p` up by `VV == 5`
+using `plusPtr` but the latter *requires* that bump-offset
+be within the size of the buffer referred to by `p`, i.e.
+`VV <= plen p`. Indeed, in this context, we have:
+
+\begin{liquiderror}
+     p    : {p : Ptr a | fplen fp == plen p && ?c <= plen p && ?b <= plen p && zero <= plen p}
+     fp   : {fp : ForeignPtr a | fplen fp == ?c && 0 <= fplen fp}
+\end{liquiderror}
+
+\noindent that is, the size of `p`, namely `plen p` equals the size of
+`fp`, namely `fplen fp` (thanks to the `withForeignPtr` call), and
+finally the latter is equal to `?c` which is `4` bytes. Thus, since
+the offset `5` is not less than the buffer size `4`, LiquidHaskell
+cannot prove that the call to `plusPtr` is safe, hence the error.
+\footnotetext{The alert reader will note that we have strengthened
+the type of `plusPtr` to prevent the pointer from wandering outside
+the boundary of the buffer. We could instead use a weaker requirement
+for `plusPtr` that omits this requirement, and instead have the error
+be flagged when the pointer was used to read or write memory.}
+
+
+Assumptions vs Guarantees
+-------------------------
+
+At this point you ought to wonder: where is the *code* for `peek`,
+`poke` or `mallocForeignPtrBytes` and so on? How can we know that the
+types we assigned to them are in fact legitimate?
+
+Frankly, we can't. This is because those are *externally* implemented
+(in this case, in `C`), and hence, invisible to the otherwise
+all-seeing eyes of LiquidHaskell. Thus, we are *assuming* or
+*trusting* that those functions behave according to their types. Put
+another way, the types for the low-level API are our *specification*
+for what low-level pointer safety. We shall now *guarantee* that the
+higher level modules that build upon this API in fact use the
+low-level function in a manner consistent with this specification.
+
+\newthought{Assumptions are a Feature} and not a bug, as they let
+us to verify systems that use some modules for which we do not have
+the code. Here, we can *assume* a boundary specification, and then
+*guarantee* that the rest of the system is safe with respect to
+that specification.
+\footnotetext{If we so desire, we can also *check* the boundary
+specifications at [run-time](wiki-contracts), but that is
+outside the scope of LiquidHaskell}.
+
 
 ByteString API
 --------------
 
-<br>
-
-Strategy: Specify and Verify Types for
-
-<br>
-
-1. Low-level `Pointer` API
-2. **Lib-level `ByteString` API**
-3. User-level `Application` API
-
-<br>
-
-Errors at *each* level are prevented by types at *lower* levels
+Next, lets see how the low-level API can be used to implement
+to implement [ByteStrings](bytestring), in a way that lets us
+perform fast string operations without opening the door to overflows.
 
 \newthought{Type}
 

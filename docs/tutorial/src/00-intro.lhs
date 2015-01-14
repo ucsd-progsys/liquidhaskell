@@ -272,8 +272,10 @@ at home, and especially, that you do the various exercises.
 [z3cal]:    http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf
 [xmonad-stackset]: http://hackage.haskell.org/package/xmonad-0.11/docs/XMonad-StackSet.html
 
-[xmonad]:   http://xmonad.org/
+[xmonad]:      http://xmonad.org/
 [wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
+[wiki-contracts]: http://en.wikipedia.org/wiki/Design_by_contract
 [foreignptr]:  http://hackage.haskell.org/package/base/docs/Foreign-Ptr.html
+[bytestring]:  https://hackage.haskell.org/package/bytestring
 
 
