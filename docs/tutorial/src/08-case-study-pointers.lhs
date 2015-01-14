@@ -2,6 +2,7 @@ Case Study: Pointers Without Overflows
 ======================================
 
 \begin{comment}
+
 \begin{code}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
@@ -23,183 +24,165 @@ import Language.Haskell.Liquid.Prelude
 \end{code}
 \end{comment}
 
-"HeartBleed" in Haskell
------------------------
+A large part of the allure of Haskell is its elegant, high-level ADTs
+that ensure that programs won't be plagued by problems like the infamous
+[SSL heartbleed bug](heartbleed).
+\footnotetext{Assuming, of course, the absence of errors in the compiler and run-time...}
+However, another part of Haskell's charm is that when you really really 
+need to, you can drop down to low-level pointer twiddling to squeeze the 
+most performance out of your machine. But of course, that opens the door 
+to the heartbleeds.
 
-<br>
-
-**Modern languages are built on top of C**
-
-<br>
-
-<div class="fragment">
-Implementation errors could open up vulnerabilities
-</div>
+Wouldn't it be nice to have have our cake and eat it too? That is wouldn't
+it be great if we could twiddle pointers at a low-level and still get the
+nice safety assurances of high-level types? In this case study, lets see
+how LiquidHaskell lets us do exactly that.
 
 
-**A String Truncation Function**
+HeartBleeds in Haskell
+----------------------
 
-<br>
+\newthought{Modern Languages} like Haskell are ultimately built upon the
+foundation of `C`. Thus, implementation errors could open up unpleasant
+vulnerabilities that could easily slither past the type system and even
+code inspection.
 
-<div class="hidden">
-\begin{spec}
-import Data.ByteString.Char8  (pack, unpack) 
-import Data.ByteString.Unsafe (unsafeTake)
-\end{spec}
-</div>
+
+\newthought{Truncating Strings} As a concrete example, lets look at a
+a function that uses the `ByteString` library to truncate strings:
 
 \begin{spec}
 chop     :: String -> Int -> String
 chop s n = s'
   where 
-    b    = pack s         -- down to low-level
-    b'   = unsafeTake n b -- grab n chars
-    s'   = unpack b'      -- up to high-level
+    b    = B.pack s          -- down to low-level
+    b'   = B.unsafeTake n b  -- grab n chars
+    s'   = B.unpack b'       -- up to high-level
 \end{spec}
 
-
-<img src="../img/overflow.png" height=100px>
-
-
-Works if you use the **valid prefix** size 
-
-<br>
+\noindent First, the function `pack`s the string into a low-level
+bytestring `b`, then it grabs the first `n` `Char`acters from `b`
+and translates them back into a high-level `String`. Lets see how
+the function works on a small test:
 
 \begin{spec}
 ghci> let ex = "Ranjit Loves Burritos"
+\end{spec}
 
-ghci> heartBleed ex 10
+\noindent We get the right result when we `chop` a *valid* prefix:
+
+\begin{spec}
+ghci> chop ex 10
 "Ranjit Lov"
 \end{spec}
 
-
-
-<img src="../img/overflow.png" height=100px>
-
-Leaks *overflow buffer* if **invalid prefix** size!
-
-<br>
+\noindent But, as illustrated in Figure~\ref{fig:overflow}, the
+machine silently reveals (or more colorfully, *bleeds*) the contents
+of adjacent memory or if we use an *invalid* prefix:
 
 \begin{spec}
-ghci> let ex = "Ranjit Loves Burritos"
-
 ghci> heartBleed ex 30
 "Ranjit Loves Burritos\NUL\201\&1j\DC3\SOH\NUL"
 \end{spec}
 
-\newthought{Types Against Overflows}
+
+\begin{figure}[h]
+\includegraphics[height=1.0in]{img/overflow.png}
+\caption{Can we prevent the program from leaking `secret`s?} 
+\label{fig:overflow}
+\end{figure}
 
 
-**Strategy: Specify and Verify Types for**
+\newthought{Types against Overflows} Now that we have stared the problem
+straight in the eye, look at how we can use LiquidHaskell to *prevent* the
+above at compile time. To this end, we decompose the overall system into
+a hierarchy of *levels* (i.e. *modules*). In this case, we have three levels:
 
-<br>
+1. **Machine** level `Pointers`
+2. **Library** level `ByteString`
+3. **User**    level `Application`
 
-1. <div class="fragment">Low-level `Pointer` API</div>
-2. <div class="fragment">Lib-level `ByteString` API</div>
-3. <div class="fragment">User-level `Application` API</div>
+\noindent Now, our strategy, as before, is to develop an *refined API* for
+each level such that errors at *each* level are prevented by using the typed
+interfaces for the *lower* levels. Next, lets see how this strategy helps develop
+a safe means of manipulating pointers.
 
-<br>
+Low-level Pointer API 
+---------------------
 
-<div class="fragment">Errors at *each* level are prevented by types at *lower* levels</div>
+To get started, lets look at the low-level pointer API that is
+offered by GHC and the run-time. First, lets just see who the
+*dramatis personae* are, and how they might let heartbleeds in.
+Then, once we have come to grips with the problem, we will see
+how to batten down the hatches with LiquidHaskell.
 
-1. Low-level Pointer API 
-------------------------
-
-
-Strategy: Specify and Verify Types for
-
-<br>
-
-1. **Low-level `Pointer` API**
-2. Lib-level `ByteString` API
-3. User-level `Application` API
-
-<br>
-
-Errors at *each* level are prevented by types at *lower* levels
-
-\newthought{API: Types}
-
-
-**Low-level Pointers**
+\newthought{Pointers} are an (abstract) type implemented by GHC.
+To quote the documentation, "a value of type `Ptr a represents a
+pointer to an object, or an array of objects, which may be marshalled
+to or from Haskell values of type `a`.
 
 \begin{spec}
 data Ptr a         
 \end{spec}
 
-<br>
-
-<div class="fragment">
-**Foreign Pointers**
+\newthought{Foreign Pointers} are *wrapped* pointers that can be
+exported to and from C code via the [Foreign Function Interface](foreignptr).
 
 \begin{spec}
 data ForeignPtr a 
 \end{spec}
 
-<br>
-
-`ForeignPtr` wraps around `Ptr`; can be exported to/from C.
-</div>
-
-
-\newthought{Operations (1/2)}
-
-<div class="fragment">
-**Read** 
+\newthought{To Create} a pointer we use `mallocForeignPtrBytes n`
+which creates a `Ptr` to a buffer of size `n`, wraps it as a
+`ForeignPtr` and returns the result:
 
 \begin{spec}
-peek     :: Ptr a -> IO a  
+malloc :: Int -> ForeignPtr a
 \end{spec}
-</div>
 
-<br>
-<div class="fragment">
-**Write** 
+\newthought{To Unwrap} and actually use the `ForeignPtr` we use 
 
 \begin{spec}
-poke     :: Ptr a -> a -> IO ()
+withForeignPtr :: ForeignPtr a     -- ^ pointer 
+               -> (Ptr a -> IO b)  -- ^ action 
+               -> IO b             -- ^ result
 \end{spec}
-</div>
 
-<br>
+\noindent That is, `withForeignPtr fp act` lets us execute a
+action `act` on the actual `Ptr` wrapped within the `fp`.
+These actions are typically sequences of *dereferences*,
+i.e. reads or writes.
 
-<div class="fragment">
-**Arithmetic**
-\begin{spec}
-plusPtr  :: Ptr a -> Int -> Ptr b 
-\end{spec}
-</div>
-
-\newthought{Operations (2/2)}
-
-<div class="fragment">
-**Create**
+\newthought{To Derereference} a pointer, e.g. to read or update
+the contents at the corresponding memory location, we use
+the functions `peek` and `poke` respectively.
+\footnoteteext{We elide the `Storable` type class constraint to
+strip the presentation down to the absolute essentials.}
 
 \begin{spec}
-malloc  :: Int -> ForeignPtr a
+-- | Read 
+peek :: Ptr a -> IO a           
+
+-- | Write
+poke :: Ptr a -> a -> IO ()
 \end{spec}
-</div>
 
-<br>
-
-<div class="fragment">
-**Unwrap and Use**
+\newthought{For Fine Grained Access} we can directly shift
+pointers to arbitrary offsets from the blocks obtained via `malloc`.
+This is done via the low-level *pointer arithmetic* operation `plusPtr p off`
+which takes a pointer `p` an integer `off` and returns the pointer (address)
+obtained shifting `p` by `off`:
 
 \begin{spec}
-withForeignPtr :: ForeignPtr a     -- pointer 
-               -> (Ptr a -> IO b)  -- action 
-               -> IO b             -- result
+plusPtr :: Ptr a -> Int -> Ptr b 
 \end{spec}
-</div>
 
-\newthought{Example}
-
-**Allocate a block and write 4 zeros into it**
-
-<div class="fragment">
+\newthought{Example} That was rather dry; lets look at a concrete
+example of how one might use the low-level API. The following
+function allocates a block of 4 bytes and fills it with zeros:
 
 \begin{code}
-zero4 = do fp <- malloc 4
+zero4 = do fp <- mallocForeignPtrBytes 4
            withForeignPtr fp $ \p -> do
              poke (p `plusPtr` 0) zero 
              poke (p `plusPtr` 1) zero 
@@ -210,127 +193,132 @@ zero4 = do fp <- malloc 4
            zero = 0 :: Word8
 \end{code}
 
-</div>
+\noindent While the above is perfectly all right, a small typo could
+easily slip past the type system (and run-time!) leading to hard to find
+errors:
 
-\newthought{Example}
+\begin{code}
+zero4' = do fp <- mallocForeignPtrBytes 4
+            withForeignPtr fp $ \p -> do
+              poke (p `plusPtr` 0) zero 
+              poke (p `plusPtr` 1) zero 
+              poke (p `plusPtr` 2) zero 
+              poke (p `plusPtr` 8) zero 
+            return fp
+         where
+            zero = 0 :: Word8
+\end{code}
 
-**Allocate a block and write 4 zeros into it**
+A Refined Pointer API
+---------------------
 
-How to *prevent overflows* e.g. writing 5 or 50 zeros?
+Wouldn't it be great if we had an assistant to helpfully point out
+the error above as soon as we *wrote* it? To turn LiquidHaskell into
+this friend, we will use the following strategy: 
 
-<br>
+1. **Refine pointers** with allocated buffer size
+2. **Track sizes** in pointer operations
 
-<div class="fragment">
-**Step 1**
+\newthought{To Refining Pointers} with the *size* of their associated
+buffers, we can use an *abstract measure*, i.e. a measure specification  
+*without* any underlying implementation.
 
-*Refine pointers* with allocated size
-</div>
-
-<br>
-
-<div class="fragment">
-**Step 2**
-
-*Track sizes* in pointer operations
-</div>
-
-Refined API: Types
-
-<br>
-
-**1. Refine pointers with allocated size**
+\footnotetext{These two measures, and the signatures for
+the associate API are defined and imported from in the
+LiquidHaskell [standard library](ptrspec). We include them
+here for exposition.}
 
 \begin{spec}
+-- | Size of `Ptr`
 measure plen  :: Ptr a -> Int 
+
+-- | Size of `ForeignPtr`
 measure fplen :: ForeignPtr a -> Int 
 \end{spec}
 
-<br>
-
-<div class="fragment">
-Abbreviations for pointers of size `N`
+\noindent As before, it is helpful to define a few
+aliases for pointers of a given size `N`:
 
 \begin{spec}
-type PtrN a N        = {v:_ |  plen v  = N} 
-type ForeignPtrN a N = {v:_ |  fplen v = N} 
+type PtrN a N        = {v:Ptr a        | plen v  = N} 
+type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} 
 \end{spec}
-</div>
 
+\newthought{Abstract Measures} are extremely useful when we don't have
+a concrete implementation of the underlying value, but we know that
+the value *exists*.  \footnotetext{This is another example of a
+*ghost* specification} Here, we don't have the value -- inside Haskell
+-- because the buffers are manipulated within C. However, this is no
+cause for alarm as we will simply use measures to refine the API (not
+to perform any computations.)
 
-Refined API: Ops (1/3)
-
-<div class="fragment">
-**Create**
+\newthought{To Refine Allocation} we stipulate that
+the size parameter be non-negative, and that the returned
+pointer indeed refers to a buffer with exactly `n` bytes:
 
 \begin{spec}
-malloc  :: n:Nat -> ForeignPtrN a n
+mallocForeignPtrBytes :: n:Nat -> ForeignPtrN a n
 \end{spec}
-</div> 
 
-<br>
-
-<div class="fragment">
-**Unwrap and Use**
+\newthought{To Refine Unwrapping} we specify that the *action*
+gets as input, an unwrapped `Ptr` whose size *equals* that of the
+given `ForeignPtr`.
 
 \begin{spec}
 withForeignPtr :: fp:ForeignPtr a 
                -> (PtrN a (fplen fp) -> IO b)  
                -> IO b             
 \end{spec}
-</div>
 
-Refined API: Ops (2/3)
+\noindent This is a rather interesting *higher-order* specification.
+Consider a call `withForeignPtr fp act`. If the `act` requires a `Ptr`
+whose size *exceeds* that of `fp` then LiquidHaskell will flag a
+(subtyping) error indicating the overflow. If instead the `act`
+requires a buffer of size less than `fp` then via contra-variant
+function subtyping, the input type of `act` will be widened to
+the large size, and the code will be accepted.
 
-<br>
+\newthought{To Refine Reads and Writes} we specify that they can
+only be done if the pointer refers to a non-empty (remaining) buffer.
+That is, we define an alias:
 
-**Arithmetic**
+\begin{spec}
+type OkPtr a = {v:Ptr a | 0 < plen v}
+\end{spec}
 
-Refine type to track *remaining* buffer size
+\noindent that describes pointers referring to *non-empty* buffers
+(of strictly positive `plen`), and then use the alias to refine:
 
-<br>
+\begin{spec}
+peek :: OkPtr a -> IO a  
+poke :: OkPtr a -> a -> IO ()  
+\end{spec}
 
-<div class="fragment">
+\noindent In essence the above type says that no matter how arithmetic
+was used to shift pointers around, when the actual dereference happens,
+the size "remaining" after the pointer must be non-negative (so that a
+byte can be safely read from or written to the underlying buffer.)
+
+\newthought{To Refine the Shift} operations, we simply check that the
+pointer *remains* within the bounds of the buffer, and update the `plen`
+to reflect the size remaining after the shift:
+\footnotetext{This signature precludes "left" or "backward" shifts; for
+that there is an analogous `minusPtr` which we elide for simplicity}
+
 \begin{spec}
 plusPtr :: p:Ptr a
-        -> o:{Nat|o <= plen p}   -- in bounds
-        -> PtrN b (plen b - o)   -- remainder
+        -> o:{ Nat | o <= plen p}   -- in bounds
+        -> PtrN b (plen b - o)      -- remaining size 
 \end{spec}
-
-</div>
-
-Refined API: Ops (3/3)
-
-**Read & Write require non-empty remaining buffer**
-
-<br>
-
-<div class="fragment">
-**Read** 
-
-\begin{spec}
-peek :: {v:Ptr a | 0 < plen v} -> IO a  
-\end{spec}
-</div>
-
-<br>
-<div class="fragment">
-**Write** 
-
-\begin{spec}
-poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()  
-\end{spec}
-</div>
 
 \newthought{Overflow Prevented}
 
+**HEREHEREHEREHERE**
+
 How to *prevent overflows* e.g. writing 5 or 50 zeros?
 
-<br>
-
-<div class="fragment">
-
 \begin{code}
-exBad = do fp <- malloc 4
+exBad = do fp <- mallocForeignPtrBytes 4
            withForeignPtr fp $ \p -> do
              poke (p `plusPtr` 0) zero 
              poke (p `plusPtr` 1) zero 
@@ -341,10 +329,10 @@ exBad = do fp <- malloc 4
            zero = 0 :: Word8
 \end{code}
 
-</div>
+\newthought{Assumptions vs Guarantees}
 
-2. ByteString API
------------------
+ByteString API
+--------------
 
 <br>
 
@@ -411,11 +399,11 @@ type ByteStringN N = {v:ByteString| bLen v = N}
 
 \begin{code}
 {-@ good1 :: IO (ByteStringN 5) @-}
-good1 = do fp <- malloc 5
+good1 = do fp <- mallocForeignPtrBytes 5
            return (PS fp 0 5)
 
 {-@ good2 :: IO (ByteStringN 3) @-}
-good2 = do fp <- malloc 5
+good2 = do fp <- mallocForeignPtrBytes 5
            return (PS fp 2 3)
 \end{code}
 
@@ -430,10 +418,10 @@ good2 = do fp <- malloc 5
 <br>
 
 \begin{code}
-bad1 = do fp <- malloc 3 
+bad1 = do fp <- mallocForeignPtrBytes 3 
           return (PS fp 0 10)
 
-bad2 = do fp <- malloc 3
+bad2 = do fp <- mallocForeignPtrBytes 3
           return (PS fp 2 2)
 \end{code}
 
@@ -469,7 +457,7 @@ create :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 
 \begin{code}
 create n fill = unsafePerformIO $ do
-  fp  <- malloc n
+  fp  <- mallocForeignPtrBytes n
   withForeignPtr fp fill 
   return (PS fp 0 n)
 \end{code}

@@ -266,6 +266,7 @@ at home, and especially, that you do the various exercises.
 [sbv]:      https://github.com/LeventErkok/sbv
 [leon]:     http://lara.epfl.ch/w/leon
 
+[ptrspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Ptr.spec
 [setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
 [mccarthy]: http://www-formal.stanford.edu/jmc/towards.ps
 [z3cal]:    http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf
@@ -273,3 +274,6 @@ at home, and especially, that you do the various exercises.
 
 [xmonad]:   http://xmonad.org/
 [wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
+[foreignptr]:  http://hackage.haskell.org/package/base/docs/Foreign-Ptr.html
+
+
