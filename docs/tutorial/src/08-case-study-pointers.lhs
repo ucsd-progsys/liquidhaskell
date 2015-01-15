@@ -12,7 +12,7 @@ Case Study: Pointers Without Overflows
 module Memory where
 
 import Prelude hiding (null)
-import Data.Char
+
 import Data.Word
 import Foreign.C.Types
 import Foreign.ForeignPtr
@@ -21,6 +21,8 @@ import Foreign.Storable
 import System.IO.Unsafe
 import Data.ByteString.Internal (c2w, w2c)
 import Language.Haskell.Liquid.Prelude
+
+create, create'  :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 \end{code}
 \end{comment}
 
@@ -156,7 +158,7 @@ i.e. reads or writes.
 \newthought{To Derereference} a pointer, e.g. to read or update
 the contents at the corresponding memory location, we use
 the functions `peek` and `poke` respectively.
-\footnoteteext{We elide the `Storable` type class constraint to
+\footnotetext{We elide the `Storable` type class constraint to
 strip the presentation down to the absolute essentials.}
 
 \begin{spec}
@@ -311,6 +313,13 @@ plusPtr :: p:Ptr a
         -> PtrN b (plen b - o)      -- remaining size 
 \end{spec}
 
+\footnotetext{The alert reader will note that we have strengthened
+the type of `plusPtr` to prevent the pointer from wandering outside
+the boundary of the buffer. We could instead use a weaker requirement
+for `plusPtr` that omits this requirement, and instead have the error
+be flagged when the pointer was used to read or write memory.}
+
+
 \newthought{Types Prevent Overflows} Lets revisit the zero-fill example
 from above to understand how the refinements help detect the error:
 
@@ -327,7 +336,7 @@ exBad = do fp <- mallocForeignPtrBytes 4
 \end{code}
 
 
-\noindent Lets read the tea leaves for the above error to understand what they say:
+\noindent Lets read the tea leaves to understand the above error:
 
 \begin{liquiderror}
   Error: Liquid Type Mismatch
@@ -337,14 +346,14 @@ exBad = do fp <- mallocForeignPtrBytes 4
    not a subtype of Required type
      VV : {VV : Int | VV <= plen p}
   
-   In Context
+   in Context
      zero : {zero : Word8 | zero == ?b}
      VV   : {VV : Int | VV == ?a && VV == (5  :  int)}
      fp   : {fp : ForeignPtr a | fplen fp == ?c && 0 <= fplen fp}
-     ?a   : {fix##63#a : Int | ?a == 5}
-     ?c   : {fix##63#c : Int | ?c == 4}
-     p    : {p : Ptr a | fplen fp == plen p && ?c <= plen p && ?b <= plen p && zero <= plen p}
-     ?b   : {fix##63#b : Integer | ?b == 0}
+     p    : {p  : Ptr a | fplen fp == plen p && ?c <= plen p && ?b <= plen p && zero <= plen p}
+     ?a   : {?a : Int | ?a == 5}
+     ?c   : {?c : Int | ?c == 4}
+     ?b   : {?b : Integer | ?b == 0}
 \end{liquiderror}
 
 \noindent The error says we're bumping `p` up by `VV == 5`
@@ -362,11 +371,6 @@ be within the size of the buffer referred to by `p`, i.e.
 finally the latter is equal to `?c` which is `4` bytes. Thus, since
 the offset `5` is not less than the buffer size `4`, LiquidHaskell
 cannot prove that the call to `plusPtr` is safe, hence the error.
-\footnotetext{The alert reader will note that we have strengthened
-the type of `plusPtr` to prevent the pointer from wandering outside
-the boundary of the buffer. We could instead use a weaker requirement
-for `plusPtr` that omits this requirement, and instead have the error
-be flagged when the pointer was used to read or write memory.}
 
 
 Assumptions vs Guarantees
@@ -376,9 +380,9 @@ At this point you ought to wonder: where is the *code* for `peek`,
 `poke` or `mallocForeignPtrBytes` and so on? How can we know that the
 types we assigned to them are in fact legitimate?
 
-Frankly, we can't. This is because those are *externally* implemented
-(in this case, in `C`), and hence, invisible to the otherwise
-all-seeing eyes of LiquidHaskell. Thus, we are *assuming* or
+\newthought{Frankly, we cannot} as those functions are *externally*
+implemented (in this case, in `C`), and hence, invisible to the
+otherwise all-seeing eyes of LiquidHaskell. Thus, we are *assuming* or
 *trusting* that those functions behave according to their types. Put
 another way, the types for the low-level API are our *specification*
 for what low-level pointer safety. We shall now *guarantee* that the
@@ -391,7 +395,7 @@ the code. Here, we can *assume* a boundary specification, and then
 *guarantee* that the rest of the system is safe with respect to
 that specification.
 \footnotetext{If we so desire, we can also *check* the boundary
-specifications at [run-time](wiki-contracts), but that is
+specifications at [run-time][wiki-contracts], but that is
 outside the scope of LiquidHaskell}.
 
 
@@ -399,131 +403,149 @@ ByteString API
 --------------
 
 Next, lets see how the low-level API can be used to implement
-to implement [ByteStrings](bytestring), in a way that lets us
-perform fast string operations without opening the door to overflows.
+to implement [ByteStrings][bytestring], in a way that lets us
+perform fast string operations without opening the door to
+overflows.
 
-\newthought{Type}
 
-
-<img src="../img/bytestring.png" height=150px>
+\newthought{A ByteString} is implemented as a record
 
 \begin{code}
-data ByteString = PS {
+data ByteString = BS {
     bPtr :: ForeignPtr Word8
   , bOff :: !Int
   , bLen :: !Int
   }
 \end{code}
 
+\noindent comprising
 
-\newthought{Refined Type}
++ a *pointer* `bPtr` to a contiguous block of memory,
++ an *offset* `bOff` that denotes the position inside
+  the block where the string begins, and
++ a *length*  `bLen` that denotes the number of bytes
+  (from the offset) that belong to the string.
 
-<img src="../img/bytestring.png" height=150px>
+\begin{figure}[h]
+\includegraphics[height=1.0in]{img/bytestring.png}
+\caption{Representing ByteStrings in memory.}
+\label{fig:bytestring}
+\end{figure}
+
+These entities are illustrated in Figure~\ref{fig:bytestring}; the
+green portion represents the actual contents of a particular
+`ByteString`.  This representation makes it possible to implement
+various operations like computing prefixes and suffixes extremely
+quickly, simply by pointer arithmetic.
+
+\newthought{In a Legal ByteString} the *start* (`bOff`) and *end*
+(`bOff + bLen`) offsets lie inside the buffer referred to by the
+pointer `bPtr`. We can formalize this invariant with a data definition
+that will then make it impossible to create illegal `ByteString`s: 
 
 \begin{code}
-{-@ data ByteString = PS {
+{-@ data ByteString = BS {
       bPtr :: ForeignPtr Word8
     , bOff :: {v:Nat| v        <= fplen bPtr}
     , bLen :: {v:Nat| v + bOff <= fplen bPtr}
-    }                                       @-}
+    }
+  @-}
 \end{code}
 
-
-<img src="../img/bytestring.png" height=150px>
-
-<br>
-
-**A Useful Abbreviation**
-
-\begin{spec}
-type ByteStringN N = {v:ByteString| bLen v = N} 
-\end{spec}
+\noindent The refinements on `bOff` and `bLen` correspond exactly
+to the legality requirements that the start and end of the `ByteString`
+be *within* the block of memory referred to by `bPtr`.
 
 
-<div class="hidden">
+\newthought{For brevity} lets define an alias for `ByteString`s of
+a given size:
+
 \begin{code}
 {-@ type ByteStringN N = {v:ByteString | bLen v = N} @-}
 \end{code}
-</div>
 
-\newthought{Legal Bytestrings}
-
-
-<br>
+\newthought{Legal Bytestrings}  can be created by directly using
+the constructor, as long as we pass in suitable offsets and lengths.
+For example,
 
 \begin{code}
 {-@ good1 :: IO (ByteStringN 5) @-}
 good1 = do fp <- mallocForeignPtrBytes 5
-           return (PS fp 0 5)
-
-{-@ good2 :: IO (ByteStringN 3) @-}
-good2 = do fp <- mallocForeignPtrBytes 5
-           return (PS fp 2 3)
+           return (BS fp 0 5)
 \end{code}
 
-<br>
+\noindent creates a valid `ByteString` of size `5`; however we
+need not start at the beginning of the block, or use up all
+the buffer, and can instead do:
 
-<div class="fragment">
-**Note:** *length* of `good2` is `3` which is *less than* allocated size `5`
-</div>
+\begin{code}
+{-@ good2 :: IO (ByteStringN 2) @-}
+good2 = do fp <- mallocForeignPtrBytes 5
+           return (BS fp 3 2)
+\end{code}
 
-\newthought{Illegal Bytestrings}
+\noindent Note that the length of `good2` is just `2` which is
+*less than* allocated size `5`.
 
-<br>
+\newthought{Illegal Bytestrings} are rejected by LiquidHaskell.
+For example, `bad1`'s length is rather more than the buffer
+size, and is flagged as such:
 
 \begin{code}
 bad1 = do fp <- mallocForeignPtrBytes 3 
-          return (PS fp 0 10)
+          return (BS fp 0 10)
+\end{code}
 
+\noindent Similarly, `bad2` does have `2` bytes but *not* if
+we start at the offset of `2`:
+
+\begin{code}
 bad2 = do fp <- mallocForeignPtrBytes 3
-          return (PS fp 2 2)
+          return (BS fp 2 2)
 \end{code}
 
-<br>
+\exercisen{Fix the ByteString} Modify the definitions of `bad1`
+and `bad2` so they are *accepted* by LiquidHaskell.
 
-<div class="fragment">
-Claimed length *exceeds* allocation ... **rejected** at compile time
-</div>
-
-\newthought{`create`}
-
-<div class="hidden">
-\begin{code}
-create :: Int -> (Ptr Word8 -> IO ()) -> ByteString
-\end{code}
-</div>
-
-*Allocate* and *fill* a `ByteString`
-
-<br>
-
-<div class="fragment">
-**Specification**
-\begin{code}
-{-@ create :: n:Nat -> (PtrN Word8 n -> IO ())
-           -> ByteStringN n                @-}
-\end{code}
-</div>
-
-
-<div class="fragment">
-**Implementation**
+\newthought{To Flexibly but Safely Create} a `ByteString` the
+implementation defines a higher order `create` function, that
+takes a size `n` and accepts a `fill` action, and runs the
+action after allocating the pointer. After running the action,
+the function tucks the pointer into and returns a `ByteString`
+of size `n`.
 
 \begin{code}
+{-@ create :: n:Nat -> (Ptr Word8 -> IO ()) -> ByteStringN n @-}
 create n fill = unsafePerformIO $ do
   fp  <- mallocForeignPtrBytes n
   withForeignPtr fp fill 
-  return (PS fp 0 n)
+  return (BS fp 0 n)
 \end{code}
-</div>
 
-<!-- CUT
-<div class="fragment">
-Yikes, there is an error! How to fix?
-</div>
--->
+\exercisen{Create} \singlestar Why does LiquidHaskell *reject*
+the following function that creates a `ByteString` corresponding
+to `"GHC"`?
 
-\newthought{`pack`}
+\begin{code}
+bsGHC = create 3 $ \p -> do
+  poke (p `plusPtr` 0) (c2w 'G') 
+  poke (p `plusPtr` 1) (c2w 'H')
+  poke (p `plusPtr` 2) (c2w 'C')
+\end{code}
+
+\hint The function writes into 3 slots starting at `p`.
+How big should `plen p` be to allow this? What type
+does LiquidHaskell infer for `p` above? Does it meet
+the requirement? Which part of the *specification*
+or *implementation* needs to be modified so that the
+relevant information about `p` becomes available within
+the `do`-block above? Make sure you figure out the above
+before proceeding.
+
+**HEREHEREHERE**
+
+\newthought{To `pack`} a `String` into a `ByteString`
+we simply call `create` with the appropriate fill action:
 
 **Specification**
 
@@ -538,7 +560,7 @@ Yikes, there is an error! How to fix?
 **Implementation**
 
 \begin{code}
-pack str      = create n $ \p -> go p xs
+pack str      = create' n $ \p -> go p xs
   where
   n           = length str
   xs          = map c2w str
@@ -573,7 +595,7 @@ Extract *prefix* string of size `n`
 **Implementation**
 
 \begin{code}
-unsafeTake n (PS x s l) = PS x s n
+unsafeTake n (BS x s l) = BS x s n
 \end{code}
 </div>
 
@@ -602,8 +624,8 @@ unpack b = you . get . the . idea -- see source
 
 {-@ unpack :: b:ByteString -> StringN (bLen b) @-}
 unpack :: ByteString -> String 
-unpack (PS _  _ 0)  = []
-unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
+unpack (BS _  _ 0)  = []
+unpack (BS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
    go (p `plusPtr` s) (l - 1)  []
   where
    go p 0 acc = peek p >>= \e -> return (w2c e : acc)
@@ -744,7 +766,7 @@ so let's take a closer look at it to see why the post-condition holds.
 
 \begin{code}
 spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
-spanByte c ps@(PS x s l) = unsafePerformIO $ withForeignPtr x $ \p ->
+spanByte c ps@(BS x s l) = unsafePerformIO $ withForeignPtr x $ \p ->
     go (p `plusPtr` s) 0
   where
     go p i | i >= l    = return (ps, empty)
@@ -814,33 +836,33 @@ unsafeCreate n f = create n f -- unsafePerformIO $ create n f
 {-@ unsafeHead :: {v:ByteString | (bLen v) > 0} -> Word8 @-}
 
 unsafeHead :: ByteString -> Word8
-unsafeHead (PS x s l) = liquidAssert (l > 0) $
+unsafeHead (BS x s l) = liquidAssert (l > 0) $
   unsafePerformIO  $  withForeignPtr x $ \p -> peekByteOff p s
 
 {-@ unsafeTail :: b:{v:ByteString | (bLen v) > 0}
                -> {v:ByteString | (bLen v) = (bLen b) - 1} @-}
 unsafeTail :: ByteString -> ByteString
-unsafeTail (PS ps s l) = liquidAssert (l > 0) $ PS ps (s+1) (l-1)
+unsafeTail (BS ps s l) = liquidAssert (l > 0) $ BS ps (s+1) (l-1)
 
 {-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLen b) = 0))} @-}
 null :: ByteString -> Bool
-null (PS _ _ l) = liquidAssert (l >= 0) $ l <= 0
+null (BS _ _ l) = liquidAssert (l >= 0) $ l <= 0
 
 {-@ unsafeDrop :: n:Nat
                -> b:{v: ByteString | n <= (bLen v)} 
                -> {v:ByteString | (bLen v) = (bLen b) - n} @-}
 unsafeDrop  :: Int -> ByteString -> ByteString
-unsafeDrop n (PS x s l) = liquidAssert (0 <= n && n <= l) $ PS x (s+n) (l-n)
+unsafeDrop n (BS x s l) = liquidAssert (0 <= n && n <= l) $ BS x (s+n) (l-n)
 
 {-@ cons :: Word8 -> b:ByteString -> {v:ByteString | (bLen v) = 1 + (bLen b)} @-}
 cons :: Word8 -> ByteString -> ByteString
-cons c (PS x s l) = unsafeCreate (l+1) $ \p -> withForeignPtr x $ \f -> do
+cons c (BS x s l) = unsafeCreate (l+1) $ \p -> withForeignPtr x $ \f -> do
         poke p c
         memcpy (p `plusPtr` 1) (f `plusPtr` s) (fromIntegral l)
 
 {-@ empty :: {v:ByteString | (bLen v) = 0} @-} 
 empty :: ByteString
-empty = PS nullForeignPtr 0 0
+empty = BS nullForeignPtr 0 0
 
 {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
 {-@ type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} @-}
@@ -868,6 +890,14 @@ memcpy p q s = c_memcpy p q s >> return ()
 nullForeignPtr :: ForeignPtr Word8
 nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
+
+
+{-@ create' :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
+create' n fill = unsafePerformIO $ do
+  fp  <- mallocForeignPtrBytes n
+  withForeignPtr fp fill 
+  return (BS fp 0 n)
+
 \end{code}
 
 \end{comment}
