@@ -58,6 +58,7 @@ instance GhcLookup Name where
   lookupName _ _ = return . (:[])
   srcSpan        = nameSrcSpan
 
+
 -- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x
@@ -99,6 +100,7 @@ symbolLookupEnv env mod s
          Just ns -> return ns
          _       -> return []
 
+
 -- | It's possible that we have already resolved the 'Name' we are looking for,
 -- but have had to turn it back into a 'String', e.g. to be used in an 'Expr',
 -- as in @{v:Ordering | v = EQ}@. In this case, the fully-qualified 'Name'
@@ -115,6 +117,7 @@ lookupGhcVar x
     fv (AConLike (RealDataCon x)) = Just $ dataConWorkId x
     fv _                          = Nothing
 
+
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
                        `catchError` (tryPropTyCon s)
@@ -128,7 +131,8 @@ tryPropTyCon s e
   | otherwise          = throwError e
   where
     sx                 = symbol s
-    
+
+
 lookupGhcDataCon dc  = case isTupleDC $ val dc of
                          Just n  -> return $ tupleCon BoxedTuple n
                          Nothing -> lookupGhcDataCon' dc 
