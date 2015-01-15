@@ -12,11 +12,7 @@ import Language.Fixpoint.Types (meet)
 import Language.Haskell.Liquid.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 
--- XXX: This is one of the less clear parts of the Bare code that requires
---      further work to make it understandable.
-
 -- TODO: Rename, "Sort" isn't a good name for this module
--- TODO: Make this code a lot more clear; possibly move somewhere else?
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
