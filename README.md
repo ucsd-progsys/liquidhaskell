@@ -469,6 +469,7 @@ Any measures used in the refined class definition will need to be
 As an alternative, you can refine class instances. 
 For example (tests/pos/LiquidClass.hs)
 
+~~~~
 instance Compare Int where  
 
 {-@ instance Compare Int where 
@@ -476,6 +477,7 @@ instance Compare Int where
   @-}
 
     cmax y x = if x >= y then x else y
+~~~~
 
 When `cmax` method is used on `Int`, liquidHaskell will give it 
 the refined type `Odd -> Odd -> Odd`. 
