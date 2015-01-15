@@ -401,7 +401,7 @@ the code. Here, we can *assume* a boundary specification, and then
 *guarantee* that the rest of the system is safe with respect to
 that specification.
 \footnotetext{If we so desire, we can also *check* the boundary
-specifications at [run-time][wiki-contracts], but that is
+specifications at [run-time](wiki-contracts), but that is
 outside the scope of LiquidHaskell}.
 
 
