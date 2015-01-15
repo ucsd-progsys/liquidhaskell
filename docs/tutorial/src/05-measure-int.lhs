@@ -330,7 +330,7 @@ Next, lets look at some functions that truncate lists, in one way or another.
 \newthought{Take} lets us grab the first `k` elements from a list: 
 
 \begin{code}
-{-@ take'     :: n:Nat -> {v:List a | n <= len v} -> ListN a n @-}
+{-@ take'     :: n:Nat -> {v:List a | n <= size v} -> ListN a n @-}
 take' 0 _      = []
 take' n (x:xs) = x : take' (n-1) xs
 take' _ _      = die "won't  happen"

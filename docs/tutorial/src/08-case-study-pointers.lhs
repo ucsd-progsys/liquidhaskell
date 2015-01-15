@@ -546,21 +546,12 @@ before proceeding.
 
 \newthought{To `pack`} a `String` into a `ByteString`
 we simply call `create` with the appropriate fill action:
-
-**Specification**
-
-\begin{code}
-{-@ pack :: s:String -> ByteStringN (len s) @-}
-\end{code}
-
-<br>
-
-<div class="fragment">
-
-**Implementation**
+\footnotetext{The code uses `create'` which is just `create`
+with the *correct* signature in case you want to skip the previous
+exercise. (But don't!)}
 
 \begin{code}
-pack str      = create' n $ \p -> go p xs
+pack str      =  create' n $ \p -> go p xs
   where
   n           = length str
   xs          = map c2w str
@@ -568,7 +559,47 @@ pack str      = create' n $ \p -> go p xs
   go _ []     = return  ()
 \end{code}
 
-</div>
+\exercisen{Pack} We can compute the size of a `ByteString` by using
+the function:
+
+Fix the specification for `pack` so that (it still typechecks!)
+and furthermore, the following QuickCheck style *property* is
+proved by LiquidHaskell:
+
+\begin{code}
+{-@ prop_pack_size :: [Char] -> {v:Bool | Prop v} @-}
+prop_pack_size xs   = size (pack xs) == length xs
+  where
+    size (BS _ _ n) = n 
+\end{code}
+
+\hint Look at the type of `length`, and recall that `len`
+is a [numeric measure](#numericmeasure) denoting the size
+of a list.
+
+\newthought{The magic of inference} ensures that `pack`
+just works. Notice there is a tricky little recursive loop
+`go` that is used to recursively fill in the `ByteString`
+and actually, it has a rather subtle type signature that
+LiquidHaskell is able to automatically infer.
+
+\exercise \singlestar Still, we're here to learn, so can you
+*write down* the type signature for the loop so that the below
+variant of `pack` is accepted by LiquidHaskell (Do this *without*
+cheating by peeping at the type inferred for `go` above!)
+
+\begin{code}
+packEx str     = create' n $ \p -> pLoop p xs
+  where
+  n            = length str
+  xs           = map c2w str
+
+{-@ pLoop      :: (Storable a) => p:Ptr a -> cs:{[a] | len cs <= pLen p }-> IO () @-}
+pLoop p (x:xs) = poke p x >> pLoop (plusPtr p 1) xs
+pLoop _ []     = return  ()
+\end{code}
+
+
 
 
 
@@ -709,7 +740,7 @@ END CUT -->
 \begin{code}
 demo     = [ex6, ex30]
   where
-    ex   = ['N','o','r','m','a','n']
+    ex   = ['L','I','Q','U','I','D']
     ex6  = chop ex 6  -- ok
     ex30 = chop ex 30  -- out of bounds
 \end{code}
