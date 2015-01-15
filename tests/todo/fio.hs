@@ -33,6 +33,11 @@ ret  = undefined  -- TODO
 
 ok1 f = open f
 
+{-@ fail1 :: FilePath -> FIO String @-}
+fail1 :: FilePath -> FIO String
+fail1 f   = read f
+
+
 {-
 ok2 f = open f `bind` \_ -> read f
 
@@ -44,7 +49,5 @@ instance Monad FIO where
 ok3 f = do open f
            read f
 
-{- fail1 :: FilePath -> FIO () @-}
-fail1 f   = read f
 -}
 
