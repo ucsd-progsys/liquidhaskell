@@ -1,5 +1,5 @@
-Case Study: Pointers Without Overflows
-======================================
+Case Study: Pointers and ByteStrings
+====================================
 
 \begin{comment}
 
@@ -22,6 +22,8 @@ import System.IO.Unsafe
 import Data.ByteString.Internal (c2w, w2c)
 import Language.Haskell.Liquid.Prelude
 
+spanByte         :: Word8 -> ByteString -> (ByteString, ByteString)
+unsafeHead       :: ByteString -> Word8
 create, create'  :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 \end{code}
 \end{comment}
@@ -308,9 +310,13 @@ to reflect the size remaining after the shift:
 that there is an analogous `minusPtr` which we elide for simplicity}
 
 \begin{spec}
-plusPtr :: p:Ptr a
-        -> o:{ Nat | o <= plen p}   -- in bounds
-        -> PtrN b (plen b - o)      -- remaining size 
+plusPtr :: p:Ptr a -> off:NatLE (plen p) -> PtrN b (plen p - off)      
+\end{spec}
+
+\noindent using the alias `NatLE`, defined as:
+
+\begin{spec}
+type NatLE N = {v:Nat | v <= N}
 \end{spec}
 
 \footnotetext{The alert reader will note that we have strengthened
@@ -452,6 +458,13 @@ that will then make it impossible to create illegal `ByteString`s:
   @-}
 \end{code}
 
+\begin{comment}
+-- TODO: we really shouldn't need this...
+\begin{code}
+{-@ bLen :: b:ByteString -> {v:Nat | v = bLen b} @-}
+\end{code}
+\end{comment}
+
 \noindent The refinements on `bOff` and `bLen` correspond exactly
 to the legality requirements that the start and end of the `ByteString`
 be *within* the block of memory referred to by `bPtr`.
@@ -566,14 +579,7 @@ proved by LiquidHaskell:
 
 \begin{code}
 {-@ prop_pack_length  :: [Char] -> {v:Bool | Prop v} @-}
-prop_pack_length xs   = size (pack xs) == length xs
-\end{code}
-
-\noindent where the helper `size` returns the length of the `ByteString`
-
-\begin{code}
-{-@ size :: b:_ -> {v:Nat | v = bLen b} @-}
-size (BS _ _ n)    = n 
+prop_pack_length xs   = bLen (pack xs) == length xs
 \end{code}
 
 \hint Look at the type of `length`, and recall that `len`
@@ -604,17 +610,22 @@ pLoop _ []     = return ()
 
 \hint Remember that `len xs` denotes the size of the list `xs`.
 
-\exercisen{unsafeTake} extracts the prefix of a `ByteString`.
-As you can see, it is really fast since we only have to change
-the offsets. Why does LiquidHaskell reject it? Can you fix the
-specification so that it is accepted?
+\exercisen{`unsafeTake` and `unsafeDrop`} respectively extract
+the prefix and suffix of a `ByteString` from a given position.
+They are really fast since we only have to change the offsets.
+But why does LiquidHaskell reject them? Can you fix the
+specifications so that they are accepted?
 
 \begin{code}
 {-@ unsafeTake          :: n:Nat -> b:ByteString -> ByteStringN n @-}
-unsafeTake n (BS x s l) = BS x s n
+unsafeTake n (BS x s _) = BS x s n
+
+{-@ unsafeDrop          :: n:Nat -> b:ByteString -> ByteStringN {bLen b - n} @-}
+unsafeDrop n (BS x s l) = BS x (s + n) (l - n)
 \end{code}
 
-\hint Under what conditions is the returned `ByteString` legal?
+\hint Under what conditions are the returned `ByteString`s legal?
+
 
 \newthought{To `unpack`} a `ByteString` into a plain old `String`,
 we essentially run `pack` in reverse, by walking over the pointer,
@@ -631,201 +642,193 @@ unpack (BS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
     go p n acc = peek (p `plusPtr` n) >>=  \e -> go p (n-1) (w2c e : acc)
 \end{code}
 
-\exercisen{Unpack} \singlestar Fix the specification for `unpack` so that the below
-QuickCheck style property is proved by LiquidHaskell.
+\exercisen{Unpack} \singlestar Fix the specification for `unpack`
+so that the below QuickCheck style property is proved by LiquidHaskell.
 
 \begin{code}
 {-@ prop_unpack_length :: ByteString -> {v:Bool | Prop v} @-}
-prop_unpack_length b   = size b  == length (unpack b)
+prop_unpack_length b   = bLen b  == length (unpack b)
 \end{code}
 
-\hint You will also have to fix the specification of the helper `go`. Can you determine
-the output refinement should be (instead of just `true`?) Think about how *big* the output
-list should be in terms of `p`, `n` and `acc`.
+\hint You will also have to fix the specification of the helper `go`.
+Can you determine the output refinement should be (instead of just `true`?)
+How *big* is the output list in terms of `p`, `n` and `acc`.
 
 
 Application API 
 ---------------
 
-**HEREHEREHERE**
+Finally, lets revisit our potentially  "bleeding" `chop` function to see
+how the refined `ByteString` API can prevent errors.
 
-<br>
-
-Strategy: Specify and Verify Types for
-
-<br>
-
-1. Low-level `Pointer` API
-2. Lib-level `ByteString` API
-3. **User-level `Application` API**
-
-<br>
-
-Errors at *each* level are prevented by types at *lower* levels
-
-\newthought{HeartBleed Revisited}
-
-Lets revisit our potentially "bleeding" `chop`
-
-<br>
-
-<div class="hidden">
+\begin{comment}
 \begin{code}
 {-@ type StringN N = {v:String | len v = N} @-}
+{-@ type NatLE N   = {v:Nat    | v <= N}    @-}
 \end{code}
-</div>
-<div class="fragment">
+\end{comment}
+
+\noindent The signature specifies that the prefix size `n` must be less than
+the size of the input string `s`.
 
 \begin{code}
-{-@ chop :: s:String
-         -> n:{Nat | n <= len s}
-         -> StringN n
-  @-} 
-chop s n =  s'
-  where 
-    b    = pack s          -- down to low-level
-    b'   = unsafeTake n b  -- grab n chars
-    s'   = unpack b'       -- up to high-level
-\end{code}
-
-<!-- BEGIN CUT 
-<br>
-
-Yikes! How shall we fix it?
-
-     END CUT -->
-</div>
-
-<!-- BEGIN CUT
-
-A Well Typed `chop`
--------------------
-
-\begin{spec}
-{-@ chop :: s:String
-         -> n:{Nat | n <= len s}
-         -> {v:String | len v = n} @-} 
+{-@ chop :: s:String -> n:NatLE (len s) -> String @-} 
 chop s n = s'
   where 
     b    = pack s          -- down to low-level
     b'   = unsafeTake n b  -- grab n chars
     s'   = unpack b'       -- up to high-level
-\end{spec}
+\end{code}
 
-END CUT -->
-
-\newthought{"HeartBleed" no more}
-
-<br>
+\newthought{Overflows are prevented} by LiquidHaskell, as it
+rejects calls to `chop` where the prefix size is too large
+(which is what led to the overflow that spilled the contents
+of memory after the string, as illustrated in Figure~\ref{fig:overflow}).
+Thus, in the code below, the first use of `chop` which defines `ex6` is accepted
+as `6 <= len ex` but the second call is rejected because `30 > len ex`.
 
 \begin{code}
 demo     = [ex6, ex30]
   where
     ex   = ['L','I','Q','U','I','D']
-    ex6  = chop ex 6  -- ok
-    ex30 = chop ex 30  -- out of bounds
+    ex6  = chop ex 6   -- accepted by LH 
+    ex30 = chop ex 30  -- rejected by LH 
 \end{code}
 
-<br>
+\exercisen{Chop} Fix the specification for `chop` so that
+the following property is proved:
 
-"Bleeding" `chop ex 30` *rejected* by compiler
+\begin{code}
+{-@ prop_chop_length  :: String -> Nat -> {v:Bool | Prop v} @-}
+prop_chop_length s n
+  | n <= length s     = length (chop s n) == n
+  | otherwise         = True
+\end{code}
 
 Nested ByteStrings 
 ------------------
 
-For a more in depth example, let's take a look at `group`,
+For a more in-depth example, let's take a look at `group`,
 which transforms strings like
 
-   `"foobaaar"`
+\begin{spec}
+`"foobaaar"`
+\end{spec}
 
 into *lists* of strings like
 
-   `["f","oo", "b", "aaa", "r"]`.
+\begin{spec}
+`["f","oo", "b", "aaa", "r"]`.
+\end{spec}
 
-The specification is that `group` should produce a list of `ByteStrings`
+The specification is that `group` should produce a
 
-1. that are all *non-empty* (safety)
-2. the sum of whose lengths is equal to the length of the input string (precision)
+1. list of *non-empty* `ByteStrings`, 
+2. the *sum of* whose lengths equals that of the input string.
 
-We use the type alias
-
-\begin{code}
-{-@ type ByteStringNE = {v:ByteString | bLen v > 0} @-}
-\end{code}
-
-to specify (safety) and introduce a new measure
+\newthought{Non-empty ByteStrings} are those whose length is non-zero:
 
 \begin{code}
-{-@ measure bLens  :: [ByteString] -> Int
-    bLens ([])   = 0
-    bLens (x:xs) = (bLen x + bLens xs)
-  @-}
+{-@ type ByteStringNE = {v:ByteString | bLen v /= 0} @-}
 \end{code}
 
-to specify (precision). The full type-specification looks like this:
+\noindent We can use these to define enrich the ByteString API with a `null` check
+
+\begin{code}
+{-@ null               :: b:ByteString -> {v:Bool | Prop v <=> bLen b == 0} @-}
+null (BS _ _ l)        = l == 0
+\end{code}
+
+\noindent This check is used to determine if it is safe to extract
+the head and tail of the `ByteString`. Notice how we can use refinements
+to ensure the safety of the operations, and also track the sizes.
+\footnotetext{`peekByteOff p i` is equivalent to `peek (plusPtr p i)`}
+
+\begin{code}
+{-@ unsafeHead        :: ByteStringNE -> Word8 @-}
+unsafeHead (BS x s _) = unsafePerformIO $
+                          withForeignPtr x $ \p ->
+                            peekByteOff p s
+
+{-@ unsafeTail         :: b:ByteStringNE -> ByteStringN {bLen b - 1} @-}
+unsafeTail (BS ps s l) = BS ps (s + 1) (l - 1)
+\end{code}
+
+\newthought{The `group`} function recursively calls `spanByte` to carve off
+the next group, and then returns the accumulated results:
 
 \begin{code}
 {-@ group :: b:ByteString -> {v: [ByteStringNE] | bLens v = bLen b} @-}
 group xs
     | null xs   = []
-    | otherwise = let y = unsafeHead xs
-                      (ys, zs) = spanByte (unsafeHead xs) (unsafeTail xs)
+    | otherwise = let  y        = unsafeHead xs
+                       (ys, zs) = spanByte y (unsafeTail xs)
                   in (y `cons` ys) : group zs
 \end{code}
 
-As you can probably tell, `spanByte` appears to be doing a lot of the work here,
-so let's take a closer look at it to see why the post-condition holds.
+\noindent The first requirement, that the groups be non-empty is captured by the fact that
+the output is a `[ByteStringNE]`. The second requirement, that the sum of the lengths is
+preserved, is expressed by a writing a [numeric measure](#numericmeasure):
 
 \begin{code}
-spanByte :: Word8 -> ByteString -> (ByteString, ByteString)
+{-@ measure bLens @-}
+bLens        :: [ByteString] -> Int
+bLens []     = 0
+bLens (b:bs) = bLen b + bLens bs
+\end{code}
+
+
+\newthought{`spanByte`} does a lot of the heavy lifting. It uses low-level pointer
+arithmetic to find the *first* position in the `ByteString` that is different from
+the input character `c` and then splits the `ByteString` into a pair comprising the
+prefix and suffix at that point.
+
+\begin{code}
+{-@ spanByte :: Word8 -> b:ByteString -> ByteString2 b @-}
 spanByte c ps@(BS x s l) = unsafePerformIO $ withForeignPtr x $ \p ->
-    go (p `plusPtr` s) 0
+    go  (p `plusPtr` s) 0
   where
     go p i | i >= l    = return (ps, empty)
            | otherwise = do c' <- peekByteOff p i
                             if c /= c'
                                 then return (unsafeTake i ps, unsafeDrop i ps)
-                                else go p (i+1)
+                                else go  p (i+1)
 \end{code}
 
-LiquidHaskell infers that `0 <= i <= l` and therefore that all of the memory
-accesses are safe. Furthermore, due to the precise specifications given to
-`unsafeTake` and `unsafeDrop`, it is able to prove that `spanByte` has the type
+LiquidHaskell infers that `0 <= i <= l` and therefore that
+all of the memory accesses are safe. Furthermore, due to
+the precise specifications given to `unsafeTake` and
+`unsafeDrop`, it is able to prove that the output pair's
+lengths add up to the size of the input `ByteString`.
 
 \begin{code}
-{-@ spanByte :: Word8 -> b:ByteString -> (ByteStringPair b) @-}
-\end{code}
-
-where `ByteStringPair b` describes a pair of `ByteString`s whose
-lengths sum to the length of `b`.
-
-\begin{code}
-{-@ type ByteStringPair B = (ByteString, ByteString)<{\x1 x2 ->
-       bLen x1 + bLen x2 = bLen B}> @-}
+{-@ type ByteString2 B = {v:_ | bLen (fst v) + bLen (snd v) = bLen B} @-}
 \end{code}
 
 Recap: Types Against Overflows
 ------------------------------
 
-<br>
+In this chapter we saw a case study illustrating how measures and refinements
+enable safe low-level pointer arithmetic in Haskell. The take away messages are:
 
-**Strategy: Specify and Verify Types for**
+1. larger systems are *composed of* layers of smaller ones,
+2. we can write *refined APIs* for each layer,
+3. that can be used to inform the *design* and
+   ensure *correctness* of the layers above.
 
-<br>
+We saw this in action by developing a low-level `Pointer` API, using it to
+implement fast `ByteString`s API, and then building some higher-level
+functions on top of the `ByteStrings`.
 
-1. Low-level `Pointer` API
-2. Lib-level `ByteString` API
-3. User-level `Application` API
-
-<br>
-
-**Errors at *each* level are prevented by types at *lower* levels**
-
-
-
-
-
-
+\newthought{The Trusted Computing Base} in this approach includes
+exactly those layers for which the code is *not* available, for
+example, because they are implemented outside the language and
+accessed via the FFI as with `mallocForeignPtrBytes` and `peek` and
+`poke`. In this case, we can make progress by *assuming* the APIs hold
+for those layers and verify the rest of the system with respect to
+that API.  It is important to note that in the entire case study, it
+is only the above FFI signatures that are *trusted*; the rest are all
+verified by LiquidHaskell.
 
 \begin{comment}
 \begin{code}
@@ -833,46 +836,22 @@ Recap: Types Against Overflows
 -- Helper Code
 -----------------------------------------------------------------------
 
-{-@ unsafeCreate :: l:Nat -> ((PtrN Word8 l) -> IO ()) -> (ByteStringN l) @-}
-unsafeCreate n f = create n f -- unsafePerformIO $ create n f
+{-@ unsafeCreate :: l:Nat -> (PtrN Word8 l -> IO ()) -> ByteStringN l @-}
+unsafeCreate n f = create' n f -- unsafePerformIO $ create n f
 
-{-@ invariant {v:ByteString   | bLen  v >= 0} @-}
-{-@ invariant {v:[ByteString] | bLens v >= 0} @-}
-
-{-@ qualif PLLen(v:a, p:b) : (len v) <= (plen p) @-}
+{-@ qualif PLLen(v:a, p:b) : len v <= plen p @-}
 {-@ qualif ForeignPtrN(v:ForeignPtr a, n:int): fplen v = n @-}
 {-@ qualif FPLenPLen(v:Ptr a, fp:ForeignPtr a): fplen fp = plen v @-}
 {-@ qualif PtrLen(v:Ptr a, xs:List b): plen v = len xs @-}
-{-@ qualif PlenEq(v: Ptr a, x: int): x <= (plen v) @-}
+{-@ qualif PlenEq(v: Ptr a, x: int): x <= plen v @-}
 
-{-@ unsafeHead :: {v:ByteString | (bLen v) > 0} -> Word8 @-}
-
-unsafeHead :: ByteString -> Word8
-unsafeHead (BS x s l) = liquidAssert (l > 0) $
-  unsafePerformIO  $  withForeignPtr x $ \p -> peekByteOff p s
-
-{-@ unsafeTail :: b:{v:ByteString | (bLen v) > 0}
-               -> {v:ByteString | (bLen v) = (bLen b) - 1} @-}
-unsafeTail :: ByteString -> ByteString
-unsafeTail (BS ps s l) = liquidAssert (l > 0) $ BS ps (s+1) (l-1)
-
-{-@ null :: b:ByteString -> {v:Bool | ((Prop v) <=> ((bLen b) = 0))} @-}
-null :: ByteString -> Bool
-null (BS _ _ l) = liquidAssert (l >= 0) $ l <= 0
-
-{-@ unsafeDrop :: n:Nat
-               -> b:{v: ByteString | n <= (bLen v)} 
-               -> {v:ByteString | (bLen v) = (bLen b) - n} @-}
-unsafeDrop  :: Int -> ByteString -> ByteString
-unsafeDrop n (BS x s l) = liquidAssert (0 <= n && n <= l) $ BS x (s+n) (l-n)
-
-{-@ cons :: Word8 -> b:ByteString -> {v:ByteString | (bLen v) = 1 + (bLen b)} @-}
+{-@ cons :: Word8 -> b:ByteString -> {v:ByteStringNE | bLen v = bLen b + 1} @-}
 cons :: Word8 -> ByteString -> ByteString
 cons c (BS x s l) = unsafeCreate (l+1) $ \p -> withForeignPtr x $ \f -> do
         poke p c
         memcpy (p `plusPtr` 1) (f `plusPtr` s) (fromIntegral l)
 
-{-@ empty :: {v:ByteString | (bLen v) = 0} @-} 
+{-@ empty :: {v:ByteString | bLen v = 0} @-} 
 empty :: ByteString
 empty = BS nullForeignPtr 0 0
 
@@ -882,27 +861,26 @@ empty = BS nullForeignPtr 0 0
 malloc = mallocForeignPtrBytes 
 
 {-@ assume
-    c_memcpy :: dst:(PtrV Word8)
-             -> src:(PtrV Word8) 
-             -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
+    c_memcpy :: dst:PtrV Word8
+             -> src:PtrV Word8 
+             -> size:{CSize | size <= plen src && size <= plen dst} 
              -> IO (Ptr Word8)
   @-}
 foreign import ccall unsafe "string.h memcpy" c_memcpy
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 
-{-@ memcpy :: dst:(PtrV Word8)
-           -> src:(PtrV Word8) 
-           -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
+{-@ memcpy :: dst:PtrV Word8
+           -> src:PtrV Word8 
+           -> size:{CSize | size <= plen src && size <= plen dst} 
            -> IO () 
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = c_memcpy p q s >> return ()
 
-{-@ assume nullForeignPtr :: {v: ForeignPtr Word8 | (fplen v) = 0} @-}
+{-@ assume nullForeignPtr :: {v: ForeignPtr Word8 | fplen v = 0} @-}
 nullForeignPtr :: ForeignPtr Word8
 nullForeignPtr = unsafePerformIO $ newForeignPtr_ nullPtr
 {-# NOINLINE nullForeignPtr #-}
-
 
 {-@ create' :: n:Nat -> (PtrN Word8 n -> IO ()) -> ByteStringN n @-}
 create' n fill = unsafePerformIO $ do

@@ -58,8 +58,16 @@
 
 --- Stuff
 
-
 + Case Study 1: AlphaConvert (tests/pos/alphaconvert-List.hs) 
 + Case Study 2: Kmeans
 
+TODO 
 
++ subtyping exercises
+    - div by zero
+    - array-bounds
+    - create (bytestring)
+
++ gotchas
+    - hs sig vs. lh sig
+    - module/import story
