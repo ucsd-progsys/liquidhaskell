@@ -196,9 +196,6 @@ makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
        return (measures, cms', ms', cs', xs')
 
 
--- TODO: Section Heading
--- TODO: Migrate traversals, maps, etc. to separate module (?)
-
 -- RJ: This is not nice. More than 3 elements should be a record.
     
 type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
