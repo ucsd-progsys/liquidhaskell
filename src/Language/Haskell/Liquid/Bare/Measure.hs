@@ -53,8 +53,6 @@ import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.Type
 
--- TODO: This needs organizing, cleaning, etc. Some of the work done here seems redundant.
-
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' 
   = return mempty
@@ -110,7 +108,6 @@ makeMeasureSpec (mod,spec) = inModule mod mkSpec
                         <*> return (Ms.cmeasures spec)
                         <*> (mapM expandMeasure $ Ms.imeasures spec)
 
--- TODO: Rename?
 makeMeasureSpec' = mapFst (mapSnd uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap

@@ -56,16 +56,13 @@ freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> 
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
 
--- TODO: Clarify what this is doing...
-
--- TODO: Rename/"fix" this
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
                         , errmsg :: Error 
                         }
 
 initMapSt = MTVST []
 
--- TODO: Optimally, don't expose this; instead, roll this in with mapTyVar and export a
+-- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
 --       single "clean" function as the API.
 runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
 runMapTyVars x s = execStateT x s

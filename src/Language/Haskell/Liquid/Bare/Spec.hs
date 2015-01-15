@@ -53,8 +53,6 @@ import Language.Haskell.Liquid.Bare.Misc (joinVar)
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.Type
 
--- TODO: Find a better name/grouping for this?
-
 makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
     --FIXME: cleanup this code
@@ -84,9 +82,6 @@ makeLazy  vs (_, spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <-
 makeHMeas vs (_, spec) = fmap fst <$> (varSymbols id "HMeas" vs $ [(v, loc v) | v <- S.toList $ Ms.hmeas spec])
 makeTExpr vs (_, spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
 
--- TODO: Document/clarify what this does
--- TODO: Using a tuple seems unnecessary, as `ns` is never touched
--- TODO: `_` isn't used; remove?
 varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f _ vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]

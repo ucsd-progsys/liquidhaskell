@@ -15,8 +15,6 @@ import Language.Fixpoint.Types (Brel(..), Expr(..), Pred(..), Refa(..), Reft(..)
 import Language.Haskell.Liquid.RefType (strengthen, uTop)
 import Language.Haskell.Liquid.Types
 
--- TODO: Rename this module, or move this stuff somewhere else
-
 -------------------------------------------------------------------------------
 -- | Replace Predicate Arguments With Existentials ----------------------------
 -------------------------------------------------------------------------------
