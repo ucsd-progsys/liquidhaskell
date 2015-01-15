@@ -2,8 +2,10 @@ module FIO where
 
 import Prelude hiding (read)
 
-{-@ data FIO a <pre :: World -> Prop, post :: World -> World -> a -> Prop> = FOO @-}
-data FIO a  = FOO
+{-@ data FIO a <pre :: World -> Prop, post :: World -> World -> a -> Prop> 
+  = FOO (rs :: (x:World<pre> -> (World, a)<\w -> {v:a<post x w> | true}>))
+  @-}
+data FIO a  = FOO (World -> (World, a))
 
 data World  = W
 
@@ -31,17 +33,18 @@ ret  = undefined  -- TODO
 
 ok1 f = open f
 
+{-
 ok2 f = open f `bind` \_ -> read f
 
 instance Monad FIO where
   (>>=)  = bind
   return = ret
 
-{-@ ok3   :: FilePath -> FIO () @-}
+{- ok3   :: FilePath -> FIO () @-}
 ok3 f = do open f
            read f
 
-{-@ fail1 :: FilePath -> FIO () @-}
+{- fail1 :: FilePath -> FIO () @-}
 fail1 f   = read f
-
+-}
 
