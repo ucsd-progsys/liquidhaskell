@@ -542,8 +542,6 @@ relevant information about `p` becomes available within
 the `do`-block above? Make sure you figure out the above
 before proceeding.
 
-**HEREHEREHERE**
-
 \newthought{To `pack`} a `String` into a `ByteString`
 we simply call `create` with the appropriate fill action:
 \footnotetext{The code uses `create'` which is just `create`
@@ -567,10 +565,15 @@ and furthermore, the following QuickCheck style *property* is
 proved by LiquidHaskell:
 
 \begin{code}
-{-@ prop_pack_size :: [Char] -> {v:Bool | Prop v} @-}
-prop_pack_size xs   = size (pack xs) == length xs
-  where
-    size (BS _ _ n) = n 
+{-@ prop_pack_length  :: [Char] -> {v:Bool | Prop v} @-}
+prop_pack_length xs   = size (pack xs) == length xs
+\end{code}
+
+\noindent where the helper `size` returns the length of the `ByteString`
+
+\begin{code}
+{-@ size :: b:_ -> {v:Nat | v = bLen b} @-}
+size (BS _ _ n)    = n 
 \end{code}
 
 \hint Look at the type of `length`, and recall that `len`
@@ -594,76 +597,53 @@ packEx str     = create' n $ \p -> pLoop p xs
   n            = length str
   xs           = map c2w str
 
-{-@ pLoop      :: (Storable a) => p:Ptr a -> cs:{[a] | len cs <= pLen p }-> IO () @-}
+{-@ pLoop      :: (Storable a) => p:Ptr a -> xs:[a] -> IO () @-}
 pLoop p (x:xs) = poke p x >> pLoop (plusPtr p 1) xs
-pLoop _ []     = return  ()
+pLoop _ []     = return ()
 \end{code}
 
+\hint Remember that `len xs` denotes the size of the list `xs`.
 
-
-
-
-\newthought{`unsafeTake`}
-
-Extract *prefix* string of size `n`
-
-<br>
-
-<div class="fragment">
-**Specification**
+\exercisen{unsafeTake} extracts the prefix of a `ByteString`.
+As you can see, it is really fast since we only have to change
+the offsets. Why does LiquidHaskell reject it? Can you fix the
+specification so that it is accepted?
 
 \begin{code}
-{-@ unsafeTake :: n:Nat
-               -> b:{ByteString | n <= bLen b}
-               -> ByteStringN n            @-}
-\end{code}
-</div>
-
-
-<br>
-
-<div class="fragment">
-**Implementation**
-
-\begin{code}
+{-@ unsafeTake          :: n:Nat -> b:ByteString -> ByteStringN n @-}
 unsafeTake n (BS x s l) = BS x s n
 \end{code}
-</div>
 
-\newthought{`unpack` }
+\hint Under what conditions is the returned `ByteString` legal?
 
-**Specification**
+\newthought{To `unpack`} a `ByteString` into a plain old `String`,
+we essentially run `pack` in reverse, by walking over the pointer,
+and reading out the characters one by one till we reach the end:
 
-\begin{spec}
-unpack 
- :: b:ByteString -> StringN (bLen b)
-\end{spec}
-
-<br>
-
-<div class="fragment">
-**Implementation**
-
-\begin{spec}
-unpack b = you . get . the . idea -- see source 
-\end{spec}
-</div>
-
-<div class="hidden">
 \begin{code}
-{-@ qualif Unpack(v:a, acc:b, n:int) : len v = 1 + n + len acc @-}
-
-{-@ unpack :: b:ByteString -> StringN (bLen b) @-}
-unpack :: ByteString -> String 
+unpack              :: ByteString -> String 
 unpack (BS _  _ 0)  = []
 unpack (BS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
-   go (p `plusPtr` s) (l - 1)  []
+    go (p `plusPtr` s) (l - 1) []
   where
-   go p 0 acc = peek p >>= \e -> return (w2c e : acc)
-   go p n acc = peek (p `plusPtr` n) >>=   \e -> go p (n-1) (w2c e : acc)
+    {-@ go     :: p:_ -> n:_ -> acc:_ -> IO {v:_ | true } @-}
+    go p 0 acc = peek p >>= \e -> return (w2c e : acc)
+    go p n acc = peek (p `plusPtr` n) >>=  \e -> go p (n-1) (w2c e : acc)
 \end{code}
 
-</div>
+\exercisen{Unpack} \singlestar Fix the specification for `unpack` so that the below
+QuickCheck style property is proved by LiquidHaskell.
+
+\begin{code}
+{-@ prop_unpack_length :: ByteString -> {v:Bool | Prop v} @-}
+prop_unpack_length b   = size b  == length (unpack b)
+\end{code}
+
+\hint You will also have to fix the specification of the helper `go`. Can you determine
+the output refinement should be (instead of just `true`?) Think about how *big* the output
+list should be in terms of `p`, `n` and `acc`.
+
+
 
 3. Application API 
 -------------------
