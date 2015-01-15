@@ -2,6 +2,9 @@ module Compose where
 
 {-@ LIQUID "--no-termination" @-}
 
+-- Here p and q of `app` will be instantiated to 
+-- p , q := \v -> i <= v
+
 main i = app (check i) i
 
 {-@ check :: x:Int -> {v:Int | x <= v} -> () @-}
