@@ -2,7 +2,6 @@
 
 module Language.Haskell.Liquid.Bare.Expand (
     expandReft
-
   , expandPred
   , expandExpr
   ) where
@@ -10,25 +9,22 @@ module Language.Haskell.Liquid.Bare.Expand (
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
-import Text.Parsec.Pos
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
-import Language.Fixpoint.Types (Expr(..), Pred(..), Refa(..), Reft(..), Symbol, mkSubst, subst)
+import Language.Fixpoint.Types (Expr(..), Pred(..), Refa(..), Reft(..), mkSubst, subst)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 -- Expand Reft Preds & Exprs ---------------------------------------------------
 --------------------------------------------------------------------------------
 
 -- TOOD: Add type signature
-expandReft l = txPredReft (expandPred l) (expandExpr l)
+expandReft = txPredReft expandPred expandExpr
 
 txPredReft :: (Pred -> BareM Pred) -> (Expr -> BareM Expr) -> RReft -> BareM RReft
 txPredReft f fe (U r p l) = (\r -> U r p l) <$> txPredReft' f r
@@ -39,6 +35,8 @@ txPredReft f fe (U r p l) = (\r -> U r p l) <$> txPredReft' f r
 
 mapPredM f = go
   where
+    go PTrue           = return PTrue
+    go PFalse          = return PFalse
     go (PAnd ps)       = PAnd <$> mapM go ps
     go (POr ps)        = POr  <$> mapM go ps
     go (PNot p)        = PNot <$> go p
@@ -47,71 +45,86 @@ mapPredM f = go
     go (PBexp e)       = PBexp <$> f e
     go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
     go (PAll xs p)     = PAll xs <$> go p
-    go p               = return p
+    go PTop            = return PTop
 
 --------------------------------------------------------------------------------
 -- Expand Preds ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-expandPred l = expandPred' l []
+expandPred :: Pred -> BareM Pred
+expandPred (PBexp e@(EApp (Loc l f') es))
+  = do env <- gets (predAliases.rtEnv)
+       case M.lookup f' env of
+         Just rp ->
+           return $ expandApp l rp es
+         Nothing ->
+           PBexp <$> expandExpr e
 
-expandPred' :: SourcePos -> [Symbol] -> Pred -> BareM Pred
-expandPred' l = go
-  where 
-    go s (PBexp (EApp f@(Loc l' f') es))
-      | f' `elem` s
-        = errorstar $ "Cyclic Predicate Alias: " ++ show (f':s)
-      | otherwise = do
-          env <- gets (predAliases.rtEnv)
-          case M.lookup f' env of
-            Just (Left (mod,rp)) -> do
-              body <- inModule mod $ withVArgs l' (rtVArgs rp) $ expandPred' l' (f':s) $ rtBody rp
-              let rp' = rp { rtBody = body }
-              setRPAlias f' $ Right $ rp'
-              expandEApp l (f':s) rp' <$> resolve l es
-            Just (Right rp) ->
-              withVArgs l (rtVArgs rp) (expandEApp l (f':s) rp <$> resolve l es)
-            Nothing -> fmap PBexp (EApp <$> resolve l f <*> resolve l es)
-    go s (PAnd ps)                = PAnd <$> (mapM (go s) ps)
-    go s (POr  ps)                = POr  <$> (mapM (go s) ps)
-    go s (PNot p)                 = PNot <$> (go s p)
-    go s (PImp p q)               = PImp <$> (go s p) <*> (go s q)
-    go s (PIff p q)               = PIff <$> (go s p) <*> (go s q)
-    go s (PAll xts p)             = PAll xts <$> (go s p)
-    go _ p                        = resolve l p
+expandPred (PBexp e)
+  = PBexp <$> expandExpr e
+
+expandPred (PAnd ps)
+  = PAnd <$> mapM expandPred ps
+expandPred (POr ps)
+  = POr <$> mapM expandPred ps
+
+expandPred (PNot p)
+  = PNot <$> expandPred p
+expandPred (PAll xts p)
+  = PAll xts <$> expandPred p
+
+expandPred (PImp p q)
+  = PImp <$> expandPred p <*> expandPred q
+expandPred (PIff p q)
+  = PIff <$> expandPred p <*> expandPred q
+
+expandPred p@(PAtom _ _ _)
+  = return p
+
+expandPred PTrue
+  = return PTrue
+expandPred PFalse
+  = return PFalse
+expandPred PTop
+  = return PTop
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-expandExpr l = expandExpr' l []
+expandExpr :: Expr -> BareM Expr
+expandExpr (EApp f@(Loc l f') es)
+  = do env <- gets (exprAliases.rtEnv)
+       case M.lookup f' env of
+         Just re ->
+           expandApp l re <$> mapM expandExpr es
+         Nothing ->
+           EApp f <$> mapM expandExpr es
 
-expandExpr' :: SourcePos -> [Symbol] -> Expr -> BareM Expr
-expandExpr' l = go
-  where 
-    --NOTE: don't do any name-resolution here, expandPAlias runs afterwards and
-    --      will handle it
-    go s (EApp f@(Loc l' f') es)
-      | f' `elem` s
-        = errorstar $ "Cyclic Predicate Alias: " ++ show (f':s)
-      | otherwise = do
-          env <- gets (exprAliases.rtEnv)
-          case M.lookup f' env of
-            Just (Left (mod,re)) -> do
-              body <- inModule mod $ withVArgs l' (rtVArgs re) $ expandExpr' l' (f':s) $ rtBody re
-              let re' = re { rtBody = body }
-              setREAlias f' $ Right $ re'
-              expandEApp l (f':s) re' <$> mapM (go (f':s)) es
-            Just (Right re) ->
-              withVArgs l (rtVArgs re) (expandEApp l (f':s) re <$> mapM (go (f':s)) es)
-            Nothing -> EApp f <$> mapM (go s) es
-    go s (EBin op e1 e2)          = EBin op <$> go s e1 <*> go s e2
-    go s (EIte p  e1 e2)          = EIte p  <$> go s e1 <*> go s e2
-    go s (ECst e st)              = (`ECst` st) <$> go s e
-    go _ e                        = return e
+expandExpr (EBin op e1 e2)
+  = EBin op <$> expandExpr e1 <*> expandExpr e2
+expandExpr (EIte p e1 e2)
+  = EIte p <$> expandExpr e1 <*> expandExpr e2
+expandExpr (ECst e s)
+  = (`ECst` s) <$> expandExpr e
 
--- FIXME: `_` isn't used here. Should it be?
-expandEApp l _ re es
+expandExpr e@(ESym _)
+  = return e
+expandExpr e@(ECon _)
+  = return e
+expandExpr e@(EVar _)
+  = return e
+expandExpr e@(ELit _ _)
+  = return e
+
+expandExpr EBot
+  = return EBot
+
+--------------------------------------------------------------------------------
+-- Expand Alias Application ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+expandApp l re es
   = subst su $ rtBody re
   where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
         msg = "Malformed alias application at " ++ show l ++ "\n\t"
