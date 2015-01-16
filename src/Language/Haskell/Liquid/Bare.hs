@@ -45,6 +45,7 @@ import Text.Printf
 import Control.Monad.State      (get, gets, modify, put, State, evalState, evalStateT, execState, execStateT, StateT)
 import Data.Traversable         (forM)
 import Control.Applicative      ((<$>), (<*>), (<|>))
+import Control.Arrow            ((&&&))
 import Control.Monad.Reader     hiding (forM)
 import Control.Monad.Error      hiding (Error, forM)
 import Control.Monad.Writer     hiding (forM)
@@ -1425,7 +1426,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
                      ++ checkDouplicateFieldNames                  (dconsP sp)
-                     ++ checkRefinedClasses                        (concatMap (Ms.rinstance . snd) specs ) (concatMap (Ms.classes . snd) specs)
+                     ++ checkRefinedClasses                        (concatMap (Ms.classes . snd) specs) (concatMap (Ms.rinstance . snd) specs)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1442,14 +1443,25 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
 
 
 
-checkRefinedClasses instances definitions
-  = mkError <$> duplicates 
+checkRefinedClasses :: [RClass BareType] -> [RInstance BareType] -> [Error]
+checkRefinedClasses definitions instances
+  = mkError <$> duplicates
   where 
-    instances'   = riclass <$> instances 
-    definitions' = rcName  <$> definitions
-    duplicates   = L.intersect instances' definitions'
-    mkError x    = ErrRClass x (sourcePosSrcSpan $ loc x) 
-       
+    duplicates
+      = mapMaybe checkCls (rcName <$> definitions)
+    checkCls cls
+      = case findConflicts cls of
+          [] ->
+            Nothing
+          conflicts ->
+            Just (cls, conflicts)
+    findConflicts cls
+      = filter ((== cls) . riclass) instances
+
+    mkError (cls, conflicts)
+      = ErrRClass (sourcePosSrcSpan $ loc cls) (pprint cls) (ofConflict <$> conflicts)
+    ofConflict
+      = sourcePosSrcSpan . loc . riclass &&& pprint . ritype
 
 checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDouplicateFieldNames = catMaybes . map go
