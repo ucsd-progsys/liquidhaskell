@@ -1425,6 +1425,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
                      ++ checkDouplicateFieldNames                  (dconsP sp)
+                     ++ checkRefinedClasses                        (concatMap (Ms.rinstance . snd) specs ) (concatMap (Ms.classes . snd) specs)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1439,6 +1440,16 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
 
+
+
+checkRefinedClasses instances definitions
+  = mkError <$> duplicates 
+  where 
+    instances'   = riclass <$> instances 
+    definitions' = rcName  <$> definitions
+    duplicates   = L.intersect instances' definitions'
+    mkError x    = ErrRClass x (sourcePosSrcSpan $ loc x) 
+       
 
 checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDouplicateFieldNames = catMaybes . map go

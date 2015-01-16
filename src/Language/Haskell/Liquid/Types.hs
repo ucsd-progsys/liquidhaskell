@@ -1519,6 +1519,10 @@ data TError t =
                 , msg  :: !Doc
                 } -- ^ Termination Error 
 
+  | ErrRClass   { cls  :: !LocSymbol
+                , pos  :: !SrcSpan
+                } -- ^ Refined Class Error 
+
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 

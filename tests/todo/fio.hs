@@ -3,9 +3,9 @@ module FIO where
 import Prelude hiding (read)
 
 {-@ data FIO a <pre :: World -> Prop, post :: World -> World -> a -> Prop> 
-  = FOO (rs :: (x:World<pre> -> (World, a)<\w -> {v:a<post x w> | true}>))
+  = FIO (rs :: (x:World<pre> -> (World, a)<\w -> {v:a<post x w> | true}>))
   @-}
-data FIO a  = FOO (World -> (World, a))
+data FIO a  = FIO {runState :: World -> (World, a)}
 
 data World  = W
 
@@ -26,8 +26,31 @@ read = undefined
 
 --------------------------
 
+{-
+bind :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
+              , pre  :: s -> Prop, postg :: s -> s -> Prop
+              , post :: s -> s -> Prop
+              , rg   :: s -> a -> Prop
+              , rf   :: s -> b -> Prop
+              , r    :: s -> b -> Prop
+              , pref0 :: a -> Prop 
+              >. 
+       {x:s<pre> -> a<rg x> -> a<pref0>}      
+       {x:s<pre> -> y:s<postg x> -> b<rf y> -> b<r x>}
+       {xx:s<pre> -> w:s<postg xx> -> s<postf w> -> s<post xx>}
+       {ww:s<pre> -> s<postg ww> -> s<pref>}
+       (ST <pre, postg, rg> s a)
+    -> (a<pref0> -> ST <pref, postf, rf> s b)
+    -> (ST <pre, post, r> s b)
+@-}
 
-bind = undefined  -- TODO
+{-
+bind :: 
+
+  @-}
+bind :: FIO a -> (a -> FIO b) -> FIO b
+bind (FIO g) f = FIO (\x -> case g x of {(s, y) -> (runState (f y)) s})    
+
 ret  = undefined  -- TODO
 
 
@@ -38,9 +61,10 @@ fail1 :: FilePath -> FIO String
 fail1 f   = read f
 
 
-{-
-ok2 f = open f `bind` \_ -> read f
 
+-- ok2 f = open f `bind` \_ -> read f
+
+{-
 instance Monad FIO where
   (>>=)  = bind
   return = ret
