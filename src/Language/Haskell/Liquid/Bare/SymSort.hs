@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Bare.Sort (
+module Language.Haskell.Liquid.Bare.SymSort (
     txRefSort
   ) where
 

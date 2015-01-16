@@ -42,9 +42,9 @@ import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
-import Language.Haskell.Liquid.Bare.ConType (dataConSpec)
+import Language.Haskell.Liquid.Bare.DataType (dataConSpec)
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Sort (txRefSort)
+import Language.Haskell.Liquid.Bare.SymSort (txRefSort)
 
 ----------------------------------------------------------------------------------------------
 ----- Checking GhcSpec -----------------------------------------------------------------------

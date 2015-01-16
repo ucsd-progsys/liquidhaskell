@@ -37,7 +37,7 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (concatMapM, group, snd3)
 import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, takeModuleNames)
-import Language.Fixpoint.Types (Qualifier(..), Symbol, symbol)
+import Language.Fixpoint.Types (Qualifier(..), symbol)
 
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4)
@@ -50,8 +50,8 @@ import Language.Haskell.Liquid.Bare.Check (checkDefAsserts)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Misc (joinVar)
+import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.Type
 
 makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
@@ -76,14 +76,14 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM (\q -> resolve (q_pos q) q) $ Ms.qualifiers spec
 
-makeHints vs (_, spec) = varSymbols id "Hint" vs $ Ms.decr spec
-makeLVar  vs (_, spec) = fmap fst <$> (varSymbols id "LazyVar" vs $ [(v, ()) | v <- Ms.lvars spec])
-makeLazy  vs (_, spec) = fmap fst <$> (varSymbols id "Lazy" vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
-makeHMeas vs (_, spec) = fmap fst <$> (varSymbols id "HMeas" vs $ [(v, loc v) | v <- S.toList $ Ms.hmeas spec])
-makeTExpr vs (_, spec) = varSymbols id "TermExpr" vs $ Ms.termexprs spec
+makeHints vs spec = varSymbols id vs $ Ms.decr spec
+makeLVar  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
+makeLazy  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
+makeHMeas vs spec = fmap fst <$> (varSymbols id vs $ [(v, loc v) | v <- S.toList $ Ms.hmeas spec])
+makeTExpr vs spec = varSymbols id vs $ Ms.termexprs spec
 
-varSymbols :: ([Var] -> [Var]) -> Symbol ->  [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
-varSymbols f _ vs  = concatMapM go
+varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
+varSymbols f vs  = concatMapM go
   where lvs        = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
         sym        = dropModuleNames . symbol . showPpr
         locVar v   = (getSourcePos v, v)
@@ -151,7 +151,7 @@ makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)] 
                     -> BareM [(ModName, Var, Located SpecType)]
 makeLocalSpec cfg mod vs lvs cbs xbs
   = do env   <- get
-       vbs1  <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
+       vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        unless (noCheckUnknown cfg)   $ checkDefAsserts env vbs1 xbs1
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
        vts2  <- makeSpec cfg vs xbs2

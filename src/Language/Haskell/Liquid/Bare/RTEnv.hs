@@ -24,7 +24,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.Type
+import Language.Haskell.Liquid.Bare.OfType
 
 --- Refinement Type Aliases
 makeRTEnv specs
@@ -92,17 +92,9 @@ buildAliasNode table alias
 buildAliasEdges :: AliasTable -> BareType -> [Symbol]
 buildAliasEdges table
   = ordNub . go
-  where go (RApp (Loc _ c) ts rs _)
-          = curr ++ concat (map go ts ++ map go (mapMaybe ref rs))
-          where
-            curr 
-              = case M.lookup c table of
-                  Nothing -> [ ]
-                  Just _  -> [c]
-
-            ref (RPropP _ _) = Nothing
-            ref (RProp  _ t) = Just t
-            ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildAliasEdges"
+  where go :: BareType -> [Symbol]
+        go (RApp (Loc _ c) ts rs _)
+          = go_alias c ++ concat (map go ts ++ map go (mapMaybe go_ref rs))
 
         go (RFun _ t1 t2 _)
           = go t1 ++ go t2
@@ -128,8 +120,17 @@ buildAliasEdges table
         go (RHole _)
           = []
 
-        go (RRTy _ _ _ _)
-          = errorstar "Bare.RTEnv.buildAliasEdges used with RRTy"
+        go (RRTy env _ _ t)
+          = concatMap (go . snd) env ++ go t
+
+        go_alias c
+          = case M.lookup c table of
+              Just _  -> [c]
+              Nothing -> [ ]
+
+        go_ref (RPropP _ _) = Nothing
+        go_ref (RProp  _ t) = Just t
+        go_ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildAliasEdges"
 
 
 checkCyclicAliases :: AliasTable -> Graph Symbol -> BareM ()
@@ -154,8 +155,9 @@ checkCyclicAliases table graph
       = errorstar "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
 
     locate sym
-      = (sourcePosSrcSpan $ rtPos alias, pprint sym)
-      where (_, alias) = fromAliasSymbol table sym
+      = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol table sym
+        , pprint sym
+        )
 
 
 genExpandOrder :: AliasTable -> Graph Symbol -> [(ModName, RTAlias Symbol BareType)]

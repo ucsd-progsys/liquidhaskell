@@ -17,6 +17,8 @@ import DataCon
 import GHC (HscEnv)
 import HscMain
 import Name
+import PrelInfo                                 (wiredInThings)
+import PrelNames                                (fromIntegerName, smallIntegerName)
 import RdrName (setRdrNameSpace)
 import SrcLoc (SrcSpan, GenLocated(L))
 import TcRnDriver (tcRnLookupRdrName) 
@@ -83,6 +85,13 @@ symbolLookup env mod k
   = return $ maybeToList $ M.lookup k wiredIn
   | otherwise
   = symbolLookupEnv env mod k
+
+wiredIn      :: M.HashMap Symbol Name
+wiredIn      = M.fromList $ special ++ wiredIns 
+  where
+    wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
+    special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
+               , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 symbolLookupEnv env mod s
   | isSrcImport mod

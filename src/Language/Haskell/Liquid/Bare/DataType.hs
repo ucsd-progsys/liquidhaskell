@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bare.ConType (
+module Language.Haskell.Liquid.Bare.DataType (
     makeConTypes
   , makeTyConEmbeds
 
@@ -33,7 +33,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.Type
+import Language.Haskell.Liquid.Bare.OfType
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -106,7 +106,7 @@ ofBDataDecl Nothing (Just (tc, is))
     (tcov, tcontr) = (is, []) 
 
 ofBDataDecl Nothing Nothing
-  = errorstar $ "Bare.ConType.ofBDataDecl called on invalid inputs"
+  = errorstar $ "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 getPsSig m pos (RAllT _ t) 
   = getPsSig m pos t
