@@ -12,7 +12,7 @@ import Data.Maybe
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar, fst3, traceShow)
+import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Types (Symbol)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
@@ -87,7 +87,7 @@ buildAliasGraph table
 
 buildAliasNode :: AliasTable -> RTAlias Symbol BareType -> Node Symbol
 buildAliasNode table alias
-  = (rtName alias, rtName alias, traceShow (show $ rtName alias) $ buildAliasEdges table $ rtBody alias)
+  = (rtName alias, rtName alias, buildAliasEdges table $ rtBody alias)
 
 buildAliasEdges :: AliasTable -> BareType -> [Symbol]
 buildAliasEdges table
@@ -162,7 +162,7 @@ checkCyclicAliases table graph
 
 genExpandOrder :: AliasTable -> Graph Symbol -> [(ModName, RTAlias Symbol BareType)]
 genExpandOrder table graph 
-  = map (fromAliasSymbol table) $ traceShow "symOrder: " symOrder
+  = map (fromAliasSymbol table) symOrder
   where
     (digraph, lookupVertex, _)
       = graphFromEdges graph
