@@ -240,8 +240,16 @@ ppError' _ dSp (ErrSaved _ s)
 ppError' _ dSp (ErrTermin xs _ s)
   = dSp <+> text "Termination Error on" <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
 
-ppError' _ dSp (ErrRClass xs _)
-  = dSp <+> text "You cannot refine instances of refined classes" <+> (pprint xs)
+ppError' _ dSp (ErrRClass pos cls insts)
+  = dSp <+> text "Refined classes cannot have refined instances"
+    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst insts)
+  where
+    describeCls
+      = text "Refined class definition for:" <+> cls
+        $+$ text "Defined at:" <+> pprint pos
+    describeInst (pos, t)
+      = text "Refined instance for:" <+> t
+        $+$ text "Defined at:" <+> pprint pos
 
 ppError' _ _ (ErrOther _ s)
   = text "Panic!" <+> nest 4 (pprint s)
