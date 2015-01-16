@@ -193,7 +193,7 @@ Library
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
                     Language.Haskell.Liquid.Bare.Check
-                    Language.Haskell.Liquid.Bare.ConType
+                    Language.Haskell.Liquid.Bare.DataType
                     Language.Haskell.Liquid.Bare.Env
                     Language.Haskell.Liquid.Bare.Expand
                     Language.Haskell.Liquid.Bare.Existential
@@ -201,12 +201,12 @@ Library
                     Language.Haskell.Liquid.Bare.Lookup
                     Language.Haskell.Liquid.Bare.Measure
                     Language.Haskell.Liquid.Bare.Misc
+                    Language.Haskell.Liquid.Bare.OfType
                     Language.Haskell.Liquid.Bare.Plugged
                     Language.Haskell.Liquid.Bare.Resolve
                     Language.Haskell.Liquid.Bare.RTEnv
-                    Language.Haskell.Liquid.Bare.Sort
+                    Language.Haskell.Liquid.Bare.SymSort
                     Language.Haskell.Liquid.Bare.Spec
-                    Language.Haskell.Liquid.Bare.Type
 
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar.Desugar,

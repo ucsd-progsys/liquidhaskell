@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bare.Type (
+module Language.Haskell.Liquid.Bare.OfType (
     ofBareType
   , ofMeaSort
   , ofBSort

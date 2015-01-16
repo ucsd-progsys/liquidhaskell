@@ -13,27 +13,11 @@ import Language.Fixpoint.Misc                   (mapSnd)
 
 import BasicTypes
 import DataCon
-import Name
 import TyCon
 import TysWiredIn
 
-import PrelInfo                                 (wiredInThings)
-import PrelNames                                (fromIntegerName, smallIntegerName)
-
 import Data.Monoid
 import Control.Applicative
-
-import qualified Data.HashMap.Strict as M
-
--- TODO: Section Heading
-
-wiredIn      :: M.HashMap Symbol Name
-wiredIn      = M.fromList $ special ++ wiredIns 
-  where
-    wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
-    special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
-               , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
-
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------

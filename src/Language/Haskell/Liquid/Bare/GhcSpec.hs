@@ -39,7 +39,7 @@ import Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Check
-import Language.Haskell.Liquid.Bare.ConType
+import Language.Haskell.Liquid.Bare.DataType
 import Language.Haskell.Liquid.Bare.Dictionaries
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
@@ -48,7 +48,7 @@ import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
 import Language.Haskell.Liquid.Bare.Plugged
 import Language.Haskell.Liquid.Bare.RTEnv
 import Language.Haskell.Liquid.Bare.Spec
-import Language.Haskell.Liquid.Bare.Sort
+import Language.Haskell.Liquid.Bare.SymSort
 
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
@@ -145,8 +145,8 @@ makeGhcSpec3 datacons tycons embs syms sp
                     , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
 
 makeGhcSpec4 defVars specs name su sp
-  = do decr'   <- mconcat <$> mapM (makeHints defVars) specs
-       texprs' <- mconcat <$> mapM (makeTExpr defVars) specs
+  = do decr'   <- mconcat <$> mapM (makeHints defVars . snd) specs
+       texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
        hmeas   <- mkThing makeHMeas
@@ -158,7 +158,7 @@ makeGhcSpec4 defVars specs name su sp
                      , lazy       = lazies 
                      , tySigs     = strengthenHaskellMeasures hmeas ++ tySigs sp}        
     where
-       mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars (m, s) | (m, s) <- specs, m == name ]
+       mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
 
 
 makeGhcSpecCHOP1 specs

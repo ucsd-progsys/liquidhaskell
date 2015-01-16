@@ -50,8 +50,8 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
+import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.Type
 
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' 
