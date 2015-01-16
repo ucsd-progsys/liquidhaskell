@@ -185,13 +185,15 @@ module Language.Haskell.Liquid.Types (
   -- * CoreToLogic
   , LogicMap, toLogicMap, eAppWithMap
 
+  -- * Refined Instances
+  , RDEnv, DEnv(..), RInstance(..)
+
   )
   where
 
 import SrcLoc                                   (noSrcSpan, SrcSpan)
 import TyCon 
 import DataCon
-import Name                                     (getName)
 import NameSet
 import Module                                   (moduleNameFS)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
@@ -228,7 +230,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
-import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, funConName, listConName, tupConName)
+import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
@@ -356,6 +358,7 @@ data GhcSpec = SP {
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
+  , dicts      :: DEnv Var SpecType                  -- ^ Dictionary Environment
   }
 
 type LogicMap = M.HashMap Symbol LMap 
@@ -807,8 +810,26 @@ instance Show RTyCon where
   show = showpp  
 
 --------------------------------------------------------------------------
+-- | Refined Instances ---------------------------------------------------
+--------------------------------------------------------------------------
+
+data RInstance t = RI { riclass :: LocSymbol
+                      , ritype  :: t 
+                      , risigs  :: [(LocSymbol, t)]
+                      }
+
+data DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty))
+
+type RDEnv = DEnv Var SpecType
+
+instance Functor RInstance where
+  fmap f (RI x t xts) = RI x (f t) (mapSnd f <$> xts) 
+
+
+--------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
+
 
 -- | Data type refinements
 data DataDecl   = D { tycName   :: LocSymbol
@@ -1498,6 +1519,10 @@ data TError t =
                 , msg  :: !Doc
                 } -- ^ Termination Error 
 
+  | ErrRClass   { cls  :: !LocSymbol
+                , pos  :: !SrcSpan
+                } -- ^ Refined Class Error 
+
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC 
@@ -1788,15 +1813,6 @@ hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 instance Symbolic DataCon where
   symbol = symbol . dataConWorkId
 
-instance Symbolic Var where
-  symbol = varSymbol
-
-varSymbol ::  Var -> Symbol
-varSymbol v 
-  | us `isSuffixOfSym` vs = vs
-  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
-  where us  = symbol $ showPpr $ getDataConVarUnique v
-        vs  = symbol $ getName v
 
 instance PPrint DataCon where
   pprint = text . showPpr

@@ -68,6 +68,7 @@ import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Variance
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.WiredIn
+import Language.Haskell.Liquid.Dictionaries
 
 
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
@@ -97,12 +98,13 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
     lmap'    = case lmap of {Left e -> Ex.throw e; Right x -> x}
     
 postProcess :: [CoreBind] -> GhcSpec -> GhcSpec
-postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs' }
+postProcess cbs sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts' }
   -- HEREHEREHEREHERE (addTyConInfo stuff) 
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs (ghcSpecEnv sp) cbs
     tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
+    dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
@@ -123,10 +125,35 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec2 invs ialias measures su                     
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
+         >>= makeSpecDictionaries embs vars specs
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty 
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty dempty
 
+
+
+makeSpecDictionaries embs vars specs sp
+  = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
+       return $ sp {dicts = ds}
+
+makeSpecDictionary embs vars (_, spec)  
+  = mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
+
+makeSpecDictionaryOne embs vars (RI x t xts) 
+  = do t'  <-  mkTy t
+       tyi <- gets tcEnv
+       ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
+       let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
+       let v = lookupName d   
+       return (v, dts)
+  where 
+    mkTy  t  = mkSpecType (loc x) t
+    mkTy' t  = generalize  <$> mkTy t
+    (xs, ts) = unzip xts
+    lookupName x 
+             = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of 
+                [(_, x)] -> x
+                _ -> errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
 
 makeGhcSpec0 cfg defVars exports name sp
   = do targetVars <- makeTargetVars name defVars $ binders cfg
@@ -796,15 +823,21 @@ makeTargetVars name vs ss
 
 makeAssertSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs (Ms.sigs spec ++ Ms.localSigs spec)
+  = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec) 
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.sigs spec
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
-  = makeLocalSpec cfg cmod vs lvs $ Ms.asmSigs spec
+  = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
   = inModule mod $ makeSpec cfg vs $ Ms.asmSigs spec
+
+
+grepClassAsserts  = concatMap go 
+   where
+    go    = map goOne . risigs
+    goOne = mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
                    -> [(ModName,Var,Located SpecType)]
@@ -820,9 +853,9 @@ makeDefaultMethods defVs sigs
     , let Just (m,_,t) = mb
     ]
 
-makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)]
+makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
-makeLocalSpec cfg mod vs lvs xbs
+makeLocalSpec cfg mod vs lvs cbs xbs
   = do env   <- get
        vbs1  <- fmap expand3 <$> varSymbols fchoose "Var" lvs (dupSnd <$> xbs1)
        unless (noCheckUnknown cfg)   $ checkDefAsserts env vbs1 xbs1
@@ -830,7 +863,8 @@ makeLocalSpec cfg mod vs lvs xbs
        vts2  <- makeSpec cfg vs xbs2
        return $ vts1 ++ vts2
   where
-    (xbs1, xbs2)        = L.partition (modElem mod . fst) xbs
+    xbs1 = xbs1' ++ cbs
+    (xbs1', xbs2)       = L.partition (modElem mod . fst) xbs
     dupSnd (x, y)       = (dropMod x, (x, y))
     expand3 (x, (y, w)) = (x, y, w)
     dropMod             = fmap (dropModuleNames . symbol)
@@ -950,7 +984,7 @@ makeInvariants' ts = mapM mkI ts
   where 
     mkI (Loc l t)  = (Loc l) . generalize <$> mkSpecType l t
 
-mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t)  t
+mkSpecType l t =  mkSpecType' l (ty_preds $ toRTypeRep t) t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs = expandRTAlias l . txParams subvUReft (uPVar <$> πs)
@@ -1391,6 +1425,7 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            pAliases 
                      ++ checkDouplicateFieldNames                  (dconsP sp)
+                     ++ checkRefinedClasses                        (concatMap (Ms.rinstance . snd) specs ) (concatMap (Ms.classes . snd) specs)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -1405,6 +1440,16 @@ checkGhcSpec specs sp =  applyNonNull (Right sp) Left errors
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
 
+
+
+checkRefinedClasses instances definitions
+  = mkError <$> duplicates 
+  where 
+    instances'   = riclass <$> instances 
+    definitions' = rcName  <$> definitions
+    duplicates   = L.intersect instances' definitions'
+    mkError x    = ErrRClass x (sourcePosSrcSpan $ loc x) 
+       
 
 checkDouplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
 checkDouplicateFieldNames = catMaybes . map go

@@ -20,6 +20,7 @@ import           Debug.Trace
 
 import           Avail                        (availsToNameSet)
 import           CoreSyn                      hiding (Expr)
+import qualified CoreSyn as Core
 import           CostCentre
 import           GHC                          hiding (L)
 import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
@@ -60,6 +61,10 @@ import qualified Outputable                   as Out
 import           DynFlags
 
 import qualified Text.PrettyPrint.HughesPJ    as PJ
+
+import Data.Monoid (mappend)
+
+import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -299,7 +304,12 @@ ignoreLetBinds (Let (NonRec _ _) e')
 ignoreLetBinds e 
   = e
 
-isDictionary x = L.isPrefixOf "$d" (symbolString $ dropModuleNames $ symbol x)
+isDictionaryExpression :: Core.Expr Id -> Maybe Id
+isDictionaryExpression (Tick _ e) = isDictionaryExpression e
+isDictionaryExpression (Var x)    | isDictionary x = Just x
+isDictionaryExpression _          = Nothing
+
+isDictionary x = L.isPrefixOf "$f" (symbolString $ dropModuleNames $ symbol x)
 isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
 
 
@@ -357,6 +367,18 @@ instance Symbolic TyCon where
 
 instance Symbolic Name where
   symbol = symbol . showPpr -- qualifiedNameSymbol
+
+
+instance Symbolic Var where
+  symbol = varSymbol
+
+varSymbol ::  Var -> Symbol
+varSymbol v 
+  | us `isSuffixOfSym` vs = vs
+  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
+  where us  = symbol $ showPpr $ getDataConVarUnique v
+        vs  = symbol $ getName v
+
 
 qualifiedNameSymbol n = symbol $
   case nameModule_maybe n of

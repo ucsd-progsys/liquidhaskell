@@ -30,7 +30,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GhcMisc hiding (isDictionary)
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.GhcPlay
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.WiredIn
@@ -263,7 +263,7 @@ splitArgs e = (f, reverse es)
     (f, es) = go e
 
     go (C.App (C.Var i) e) | ignoreVar i       = go e
-    go (C.App f (C.Var v)) | isDictionary v    = go f
+    go (C.App f (C.Var v)) | isErasable v    = go f
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
@@ -294,7 +294,7 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 simpleSymbolVar' = symbol . showPpr . getName
 
-isDictionary v   = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+isErasable v   = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
 isDead = isDeadOcc . occInfo . idInfo
 
@@ -309,7 +309,7 @@ instance Simplify C.CoreExpr where
     = e
   simplify (C.App e (C.Type _))                        
     = simplify e
-  simplify (C.App e (C.Var dict))  | isDictionary dict 
+  simplify (C.App e (C.Var dict))  | isErasable dict 
     = simplify e
   simplify (C.App (C.Lam x e) _)   | isDead x          
     = simplify e

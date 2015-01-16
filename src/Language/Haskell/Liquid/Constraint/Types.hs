@@ -19,7 +19,6 @@ import Data.Maybe               (catMaybes)
 
 import Var
 
-
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
@@ -36,6 +35,7 @@ data CGEnv
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
         -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv) 
+        , denv   :: !RDEnv             -- ^ Dictionary Environment
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
         , invs   :: !RTyConInv         -- ^ Datatype invariants 

@@ -230,8 +230,11 @@ substPredP msg su@(p, RProp ss _) (RProp s t)
 substPredP _ _  (RHProp _ _)       
   = errorstar "TODO:EFFECTS:substPredP"
 
-substPredP _ _ _  
-  = errorstar "PredType.substPredP called on invalid inputs"
+substPredP _ su p@(RPropP _ _) 
+  = errorstar ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
+
+substPredP _ su p 
+  = errorstar ("PredType.substPredP called on invalid inputs" ++ showpp (su, p))
 
 
 splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
