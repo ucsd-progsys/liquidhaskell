@@ -39,7 +39,7 @@ import Control.Monad.State
 import Control.Applicative      ((<$>))
 
 import Data.Monoid              (mconcat, mempty, mappend)
-import Data.Maybe               (fromMaybe, catMaybes)
+import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -56,13 +56,15 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
-import Language.Haskell.Liquid.GhcMisc          (isInternal, collectArguments, tickSrcSpan, hasBaseTypeVar, showPpr)
+import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
+                                                , hasBaseTypeVar, showPpr)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -169,6 +171,7 @@ measEnv sp xts cbs lts asms hs
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
+        , denv  = dicts sp
         , recs  = S.empty 
         , invs  = mkRTyConInv    $ invariants sp
         , ial   = mkRTyConIAl    $ ialiases   sp
@@ -1105,6 +1108,28 @@ consCB _ _ γ (Rec xes)
        mapM_ (consBind True γ') xets
        return γ' 
 
+-- | NV: Dictionaries are not checked, because 
+-- | class methods' preconditions are not satisfied
+consCB _ _ γ (NonRec x _) | isDictionary x
+  = do t  <- trueTy (varType x)
+       extender γ (x, Assumed t)
+  where     
+    isDictionary = isJust . dlookup (denv γ)
+
+
+consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
+  = do t      <- trueTy τ
+       addW    $ WfC γ t
+       let xts = dmap (f t) $ safeFromJust (show w ++ "Not a dictionary"  ) $ dlookup (denv γ) w
+       let  γ' = γ{denv = dinsert (denv γ) x xts }
+       t      <- trueTy (varType x)
+       extender γ' (x, Assumed t)
+  where f t' (RAllT α te) = subsTyVar_meet' (α, t') te
+        f _ _ = error "consCB on Dictionary: this should not happen"
+        isDictionary = isJust . dlookup (denv γ)
+
+
+
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing) 
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
@@ -1302,6 +1327,31 @@ consE γ e'@(App e (Type τ))
        addW        $ WfC γ t
        t'         <- refreshVV t
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+
+consE γ e'@(App e a) | isDictionary a               
+  = if isJust tt 
+      then return $ fromJust tt
+      else do ([], πs, ls, te) <- bkUniv <$> consE γ e
+              te0              <- instantiatePreds γ e' $ foldr RAllP te πs 
+              te'              <- instantiateStrata ls te0
+              (γ', te''')      <- dropExists γ te'
+              te''             <- dropConstraints γ te'''
+              updateLocA πs (exprLoc e) te'' 
+              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
+              pushConsBind      $ cconsE γ' a tx 
+              addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+  where
+    grepfunname (App x (Type _)) = grepfunname x
+    grepfunname (Var x)          = x
+    grepfunname e                = errorstar $ "grepfunname on \t" ++ showPpr e  
+    mdict w                      = case w of 
+                                     Var x    -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}    
+                                     Tick _ e -> mdict e
+                                     _        -> Nothing    
+    isDictionary _               = isJust (mdict a)
+    d = fromJust (mdict a)
+    dinfo = dlookup (denv γ) d
+    tt = dhasinfo dinfo $ grepfunname e
 
 consE γ e'@(App e a)               
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
@@ -1585,7 +1635,7 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 -----------------------------------------------------------------------
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
+  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq` 
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
