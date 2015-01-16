@@ -1,16 +1,17 @@
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-} 
-{-# LANGUAGE OverlappingInstances  #-}
-{-# LANGUAGE ViewPatterns          #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-} 
+{-# LANGUAGE OverlappingInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -139,7 +140,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinement Type Aliases
   , RTEnv (..)
-  , RTBareOrSpec
   , mapRT, mapRP, mapRE
 
   -- * Final Result
@@ -818,7 +818,7 @@ data RInstance t = RI { riclass :: LocSymbol
                       , risigs  :: [(LocSymbol, t)]
                       }
 
-data DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty))
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid)
 
 type RDEnv = DEnv Var SpecType
 
@@ -1501,6 +1501,15 @@ data TError t =
                 , hs   :: !Type
                 , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
+  
+  | ErrAliasCycle { pos    :: !SrcSpan
+                  , acycle :: ![(SrcSpan, Doc)] 
+                  } -- ^ Cyclic Refined Type Alias Definitions
+
+  | ErrIllegalAliasApp { pos   :: !SrcSpan
+                       , dname :: !Doc
+                       , dpos  :: !SrcSpan
+                       } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
   | ErrAliasApp { pos   :: !SrcSpan
                 , nargs :: !Int
@@ -1513,7 +1522,6 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
-  
   | ErrTermin   { bind :: ![Var]
                 , pos  :: !SrcSpan
                 , msg  :: !Doc
@@ -1609,16 +1617,14 @@ getModString = moduleNameString . getModName
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
-                           (RTAlias RTyVar SpecType)
-
+-- TODO: Wrap "Symbol" in a newtype for expanded/'finished' Pred/Expr
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
 
 type RTExprAlias  = Either (ModName, RTAlias Symbol Expr)
                            (RTAlias Symbol Expr)
 
-data RTEnv   = RTE { typeAliases :: M.HashMap Symbol RTBareOrSpec
+data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
                    , predAliases :: M.HashMap Symbol RTPredAlias
                    , exprAliases :: M.HashMap Symbol RTExprAlias
                    }

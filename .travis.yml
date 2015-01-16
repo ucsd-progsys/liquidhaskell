@@ -3,6 +3,8 @@ branches:
  only:
   - master
   - parser
+  - lqhi
+  - bare-refactor
 
 env:
  - SMT=z3 TESTS=pos
