@@ -240,6 +240,9 @@ ppError' _ dSp (ErrSaved _ s)
 ppError' _ dSp (ErrTermin xs _ s)
   = dSp <+> text "Termination Error on" <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
 
+ppError' _ dSp (ErrRClass xs _)
+  = dSp <+> text "You cannot refine instances of refined classes" <+> (pprint xs)
+
 ppError' _ _ (ErrOther _ s)
   = text "Panic!" <+> nest 4 (pprint s)
 
