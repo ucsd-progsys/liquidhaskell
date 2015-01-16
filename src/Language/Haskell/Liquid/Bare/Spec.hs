@@ -35,7 +35,7 @@ import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (concatMapM, errorstar, group, mapFst, snd3)
+import Language.Fixpoint.Misc (concatMapM, group, mapFst, snd3)
 import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, symbolString, takeModuleNames)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
 
@@ -226,5 +226,7 @@ makeSpecDictionaryOne embs vars (RI x t xts)
     lookupName x 
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of 
                 [(_, x)] -> x
-                _ -> errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
+                _ -> head vars -- HACK, but since it is not imported, 
+                               -- the dictionary cannot be used
+                               -- errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
 
