@@ -11,10 +11,10 @@ import Language.Fixpoint.Names                  (hpropConName, propConName)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc                   (mapSnd)
 
-import TyCon
-import DataCon
-import TysWiredIn
 import BasicTypes
+import DataCon
+import TyCon
+import TysWiredIn
 
 import Data.Monoid
 import Control.Applicative

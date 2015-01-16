@@ -36,6 +36,7 @@ module Language.Haskell.Liquid.RefType (
   -- TODO: categorize these!
   , ofType, toType
   , rTyVar, rVar, rApp, rEx 
+  , symbolRTyVar
   , addTyConInfo
   -- , expandRApp
   , appRTyCon
@@ -88,7 +89,7 @@ import Language.Haskell.Liquid.Variance
 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr)
+import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar)
 import Language.Fixpoint.Names (listConName, tupConName)
 import Data.List (sort, foldl')
 
@@ -313,6 +314,8 @@ instance Hashable RTyCon where
 
 rVar        = (`RVar` mempty) . RTV 
 rTyVar      = RTV
+
+symbolRTyVar = rTyVar . stringTyVar . symbolString
 
 normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t

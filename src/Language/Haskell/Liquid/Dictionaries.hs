@@ -1,4 +1,14 @@
-module Language.Haskell.Liquid.Dictionaries where
+module Language.Haskell.Liquid.Dictionaries (
+    makeDictionaries
+  , makeDictionary
+
+  , dfromList
+  , dmapty
+  , dmap
+  , dinsert
+  , dlookup
+  , dhasinfo
+  ) where
 
 import Control.Applicative      ((<$>))
 
@@ -39,8 +49,6 @@ makeDictionaryName _ _              = errorstar "makeDictionaryName: called with
 dfromList :: [(Var, M.HashMap Symbol t)] -> DEnv Var t
 dfromList = DEnv . M.fromList
 
-dempty = DEnv M.empty
-
 dmapty :: (a -> b) -> DEnv v a -> DEnv v b
 dmapty f (DEnv e) = DEnv (M.map (M.map f) e)
 
@@ -55,3 +63,4 @@ dhasinfo Nothing _    = Nothing
 dhasinfo (Just xts) x = M.lookup x' xts
   where
      x' = (dropModuleNames $ symbol $ show x)
+
