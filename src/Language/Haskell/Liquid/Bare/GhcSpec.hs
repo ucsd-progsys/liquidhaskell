@@ -30,6 +30,7 @@ import Language.Fixpoint.Misc (mapSnd, thd3)
 import Language.Fixpoint.Names (takeWhileSym)
 import Language.Fixpoint.Types (Expr, SEnv, SortedReft, Symbol, TCEmb, fromListSEnv, insertSEnv, mkSubst, subst, substa, symbol)
 
+import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan)
 import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
@@ -40,7 +41,6 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Check
 import Language.Haskell.Liquid.Bare.DataType
-import Language.Haskell.Liquid.Bare.Dictionaries
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Measure
@@ -110,7 +110,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeSpecDictionaries embs vars specs
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty dempty
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty mempty
 
 
 makeGhcSpec0 cfg defVars exports name sp
