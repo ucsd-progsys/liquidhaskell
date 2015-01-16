@@ -2,10 +2,13 @@ module FIO where
 
 import Prelude hiding (read)
 
-{-@ data FIO a <pre :: World -> Prop, post :: World -> World -> a -> Prop> 
-  = FIO (rs :: (x:World<pre> -> (World, a)<\w -> {v:a<post x w> | true}>))
+{-@ data FIO a <pre :: World -> Prop, post :: World -> a -> World -> Prop> 
+  = FIO (rs :: (x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}>))
   @-}
-data FIO a  = FIO {runState :: World -> (World, a)}
+data FIO a  = FIO {runState :: World -> (a, World)}
+
+{-@ runState :: forall <pre :: World -> Prop, post :: World -> a -> World -> Prop>. 
+                FIO <pre, post> a -> x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}> @-}
 
 data World  = W
 
@@ -16,42 +19,39 @@ data World  = W
 {-@ measure upd :: World -> FilePath -> Int -> World @-}
 
 
-{-@ open :: fp:FilePath -> FIO <{\w0 -> true}, {\w0 w1 r -> w1 = w0  && sel w0 fp = 1}> () @-}
+{-@ open :: fp:FilePath -> FIO <{\w0 -> true}, {\w0 r w1 -> w1 = w0  && sel w0 fp = 1}> () @-}
 open :: FilePath -> FIO () 
 open = undefined
 
-{-@ read :: fp:FilePath -> FIO <{\w0 -> sel w0 fp = 1}, {\w0 w1 r -> w1 = w0}> String @-}
+{-@ read :: fp:FilePath -> FIO <{\w0 -> sel w0 fp = 1}, {\w0 r w1 -> w1 = w0}> String @-}
 read :: FilePath -> FIO String
 read = undefined
 
 --------------------------
 
-{-
-bind :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
-              , pre  :: s -> Prop, postg :: s -> s -> Prop
-              , post :: s -> s -> Prop
-              , rg   :: s -> a -> Prop
-              , rf   :: s -> b -> Prop
-              , r    :: s -> b -> Prop
-              , pref0 :: a -> Prop 
-              >. 
-       {x:s<pre> -> a<rg x> -> a<pref0>}      
-       {x:s<pre> -> y:s<postg x> -> b<rf y> -> b<r x>}
-       {xx:s<pre> -> w:s<postg xx> -> s<postf w> -> s<post xx>}
-       {ww:s<pre> -> s<postg ww> -> s<pref>}
-       (ST <pre, postg, rg> s a)
-    -> (a<pref0> -> ST <pref, postf, rf> s b)
-    -> (ST <pre, post, r> s b)
-@-}
 
-{-
-bind :: 
+{-@
+bind :: forall < pre   :: World -> Prop 
+               , pre2  :: World -> Prop 
+               , p     :: a -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {w:World<pre> -> x:a -> World<post1 w x> -> World<pre2>}        
+       {w:World<pre> -> y:a -> w2:World<post1 w y> -> x:b -> World<post2 w2 x> -> World<post w x>}        
+       FIO <pre, post1> a
+    -> (a -> FIO <pre2, post2> b)
+    -> FIO <pre, post> b 
 
   @-}
 bind :: FIO a -> (a -> FIO b) -> FIO b
-bind (FIO g) f = FIO (\x -> case g x of {(s, y) -> (runState (f y)) s})    
+bind (FIO g) f = FIO (\x -> case g x of {(y, s) -> (runState (f y)) s})    
 
-ret  = undefined  -- TODO
+
+{-@ ret :: forall <p :: World -> Prop>.
+           x:a -> FIO <p, {\w0 y w1 -> w0 == w1 && y == x }> a @-}
+ret :: a -> FIO a
+ret w      = FIO $ \x -> (w, x)
 
 
 ok1 f = open f
@@ -61,17 +61,43 @@ fail1 :: FilePath -> FIO String
 fail1 f   = read f
 
 
+ok2 f = open f `bind` \_ -> read f
 
--- ok2 f = open f `bind` \_ -> read f
-
-{-
 instance Monad FIO where
-  (>>=)  = bind
-  return = ret
 
-{- ok3   :: FilePath -> FIO () @-}
+{-@ instance Monad FIO where
+ >>= :: forall < pre   :: World -> Prop 
+               , pre2  :: World -> Prop 
+               , p     :: a -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {w:World<pre> -> x:a -> World<post1 w x> -> World<pre2>}        
+       {w:World<pre> -> y:a -> w2:World<post1 w y> -> x:b -> World<post2 w2 x> -> World<post w x>}        
+       FIO <pre, post1> a
+    -> (a -> FIO <pre2, post2> b)
+    -> FIO <pre, post> b ;
+ >>  :: forall < pre   :: World -> Prop 
+               , pre2  :: World -> Prop 
+               , p     :: a -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {w:World<pre> -> x:a -> World<post1 w x> -> World<pre2>}        
+       {w:World<pre> -> y:a -> w2:World<post1 w y> -> x:b -> World<post2 w2 x> -> World<post w x>}        
+       FIO <pre, post1> a
+    -> FIO <pre2, post2> b
+    -> FIO <pre, post> b ;
+ return :: forall <p :: World -> Prop>.
+           x:a -> FIO <p, {\w0 y w1 -> w0 == w1 && y == x }> a
+  @-}  
+  (FIO g) >>= f = FIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
+  (FIO g) >>  f = FIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
+  return w      = FIO $ \x -> (w, x)
+  fail          = error
+
+
+{-@ ok3   :: FilePath -> FIO String @-}
 ok3 f = do open f
            read f
-
--}
 
