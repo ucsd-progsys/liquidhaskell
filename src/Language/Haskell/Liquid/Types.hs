@@ -1519,9 +1519,10 @@ data TError t =
                 , msg  :: !Doc
                 } -- ^ Termination Error 
 
-  | ErrRClass   { cls  :: !LocSymbol
-                , pos  :: !SrcSpan
-                } -- ^ Refined Class Error 
+  | ErrRClass   { pos   :: !SrcSpan
+                , cls   :: !Doc
+                , insts :: ![(SrcSpan, Doc)]
+                } -- ^ Refined Class/Interfaces Conflict
 
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
