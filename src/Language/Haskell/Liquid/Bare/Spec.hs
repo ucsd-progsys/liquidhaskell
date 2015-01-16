@@ -35,10 +35,11 @@ import qualified Data.List           as L
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (concatMapM, group, snd3)
-import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, takeModuleNames)
+import Language.Fixpoint.Misc (concatMapM, errorstar, group, mapFst, snd3)
+import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, symbolString, takeModuleNames)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
 
+import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4)
 import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
@@ -48,10 +49,12 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Check (checkDefAsserts)
 import Language.Haskell.Liquid.Bare.Env
+import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Misc (joinVar)
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
+import Language.Haskell.Liquid.Bare.SymSort
 
 makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where

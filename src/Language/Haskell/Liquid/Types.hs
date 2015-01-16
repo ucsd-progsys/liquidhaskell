@@ -1,16 +1,17 @@
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-} 
-{-# LANGUAGE OverlappingInstances  #-}
-{-# LANGUAGE ViewPatterns          #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-} 
+{-# LANGUAGE OverlappingInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -817,7 +818,7 @@ data RInstance t = RI { riclass :: LocSymbol
                       , risigs  :: [(LocSymbol, t)]
                       }
 
-data DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty))
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid)
 
 type RDEnv = DEnv Var SpecType
 
