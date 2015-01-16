@@ -196,15 +196,18 @@ makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
        return (measures, cms', ms', cs', xs')
 
 
--- RJ: This is not nice. More than 3 elements should be a record.
-    
-type ReplaceM = ReaderT ( M.HashMap Symbol Symbol
-                        , SEnv SortedReft
-                        , TCEmb TyCon
-                        , M.HashMap TyCon RTyCon
-                        ) (State ( M.HashMap Var (Located SpecType)
-                                 , M.HashMap Var [Expr]
-                                 ))
+
+data ReplaceEnv = RE { _re_env  :: M.HashMap Symbol Symbol
+                     , _re_fenv :: SEnv SortedReft
+                     , _re_emb  :: TCEmb TyCon
+                     , _re_tyi  :: M.HashMap TyCon RTyCon
+                     }
+
+type ReplaceState = ( M.HashMap Var (Located SpecType)
+                    , M.HashMap Var [Expr]
+                    )
+
+type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
 replaceLocalBinds :: TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
@@ -217,7 +220,7 @@ replaceLocalBinds emb tyi sigs texprs senv cbs
   = (M.toList s, M.toList t)
   where
     (s,t) = execState (runReaderT (mapM_ (`traverseBinds` return ()) cbs)
-                                  (M.empty, senv, emb, tyi))
+                                  (RE M.empty senv emb tyi))
                       (M.fromList sigs, M.fromList texprs)
 
 traverseExprs (Let b e)
@@ -236,10 +239,10 @@ traverseExprs _
   = return ()
 
 traverseBinds b k
-  = do (env', fenv', emb, tyi) <- ask
+  = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (takeWhileSym (/='#') $ symbol v) (symbol v) m) env' vs
            fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
-       withReaderT (const (env,fenv,emb,tyi)) $ do
+       withReaderT (const (RE env fenv emb tyi)) $ do
          mapM_ replaceLocalBindsOne vs
          mapM_ traverseExprs es
          k
@@ -253,7 +256,7 @@ replaceLocalBindsOne v
        case mt of
          Nothing -> return ()
          Just (Loc l (toRTypeRep -> t@(RTypeRep {..}))) -> do
-           (env',fenv,emb,tyi) <- ask
+           (RE env' fenv emb tyi) <- ask
            let f m k = M.lookupDefault k k m
            let (env,args) = L.mapAccumL (\e (v,t) -> (M.insert v v e, substa (f e) t))
                              env' (zip ty_binds ty_args)
