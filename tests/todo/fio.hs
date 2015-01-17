@@ -1,4 +1,4 @@
-module FIO where
+module RIO where
 
 import Prelude hiding (read)
 
@@ -48,6 +48,7 @@ bind :: FIO a -> (a -> FIO b) -> FIO b
 bind (FIO g) f = FIO (\x -> case g x of {(y, s) -> (runState (f y)) s})    
 
 
+-- is the precondition true or p?
 {-@ ret :: forall <p :: World -> Prop>.
            x:a -> FIO <p, {\w0 y w1 -> w0 == w1 && y == x }> a @-}
 ret :: a -> FIO a
