@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.Bare.Env
 -- Expand Reft Preds & Exprs ---------------------------------------------------
 --------------------------------------------------------------------------------
 
--- TOOD: Add type signature
+expandReft :: RReft -> BareM RReft
 expandReft = txPredReft expandPred expandExpr
 
 txPredReft :: (Pred -> BareM Pred) -> (Expr -> BareM Expr) -> RReft -> BareM RReft
@@ -33,6 +33,7 @@ txPredReft f fe (U r p l) = (\r -> U r p l) <$> txPredReft' f r
     txPredRefa  f (RConc p)       = fmap RConc $ (f <=< mapPredM fe) p
     txPredRefa  _ z               = return z
 
+mapPredM :: (Expr -> BareM Expr) -> Pred -> BareM Pred
 mapPredM f = go
   where
     go PTrue           = return PTrue
@@ -52,16 +53,17 @@ mapPredM f = go
 --------------------------------------------------------------------------------
 
 expandPred :: Pred -> BareM Pred
-expandPred (PBexp e@(EApp (Loc l f') es))
-  = do env <- gets (predAliases.rtEnv)
-       case M.lookup f' env of
-         Just rp ->
-           return $ expandApp l rp es
-         Nothing ->
-           PBexp <$> expandExpr e
 
-expandPred (PBexp e)
-  = PBexp <$> expandExpr e
+expandPred p@(PBexp (EApp (Loc l f') es))
+  = do env <- gets (predAliases.rtEnv)
+       return $
+         case M.lookup f' env of
+           Just rp ->
+             expandApp l rp es
+           Nothing ->
+             p
+expandPred p@(PBexp _)
+  = return p
 
 expandPred (PAnd ps)
   = PAnd <$> mapM expandPred ps
@@ -93,6 +95,7 @@ expandPred PTop
 --------------------------------------------------------------------------------
 
 expandExpr :: Expr -> BareM Expr
+
 expandExpr (EApp f@(Loc l f') es)
   = do env <- gets (exprAliases.rtEnv)
        case M.lookup f' env of
