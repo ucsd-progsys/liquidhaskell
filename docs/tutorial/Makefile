@@ -1,4 +1,4 @@
-PANDOC=pandoc --from=markdown+lhs --chapters --latex-engine=pdflatex --template=templates/default.latex --filter templates/inside.hs
+PANDOC=pandoc --from=markdown+lhs -- biblio templates/sw.bib --chapters --latex-engine=pdflatex --template=templates/default.latex --filter templates/inside.hs
 
 LHS2TEX=pandoc \
 	--from=markdown+lhs \
