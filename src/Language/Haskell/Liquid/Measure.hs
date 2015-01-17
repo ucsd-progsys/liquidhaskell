@@ -62,6 +62,7 @@ data Spec ty bndr  = Spec {
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
   , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions  
+  , rinstance  :: ![RInstance ty] 
   , dvariance  :: ![(LocSymbol, [Variance])]
   }
 
@@ -168,6 +169,7 @@ instance Monoid (Spec ty bndr) where
            , imeasures  =           imeasures s1  ++ imeasures s2
            , classes    =           classes s1    ++ classes s1
            , termexprs  =           termexprs s1  ++ termexprs s2
+           , rinstance  =           rinstance s1  ++ rinstance s2
            , dvariance  =           dvariance s1  ++ dvariance s2  
            }
 
@@ -195,6 +197,7 @@ instance Monoid (Spec ty bndr) where
            , imeasures  = []
            , classes    = []
            , termexprs  = []
+           , rinstance  = []
            , dvariance  = []
            }
 
@@ -237,8 +240,9 @@ instance Bifunctor Spec    where
         , cmeasures  = first f  <$> (cmeasures s)
         , imeasures  = first f  <$> (imeasures s)
         , classes    = fmap f   <$> (classes s)
+        , rinstance  = fmap f   <$> (rinstance s)
         }
-    where fmapP f (x, y) = (fmap f x, fmap f y)
+    where fmapP f (x, y)       = (fmap f x, fmap f y)
 
   second f s
     = s { measures   = fmap (second f) (measures s)
