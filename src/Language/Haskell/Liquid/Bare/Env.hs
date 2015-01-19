@@ -47,7 +47,6 @@ data BareEnv = BE { modName  :: !ModName
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv 
-                  , logicEnv :: LogicMap
                   }
 
 setModule m b = b { modName = m }
