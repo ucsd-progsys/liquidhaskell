@@ -1,4 +1,4 @@
-Refined Datatypes
+Refined Datatypes {#refineddatatypes}
 =================
 
  
@@ -89,7 +89,7 @@ between `0` and the dimension. Unfortunately, Haskell's
 type system does not make it easy to ensure that
 *illegal vectors are not representable*.
 \footnotetext{The standard approach is to use abstract types and
-[smart constructors][smart-ctr-wiki]
+[smart constructors](https://www.haskell.org/haskellwiki/Smart_constructors)
 but even then there is only the informal guarantee that the
 smart constructor establishes the right invariants.}
 
@@ -312,12 +312,12 @@ split xs       = (xs, [])
 Second, we need a function that *combines* two ordered lists
 
 \begin{code}
-merge                    :: (Ord a) => IncList a -> IncList a -> IncList a 
-merge xs  Emp            = xs
-merge Emp ys             = ys
-merge (x:< xs) (y :< ys) 
-  | x <= y               = x :< merge xs (y :< ys)
-  | otherwise            = y :< merge (x :< xs) ys
+merge         :: (Ord a) => IncList a -> IncList a -> IncList a 
+merge xs  Emp = xs
+merge Emp ys  = ys
+merge (x :< xs) (y :< ys) 
+  | x <= y    = x :< merge xs (y :< ys)
+  | otherwise = y :< merge (x :< xs) ys
 \end{code}
 
 \noindent 
@@ -349,8 +349,8 @@ append Emp       ys = ys
 append (x :< xs) ys = x :< append xs ys 
 \end{code}
 
-Ordered Trees
-------------- 
+Ordered Trees {#binarysearchtree}
+---------------------------------  
 
 As a last example of refined data types, let us consider binary search ordered
 trees, defined thus:
@@ -480,7 +480,7 @@ elements exceed the element. To this end, lets define a helper type:
 \footnotetext{This helper type approach is rather verbose. We should be able
 to just use plain old pairs and specify the above requirement as a
 *dependency* between the pairs' elements. Later, we will see how to
-do so using [abstract refinements][vazou13].}
+do so using [abstract refinements](http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf).}
 
 \begin{code}
 data MinPair a = MP { minElt :: a, rest :: BST a }

@@ -228,6 +228,20 @@ ppError' _ dSp (ErrMismatch _ x τ t)
     $+$ text "Haskell:" <+> pprint τ
     $+$ text "Liquid :" <+> pprint t
 
+ppError' _ dSp (ErrAliasCycle _ acycle)
+  = dSp <+> text "Cyclic Refined Type Alias Definitions"
+    $+$ text "The following alias definitions form a cycle:"
+    $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
+  where
+    describe (pos, name)
+      = text "Type alias:"     <+> pprint name
+        $+$ text "Defined at:" <+> pprint pos
+
+ppError' _ dSp (ErrIllegalAliasApp _ dn dl)
+  = dSp <+> text "Refinement Type Alias cannot be used in this context"
+    $+$ text "Type alias:" <+> pprint dn
+    $+$ text "Defined at:" <+> pprint dl
+
 ppError' _ dSp (ErrAliasApp _ n name dl dn)
   = dSp <+> text "Malformed Type Alias Application"
     $+$ text "Type alias:" <+> pprint name
@@ -239,6 +253,17 @@ ppError' _ dSp (ErrSaved _ s)
 
 ppError' _ dSp (ErrTermin xs _ s)
   = dSp <+> text "Termination Error on" <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
+
+ppError' _ dSp (ErrRClass pos cls insts)
+  = dSp <+> text "Refined classes cannot have refined instances"
+    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst insts)
+  where
+    describeCls
+      = text "Refined class definition for:" <+> cls
+        $+$ text "Defined at:" <+> pprint pos
+    describeInst (pos, t)
+      = text "Refined instance for:" <+> t
+        $+$ text "Defined at:" <+> pprint pos
 
 ppError' _ _ (ErrOther _ s)
   = text "Panic!" <+> nest 4 (pprint s)

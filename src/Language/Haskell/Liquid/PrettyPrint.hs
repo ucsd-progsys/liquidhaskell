@@ -109,7 +109,11 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
     ppE Lossy = ppEnvShort ppEnv
     ppE Full  = ppEnv
 
+ppTyConB bb 
+  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
+  | otherwise  = ppTycon
 
+    
 ppr_rtype bb p t@(RAllT _ _)       
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)       
@@ -126,8 +130,6 @@ ppr_rtype bb p (RApp c [t] rs r)
 ppr_rtype bb p (RApp c ts rs r)
   | isTuple c 
   = ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb rs
-
-
 ppr_rtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
   = ppTy r $ ppT c
@@ -136,10 +138,8 @@ ppr_rtype bb p (RApp c ts rs r)
   where
     rsDoc            = ppReftPs bb rs
     tsDoc            = hsep (ppr_rtype bb p <$> ts)
-    ppT | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
-        | otherwise  = ppTycon
-
-
+    ppT              = ppTyConB bb
+    
 ppr_rtype bb p t@(REx _ _ _)
   = ppExists bb p t
 ppr_rtype bb p t@(RAllE _ _ _)
