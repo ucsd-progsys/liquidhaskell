@@ -299,7 +299,7 @@ indeed non-negative. \footnotetext{Lets not worry about underflows for the momen
 
 \footnotetext{
 LH is able to automatically make these arithmetic deductions
-by using an [SMT solver][smt-wiki]
+by using an [SMT solver](http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories)
 which has decision built-in procedures for arithmetic, to reason about
 the logical refinements.}
 

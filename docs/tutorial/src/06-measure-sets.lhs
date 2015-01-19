@@ -57,9 +57,9 @@ Talking about Sets
 ------------------
 
 First, we need a way to talk about sets in the refinement logic. We could
-roll our own special Haskell type \footnotetext{See [this](blog-set) for a brief
-description of how to do so}, but for now, lets just use the `Set a`
-type from the prelude's `Data.Set`.
+roll our own special Haskell type
+\footnotetext{See [this](http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/03/26/talking-about-sets.lhs/) for a brief description of how to do so},
+but for now, lets just use the `Set a` type from the prelude's `Data.Set`.
 
 \newthought{Lifted Operators} The LiquidHaskell prelude *lifts* the basic set
 operators from `Data.Set` into the refinement logic, i.e. defines the following
@@ -83,7 +83,7 @@ is a valid formula, i.e. holds for all $x$, the solver "knows" that:
 $$x = \tsng{1} \Rightarrow y = \tsng{2} \Rightarrow x = \tcap{x}{\tcup{y}{x}}$$
 This is because, the above formulas belong to a decidable Theory of Sets
 reduces to McCarthy's more general [Theory of Arrays][mccarthy]. 
-\footnotetext{See [this recent paper][z3cal] to learn how modern SMT solvers prove equalities like the above.}
+\footnotetext{See [this recent paper](http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf) to learn how modern SMT solvers prove equalities like the above.}
 
 
 Proving QuickCheck Style Properties {#quickcheck} 
@@ -193,10 +193,10 @@ Thus, LiquidHaskell's refined types offer a nice interface
 for interacting with the SMT solvers in order to *prove*
 theorems, while letting us use QuickCheck to generate
 counterexamples.
-\footnotetext{The [SBV][sbv] and [Leon][leon] projects
-describes a different approach for using SMT solvers
-from Haskell and Scala respectively, directly via an
-embedded DSL.}
+\footnotetext{The [SBV](https://github.com/LeventErkok/sbv)
+and [Leon](http://lara.epfl.ch/w/leon) projects describe
+a different DSL based approach for using SMT solvers
+from Haskell and Scala respectively.}
 
 Content-Aware List API {#listelems}
 ----------------------------------
@@ -307,7 +307,7 @@ elements are the *same as* those of the input lists.
 Since we are focusing on the elements, lets not
 distract ourselves with the ordering invariant
 just, and reuse plain old lists.
-\footnotetext{See [this](blog-ord-list) for how to
+\footnotetext{See [this](http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/07/29/putting-things-in-order.lhs/) for how to
 specify and verify order with plain old lists.}
 
 \newthought{InsertionSort} is the simplest of all the
@@ -329,8 +329,8 @@ elements of the input `xs`, plus the new element `x`:
 {-@ insert :: x:a -> xs:[a] -> {v:[a] | UnElt v x xs } @-}
 \end{code}
 
-\noindent Which then lets us prove that the output of the sorting routine indeed
-has the elements of the input:
+\noindent Which then lets us prove that the output
+of the sorting routine indeed has the elements of the input:
 
 \begin{code}
 {-@ insertSort    :: (Ord a) => xs:[a] -> {v:[a] | EqElts v xs} @-}
