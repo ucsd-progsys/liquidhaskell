@@ -43,7 +43,6 @@ type Warn  = String
 type TCEnv = M.HashMap TyCon RTyCon
 
 data BareEnv = BE { modName  :: !ModName
-                  , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv 

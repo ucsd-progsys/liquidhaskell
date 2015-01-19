@@ -205,16 +205,15 @@ makeInvariants' ts = mapM mkI ts
     mkI (Loc l t)  = (Loc l) . generalize <$> mkSpecType l t
 
 
-makeSpecDictionaries embs vars specs sp
-  = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
+makeSpecDictionaries embs tyi vars specs sp
+  = do ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs tyi vars) specs
        return $ sp {dicts = ds}
 
-makeSpecDictionary embs vars (_, spec)  
-  = mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
+makeSpecDictionary embs tyi vars (_, spec)
+  = mapM (makeSpecDictionaryOne embs tyi vars) (Ms.rinstance spec)
 
-makeSpecDictionaryOne embs vars (RI x t xts) 
+makeSpecDictionaryOne embs tyi vars (RI x t xts)
   = do t'  <-  mkTy t
-       tyi <- gets tcEnv
        ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
        let v = lookupName d   
