@@ -464,6 +464,7 @@ data Pspec ty ctor
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
   | Class   (RClass ty)
+  | RInst   (RInstance ty)
   | Varia   (LocSymbol, [Variance])
 
 -- | For debugging
@@ -492,6 +493,7 @@ instance Show (Pspec a b) where
   show (IMeas  _) = "IMeas"  
   show (Class  _) = "Class" 
   show (Varia  _) = "Varia"
+  show (RInst  _) = "RInst"
 
 
 mkSpec name xs         = (name,)
@@ -521,6 +523,7 @@ mkSpec name xs         = (name,)
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
+  , Measure.rinstance  = [i | RInst  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
@@ -529,10 +532,11 @@ specP
   = try (reservedToken "assume"    >> liftM Assm   tyBindP   )
     <|> (reservedToken "assert"    >> liftM Asrt   tyBindP   )
     <|> (reservedToken "Local"     >> liftM LAsrt  tyBindP   )
-    <|> try (reservedToken "measure"   >> liftM Meas   measureP  ) 
+    <|> try (reservedToken "measure"  >> liftM Meas   measureP  ) 
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP ) 
-    <|> try (reservedToken "class" >> reserved "measure" >> liftM CMeas cMeasureP)
-    <|> (reservedToken "instance"  >> reserved "measure" >> liftM IMeas iMeasureP)
+    <|> try (reservedToken "class"    >> reserved "measure" >> liftM CMeas cMeasureP)
+    <|> try (reservedToken "instance" >> reserved "measure" >> liftM IMeas iMeasureP)
+    <|> (reservedToken "instance"  >> liftM RInst  instanceP )
     <|> (reservedToken "class"     >> liftM Class  classP    )
     <|> (reservedToken "import"    >> liftM Impt   symbolP   )
     <|> try (reservedToken "data" >> reserved "variance " >> liftM Varia datavarianceP)
@@ -647,6 +651,17 @@ cMeasureP
 
 iMeasureP :: Parser (Measure BareType LocSymbol)
 iMeasureP = measureP
+
+instanceP 
+  = do c  <- locUpperIdP
+       t  <- locUpperIdP
+       as <- classParams  
+       ts <- sepBy tyBindP semi
+       return $ RI c (RApp t ((`RVar` mempty) <$> as) [] mempty) ts
+  where 
+    classParams
+       =  (reserved "where" >> return [])
+      <|> (liftM2 (:) lowerIdP classParams)
 
 classP :: Parser (RClass BareType)
 classP

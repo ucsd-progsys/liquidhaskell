@@ -1,4 +1,4 @@
-Numeric Measures
+Numeric Measures {#numericmeasure}
 ================
 
 \begin{comment}
@@ -8,26 +8,26 @@ Numeric Measures
 {-@ LIQUID "--short-names"    @-}
 {-@ LIQUID "--no-termination" @-}
 
-module NumericMeasures (
-  -- * Types
-    Vector (..)
-  , Matrix (..)
-  , dotProd, matProd
-  , dotProduct, matProduct, transpose
-  , vecFromList, matFromList
-  , map, take,drop, for, zip, zipOrNull, partition, reverse
-  , first, second, size
-  , test1, test2, test3, test4, test5, test6
-  , ok23
-  , ok32 
-  ) where
+module NumericMeasures where
+-- (
+--   -- * Types
+--     Vector (..), Matrix (..), List 
+--   , dotProd, matProd
+--   , dotProduct, matProduct, transpose
+--   , vecFromList, matFromList
+--   , map, take, take', drop, for, zip, zipOrNull, partition, reverse
+--   , first, second, size, notEmpty
+--   , test1, test2, test3, test4, test5, test6, ok23, ok32, bad1, bad2 
+--   , vCons, vHd, vTl
+--   ) where
 
 import Prelude  hiding  (map, zipWith, zip, take, drop, reverse)
 
 {-@ die :: {v:_ | false} -> a @-}
 die msg = error msg
 take, drop, take' :: Int -> [a] -> [a]
-txgo          :: Int -> Int -> Vector (Vector a) -> Vector (Vector a)
+txgo              :: Int -> Int -> Vector (Vector a) -> Vector (Vector a)
+quickSort         :: (Ord a) => [a] -> [a]
 \end{code}
 
 Plan
@@ -42,7 +42,7 @@ Plan
 
 Many of the programs we have seen so far, for example those in
 [here](#vectorbounds), suffer from *indexitis*
-\footnotetext{A term coined by [Richard Bird][bird-pearls]}
+\footnotetext{A term coined by [Richard Bird](http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383)}
 a tendency to perform low-level manipulations to iterate over the
 indices into a collection, which opens the door to various off-by-one
 errors. Such errors can be entirely eliminated by instead programming
@@ -128,8 +128,7 @@ of the various aggreates. For example,
   dimensions; the number of columns of `mx` must equal the
   number of rows  of `my`. Otherwise, again, rather than an
   error, we will get the wrong output. \footnotetext{In fact,
-  while the above implementation happily breezes past GHC it
-  is quite wrong!}
+  while the implementation of  `matProd` breezes past GHC it is quite wrong!}
 
 
 Specifying List Dimensions
@@ -155,21 +154,31 @@ len []     = 0
 len (_:xs) = 1 + len xs
 \end{spec}
 
+
+\begin{code}
+{-@ measure size @-}
+{- size    :: xs:[a] -> {v:Nat | v = size xs && v = len xs} @-}
+{-@ size    :: xs:[a] -> Nat @-}
+size        :: [a] -> Int
+size (_:rs) = 1 + size rs
+size []     = 0
+\end{code}
+
 \newthought{Measures Refine Constructors}
 As with [refined data definitions](#autosmart), the
 measures are translated into strengthened types for
-the type's constructors. For example, the `len`
+the type's constructors. For example, the `size`
 measure is translated into:
 
 \begin{spec}
 data [a] where
-  []  :: {v: [a] | len v = 0}
-  (:) :: x:a -> xs:[a] -> {v:[a] | len v = 1 + len xs}
+  []  :: {v: [a] | size v = 0}
+  (:) :: x:a -> xs:[a] -> {v:[a] | size v = 1 + size xs}
 \end{spec}
 
 \newthought{Multiple Measures} We can write several
 different measures for a datatype. For example, in
-addition to the `len` measure, we can define a `notEmpty`
+addition to the `size` measure, we can define a `notEmpty`
 measure for the list type:
 
 \begin{code}
@@ -187,8 +196,8 @@ up yielding the constructors:
 
 \begin{spec}
 data [a] where
-  []  :: {v: [a] | not (notEmpty v) && len v = 0}
-  (:) :: x:a -> xs:[a] -> {v:[a] | notEmpty v && len v = 1 + len xs}
+  []  :: {v: [a] | not (notEmpty v) && size v = 0}
+  (:) :: x:a -> xs:[a] -> {v:[a] | notEmpty v && size v = 1 + size xs}
 \end{spec}
 
 \noindent 
@@ -201,7 +210,7 @@ to bake into the structure, but can define a generic
 structure and refine it *a posteriori* as needed with
 new measures.
 
-Lets use `len` to create a dimension-aware API for lists.
+Lets use `size` to create a dimension-aware API for lists.
 To get the ball rolling, lets defining a few helpful type aliases:
 
 \newthought{An `N`-List} is a list with exactly `N` elements:
@@ -210,7 +219,7 @@ we use uppercase variables like `N` to distinguish value- parameters
 from the lowercase type parameters like `a`.}
 
 \begin{code}
-{-@ type ListN a N = {v : [a] | len v = N} @-}
+{-@ type ListN a N = {v : [a] | size v = N} @-}
 \end{code}
 
 \noindent To make the signatures symmetric, lets use an alias
@@ -231,7 +240,7 @@ but the specifications are enriched with dimension information.
 \newthought{`map`} yields a list with the same size as the input:
 
 \begin{code}
-{-@ map      :: (a -> b) -> xs:List a -> ListN b (len xs) @-}
+{-@ map      :: (a -> b) -> xs:List a -> ListN b (size xs) @-}
 map _ []     = []
 map f (x:xs) = f x : map f xs
 \end{code}
@@ -244,7 +253,10 @@ is not, as in that case the former's length is zero while the latter's
 is not, and hence, different.}
 
 \begin{code}
-{-@ zipWith :: _ -> xs:List a -> ListN b (len xs) -> ListN c (len xs) @-}
+
+{-@ invariant {v:[a] | 0 <= size v} @-}
+
+{-@ zipWith :: _ -> xs:List a -> ListN b (size xs) -> ListN c (size xs) @-}
 zipWith f (a:as) (b:bs) = f a b : zipWith f as bs
 zipWith _ [] []         = []
 zipWith _ _  _          = die "no other cases"
@@ -256,7 +268,7 @@ Here's a function that actually allows for that case, where the output
 type is the *shorter* of the two inputs:
 
 \begin{code}
-{-@ zip :: as:[a] -> bs:[b] -> {v:[(a,b)] | Min (len v) (len as) (len bs)} @-}
+{-@ zip :: as:[a] -> bs:[b] -> {v:[(a,b)] | Min (size v) (size as) (size bs)} @-}
 zip (a:as) (b:bs) = (a, b) : zip as bs
 zip [] _          = []
 zip _  []         = [] 
@@ -282,13 +294,13 @@ zipOrNull [] _  = []
 zipOrNull _ []  = []
 zipOrNull xs ys = zipWith (,) xs ys
 
-{-@ test1 :: {v: _ | len v = 2} @-}
+{-@ test1 :: {v: _ | size v = 2} @-}
 test1     = zipOrNull [0, 1] [True, False]
 
-{-@ test2 :: {v: _ | len v = 0} @-}
+{-@ test2 :: {v: _ | size v = 0} @-}
 test2     = zipOrNull [] [True, False]
 
-{-@ test3 :: {v: _ | len v = 0} @-}
+{-@ test3 :: {v: _ | size v = 0} @-}
 test3     = zipOrNull ["cat", "dog"] []
 \end{code}
 
@@ -300,7 +312,7 @@ a list using the tail-recursive `go`. Fix the signature for `go`
 so that LiquidHaskell can prove the specification for `reverse`.
 
 \begin{code}
-{-@ reverse       :: xs:[a] -> {v:[a] | len v = len xs} @-}
+{-@ reverse       :: xs:[a] -> {v:[a] | size v = size xs} @-}
 reverse xs        = go [] xs
   where 
     {-@ go        :: xs:[a] -> ys:[a] -> [a] @-}
@@ -310,7 +322,7 @@ reverse xs        = go [] xs
 
 \hint How big is the list returned by `go`?
 
-Lists: Size Reducing API 
+Lists: Size Reducing API {#listreducing} 
 ------------------------
 
 Next, lets look at some functions that truncate lists, in one way or another.
@@ -318,14 +330,17 @@ Next, lets look at some functions that truncate lists, in one way or another.
 \newthought{Take} lets us grab the first `k` elements from a list: 
 
 \begin{code}
-{-@ take'     :: n:Nat -> {v:List a | n <= len v} -> ListN a n @-}
+{-@ take'     :: n:Nat -> {v:List a | n <= size v} -> ListN a n @-}
 take' 0 _      = []
 take' n (x:xs) = x : take' (n-1) xs
 take' _ _      = die "won't  happen"
 \end{code}
 
-\exercisen{Drop} is the yang to `take`'s yin: it returns the
-remainder after extracting the first `k` elements: 
+
+\exercisen{Drop} is the yang to `take`'s yin: it returns
+the remainder after extracting the first `k` elements.
+Write a suitable specification for it so that the below
+typechecks:
 
 \begin{code}
 drop 0 xs     = xs
@@ -378,13 +393,27 @@ second (_, y) = y
 \noindent We can use the above to type `partition` as
 
 \begin{code}
-{-@ partition :: (a -> Bool) -> xs:_ -> ListPair a (len xs) @-}
+{-@ partition :: (a -> Bool) -> xs:_ -> ListPair a (size xs) @-}
 \end{code}
 
 \noindent using an alias for a pair of lists whose total dimension equals `N`
 
 \begin{code}
-{-@ type ListPair a N = {v:([a], [a]) | len (first v) + len (second v) = N} @-}
+{-@ type ListPair a N = {v:([a], [a]) | size (first v) + size (second v) = N} @-}
+\end{code}
+
+\exercisen{QuickSort} Use the `partition` function above to implement `quickSort`:
+
+\begin{code}
+-- >> quickSort [1,4,3,2]
+-- [1,2,3,4]
+
+{-@ quickSort    :: (Ord a) => xs:List a -> ListN a (size xs) @-}
+quickSort []     = []
+quickSort (x:xs) = undefined
+
+{-@ test10 :: ListN String 2 @-}
+test10 = quickSort test4 
 \end{code}
 
 
@@ -528,7 +557,6 @@ bad2 = M 2 3 (V 2 [ V 2 [1, 2]
 \exercisen{Matrix Constructor} \singlestar Write a function to construct a `Matrix` from a nested list.
 
 \begin{code}
-{-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (len xss) (cols xss)) @-}
 matFromList      :: [[a]] -> Maybe (Matrix a)
 matFromList []   = Nothing                       -- no meaningful dimensions! 
 matFromList xss@(xs:_)
@@ -539,31 +567,31 @@ matFromList xss@(xs:_)
     c            = size xs
     ok           = undefined
     vs           = undefined 
+
 \end{code}
 
-\exercisen{Refined Matrix Constructor} \doublestar Refine the specification for `matFromList` so that the
-following is accepted by LiquidHaskell:
+\exercisen{Refined Matrix Constructor} \doublestar Refine the
+specification for `matFromList` so that the following is
+accepted by LiquidHaskell:
 
 \begin{code}
 {-@ mat23 :: Maybe (MatrixN Integer 2 2) @-} 
 mat23     = matFromList [ [1, 2]
                         , [3, 4] ]
-
-{-@ measure cols @-}
-{-@ cols   :: [[a]] -> Nat @-}
-cols (r:_) = size r
-cols []    = 0
-
-{-@ measure size @-}
-{-@ size    :: xs:[a] -> {v:Nat | v = size xs && v = len xs} @-}
-size        :: [a] -> Int
-size (_:rs) = 1 + size rs
-size []     = 0
 \end{code}
 
 \hint It is easy to specify the number of rows from `xss`.
 How will you figure out the number of columns? A measure
 may be useful.
+
+\begin{comment}
+-- DELETE ME
+{-@ matFromList  :: xss:[[a]] -> Maybe (MatrixN a (size xss) (cols xss)) @-}
+{-@ measure cols @-}
+{-@ cols   :: [[a]] -> Nat @-}
+cols (r:_) = size r
+cols []    = 0
+\end{comment}
 
 \newthought{Matrix Multiplication} Ok, lets now implement
 matrix multiplication. You'd think we did it already, but
@@ -615,14 +643,13 @@ transpose (M r c rows) = M c r $ txgo c r rows
 
 {-@ txgo      :: c:Nat -> r:Nat
               -> VectorN (VectorN a c) r
-              -> VectorN (VectorN a r) c
-  @-}
+              -> VectorN (VectorN a r) c @-}
 txgo c r rows = undefined
 \end{code}
 
-\hint From the `ok23` and `ok32` example `transpose` works by
-stripping out the `head`s of each input row, to create the
-corresponding output row.
+\hint As shown by `ok23` and `ok32`, `transpose` works by
+stripping out the `head`s of the input rows, to create the
+corresponding output rows.
 
 Recap
 -----

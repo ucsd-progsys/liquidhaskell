@@ -8,7 +8,7 @@ import Prelude hiding (snd, fst)
 
 data ST a s = S (s -> (a, s))
 {-@ data ST a s <pre :: s -> Prop, post :: s -> a -> s -> Prop> 
-       = S (ys::(x:s<pre> -> ((a, s)<post x>)))
+       = S (ys::(x:s<pre> -> ((a, s)<\xx -> {v:s<post x xx> | true}>)))
   @-}
 
 {-@ returnST :: forall <pre :: s -> Prop>.
@@ -19,9 +19,9 @@ returnST :: a -> ST a s
 returnST x = S $ \s -> (x, s)
 
 {-@ bindST :: forall <p :: s -> Prop, q :: s -> a -> s -> Prop, r :: s -> b -> s -> Prop>.
-            (xm:s<p> -> (a, s)<q xm>) 
-         -> (xbind:a -> xk:s -> (b, s)<r xk>) 
-         -> (xr:s<p> -> exists[xa:a].exists[xs:s<q xr xa>].(b, s)<r xs>)
+            (xm:s<p> -> (a, s)<\xx -> {v:s<q xm xx> | true}>) 
+         -> (xbind:a -> xk:s -> (b, s)<\xx -> {v:s<r xk xx> | true}>) 
+         -> (xr:s<p> -> exists[xa:a].exists[xs:s<q xr xa>].(b, s)<\xx -> {v:s<r xs xx> | true}>)
  @-}
 bindST :: (s -> (a, s)) -> (a -> (s -> (b, s))) -> (s ->  (b, s))
 bindST m k = \s -> let (a, s') = m s in (k a) s'

@@ -322,8 +322,8 @@ Can you think of a better specification for the function(s) doing those computat
 \exercise
 Non-empty lists pop up in many places, and it is rather convenient
 to have the type system track non-emptiness without having to make
-up special types. Consider the `risers` function: \footnotetext{Popularized by
-[Neil Mitchell][mitchell-riser]}
+up special types. Consider the `risers` function:
+\footnotetext{Popularized by [Neil Mitchell](http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html)}
 
 \begin{code}
 risers           :: (Ord a) => [a] -> [[a]]

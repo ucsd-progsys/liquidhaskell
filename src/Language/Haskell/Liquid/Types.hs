@@ -1,16 +1,17 @@
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE DeriveFoldable        #-}
-{-# LANGUAGE DeriveTraversable     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-} 
-{-# LANGUAGE OverlappingInstances  #-}
-{-# LANGUAGE ViewPatterns          #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-} 
+{-# LANGUAGE OverlappingInstances       #-}
+{-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -139,7 +140,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinement Type Aliases
   , RTEnv (..)
-  , RTBareOrSpec
   , mapRT, mapRP, mapRE
 
   -- * Final Result
@@ -185,13 +185,15 @@ module Language.Haskell.Liquid.Types (
   -- * CoreToLogic
   , LogicMap, toLogicMap, eAppWithMap
 
+  -- * Refined Instances
+  , RDEnv, DEnv(..), RInstance(..)
+
   )
   where
 
 import SrcLoc                                   (noSrcSpan, SrcSpan)
 import TyCon 
 import DataCon
-import Name                                     (getName)
 import NameSet
 import Module                                   (moduleNameFS)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)  
@@ -228,7 +230,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config) 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
-import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym, funConName, listConName, tupConName)
+import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
@@ -356,6 +358,7 @@ data GhcSpec = SP {
   , exports    :: !NameSet                       -- ^ `Name`s exported by the module being verified
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
+  , dicts      :: DEnv Var SpecType                  -- ^ Dictionary Environment
   }
 
 type LogicMap = M.HashMap Symbol LMap 
@@ -800,14 +803,33 @@ instance Fixpoint RTyCon where
 
 
 instance PPrint RTyCon where
-  pprint (RTyCon c _ i) = (text $ showPpr c) <+> text (show i)
+  pprint = text . showPpr . rtc_tc  
+
 
 instance Show RTyCon where
   show = showpp  
 
 --------------------------------------------------------------------------
+-- | Refined Instances ---------------------------------------------------
+--------------------------------------------------------------------------
+
+data RInstance t = RI { riclass :: LocSymbol
+                      , ritype  :: t 
+                      , risigs  :: [(LocSymbol, t)]
+                      }
+
+newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol ty)) deriving (Monoid)
+
+type RDEnv = DEnv Var SpecType
+
+instance Functor RInstance where
+  fmap f (RI x t xts) = RI x (f t) (mapSnd f <$> xts) 
+
+
+--------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
+
 
 -- | Data type refinements
 data DataDecl   = D { tycName   :: LocSymbol
@@ -1479,6 +1501,15 @@ data TError t =
                 , hs   :: !Type
                 , texp :: !t
                 } -- ^ Mismatch between Liquid and Haskell types
+  
+  | ErrAliasCycle { pos    :: !SrcSpan
+                  , acycle :: ![(SrcSpan, Doc)] 
+                  } -- ^ Cyclic Refined Type Alias Definitions
+
+  | ErrIllegalAliasApp { pos   :: !SrcSpan
+                       , dname :: !Doc
+                       , dpos  :: !SrcSpan
+                       } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
   | ErrAliasApp { pos   :: !SrcSpan
                 , nargs :: !Int
@@ -1491,11 +1522,15 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
-  
   | ErrTermin   { bind :: ![Var]
                 , pos  :: !SrcSpan
                 , msg  :: !Doc
                 } -- ^ Termination Error 
+
+  | ErrRClass   { pos   :: !SrcSpan
+                , cls   :: !Doc
+                , insts :: ![(SrcSpan, Doc)]
+                } -- ^ Refined Class/Interfaces Conflict
 
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
@@ -1582,16 +1617,14 @@ getModString = moduleNameString . getModName
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
-type RTBareOrSpec = Either (ModName, (RTAlias Symbol BareType))
-                           (RTAlias RTyVar SpecType)
-
+-- TODO: Wrap "Symbol" in a newtype for expanded/'finished' Pred/Expr
 type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
                            (RTAlias Symbol Pred)
 
 type RTExprAlias  = Either (ModName, RTAlias Symbol Expr)
                            (RTAlias Symbol Expr)
 
-data RTEnv   = RTE { typeAliases :: M.HashMap Symbol RTBareOrSpec
+data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
                    , predAliases :: M.HashMap Symbol RTPredAlias
                    , exprAliases :: M.HashMap Symbol RTExprAlias
                    }
@@ -1787,15 +1820,6 @@ hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 instance Symbolic DataCon where
   symbol = symbol . dataConWorkId
 
-instance Symbolic Var where
-  symbol = varSymbol
-
-varSymbol ::  Var -> Symbol
-varSymbol v 
-  | us `isSuffixOfSym` vs = vs
-  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
-  where us  = symbol $ showPpr $ getDataConVarUnique v
-        vs  = symbol $ getName v
 
 instance PPrint DataCon where
   pprint = text . showPpr

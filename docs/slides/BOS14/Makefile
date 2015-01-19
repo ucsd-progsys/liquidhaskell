@@ -4,7 +4,10 @@ RJSERVER=rjhala@goto.ucsd.edu:~/public_html/liquid/haskell/plpv/lhs/
 ## LOCAL
 ## MATHJAX=file:///Users/rjhala/research/MathJax
 ## REMOTE 
-MATHJAX=https://c328740.ssl.cf1.rackcdn.com/mathjax/latest
+## MATHJAX=https://c328740.ssl.cf1.rackcdn.com/mathjax/latest
+## MATHJAX=https://c328740.ssl.cf1.rackcdn.com/mathjax/latest
+MATHJAX=http://cdn.mathjax.org/mathjax/latest
+
 ####################################################################
 
 STRIPCODE=./MkCode.hs

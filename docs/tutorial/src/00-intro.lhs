@@ -1,21 +1,21 @@
 ---
-title:         "Using LiquidHaskell"
-author:        Ranjit Jhala
-date:          Sep 5th, 2014
-documentclass: book
-toc:           true
-bibliography: sw.bib
+title:          "Using LiquidHaskell"
+author:         Ranjit Jhala, Niki Vazou, Eric Seidel
+date:           Sep 5th, 2014
+documentclass:  book
+toc:            true
+bibliography:   sw.bib
 ---
 
 
 \begin{comment}
 \begin{code}
 module Introduction where
-main = putStrLn "Ch3"
+main = putStrLn "Intro"
 \end{code}
 \end{comment}
 
-Introduction
+Introduction {#intro}
 ============
 
 
@@ -157,7 +157,7 @@ the above calamities *cannot occur at run-time*.
 
 \newthought{LiquidHaskell} is a Refinement Type Checker for Haskell, and in
 this document we'll describe how you can use it to make programs
-and programming better.
+better and programming even more fun.
 
 \footnotetext{If you are familiar with the notion of Dependent Types,
 for example, as in the Coq proof assistant, then Refinement Types
@@ -191,14 +191,16 @@ LiquidHaskell requires, in addition to the cabal dependencies
 the binary executable for an `SMTLIB2` compatible solver, e.g.
 one of
 
-    + [Z3][z3]
-    + [CVC4][cvc4]
-    + [MathSat][mathsat]
++ [Z3][z3]
++ [CVC4][cvc4]
++ [MathSat][mathsat]
    
 \newthought{Install}
 Once you have the above on your system, simply do:
 
-    cabal install liquidhaskell
+\begin{shell}
+$ cabal install liquidhaskell
+\end{shell}
 
 \newthought{Run}
 Once you have installed LiquidHaskell -- i.e. the binary `liquid` --
@@ -207,7 +209,9 @@ from within Emacs or Vim.
 
 \newthought{Command Line} execution simply requires you type:
 
-    liquid /path/to/file.hs
+\begin{shell}
+$ liquid /path/to/file.hs
+\end{shell}
 
 You will see a report of `SAFE` or `UNSAFE` together with type errors at
 various points in the source.
@@ -224,7 +228,7 @@ Sample Code
 -----------
 
 This entire tutorial is written in literate Haskell.
-All the code for it is available [on github][liquid-tutorial]
+All the code for it is available [on github][liquid-tutorial].
 We *strongly* recommend you grab the code, and follow along
 at home, and especially, that you do the various exercises.
 
@@ -239,17 +243,12 @@ at home, and especially, that you do the various exercises.
 [listtail]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
 [dmlarray]:        http://www.cs.bu.edu/~hwxi/academic/papers/pldi98.pdf
 [liquid-tutorial]: http://github.com/ucsd-pl/liquidhaskell-tutorial.git 
-[liquid-emacs]:    https://github.com/ucsd-progsys/liquidhaskell#emacs)
-[liquid-vim]:      https://github.com/ucsd-progsys/liquidhaskell#vim)
-[z3]:              http://z3.codeplex.com/)
-[cvc4]:            http://cvc4.cs.nyu.edu/) 
-[mathsat]:         http://mathsat.fbk.eu/download.html)
-[smt-wiki]:        http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories
+[liquid-emacs]:    https://github.com/ucsd-progsys/liquidhaskell#emacs
+[liquid-vim]:      https://github.com/ucsd-progsys/liquidhaskell#vim
+[z3]:              http://z3.codeplex.com/
+[cvc4]:            http://cvc4.cs.nyu.edu/ 
+[mathsat]:         http://mathsat.fbk.eu/download.html
 [hoogle-assert]:   https://www.haskell.org/hoogle/?hoogle=assert
-[bst-wiki]:        http://en.wikipedia.org/wiki/Binary_search_tree
-[vazou13]:         http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
-[smart-ctr-wiki]:  https://www.haskell.org/haskellwiki/Smart_constructors
-[mitchell-riser]:  http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
 [apple-riser]:     http://blog.jbapple.com/2008/01/extra-type-safety-using-polymorphic.html
 [safeList]:        /blog/2013/01/31/safely-catching-a-list-by-its-tail.lhs/
 [kmeansI]:         /blog/2013/02/16/kmeans-clustering-I.lhs/
@@ -259,7 +258,30 @@ at home, and especially, that you do the various exercises.
 [URL-transpose]:   http://hackage.haskell.org/packages/archive/base/latest/doc/html/src/Data-List.html#transpose
 [maru]:            http://www.youtube.com/watch?v=8uDuls5TyNE
 [URL-kmeans]:      http://hackage.haskell.org/package/kmeans
+[hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
+[smt-set]:       http://www.kroening.com/smt-lib-lsm.pdf)
+
+[setspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Set.spec
+[mccarthy]: http://www-formal.stanford.edu/jmc/towards.ps
+[xmonad-stackset]: http://hackage.haskell.org/package/xmonad-0.11/docs/XMonad-StackSet.html
+
+[bst-wiki]:        http://en.wikipedia.org/wiki/Binary_search_tree
+[foreignptr]:  http://hackage.haskell.org/package/base/docs/Foreign-Ptr.html
+[bytestring]:  https://hackage.haskell.org/package/bytestring
+[xmonad]:      http://xmonad.org/
+[wiki-zipper]: http://en.wikipedia.org/wiki/Zipper_(data_structure)
+
+
+
+[wiki-contracts]: http://en.wikipedia.org/wiki/Design_by_contract
+[smart-ctr-wiki]:  https://www.haskell.org/haskellwiki/Smart_constructors
+[smt-wiki]:        http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories
+[vazou13]:         http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf
 
 [bird-pearls]: http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383
-[hinze-icfp09]: http://www.cs.ox.ac.uk/ralf.hinze/publications/ICFP09.pdf
-
+[mitchell-riser]:  http://neilmitchell.blogspot.com/2008/03/sorting-at-speed.html
+[blog-set]:        /blog/2013/03/26/talking-about-sets.lhs/
+[z3cal]:           http://research.microsoft.com/en-us/um/people/leonardo/fmcad09.pdf
+[sbv]:             https://github.com/LeventErkok/sbv
+[leon]:            http://lara.epfl.ch/w/leon
+[ptrspec]:  https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Ptr.spec
