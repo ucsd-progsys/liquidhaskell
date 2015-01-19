@@ -42,7 +42,7 @@ Plan
 
 Many of the programs we have seen so far, for example those in
 [here](#vectorbounds), suffer from *indexitis*
-\footnotetext{A term coined by [Richard Bird][bird-pearls]}
+\footnotetext{A term coined by [Richard Bird](http://www.amazon.com/Pearls-Functional-Algorithm-Design-Richard/dp/0521513383)}
 a tendency to perform low-level manipulations to iterate over the
 indices into a collection, which opens the door to various off-by-one
 errors. Such errors can be entirely eliminated by instead programming

@@ -30,8 +30,7 @@ create, create'  :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 
 A large part of the allure of Haskell is its elegant, high-level ADTs
 that ensure that programs won't be plagued by problems like the infamous
-[SSL heartbleed bug](heartbleed).
-\footnotetext{Assuming, of course, the absence of errors in the compiler and run-time...}
+[SSL heartbleed bug](heartbleed.com).\footnotetext{Assuming, of course, the absence of errors in the compiler and run-time...}
 However, another part of Haskell's charm is that when you really really 
 need to, you can drop down to low-level pointer twiddling to squeeze the 
 most performance out of your machine. But of course, that opens the door 
@@ -229,8 +228,7 @@ buffers, we can use an *abstract measure*, i.e. a measure specification
 
 \footnotetext{These two measures, and the signatures for
 the associate API are defined and imported from in the
-LiquidHaskell [standard library](ptrspec). We include them
-here for exposition.}
+LiquidHaskell [standard library](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/GHC/Ptr.spec). We include them here for exposition.}
 
 \begin{spec}
 -- | Size of `Ptr`
@@ -401,8 +399,8 @@ the code. Here, we can *assume* a boundary specification, and then
 *guarantee* that the rest of the system is safe with respect to
 that specification.
 \footnotetext{If we so desire, we can also *check* the boundary
-specifications at [run-time](wiki-contracts), but that is
-outside the scope of LiquidHaskell}.
+specifications at [run-time](http://en.wikipedia.org/wiki/Design_by_contract),
+but that is outside the scope of LiquidHaskell}.
 
 
 ByteString API

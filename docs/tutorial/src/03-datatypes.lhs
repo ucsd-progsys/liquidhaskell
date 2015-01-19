@@ -89,7 +89,7 @@ between `0` and the dimension. Unfortunately, Haskell's
 type system does not make it easy to ensure that
 *illegal vectors are not representable*.
 \footnotetext{The standard approach is to use abstract types and
-[smart constructors][smart-ctr-wiki]
+[smart constructors](https://www.haskell.org/haskellwiki/Smart_constructors)
 but even then there is only the informal guarantee that the
 smart constructor establishes the right invariants.}
 
@@ -480,7 +480,7 @@ elements exceed the element. To this end, lets define a helper type:
 \footnotetext{This helper type approach is rather verbose. We should be able
 to just use plain old pairs and specify the above requirement as a
 *dependency* between the pairs' elements. Later, we will see how to
-do so using [abstract refinements][vazou13].}
+do so using [abstract refinements](http://goto.ucsd.edu/~rjhala/liquid/abstract_refinement_types.pdf).}
 
 \begin{code}
 data MinPair a = MP { minElt :: a, rest :: BST a }
