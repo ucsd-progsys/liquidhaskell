@@ -55,20 +55,20 @@ die msg = error msg
 \end{comment}
 
 So far, we have seen how to refine the types of *functions*, to
-specify, for example, preconditions on the inputs, or postconditions
+specify, for example, pre-conditions on the inputs, or post-conditions
 on the outputs. Very often, we wish to define *datatypes* that satisfy
 certain invariants. In these cases, it is handy to be able to directly
-refine the the `data` definition, so that it is impossible to create
+refine the the `data` definition, making it impossible to create
 illegal inhabitants.
 
 Sparse Vectors Revisited {#sparsedata}
 -------------------------------------
 
-As our first example of a refined datatype, lets revisit the
+As our first example of a refined datatype, let's revisit the
 sparse vector representation that we [saw earlier](#sparsetype).
 The `SparseN` type alias we used got the job done, but is not
 pleasant to work with because we have no way of determining
-the *dimension* of the sparse vector. Instead, lets create a new
+the *dimension* of the sparse vector. Instead, let's create a new
 datatype to represent such vectors:
 
 \begin{code}
@@ -148,7 +148,7 @@ inside refinements:
 \end{code}
 
 \newthought{Sparse Products}
-Lets write a function to compute a sparse product
+Let's write a function to compute a sparse product
 
 \begin{code}
 {-@ dotProd :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
@@ -193,7 +193,7 @@ fromList          :: Int   -> [(Int, a)] -> Maybe (Sparse a)
 fromList dim elts = undefined   
 
 {-@ test1         :: SparseN String 3 @-}
-test1             = fromJust $ fromList  3 [(0, "cat"), (2, "mouse")]
+test1             = fromJust $ fromList 3 [(0, "cat"), (2, "mouse")]
 \end{code}
 
 \exercise {} **[Addition]** Write the specification and implementation

@@ -22,7 +22,7 @@ Introduction {#intro}
 
 One of the great things about Haskell is its brainy type system that
 allows one to enforce a variety of invariants at compile time, thereby
-nipping, in the bud, a large swathe of run-time errors.
+nipping in the bud a large swathe of run-time errors.
 
 Well-Typed Programs Do Go Wrong
 -------------------------------
@@ -96,7 +96,7 @@ ghci> unsafeIndex v 0
 "haskell"
 \end{shell}
 
-However, invalid inputs at the safe upper levels could percolate all
+However, invalid inputs at the safe upper levels can percolate all
 the way down and stir a mutiny down below:
 
 \begin{verbatim}
@@ -105,12 +105,12 @@ ghci> unsafeIndex v 3
 \end{verbatim}
 
 \footnotetext{Why use a function marked \cc{unsafe}?
-First we have to thank the developers for carefully marking
-it as such, because in general, given the many layers of abstraction,
-it is hard to know which functions are indeed safe".
-Second, because its very fast. Third, even if we used
+Because it's very fast. Furthermore, even if we used
 the safe variant, we'd get a \emph{run-time} exception
-which is only marginally better.}
+which is only marginally better.
+Finally, we should remember to thank the developers for carefully marking
+it unsafe, because in general, given the many layers of abstraction,
+it is hard to know which functions are indeed safe".}
 
 \newthought{Heart Bleeds}
 Finally, for certain kinds of programs, there is a fate worse than death.
@@ -144,14 +144,14 @@ Refinement Types
 ----------------
 
 Refinement types allow us to enrich Haskell's type system with
-*predicates* which precisely describe the sets of *valid* inputs
-and outputs of functions, and values held inside containers and
+*predicates* that precisely describe the sets of *valid* inputs
+and outputs of functions, values held inside containers, and
 so on. These predicates are drawn from special *logics* for which
 there are fast *decision procedures* called SMT solvers.
 
 \newthought{By combining types with predicates} you can specify *contracts*
 which describe valid inputs and outputs of functions. The refinement
-type system *guarantees at compile time* that functions adhere to
+type system *guarantees at compile-time* that functions adhere to
 their contracts. That is, you can rest assured that 
 the above calamities *cannot occur at run-time*.
 
@@ -172,7 +172,7 @@ Do you
 
 * know a bit of basic arithmetic and logic?
 * know the difference between a `nand` and an `xor`?
-* know any typed languages e.g. ML, Haskell, Scala, F# or Racket?
+* know any typed languages e.g. ML, Haskell, Scala, F# or (Typed) Racket?
 * know what `forall a. a -> a` means?
 * like it when your code editor politely points out infinite loops?
 * like your programs to not have bugs?
