@@ -8,36 +8,30 @@ module AVL (Tree, singleton, insert) where
 data Tree a = Nil | Tree a (Tree a) (Tree a) deriving Show
 
 {-@ measure ht @-}
-ht :: Tree a -> Int
-ht Nil = 0
-ht (Tree x l r) = (if (ht l) > (ht r) then (1 + ht l) else (1 + ht r))
+ht              :: Tree a -> Int
+ht Nil          = 0
+ht (Tree x l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
 {-@ invariant {v:Tree a | 0 <= ht v} @-}
 
-{-@ measure bFac @-}
-bFac Nil = 0
-bFac (Tree v l r) = (ht l) - (ht r)
 
-{-@ htDiff ::
- s: Tree a ->
- t: Tree a ->
- {v: Int | HtDiff s t v } @-}
+{-@ measure bFac @-}
+bFac Nil          = 0
+bFac (Tree v l r) = ht l - ht r
+
+{-@ htDiff :: s:Tree a -> t: Tree a -> {v: Int | HtDiff s t v} @-}
 htDiff :: Tree a -> Tree a -> Int
 htDiff l r = ht l - ht r
 
-{-@ emp :: {v: AVLTree | ht v == 0 } @-}
+{-@ emp :: {v: AVLTree | ht v == 0} @-}
 emp = Nil
 
 {-@ singleton :: a -> {v: AVLTree | ht v == 1 }@-}
 singleton a = Tree a Nil Nil
 
-
--- Insert functions
+-- | Insert functions
 
 {-@ Decrease insert 3 @-}
-{-@ insert :: 
- a ->
- s: AVLTree ->
- {t: AVLTree | EqHt t s || HtDiff t s 1 } @-}
+{-@ insert :: a -> s: AVLTree -> {t: AVLTree | EqHt t s || HtDiff t s 1 } @-}
 insert :: (Ord a) => a -> Tree a -> Tree a
 insert a Nil = singleton a
 insert a t@(Tree v l r) = case compare a v of
@@ -70,39 +64,17 @@ insert a t@(Tree v l r) = case compare a v of
                 = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
 
 -- Extra proofs
-{-@ rebalanceLL' ::
- a ->
- l:{AVLTree | LeftHeavy l } ->
- r:{AVLTree | HtDiff l r 2 } ->
- {t: AVLTree | EqHt t l } @-}
+{-@ rebalanceLL' :: a -> l:{AVLTree | LeftHeavy l } -> r:{AVLTree | HtDiff l r 2} -> {t:AVLTree | EqHt t l } @-}
 rebalanceLL' v (Tree lv ll lr) r = Tree lv ll (Tree v lr r)
 
+{-@ rebalanceLR' :: a -> l:{AVLTree | RightHeavy l } -> r:{AVLTree | HtDiff l r 2 } -> {t: AVLTree | EqHt t l } @-}
+rebalanceLR' v (Tree lv ll (Tree lrv lrl lrr)) r = Tree lrv (Tree lv ll lrl) (Tree v lrr r)
 
-{-@ rebalanceLR' ::
- a ->
- l:{AVLTree | RightHeavy l } ->
- r:{AVLTree | HtDiff l r 2 } ->
- {t: AVLTree | EqHt t l } @-}
-rebalanceLR' v (Tree lv ll (Tree lrv lrl lrr)) r =
-    Tree lrv (Tree lv ll lrl) (Tree v lrr r)
---rebalanceLL v (Tree lrv (Tree lv ll lrl) lrr) r
-
-{-@ rebalanceRR' ::
- a ->
- l: AVLTree ->
- r: {AVLTree | RightHeavy r && HtDiff r l 2 } ->
- {t: AVLTree | EqHt t r } @-}
+{-@ rebalanceRR' :: a -> l: AVLTree -> r: {AVLTree | RightHeavy r && HtDiff r l 2 } -> {t: AVLTree | EqHt t r } @-}
 rebalanceRR' v l (Tree rv rl rr) = Tree rv (Tree v l rl) rr
 
-{-@ rebalanceRL' ::
- a ->
- l: AVLTree ->
- r:{AVLTree | LeftHeavy r && HtDiff r l 2} ->
- {t: AVLTree | EqHt t r } @-}
-rebalanceRL' v l (Tree rv (Tree rlv rll rlr) rr) =
-    Tree rlv (Tree v l rll) (Tree rv rlr rr) 
-
-
+{-@ rebalanceRL' :: a -> l: AVLTree -> r:{AVLTree | LeftHeavy r && HtDiff r l 2} -> {t: AVLTree | EqHt t r } @-}
+rebalanceRL' v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
 
 -- Test
 main = do
