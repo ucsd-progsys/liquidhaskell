@@ -38,15 +38,44 @@ incr2 = twice (\_ -> incr) 0
 while  :: forall < pre   :: World -> Prop 
                  , post1 :: World -> () -> World -> Prop
                  , post :: World -> () -> World -> Prop>.
+       {w:World -> w2:World -> x:a -> World<post1 w2 x> -> World<post w x>}        
        {w:World<pre> -> x:() -> {v:World | v = w} -> World<post w x>}
        {w:World<pre> -> x:() -> World<post1 w x> -> World<pre>}        
        {w:World<pre> -> y:() -> w2:World<post1 w y> -> x:() -> World<post w2 x> -> World<post w x>}        
-       Bool -> (b -> RIO <pre, post1> ()) -> b   
+        RIO <pre, \w1 x -> {v:World<pre> | true}> Bool -> (b -> RIO <pre, post1> ()) -> b   
     -> RIO <pre, post> () 
 @-}
-while :: Bool -> (b -> RIO ()) -> b -> RIO ()
+while ::  RIO Bool -> (b -> RIO ()) -> b -> RIO ()
+while guard f x = do { g <- guard; if g then do {f x; while guard f x} else return ()}
+
+
+{-
+{-
+while  :: forall < pre   :: World -> Prop 
+                 , post1 :: World -> () -> World -> Prop
+                 , post :: World -> () -> World -> Prop>.
+       {w:World<pre> -> x:() -> {v:World | v = w} -> World<post w x>}
+       {w:World<pre> -> x:() -> World<post1 w x> -> World<pre>}        
+       {w:World<pre> -> y:() -> w2:World<post1 w y> -> x:() -> World<post w2 x> -> World<post w x>}        
+        Bool -> (b -> RIO <pre, post1> ()) -> b   
+    -> RIO <pre, post> () 
+@-}
+while ::  Bool -> (b -> RIO ()) -> b -> RIO ()
 while guard f x = if guard then do {f x; while guard f x} else return ()
 
+-}
+
+
+{-@ 
+twiceb  :: forall < pre   :: World -> Prop 
+                 , post1 :: World -> a -> World -> Prop
+                 , post :: World -> a -> World -> Prop>.
+       {w:World<pre> -> y:a -> w2:World<pre> -> x:a -> World<post1 w2 x> -> World<post w x>}        
+       RIO <pre, \w1 x -> {v:World<pre> | true}> Bool -> (b -> RIO <pre, post1> a) -> b   
+    -> RIO <pre, post> a 
+@-}
+twiceb :: RIO Bool -> (b -> RIO a) -> b -> RIO a
+twiceb guard f x = do {g <- guard ; f x}
 
 
 
