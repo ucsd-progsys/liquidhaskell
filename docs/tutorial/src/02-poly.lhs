@@ -27,12 +27,12 @@ sparseProduct, sparseProduct'  :: Vector Int -> [(Int, Int)] -> Int
 \end{comment}
 
 Refinement types start to shine when we want to establish
-properties of *polymorphic*, datatypes and higher-order
+properties of *polymorphic* datatypes and higher-order
 functions. Rather than discuss these notions abstractly,
-lets illustrate them with a [classic][dmlarray] use-case.
+let's illustrate them with a [classic][dmlarray] use-case.
 
 \newthought{Array Bounds Checking} aims to ensure that the
-indices used to look up an array, are indeed *valid* for
+indices used to retrieve values from an array are indeed *valid* for
 the array, i.e. are between `0` and the *size* of the array.
 For example, suppose we create an `array` with two elements,
 and then attempt to look it up at various indices:
@@ -60,12 +60,12 @@ Loading package ... done.
 "*** Exception: ./Data/Vector/Generic.hs:249 ((!)): index out of bounds (3,2)
 \end{shell}
 
-The exception says we're trying to look up `array` at
-index `3` whereas the size of `array` is just `2`.
+The exception says we're trying to look up `twoLangs` at
+index `3` whereas the size of `twoLangs` is just `2`.
 
 If you load this file in a suitably LH-configured editor
 (e.g. Vim or Emacs), you will literally see the error
-*without* running the code. Next, lets see how LH checks
+*without* running the code. Next, let's see how LH checks
 `ok` and `yup` but flags `nono`, and along the way,
 learn how LiquidHaskell reasons about *recursion*,
 *higher-order functions*, *data types*, and
@@ -75,7 +75,7 @@ learn how LiquidHaskell reasons about *recursion*,
 Specification: Vector Bounds {#vectorbounds}
 --------------------------------------------
 
-First, lets see how to *specify* array bounds safety by *refining* 
+First, let's see how to *specify* array bounds safety by *refining* 
 the types for the [key functions][vecspec] exported by `Data.Vector`. 
 In particular we need a way to
 
@@ -84,11 +84,11 @@ In particular we need a way to
 3. *restrict* the indices to those that are valid for a given size.
 
 \newthought{Importing Specifications}
-We can write specifications for imported modules -- for which we *lack* --
-the code either directly in the source file or better, in `.spec` files
+We can write specifications for imported modules -- for which we *lack*
+the code -- either directly in the source file or better, in `.spec` files
 which can be reused by different client modules.
 For example, we can write specifications for `Data.Vector` inside
-`/include/Data/Vector.spec` which contains:
+`include/Data/Vector.spec` which contains:
 
 \begin{spec}
 -- | Define the size 
@@ -233,7 +233,7 @@ safeLookup x i
 Inference: Our First Recursive Function
 ---------------------------------------
 
-Ok, lets write some code! Lets start with a recursive
+Ok, let's write some code! Let's start with a recursive
 function that adds up the values of the elements of an
 `Int` vector.
 
@@ -274,7 +274,7 @@ go :: Int -> {v:Int | v >= 0 && v <= sz} -> Int
 
 \noindent which states that the second parameter `i` is
 between `0` and the length of `vec` (inclusive). LiquidHaskell
-uses these and the test that `i < sz` to establish that `i` is
+uses this and the test that `i < sz` to establish that `i` is
 between `0` and `(vlen vec)` to prove safety. 
 
 \exercise Why does `go`'s type have `v <= sz` instead of `v < sz` ?
@@ -283,7 +283,7 @@ between `0` and `(vlen vec)` to prove safety.
 Higher-Order Functions: Bottling Recursion in a `loop`
 ------------------------------------------------------
 
-Lets refactor the above low-level recursive function 
+Let's refactor the above low-level recursive function 
 into a generic higher-order `loop`.
 
 \begin{code}
@@ -343,7 +343,7 @@ absoluteSum' vec = loop 0 n 0 body
     body i acc   = undefined
 \end{code}
 
-\exercise Lets use `loop` to compute `dotProduct`s:
+\exercise Let's use `loop` to compute `dotProduct`s:
 
 \begin{code}
 -- >>> dotProduct (fromList [1,2,3]) (fromList [4,5,6])
@@ -378,11 +378,11 @@ have the value `0` (or the equivalent value for the type `a`).
 shorthand for the (longer) type on the right, it does not
 *define* a new type. If you are familiar with the *index-style*
 length encoding e.g. as found in [DML][dml] or [Agda][agdavec],
-then note that despite  appearances, our `Sparse` definition
+then note that despite appearances, our `Sparse` definition
 is *not* indexed.
 
 \newthought{Sparse Products}
-Lets write a function to compute a sparse product
+Let's write a function to compute a sparse product
 
 \begin{code}
 {-@ sparseProduct        :: x:Vector Int -> SparseN Int (vlen x) -> Int @-}
@@ -435,7 +435,7 @@ Recap
 This chapter gave you an idea of how one can use refinements
 to verify size related properties, and more generally, to
 specify and verify properties of recursive and polymorphic
-functions. Next, lets see how we can use LiquidHaskell to
+functions. Next, let's see how we can use LiquidHaskell to
 prevent the creation of illegal values by refining data
 type definitions.
 
