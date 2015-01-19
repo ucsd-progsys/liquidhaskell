@@ -37,7 +37,7 @@ The binder `v` is called the *value variable*.
 Hence, `Zero` describes the *set of* `Int` values that are equal to `0`,
 that is, the singleton set containing just `0`, and `NonZero` describes
 the set of `Int` values that are *not* equal to `0`, that is, the set
-`1, -1, 2, -2, ...` and so on.
+`{1, -1, 2, -2, ...}` and so on.
 \footnotetext{We will use `@`-marked comments to write refinement type 
 annotations the Haskell source file, making these types, quite literally,
 machine-checked comments!}
@@ -147,6 +147,10 @@ In logic, if $P \Rightarrow Q$ and $P \Rightarrow R$ then $P \Rightarrow Q \wedg
 Thus, when a term satisfies multiple refinements, we can compose those
 refinements with `&&`:
 
+\begin{comment}
+ES: this is a bit confusingly worded
+\end{comment}
+
 \begin{code}
 {-@ zero''' :: {v: Int | 0 <= v && v mod 2 == 0 && v < 100 } @-}
 zero'''' :: Int
@@ -164,7 +168,7 @@ zero'''' = 0
 Writing Specifications
 ----------------------
 
-Lets write some more interesting specifications.
+Let's write some more interesting specifications.
 
 \newthought{Typing Error} We can wrap the usual `error` function:
 
@@ -207,10 +211,10 @@ as the branch may (will!) be `True` and so `die` can be called.
 
 
 
-Refining Function Types: Preconditions
+Refining Function Types: Pre-conditions
 --------------------------------------
 
-Lets use `die` to write a *safe division* function that
+Let's use `die` to write a *safe division* function that
 *only accepts* non-zero denominators. 
 
 \begin{code}
@@ -224,8 +228,8 @@ called with non-zero divisors. However, LH reports an
 error at the call to `"die"` because, what if `divide'`
 is actually invoked with a `0` divisor?
 
-We can specify that will not happen, with a *precondition*
-that says that the second argument is non-zero:
+We can specify that will not happen, with a *pre-condition* that says that
+the second argument is non-zero:
 
 \begin{code}
 {-@ divide :: Int -> NonZero -> Int @-}
@@ -245,11 +249,11 @@ using the fact that in the first equation for `divide` the
 \end{verbatim}
 
 \noindent
-which *contradicts* the precondition (i.e. input) type.
+which *contradicts* the pre-condition (i.e. input) type.
 Thus, by contradition, LH deduces that the first equation is
 *dead code* and hence `die` will not be called at run-time.
 
-\newthought{Establishing Preconditions}
+\newthought{Establishing Pre-conditions}
 The above signature forces us to ensure that that when we
 *use* `divide`, we only supply provably `NonZero` arguments.
 Hence, these two uses of `divide` are fine: 
@@ -272,7 +276,7 @@ avg xs    = divide total n
 1. Why does LH flag an error at `n` ?
 2. How can you change the code so LH verifies it?
 
-Refining Function Types: Postconditions
+Refining Function Types: Post-conditions
 ---------------------------------------
 
 Next, lets see how we can use refinements to describe the *outputs* of a
@@ -295,12 +299,12 @@ returns non-negative values
 LH *verifies* that `abs` indeed enjoys the above type by
 deducing that `n` is trivially non-negative when `0 < n` and that in 
 the `otherwise` case, i.e. when `not (0 < n)` the value `0 - n` is
-indeed non-negative. \footnotetext{Lets not worry about underflows for the moment.}
+indeed non-negative. \footnotetext{Let's not worry about underflows for the moment.}
 
 \footnotetext{
 LH is able to automatically make these arithmetic deductions
 by using an [SMT solver](http://en.wikipedia.org/wiki/Satisfiability_Modulo_Theories)
-which has decision built-in procedures for arithmetic, to reason about
+which has built-in decision procedures for arithmetic, to reason about
 the logical refinements.}
 
 Testing Values: Booleans and Propositions
@@ -308,7 +312,7 @@ Testing Values: Booleans and Propositions
 
 In the above example, we *compute* a value that is guaranteed to be a `Nat`.
 Sometimes, we need to *test* if a value satisfies some property, e.g., is `NonZero`.
-For example, lets write a command-line "calculator" that takes two numbers and divides them.
+For example, let's write a command-line "calculator" that takes two numbers and divides them.
 
 \begin{code}
 calc = do putStrLn "Enter numerator"
@@ -350,7 +354,7 @@ when the argument is strictly positive:
 
 In the above signature, read `Prop v` as "`v` is `True`";
 dually, read `not (Prop v)` as "`v` is `False`.
-Hence, the output type (postcondition) states that
+Hence, the output type (post-condition) states that
 `isPositive x` returns `True` if and only if `x` was in
 fact strictly greater than `0`. In other words, we can
 write post-conditions for plain-old `Bool`-valued *tests*
@@ -385,7 +389,7 @@ no = lAssert (1 + 1 == 3) ()
 Write a suitable refinement type signature for `lAssert` so that
 `lAssert` and `yes` are accepted but `no` is rejected.
 
-\hint You need a precondition that `lAssert` is only called with `True`.
+\hint You need a pre-condition that `lAssert` is only called with `True`.
 
 Putting It All Together
 -----------------------
@@ -408,11 +412,11 @@ upper bound `max`, and otherwise *truncates* the value at the maximum.
 LH verifies that the use of `divide` is safe by inferring that:
 
 1. `max' < i'` from the branch condition,
-2. `0 <= i'`   from the `abs` postcondition, and
-3. `0 <= max'` from the `abs` postcondition. 
+2. `0 <= i'`   from the `abs` post-condition, and
+3. `0 <= max'` from the `abs` post-condition. 
 
 From the above, LH infers that `i' /= 0`. That is, at the
-call site `i' :: NonZero`, thereby satisfying the precondition
+call site `i' :: NonZero`, thereby satisfying the pre-condition
 for `divide` and verifying that the program has no pesky
 divide-by-zero errors.
 
@@ -425,7 +429,7 @@ LiquidHaskell. Hopefully you have some sense of how to
 
 1. **Specify** fine-grained properties of values by decorating their
    types with logical predicates.
-2. **Encode** assertions, preconditions, and postconditions with suitable
+2. **Encode** assertions, pre-conditions, and post-conditions with suitable
    function types.
 3. **Verify** semantic properties of code by using automatic logic engines 
    (SMT solvers) to track and establish the key relationships between 
