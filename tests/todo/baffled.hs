@@ -74,6 +74,7 @@ fox :: k -> v -> AVL k v -> AVL k v
 fox key val tree = error "z"
 
 
+{-@ predicate HtDiff S T D = (tht S) - (tht T) == D @-}
 
 {-@ add :: k -> v -> t:AVL k v -> {v: AVL k v | tht t - 1 <= tht v && tht v <= tht t + 1} @-}
 add k' v' t@(Node k v l r h)
@@ -102,6 +103,7 @@ bal k v l r
   where
     hl          = height l
     hr          = height r
+
 
 {-@ balL :: k:_ -> v:_ -> l:AVLL k v k -> r:AVLN {v:_ | k < v} v {(tht l) - 3} -> {v:AVL k v | tht l <= tht v && tht v <= 1 + tht l} @-}    
 balL k v l@(Node lk lv ll lr _) r
