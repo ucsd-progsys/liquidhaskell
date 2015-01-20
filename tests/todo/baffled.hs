@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
-{-@ LIQUID "--diffcheck"     @-}
+{- LIQUID "--diffcheck"     @-}
 
 module AVL where
 
@@ -76,7 +76,7 @@ fox key val tree = error "z"
 
 {-@ predicate HtDiff S T D = (tht S) - (tht T) == D @-}
 
-{-@ add :: k -> v -> t:AVL k v -> {v: AVL k v | tht t - 1 <= tht v && tht v <= tht t + 1} @-}
+{-@ add :: k -> v -> t:AVL k v -> {v: AVL k v | (tht t - 1 <= tht v || tht t - 2 = tht v) && tht v <= tht t + 1} @-}
 add k' v' t@(Node k v l r h)
   -- RJ: This case is obviously fine
   
@@ -87,10 +87,16 @@ add k' v' t@(Node k v l r h)
 --   | k' <  k     = let mickey = fox k' v' l
 --                   in
 --                      bal k v mickey r   
+  -- NV: This is fine
+--   | k < k', height l >= height r = let mouse = fox k' v' r  in
+--                                   bal k v l mouse 
 
   -- RJ: HEREHEREHERE this is the problem (I GIVE UP)
-  | k < k'      = let mouse = fox k' v' r  in
-                      bal k v l mouse 
+  -- here it might be the case that 'tht t - 2 = tht v'
+     | k < k', height l < height r = let mouse = fox k' v' r  in
+                                   bal k v l mouse 
+
+
 
 add k' v' Leaf  = singleton k' v'
 
