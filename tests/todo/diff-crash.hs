@@ -1,10 +1,6 @@
-Case Study: AVL Trees {#avltree}
-================================
-
-\begin{code}
 {- Example of AVL trees by michaelbeaumont -}
 
-{-  LIQUID "--diff"           @-}
+{-@ LIQUID "--diff"           @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--totality"       @-}
 
@@ -230,4 +226,3 @@ balRR v l (Node rv rl rr _)
 balRL v l (Node rv (Node rlv rll rlr _) rr _)
   = tree rlv (tree v l rll) (tree rv rlr rr) 
                                                       
-\end{code}
