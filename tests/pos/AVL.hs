@@ -54,27 +54,18 @@ insert a t@(Tree v l r) = case compare a v of
                | siblDiff <= 1 = Tree v l r'
                | otherwise = t
                where siblDiff = htDiff r' l
-          rebalanceLL v (Tree lv ll lr) r
-                = Tree lv ll (Tree v lr r)
-          rebalanceLR v (Tree lv ll (Tree lrv lrl lrr)) r
-                = Tree lrv (Tree lv ll lrl) (Tree v lrr r)
-          rebalanceRR v l (Tree rv rl rr)
-                = Tree rv (Tree v l rl) rr
-          rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr)
-                = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
 
--- Extra proofs
-{-@ rebalanceLL' :: a -> l:{AVLTree | LeftHeavy l } -> r:{AVLTree | HtDiff l r 2} -> {t:AVLTree | EqHt t l } @-}
-rebalanceLL' v (Tree lv ll lr) r = Tree lv ll (Tree v lr r)
+{-@ rebalanceLL :: a -> l:{AVLTree | LeftHeavy l } -> r:{AVLTree | HtDiff l r 2} -> {t:AVLTree | EqHt t l } @-}
+rebalanceLL v (Tree lv ll lr) r                 = Tree lv ll (Tree v lr r)
 
-{-@ rebalanceLR' :: a -> l:{AVLTree | RightHeavy l } -> r:{AVLTree | HtDiff l r 2 } -> {t: AVLTree | EqHt t l } @-}
-rebalanceLR' v (Tree lv ll (Tree lrv lrl lrr)) r = Tree lrv (Tree lv ll lrl) (Tree v lrr r)
+{-@ rebalanceLR :: a -> l:{AVLTree | RightHeavy l } -> r:{AVLTree | HtDiff l r 2 } -> {t: AVLTree | EqHt t l } @-}
+rebalanceLR v (Tree lv ll (Tree lrv lrl lrr)) r = Tree lrv (Tree lv ll lrl) (Tree v lrr r)
 
-{-@ rebalanceRR' :: a -> l: AVLTree -> r: {AVLTree | RightHeavy r && HtDiff r l 2 } -> {t: AVLTree | EqHt t r } @-}
-rebalanceRR' v l (Tree rv rl rr) = Tree rv (Tree v l rl) rr
+{-@ rebalanceRR :: a -> l: AVLTree -> r: {AVLTree | RightHeavy r && HtDiff r l 2 } -> {t: AVLTree | EqHt t r } @-}
+rebalanceRR v l (Tree rv rl rr)                 = Tree rv (Tree v l rl) rr
 
-{-@ rebalanceRL' :: a -> l: AVLTree -> r:{AVLTree | LeftHeavy r && HtDiff r l 2} -> {t: AVLTree | EqHt t r } @-}
-rebalanceRL' v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
+{-@ rebalanceRL :: a -> l: AVLTree -> r:{AVLTree | LeftHeavy r && HtDiff r l 2} -> {t: AVLTree | EqHt t r } @-}
+rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
 
 -- Test
 main = do
