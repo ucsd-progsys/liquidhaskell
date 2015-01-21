@@ -1617,16 +1617,9 @@ getModString = moduleNameString . getModName
 ----------- Refinement Type Aliases -------------------------------------------
 -------------------------------------------------------------------------------
 
--- TODO: Wrap "Symbol" in a newtype for expanded/'finished' Pred/Expr
-type RTPredAlias  = Either (ModName, RTAlias Symbol Pred)
-                           (RTAlias Symbol Pred)
-
-type RTExprAlias  = Either (ModName, RTAlias Symbol Expr)
-                           (RTAlias Symbol Expr)
-
 data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
-                   , predAliases :: M.HashMap Symbol RTPredAlias
-                   , exprAliases :: M.HashMap Symbol RTExprAlias
+                   , predAliases :: M.HashMap Symbol (RTAlias Symbol Pred)
+                   , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
                    }
 
 instance Monoid RTEnv where
