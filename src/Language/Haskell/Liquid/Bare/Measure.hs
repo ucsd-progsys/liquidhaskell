@@ -160,7 +160,7 @@ expandMeasureDef d
        return $ d { body = body }
 
 expandMeasureBody :: SourcePos -> Body -> BareM Body
-expandMeasureBody l (P p)   = P   <$> expandPred l p
-expandMeasureBody l (R x p) = R x <$> expandPred l p
+expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandPred p)
+expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandPred p)
 expandMeasureBody l (E e)   = E   <$> resolve l e
 
