@@ -25,7 +25,6 @@ import Var
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad hiding (forM)
 import Control.Monad.Error hiding (Error, forM)
-import Control.Monad.State hiding (forM)
 import Data.Bifunctor
 import Data.Maybe
 import Data.Monoid
@@ -53,12 +52,11 @@ import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 
-makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
-makeHaskellMeasures _   name' (name, _   ) | name /= name' 
+makeHaskellMeasures :: [CoreBind] -> LogicMap -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
+makeHaskellMeasures _   _    name' (name, _   ) | name /= name'
   = return mempty
-makeHaskellMeasures cbs _     (_   , spec) 
-  = do lmap <- gets logicEnv
-       Ms.mkMSpec' <$> mapM (makeMeasureDefinition lmap cbs') (S.toList $ Ms.hmeas spec)
+makeHaskellMeasures cbs lmap _     (_   , spec)
+  = Ms.mkMSpec' <$> mapM (makeMeasureDefinition lmap cbs') (S.toList $ Ms.hmeas spec)
   where 
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
