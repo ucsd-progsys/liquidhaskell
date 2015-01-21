@@ -45,7 +45,7 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
-  = ofBRType expandRTAliasApp (expandReft l >=> resolve l)
+  = ofBRType expandRTAliasApp (resolve l <=< expandReft)
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
@@ -78,7 +78,7 @@ mkSpecType' l πs t
   = ofBRType expandRTAliasApp resolveReft t
   where
     resolveReft
-      = (expandReft l >=> resolve l) . txParam subvUReft (uPVar <$> πs) t
+      = (resolve l <=< expandReft) . txParam subvUReft (uPVar <$> πs) t
 
 
 txParam f πs t = f (txPvar (predMap πs t))
@@ -171,11 +171,10 @@ failRTAliasApp l rta _ _
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
   | length args == length αs + length εs
-    = withVArgs l (rtVArgs rta) $
-        do args' <- mapM (ofBareType l) args
-           let ts  = take (length αs) args'
-               αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
-           return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
+    = do args' <- mapM (ofBareType l) args
+         let ts  = take (length αs) args'
+             αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
+         return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
   | otherwise
     = Ex.throw err
   where
