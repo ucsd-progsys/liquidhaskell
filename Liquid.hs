@@ -12,7 +12,6 @@ import           System.Console.CmdArgs.Default
 
 import qualified Language.Fixpoint.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
-import           Language.Fixpoint.Files
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Interface
 import           Language.Fixpoint.Types (sinfo)
@@ -92,8 +91,8 @@ solveCs cfg target cgi info dc
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
 
 
-writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
-  where 
-    str          = {-# SCC "PPcgi" #-} showpp cgi
+-- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
+--   where 
+--     str          = {-# SCC "PPcgi" #-} showpp cgi
 
  
