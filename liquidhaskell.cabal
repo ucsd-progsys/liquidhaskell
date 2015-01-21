@@ -40,6 +40,10 @@ Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
 
+Flag devel
+  Description: turn on stricter error reporting for development
+  Default:     False
+
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
@@ -77,7 +81,9 @@ Executable liquid
                , liquidhaskell
 
   Main-is: Liquid.hs
-  --ghc-options: -O -W
+  ghc-options: -W
+  if flag(devel)
+    ghc-options: -Werror
   Default-Extensions: PatternGuards
 
 -- Executable liquid-count-binders
@@ -224,8 +230,9 @@ Library
                     Language.Haskell.Liquid.Desugar.DsBinds,
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
-   --ghc-options: -O -W
-   ghc-options: -W -Werror
+   ghc-options: -W
+   if flag(devel)
+     ghc-options: -Werror
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
