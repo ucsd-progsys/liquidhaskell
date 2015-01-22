@@ -129,7 +129,10 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 -------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs, (l, l') <- coreDef b, x <- bindersOf b]
+coreDefs cbs = L.sort [D l l' x | b <- cbs
+                                , x <- bindersOf b
+                                , isGoodSrcSpan (getSrcSpan x)
+                                , (l, l') <- coreDef b]
 coreDef b    = meetSpans b eSp vSp 
   where 
     eSp      = lineSpan b $ catSpans b $ bindSpans b 
@@ -156,7 +159,7 @@ meetSpans _ (Just (l,l')) (Just (m,_))
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan _ _                = Nothing 
 
-catSpans b []             = error $ "INCCHECK: catSpans: no spans found for " ++ showPpr b
+catSpans b []             = error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs             = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
 
 bindFile (NonRec x _) = varFile x
