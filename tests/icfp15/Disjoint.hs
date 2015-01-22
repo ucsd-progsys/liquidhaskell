@@ -3,13 +3,21 @@
 module Disjoint where
 
 
-{-@  disjoint ::forall <p :: a -> Prop, q :: a -> Prop>.
-     {x:a<p> -> y:a<q> -> {v:a | v = x && v = y} -> {v:a|false}} 
-   (a<p> -> ()) -> (a<q> -> ()) -> a 
+data DB a = DB (Tag -> a) | Ghost Tag
+
+{-@ data DB a <d :: Tag -> Prop>
+  = DB (dummy:: (i:Tag<d> -> a))
+  | Ghost (dummyghost::Tag<d>)
   @-}
-disjoint :: (a -> ()) -> (a -> ()) -> a
+
+{-@  disjoint ::forall <p :: Tag -> Prop, q :: Tag -> Prop>.
+     {x:Tag<p> -> y:(Tag<q>) -> {v:Tag | v = x && v = y} -> {v:Tag|false}} 
+   DB <p> Value -> DB <q> Value  -> DB Value
+  @-}
+disjoint :: DB Value -> DB Value -> DB Value
 disjoint = undefined
 
+data Value = V
 
 data Tag = NAME 
          | AGE 
@@ -18,9 +26,9 @@ data Tag = NAME
          deriving Eq
 
 
-pos, nat :: Tag -> ()
-{-@ pos :: {v:Tag | v = NAME || v = AGE} -> () @-}
-{-@ nat :: {v:Tag | v = NAME || v = AGE || v = MAIL} -> () @-}
+pos, nat :: DB Value
+{-@ pos :: DB <{\v ->  v = NAME || v = AGE}> Value @-}
+{-@ nat :: DB <{\v ->  v = NAME || v = AGE || v = MAIL}> Value @-}
 pos = undefined
 nat = undefined
 
