@@ -225,8 +225,8 @@ replaceLocalBinds emb tyi sigs texprs senv cbs
 
 traverseExprs (Let b e)
   = traverseBinds b (traverseExprs e)
-traverseExprs (Lam _ e)
-  = traverseExprs e
+traverseExprs (Lam b e)
+  = withExtendedEnv [b] (traverseExprs e)
 traverseExprs (App x y)
   = traverseExprs x >> traverseExprs y
 traverseExprs (Case e _ _ as)
@@ -238,17 +238,17 @@ traverseExprs (Tick _ e)
 traverseExprs _
   = return ()
 
-traverseBinds b k
+traverseBinds b k = withExtendedEnv (bindersOf b) $ do
+  mapM_ traverseExprs (rhssOfBind b)
+  k
+
+withExtendedEnv vs k
   = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (takeWhileSym (/='#') $ symbol v) (symbol v) m) env' vs
            fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
        withReaderT (const (RE env fenv emb tyi)) $ do
          mapM_ replaceLocalBindsOne vs
-         mapM_ traverseExprs es
          k
-  where
-    vs = bindersOf b
-    es = rhssOfBind b
 
 replaceLocalBindsOne :: Var -> ReplaceM ()
 replaceLocalBindsOne v
