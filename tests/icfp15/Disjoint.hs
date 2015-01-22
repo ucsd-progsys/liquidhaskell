@@ -26,10 +26,11 @@ data Tag = NAME
          deriving Eq
 
 
-pos, nat :: DB Value
-{-@ pos :: DB <{\v ->  v = NAME || v = AGE}> Value @-}
-{-@ nat :: DB <{\v ->  v = NAME || v = AGE || v = MAIL}> Value @-}
-pos = undefined
-nat = undefined
+nameage, nameagemail :: DB Value
+{-@ nameage     :: DB <{\v ->  v = NAME || v = AGE}> Value @-}
+{-@ nameagemail :: DB <{\v ->  v = NAME || v = AGE || v = MAIL}> Value @-}
+nameage     = undefined
+nameagemail = undefined
 
-foo = disjoint pos nat
+foo = disjoint nameagemail nameage
+
