@@ -1,7 +1,5 @@
 module Maps where
 
-import Data.Map ()
-
 {-@ prop1 :: x:_ -> y:{_ | y == x} -> TT @-}
 prop1 x y = (z == 10)
   where
