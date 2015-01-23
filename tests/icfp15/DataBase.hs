@@ -1,4 +1,25 @@
-module DataBase  where
+module DataBase  (
+
+  Dict, empty, extend, 
+
+  {-@ product :: forall <domain1 :: key -> Prop, 
+                         domain2 :: key -> Prop,
+                         domain  :: key -> Prop,
+                         range1  :: key -> val -> Prop,
+                         range2  :: key -> val -> Prop,
+                         range   :: key -> val -> Prop>.
+                         {key<domain1> -> key<domain>}
+                         {key<domain2> -> key<domain>}
+                         {k1: key<domain1> -> k2:key<domain2> -> {v:key | v = k1 && v = k2} -> {v:key | false}}
+                         {k:key<domain1> -> val<range1 k> -> val<range k> }
+                         {k:key<domain2> -> val<range2 k> -> val<range k> }
+               Dict <domain1, range1> key val 
+            -> Dict <domain2, range2> key val 
+            -> Dict <domain,  range > key val 
+  @-}
+  product, 
+
+  ) where
 
 import qualified Data.Set
 
@@ -21,10 +42,6 @@ data Dict key val = D {dom :: [key], dfun :: key -> val}
       ( dfun :: i:{v:key | Set_mem v (listElts dom)} -> val<range i>)     
   @-} 
 
-{-@ D :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
-         [key<domain>] -> (i:{v:key | Set_mem v (listElts dom)} -> val<range i>) -> Dict <domain, range> key val    
-  @-} 
-
 {-@ empty :: Dict <{\v -> false}, {\k v -> false}> key val @-}
 empty :: Dict key val
 empty = D [] (\x -> error "call empty")   -- TODO: replace error with liquidError?
@@ -44,21 +61,6 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
 product :: Eq key => Dict key val -> Dict key val -> Dict key val
-{-@ product :: forall <domain1 :: key -> Prop, 
-                       domain2 :: key -> Prop,
-                       domain  :: key -> Prop,
-                       range1  :: key -> val -> Prop,
-                       range2  :: key -> val -> Prop,
-                       range   :: key -> val -> Prop>.
-                       {key<domain1> -> key<domain>}
-                       {key<domain2> -> key<domain>}
-                       {k1: key<domain1> -> k2:key<domain2> -> {v:key | v = k1 && v = k2} -> {v:key | false}}
-                       {k:key<domain1> -> val<range1 k> -> val<range k> }
-                       {k:key<domain2> -> val<range2 k> -> val<range k> }
-               Dict <domain1, range1> key val 
-            -> Dict <domain2, range2> key val 
-            -> Dict <domain,  range > key val 
-  @-}
 product (D ks1 f1) (D ks2 f2) 
   = let ks = ks1 ++ ks2 in 
     -- ORDERING IN LETS IS IMPORTANT: ks should be in scope for f
