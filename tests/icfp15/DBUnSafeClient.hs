@@ -11,7 +11,7 @@ data Tag = TA | TB | TC | TD
 
 
 rab :: Dict Tag Value
-{-@ rab :: Dict <{\v -> v = TA || v = TB }, {\i v -> (i == TA => v = VA) && (i == TB => v = VB)} > Tag Value @-}
+{-@ rab :: {v:Dict <{\v -> v = TA || v = TB }, {\i v -> (i == TA => v = VA) && (i == TB => v = VB)} > Tag Value | (listElts (dom v) = Set_cup (Set_sng TA) (Set_sng TB) ) } @-}
 rab = extend TB VB $ extend TA VA empty
 
 rcd :: Dict Tag Value
@@ -24,6 +24,9 @@ rabcd :: Dict Tag Value
 rabcd = product rab rcd
 
 
-rfail :: Dict Tag Value
-rfail = product rab rabcd
+rfail1 :: Dict Tag Value
+rfail1 = product rab rabcd
+
+rfail2 :: Dict Tag Value
+rfail2 = project [TC] rab
 

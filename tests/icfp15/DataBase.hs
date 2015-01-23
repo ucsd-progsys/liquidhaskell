@@ -2,22 +2,7 @@ module DataBase  (
 
   Dict, empty, extend, 
 
-  {-@ product :: forall <domain1 :: key -> Prop, 
-                         domain2 :: key -> Prop,
-                         domain  :: key -> Prop,
-                         range1  :: key -> val -> Prop,
-                         range2  :: key -> val -> Prop,
-                         range   :: key -> val -> Prop>.
-                         {key<domain1> -> key<domain>}
-                         {key<domain2> -> key<domain>}
-                         {k1: key<domain1> -> k2:key<domain2> -> {v:key | v = k1 && v = k2} -> {v:key | false}}
-                         {k:key<domain1> -> val<range1 k> -> val<range k> }
-                         {k:key<domain2> -> val<range2 k> -> val<range k> }
-               Dict <domain1, range1> key val 
-            -> Dict <domain2, range2> key val 
-            -> Dict <domain,  range > key val 
-  @-}
-  product, 
+  product, project
 
   ) where
 
@@ -42,7 +27,7 @@ data Dict key val = D {dom :: [key], dfun :: key -> val}
       ( dfun :: i:{v:key | Set_mem v (listElts dom)} -> val<range i>)     
   @-} 
 
-{-@ empty :: Dict <{\v -> false}, {\k v -> false}> key val @-}
+{-@ empty :: {v:Dict <{\v -> false}, {\k v -> false}> key val | Set_emp (listElts (dom v))} @-}
 empty :: Dict key val
 empty = D [] (\x -> error "call empty")   -- TODO: replace error with liquidError?
 
@@ -50,8 +35,8 @@ empty = D [] (\x -> error "call empty")   -- TODO: replace error with liquidErro
 extend :: Eq key => key -> val -> Dict key val -> Dict key val
 {-@ extend :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
               k:key<domain> -> val<range k> 
-           -> Dict <{v:key<domain> | v != k}, range> key val 
-           -> Dict <domain, range> key val @-}
+           -> x:Dict <{v:key<domain> | v != k}, range> key val 
+           -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_cup (listElts (dom x)) (Set_sng k))} @-}
 extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
@@ -59,7 +44,21 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 {-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
 
-
+{-@ product :: forall <domain1 :: key -> Prop, 
+                       domain2 :: key -> Prop,
+                       domain  :: key -> Prop,
+                       range1  :: key -> val -> Prop,
+                       range2  :: key -> val -> Prop,
+                       range   :: key -> val -> Prop>.
+                       {key<domain1> -> key<domain>}
+                       {key<domain2> -> key<domain>}
+                       {k1: key<domain1> -> k2:key<domain2> -> {v:key | v = k1 && v = k2} -> {v:key | false}}
+                       {k:key<domain1> -> val<range1 k> -> val<range k> }
+                       {k:key<domain2> -> val<range2 k> -> val<range k> }
+               Dict <domain1, range1> key val 
+            -> Dict <domain2, range2> key val 
+            -> Dict <domain,  range > key val 
+  @-}
 product :: Eq key => Dict key val -> Dict key val -> Dict key val
 product (D ks1 f1) (D ks2 f2) 
   = let ks = ks1 ++ ks2 in 
@@ -72,12 +71,31 @@ product (D ks1 f1) (D ks2 f2)
 ensuredomain :: Eq a => [a] -> a -> a
 ensuredomain (y:ys) x | x == y    = y 
                       | otherwise = ensuredomain ys x  
+ensuredomain _ _                  = liquidError "ensuredomain on empty list"
+
+
+
+{-@ project :: forall <domain :: key -> Prop, 
+                       domain1 :: key -> Prop, 
+                       range :: key -> val -> Prop>.
+                      {key<domain> -> key<domain1>}
+               keys:[key<domain>] 
+            -> {v:Dict <domain1, range> key val | (Set_sub (listElts keys) (listElts (dom v)))} 
+            -> Dict <domain, range> key val
+   @-}
+project :: Eq key => [key] -> Dict key val -> Dict key val
+project ks (D ks' f') = D ks f'
+
+
 
 
 -------------------------------------------------------------------------------
 -------------------------    HELPERS   ----------------------------------------
 -------------------------------------------------------------------------------
 
+liquidError :: String -> a
+{-@ liquidError :: {v:String | false} -> a @-}
+liquidError = error
 
 
 {-@ qual :: xs:[a] -> {v: a | Set_mem v (listElts xs)} @-}
