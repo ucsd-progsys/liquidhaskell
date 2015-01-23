@@ -14,10 +14,12 @@ type Vec a = [a]
 
 -- | The `len` function is defined in the LH prelude as:
 {-
+
    len        :: [a] -> Int
    len []     = 0
    len (_:xs) = 1 + len xs
 -}
+
              
 {-@ type VecN a N = {v : Vec a | len v = N} @-}
 
@@ -43,13 +45,18 @@ example2 a b   = (a `product` b) `sum` [1,2,3,4,5,6]
 
 -- Helpers --
 
+
 {-@ flatten          :: n:Nat -> m:Nat -> VecN (VecN a m) n -> VecN a {m * n} @-}
 flatten n m []       = []
 flatten n m (xs:xss) = xs ++ flatten (n-1) m xss 
 
+
 {-@ zipWith             :: (a -> b -> c) -> xs:Vec a -> ys:VecN b {len xs} -> VecN c {len xs} @-}
 zipWith f [] []         = []
 zipWith f (x:xs) (y:ys) = f x y : zipWith f xs ys
+
+
+
 
 {-@ lAssert :: TT -> a -> a@-}
 lAssert True x = x
