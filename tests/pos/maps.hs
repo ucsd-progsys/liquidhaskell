@@ -1,6 +1,5 @@
 module Maps where
 
-import Data.Map ()
 
 {-@ prop0 :: x:_ -> y:{_ | y == x} -> TT @-}
 prop0 x y = (a == b)
