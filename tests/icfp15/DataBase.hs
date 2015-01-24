@@ -2,13 +2,13 @@ module DataBase  (
 
   Dict, empty, extend, 
 
-  product, project
+  union, diff, product, project, select
 
   ) where
 
 import qualified Data.Set
 
-import Prelude hiding (product)
+import Prelude hiding (product, union)
 
 
 data Dict key val = D {dom :: [key], dfun :: key -> val}  
@@ -44,6 +44,8 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 {-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
 
+
+
 {-@ product :: forall <domain1 :: key -> Prop, 
                        domain2 :: key -> Prop,
                        domain  :: key -> Prop,
@@ -66,6 +68,43 @@ product (D ks1 f1) (D ks2 f2)
     let f i = if i `elem` ks1 then f1 (ensuredomain ks1 i) else f2 (ensuredomain ks2 i) in
     D ks f 
 
+{-@ union :: forall <domain1 :: key -> Prop, 
+                       domain2 :: key -> Prop,
+                       domain  :: key -> Prop,
+                       range1  :: key -> val -> Prop,
+                       range2  :: key -> val -> Prop,
+                       range   :: key -> val -> Prop>.
+                       {key<domain1> -> key<domain>}
+                       {key<domain2> -> key<domain>}
+                       {k:key<domain1> -> val<range1 k> -> val<range k> }
+                       {k:key<domain2> -> val<range2 k> -> val<range k> }
+               Dict <domain1, range1> key val 
+            -> Dict <domain2, range2> key val 
+            -> Dict <domain,  range > key val 
+  @-}
+union :: Eq key => Dict key val -> Dict key val -> Dict key val
+union (D ks1 f1) (D ks2 f2) 
+  = let ks = ks1 ++ ks2 in 
+    let f i = if i `elem` ks1 then f1 (ensuredomain ks1 i) else f2 (ensuredomain ks2 i) in
+    D ks f 
+
+
+{-@ diff :: forall<domain1 :: key -> Prop, domain :: key -> Prop, range :: key -> val -> Prop>.
+            {key<domain1> -> key<domain>} 
+            xs:Dict <domain1, range> key val 
+         -> ys:Dict <{\k -> true}, {\k v -> true}> key val 
+         -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_dif (listElts (dom xs)) (listElts (dom ys)))}
+  @-}
+diff :: Eq key => Dict key val -> Dict key val -> Dict key val
+diff (D ks1 f1) (D ks2 _)
+  = let ks = ks1 \\ ks2 in D ks f1
+
+
+{-@ (\\) :: forall<p :: a -> Prop>. xs:[a<p>] -> ys:[a] -> {v:[a<p>] | (listElts v)  = (Set_dif (listElts xs) (listElts ys))} @-}
+(\\) :: Eq a => [a] -> [a] -> [a]
+[]     \\ _ = []
+(x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
+
 
 {-@ ensuredomain :: forall <p ::a -> Prop>. Eq a => xs:[a<p>] -> x:{v:a | Set_mem v (listElts xs)} -> {v:a<p> | Set_mem v (listElts xs) && v = x} @-}
 ensuredomain :: Eq a => [a] -> a -> a
@@ -81,13 +120,27 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
                       {key<domain> -> key<domain1>}
                keys:[key<domain>] 
             -> {v:Dict <domain1, range> key val | (Set_sub (listElts keys) (listElts (dom v)))} 
-            -> Dict <domain, range> key val
+            -> {v:Dict <domain, range> key val  | (listElts (dom v)) = listElts keys}
    @-}
 project :: Eq key => [key] -> Dict key val -> Dict key val
 project ks (D ks' f') = D ks f'
 
 
+{-@ select :: forall <q      :: key -> val -> Bool -> Prop,
+                      domain :: key -> Prop, 
+                      range  :: key -> val -> Prop, 
+                      range1 :: key -> Maybe val -> Prop>.
+                      { k:key -> val:val<range1 k> -> {v:Bool<q k val> | Prop v} -> {v: Maybe val | fromJust v = val} -> Maybe <range k> val}
+                      { k:key -> val:val<range1 k> -> {v:Bool<q k val> | not (Prop v)} -> {v: Maybe val | not (isJust v)} -> Maybe <range k> val}
+              (k:key -> v:val -> Bool<q k v>) 
+            -> x:Dict <domain, range1> key val 
+            -> {v:Dict <domain, range> key (Maybe val) | listElts (dom v) = listElts (dom x)}
+  @-}
 
+select :: (key -> val -> Bool) -> Dict key val -> Dict key (Maybe val)
+select prop (D ks f') 
+  = let f = \k -> let val = f' k in if prop k val then Just val else Nothing
+    in D ks f
 
 -------------------------------------------------------------------------------
 -------------------------    HELPERS   ----------------------------------------
