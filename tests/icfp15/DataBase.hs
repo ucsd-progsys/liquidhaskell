@@ -40,11 +40,6 @@ extend :: Eq key => key -> val -> Dict key val -> Dict key val
 extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
-{-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
-
-{-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
-
-
 
 {-@ product :: forall <domain1 :: key -> Prop, 
                        domain2 :: key -> Prop,
@@ -78,9 +73,9 @@ product (D ks1 f1) (D ks2 f2)
                        {key<domain2> -> key<domain>}
                        {k:key<domain1> -> val<range1 k> -> val<range k> }
                        {k:key<domain2> -> val<range2 k> -> val<range k> }
-               Dict <domain1, range1> key val 
-            -> Dict <domain2, range2> key val 
-            -> Dict <domain,  range > key val 
+               x1:Dict <domain1, range1> key val 
+            -> x2:Dict <domain2, range2> key val 
+            -> {v:Dict <domain,  range > key val | (listElts (dom v)) = Set_cup (listElts (dom x1)) (listElts (dom x2))} 
   @-}
 union :: Eq key => Dict key val -> Dict key val -> Dict key val
 union (D ks1 f1) (D ks2 f2) 
@@ -98,20 +93,6 @@ union (D ks1 f1) (D ks2 f2)
 diff :: Eq key => Dict key val -> Dict key val -> Dict key val
 diff (D ks1 f1) (D ks2 _)
   = let ks = ks1 \\ ks2 in D ks f1
-
-
-{-@ (\\) :: forall<p :: a -> Prop>. xs:[a<p>] -> ys:[a] -> {v:[a<p>] | (listElts v)  = (Set_dif (listElts xs) (listElts ys))} @-}
-(\\) :: Eq a => [a] -> [a] -> [a]
-[]     \\ _ = []
-(x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
-
-
-{-@ ensuredomain :: forall <p ::a -> Prop>. Eq a => xs:[a<p>] -> x:{v:a | Set_mem v (listElts xs)} -> {v:a<p> | Set_mem v (listElts xs) && v = x} @-}
-ensuredomain :: Eq a => [a] -> a -> a
-ensuredomain (y:ys) x | x == y    = y 
-                      | otherwise = ensuredomain ys x  
-ensuredomain _ _                  = liquidError "ensuredomain on empty list"
-
 
 
 {-@ project :: forall <domain :: key -> Prop, 
@@ -145,6 +126,28 @@ select prop (D ks f')
 -------------------------------------------------------------------------------
 -------------------------    HELPERS   ----------------------------------------
 -------------------------------------------------------------------------------
+
+{-@ ensuredomain :: forall <p ::a -> Prop>. Eq a => xs:[a<p>] -> x:{v:a | Set_mem v (listElts xs)} -> {v:a<p> | Set_mem v (listElts xs) && v = x} @-}
+ensuredomain :: Eq a => [a] -> a -> a
+ensuredomain (y:ys) x | x == y    = y 
+                      | otherwise = ensuredomain ys x  
+ensuredomain _ _                  = liquidError "ensuredomain on empty list"
+
+
+-- | List functions
+
+{-@ (\\) :: forall<p :: a -> Prop>. xs:[a<p>] -> ys:[a] -> {v:[a<p>] | (listElts v)  = (Set_dif (listElts xs) (listElts ys))} @-}
+(\\) :: Eq a => [a] -> [a] -> [a]
+[]     \\ _ = []
+(x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
+
+
+
+{-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
+
+{-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
+
+
 
 liquidError :: String -> a
 {-@ liquidError :: {v:String | false} -> a @-}
