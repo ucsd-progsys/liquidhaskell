@@ -265,6 +265,9 @@ prims = [ propConName
         , "Set_empty"
         , "Set_mem"
         , "Set_sub"
+        , "Map_t"
+        , "Map_select"
+        , "Map_store"
         , "FAppTy" 
         ]
 

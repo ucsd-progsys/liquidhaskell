@@ -277,6 +277,7 @@ interact' me cmd  = command me cmd >> return ()
 elt, set :: Raw
 elt = "Elt"
 set = "Set"
+map = "Map"
 
 emp, add, cup, cap, mem, dif, sub, com :: Raw
 emp = "smt_set_emp"
@@ -287,11 +288,13 @@ mem = "smt_set_mem"
 dif = "smt_set_dif"
 sub = "smt_set_sub"
 com = "smt_set_com"
+sel = "smt_map_sel"
+sto = "smt_map_sto"
 
 smt_set_funs :: M.HashMap Symbol Raw
-smt_set_funs = M.fromList [("Set_emp",emp),("Set_add",add),("Set_cup",cup)
-                          ,("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
-                          ,("Set_sub",sub),("Set_com",com)]
+smt_set_funs = M.fromList [ ("Set_emp",emp),("Set_add",add),("Set_cup",cup)
+                          , ("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
+                          , ("Set_sub",sub),("Set_com",com)]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options 
@@ -327,6 +330,7 @@ z3Preamble
     , format "(define-fun {} ((s1 {}) (s2 {})) Bool (= {} ({} s1 s2)))"
         (sub, set, set, emp, dif)
     ]
+
 
 smtlibPreamble
   = [        "(set-logic QF_UFLIA)"
@@ -447,7 +451,8 @@ instance SMTLIB2 Command where
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ map smt2 xs ++ ["))"]
+  smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+
 
 smt2s = LT.intercalate " " . fmap smt2
 
