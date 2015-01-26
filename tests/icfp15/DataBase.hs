@@ -106,6 +106,10 @@ diff (D ks1 f1) (D ks2 _)
 project :: Eq key => [key] -> Dict key val -> Dict key val
 project ks (D ks' f') = D ks f'
 
+-- NV TODO:
+-- change select to 
+-- let ks' = [ k | k <- ks, prop k (f k)] in D ks' f'
+
 
 {-@ select :: forall <q      :: key -> val -> Bool -> Prop,
                       domain :: key -> Prop, 
