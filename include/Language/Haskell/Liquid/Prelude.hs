@@ -1,4 +1,5 @@
-{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MagicHash      #-}
+{-# LANGUAGE EmptyDataDecls #-}
 
 {- OPTIONS_GHC -cpp #-}
 {- OPTIONS_GHC -cpp -fglasgow-exts -}
@@ -125,4 +126,5 @@ safeZipWith :: (a->b->c) -> [a]->[b]->[c]
 safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ []     []     = []
 safeZipWith _ _ _ = error "safeZipWith: cannot happen!"      
+
 
