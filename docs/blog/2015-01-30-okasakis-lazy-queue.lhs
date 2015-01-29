@@ -74,6 +74,9 @@ and `back` which represent the corresponding parts of the Queue.
 + To `insert` elements, we just *cons* them onto the `back` list,
 + To `remove` elements, we just *un-cons* them from the `front` list.
 
+![A Queue is Two Lists](/images/queue-lists.png)
+
+
 The catch is that we need to shunt elements from the back to the
 front every so often, e.g. when
 
@@ -81,6 +84,9 @@ front every so often, e.g. when
 2. the `front` list is empty,
 
 We can transfer the elements from the `back` to the `front`.
+
+
+![Transferring Elements from Back to Front](/images/queue-rotate.png)
 
 Okasaki observed that every element is only moved *once* from the
 front to the back; hence, the time for `insert` and `lookup` could be
