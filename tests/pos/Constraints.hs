@@ -30,6 +30,18 @@ incr2 :: Int -> Int
 incr2 = cmp incr incr
 
 
+{-@ plus1 :: x:Nat -> {v:Nat | v == x + 20} @-}
+plus1 :: Int -> Int
+plus1 x = x + 20
+
+{-@ plus2 :: x:{v:Nat | v > 10} -> {v:Nat | v == x + 22} @-}
+plus2 :: Int -> Int
+plus2 x = x + 22
+
+{-@ plus42 :: x:Nat -> {v:Nat | v == x + 42} @-}
+plus42 :: Int -> Int
+plus42 = cmp plus2 plus1
+
 
 
 
