@@ -14,14 +14,14 @@ The "Hello World!" example for fancy type systems is probably the sized vector
 or list `append` function ("The output has size equal to the *sum* of the
 inputs!").  One the one hand, its perfect: simple enough to explain without
 pages of code, yet complex enough to show off whats cool about dependency. On
-the other hand, like the sweater I'm sporting right now, its a bit well-worn and
+the other hand, like the sweater I'm sporting right now, it's a bit well-worn and
 worse, was never wholly convincing ("Why do I *care* what the *size* of the
 output list is anyway?")
 
 Recently, I came across a nice example that is almost as simple, but is also
 well motivated: Okasaki's beautiful [Lazy Amortized Queues][okasaki95].  This
-structure relies leans heavily on an invariant to provide fast *insertion* and
-*deletion*. Lets see how to enforce that invariant with LiquidHaskell.
+structure leans heavily on an invariant to provide fast *insertion* and
+*deletion*. Let's see how to enforce that invariant with LiquidHaskell.
 
 <!-- more -->
 
@@ -68,7 +68,7 @@ Queues = Pair of Lists
 ----------------------
 
 Almost two decades ago, Chris Okasaki came up with a very cunning way
-to implement queues using a *pair* of lists -- lets call them `front`
+to implement queues using a *pair* of lists -- let's call them `front`
 and `back` which represent the corresponding parts of the Queue.
 
 + To `insert` elements, we just *cons* them onto the `back` list,
@@ -94,7 +94,7 @@ front to the back; hence, the time for `insert` and `lookup` could be
 
 Almost. Some set of unlucky `remove` calls (which occur when
 the `front` is empty) are stuck paying the bill. They have a
-rather high latency upto `O(n)` where `n` is the total number
+rather high latency up to `O(n)` where `n` is the total number
 of operations. Oops.
 
 Queue = Balanced Lazy Lists
@@ -105,11 +105,11 @@ observes that all we need to do is to enforce a simple invariant:
 
 **Invariant:** Size of `front` >= Size of `back`
 
-If now the lists are *lazy* i.e. only constructed as the head
+Now, if the lists are *lazy* i.e. only constructed as the head
 value is demanded, then a single `remove` needs only a tiny `O(log n)`
 in the worst case, and so no single `remove` is stuck paying the bill.
 
-Lets see how to represent these Queues and ensure the crucial invariant(s)
+Let's see how to represent these Queues and ensure the crucial invariant(s)
 with LiquidHaskell. What we need are the following ingredients:
 
 1. A type for `List`s, and a way to track their `size`,
@@ -121,7 +121,7 @@ with LiquidHaskell. What we need are the following ingredients:
 Sized Lists
 ------------
 
-The first part is super easy. Lets define a type:
+The first part is super easy. Let's define a type:
 
 \begin{code}
 data SList a = SL { size :: Int, elems :: [a]}
@@ -130,11 +130,11 @@ data SList a = SL { size :: Int, elems :: [a]}
 We have a special field that saves the `size` because otherwise, we
 have a linear time computation that wrecks Okasaki's careful
 analysis. (Actually, he presents a variant which does *not* require
-saving the size as well, but thats for another day.)
+saving the size as well, but that's for another day.)
 
 But how can we be sure that `size` is indeed the *real size* of `elems`?
 
-Lets write a function to *measure* the real size:
+Let's write a function to *measure* the real size:
 
 \begin{code}
 {-@ measure realSize @-}
@@ -211,8 +211,8 @@ badHd = hd (tl okList)  -- rejected
 Queue Type
 -----------
 
-Now, it is quite straightforward to define the `Queue` type, as pair of lists,
-`front` and `back` such that the latter is always smaller than the former:
+Now, it is quite straightforward to define the `Queue` type, as a pair of lists,
+`front` and `back`, such that the latter is always smaller than the former:
 
 \begin{code}
 {-@ data Queue a = Q {
@@ -316,8 +316,8 @@ efficient worst-case guarantee.
         -> SListN _ {size l + size r + size a}
   @-}
 rot l r a
-  | size l == 0 = (hd r) `cons` a
-  | otherwise   = (hd l) `cons` (rot (tl l) (tl r) ((hd r) `cons` a))
+  | size l == 0 = hd r `cons` a
+  | otherwise   = hd l `cons` rot (tl l) (tl r) (hd r `cons` a)
 \end{code}
 
 Conclusion
@@ -328,7 +328,7 @@ invariants easily expressed and checked with LiquidHaskell. I find
 this example particularly interesting because the refinements express
 invariants that are critical for efficiency, and furthermore the code
 introspects on the `size` in order to guarantee the invariants.  Plus,
-its just marginally more complicated than `append` and so, (I hope!)
+it's just marginally more complicated than `append` and so, (I hope!)
 was easy to follow.
 
 
