@@ -12,7 +12,7 @@ demo: LazyQueue.hs
 
 The "Hello World!" example for fancy type systems is probably the sized vector
 or list `append` function ("The output has size equal to the *sum* of the
-inputs!").  One the one hand, its perfect: simple enough to explain without
+inputs!").  One the one hand, it is perfect: simple enough to explain without
 pages of code, yet complex enough to show off whats cool about dependency. On
 the other hand, like the sweater I'm sporting right now, it's a bit well-worn and
 worse, was never wholly convincing ("Why do I *care* what the *size* of the
@@ -101,7 +101,7 @@ Queue = Balanced Lazy Lists
 ---------------------------
 
 This is where Okasaki's beautiful insights kick in. Okasaki
-observes that all we need to do is to enforce a simple invariant:
+observed that all we need to do is to enforce a simple invariant:
 
 **Invariant:** Size of `front` >= Size of `back`
 
