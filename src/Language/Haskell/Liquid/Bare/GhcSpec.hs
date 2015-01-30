@@ -49,6 +49,7 @@ import Language.Haskell.Liquid.Bare.Plugged
 import Language.Haskell.Liquid.Bare.RTEnv
 import Language.Haskell.Liquid.Bare.Spec
 import Language.Haskell.Liquid.Bare.SymSort
+import Language.Haskell.Liquid.Bare.RefToLogic
 
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
@@ -177,8 +178,9 @@ makeGhcSpecCHOP2 cfg vars defVars specs name mts embs
        ialias  <- mconcat <$> mapM makeIAliases   specs
        let dms  = makeDefaultMethods vars mts
        tyi     <- gets tcEnv
-       let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-       let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- asms' ]
+       lmap    <- logicEnv <$> get 
+       let sigs = [ (x, txRefSort tyi embs . txExpToBind . txRefToLogic lmap <$> t) | (_, x, t) <- sigs' ++ mts ++ dms ]
+       let asms = [ (x, txRefSort tyi embs . txExpToBind . txRefToLogic lmap <$> t) | (_, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
 
 makeGhcSpecCHOP3 cbs specs dcSelectors datacons cls embs
