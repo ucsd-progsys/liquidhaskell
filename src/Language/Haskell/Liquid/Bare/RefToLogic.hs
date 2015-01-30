@@ -41,7 +41,7 @@ instance Transformable Reft where
 
 instance Transformable Refa where
 	tx s m (RConc p)     = RConc $ tx s m p 
-	tx s m (RKvar x sub) = RKvar x sub
+	tx _ _ (RKvar x sub) = RKvar x sub
 
 instance Transformable Pred where
 	tx _ _ PTrue           = PTrue
@@ -66,7 +66,7 @@ instance Transformable Expr where
 	tx s m (EApp f es)    = txEApp (s, m) f es
 	tx _ _ (ESym c)       = ESym c
 	tx _ _ (ECon c)       = ECon c
-	tx s m (ELit l s')    = ELit l s'
+	tx _ _ (ELit l s')    = ELit l s'
 	tx s m (EBin o e1 e2) = EBin o (tx s m e1) (tx s m e2)
 	tx s m (EIte p e1 e2) = EIte (tx s m p) (tx s m e1) (tx s m e2)
 	tx s m (ECst e s')    = ECst (tx s m e) s'
