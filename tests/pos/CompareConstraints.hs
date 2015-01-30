@@ -32,7 +32,7 @@ bar' = let w = choose 0 in
       let y = w - 1 in 
       let z = w + 2 in 
       mycmp' x z    
-
+{-
 
 -----------------
 
@@ -65,7 +65,7 @@ out = "My name is " ++ get rj "name"
 
 sumXY box x y = get box x + get box y
 
-
+-}
 
 
 
