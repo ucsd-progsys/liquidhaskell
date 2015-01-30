@@ -183,7 +183,7 @@ module Language.Haskell.Liquid.Types (
   , makeDivType, makeFinType
 
   -- * CoreToLogic
-  , LogicMap, toLogicMap, eAppWithMap
+  , LogicMap, toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
   , RDEnv, DEnv(..), RInstance(..)
