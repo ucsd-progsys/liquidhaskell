@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ROOTHOME=`pwd`
 GHCBIN=`which ghc`
