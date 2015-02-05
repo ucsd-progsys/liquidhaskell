@@ -460,6 +460,7 @@ data Pspec ty ctor
   | LVars   LocSymbol
   | Lazy    LocSymbol
   | HMeas   LocSymbol
+  | Inline  LocSymbol
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -487,7 +488,8 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"   
   show (LVars  _) = "LVars"  
   show (Lazy   _) = "Lazy"   
-  show (HMeas  _) = "HMeas"   
+  show (HMeas  _) = "HMeas" 
+  show (Inline _) = "Inline"  
   show (Pragma _) = "Pragma" 
   show (CMeas  _) = "CMeas"  
   show (IMeas  _) = "IMeas"  
@@ -518,6 +520,7 @@ mkSpec name xs         = (name,)
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy s  <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas s <- xs]
+  , Measure.inlines    = S.fromList [s | Inline s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
@@ -534,6 +537,7 @@ specP
     <|> (reservedToken "Local"     >> liftM LAsrt  tyBindP   )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  ) 
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP ) 
+    <|> (reservedToken "inline"   >> liftM Inline  inlineP ) 
     <|> try (reservedToken "class"    >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> try (reservedToken "instance" >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reservedToken "instance"  >> liftM RInst  instanceP )
@@ -568,6 +572,9 @@ lazyVarP = locParserP binderP
 
 hmeasureP :: Parser LocSymbol
 hmeasureP = locParserP binderP
+
+inlineP :: Parser LocSymbol
+inlineP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))

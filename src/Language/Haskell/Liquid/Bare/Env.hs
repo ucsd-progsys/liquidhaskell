@@ -5,6 +5,8 @@ module Language.Haskell.Liquid.Bare.Env (
 
   , BareEnv(..)
 
+  , TInline(..), InlnEnv
+
   , inModule
   , withVArgs
 
@@ -26,10 +28,11 @@ import Control.Monad.Writer
 import qualified Control.Exception   as Ex 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
+import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
 
 import Language.Haskell.Liquid.Errors ()
 import Language.Haskell.Liquid.Types
+
 
 -----------------------------------------------------------------------------------
 -- | Error-Reader-IO For Bare Transformation --------------------------------------
@@ -42,13 +45,25 @@ type Warn  = String
 
 type TCEnv = M.HashMap TyCon RTyCon
 
+type InlnEnv = M.HashMap Symbol TInline
+
+data TInline = TI { tiargs :: [Symbol]
+                  , tibody :: Either Pred Expr 
+                  } deriving (Show)
+
+
+
 data BareEnv = BE { modName  :: !ModName
                   , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
                   , hscEnv   :: HscEnv 
                   , logicEnv :: LogicMap
+                  , inlines  :: InlnEnv
                   }
+
+
+
 
 setModule m b = b { modName = m }
 

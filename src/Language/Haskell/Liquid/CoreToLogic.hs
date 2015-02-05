@@ -7,7 +7,8 @@
 
 module Language.Haskell.Liquid.CoreToLogic ( 
 
-  coreToDef , mkLit, runToLogic,
+  coreToDef , coreToFun
+  , mkLit, runToLogic,
   logicType, 
   strengthenResult
 
@@ -17,7 +18,8 @@ import GHC hiding (Located)
 import Var
 import Type 
 
-import qualified CoreSyn as C
+import qualified CoreSyn   as C
+import qualified CoreUtils as CU
 import Literal
 import IdInfo
 
@@ -81,9 +83,9 @@ strengthenResult v
   where rep = toRTypeRep t
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..]
-        r'  = U (exprReft (EApp f [EVar x]))         mempty mempty
-        r   = U (propReft (PBexp $ EApp f [EVar x])) mempty mempty
-        x   = safeHead "strengthenResult" $ fst $  unzip $ dropWhile isClassBind $ zip xs (ty_args rep)
+        r'  = U (exprReft (EApp f (EVar <$> vxs)))         mempty mempty
+        r   = U (propReft (PBexp $ EApp f (EVar <$> vxs))) mempty mempty
+        vxs = fst $  unzip $ dropWhile isClassBind $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
 
@@ -145,7 +147,24 @@ coreToDef x _ e = go $ inline_preds $ simplify e
 
     inline_preds = inline (eqType boolTy . varType)
 
+coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Symbol], Either Pred Expr)
+coreToFun _ v e = go [] $ inline_preds $ simplify $ traceShow "coreToFun" e
+  where
+    go acc (C.Lam x e)  | isTyVar    x = go acc e
+    go acc (C.Lam x e)  | isErasable x = go acc e
+    go acc (C.Lam x e)  = go (symbol x : acc) e
+    go acc (C.Tick _ e) = go acc e
+    go acc e            | eqType rty boolTy 
+                        = (reverse acc,) . Left  . traceShow "coreToPred"  <$> coreToPred e  
+                        | otherwise       
+                        = (reverse acc,) . Right . traceShow "coreToLogic" <$> coreToLogic e
 
+    inline_preds = inline (eqType boolTy . varType)
+
+    rty = snd $ splitFunTys $ snd $ splitForAllTys $ varType v
+
+instance Show C.CoreExpr where
+  show = showPpr
 
 coreToPred :: C.CoreExpr -> LogicM Pred
 coreToPred (C.Let b p)  = subst1 <$> coreToPred p <*>  makesub b
