@@ -19,7 +19,6 @@ import Var
 import Type 
 
 import qualified CoreSyn   as C
-import qualified CoreUtils as CU
 import Literal
 import IdInfo
 
