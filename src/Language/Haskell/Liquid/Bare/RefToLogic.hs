@@ -15,11 +15,10 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Names      (dropModuleNames)
 
 import qualified Data.HashMap.Strict as M
-import Language.Haskell.Liquid.Bare.Env 
 
 import Control.Applicative                      ((<$>))
 
--- txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> RType c v r -> RType c v r
+txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic lmap imap t =  tx' lmap imap t
 
 
