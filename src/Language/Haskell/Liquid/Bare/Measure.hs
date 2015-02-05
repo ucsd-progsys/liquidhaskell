@@ -37,7 +37,7 @@ import Text.Parsec.Pos (SourcePos)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (hashMapMapKeys, mapFst, mapSnd, mlookup, sortNub, traceShow)
+import Language.Fixpoint.Misc (hashMapMapKeys, mapFst, mapSnd, mlookup, sortNub)
 import Language.Fixpoint.Names (dropModuleNames, dummySymbol)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 
@@ -54,8 +54,6 @@ import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
-
-import Debug.Trace (trace)
 
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' 
@@ -74,7 +72,7 @@ makeHaskellInlines _   name' (name, _   ) | name /= name'
   = return mempty
 makeHaskellInlines cbs _     (_   , spec) 
   = do lmap <- gets logicEnv
-       mapM_ (makeMeasureInline lmap cbs')  (traceShow "INLINES" $ S.toList $ Ms.inlines spec) 
+       mapM_ (makeMeasureInline lmap cbs') (S.toList $ Ms.inlines spec) 
   where 
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
