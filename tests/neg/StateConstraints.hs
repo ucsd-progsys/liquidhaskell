@@ -16,8 +16,8 @@ cmp :: forall < pref :: s -> Prop, postf :: s -> s -> Prop
               , pre  :: s -> Prop, postg :: s -> s -> Prop
               , post :: s -> s -> Prop
               >. 
-       {xx:s<pre> -> w:s<postg xx> -> s<postf w> -> s<post xx>}
-       {ww:s<pre> -> s<postg ww> -> s<pref>}
+       {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
+       {ww::s<pre> |- s<postg ww> <: s<pref>}
        (ST <pref, postf> s)
     -> (ST <pre, postg> s)
     -> (ST <pre, post> s)
