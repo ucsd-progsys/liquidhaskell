@@ -262,8 +262,6 @@ freeArgsPs p (RAppTy t1 t2 r)
   = nub $ freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs _ (RExprArg _)              
   = []
-freeArgsPs _ (ROth _)
-  = []
 freeArgsPs p (RHole r)
   = freeArgsPsRef p r
 freeArgsPs p (RRTy env r _ t)

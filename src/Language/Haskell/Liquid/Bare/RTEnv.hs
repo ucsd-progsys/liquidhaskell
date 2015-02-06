@@ -162,8 +162,6 @@ buildTypeEdges table
 
         go (RVar _ _)
           = []
-        go (ROth _)
-          = []
         go (RExprArg _)
           = []
         go (RHole _)
