@@ -28,6 +28,12 @@ incr x = x + 1
 incr2 :: Int -> Int
 incr2 = incr `cmp` incr
 
+{-@ incr2' :: x:Nat -> {v:Nat | v = x + 2} @-}
+incr2' :: Int -> Int
+incr2' = incr `oo` incr
+
+
+oo f g x = f (g x)
 
 -- This does not work.... Maybe due to scoping?
 {-@ plusminus :: n:a -> m:a -> x:a -> {v:a | v = (x + n) - m} @-}

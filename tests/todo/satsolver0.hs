@@ -1,5 +1,7 @@
 module SatSolver where
 
+{-@ LIQUID "--no-termination" @-}
+
 -- | Formula
 
 type Var     = Int
@@ -13,14 +15,14 @@ type Asgn = [(Var, Bool)]
 
 -- | Top-level "solver"
 
-{-@ solve :: f:_ -> Maybe {a:Asgn | sat a f} @-}
+{-@ solve :: f:_ -> Maybe {a:Asgn | Prop (sat a f)} @-}
 solve   :: Formula -> Maybe Asgn
-solve f = find (\a -> sat a f) (asgns f) 
+solve f = go (asgns f)
+  where
+  	go []     = Nothing
+  	go (x:xs) | sat x f = Just x
+  	          | otherwise = go xs 
 
-find :: (a -> Bool) -> [a] -> Maybe a
-find f [] = Nothing
-find f (x:xs) | f x       = Just x 
-              | otherwise = Nothing 
 -- | Generate all assignments
 
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
@@ -29,28 +31,32 @@ asgns = undefined
 
 -- | Satisfaction
 
-{-@ measure sat @-}
+{-@ measure sat :: Asgn -> Formula -> Bool @-}
 sat :: Asgn -> Formula -> Bool
+{-@ sat :: a:Asgn -> f:Formula -> {v:Bool | Prop (sat a f)} @-}
 sat a []         = True
 sat a (c:cs)     = satCls a c && sat a cs
 
-{-@ measure satCls @-}
+{- measure satCls @-}
 satCls :: Asgn -> Clause -> Bool
 satCls a []      = False
 satCls a (l:ls)  = satLit a l || satCls a ls
 
-{-@ measure satLit @-}
+{- measure satLit @-}
 satLit :: Asgn -> Lit -> Bool
 satLit a (Pos x) = isTrue x a 
 satLit a (Neg x) = isFalse x a
 
-{-@ measure isTrue @-}
+{- measure isTrue @-}
 isTrue           :: Var -> Asgn -> Bool
 isTrue x ((y, v):as)  = if x == y then v else isTrue x as 
 isTrue _ []           = False 
 
-{-@ measure isFalse @-}
+{- measure isFalse @-}
 isFalse          :: Var -> Asgn -> Bool
 isFalse x ((y, v):as) = if x == y then not v else isFalse x as 
-isFalse _ []          = False 
+isFalse _ []          = False
+
+
+
 

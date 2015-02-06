@@ -3,6 +3,7 @@
 
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
+  , makeHaskellInlines
 
   , makeMeasureSpec
   , makeMeasureSpec'
@@ -52,6 +53,7 @@ import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
+import Language.Haskell.Liquid.Bare.RefToLogic
 
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
 makeHaskellMeasures _   name' (name, _   ) | name /= name' 
@@ -63,6 +65,43 @@ makeHaskellMeasures cbs _     (_   , spec)
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+
+
+makeHaskellInlines :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM ()
+makeHaskellInlines _   name' (name, _   ) | name /= name' 
+  = return mempty
+makeHaskellInlines cbs _     (_   , spec) 
+  = do lmap <- gets logicEnv
+       mapM_ (makeMeasureInline lmap cbs') (S.toList $ Ms.inlines spec) 
+  where 
+    cbs'                  = concatMap unrec cbs
+    unrec cb@(NonRec _ _) = [cb]
+    unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
+
+
+makeMeasureInline :: LogicMap -> [CoreBind] ->  LocSymbol -> BareM ()
+makeMeasureInline lmap cbs  x 
+  = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
+    (NonRec v def:_)   -> do {e <- coreToFun' x v def; updateInlines x e}
+    (Rec [(v, def)]:_) -> do {e <- coreToFun' x v def; updateInlines x e}
+    _                  -> throwError $ mkError "Cannot inline haskell function"
+  where
+    binders (NonRec x _) = [x]
+    binders (Rec xes)    = fst <$> xes  
+
+    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
+                           Left (xs, e)  -> return (TI xs e)
+                           Right e -> throwError e
+
+    mkError :: String -> Error
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+
+
+
+updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in 
+                                   s{inlines = M.map (f iold) iold }
+  where f imap = txRefToLogic mempty imap 
+
 
 makeMeasureDefinition :: LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
 makeMeasureDefinition lmap cbs x 
@@ -83,9 +122,8 @@ makeMeasureDefinition lmap cbs x
 
 simplesymbol = symbol . getName
 
-
-strengthenHaskellMeasures :: S.HashSet Var -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas = (\v -> (v, dummyLoc $ strengthenResult v)) <$> (S.toList hmeas)
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)]
+strengthenHaskellMeasures hmeas = (\v -> (val v, fmap strengthenResult v)) <$> (S.toList hmeas)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
