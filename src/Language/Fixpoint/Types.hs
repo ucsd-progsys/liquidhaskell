@@ -55,7 +55,8 @@ module Language.Fixpoint.Types (
   , fObj
 
   -- * Expressions and Predicates
-  , SymConst (..), Constant (..)
+  , SymConst (..)
+  , Constant (..) 
   , Bop (..), Brel (..)
   , Expr (..), Pred (..)
   , eVar
@@ -153,11 +154,12 @@ module Language.Fixpoint.Types (
   , dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
-import GHC.Generics         (Generic)
 import Debug.Trace          (trace)
 
+import GHC.Generics         (Generic)
 import Data.Typeable        (Typeable)
 import Data.Generics        (Data)
+
 import Data.Monoid hiding   ((<>))
 import Data.Functor
 import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
@@ -290,8 +292,6 @@ toFix_gs (SE e)
 toFix_constant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> toFix so
 
-
-
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
@@ -304,7 +304,6 @@ realFTyCon = TC $ dummyLoc "real"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
-
 
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
@@ -337,6 +336,8 @@ fTyconSort = (`FApp` [])
 
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
+
+ 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
 ----------------------------------------------------------------------
@@ -379,9 +380,10 @@ toFix_sort (FApp c ts)
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
 
--------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------
 sortSubst                  :: (M.HashMap Symbol Sort) -> Sort -> Sort
--------------------------------------------------------------------------------------------
+------------------------------------------------------------------------
 sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ)
 sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
 sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
@@ -406,7 +408,9 @@ instance Fixpoint Subst where
 data SymConst = SL !Text
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Constant = I  !Integer | R !Double
+data Constant = I !Integer
+              | R !Double
+              | L !Text !Sort 
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
@@ -434,9 +438,10 @@ instance Fixpoint Double where
   toFix = double
 
 instance Fixpoint Constant where
-  toFix (I i)  = toFix i
-  toFix (R i)  = toFix i
-
+  toFix (I i)   = toFix i
+  toFix (R i)   = toFix i
+  toFix (L s t) = parens $ text "lit" <+> toFix s <+> toFix t   
+                    
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
@@ -597,6 +602,8 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 -- | Generalizing Symbol, Expression, Predicate into Classes -----------
 ------------------------------------------------------------------------
 
+-- | Values that can be viewed as Constants 
+
 -- | Values that can be viewed as Expressions
 
 class Expression a where
@@ -635,11 +642,11 @@ instance Predicate Bool where
   prop True  = PTrue
   prop False = PFalse
 
-eVar          ::  Symbolic a => a -> Expr
-eVar          = EVar . symbol
+eVar ::  Symbolic a => a -> Expr
+eVar = EVar . symbol
 
-eProp         ::  Symbolic a => a -> Pred
-eProp         = mkProp . eVar
+eProp ::  Symbolic a => a -> Pred
+eProp = mkProp . eVar
 
 relReft :: (Expression a) => Brel -> a -> Reft
 relReft r e   = Reft (vv_, [RConc $ PAtom r (eVar vv_)  (expr e)])
@@ -648,11 +655,6 @@ exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
 exprReft      = relReft Eq
 notExprReft   = relReft Ne
 uexprReft     = relReft Ueq
-
-
--- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
--- notExprReft e          = Reft (vv_, [RConc $ PAtom Ne (eVar vv_)  (expr e)])
--- exprReft e             = Reft (vv_, [RConc $ PAtom Eq (eVar vv_)  (expr e)])
 
 propReft      ::  (Predicate a) => a -> Reft
 propReft p    = Reft (vv_, [RConc $ PIff     (eProp vv_) (prop p)])
@@ -1134,9 +1136,10 @@ instance NFData BindEnv where
   rnf (BE x m) = rnf x `seq` rnf m
 
 instance NFData Constant where
-  rnf (I x) = rnf x
-  rnf (R x) = rnf x
-
+  rnf (I x)     = rnf x
+  rnf (R x)     = rnf x
+  rnf (L s t) = rnf s `seq` rnf t
+  
 instance NFData SymConst where
   rnf (SL x) = rnf x
 

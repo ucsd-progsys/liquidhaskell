@@ -275,22 +275,26 @@ interact' me cmd  = command me cmd >> return ()
 --------------------------------------------------------------------------
 
 elt, set :: Raw
-elt = "Elt"
-set = "Set"
-map = "Map"
+elt  = "Elt"
+set  = "Set"
+map  = "Map"
+bit  = "BitVec"
+sz32 = "Size32"
+sz64 = "Size64"
+             
 
 emp, add, cup, cap, mem, dif, sub, com :: Raw
-emp = "smt_set_emp"
-add = "smt_set_add"
-cup = "smt_set_cup"
-cap = "smt_set_cap"
-mem = "smt_set_mem"
-dif = "smt_set_dif"
-sub = "smt_set_sub"
-com = "smt_set_com"
-sel = "smt_map_sel"
-sto = "smt_map_sto"
-
+emp   = "smt_set_emp"
+add   = "smt_set_add"
+cup   = "smt_set_cup"
+cap   = "smt_set_cap"
+mem   = "smt_set_mem"
+dif   = "smt_set_dif"
+sub   = "smt_set_sub"
+com   = "smt_set_com"
+sel   = "smt_map_sel"
+sto   = "smt_map_sto"
+        
 smt_set_funs :: M.HashMap Symbol Raw
 smt_set_funs = M.fromList [ ("Set_emp",emp),("Set_add",add),("Set_cup",cup)
                           , ("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
