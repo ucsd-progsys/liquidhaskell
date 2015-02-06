@@ -30,7 +30,7 @@ import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcS
 
 import           Language.Fixpoint.Names      (dropModuleNames)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import           Language.Fixpoint.Types      hiding (SESearch(..))
+import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc, occNameFS)
