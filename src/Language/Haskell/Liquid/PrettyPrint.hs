@@ -148,7 +148,7 @@ ppr_rtype _ _ (RExprArg e)
   = braces $ pprint e
 ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
-ppr_rtype bb p (RRTy [(_, e)] r OCons t)         
+ppr_rtype bb p (RRTy [(_, e)] _ OCons t)         
   = sep [braces (ppr_rsubtype bb p e) <+> "=>", ppr_rtype bb p t]
 ppr_rtype bb p (RRTy e r o t)         
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]

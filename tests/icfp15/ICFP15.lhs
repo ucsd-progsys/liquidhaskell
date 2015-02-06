@@ -12,8 +12,8 @@ Function Composition: Bringing Everything into Scope!
 \begin{code}
 {-@ 
 (.) :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
-       {x::a, w::b<q z> |- c<p w> <: c<r x>}
-       f:(yyy:b -> c<p yyy>)
+       {x::a, w::b<q x> |- c<p w> <: c<r x>}
+       f:(y:b -> c<p y>)
     -> g:(z:a -> b<q z>)
     ->   x:a -> c<r x>
 @-}    
