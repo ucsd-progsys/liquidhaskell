@@ -198,6 +198,7 @@ Library
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
+                    Language.Haskell.Liquid.Bare.RefToLogic
                     Language.Haskell.Liquid.Bare.Check
                     Language.Haskell.Liquid.Bare.DataType
                     Language.Haskell.Liquid.Bare.Env
