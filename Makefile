@@ -14,9 +14,15 @@ all:
 force:
 	$(CABAL) install --force-reinstalls --ghc-options=$(OPTS) 
 
-rebuild:
-	cd external/fixpoint/ && make clean && make && cd ../../
+rebuild: ocaml
 	make
+
+ocaml:
+	cd external/ocamlgraph && make clean && ./configure && make && cd ../..
+	cd external/fixpoint/ && make clean && make -e && cd ../..
+
+ocaml-windows:
+	OCAMLLIB=/usr/i686-w64-mingw32/lib/ocaml/ OCAMLC=i686-w64-mingw32-ocamlc OCAMLOPT=i686-w64-mingw32-ocamlopt make ocaml	
 
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 
