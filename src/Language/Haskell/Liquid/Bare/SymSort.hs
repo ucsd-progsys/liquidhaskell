@@ -35,7 +35,7 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
 addSymSort _ _ t 
   = t
 
-addSymSortRef rc _ (RHProp _ _) i  = errorstar "TODO:EFFECTS:addSymSortRef"
+addSymSortRef _  _ (RHProp _ _) _   = errorstar "TODO:EFFECTS:addSymSortRef"
 addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r 
                        | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
@@ -63,7 +63,7 @@ addSymSortRef' _ _ p (RProp s t)
 -- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ _) (RPropP s r)
 -- EFFECTS:   = RProp s $ (ofRSort t) `strengthen` r
 
-addSymSortRef' rc i p q@(RPropP _ r@(U _ (Pr [up]) _)) 
+addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _)) 
   = RProp xts ((ofRSort $ pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
