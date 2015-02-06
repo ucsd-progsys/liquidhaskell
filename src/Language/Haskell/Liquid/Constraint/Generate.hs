@@ -1559,14 +1559,8 @@ instantiatePvs = foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = errorstar "Constraint.instanctiatePv" 
 
-instance Show CoreExpr where
-  show = showPpr
-
 checkTyCon _ t@(RApp _ _ _ _) = t
 checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
-
--- checkRPred _ t@(RAll _ _)     = t
--- checkRPred x t                = checkErr x t
 
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
