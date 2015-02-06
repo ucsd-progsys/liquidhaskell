@@ -11,6 +11,7 @@ import Language.Fixpoint.Types (meet)
 
 import Language.Haskell.Liquid.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (safeZipWithError, intToString)
 
 -- TODO: Rename, "Sort" isn't a good name for this module
 
@@ -21,7 +22,7 @@ import Language.Haskell.Liquid.Types
 txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
 addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r) 
-  = RApp rc ts (zipWith addSymSortRef pvs rargs) r'
+  = RApp rc ts (zipWith3 (addSymSortRef rc) pvs rargs [1..]) r'
   where
     rc'                = appRTyCon tce tyi rc ts
     pvs                = rTyConPVs rc' 
@@ -34,18 +35,18 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
 addSymSort _ _ t 
   = t
 
-addSymSortRef _ (RHProp _ _)   = errorstar "TODO:EFFECTS:addSymSortRef"
-addSymSortRef p r | isPropPV p = addSymSortRef' p r 
-                  | otherwise  = errorstar "addSymSortRef: malformed ref application"
+addSymSortRef rc _ (RHProp _ _) i  = errorstar "TODO:EFFECTS:addSymSortRef"
+addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r 
+                       | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
 
-addSymSortRef' p (RProp s (RVar v r)) | isDummy v
+addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
       t  = ofRSort (pvType p) `strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' p (RProp s t) 
+addSymSortRef' _ _ p (RProp s t) 
   = RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
@@ -62,17 +63,19 @@ addSymSortRef' p (RProp s t)
 -- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ _) (RPropP s r)
 -- EFFECTS:   = RProp s $ (ofRSort t) `strengthen` r
 
-addSymSortRef' p (RPropP _ r@(U _ (Pr [up]) _)) 
+addSymSortRef' rc i p q@(RPropP _ r@(U _ (Pr [up]) _)) 
   = RProp xts ((ofRSort $ pvType p) `strengthen` r)
     where
-      xts = safeZip "addRefSortMono" xs ts
+      xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
+      msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up) 
+            ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
-addSymSortRef' _ (RPropP s r)
+addSymSortRef' _ _ _ (RPropP s r)
   = RPropP s r
 
-addSymSortRef' _ _
+addSymSortRef' _ _ _ _
   = errorstar "TODO:EFFECTS:addSymSortRef'"
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 

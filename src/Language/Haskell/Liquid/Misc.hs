@@ -96,3 +96,9 @@ pad msg _ xs ys
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
+intToString :: Int -> String
+intToString 1 = "1st"
+intToString 2 = "2nd"
+intToString 3 = "3rd"
+intToString n = show n ++ "th"
+
