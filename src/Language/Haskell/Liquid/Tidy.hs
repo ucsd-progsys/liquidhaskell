@@ -118,7 +118,6 @@ tyVars (RAllE _ _ t)   = tyVars t
 tyVars (REx _ _ t)     = tyVars t
 tyVars (RExprArg _)    = []
 tyVars (RRTy _ _ _ t)  = tyVars t
-tyVars (ROth _)        = []
 tyVars (RHole _)       = []
 
 subsTyVarsAll ats = go
@@ -136,7 +135,6 @@ funBinds (RApp _ ts _ _)  = concatMap funBinds ts
 funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2
 funBinds (REx b t1 t2)    = b : funBinds t1 ++ funBinds t2
 funBinds (RVar _ _)       = [] 
-funBinds (ROth _)         = []
 funBinds (RRTy _ _ _ t)   = funBinds t
 funBinds (RAppTy t1 t2 _) = funBinds t1 ++ funBinds t2
 funBinds (RExprArg _)     = []

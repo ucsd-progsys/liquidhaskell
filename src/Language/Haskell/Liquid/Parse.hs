@@ -359,7 +359,7 @@ symsP
  <|> return []
 
 dummyRSort
-  = ROth "dummy"
+  = RVar "dummy" mempty
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
