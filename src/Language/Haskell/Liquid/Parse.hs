@@ -231,16 +231,20 @@ bareAllExprP
        return $ foldr (uncurry RAllE) t zs
  
 bareConstraintP
-  = do ct   <- braces bareTypeP
+  = do ct   <- braces constraintP
        t    <- bareTypeP 
        return $ rrTy ct t 
 
 
-rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t -- fromRTypeRep rep{ty_res = t'}
---   where 
---     rep = toRTypeRep t
---     t'  = RRTy [(dummySymbol, ct)] mempty OCons (ty_res rep) 
+constraintP
+  = do xts <- sepBy tyBindP comma
+       reserved "|-"
+       t1 <- bareTypeP
+       reserved "<:"
+       t2 <- bareTypeP
+       return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol]) ((snd <$> xts) ++ [t1]) t2 
 
+rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t 
 
 bareExistsP 
   = do reserved "exists"

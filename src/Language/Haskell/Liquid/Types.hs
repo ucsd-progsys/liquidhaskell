@@ -1168,7 +1168,8 @@ efoldReft cb g f fp = go
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t' 
     go _ z (ROth _)                     = z 
-    go γ z me@(RRTy _ r _ t)            = f γ (Just me) r (go γ z t)
+    go γ z me@(RRTy [] r _ t)          = f γ (Just me) r (go γ z t)
+    go γ z me@(RRTy xts r _ t)          = f γ (Just me) r (go γ (go γ z (envtoType xts)) t)
     go γ z me@(RAppTy t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go _ z (RExprArg _)                 = z
     go γ z me@(RHole r)                 = f γ (Just me) r z
@@ -1184,6 +1185,7 @@ efoldReft cb g f fp = go
     -- folding over [Ref]
     ho' γ z rs                 = foldr (flip $ ho γ) z rs 
 
+    envtoType xts = foldr (\(x,t1) t2 -> rFun x t1 t2) (snd $ last xts) (init xts)
 
 mapBot f (RAllT α t)       = RAllT α (mapBot f t)
 mapBot f (RAllP π t)       = RAllP π (mapBot f t)
