@@ -44,6 +44,7 @@ module Language.Fixpoint.Names (
   , strConName
   , vvName
   , symSepName
+  , size32Name, size64Name, bitVecName, bvAndName, bvOrName
   , prims
 ) where
 
@@ -250,6 +251,12 @@ strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 
+size32Name   = "Size32" :: Symbol 
+size64Name   = "Size64" :: Symbol
+bitVecName   = "BitVec" :: Symbol
+bvOrName     = "bvor"   :: Symbol
+bvAndName    = "bvAnd"  :: Symbol
+
 prims :: [Symbol]
 prims = [ propConName
         , hpropConName
@@ -268,6 +275,11 @@ prims = [ propConName
         , "Map_t"
         , "Map_select"
         , "Map_store"
+        , size32Name
+        , size64Name
+        , bitVecName
+        , bvOrName 
+        , bvAndName
         , "FAppTy" 
         ]
 
