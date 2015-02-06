@@ -5,8 +5,8 @@ cmp :: forall < pref :: b -> Prop, postf :: b -> c -> Prop
               , pre  :: a -> Prop, postg :: a -> b -> Prop
               , post :: a -> c -> Prop
               >. 
-       {xx:a<pre> -> w:b<postg xx> -> c<postf w> -> c<post xx>}
-       {ww:a<pre> -> b<postg ww> -> b<pref>}
+       {xx::a<pre>,  w::b<postg xx> |- c<postf w> <: c<post xx>}
+       {ww::a<pre> |- b<postg ww> <: b<pref>}
        f:(y:b<pref> -> c<postf y>)
     -> g:(z:a<pre > -> b<postg z>)
     -> x: a<pre> -> c<post x>
