@@ -13,8 +13,8 @@ check = undefined
 
 
 {-@ app :: forall <p :: Int -> Prop, q :: Int -> Int -> Prop>. 
-           {Int<q> -> Int<p>}
-           {x:Int<q> -> {v:Int| v = x + 1} -> Int<q>}
+           {Int<q> <: Int<p>}
+           {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}
            (Int<p> -> ()) -> x:Int<q> -> () @-}
 app :: (Int -> ()) -> Int -> ()
 app f x = if p x then app f (x + 1) else f x

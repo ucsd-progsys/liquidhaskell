@@ -30,10 +30,10 @@ instance Monad (ST s) where
               , r    :: s -> b -> Prop
               , pref0 :: a -> Prop 
               >. 
-       {x:s<pre> -> a<rg x> -> a<pref0>}      
-       {x:s<pre> -> y:s<postg x> -> b<rf y> -> b<r x>}
-       {xx:s<pre> -> w:s<postg xx> -> s<postf w> -> s<post xx>}
-       {ww:s<pre> -> s<postg ww> -> s<pref>}
+       {x::s<pre> |- a<rg x> <: a<pref0>}      
+       {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
+       {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
+       {ww::s<pre> |- s<postg ww> <: s<pref>}
        (ST <pre, postg, rg> s a)
     -> (a<pref0> -> ST <pref, postf, rf> s b)
     -> (ST <pre, post, r> s b) ;
@@ -44,9 +44,9 @@ instance Monad (ST s) where
               , rf   :: s -> b -> Prop
               , r    :: s -> b -> Prop
               >. 
-       {x:s<pre> -> y:s<postg x> -> b<rf y> -> b<r x>}
-       {xx:s<pre> -> w:s<postg xx> -> s<postf w> -> s<post xx>}
-       {ww:s<pre> -> s<postg ww> -> s<pref>}
+       {x::s<pre>, y::s<postg x> |- b<rf y> <: b<r x>}
+       {xx::s<pre>, w::s<postg xx> |- s<postf w> <: s<post xx>}
+       {ww::s<pre> |- s<postg ww> <: s<pref>}
        (ST <pre, postg, rg> s a)
     -> (ST <pref, postf, rf> s b)
     -> (ST <pre, post, r> s b)
@@ -55,11 +55,6 @@ instance Monad (ST s) where
   (ST g) >>= f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})    
   (ST g) >>  f = ST (\x -> case g x of {(y, s) -> (runState f) s})    
   fail         = error
- 
-
-
-
-
 
 {-@ incr :: ST <{\x -> true}, {\x v -> v = x + 1}, {\x v -> v = x}>  Int Int @-}
 incr :: ST Int Int
@@ -79,15 +74,6 @@ incr3
   = do incr
        incr
        incr
-
-{-
-{- incr3 :: ST <{\x -> true}, {\x v -> v = x + 3}, {\x v -> v = x + 3}>  Int Int @-}
-incr3 :: ST Int Int
-incr3 
- = do incr 
-      incr 
-      incr
--}
 
 run :: (Int, Int)
 {-@ run :: ({v:Int |  v = 1}, {v:Int |  v = 2}) @-}
