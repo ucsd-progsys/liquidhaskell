@@ -82,7 +82,7 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
 makeHints vs spec = varSymbols id vs $ Ms.decr spec
 makeLVar  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
 makeLazy  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
-makeHIMeas vs spec = fmap fst <$> (varSymbols id vs $ [(v, loc v) | v <- (S.toList $ Ms.hmeas spec) ++ (S.toList $ Ms.inlines spec)])
+makeHIMeas vs spec = fmap (uncurry $ flip Loc) <$> (varSymbols id vs $ [(v, loc v) | v <- (S.toList $ Ms.hmeas spec) ++ (S.toList $ Ms.inlines spec)])
 makeTExpr vs spec = varSymbols id vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]

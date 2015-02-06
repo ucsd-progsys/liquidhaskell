@@ -122,9 +122,8 @@ makeMeasureDefinition lmap cbs x
 
 simplesymbol = symbol . getName
 
-
-strengthenHaskellMeasures :: S.HashSet Var -> [(Var, Located SpecType)]
-strengthenHaskellMeasures hmeas = (\v -> (v, dummyLoc $ strengthenResult v)) <$> (S.toList hmeas)
+strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)]
+strengthenHaskellMeasures hmeas = (\v -> (val v, fmap strengthenResult v)) <$> (S.toList hmeas)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
