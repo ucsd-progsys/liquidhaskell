@@ -63,7 +63,7 @@ instance Transformable Pred where
 	tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
 	tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
 	tx s m (PBexp (EApp f es)) = txPApp (s, m) f es
-	tx s m (PBexp e)       = PBexp (tx s m $ traceShow "GOTO EXPR" e)
+	tx s m (PBexp e)       = PBexp (tx s m e)
 	tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
 	tx s m (PAll xss p) 
 	    = if (s `elem` (fst <$> xss)) 
