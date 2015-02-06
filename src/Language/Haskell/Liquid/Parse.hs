@@ -237,12 +237,18 @@ bareConstraintP
 
 
 constraintP
-  = do xts <- sepBy tyBindP comma
-       reserved "|-"
+  = do xts <- constraintEnvP
        t1 <- bareTypeP
        reserved "<:"
        t2 <- bareTypeP
        return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol]) ((snd <$> xts) ++ [t1]) t2 
+
+
+constraintEnvP
+   =  try (do xts <- sepBy tyBindP comma
+              reserved "|-"
+              return xts)
+  <|> return []
 
 rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t 
 
