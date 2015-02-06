@@ -45,7 +45,7 @@ import           Language.Fixpoint.Files
 import           Language.Fixpoint.Names hiding (encode)
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GhcMisc
-import           Language.Fixpoint.Types hiding (Def (..), Located (..))
+import           Language.Fixpoint.Types hiding (Def (..), Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
