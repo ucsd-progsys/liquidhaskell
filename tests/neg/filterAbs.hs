@@ -8,7 +8,7 @@ module Filter where
 import Prelude hiding (filter)
 
 {-@ filter :: forall <p :: a -> Prop, q :: a -> Bool -> Prop>.
-                  {y:a -> {v:Bool<q y> | Prop v} -> {v:a | v = y} -> a<p>}
+                  {y::a, flag :: {v:Bool<q y> | Prop v} |- {v:a | v = y} <: a<p>}
                   (x:a -> Bool<q x>) -> [a] -> [a<p>]
   @-}
 

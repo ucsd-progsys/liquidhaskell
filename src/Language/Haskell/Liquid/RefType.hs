@@ -349,8 +349,6 @@ nlzP ps (RAllS _ t)
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
   where (t', ps') = nlzP [] t
-nlzP ps t@(ROth _)
- = (t, ps)
 nlzP ps t@(REx _ _ _) 
  = (t, ps) 
 nlzP ps t@(RRTy _ _ _ t') 
@@ -524,7 +522,6 @@ freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole _)       = []
 freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
-freeTyVars t               = errorstar ("RefType.freeTyVars cannot handle" ++ show t)
 
 
 tyClasses (RAllP _ t)     = tyClasses t
@@ -563,7 +560,6 @@ instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
   rnf (RApp _ ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
   rnf (RAllE x t t')   = rnf x `seq` rnf t `seq` rnf t'
   rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
-  rnf (ROth s)         = rnf s
   rnf (RExprArg e)     = rnf e
   rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
   rnf (RRTy _ r _ t)   = rnf r `seq` rnf t
@@ -628,8 +624,6 @@ subsFree _ _ _ t@(RExprArg _)
   = t
 subsFree m s z (RRTy e r o t)        
   = RRTy (mapSnd (subsFree m s z) <$> e) r o (subsFree m s z t)
-subsFree _ _ _ t@(ROth _)        
-  = t
 subsFree _ _ _ t@(RHole _)
   = t
 
@@ -814,8 +808,6 @@ toType (RAppTy t t' _)
   = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
   = errorstar $ "RefType.toType cannot handle 1: " ++ show t
-toType t@(ROth _)      
-  = errorstar $ "RefType.toType cannot handle 2: " ++ show t
 toType (RRTy _ _ _ t)      
   = toType t
 toType t
