@@ -1,9 +1,10 @@
 \begin{code}
 module ICFP15 where
 
-import Prelude hiding ((.))
+import Prelude hiding ((.), (++),  filter)
 
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidAssume)
+{-@ LIQUID "--no-termination" @-}
+
 \end{code}
 
 Function Composition: Bringing Everything into Scope!
@@ -37,3 +38,94 @@ plusminus n m = (n+) . (m-)
 {-@ qualif PLUS     (v:int, x:int, y:int)       : (v = x + y)       @-}
 {-@ qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
 \end{code}
+
+
+Appending Sorted Lists
+-----------------------
+\begin{code}
+{-@ type OList a = [a]<{\x v -> v >= x}> @-}
+
+{-@ (++) :: forall <p :: a -> Prop, q :: a -> Prop>.
+        {x::a<p> |- a<q> <: {v:a| x <= v}} 
+        OList (a<p>) -> OList (a<q>) -> OList a @-}
+[]     ++ ys = ys
+(x:xs) ++ ys = x:(xs ++ ys)
+
+
+{-@ qsort :: xs:[a] -> OList a  @-}
+qsort []     = []
+qsort (x:xs) = (qsort [y | y <- xs, y < x]) ++ (x:(qsort [z | z <- xs, z >= x])) 
+\end{code}
+
+Relative Complete
+-----------------
+
+
+\begin{code}
+main i = app (check i) i
+-- Here p of `app` will be instantiated to 
+-- p := \v -> i <= v
+
+{-@ check :: x:Int -> {y:Int | x <= y} -> () @-}
+check :: Int -> Int -> ()
+check x y | x < y     = () 
+          | otherwise = error "oups!"
+\end{code}
+
+
+\begin{code}
+{-@ app :: forall <p :: Int -> Prop>. 
+           {x::Int<p> |- {v:Int| v = x + 1} <: Int<p>}
+           (Int<p> -> ()) -> x:Int<p> -> () @-}
+app :: (Int -> ()) -> Int -> ()
+app f x = if p x then app f (x + 1) else f x
+
+p :: Int -> Bool
+{-@ p :: Int -> Bool @-}
+p = undefined
+\end{code}
+
+- TODO: compare with related paper
+
+Filter
+------
+
+\begin{code}
+{-@ filter :: forall <p :: a -> Prop, q :: a -> Bool -> Prop>.
+                  {y::a, flag::{v:Bool<q y> | Prop v} |- {v:a | v = y} <: a<p>}
+                  (x:a -> Bool<q x>) -> [a] -> [a<p>]
+  @-}
+
+filter :: (a -> Bool) -> [a] -> [a]
+filter f (x:xs)
+  | f x       = x : filter f xs
+  | otherwise = filter f xs
+filter _ []   = []
+
+
+{-@ measure isPrime :: Int -> Prop @-}
+isPrime :: Int -> Bool 
+{-@ isPrime :: n:Int -> {v:Bool | Prop v <=> isPrime n} @-}
+isPrime = undefined
+
+-- | `positives` works by instantiating:
+-- p := \v   -> isPrime v
+-- q := \n v -> Prop v <=> isPrime n
+
+	
+{-@ primes :: [Int] -> [{v:Int | isPrime v}] @-}
+primes     = filter isPrime
+\end{code}
+
+- TODO  compare with Gotham
+
+
+
+
+
+
+
+
+State
+-----
+- TODO: compare with Nik
