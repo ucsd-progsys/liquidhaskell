@@ -8,14 +8,14 @@ import Language.Haskell.Liquid.Prelude
 
 
 {-@ assume (++) :: forall <p :: a -> Prop, q :: a -> Prop, r :: a -> Prop>.
-        {x:a<p> -> a<q> -> {v:a| x <= v}} 
-        {a<p> -> a<r>} 
-        {a<q> -> a<r>} 
+        {x::a<p> |- a<q> <: {v:a| x <= v}} 
+        {a<p> <: a<r>} 
+        {a<q> <: a<r>} 
         Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> @-}
 {-@ app :: forall <p :: a -> Prop, q :: a -> Prop, r :: a -> Prop>.
-        {x:a<p> -> a<q> -> {v:a| x <= v}} 
-        {a<p> -> a<r>} 
-        {a<q> -> a<r>} 
+        {x::a<p> |- a<q> <: {v:a| x <= v}} 
+        {a<p> <: a<r>} 
+        {a<q> <: a<r>} 
         Ord a => OList (a<p>) -> OList (a<q>) -> OList a<r> @-}
 app :: Ord a => [a] -> [a] -> [a]
 app []     ys = ys

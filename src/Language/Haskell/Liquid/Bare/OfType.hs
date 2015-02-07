@@ -135,8 +135,6 @@ ofBRType appRTAlias resolveReft
       = RRTy <$> mapM (secondM go) e <*> resolveReft r <*> pure o <*> go t
     go (RHole r)
       = RHole <$> resolveReft r
-    go (ROth s)
-      = return $ ROth s
     go (RExprArg e)
       = return $ RExprArg e
 
