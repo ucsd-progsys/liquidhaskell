@@ -151,9 +151,9 @@ coreToFun _ v e = go [] $ inline_preds $ simplify e
     go acc (C.Lam x e)  = go (symbol x : acc) e
     go acc (C.Tick _ e) = go acc e
     go acc e            | eqType rty boolTy 
-                        = (reverse acc,) . Left  . traceShow "coreToPred"  <$> coreToPred e  
+                        = (reverse acc,) . Left  <$> coreToPred e  
                         | otherwise       
-                        = (reverse acc,) . Right . traceShow "coreToLogic" <$> coreToLogic e
+                        = (reverse acc,) . Right <$> coreToLogic e
 
     inline_preds = inline (eqType boolTy . varType)
 
