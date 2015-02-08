@@ -2,14 +2,34 @@
 
 ## NEXT
 
-## 0.2.1.0
-- Experimental support for lifting haskell functions to measures
-If you annotate a Haskell function `foo` with {-@ measure foo @-}, LiquidHaskell will attempt to derive an equivalent measure from `foo`'s definition. This should help eliminate some boilerplate measures that used to be required.
+## 0.3.0.0
+
+- Logical constraints: add extra subtyping constraints to signatures, e.g.
+
+    {-@ 
+    (.) :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
+           {x::a, w::b<q x> |- c<p w> <: c<r x>}
+           (y:b -> c<p y>)
+        -> (z:a -> b<q z>)
+        ->  x:a -> c<r x>
+    @-}
+    (.) f g x = f (g x)
+
+- Inlining haskell functions as predicates and expressions, e.g.
+
+    {-@ inline max @-}
+    max x y = if x >= y then x else y
 
 - Refining class instances. For example
 
-{-@ instance Compare Int where 
-    cmax :: Odd -> Odd -> Odd @-}
+    {-@ instance Compare Int where
+        cmax :: Odd -> Odd -> Odd @-}
+
+- Major restructuring of internal APIs
+
+## 0.2.1.0
+- Experimental support for lifting haskell functions to measures
+If you annotate a Haskell function `foo` with {-@ measure foo @-}, LiquidHaskell will attempt to derive an equivalent measure from `foo`'s definition. This should help eliminate some boilerplate measures that used to be required.
 
 ## 0.2.0.0
 
