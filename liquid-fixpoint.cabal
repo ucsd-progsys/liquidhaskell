@@ -182,3 +182,21 @@ Library
                , hashable
                , unordered-containers
                , text-format
+
+test-suite test
+  default-language: Haskell98
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests
+  ghc-options:       -O2 -threaded
+  main-is:           test.hs
+  build-depends:     base,
+                     -- directory,
+                     -- filepath,
+                     -- process,
+                     -- tagged,
+                     liquid-fixpoint,
+                     -- optparse-applicative == 0.11.*,
+                     QuickCheck,
+                     tasty >= 0.10,
+                     tasty-quickcheck >= 0.9,
+                     tasty-rerun >= 1.1
