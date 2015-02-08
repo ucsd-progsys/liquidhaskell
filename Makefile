@@ -20,7 +20,7 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 ##############################################################################
 
 fast:
-	$(CABAL) install --ghc-options=$(FASTOPTS) 
+	$(CABAL) install -fdevel --ghc-options=$(FASTOPTS) 
 
 first: 
 	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
