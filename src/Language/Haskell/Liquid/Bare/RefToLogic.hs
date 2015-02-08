@@ -30,6 +30,15 @@ class Transformable a where
 	  where limap = M.fromList ((mapSnd Left <$> M.toList lmap) ++ (mapSnd Right <$> M.toList imap))   
 
 
+instance (Transformable a) => (Transformable [a]) where
+	tx s m xs = tx s m <$> xs 
+
+instance Transformable DataConP where
+	tx s m x = x{ tyConsts = tx s m (tyConsts x)
+                , tyArgs   = mapSnd (tx s m) <$> (tyArgs x)
+                , tyRes    = tx s m (tyRes x)
+                }
+
 instance Transformable TInline where
   tx s m (TI xs e) = TI xs (tx s m e) 
 
