@@ -141,9 +141,12 @@ makeGhcSpec2 invs ialias measures su sp
                 , measures   = subst su <$> M.elems $ Ms.measMap measures }
 
 makeGhcSpec3 datacons tycons embs syms sp
-  = do tcEnv   <- gets tcEnv
+  = do tcEnv       <- gets tcEnv
+       lmap        <- logicEnv <$> get 
+       inlmap      <- inlines  <$> get
+       let dcons'   = mapSnd (txRefToLogic lmap inlmap) <$> datacons
        return  $ sp { tyconEnv   = tcEnv
-                    , dconsP     = datacons
+                    , dconsP     = dcons'
                     , tconsP     = tycons
                     , tcEmbeds   = embs 
                     , freeSyms   = [(symbol v, v) | (_, v) <- syms] }
