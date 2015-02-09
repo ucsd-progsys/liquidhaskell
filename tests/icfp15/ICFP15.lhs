@@ -140,4 +140,144 @@ Bounds can be seen as Abstract Refinement transformers, i.e., higher order Abstr
 
 State
 -----
+
+- State's Definition 
+\begin{code}
+{-@ data RIO a <pre :: World -> Prop, post :: World -> a -> World -> Prop> 
+  = RIO (rs :: (x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}>))
+  @-}
+data RIO a  = RIO {runState :: World -> (a, World)}
+
+{-@ runState :: forall <pre :: World -> Prop, post :: World -> a -> World -> Prop>. 
+                RIO <pre, post> a -> x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}> @-}
+
+data World  = W
+
+instance Monad RIO where
+{-@ instance Monad RIO where
+ >>= :: forall < pre   :: World -> Prop 
+               , pre2  :: World -> Prop 
+               , p     :: a -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {w::World<pre>, x::a |- World<post1 w x> <: World<pre2>}        
+       {w::World<pre>, y::a, w2::World<post1 w y>, x::b |- World<post2 w2 x> <: World<post w x>}        
+       {w::World, x::a|- {v:a | v = x} <: a<p>}
+       RIO <pre, post1> a
+    -> (a<p> -> RIO <pre2, post2> b)
+    -> RIO <pre, post> b ;
+ >>  :: forall < pre   :: World -> Prop 
+               , pre2  :: World -> Prop 
+               , p     :: a -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {w::World<pre>, x::a |- World<post1 w x> <: World<pre2>}        
+       {w::World<pre>, y::a, w2::World<post1 w y>, x::b |- World<post2 w2 x> <: World<post w x>}        
+       RIO <pre, post1> a
+    -> RIO <pre2, post2> b
+    -> RIO <pre, post> b ;
+ return :: forall <p :: World -> Prop>.
+           x:a -> RIO <p, \w0 y -> {w1:World<p> | w0 == w1 && y == x }> a
+  @-}  
+  (RIO g) >>= f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
+  (RIO g) >>  f = RIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
+  return w      = RIO $ \x -> (w, x)
+  fail          = error
+\end{code}
+
+
+- Using the RIO
+\begin{code}
+{-@ measure counter :: World -> Int @-}
+
+{-@ incr :: RIO <{\x -> counter x >= 0}, {\w1 x w2 -> counter w2 = counter w1 + 1}>  Nat Nat @-}
+incr :: RIO Int
+incr = undefined
+\end{code}
+
+- General State functions: twice
+\begin{code}
+{-@ appM :: forall <pre :: World -> Prop, post :: World -> a -> World -> Prop>.
+           (a -> RIO <pre, post> b) -> a -> RIO <pre, post> b @-}
+appM :: (a -> RIO b) -> a -> RIO b
+appM f x = f x
+
+{-@ 
+twiceM  :: forall < pre   :: World -> Prop 
+                 , post1 :: World -> a -> World -> Prop
+                 , post :: World -> a -> World -> Prop>.
+       {w::World<pre>, x::a |- World<post1 w x> <: World<pre>}        
+       {w::World<pre>, y::a, w2::World<post1 w y>, x::a |- World<post1 w2 x> <: World<post w x>}        
+       (b -> RIO <pre, post1> a) -> b   
+    -> RIO <pre, post> a 
+@-}
+twiceM :: (b -> RIO a) -> b -> RIO a
+twiceM f x = do {f x ; f x}
+
+
+{-@ incr2 :: RIO <{\x -> counter x >= 0}, {\w1 x w2 -> counter w2 = counter w1 + 2}>  Nat Nat @-}
+incr2 :: RIO Int
+incr2 = twiceM (\_ -> incr) 0
+\end{code}
+
+- if
+
+\begin{code}
+{-@ 
+ifM  :: forall < pre   :: World -> Prop 
+                 , post1 :: World -> () -> World -> Prop
+                 , post :: World -> () -> World -> Prop>.
+       {w::World<pre>, y::(), w2::World<pre>, x::() |- World<post1 w2 x> <: World<post w x>}             
+       RIO <pre, \w1 x -> {v:World<pre> | true}> Bool 
+       -> RIO <pre, post1> () 
+       -> RIO <pre, post1> ()  
+       -> RIO <pre, post> ()
+@-}
+ifM :: RIO Bool -> RIO () -> RIO () -> RIO ()
+ifM guard e1 e2 = do {g <- guard ; if g then e1 else e2}
+\end{code}
+
+- while
+\begin{code}
+-- THIS TYPE CHECKS, BUT HOW CAN WE ACTUALLY USE IT?
+{-@ 
+whileM  :: forall < pre   :: World -> Prop 
+                  , post1 :: World -> () -> World -> Prop
+                  , post2 :: World -> () -> World -> Prop
+                  , post :: World -> () -> World -> Prop>.
+       {w::World<pre>, y::(), w2::World<pre>, x::() |- World<post1 w2 x> <: World<post w x>}             
+       {w::World<pre>, x::() |- {v:World | v = w} <: World<post1 w x>}
+       {w::World<pre>, x::() |- {v:World | v = w} <: World<post w x>}
+       {w::World<pre>, x::() |- World<post w x> <: World<pre>}
+       {w1::World, x::Bool |- World<post2 w1 x> <: World<pre>}        
+       RIO <pre, post2> Bool 
+       -> RIO <pre, post1> () 
+       -> RIO <pre, post> ()
+@-}
+whileM :: RIO Bool -> RIO () -> RIO ()
+whileM guard e1 = do {g <- guard ; if g then do {e1; whileM guard e1} else return ()}
+\end{code}
+
+
+- Using whileM
+\begin{code}
+{-@ measure counter1 :: World -> Int @-}
+{-@ measure counter2 :: World -> Int @-}
+
+{-@ incr' :: RIO <{\x -> true}, {\w1 x w2 -> counter1 w2 = counter1 w1 + 1}> () @-}
+incr' :: RIO ()
+incr' = undefined
+
+{-@ condM :: RIO <{\x -> true}, {\w1 x w2 -> (Prop x) <=> counter1 w2 >= counter2 w2}> Bool @-}
+condM :: RIO Bool
+condM = undefined
+
+-- NV: TODO
+{- prop :: RIO <{\x -> true}, {\w1 x w2 -> counter1 w2 < counter2 w2}> () @-}
+prop :: RIO ()
+prop = whileM condM incr' 
+\end{code}
+
 - TODO: compare with Nik
