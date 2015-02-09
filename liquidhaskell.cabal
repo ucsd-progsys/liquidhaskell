@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.2.1.0
+Version:             0.3.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -42,7 +42,7 @@ Source-Repository head
 
 Flag devel
   Description: turn on stricter error reporting for development
-  Default:     True
+  Default:     False
 
 Executable liquid
   default-language: Haskell98
@@ -72,7 +72,7 @@ Executable liquid
                , syb
                , text
                , vector
-               , liquid-fixpoint >= 0.2.1.0
+               , liquid-fixpoint
                , hashable
                , unordered-containers
                , aeson
@@ -152,7 +152,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.2.1.0
+                , liquid-fixpoint >= 0.2.2.0
                 , aeson
                 , bytestring
                 , fingertree
