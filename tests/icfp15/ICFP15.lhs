@@ -117,13 +117,25 @@ isPrime = undefined
 primes     = filter isPrime
 \end{code}
 
-- TODO  compare with Gotham
+
+- filter in Katalyst:
+
+('R filter) : 
+   l -> f: (x -> {v |  v = false => 'R(x) = emp 
+                    /\ v = true  => 'R(x) = Rid(x)})
+-> {v | Rmem (v) = (Rmem 'R)(l)}
 
 
+Similar in that the result refinement depends on the 'R.
+In our types `p` depends on the `q`.
 
+Precondition constraints the relation 'R  and then post condition 
 
+Differences
+Katalyst talks about ordering and not other theories, like linear arithmetic
 
-
+Similarities 
+Bounds can be seen as Abstract Refinement transformers, i.e., higher order Abstract Refinements. 
 
 
 State
