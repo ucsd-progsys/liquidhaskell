@@ -29,11 +29,11 @@ data Heap a   = Empty | Node { pri   :: a
                              , right :: Heap a
                              }
 
-{-@ data Heap a <q :: a -> a -> Prop> =
+{-@ data Heap a <p :: a -> a -> Prop> =
       Empty | Node { pri   :: a
                    , rnk   :: Nat 
-                   , left  :: {v: Heap<q> (a<q pri>) | ValidRank v}
-                   , right :: {v: Heap<q> (a<q pri>) | ValidRank v}
+                   , left  :: {v: Heap<p> (a<p pri>) | ValidRank v}
+                   , right :: {v: Heap<p> (a<p pri>) | ValidRank v}
                    }
  @-}
 
