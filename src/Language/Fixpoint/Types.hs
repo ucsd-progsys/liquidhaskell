@@ -1275,7 +1275,7 @@ instance Fixpoint Qualifier where
 instance NFData Qualifier where
   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3 
 
-pprQual (Q n xts p _) = text "qualif" <+> text (symbolString n) <> parens args  <> colon <+> toFix p
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where args = intersperse comma (toFix <$> xts)
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)

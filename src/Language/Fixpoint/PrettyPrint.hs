@@ -91,8 +91,8 @@ instance PPrint Pred where
 
 trueD  = text "true"
 falseD = text "false"
-andD   = text " &&"
-orD    = text " ||"
+andD   = text "&&"
+orD    = text "||"
 
 pprintBin b _ [] = b
 pprintBin _ o xs = intersperse o $ pprint <$> xs 
