@@ -96,6 +96,10 @@ getGhcInfo' cfg0 target
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
+      let datacons        = [ dataConWorkId dc
+                            | tc <- mgi_tcs modguts
+                            , dc <- tyConDataCons tc
+                            ]
       let impVs           = importVars  coreBinds 
       let defVs           = definedVars coreBinds 
       let useVs           = readVars    coreBinds
@@ -105,7 +109,7 @@ getGhcInfo' cfg0 target
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds derVs impVs letVs useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec 
 
 
 makeLogicMap 
