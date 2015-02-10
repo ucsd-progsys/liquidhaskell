@@ -130,6 +130,7 @@ module Language.Fixpoint.Types (
   , substfExcept
   , subst1Except
   , sortSubst
+  , targetSubstSyms
 
   -- * Visitors
   , reftKVars
@@ -397,6 +398,8 @@ instance Fixpoint Subst where
   toFix (Su m) = case {- hashMapToAscList -} m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ (toFix x) <> text ":=" <> (toFix y)) xys
+
+targetSubstSyms (Su ms) = syms $ snd <$> ms
 
 
 ---------------------------------------------------------------
