@@ -28,7 +28,7 @@ import TysWiredIn
 import Control.Applicative 
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym)
+import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym, propConName)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc
@@ -79,11 +79,12 @@ strengthenResult v
   where rep = toRTypeRep t
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..]
-        r'  = U (exprReft (EApp f (EVar <$> vxs)))         mempty mempty
-        r   = U (propReft (PBexp $ EApp f (EVar <$> vxs))) mempty mempty
-        vxs = fst $  unzip $ dropWhile isClassBind $ zip xs (ty_args rep)
+        r'  = U (exprReft (EApp f (mkA <$> vxs)))         mempty mempty
+        r   = U (propReft (PBexp $ EApp f (mkA <$> vxs))) mempty mempty
+        vxs = dropWhile isClassBind $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
+        mkA = \(x, t) -> if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
 simplesymbol = symbol . getName
