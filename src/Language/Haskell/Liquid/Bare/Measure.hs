@@ -20,7 +20,7 @@ import CoreSyn
 import DataCon
 import Id
 import Name
-import Type
+import Type hiding (isFunTy)
 import Var
 
 import Control.Applicative ((<$>), (<*>))
@@ -126,9 +126,11 @@ strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellMeasures hmeas = (\v -> (val v, fmap strengthenResult v)) <$> (S.toList hmeas)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = go <$> zip (reverse xts) [1..]
+makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = catMaybes (go <$> zip (reverse xts) [1..])
   where
-    go ((x,t), i) = makeMeasureSelector (Loc loc x) (dty t) dc n i
+    go ((x,t), i)
+      | isFunTy t = Nothing
+      | True      = Just $ makeMeasureSelector (Loc loc x) (dty t) dc n i
         
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
     n             = length xts
