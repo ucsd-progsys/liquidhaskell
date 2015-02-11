@@ -32,7 +32,7 @@ import Text.PrettyPrint.HughesPJ
 
 data Moods = Ok | Loud | Sad | Happy | Angry 
 
-moodColor Ok    = Black
+moodColor Ok    = Blue -- Black
 moodColor Loud  = Blue 
 moodColor Sad   = Magenta 
 moodColor Happy = Green 

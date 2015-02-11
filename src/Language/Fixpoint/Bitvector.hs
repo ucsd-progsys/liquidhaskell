@@ -2,8 +2,11 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 
 module Language.Fixpoint.Bitvector
-       ( -- * Sizes 
-         BvSize (..)
+       ( -- * Constructor
+         Bv (..)
+       
+         -- * Sizes 
+       , BvSize (..)
 
          -- * Operators
        , BvOp (..)
@@ -13,6 +16,9 @@ module Language.Fixpoint.Bitvector
 
          -- * BitVector Expression Constructor 
        , eOp
+
+         -- * BitVector Type Constructor
+       , bvTyCon
 
        ) where
 
