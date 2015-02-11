@@ -10,8 +10,7 @@ import Control.Applicative
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Constraint.Types
 
-import Language.Fixpoint.Types           
-
+import Language.Fixpoint.Types
 
 instance Monoid LConstraint where
 	mempty  = LC []
