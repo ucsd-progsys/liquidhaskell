@@ -86,12 +86,14 @@ plugHoles tce tyi x f t (Loc l st)
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
     go (RAllT a t)      t'                 = RAllT a <$> go t t'
+    go t                (RAllP p t')       = RAllP p <$> go t t'
+    go t                (RAllS s t')       = RAllS s <$> go t t'
     go t                (RAllE b a t')     = RAllE b a <$> go t t'
     go t                (REx b x t')       = REx b x <$> go t t'
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
     go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
-    -- If we reach the default case, we know there's an error, but we defer
+    -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
     go _                st                 = return st
