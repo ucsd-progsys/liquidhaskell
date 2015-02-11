@@ -58,7 +58,7 @@ opName :: BvOp -> LocSymbol
 opName BvAnd = dummyLoc bvAndName
 opName BvOr  = dummyLoc bvOrName
 
-sizeSort     = (`FApp` []) . sizeTC
+sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
 sizeTC       = symbolFTycon . dummyLoc . sizeName 
 sizeName S32 = size32Name
 sizeName S64 = size64Name
