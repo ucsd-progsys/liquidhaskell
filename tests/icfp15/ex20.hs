@@ -12,14 +12,16 @@ whileM  :: forall < pre   :: World -> Prop
                   , q :: World -> () -> World -> Prop
                   , p :: World -> Bool -> World -> Prop
                   , r :: World -> Prop
-                  , post :: World -> () -> World -> Prop>.
+                  , post :: World -> () -> World -> Prop>.                  
        {x :: {v:Bool | not (Prop v)}, w :: World<pre>, y :: () |- World<p w x> <: World<post w y> }                   
+       {x :: {v:Bool |     (Prop v)}, w :: World<pre>, y :: () |- World<p w x> <: World<r> }  
+       {y :: (), w :: World<r> |- World<q w y> <: World<pre>}                 
        RIO <pre, p> Bool 
        -> RIO <r, q> () 
        -> RIO <pre, post> ()
 @-}
 whileM :: RIO Bool -> RIO () -> RIO ()
-whileM cond e = undefined -- do {g <- guard ; if g then do {e1; whileM guard e1} else return ()}
+whileM cond e = undefined -- do {g <- cond ; if g then do {e; whileM cond e} else return ()}
 
 
 {-@ measure counter1 :: World -> Int @-}
