@@ -1,0 +1,17 @@
+// http://rise4fun.com/Z3/cxLS
+
+bind 0 pos25 : {VV : (BitVec (Size32 obj)) | [VV = (lit "#x02000000" (BitVec (Size32 obj)))]}
+bind 1 x     : {VV : (BitVec (Size32 obj)) | []}
+bind 2 y     : {VV : (BitVec (Size32 obj)) | [VV = bvor([x; pos25])]}
+bind 3 z     : {VV : (BitVec (Size32 obj)) | [VV = bvand([y;pos25])]}
+bind 4 pos24 : {VV : (BitVec (Size32 obj)) | [VV = (lit "#x01000000" (BitVec (Size32 obj)))]}
+
+// sel-is-uif
+
+constraint:
+  env [ 0; 1; 2; 3 ]
+  grd true
+  lhs {VV : int | []}
+  rhs {VV : int | [(z = pos25)] }
+  id 1
+
