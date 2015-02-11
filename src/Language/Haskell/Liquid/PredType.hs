@@ -281,9 +281,10 @@ meetListWithPSub ss r1 r2 π
   = r2 `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = r2 `meet` (subst su r1)
-  | otherwise
+  | otherwise 
   = errorstar $ "PredType.meetListWithPSub partial application to " ++ showpp π
-  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+  where 
+    su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)

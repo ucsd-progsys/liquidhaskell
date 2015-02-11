@@ -52,7 +52,14 @@ expToBindT (RAppTy t1 t2 r)
   = do t1' <- expToBindT t1
        t2' <- expToBindT t2
        expToBindRef r >>= addExists . RAppTy t1' t2'
-expToBindT t 
+expToBindT (RRTy xts r o t)
+  = do xts' <- zip xs <$> mapM expToBindT ts
+       r'   <- expToBindRef r
+       t'   <- expToBindT t
+       return $ RRTy xts' r' o t'
+  where
+     (xs, ts) = unzip xts 
+expToBindT t
   = return t
 
 expToBindReft              :: SpecProp -> State ExSt SpecProp

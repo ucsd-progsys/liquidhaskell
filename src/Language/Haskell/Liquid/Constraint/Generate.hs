@@ -554,7 +554,7 @@ bsplitC γ t1 t2
        pflag <- pruneRefs <$> get
        γ' <- γ ++= ("bsplitC", v, t1) 
        let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  [F.RConc $ constraintToLogic γ' (lcs γ')])}
-       let t1' =  (addRTyConInv (invs γ')  t1) `strengthen` r
+       let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
        return $ bsplitC' γ' t1' t2 pflag
   where
     F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
@@ -656,6 +656,11 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+addCGEnv tx γ (msg, x, RAllE y tyy tyx)
+  = do y' <- fresh 
+       γ' <- addCGEnv tx γ (msg, y', tyy)
+       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
+
 addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'  

@@ -4,6 +4,7 @@ module ICFP15 where
 import Prelude hiding ((.), (++),  filter)
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names" @-}
 
 \end{code}
 
@@ -78,11 +79,11 @@ check x y | x < y     = ()
            {x::Int<p> |- {v:Int| v = x + 1} <: Int<p>}
            (Int<p> -> ()) -> x:Int<p> -> () @-}
 app :: (Int -> ()) -> Int -> ()
-app f x = if p x then app f (x + 1) else f x
+app f x = if cond x then app f (x + 1) else f x
 
-p :: Int -> Bool
-{-@ p :: Int -> Bool @-}
-p = undefined
+cond :: Int -> Bool
+{-@ cond :: Int -> Bool @-}
+cond = undefined
 \end{code}
 
 - TODO: compare with related paper
