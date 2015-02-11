@@ -31,7 +31,7 @@ quickCheckTests
       testProperty "prop_pprint_parse_inv" prop_pprint_parse_inv
     ]
 
-prop_pprint_parse_inv :: Pred -> Bool
+prop_pprint_parse_inv :: Expr -> Bool
 prop_pprint_parse_inv p = p == rr (showpp p)
 
 instance Arbitrary Sort where
@@ -71,7 +71,7 @@ instance Arbitrary Expr where
                     ,liftM2 ECst arbitrary arbitrary
                     ,return EBot
                     ]
-  shrink = genericShrink
+  -- shrink = genericShrink
 
 instance Arbitrary Brel where
   arbitrary = oneof (map return [Eq, Ne, Gt, Ge, Lt, Le, Ueq, Une])

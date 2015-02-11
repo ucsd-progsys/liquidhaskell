@@ -198,5 +198,6 @@ test-suite test
                      -- optparse-applicative == 0.11.*,
                      QuickCheck,
                      tasty >= 0.10,
-                     tasty-quickcheck >= 0.9,
-                     tasty-rerun >= 1.1
+                     tasty-quickcheck,
+                     tasty-rerun >= 1.1,
+                     text
