@@ -7,7 +7,7 @@ data Vec a = Nil | Cons a (Vec a)
 
 {-@ 
 efoldr :: forall <p :: (Vec a) -> b -> Prop, q :: a -> b -> b -> Prop>.
-          {y::a, ys :: Vec a, acc:: b<p ys>, z :: {v:Vec a | v = Cons y ys}|- b<q y acc> <: b<p z>} 
+          {y::a, ys :: Vec a, acc:: b<p ys>, z :: {v:Vec a | v = Cons y ys && llen v = llen ys + 1}|- b<q y acc> <: b<p z>} 
          (x:a -> acc:b -> b<q x acc>)
       -> b<p Nil>
       -> xs:(Vec a)
@@ -18,27 +18,10 @@ efoldr :: (a -> b -> b) -> b -> Vec a -> b
 efoldr op b Nil         = b
 efoldr op b (Cons x xs) = x `op` efoldr op b xs
 
-
-{-
-q :: \x acc v -> v = 1 + acc 
-p := \xs v -> v = llen xs
-
-y, ys, acc {acc = llen ys} | v = 1 + acc => v = llen (y:ys) 
--}
-
-
-
-
-{- size :: xs:Vec a -> {v: Int | v = llen xs} @-}
+{-@ size :: xs:Vec a -> {v: Int | v = llen xs} @-}
 size :: Vec a -> Int
 size = efoldr (\_ n -> n + 1) 0
 
-
-{-@ qual :: acc:Int -> {v:Int | v = 1 + acc} @-}
-qual  :: Int -> Int
-qual = undefined
-
-{-@ data Vec [llen] a = Nil | Cons (xVec::a) (xsVec::Vec a) @-}
 
 -- | We can encode the notion of length as an inductive measure @llen@ 
 
@@ -74,17 +57,5 @@ suc :: Int -> Int
 suc x = x + 1 
 
 -- | Second: Appending two lists using `efoldr`
-{- app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
+{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
 app xs ys = efoldr (\z zs -> Cons z zs) ys xs 
-
-
-
-
-
-
-
-
-
-{-@ foo :: x:a -> xs: Vec a -> {v:Vec a | v = Cons x xs} @-}
-foo :: a -> Vec a -> Vec a
-foo = undefined
