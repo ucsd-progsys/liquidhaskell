@@ -41,6 +41,10 @@ plusminus n m = (n+) . (m-)
 \end{code}
 
 
+Folding 
+-------
+see `FoldAbs.hs`
+
 Appending Sorted Lists
 -----------------------
 \begin{code}
@@ -251,7 +255,7 @@ whileM  :: forall < pre   :: World -> Prop
        {w::World<pre>, y::(), w2::World<pre>, x::() |- World<post1 w2 x> <: World<post w x>}             
        {w::World<pre>, x::() |- {v:World | v = w} <: World<post1 w x>}
        {w::World<pre>, x::() |- {v:World | v = w} <: World<post w x>}
-       {w::World<pre>, x::() |- World<post w x> <: World<pre>}
+       {w::World<pre>, x::(), xx::Bool |- {v:World<post w x> | Prop xx} <: World<pre>}
        {w1::World, x::Bool |- World<post2 w1 x> <: World<pre>}        
        RIO <pre, post2> Bool 
        -> RIO <pre, post1> () 
