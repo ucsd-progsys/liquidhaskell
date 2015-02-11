@@ -29,3 +29,8 @@ insert = undefined
 {-@ insertSort      :: xs:List a -> {v:IncrList a | true } @-}
 insertSort :: List a -> List a
 insertSort = undefined
+
+
+
+nil :: List a 
+nil = N
