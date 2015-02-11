@@ -21,8 +21,6 @@ import Control.Monad.Error
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 import Data.Monoid
-import Text.PrettyPrint.HughesPJ
-import Text.Printf
 
 import qualified Data.HashMap.Strict as M
 
@@ -93,9 +91,10 @@ plugHoles tce tyi x f t (Loc l st)
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
     go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
-    go t                st                 = throwError err
-     where
-       err = errOther $ text $ printf "plugHoles: unhandled case!\nt  = %s\nst = %s\n" (showpp t) (showpp st)
+    -- If we reach the default case, we know there's an error, but we defer
+    -- throwing it as checkGhcSpec does a much better job of reporting the
+    -- problem to the user.
+    go _                st                 = return st
 
     pushCls cs (RRTy e r o t) = RRTy e r o (pushCls cs t)
     pushCls cs t              = foldr (uncurry rFun) t cs 
