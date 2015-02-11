@@ -4,6 +4,7 @@ module ICFP15 where
 import Prelude hiding ((.), (++),  filter)
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names" @-}
 
 \end{code}
 
@@ -39,6 +40,10 @@ plusminus n m = (n+) . (m-)
 {-@ qualif MINUS    (v:int, x:int, y:int)       : (v = x - y)       @-}
 \end{code}
 
+
+Folding 
+-------
+see `FoldAbs.hs`
 
 Appending Sorted Lists
 -----------------------
@@ -78,11 +83,11 @@ check x y | x < y     = ()
            {x::Int<p> |- {v:Int| v = x + 1} <: Int<p>}
            (Int<p> -> ()) -> x:Int<p> -> () @-}
 app :: (Int -> ()) -> Int -> ()
-app f x = if p x then app f (x + 1) else f x
+app f x = if cond x then app f (x + 1) else f x
 
-p :: Int -> Bool
-{-@ p :: Int -> Bool @-}
-p = undefined
+cond :: Int -> Bool
+{-@ cond :: Int -> Bool @-}
+cond = undefined
 \end{code}
 
 - TODO: compare with related paper
@@ -250,7 +255,7 @@ whileM  :: forall < pre   :: World -> Prop
        {w::World<pre>, y::(), w2::World<pre>, x::() |- World<post1 w2 x> <: World<post w x>}             
        {w::World<pre>, x::() |- {v:World | v = w} <: World<post1 w x>}
        {w::World<pre>, x::() |- {v:World | v = w} <: World<post w x>}
-       {w::World<pre>, x::() |- World<post w x> <: World<pre>}
+       {w::World<pre>, x::(), xx::Bool |- {v:World<post w x> | Prop xx} <: World<pre>}
        {w1::World, x::Bool |- World<post2 w1 x> <: World<pre>}        
        RIO <pre, post2> Bool 
        -> RIO <pre, post1> () 
