@@ -18,9 +18,9 @@ instance Monad RIO where
                , post1 :: World -> a -> World -> Prop
                , post2 :: World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
-       {w:World<pre> -> x:a -> World<post1 w x> -> World<pre2>}        
-       {w:World<pre> -> y:a -> w2:World<post1 w y> -> x:b -> World<post2 w2 x> -> World<post w x>}        
-       {w:World -> x:a -> w2:World<post1 w x> -> {v:a | v = x} -> a<p>}
+       {w::World<pre>, x::a |- World<post1 w x> <: World<pre2>}        
+       {w::World<pre>, y::a, w2::World<post1 w y>, x::b |- World<post2 w2 x> <: World<post w x>}        
+       {w::World, x::a|- {v:a | v = x} <: a<p>}
        RIO <pre, post1> a
     -> (a<p> -> RIO <pre2, post2> b)
     -> RIO <pre, post> b ;
@@ -30,8 +30,8 @@ instance Monad RIO where
                , post1 :: World -> a -> World -> Prop
                , post2 :: World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
-       {w:World<pre> -> x:a -> World<post1 w x> -> World<pre2>}        
-       {w:World<pre> -> y:a -> w2:World<post1 w y> -> x:b -> World<post2 w2 x> -> World<post w x>}        
+       {w::World<pre>, x::a |- World<post1 w x> <: World<pre2>}        
+       {w::World<pre>, y::a, w2::World<post1 w y>, x::b |- World<post2 w2 x> <: World<post w x>}        
        RIO <pre, post1> a
     -> RIO <pre2, post2> b
     -> RIO <pre, post> b ;
@@ -42,8 +42,3 @@ instance Monad RIO where
   (RIO g) >>  f = RIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
   return w      = RIO $ \x -> (w, x)
   fail          = error
-
-
-
-
-

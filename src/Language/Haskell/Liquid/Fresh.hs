@@ -50,13 +50,13 @@ instance Freshable m Integer => Freshable m Strata where
   refresh [] = fresh
   refresh s  = return s
 
-instance (Freshable m Integer, Freshable m r, Reftable r) => Freshable m (RRType r) where
+instance (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => Freshable m (RRType r) where
   fresh   = errorstar "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType
 
 -----------------------------------------------------------------------------------------------
-trueRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
+trueRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 trueRefType (RAllT α t)
   = RAllT α <$> true t
@@ -79,7 +79,13 @@ trueRefType (RAppTy t t' _)
 trueRefType (RVar a r)
   = RVar a <$> true r
 
-trueRefType t
+trueRefType (RAllE y ty tx)
+  = do y'  <- fresh 
+       ty' <- true ty
+       tx' <- true tx
+       return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
+
+trueRefType t 
   = return t
 
 trueRef (RProp s t) = RProp s <$> trueRefType t
@@ -87,7 +93,7 @@ trueRef _           = errorstar "trueRef: unexpected"
 
 
 -----------------------------------------------------------------------------------------------
-refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r) => RRType r -> m (RRType r)
+refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 refreshRefType (RAllT α t)
   = RAllT α <$> refresh t
@@ -110,6 +116,12 @@ refreshRefType (RVar a r)
 
 refreshRefType (RAppTy t t' r)
   = RAppTy <$> refresh t <*> refresh t' <*> refresh r
+
+refreshRefType (RAllE y ty tx)
+  = do y'  <- fresh 
+       ty' <- refresh ty
+       tx' <- refresh tx
+       return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
 
 refreshRefType t
   = return t
