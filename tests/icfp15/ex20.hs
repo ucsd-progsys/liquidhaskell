@@ -4,41 +4,25 @@ import RIO
 
 {-@ LIQUID "--no-termination" @-}
 
-
+import Language.Haskell.Liquid.Prelude 
 
 -- THIS TYPE CHECKS, BUT HOW CAN WE ACTUALLY USE IT?
 {-@ 
-whileM  :: forall < pre   :: World -> Prop 
-                  , q :: World -> () -> World -> Prop
+ifM  :: forall < pre   :: World -> Prop 
                   , p :: World -> Bool -> World -> Prop
-                  , r :: World -> Prop
+                  , r1 :: World -> Prop
+                  , r2 :: World -> Prop
+                  , post1 :: World -> () -> World -> Prop
+                  , post2 :: World -> () -> World -> Prop
                   , post :: World -> () -> World -> Prop>.                  
-       {x :: {v:Bool | not (Prop v)}, w :: World<pre>, y :: () |- World<p w x> <: World<post w y> }                   
-       {x :: {v:Bool |     (Prop v)}, w :: World<pre>, y :: () |- World<p w x> <: World<r> }  
-       {y :: (), w :: World<r> |- World<q w y> <: World<pre>}                 
+       {x :: {v:Bool | true }, w :: World<pre> |- World<p w x> <: World<r1> }
+       {x :: {v:Bool | true }, w :: World<pre> |- World<p w x> <: World<r2> }
+       {w1::World, y::(), w2::World, x::() |- World<post1 w2 x> <: World<post w1 x>}             
+       {w1::World, y::(), w2::World, x::() |- World<post2 w2 x> <: World<post w1 x>}             
        RIO <pre, p> Bool 
-       -> RIO <r, q> () 
+       -> RIO <r1, post1> ()
+       -> RIO <r2, post2> ()
        -> RIO <pre, post> ()
 @-}
-whileM :: RIO Bool -> RIO () -> RIO ()
-whileM cond e = undefined -- do {g <- cond ; if g then do {e; whileM cond e} else return ()}
-
-
-{-@ measure counter1 :: World -> Int @-}
-{-@ measure counter2 :: World -> Int @-}
-
-{-@ incr' :: RIO <{\x -> true}, {\w1 x w2 -> counter1 w2 = counter1 w1 + 1}> () @-}
-incr' :: RIO ()
-incr' = undefined
-
-{-@ condM :: RIO <{\x -> true}, {\w1 x w2 -> (Prop x) <=> counter1 w2 >= counter2 w2}> Bool @-}
-condM :: RIO Bool
-condM = undefined
-
-{-@ propSAT :: RIO <{\x -> true}, {\w1 x w2 -> counter1 w2 < counter2 w2}> () @-}
-propSAT :: RIO ()
-propSAT = whileM condM incr'  
-
-{-@ propUNSAT :: RIO <{\x -> true}, {\w1 x w2 -> counter1 w2 >= counter2 w2}> () @-}
-propUNSAT :: RIO ()
-propUNSAT = whileM condM incr'  
+ifM :: RIO Bool -> RIO () -> RIO () -> RIO ()
+ifM cond e1 e2  = do{ g <- cond; if g then e1 else e2}
