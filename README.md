@@ -806,22 +806,8 @@ Editor Integration
 Emacs
 -----
 
-LH has [flycheck](https://github.com/flycheck/flycheck) integration with emacs.
-
-**Install**
-
-1. Add `(load "~/.cabal/share/<platform>-ghc-7.8.3/liquidhaskell-0.2.1.0/syntax/flycheck-liquid.el)` to your `.emacs`. `<platform>` is the string cabal uses to identify your platform, it will look something like `x86_64-osx` or `i386-linux`.
-2. Ensure that the checker `haskell-liquid` is in the chain of _flycheck_ checkers used in _haskell-mode_.
-
-**Disable**
-
-To disable flycheck-liquid on a particular file, add:
-
-    -- Local Variables:
-    -- flycheck-disabled-checkers: (haskell-liquid)
-    -- End:
-
-at the end of the file.
+LH has [flycheck](https://github.com/flycheck/flycheck) integration
+with emacs. Follow these [instructions](https://github.com/ucsd-progsys/liquid-types.el)
 
 Vim
 ---
