@@ -2,8 +2,11 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 
 module Language.Fixpoint.Bitvector
-       ( -- * Sizes 
-         BvSize (..)
+       ( -- * Constructor
+         Bv (..)
+       
+         -- * Sizes 
+       , BvSize (..)
 
          -- * Operators
        , BvOp (..)
@@ -13,6 +16,9 @@ module Language.Fixpoint.Bitvector
 
          -- * BitVector Expression Constructor 
        , eOp
+
+         -- * BitVector Type Constructor
+       , bvTyCon
 
        ) where
 
@@ -52,7 +58,7 @@ opName :: BvOp -> LocSymbol
 opName BvAnd = dummyLoc bvAndName
 opName BvOr  = dummyLoc bvOrName
 
-sizeSort     = (`FApp` []) . sizeTC
+sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
 sizeTC       = symbolFTycon . dummyLoc . sizeName 
 sizeName S32 = size32Name
 sizeName S64 = size64Name
