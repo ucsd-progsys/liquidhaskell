@@ -803,57 +803,7 @@ verification attempts.
 Editor Integration
 ==================
 
-Emacs
------
++ [Emacs/Flycheck](https://github.com/ucsd-progsys/liquid-types.el)
++ [Vim/Syntastic](https://github.com/ucsd-progsys/liquid-types.vim)
 
-LH has [flycheck](https://github.com/flycheck/flycheck) integration
-with emacs. Follow these [instructions](https://github.com/ucsd-progsys/liquid-types.el)
-
-Vim
----
-
-**Install**
-
-1. Add the following to your `.vimrc`
-
-~~~~~
-Bundle 'scrooloose/syntastic'
-Bundle 'panagosg7/vim-annotations'
-let g:vim_annotations_offset = '/.liquid/'
-~~~~~
-
-2. Copy the following files
-
-~~~~~
-cp syntax/haskell.vim ~/.vimrc/syntax/haskell.vim
-cp syntax/liquid.vim  ~/.vimrc/bundle/syntastic/syntax_checkers/haskell/liquid.vim
-~~~~~
-
-**Run**
-
-+ `:SyntasticCheck liquid` runs liquidhaskell on the current buffer.
-
-**View**
-
-1. **Warnings** will be displayed in the usual error buffer.
-
-2. **Inferred Types** will be displayed when `<F1>` is pressed over an identifier.
-
-
-**Options**
-
-You can configure the checker in various ways in your `.vimrc`.
-
-+ To run after **each save**, for *all* Haskell files, add:
-
-~~~~~
-let g:syntastic_mode_map = { 'mode': 'active' }
-let g:syntastic_haskell_checkers = ['hdevtools', 'hlint', 'liquid']
-~~~~~
-
-+ To pass extra options to liquidhaskell add: 
-
-~~~~~
-let g:syntastic_haskell_liquid_args = "--diff"
-~~~~~
 
