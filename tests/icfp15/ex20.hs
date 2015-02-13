@@ -31,62 +31,39 @@ bind :: RIO a -> (a -> RIO b) -> RIO b
 bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
 
 
-{-
-ifM'  :: forall < pre   :: World -> Prop 
-                  , p :: World -> Bool -> World -> Prop
-                  , r1 :: World -> Prop
-                  , r2 :: World -> Prop
-                  , post :: World -> () -> World -> Prop>.                  
-       {b :: {v:Bool | Prop v}, w :: World |- {v:World<p w b> | true} <: World<r1> }
-       RIO <pre, p> Bool 
-       -> RIO <r1, {\x y z -> true}> ()
-       -> RIO <pre, {\x y z -> true}> ()
-@-}
--- ifM' :: RIO Bool -> RIO () -> RIO ()
--- ifM' cond e1  = cond `bind` \g -> ifM'' g e1 
--- ifM' (RIO cond) e1 = let f = \g -> ifM'' g e1 in 
---                      RIO $ \x -> case cond x of {(y, s) -> (runState ((let f = \g -> ifM'' g e1 in f) y)) s} 
-
 {-@
-ifM0, ifM'''  :: forall < pre   :: World -> Prop 
+ifM  :: forall < pre   :: World -> Prop 
                   , p :: World -> Bool -> World -> Prop
-                  , r1 :: World -> Prop
+                  , r :: World -> Prop
                   , r2 :: World -> Prop
                   , q1 :: Bool -> Prop
+                  , pp :: () -> Prop
+                  , post1 :: World -> () -> World -> Prop
                   , post :: World -> () -> World -> Prop>.                  
-       {b1 :: {v:Bool<q1> | true}, b::{v:Bool | v = b1}, w :: World |- {v:World<p w b> | true} <: World<r1> }
+       {b :: Bool<q1>, w :: World<pre> |- World<p w b> <: World<r>}
+       {w1::World<pre>, w2::World<r>, y::()|- World<post1 w2 y> <: World<post w1 y>}
        RIO <pre, p, q1> Bool 
-       -> RIO <r1, {\x y z -> true}, {\v -> true}> ()
-       -> RIO <pre, {\x y z -> true}, {\v -> true}> ()
+       -> RIO <r, post1, pp> ()
+       -> RIO <r, post1, pp> ()
+       -> RIO <pre, post, pp> ()
 @-}
-ifM0, ifM''' :: RIO Bool -> RIO () -> RIO ()
-ifM''' cond e1
-  = cond `bind` ifM'' e1
-ifM0 (RIO cond) e1 
-  = RIO $ \x -> case cond x of {(y, s) -> (runState ((let f g = ifM'' e1 g in f) y)) s} 
-
-
+ifM :: RIO Bool -> RIO () -> RIO () -> RIO ()
+ifM cond e1 e2
+  = cond `bind` \g -> if g then e1 else e2 
 
 {-
-p => post1 
-
--}
-
--- ifM' (RIO cond) e1 e2 = RIO $ \x -> case cond x of {(y, s) -> (runState ((\g -> ifM'' g e1 e2) y)) s} 
-
-
-{-@ 
 ifM''  :: forall < pre   :: World -> Prop 
                  , r1 :: World -> Prop
                  , r2 :: World -> Prop
-                 , pp :: Bool -> Prop
+                 , pp :: () -> Prop
                  , post :: World -> () -> World -> Prop>.                               
-          RIO <{v:World<pre> | true}, post, {\v -> true}> ()
-       -> Bool<pp>
-       -> RIO <pre, post, {\v -> true}> ()
+      b:Bool
+       -> RIO <{v:World<pre> | Prop b}, post, pp> ()
+       -> RIO <{v:World<pre> | not (Prop b)}, post, pp> ()
+       -> RIO <pre, post, pp> ()
 @-}
-ifM'' ::  RIO () -> Bool -> RIO ()
-ifM'' cond e1 = undefined -- if cond then e1 else e2 
+ifM'' ::  Bool -> RIO () -> RIO () -> RIO ()
+ifM'' cond e1 e2 = if cond then e1 else e2 
 
 
 
