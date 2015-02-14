@@ -33,8 +33,6 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
-          , syntax/*.el
-          , syntax/*.vim
 
 Source-Repository head
   Type:        git
