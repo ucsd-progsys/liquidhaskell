@@ -49,7 +49,24 @@ ifM  :: forall < pre   :: World -> Prop
 @-}
 ifM :: RIO Bool -> RIO () -> RIO () -> RIO ()
 ifM cond e1 e2
-  = cond `bind` \g -> if g then e1 else e2 
+  = cond `bind` \g -> go g e1 e2
+
+{-@
+go  :: forall < pre   :: World -> Prop 
+                 , r1 :: World -> Prop
+                 , r2 :: World -> Prop
+                 , pp :: () -> Prop
+                 , post :: World -> () -> World -> Prop>.                               
+      b:Bool
+       -> RIO <{v:World<pre> | Prop b}, post, pp> ()
+       -> RIO <{v:World<pre> | not (Prop b)}, post, pp> ()
+       -> RIO <pre, post, pp> ()
+@-}
+go ::  Bool -> RIO () -> RIO () -> RIO ()
+go cond e1 e2 = if cond then e1 else e2 
+
+
+
 
 
 
