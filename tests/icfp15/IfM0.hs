@@ -22,7 +22,7 @@ data World  = W
                , post2 :: World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
        {w::World<pre>, x::a<p> |- World<post1 w x> <: World<pre2>}        
-       {w::World<pre>, y::a<p>, w2::World<post1 w y>, x::b |- World<post2 w2 x> <: World<post w x>}        
+       {w::World<pre>, w2::World<pre2>, x::b |- World<post2 w2 x> <: World<post w x>}        
        RIO <pre, post1, p> a
     -> (a<p> -> RIO <pre2, post2, q> b)
     -> RIO <pre, post, q> b @-}
@@ -71,8 +71,8 @@ ifM0  :: forall < pre   :: World -> Prop
 @-}
 ifM0 :: RIO Bool -> RIO () -> RIO () -> RIO ()
 ifM0 (RIO cond) e1 e2 
-  = let f g = go g e1 e2 in 
-    RIO $ \x -> case cond x of {(y, s) -> (runState (f y)) s} 
+  = 
+    RIO $ \x -> case cond x of {(y, s) -> let f g = go g e1 e2 in (runState (f y)) s} 
 
 
 

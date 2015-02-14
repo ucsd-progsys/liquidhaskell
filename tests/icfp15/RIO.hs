@@ -10,6 +10,7 @@ data RIO a  = RIO {runState :: World -> (a, World)}
 
 data World  = W
 
+
 instance Monad RIO where
 {-@ instance Monad RIO where
  >>= :: forall < pre   :: World -> Prop 
