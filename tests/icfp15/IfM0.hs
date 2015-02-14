@@ -51,6 +51,57 @@ ifM :: RIO Bool -> RIO () -> RIO () -> RIO ()
 ifM cond e1 e2
   = cond `bind` \g -> go g e1 e2
 
+
+
+{-@
+ifM0  :: forall < pre   :: World -> Prop 
+               , p :: World -> Bool -> World -> Prop
+               , r1 :: World -> Prop
+               , r2 :: World -> Prop
+               , q :: Bool -> Prop
+               , post1 :: World -> () -> World -> Prop
+               , post  :: World -> () -> World -> Prop>.                  
+       {b :: {v:Bool<q> | Prop v},   w :: World<pre>    |- World<p w b>      <: World<r1>        } 
+       {b :: {v:Bool<q> | not (Prop v)},   w :: World<pre>    |- World<p w b>      <: World<r2>        } 
+       {w1::World<pre>, w2::World, y::()|- World<post1 w2 y> <: World<post w1 y>}
+          RIO <pre, p, q> Bool 
+       -> RIO <r1, post1, {\v -> true}> ()
+       -> RIO <r2, post1, {\v -> true}> ()
+       -> RIO <pre, post, {\v -> true}> ()
+@-}
+ifM0 :: RIO Bool -> RIO () -> RIO () -> RIO ()
+ifM0 (RIO cond) e1 e2 
+  = let f g = go g e1 e2 in 
+    RIO $ \x -> case cond x of {(y, s) -> (runState (f y)) s} 
+
+
+
+{-@
+ifM01  :: forall < pre   :: World -> Prop 
+               , p :: World -> Bool -> World -> Prop
+               , r1 :: World -> Prop
+               , r2 :: World -> Prop
+               , q :: Bool -> Prop
+               , post1 :: World -> () -> World -> Prop
+               , post  :: World -> () -> World -> Prop>.                  
+       {b :: {v:Bool<q> | Prop v},       w :: World<pre>    |- World<p w b>      <: World<r1>        } 
+       {b :: {v:Bool<q> | not (Prop v)}, w :: World<pre>    |- World<p w b>      <: World<r2>        } 
+       {w1::World<pre>, w2::World, y::()|- World<post1 w2 y> <: World<post w1 y>}
+       Bool -> 
+       RIO <pre, p, q> Bool 
+       -> RIO <r1, post1, {\v -> true}> ()
+       -> RIO <r2, post1, {\v -> true}> ()
+       -> RIO <pre, post, {\v -> true}> ()
+@-}
+ifM01 :: Bool -> RIO Bool -> RIO () -> RIO () -> RIO () 
+ifM01 _ (RIO cond) e1 e2 
+  =  RIO $ \x -> case cond x of {(y, s) -> let f = \g -> go g e1 e2 in  (runState (f ( y))) s} 
+
+
+
+
+
+
 {-@
 go  :: forall < pre   :: World -> Prop 
                  , r1 :: World -> Prop
@@ -67,6 +118,17 @@ go cond e1 e2 = if cond then e1 else e2
 
 
 
+
+
+
+
+
+
+{-@ qualif FOO3(v:World, b:bool, r:Pred World, w:World, p:Pred World World Bool): (((papp3 p v w b) && Prop b) => (papp1 r v)) @-}
+{-@ qualif FOO1(v:World, b:bool, r:Pred World, w:World, p:Pred World World Bool): (((papp3 p v w b) && Prop b) => (papp1 r v)) @-}
+{-@ qualif FOO2(v:World, b:bool, r:Pred World): ((not (Prop b)) => (papp1 r v)) @-}
+{-@ qualif FOO4(v:World, b:bool, r:Pred World): ((Prop b) && (papp1 r v)) @-}
+{-@ qualif FOO5(v:World, r:Pred World): ((papp1 r v)) @-}
 
 
 
