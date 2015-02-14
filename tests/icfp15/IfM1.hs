@@ -16,7 +16,7 @@ data World  = W
 
 {-@ bind :: forall < pre   :: World -> Prop 
                , pre1  :: World -> Prop 
-               , pre2  :: World -> Prop 
+               , pre2  :: a -> World -> Prop 
                , p     :: a -> Prop
                , pp    :: a -> Prop
                , q     :: b -> Prop
@@ -24,11 +24,11 @@ data World  = W
                , post2 :: World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
        {World<pre1> <: World<pre>}
-       {w::World<pre>, x::a<p> |- World<post1 w x> <: World<pre2>}        
+       {w::World<pre>, x::a<p> |- World<post1 w x> <: World<pre2 x>}        
        {w::World<pre>, w2::World<pre2>, x::b |- World<post2 w2 x> <: World<post w x>}     
        {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
        RIO <pre, post1, pp> a
-    -> (a<p> -> RIO <pre2, post2, q> b)
+    -> (x:a<p> -> RIO <\x v -> World<pre2 x>, post2, q> b)
     -> RIO <pre1, post, q> b @-}
 
 bind :: RIO a -> (a -> RIO b) -> RIO b
