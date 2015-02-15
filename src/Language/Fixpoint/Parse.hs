@@ -254,14 +254,14 @@ parenBrackets  = parens . brackets
 
 -- ORIG expr2P = buildExpressionParser bops lexprP
 
-bops = [ [ Prefix (reservedOp "-"   >> return eMinus)]
+bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
        , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
          , Infix  (reservedOp "/"   >> return (EBin Div  )) AssocLeft
          ]
        , [ Infix  (reservedOp "-"   >> return (EBin Minus)) AssocLeft
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
-       , [Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
+       , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
 
 eMinus = EBin Minus (expr (0 :: Integer)) 

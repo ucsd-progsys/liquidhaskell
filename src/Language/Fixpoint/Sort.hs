@@ -127,6 +127,7 @@ checkExpr _ EBot           = throwError "Type Error: Bot"
 checkExpr _ (ECon (I _))   = return FInt 
 checkExpr _ (ECon (R _))   = return FReal 
 checkExpr f (EVar x)       = checkSym f x
+checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
@@ -177,6 +178,15 @@ checkApp' f to g es
 
 
 -- | Helper for checking binary (numeric) operations
+
+checkNeg f e = do
+  t <- checkExpr f e
+  case t of
+   FReal    -> return FReal
+   FInt     -> return FInt
+   (FObj l) -> checkNumeric f l >> return t
+   _        -> throwError $ printf "Operand has non-numeric type %s in %s"
+                            (showFix t) (showFix e)
 
 checkOp f e1 o e2 
   = do t1 <- checkExpr f e1

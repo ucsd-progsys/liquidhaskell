@@ -232,6 +232,7 @@ exprSymbols = go
     -- go (EDat x _)      = [x]
     go (ELit x _)      = [val x]
     go (EApp f es)     = val f : concatMap go es
+    go (ENeg e)        = go e
     go (EBin _ e1 e2)  = go e1 ++ go e2
     go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2
     go (ECst e _)      = go e
@@ -428,6 +429,7 @@ data Expr = ESym !SymConst
           | EVar !Symbol
           | ELit !LocSymbol !Sort
           | EApp !LocSymbol ![Expr]
+          | ENeg !Expr
           | EBin !Bop !Expr !Expr
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
@@ -478,6 +480,7 @@ instance Fixpoint Expr where
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = (toFix f) <> (parens $ toFix es)
+  toFix (ENeg e)       = parens $ text "-" <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
   toFix (EIte p e1 e2) = parens $ toFix p <+> text "?" <+> toFix e1 <+> text ":" <+> toFix e2
   toFix (ECst e so)    = parens $ toFix e <+> text " : " <+> toFix so
@@ -947,6 +950,7 @@ instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
   substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es
+  substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
@@ -954,8 +958,9 @@ instance Subable Expr where
   substf _ e               = e
 
   subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es
+  subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
-  subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst  su e2)
+  subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
   subst su (ECst e so)     = ECst (subst su e) so
   subst su (EVar x)        = appSubst su x
   subst _ e                = e
@@ -1156,6 +1161,7 @@ instance NFData Expr where
   -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
+  rnf (ENeg x1)       = rnf x1
   rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   rnf (EIte x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   rnf (ECst x1 x2)    = rnf x1 `seq` rnf x2
@@ -1470,6 +1476,7 @@ instance SymConsts Refa where
 instance SymConsts Expr where
   symConsts (ESym c)       = [c]
   symConsts (EApp _ es)    = concatMap symConsts es
+  symConsts (ENeg e)       = symConsts e
   symConsts (EBin _ e e')  = concatMap symConsts [e, e']
   symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
   symConsts (ECst e _)     = symConsts e
