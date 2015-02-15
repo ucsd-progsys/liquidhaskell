@@ -28,7 +28,7 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3)
+import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar)
 import Language.Fixpoint.Names (isPrefixOfSym, stripParensSym)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
@@ -203,10 +203,10 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType r -> Maybe Doc 
+checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc 
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
+checkRType emb env t         = checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
     cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
@@ -214,8 +214,64 @@ checkRType emb env t         = efoldReft cb (rTypeSortedReft emb) f insertPEnv e
     pbinds p                 = (pname p, pvarRType p :: RSort) 
                               : [(x, t) | (t, x, _) <- pargs p]
 
+checkAbstractRefs t = go t
+  where
+    penv = mkPEnv t
 
-checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType r) -> r -> Maybe Doc 
+    go (RAllT _ t)        = go t
+    go (RAllP _ t)        = go t
+    go (RAllS _ t)        = go t
+    go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
+    go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go t@(RVar _ r)       = check (toRSort t :: RSort) r
+    go (RAllE _ t1 t2)    = go t1 <|> go t2
+    go (REx _ t1 t2)      = go t1 <|> go t2
+    go t@(RAppTy t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go (RRTy xts _ _ t)   = efold go (snd <$> xts) <|> go t
+    go (RExprArg _)       = Nothing
+    go (RHole _)          = Nothing
+
+    go' c rs = foldl (\acc (x, y) -> acc <|> checkOne' x y) Nothing (zip rs (rTyConPVs c))
+
+    checkOne' (RProp xs t) p 
+      | pvType' p /= toRSort t 
+      = Just $ text "Unexpected Sort in" <+> pprint p
+      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs' p)]  
+      = Just $ text "Wrong Arguments in" <+> pprint p
+      | length xs /= length (pargs p) 
+      = Just $ text "Wrong Number of Arguments in" <+> pprint p
+      | otherwise  
+      = go t
+    checkOne' (RPropP xs _) p 
+      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs' p)]  
+      = Just $ text "Wrong Arguments in" <+> pprint p
+      | length xs /= length (pargs p) 
+      = Just $ text "Wrong Number of Arguments in" <+> pprint p
+      | otherwise  
+      = Nothing 
+    checkOne' _ _ = errorstar "This cannot happen"  
+
+    efold f = foldl (\acc x -> acc <|> f x) Nothing 
+
+    check s (U _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
+
+    checkOne s p | pvType' p /= s                          
+                 = Just $ text "Incorrect Sort"        <+> pprint p
+                 | or [x == y | (_, x, EVar y) <- pargs p] 
+                 = Just $ text "Missing arguments on " <+> pprint p
+                 | otherwise                               
+                 = Nothing 
+
+    mkPEnv (RAllT _ t) = mkPEnv t
+    mkPEnv (RAllP p t) = p:mkPEnv t 
+    mkPEnv _           = []
+
+    pvType' p = head [pvType q | q <- penv, pname p == pname q]
+    pargs'  p = head [pargs q | q <- penv, pname p == pname q]
+
+
+
+checkReft                    :: (PPrint r, Reftable r) => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> (UReft r) -> Maybe Doc 
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.  
 checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env' r 
   where 
