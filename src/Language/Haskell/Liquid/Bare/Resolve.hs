@@ -47,6 +47,7 @@ instance Resolvable Pred where
 instance Resolvable Expr where
   resolve l (EVar s)       = EVar   <$> resolve l s
   resolve l (EApp s es)    = EApp   <$> resolve l s  <*> resolve l es
+  resolve l (ENeg e)       = ENeg   <$> resolve l e
   resolve l (EBin o e1 e2) = EBin o <$> resolve l e1 <*> resolve l e2
   resolve l (EIte p e1 e2) = EIte   <$> resolve l p  <*> resolve l e1 <*> resolve l e2
   resolve l (ECst x s)     = ECst   <$> resolve l x  <*> resolve l s
