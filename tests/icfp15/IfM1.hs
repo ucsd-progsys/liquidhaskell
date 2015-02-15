@@ -1,6 +1,8 @@
 module Ex1 (ifTest) where
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names" @-}
+
 
 import Language.Haskell.Liquid.Prelude 
 
@@ -15,24 +17,22 @@ data RIO a  = RIO {runState :: World -> (a, World)}
 data World  = W
 
 {-@ bind :: forall < pre   :: World -> Prop 
-               , pre1  :: World -> Prop 
                , pre2  :: a -> World -> Prop 
                , p     :: a -> Prop
                , pp    :: a -> Prop
                , q     :: b -> Prop
                , post1 :: World -> a -> World -> Prop
-               , post2 :: World -> b -> World -> Prop
+               , post2 :: a -> World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
-       {World<pre1> <: World<pre>}
-       {w::World<pre>, x::a<p> |- World<post1 w x> <: World<pre2 x>}        
-       {w::World<pre>, w2::World<pre2>, x::b |- World<post2 w2 x> <: World<post w x>}     
+       {xxx1::a<p>, wxx1::World<pre>|- World<post1 wxx1 xxx1> <: World<pre2 xxx1>}
+       {y::a, w::World<pre>, w2::World<pre2 y>, x::b, y::a<p> |- World<post2 y w2 x> <: World<post w x>}     
        {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
        RIO <pre, post1, pp> a
-    -> (x:a<p> -> RIO <\x v -> World<pre2 x>, post2, q> b)
-    -> RIO <pre1, post, q> b @-}
+    -> (micky:a<p> -> RIO <{v:World<pre2 micky> | true}, \w1 y -> {v:World<post2 micky w1 y> | true}, q> b)
+    -> RIO <pre, post, q> b @-}
 
 bind :: RIO a -> (a -> RIO b) -> RIO b
-bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
+bind (RIO g) f = undefined -- RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
 
 
 {-@
@@ -84,7 +84,7 @@ get = undefined
 
 {-@ checkZeroX :: RIO <{\x -> true}, {\w1 b w2 -> Prop b => counter w2 /= 0}, {\v -> true}> Bool @-}
 checkZeroX :: RIO Bool
-checkZeroX = get `bind` f 
+checkZeroX = get `bind` (\n -> f n) 
 
 {-@ f :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b => n /= 0) && (Prop b => counter v /= 0)}, {\v -> true}> {v:Bool | Prop v <=> n /= 0} @-}
 f :: Int -> RIO Bool
