@@ -5,6 +5,8 @@ import Prelude hiding (foldr)
 
 data Vec a = Nil | Cons a (Vec a)
 
+
+
 {-@ 
 efoldr :: forall <p :: (Vec a) -> b -> Prop, q :: a -> b -> b -> Prop>.
           {y::a, ys :: Vec a, acc:: b<p ys>, z :: {v:Vec a | v = Cons y ys && llen v = llen ys + 1}|- b<q y acc> <: b<p z>} 

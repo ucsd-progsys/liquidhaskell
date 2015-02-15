@@ -24,4 +24,8 @@ constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
 qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
 constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
 
+qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
 constant Prop : func(0, [GHC.Types.Bool; bool])
