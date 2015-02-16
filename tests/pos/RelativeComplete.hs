@@ -12,7 +12,7 @@ check :: Int -> Int -> ()
 check = undefined
 
 
-{-@ app :: forall <p :: Int -> Prop, q :: Int -> Int -> Prop>. 
+{-@ app :: forall <p :: Int -> Prop, q :: Int -> Prop>. 
            {Int<q> <: Int<p>}
            {x::Int<q> |- {v:Int| v = x + 1} <: Int<q>}
            (Int<p> -> ()) -> x:Int<q> -> () @-}
