@@ -2,7 +2,18 @@ module Ex1 (ifM) where
 
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
-import RIO 
+
+
+{-@ data RIO a <pre :: World -> Prop, post :: World -> a -> World -> Prop, p:: a -> Prop> 
+  = RIO (rs :: (x:World<pre> -> (a<p>, World)<\w -> {v:World<post x w> | true}>))
+  @-}
+data RIO a  = RIO {runState :: World -> (a, World)}
+
+{-@ runState :: forall <pre :: World -> Prop, post :: World -> a -> World -> Prop, p::a -> Prop>. 
+                RIO <pre, post, p> a -> x:World<pre> -> (a<p>, World)<\w -> {v:World<post x w> | true}> @-}
+
+data World  = W
+
 
 {-@
 ifM  :: forall < pre   :: World -> Prop 
@@ -22,8 +33,7 @@ ifM  :: forall < pre   :: World -> Prop
 @-}
 ifM :: RIO Bool -> RIO a -> RIO a -> RIO a
 ifM (RIO cond) e1 e2 
-  = 
-    RIO $ \x -> case cond x of {(y, s) -> runState (if y then e1 else e2) s} 
+  = RIO $ \x -> case cond x of {(y, s) -> runState (if y then e1 else e2) s} 
 
 {-@ measure counter :: World -> Int @-}
 
@@ -63,5 +73,32 @@ checkZeroX :: RIO Bool
 checkZeroX = get `bind` f 
 
 
+
+
+
+{-@ bind :: forall < pre   :: World -> Prop 
+               , pre2  :: a -> World -> Prop 
+               , p     :: a -> Prop
+               , pp    :: a -> Prop
+               , q     :: b -> Prop
+               , post1 :: World -> a -> World -> Prop
+               , post2 :: a -> World -> b -> World -> Prop
+               , post :: World -> b -> World -> Prop>.
+       {x::a<p>, w::World<pre>|- World<post1 w x> <: World<pre2 x>}
+       {y::a, w::World<pre>, w2::World<pre2 y>, x::b, y::a<p> |- World<post2 y w2 x> <: World<post w x>}     
+       {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
+       RIO <pre, post1, pp> a
+    -> (x:a<p> -> RIO <{v:World<pre2 x> | true}, \w1 y -> {v:World<post2 x w1 y> | true}, q> b)
+    -> RIO <pre, post, q> b @-}
+
+bind :: RIO a -> (a -> RIO b) -> RIO b
+bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
+
+
+
+{-@ ret :: forall <p :: World -> Prop>.
+           x:a -> RIO <p, \w0 y -> {w1:World<p> | w0 == w1 && y == x }, {\v -> v = x}> a
+  @-}  
+ret w      = RIO $ \x -> (w, x)
 
 
