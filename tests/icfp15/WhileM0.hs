@@ -16,8 +16,8 @@ whileM  :: forall < pre   :: World -> Prop
                , post  :: World -> () -> World -> Prop>. 
        {b :: {v:Bool<q> | true}, w :: World<pre>, x::() |- World<p w b> <: World<post w x> } 
        {x1::(), x2::(), w1::World, w2::World |- World<post w1 x2> <: World<post w2 x2> } 
-       {x2::(), w2::World |- World <: World<post w2 x2> } 
-          RIO <{\x -> true}, p, q> Bool 
+       {x2::(), w2::World<pre> |- World<pre> <: World<post w2 x2> } 
+          RIO <pre, p, q> Bool 
        -> RIO <{\x -> true}, post1, {\v -> true}> ()
        -> RIO <{\x -> true}, post, {\v -> true}> ()
 @-}
