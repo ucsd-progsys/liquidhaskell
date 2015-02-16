@@ -24,15 +24,15 @@ data World  = W
                , post1 :: World -> a -> World -> Prop
                , post2 :: a -> World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
-       {xxx1::a<p>, wxx1::World<pre>|- World<post1 wxx1 xxx1> <: World<pre2 xxx1>}
+       {x::a<p>, w::World<pre>|- World<post1 w x> <: World<pre2 x>}
        {y::a, w::World<pre>, w2::World<pre2 y>, x::b, y::a<p> |- World<post2 y w2 x> <: World<post w x>}     
        {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
        RIO <pre, post1, pp> a
-    -> (micky:a<p> -> RIO <{v:World<pre2 micky> | true}, \w1 y -> {v:World<post2 micky w1 y> | true}, q> b)
+    -> (x:a<p> -> RIO <{v:World<pre2 x> | true}, \w1 y -> {v:World<post2 x w1 y> | true}, q> b)
     -> RIO <pre, post, q> b @-}
 
 bind :: RIO a -> (a -> RIO b) -> RIO b
-bind (RIO g) f = undefined -- RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
+bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
 
 
 {-@

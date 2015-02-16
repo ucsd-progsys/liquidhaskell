@@ -28,7 +28,7 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar)
+import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, safeHead)
 import Language.Fixpoint.Names (isPrefixOfSym, stripParensSym)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
@@ -234,16 +234,16 @@ checkAbstractRefs t = go t
     go' c rs = foldl (\acc (x, y) -> acc <|> checkOne' x y) Nothing (zip rs (rTyConPVs c))
 
     checkOne' (RProp xs t) p 
-      | pvType' p /= toRSort t 
+      | pvType p /= toRSort t 
       = Just $ text "Unexpected Sort in" <+> pprint p
-      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs' p)]  
+      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs p)]  
       = Just $ text "Wrong Arguments in" <+> pprint p
       | length xs /= length (pargs p) 
       = Just $ text "Wrong Number of Arguments in" <+> pprint p
       | otherwise  
       = go t
     checkOne' (RPropP xs _) p 
-      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs' p)]  
+      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs p)]  
       = Just $ text "Wrong Arguments in" <+> pprint p
       | length xs /= length (pargs p) 
       = Just $ text "Wrong Number of Arguments in" <+> pprint p
@@ -266,8 +266,8 @@ checkAbstractRefs t = go t
     mkPEnv (RAllP p t) = p:mkPEnv t 
     mkPEnv _           = []
 
-    pvType' p = head [pvType q | q <- penv, pname p == pname q]
-    pargs'  p = head [pargs q | q <- penv, pname p == pname q]
+    pvType' p = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
+
 
 
 
