@@ -66,6 +66,7 @@ instance Monad RIO where
   return w      = RIO $ \x -> (w, x)
   fail          = error
 
+{-@ qualif Papp4(v:a, x:b, y:c, z:d, p:Pred a b c d) : papp4(p, v, x, y, z)     @-}
 
 
 
