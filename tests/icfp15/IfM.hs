@@ -35,10 +35,10 @@ ifM (RIO cond) e1 e2
 
 ifTest     :: RIO Int
 {-@ ifTest     :: RIO Int @-}
-ifTest     = ifM (checkZeroX) (divX) (ret 10)
+ifTest     = ifM (checkZeroX) (divX) (return 10)
   where 
-    checkZeroX = get >>= \x -> ret (x /= 0)
-    divX       = get >>= \x -> ret (100 `div` x)
+    checkZeroX = get >>= \x -> return (x /= 0)
+    divX       = get >>= \x -> return (100 `div` x)
 
 
 get :: RIO Int 
