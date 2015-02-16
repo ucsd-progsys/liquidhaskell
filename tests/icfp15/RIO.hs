@@ -30,13 +30,6 @@ bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s}
 
 
 
-{-@  ret :: forall <p :: World -> Prop>.
-           x:a -> RIO <p, \w0 y -> {w1:World<p> | w0 == w1 && y == x }, {\v -> v = x}> a
-@-}
-
-ret :: a -> RIO a 
-ret = undefined
-
 instance Monad RIO where
 {-@ instance Monad RIO where
  >>= :: forall < pre   :: World -> Prop 
