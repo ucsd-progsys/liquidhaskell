@@ -70,6 +70,7 @@ instance Monad RIO where
 
 
 -- Test Cases:
+-- * TestM (Basic)
 -- * TwiceM
 -- * IfM
--- *   
+-- * WhileM  
