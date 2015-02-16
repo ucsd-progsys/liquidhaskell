@@ -65,3 +65,11 @@ instance Monad RIO where
   (RIO g) >>  f = RIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
   return w      = RIO $ \x -> (w, x)
   fail          = error
+
+
+
+
+-- Test Cases:
+-- * TwiceM
+-- * IfM
+-- *   
