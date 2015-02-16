@@ -1,4 +1,4 @@
-module Ex1 (ifM) where
+module IfM where
 
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
@@ -37,8 +37,8 @@ ifTest     :: RIO Int
 {-@ ifTest     :: RIO Int @-}
 ifTest     = ifM (checkZeroX) (divX) (return 10)
   where 
-    checkZeroX = get >>= \x -> return (x /= 0)
-    divX       = get >>= \x -> return (100 `div` x)
+    checkZeroX = do {x <- get; return $ x /= 0     }
+    divX       = do {x <- get; return $ 100 `div` x}
 
 
 get :: RIO Int 
