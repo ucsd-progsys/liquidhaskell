@@ -23,9 +23,11 @@ import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Simplify
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import           Control.Arrow                       (second)
+
 
 type Ctx = M.HashMap Symbol SpecType
 
@@ -64,10 +66,11 @@ stripReft t   = maybe t' (strengthen t') ro
     (t', ro)  = stripRType t                
 
 stripRType    :: SpecType -> (SpecType, Maybe RReft)
-stripRType t  = (t', ro)
+stripRType st = (t', ro)
   where
     t'        = fmap (const (uTop mempty)) t
     ro        = stripRTypeBase  t 
+    t         = simplifyBounds st 
 
 tidyREnv      :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
 tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]

@@ -189,6 +189,7 @@ Library
                     Language.Haskell.Liquid.TransformRec, 
                     Language.Haskell.Liquid.Tidy, 
                     Language.Haskell.Liquid.Types,
+                    Language.Haskell.Liquid.Simplify,
                     Language.Haskell.Liquid.Literals,
                     Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
