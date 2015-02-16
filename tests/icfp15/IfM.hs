@@ -33,12 +33,35 @@ ifM (RIO cond) e1 e2
 -------------------------------------------------------------------------------
 
 
-ifTest     :: RIO Int
-{-@ ifTest     :: RIO Int @-}
-ifTest     = ifM (checkZeroX) (divX) (return 10)
+ifTest0     :: RIO Int
+{-@ ifTest0     :: RIO Int @-}
+ifTest0     = ifM (checkZeroX) (divX) (return 10)
   where 
     checkZeroX = do {x <- get; return $ x /= 0     }
     divX       = do {x <- get; return $ 100 `div` x}
+
+ifTest1     :: RIO Int
+{-@ ifTest1     :: RIO Int @-}
+ifTest1     = ifM (checkNZeroX) (return 10) divX
+  where 
+    checkNZeroX = do {x <- get; return $ x == 0     }
+    divX        = do {x <- get; return $ 100 `div` x}
+
+
+
+ifTestUnsafe0     :: RIO Int
+{-@ ifTestUnsafe0     :: RIO Int @-}
+ifTestUnsafe0     = ifM (checkZeroX) (return 10) divX
+  where 
+    checkZeroX = do {x <- get; return $ x /= 0     }
+    divX       = do {x <- get; return $ 100 `div` x}
+
+ifTestUnsafe1     :: RIO Int
+{-@ ifTestUnsafe1     :: RIO Int @-}
+ifTestUnsafe1     = ifM (checkNZeroX) divX (return 10)
+  where 
+    checkNZeroX = do {x <- get; return $ x == 0     }
+    divX        = do {x <- get; return $ 100 `div` x}
 
 
 get :: RIO Int 
@@ -48,10 +71,18 @@ get = undefined
 
 
 
-{-@ qual1 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b => n /= 0) && (Prop b => counter v /= 0)}, {\v -> true}> {v:Bool | Prop v <=> n /= 0} @-}
+{-@ qual1 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b <=> n /= 0) && (Prop b <=> counter v /= 0)}, {\v -> true}> {v:Bool | Prop v <=> n /= 0} @-}
 qual1 :: Int -> RIO Bool
 qual1 = \x -> return (x /= 0)
 
-{-@ qual2 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b => counter w2 /= 0}, {\v -> true}> Bool @-}
+{-@ qual2 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b <=> counter w2 /= 0}, {\v -> true}> Bool @-}
 qual2 :: RIO Bool
 qual2 = undefined
+
+{-@ qual3 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b <=> n == 0) && (Prop b <=> counter v == 0)}, {\v -> true}> {v:Bool | Prop v <=> n == 0} @-}
+qual3 :: Int -> RIO Bool
+qual3 = \x -> return (x == 0)
+
+{-@ qual4 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b <=> counter w2 == 0}, {\v -> true}> Bool @-}
+qual4 :: RIO Bool
+qual4 = undefined
