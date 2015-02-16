@@ -38,7 +38,7 @@ ret :: a -> RIO a
 ret = undefined
 
 instance Monad RIO where
-{- instance Monad RIO where
+{-@ instance Monad RIO where
  >>= :: forall < pre   :: World -> Prop 
                , pre2  :: a -> World -> Prop 
                , p     :: a -> Prop
@@ -53,7 +53,7 @@ instance Monad RIO where
        RIO <pre, post1, pp> a
     -> (x:a<p> -> RIO <{v:World<pre2 x> | true}, \w1 y -> {v:World<post2 x w1 y> | true}, q> b)
     -> RIO <pre, post, q> b ;
- >>  :: :: forall < pre   :: World -> Prop 
+ >>  :: forall < pre   :: World -> Prop 
                , pre2  :: World -> Prop 
                , pp    :: a -> Prop
                , q     :: b -> Prop
@@ -61,7 +61,7 @@ instance Monad RIO where
                , post2 :: World -> b -> World -> Prop
                , post :: World -> b -> World -> Prop>.
        {x::a, w::World<pre>|- World<post1 w x> <: World<pre2>}
-       {w::World<pre>, w2::World<pre2>, x::b, y::a<p> |- World<post2w2 x> <: World<post w x>}     
+       {w::World<pre>, w2::World<pre2>, x::b, y::a |- World<post2 w2 x> <: World<post w x>}     
        RIO <pre, post1, pp> a
     -> RIO <pre2, post2, q> b
     -> RIO <pre, post, q> b  ;
