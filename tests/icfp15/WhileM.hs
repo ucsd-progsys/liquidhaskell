@@ -13,11 +13,10 @@ whileM  :: forall < pre   :: World -> Prop
                , post1 :: World -> () -> World -> Prop
                , post  :: World -> () -> World -> Prop>. 
        {x::(), s1::World<pre>, b::{v:Bool<q> | Prop v}, s2::World<p s1 b> |- World<post1 s2 x> <: World<pre>}
-       {x1::(), x2::(), s1::World, s3::World |- World<post s3 x2> <: World<post s1 x2> } 
-       {b::{v:Bool<q> | Prop v}, s1::World<pre> |- World<p s1 b> <: World<pre1>}
-       {b::{v:Bool<q> | Prop v}, x1::(), x2::(), s1::World<pre>, s2::World<p s1 b>, s3::World<post1 s2 x1> |- World<post s3 x2> <: World<post s1 x2> } 
+       {b::{v:Bool<q> | Prop v}, x2::(), s1::World<pre>, s3::World |- World<post s3 x2> <: World<post s1 x2> } 
+       {b::{v:Bool<q> | not (Prop v)}, x2::(), s1::World<pre> |- World<p s1 b> <: World<post s1 x2> } 
           RIO <pre, p, q> Bool 
-       -> RIO <pre1, post1, {\v -> true}> ()
+       -> RIO <{\v -> true}, post1, {\v -> true}> ()
        -> RIO <pre, post, {\v -> true}> ()
 @-}
 whileM :: RIO Bool -> RIO () -> RIO ()
