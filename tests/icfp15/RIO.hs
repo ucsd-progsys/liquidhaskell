@@ -10,26 +10,6 @@ data RIO a  = RIO {runState :: World -> (a, World)}
 
 data World  = W
 
-{- bind :: forall < pre   :: World -> Prop 
-               , pre2  :: a -> World -> Prop 
-               , p     :: a -> Prop
-               , pp    :: a -> Prop
-               , q     :: b -> Prop
-               , post1 :: World -> a -> World -> Prop
-               , post2 :: a -> World -> b -> World -> Prop
-               , post :: World -> b -> World -> Prop>.
-       {x::a<p>, w::World<pre>|- World<post1 w x> <: World<pre2 x>}
-       {y::a, w::World<pre>, w2::World<pre2 y>, x::b, y::a<p> |- World<post2 y w2 x> <: World<post w x>}     
-       {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
-       RIO <pre, post1> a
-    -> (x:a<p> -> RIO <{v:World<pre2 x> | true}, \w1 y -> {v:World<post2 x w1 y> | true}> b)
-    -> RIO <pre, post> b @-}
-
-bind :: RIO a -> (a -> RIO b) -> RIO b
-bind (RIO g) f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
-
-
-
 instance Monad RIO where
 {-@ instance Monad RIO where
  >>= :: forall < pre   :: World -> Prop 
