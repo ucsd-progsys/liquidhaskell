@@ -8,7 +8,7 @@ module DataBase  (
 
 import qualified Data.Set
 
-import Prelude hiding (product, union)
+import Prelude hiding (product, union, filter)
 
 
 data Dict key val = D {dom :: [key], dfun :: key -> val}  
@@ -47,11 +47,11 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
                        range1  :: key -> val -> Prop,
                        range2  :: key -> val -> Prop,
                        range   :: key -> val -> Prop>.
-                       {key<domain1> -> key<domain>}
-                       {key<domain2> -> key<domain>}
-                       {k1: key<domain1> -> k2:key<domain2> -> {v:key | v = k1 && v = k2} -> {v:key | false}}
-                       {k:key<domain1> -> val<range1 k> -> val<range k> }
-                       {k:key<domain2> -> val<range2 k> -> val<range k> }
+                       {key<domain1> <: key<domain>}
+                       {key<domain2> <: key<domain>}
+                       {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
+                       {k::key<domain1> |- val<range1 k> <: val<range k> }
+                       {k::key<domain2> |- val<range2 k> <: val<range k> }
                Dict <domain1, range1> key val 
             -> Dict <domain2, range2> key val 
             -> Dict <domain,  range > key val 
@@ -69,10 +69,10 @@ product (D ks1 f1) (D ks2 f2)
                        range1  :: key -> val -> Prop,
                        range2  :: key -> val -> Prop,
                        range   :: key -> val -> Prop>.
-                       {key<domain1> -> key<domain>}
-                       {key<domain2> -> key<domain>}
-                       {k:key<domain1> -> val<range1 k> -> val<range k> }
-                       {k:key<domain2> -> val<range2 k> -> val<range k> }
+                       {key<domain1> <: key<domain>}
+                       {key<domain2> <: key<domain>}
+                       {k::key<domain1> |- val<range1 k> <: val<range k> }
+                       {k::key<domain2> |- val<range2 k> <: val<range k> }
                x1:Dict <domain1, range1> key val 
             -> x2:Dict <domain2, range2> key val 
             -> {v:Dict <domain,  range > key val | (listElts (dom v)) = Set_cup (listElts (dom x1)) (listElts (dom x2))} 
@@ -85,7 +85,7 @@ union (D ks1 f1) (D ks2 f2)
 
 
 {-@ diff :: forall<domain1 :: key -> Prop, domain :: key -> Prop, range :: key -> val -> Prop>.
-            {key<domain1> -> key<domain>} 
+            {key<domain1> <: key<domain>} 
             xs:Dict <domain1, range> key val 
          -> ys:Dict <{\k -> true}, {\k v -> true}> key val 
          -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_dif (listElts (dom xs)) (listElts (dom ys)))}
@@ -98,7 +98,7 @@ diff (D ks1 f1) (D ks2 _)
 {-@ project :: forall <domain :: key -> Prop, 
                        domain1 :: key -> Prop, 
                        range :: key -> val -> Prop>.
-                      {key<domain> -> key<domain1>}
+                      {key<domain> <: key<domain1>}
                keys:[key<domain>] 
             -> {v:Dict <domain1, range> key val | (Set_sub (listElts keys) (listElts (dom v)))} 
             -> {v:Dict <domain, range> key val  | (listElts (dom v)) = listElts keys}
@@ -106,26 +106,18 @@ diff (D ks1 f1) (D ks2 _)
 project :: Eq key => [key] -> Dict key val -> Dict key val
 project ks (D ks' f') = D ks f'
 
--- NV TODO:
--- change select to 
--- let ks' = [ k | k <- ks, prop k (f k)] in D ks' f'
-
-
 {-@ select :: forall <q      :: key -> val -> Bool -> Prop,
                       domain :: key -> Prop, 
                       range  :: key -> val -> Prop, 
                       range1 :: key -> Maybe val -> Prop>.
-                      { k:key -> val:val<range1 k> -> {v:Bool<q k val> | Prop v} -> {v: Maybe val | fromJust v = val} -> Maybe <range k> val}
-                      { k:key -> val:val<range1 k> -> {v:Bool<q k val> | not (Prop v)} -> {v: Maybe val | not (isJust v)} -> Maybe <range k> val}
               (k:key -> v:val -> Bool<q k v>) 
-            -> x:Dict <domain, range1> key val 
-            -> {v:Dict <domain, range> key (Maybe val) | listElts (dom v) = listElts (dom x)}
+            -> x:Dict <domain, range> key val 
+            -> {v:Dict <domain, range> key val| Set_sub (listElts (dom v)) (listElts (dom x))}
   @-}
 
-select :: (key -> val -> Bool) -> Dict key val -> Dict key (Maybe val)
-select prop (D ks f') 
-  = let f = \k -> let val = f' k in if prop k val then Just val else Nothing
-    in D ks f
+select :: (key -> val -> Bool) -> Dict key val -> Dict key val
+select prop (D ks f) 
+  = let ks' = filter ks (\k -> prop k (f k)) in D ks' f
 
 -------------------------------------------------------------------------------
 -------------------------    HELPERS   ----------------------------------------
@@ -150,7 +142,12 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 {-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
 
 {-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
-
+{-@ assume filter :: xs:[a] -> ({v:a | Set_mem v (listElts xs)} -> Bool) -> {v:[a] | Set_sub (listElts v) (listElts xs)} @-}
+filter :: [a] -> (a -> Bool) -> [a]
+filter [] _   = []
+filter (x:xs) f 
+  | f x       = x : filter xs f 
+  | otherwise = filter xs f  
 
 
 liquidError :: String -> a
