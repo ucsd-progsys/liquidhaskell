@@ -102,6 +102,7 @@ visitExpr v = vE
     step c e@(ELit _ _)   = return e 
     step c e@(EVar _)     = return e
     step c (EApp f es)    = EApp f     <$> (vE c <$$> es)  
+    step c (ENeg e)       = ENeg       <$> vE c e
     step c (EBin o e1 e2) = EBin o     <$> vE c e1 <*> vE c e2
     step c (EIte p e1 e2) = EIte       <$> vP c p  <*> vE c e1 <*> vE c e2
     step c (ECst e t)     = (`ECst` t) <$> vE c e
