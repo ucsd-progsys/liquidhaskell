@@ -6,25 +6,42 @@ module IfM where
 import RIO 
 
 {-@
-ifM  :: forall < pre   :: World -> Prop 
-               , p :: World -> Bool -> World -> Prop
-               , r1 :: World -> Prop
-               , r2 :: World -> Prop
-               , post1 :: World -> a -> World -> Prop
-               , post  :: World -> a -> World -> Prop>.                  
-       {b :: {v:Bool | Prop v},   w :: World<pre>    |- World<p w b>      <: World<r1>        } 
-       {b :: {v:Bool | not (Prop v)},   w :: World<pre>    |- World<p w b>      <: World<r2>        } 
-       {w1::World<pre>, w2::World, y::a|- World<post1 w2 y> <: World<post w1 y>}
-          RIO <pre, p> Bool 
-       -> RIO <r1, post1> a
-       -> RIO <r2, post1> a
-       -> RIO <pre, post> a
+ifM  :: forall < p  :: World -> Prop 
+               , qc :: World -> Bool -> World -> Prop
+               , p1 :: World -> Prop
+               , p2 :: World -> Prop
+               , qe :: World -> a -> World -> Prop
+               , q  :: World -> a -> World -> Prop>.                  
+       {b :: {v:Bool | Prop v},       w :: World<p> |- World<qc w b>  <: World<p1>    } 
+       {b :: {v:Bool | not (Prop v)}, w :: World<p> |- World<qc w b>  <: World<p2>    } 
+       {w1::World<p>, w2::World, y::a               |- World<qe w2 y> <: World<q w1 y>}
+          RIO <p , qc> Bool 
+       -> RIO <p1, qe> a
+       -> RIO <p2, qe> a
+       -> RIO <p , q > a
 @-}
 ifM :: RIO Bool -> RIO a -> RIO a -> RIO a
 ifM (RIO cond) e1 e2 
   = RIO $ \x -> case cond x of {(y, s) -> runState (if y then e1 else e2) s} 
 
 {-@ measure counter :: World -> Int @-}
+
+
+-------------------------------------------------------------------------------
+------------------------------- ifM client ------------------------------------ 
+-------------------------------------------------------------------------------
+
+{-@
+myif  :: forall < p :: World -> Prop 
+                , q :: World -> a -> World -> Prop>.                  
+          b:Bool 
+       -> RIO <{v:World<p> |      Prop b }, q> a
+       -> RIO <{v:World<p> | not (Prop b)}, q> a
+       -> RIO <p , q > a
+@-}
+myif :: Bool -> RIO a -> RIO a -> RIO a
+myif b e1 e2 
+  = if b then e1 else e2
 
 
 -------------------------------------------------------------------------------
@@ -50,10 +67,10 @@ ifTest1     = ifM (checkNZeroX) (return 10) divX
 
 ifTestUnsafe0     :: RIO Int
 {-@ ifTestUnsafe0     :: RIO Int @-}
-ifTestUnsafe0     = ifM (checkZeroX) (return 10) divX
+ifTestUnsafe0     = ifM checkZero (return 10) divX
   where 
-    checkZeroX = do {x <- get; return $ x /= 0     }
-    divX       = do {x <- get; return $ 100 `div` x}
+    checkZero = get >>= return . (/= 0)
+    divX      = get >>= return . (42 `div`)
 
 ifTestUnsafe1     :: RIO Int
 {-@ ifTestUnsafe1     :: RIO Int @-}
