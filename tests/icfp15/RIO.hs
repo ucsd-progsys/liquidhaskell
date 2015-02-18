@@ -1,39 +1,39 @@
 module RIO where
 
-{-@ data RIO a <pre :: World -> Prop, post :: World -> a -> World -> Prop> 
-  = RIO (rs :: (x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}>))
+{-@ data RIO a <p :: World -> Prop, q :: World -> a -> World -> Prop> 
+  = RIO (rs :: (x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}>))
   @-}
 data RIO a  = RIO {runState :: World -> (a, World)}
 
-{-@ runState :: forall <pre :: World -> Prop, post :: World -> a -> World -> Prop>. 
-                RIO <pre, post> a -> x:World<pre> -> (a, World)<\w -> {v:World<post x w> | true}> @-}
+{-@ runState :: forall <p :: World -> Prop, q :: World -> a -> World -> Prop>. 
+                RIO <p, q> a -> x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}> @-}
 
 data World  = W
 
 instance Monad RIO where
 {-@ instance Monad RIO where
- >>= :: forall < pre   :: World -> Prop 
-               , pre2  :: a -> World -> Prop 
-               , p     :: a -> Prop
-               , post1 :: World -> a -> World -> Prop
-               , post2 :: a -> World -> b -> World -> Prop
-               , post :: World -> b -> World -> Prop>.
-       {x::a<p>, w::World<pre>|- World<post1 w x> <: World<pre2 x>}
-       {y::a, w::World<pre>, w2::World<pre2 y>, x::b, y::a<p> |- World<post2 y w2 x> <: World<post w x>}     
-       {x::a, w::World, w2::World<post1 w x>|- {v:a | v = x} <: a<p>}   
-       RIO <pre, post1> a
-    -> (x:a<p> -> RIO <{v:World<pre2 x> | true}, \w1 y -> {v:World<post2 x w1 y> | true}> b)
-    -> RIO <pre, post> b ;
- >>  :: forall < pre   :: World -> Prop 
-               , pre2  :: World -> Prop 
-               , post1 :: World -> a -> World -> Prop
-               , post2 :: World -> b -> World -> Prop
-               , post :: World -> b -> World -> Prop>.
-       {x::a, w::World<pre>|- World<post1 w x> <: World<pre2>}
-       {w::World<pre>, w2::World<pre2>, x::b, y::a |- World<post2 w2 x> <: World<post w x>}     
-       RIO <pre, post1> a
-    -> RIO <pre2, post2> b
-    -> RIO <pre, post> b  ;
+ >>= :: forall < p  :: World -> Prop 
+               , p2 :: a -> World -> Prop 
+               , r  :: a -> Prop
+               , q1 :: World -> a -> World -> Prop
+               , q2 :: a -> World -> b -> World -> Prop
+               , q  :: World -> b -> World -> Prop>.
+       {x::a<r>, w::World<p>|- World<q1 w x> <: World<p2 x>}
+       {y::a, w::World<p>, w2::World<p2 y>, x::b, y::a<r> |- World<q2 y w2 x> <: World<q w x>}     
+       {x::a, w::World, w2::World<q1 w x>|- {v:a | v = x} <: a<r>}   
+       RIO <p, q1> a
+    -> (x:a<r> -> RIO <{v:World<p2 x> | true}, \w1 y -> {v:World<q2 x w1 y> | true}> b)
+    -> RIO <p, q> b ;
+ >>  :: forall < p   :: World -> Prop 
+               , p2  :: World -> Prop 
+               , q1 :: World -> a -> World -> Prop
+               , q2 :: World -> b -> World -> Prop
+               , q :: World -> b -> World -> Prop>.
+       {x::a, w::World<p>|- World<q1 w x> <: World<p2>}
+       {w::World<p>, w2::World<p2>, x::b, y::a |- World<q2 w2 x> <: World<q w x>}     
+       RIO <p, q1> a
+    -> RIO <p2, q2> b
+    -> RIO <p, q> b  ;
  return :: forall <p :: World -> Prop>.
            x:a -> RIO <p, \w0 y -> {w1:World<p> | w0 == w1 && y == x}> a
   @-}  
@@ -43,8 +43,6 @@ instance Monad RIO where
   fail          = error
 
 {-@ qualif Papp4(v:a, x:b, y:c, z:d, p:Pred a b c d) : papp4(p, v, x, y, z)     @-}
-
-
 
 -- Test Cases:
 -- * TestM (Basic)
