@@ -71,6 +71,7 @@ import qualified Data.Text as T
 import Data.Char (isLower, toUpper)
 import Language.Fixpoint.Misc hiding (dcolon)
 import Language.Fixpoint.Types
+import Language.Fixpoint.Bitvector
 import Language.Fixpoint.Errors
 import Language.Fixpoint.SmtLib2
 
@@ -218,7 +219,7 @@ expr1P
 exprP :: Parser Expr 
 exprP = buildExpressionParser bops expr1P
 
-funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where 
     exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
@@ -226,6 +227,14 @@ funAppP            =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCo
     funSymbolP     = locParserP symbolP
 
 
+-- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
+litP = do reserved "lit" 
+          l <- stringLiteral
+          s <- try (bvSortP "Size32" S32) <|> bvSortP "Size64" S64
+          return $ ECon $ L (T.pack l) (mkSort s)
+  where 
+    bvSortP ss s = do parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
+                      return s
 
 
 -- ORIG exprP :: Parser Expr 

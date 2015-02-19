@@ -109,6 +109,7 @@ module Language.Fixpoint.Types (
   , notExprReft             -- singleton: v /= e
   , uexprReft               -- singleton: v ~~ e
   , symbolReft              -- singleton: v == x
+  , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
   , isFunctionSortedReft
@@ -445,7 +446,7 @@ instance Fixpoint Double where
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
-  toFix (L s t) = parens $ text "lit" <+> toFix s <+> toFix t   
+  toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t   
                     
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
@@ -1088,6 +1089,9 @@ instance Monoid Subst where
 
 symbolReft    :: (Symbolic a) => a -> Reft
 symbolReft    = exprReft . eVar
+
+usymbolReft   :: (Symbolic a) => a -> Reft
+usymbolReft   = uexprReft . eVar
 
 vv_           = vv Nothing
 
