@@ -243,6 +243,9 @@ toLogicApp e
         (\x -> makeApp def lmap x args) <$> tosymbol' f
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
+makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
+  = ENeg e
+
 makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
   = EBin op e1 e2
 
