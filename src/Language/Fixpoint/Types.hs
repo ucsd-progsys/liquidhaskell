@@ -445,7 +445,7 @@ instance Fixpoint Double where
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
-  toFix (L s t) = parens $ text "lit" <+> toFix s <+> toFix t   
+  toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t   
                     
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst

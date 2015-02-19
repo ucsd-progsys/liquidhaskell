@@ -40,7 +40,8 @@ data BvOp   = BvAnd | BvOr
 -- | Construct the bitvector `Sort` from its `BvSize`
 
 mkSort :: BvSize -> Sort
-mkSort s = fApp (Left bvTyCon) [sizeSort s]
+mkSort _ = fApp (Left $ symbolFTycon $ dummyLoc bitVecName)
+                [FApp (symbolFTycon $ dummyLoc size32Name) [fObj $ dummyLoc $ symbol "obj"]]
 
 -- | Construct an `Expr` using a raw string, e.g. (Bv S32 "#x02000000")
 instance Expression Bv where
