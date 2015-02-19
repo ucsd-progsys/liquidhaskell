@@ -1,14 +1,16 @@
 module DBClient where
-
+import Data.Maybe (catMaybes)
 import DataBase
 
 import Prelude hiding (product)
 
+import Control.Applicative ((<$>))
+
 data Tag = Name | PID | Mail | Grade
-        deriving Eq
+        deriving (Eq, Show)
 
 data Value = N Name | I Int    
-         deriving Eq
+         deriving (Eq, Show)
 
 
 -- This represents Strings....
@@ -16,15 +18,19 @@ data Value = N Name | I Int
 -- Strings are not "easy" to express into logic
 
 data Name = Niki | Alex | Ranjit | NMail | AMail | RMail
-           deriving Eq
+           deriving (Eq, Show)
 
 
-{-@ assume N :: x:Name -> {v:Value | v = N x} @-}
-{-@ assume I :: n:Int  -> {v:Value | v = I n} @-}
+{-@ assume N :: x:Name -> {v:Value | v = nn x} @-}
+{-@ assume I :: n:Int  -> {v:Value | v = ii n} @-}
 
+{-@ measure nn :: Name -> Value @-}
+{-@ measure ii :: Int  -> Value @-}
 
 {-@ type Grades = [GradingScheme] @-}
+{-@ type Names = [NameScheme] @-}
 {-@ type GradingScheme = {v:Dict <{\t -> GradingDomain t}, {\t v -> GradingRange t v}> Tag Value | ValidGradingScheme v} @-}
+{-@ type NameScheme    = {v:Dict <{\t -> t = Name}, {\t v -> t == Name => ValidName v}> Tag Value | ValidNameScheme v} @-}
 
 grades :: [Dict Tag Value]
 {-@ grades :: Grades @-}
@@ -33,8 +39,8 @@ grades = [gNiki, gAlex, gRanjit]
 
 gNiki, gAlex, gRanjit :: Dict Tag Value
 {-@ gNiki, gAlex, gRanjit :: GradingScheme @-}
-gNiki   = (Name := N Niki) += (PID := I 123) += (Grade := I 9) += (Mail := N NMail) += empty
-gAlex   = mkRow (N Alex)   (I 456) (I 9) (N AMail)
+gNiki   = (Name := N Niki) += (PID := I 123) += (Grade := I 7) += (Mail := N NMail) += empty
+gAlex   = mkRow (N Alex)   (I 456) (I 8) (N AMail)
 gRanjit = mkRow (N Ranjit) (I 789) (I 9) (N RMail)
 
 
@@ -51,6 +57,36 @@ mkRow name pid grade mail
 
 
 -------------------------------------------------------------------------------
+--------------- Some Queries --------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- Students With Grade >= n
+
+{-@ query1 :: Grades -> Names @-}
+query1 :: [Dict Tag Value] -> [Dict Tag Value]
+query1 = map qproject . catMaybes . map qselect
+
+{-@ qselect :: GradingScheme -> Maybe GradingScheme @-}
+qselect :: Dict Tag Value -> Maybe (Dict Tag Value)
+qselect	 = select (\t v -> if t == Grade then toInt v >= 8 else False)
+
+
+{-@ qproject :: GradingScheme -> NameScheme @-}
+qproject :: Dict Tag Value -> Dict Tag Value 
+qproject = project [Name]
+
+
+
+
+-------------------------------------------------------------------------------
+--------------- Helpers  ------------------------------------------------------
+-------------------------------------------------------------------------------
+
+toInt :: Value -> Int
+{-@ toInt :: x:{Value | isInt x} -> {v:Int | v = fromInt x} @-}
+toInt (I x) = x
+
+-------------------------------------------------------------------------------
 --------------- Some predicates -----------------------------------------------
 -------------------------------------------------------------------------------
 
@@ -60,6 +96,9 @@ mkRow name pid grade mail
 	  	                  (Set_cup (Set_sng Grade) 
 	  	                  (Set_cup (Set_sng PID) 
 	  	                           (Set_sng Name))))) @-}
+
+{-@ predicate ValidNameScheme V = 
+	  (listElts (dom V) = (Set_sng Name)) @-}
 
 {-@ predicate GradingDomain T   = (T = PID || T = Name || T = Grade || T = Mail) @-}
 

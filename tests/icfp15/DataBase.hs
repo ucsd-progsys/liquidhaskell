@@ -15,6 +15,11 @@ import Prelude hiding (product, union, filter)
 
 data Dict key val = D {dom :: [key], dfun :: key -> val}  
  
+
+instance (Show t, Show v) => Show (Dict t v) where
+  show (D ks f) = concatMap (\k -> show k ++ "\t:=\t" ++ show (f k) ++ "\n" ) ks 
+
+
 {-@ dom :: forall <domain :: key -> Prop, range :: key -> val -> Prop>. 
            x:Dict <domain, range> key val  -> {v:[key<domain>] | v = dom x}
   @-}
@@ -124,18 +129,30 @@ diff (D ks1 f1) (D ks2 _)
 project :: Eq key => [key] -> Dict key val -> Dict key val
 project ks (D ks' f') = D ks f'
 
-{-@ select :: forall <q      :: key -> val -> Bool -> Prop,
-                      domain :: key -> Prop, 
-                      range  :: key -> val -> Prop, 
-                      range1 :: key -> Maybe val -> Prop>.
-              (k:key -> v:val -> Bool<q k v>) 
+{-@ select0 :: forall <domain :: key -> Prop, 
+                       range  :: key -> val -> Prop, 
+                       range1 :: key -> Maybe val -> Prop>.
+              (k:key -> v:val<range k> -> Bool) 
             -> x:Dict <domain, range> key val 
             -> {v:Dict <domain, range> key val| Set_sub (listElts (dom v)) (listElts (dom x))}
   @-}
 
-select :: (key -> val -> Bool) -> Dict key val -> Dict key val
-select prop (D ks f) 
+select0 :: (key -> val -> Bool) -> Dict key val -> Dict key val
+select0 prop (D ks f) 
   = let ks' = filter ks (\k -> prop k (f k)) in D ks' f
+
+{-@ select :: forall<domain :: key -> Prop, range :: key -> val -> Prop>.
+              (k:key -> v:val<range k> -> Bool) 
+           -> x:Dict <domain, range> key val
+           -> Maybe ({v:Dict<domain, range> key val | v = x})
+
+  @-}
+select :: Eq key => (key -> val -> Bool) -> Dict key val -> Maybe (Dict key val)   
+select prop x@(D ks f)
+  = let g k | k `elem` ks = prop k (f k)
+            | otherwise   = False
+   in  if any g ks then Just x else Nothing 
+
 
 -------------------------------------------------------------------------------
 -------------------------    HELPERS   ----------------------------------------
