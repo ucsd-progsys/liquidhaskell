@@ -2,7 +2,9 @@ module DataBase  (
 
   Dict, empty, extend, 
 
-  union, diff, product, project, select
+  union, diff, product, project, select,
+
+  P(..), (+=)
 
   ) where
 
@@ -38,6 +40,22 @@ extend :: Eq key => key -> val -> Dict key val -> Dict key val
            -> x:Dict <{v:key<domain> | v != k}, range> key val 
            -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_cup (listElts (dom x)) (Set_sng k))} @-}
 extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
+
+
+
+data P k v = k := v
+{-@ data P k v <domain :: k -> Prop, range :: k -> v -> Prop> 
+  = (:=) (kkey :: k<domain>) (kval :: v<range kkey>)
+  @-}
+infixr 3 +=
+
+{-@ += :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+              pp:P <domain, range> key val 
+           -> x:Dict <{v:key<domain> | v != (kkey pp)}, range> key val 
+           -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_cup (listElts (dom x)) (Set_sng (kkey pp)))} @-}
+(+=) :: Eq key => P key val -> Dict key val -> Dict key val
+
+(t := v) += c = extend t v c
 
 
 
@@ -142,7 +160,7 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 {-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
 
 {-@ assume Prelude.elem :: x:a -> xs:[a] -> {v:Bool | Prop v <=> Set_mem x (listElts xs)} @-}
-{-@ assume filter :: xs:[a] -> ({v:a | Set_mem v (listElts xs)} -> Bool) -> {v:[a] | Set_sub (listElts v) (listElts xs)} @-}
+{-@ filter :: xs:[a] -> ({v:a | Set_mem v (listElts xs)} -> Bool) -> {v:[a] | Set_sub (listElts v) (listElts xs)} @-}
 filter :: [a] -> (a -> Bool) -> [a]
 filter [] _   = []
 filter (x:xs) f 
