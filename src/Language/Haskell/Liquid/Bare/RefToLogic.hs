@@ -87,6 +87,7 @@ instance Transformable Expr where
 	tx _ _ (ESym c)       = ESym c
 	tx _ _ (ECon c)       = ECon c
 	tx _ _ (ELit l s')    = ELit l s'
+	tx s m (ENeg e)       = ENeg (tx s m e)
 	tx s m (EBin o e1 e2) = EBin o (tx s m e1) (tx s m e2)
 	tx s m (EIte p e1 e2) = EIte (tx s m p) (tx s m e1) (tx s m e2)
 	tx s m (ECst e s')    = ECst (tx s m e) s'
@@ -136,4 +137,4 @@ txPApp (s, (Right (TI xs (Left e)))) f es
 txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  = (dropModuleNames s1) == s2  
+  = (dropModuleNames s1) == s2
