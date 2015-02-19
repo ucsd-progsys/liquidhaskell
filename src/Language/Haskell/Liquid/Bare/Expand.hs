@@ -104,6 +104,8 @@ expandExpr (EApp f@(Loc l f') es)
          Nothing ->
            EApp f <$> mapM expandExpr es
 
+expandExpr (ENeg e)
+  = ENeg <$> expandExpr e
 expandExpr (EBin op e1 e2)
   = EBin op <$> expandExpr e1 <*> expandExpr e2
 expandExpr (EIte p e1 e2)

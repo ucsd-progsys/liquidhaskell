@@ -222,6 +222,8 @@ buildExprEdges table
         go (EApp (Loc _ f) es)
           = go_alias f ++ concatMap go es
 
+        go (ENeg e)
+          = go e
         go (EBin _ e1 e2)
           = go e1 ++ go e2
         go (EIte _ e1 e2)
