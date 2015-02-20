@@ -12,7 +12,7 @@ module DataBase  (
 import qualified Data.Set
 import Data.Maybe (catMaybes)
 import Prelude hiding (product, union, filter)
-
+{-@ LIQUID "--no-termination" @-}
 
 type Table t v = [Dict t v]
 
@@ -111,10 +111,8 @@ productD (D ks1 f1) (D ks2 f2)
             -> [{v:Dict <domain, range> key val  | (listElts (ddom v)) = listElts keys}]
    @-}
 project :: Eq t => [t] -> Table t v -> Table t v
-project ks = imap -- map (projectD ks)
-  where 
-    imap [] = []
-    imap (x:xs) = projectD ks x : imap xs 
+project ks [] = []
+project ks (x@(D _ f):xs) = projectD ks x : project ks xs 
 
 {-@ projectD :: forall <domain :: key -> Prop, 
                        domain1 :: key -> Prop, 
