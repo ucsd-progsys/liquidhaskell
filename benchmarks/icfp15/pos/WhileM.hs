@@ -59,13 +59,6 @@ whileTestn n      = whileM (checkGtZero) (decrM)
     checkGtZero = do {x <- get; return $ x > n}
 -}
 
-whileTestUnSafe       :: RIO ()
-{-@ whileTestUnSafe   :: RIO <{\x -> true}, {\w1 x w2 -> counter w2 == 0}> () @-}
-whileTestUnSafe       = whileM (checkGtZero) (decrM)
-  where 
-    checkGtZero = do {x <- get; return $ x > 0}
-
-
 decrM :: RIO ()
 {-@ decrM :: RIO <{\x -> true}, {\w1 x w2 -> counter w2 = (counter w1) - 1}> () @-}
 decrM = undefined

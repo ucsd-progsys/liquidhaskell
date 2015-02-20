@@ -48,23 +48,6 @@ myif b e1 e2
 ------------------------------- ifM client ------------------------------------ 
 -------------------------------------------------------------------------------
 
-
-ifTest0     :: RIO Int
-{-@ ifTest0     :: RIO Int @-}
-ifTest0     = ifM (checkZeroX) (divX) (return 10)
-  where 
-    checkZeroX = do {x <- get; return $ x /= 0     }
-    divX       = do {x <- get; return $ 100 `div` x}
-
-ifTest1     :: RIO Int
-{-@ ifTest1     :: RIO Int @-}
-ifTest1     = ifM (checkNZeroX) (return 10) divX
-  where 
-    checkNZeroX = do {x <- get; return $ x == 0     }
-    divX        = do {x <- get; return $ 100 `div` x}
-
-
-
 ifTestUnsafe0     :: RIO Int
 {-@ ifTestUnsafe0     :: RIO Int @-}
 ifTestUnsafe0     = ifM checkZero (return 10) divX

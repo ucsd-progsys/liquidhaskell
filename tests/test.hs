@@ -54,6 +54,8 @@ unitTests
     , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                    []           ExitSuccess
     , testGroup "errorcrash"  <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
     , testGroup "errorpos"    <$> dirTests "tests/parser/pos"                     []           ExitSuccess
+      testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []           ExitSuccess
+      testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                []           (ExitFailure 1)
    ]
 
 benchTests
