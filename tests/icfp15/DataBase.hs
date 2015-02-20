@@ -37,14 +37,17 @@ instance (Show t, Show v, Eq t) => Show (Dict t v) where
                   in concatMap f ks 
 
 
-{-@ fromList :: forall <dom :: key -> Prop, range :: key -> val -> Prop>. 
-                [Dict <dom, range> key val] -> [Dict <dom, range> key val]
+-- LIQUID : This discards the refinement of the Dict 
+-- for example the ddom
+
+{-@ fromList :: forall <dom :: key -> Prop, range :: key -> val -> Prop, p :: Dict key val -> Prop>. 
+                x:[Dict <dom, range> key val <<p>>] -> {v:[Dict <dom, range> key val <<p>>] | x = v}
   @-} 
 fromList :: [Dict key val] -> Table key val 
 fromList xs = xs
 
-{-@ singleton :: forall <dom :: key -> Prop, range :: key -> val -> Prop>. 
-                 Dict <dom, range> key val -> [Dict <dom, range> key val]
+{-@ singleton :: forall <dom :: key -> Prop, range :: key -> val -> Prop, p :: Dict key val -> Prop>. 
+                 Dict <dom, range> key val <<p>> -> [Dict <dom, range> key val <<p>>]
   @-} 
 singleton :: Dict key val -> Table key val 
 singleton d = [d]
@@ -56,19 +59,24 @@ singleton d = [d]
 emptyTable :: Table t v 
 emptyTable = []
 
-{-@ union :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
-             x:[Dict <domain, range> key val]  
-          -> y:[Dict <domain, range> key val]
-          -> {v:[Dict <domain, range> key val] | listElts v = Set_cup (listElts x) (listElts y)}
+{-@ union :: forall <domain :: key -> Prop, range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+              x:[Dict <domain, range> key val <<p>>]  
+          ->  y:[Dict <domain, range> key val <<p>>]
+          -> {v:[Dict <domain, range> key val <<p>>] | listElts v = Set_cup (listElts x) (listElts y)}
   @-}
-{-@ diff :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
-             x:[Dict <domain, range> key val]  
-          -> y:[Dict <domain, range> key val]
-          -> {v:[Dict <domain, range> key val] | listElts v = Set_dif (listElts x) (listElts y)}
+{-@ diff :: forall <domain :: key -> Prop, range :: key -> val -> Prop, p :: Dict key val -> Prop>.
+              x:[Dict <domain, range> key val <<p>>]  
+          ->  y:[Dict <domain, range> key val <<p>>]
+          -> {v:[Dict <domain, range> key val <<p>>] | listElts v = Set_dif (listElts x) (listElts y)}
   @-}
 union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
 union xs ys = xs ++ ys 
 diff  xs ys = xs \\ ys  
+
+{- predicate Append XS YS V = 
+  ((listElts (ddom v)) = Set_cup (listElts (ddom (head YS))) (listElts (ddom (head XS))) ) 
+  @-}
+
 
 {-@ product :: forall <domain1 :: key -> Prop, 
                        domain2 :: key -> Prop,
@@ -81,13 +89,22 @@ diff  xs ys = xs \\ ys
                        {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
                        {k::key<domain1> |- val<range1 k> <: val<range k> }
                        {k::key<domain2> |- val<range2 k> <: val<range k> }
-               [Dict <domain1, range1> key val] 
-            -> [Dict <domain2, range2> key val] 
-            -> [Dict <domain,  range > key val] 
+               xs:[Dict <domain1, range1> key val] 
+            -> ys:[Dict <domain2, range2> key val] 
+            ->    [Dict <domain,  range > key val] 
   @-}
 
 product :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
-product xs ys = [ productD x y | x <- xs, y <- ys]
+-- product [] _ = []
+-- product _ [] = []
+product xs ys = go xs
+  where go [] = []
+        go (x:xs) = go' x ys ++ go xs
+
+        go' x [] = []
+        go' x (y:ys) = productD x y : go' x ys
+
+-- product xs ys = [ productD x y | x <- xs, y <- ys]
 
 
 instance (Eq key, Eq val) => Eq (Dict key val) where
@@ -104,9 +121,9 @@ instance (Eq key, Eq val) => Eq (Dict key val) where
                        {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
                        {k::key<domain1> |- val<range1 k> <: val<range k> }
                        {k::key<domain2> |- val<range2 k> <: val<range k> }
-               Dict <domain1, range1> key val 
-            -> Dict <domain2, range2> key val 
-            -> Dict <domain,  range > key val 
+               x:Dict <domain1, range1> key val 
+            -> y:Dict <domain2, range2> key val 
+            -> {v:Dict <domain,  range > key val | (listElts (ddom v)) = Set_cup (listElts (ddom x)) (listElts (ddom y))} 
   @-}
 
 productD :: Eq key => Dict key val -> Dict key val -> Dict key val
