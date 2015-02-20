@@ -5,7 +5,7 @@ module DataBase  (
 
   emptyTable, singleton, fromList, 
 
-  union, diff, product, project, select,
+  union, diff, product, project, select, productD
 
   ) where
 
@@ -95,16 +95,7 @@ diff  xs ys = xs \\ ys
   @-}
 
 product :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
--- product [] _ = []
--- product _ [] = []
-product xs ys = go xs
-  where go [] = []
-        go (x:xs) = go' x ys ++ go xs
-
-        go' x [] = []
-        go' x (y:ys) = productD x y : go' x ys
-
--- product xs ys = [ productD x y | x <- xs, y <- ys]
+product xs ys = [ productD x y | x <- xs, y <- ys]
 
 
 instance (Eq key, Eq val) => Eq (Dict key val) where

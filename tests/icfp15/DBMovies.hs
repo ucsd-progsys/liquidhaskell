@@ -127,10 +127,9 @@ good_directors     = directors `diff` project [Director] not_good_directors
 -- good_directors     = directors `diff` not_good_directors
 
 not_good_directors :: DirStars 
-{-@ not_good_directors, p1, p2 :: DirStars @-}
-not_good_directors = p1 `diff` p2 
-p1 = project [Director, Star] movies 
-p2 = directors `product` good_stars
+{-@ not_good_directors :: DirStars @-}
+not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- good_stars] 
+
 good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)  
 
 mk_star_table :: Value -> Stars
