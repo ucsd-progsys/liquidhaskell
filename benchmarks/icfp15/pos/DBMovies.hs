@@ -128,8 +128,9 @@ good_directors     = directors `diff` project [Director] not_good_directors
 
 not_good_directors :: DirStars 
 {-@ not_good_directors :: DirStars @-}
-not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- good_stars] 
-
+-- not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- good_stars] 
+not_good_directors = project [Director, Star] movies  `diff` product directors good_stars -- [ productD x y | x <- directors, y <- good_stars] 
+ 
 -- This _IS_ unsafe! 
 -- not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- movies] 
 
