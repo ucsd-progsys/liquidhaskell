@@ -5,7 +5,7 @@ import qualified Data.Set
 
 
 {-@ foo :: x:[a]  
-          -> {v:[a] | Set_sub (listElts x) (listElts v)}
+          -> {v:[a] | Set_sub (listElts v) (listElts x)}
   @-}
 
 foo = catMaybes . map bar 

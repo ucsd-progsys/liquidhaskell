@@ -139,18 +139,28 @@ project ks (x:xs) = projectD ks x : project ks xs
    @-}
 projectD ks (D _ f) = D ks f
 
-
 {-@ select :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
               (key -> val -> Bool)
           -> x:[Dict <domain, range> key val]  
-          -> {v:[Dict <domain, range> key val] | Set_sub (listElts x) (listElts v)}
+          -> {v:[Dict <domain, range> key val] | Set_sub (listElts v) (listElts x)}
   @-}
 select :: Eq key => (key -> val -> Bool) -> Table key val -> Table key val 
+select _    []          = []
+select prop (x@(D ks f):xs) 
+  = let g k | k `elem` ks = prop k (f k)
+            | otherwise   = True
+   in  if all g ks then x:select prop xs else select prop xs
+
+
+{-
+-- INLINE catMaybes
 select f = catMaybes . map (selectD f) 
   where
     catMaybes [] = []
     catMaybes (Nothing:xs) = catMaybes xs
     catMaybes (Just x : xs) = x:catMaybes xs
+-}
+
 
 {-@ selectD :: forall<domain :: key -> Prop, range :: key -> val -> Prop>.
               (k:key -> v:val<range k> -> Bool) 
