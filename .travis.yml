@@ -7,6 +7,7 @@ branches:
 
 env:
  - SMT=z3 TESTS=pos
+ - SMT=z3 TESTS=icfp_pos
  - SMT=z3 TESTS=neg
  - SMT=z3 TESTS=crash
  - SMT=z3 TESTS=text
@@ -16,6 +17,8 @@ env:
  - SMT=cvc4 TESTS=pos
  - SMT=cvc4 TESTS=neg
  - SMT=cvc4 TESTS=crash
+ - SMT=z3 TESTS=icfp_pos
+ - SMT=z3 TESTS=icfp_neg
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
