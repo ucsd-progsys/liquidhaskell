@@ -10,9 +10,9 @@ module DataBase  (
   ) where
 
 import qualified Data.Set
--- import Data.Maybe (catMaybes)
 import Prelude hiding (product, union, filter)
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "totality" @-}
 
 type Table t v = [Dict t v]
 
@@ -73,8 +73,8 @@ union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key v
 union xs ys = xs ++ ys 
 diff  xs ys = xs \\ ys  
 
-{- predicate Append XS YS V = 
-  ((listElts (ddom v)) = Set_cup (listElts (ddom (head YS))) (listElts (ddom (head XS))) ) 
+{-@ predicate Append XS YS V = 
+  ((listElts (ddom v)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) ) 
   @-}
 
 
@@ -83,19 +83,30 @@ diff  xs ys = xs \\ ys
                        domain  :: key -> Prop,
                        range1  :: key -> val -> Prop,
                        range2  :: key -> val -> Prop,
-                       range   :: key -> val -> Prop>.
+                       range   :: key -> val -> Prop, 
+                       p :: Dict key val -> Prop, 
+                       q :: Dict key val -> Prop, 
+                       r :: Dict key val -> Prop>.
                        {key<domain1> <: key<domain>}
                        {key<domain2> <: key<domain>}
+                       {x::Dict key val <<p>>, y :: Dict key val <<q>> |-  {v:Dict key val | Append x y v} <: Dict key val <<r>>}
                        {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
                        {k::key<domain1> |- val<range1 k> <: val<range k> }
                        {k::key<domain2> |- val<range2 k> <: val<range k> }
-               xs:[Dict <domain1, range1> key val] 
-            -> ys:[Dict <domain2, range2> key val] 
-            ->    [Dict <domain,  range > key val] 
+               xs:[Dict <domain1, range1> key val <<p>>] 
+            -> ys:[Dict <domain2, range2> key val <<q>>] 
+            ->    [Dict <domain,  range > key val <<r>>] 
   @-}
 
 product :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
-product xs ys = [ productD x y | x <- xs, y <- ys]
+product xs ys = go xs ys 
+  where 
+    go []     _  = []
+    go (x:xs) [] = go xs ys
+    go (x:xs) (y:ys) = productD x y : go (x:xs) ys 
+
+product (x:xs) (y:ys) = [ productD x y] --  | x <- xs, y <- ys]
+-- product (x:xs) (y:ys) = [productD x y] -- [ productD x y | x <- xs, y <- ys]
 
 
 instance (Eq key, Eq val) => Eq (Dict key val) where
