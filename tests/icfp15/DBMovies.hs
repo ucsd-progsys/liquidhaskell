@@ -123,12 +123,15 @@ directors = project [Director] movies
 good_stars :: Stars
 {-@ good_stars :: Stars @-}
 good_directors     = directors `diff` project [Director] not_good_directors
--- This _IS_ be unsafe!
+-- This _IS_ unsafe!
 -- good_directors     = directors `diff` not_good_directors
 
 not_good_directors :: DirStars 
 {-@ not_good_directors :: DirStars @-}
 not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- good_stars] 
+
+-- This _IS_ unsafe! 
+-- not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- movies] 
 
 good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)  
 
