@@ -5,8 +5,6 @@ module DataBase  (
 
   emptyTable, singleton, fromList, 
 
-
-
   union, diff, product, project, select,
 
   ) where
@@ -18,27 +16,84 @@ import Prelude hiding (product, union, filter)
 
 type Table t v = [Dict t v]
 
+data Dict key val = D {ddom :: [key], dfun :: key -> val}  
+{-@ ddom :: forall <domain :: key -> Prop, range :: key -> val -> Prop>. 
+           x:Dict <domain, range> key val  -> {v:[key<domain>] | v = ddom x}
+  @-}
+
+{-@ dfun :: forall <domain :: key -> Prop, range :: key -> val -> Prop>. 
+               x:Dict <domain, range> key val  
+            -> i:{v:key | Set_mem v (listElts (ddom x))} -> val<range i> 
+  @-}
+
+{-@ data Dict key val <domain :: key -> Prop, range :: key -> val -> Prop>
+  = D ( ddom :: [key<domain>])
+      ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)     
+  @-} 
 
 
+instance (Show t, Show v, Eq t) => Show (Dict t v) where
+  show (D ks f) = let f k = show k ++ "\t:=\t" ++ show (f k) ++ "\n" 
+                  in concatMap f ks 
+
+
+{-@ fromList :: forall <dom :: key -> Prop, range :: key -> val -> Prop>. 
+                [Dict <dom, range> key val] -> [Dict <dom, range> key val]
+  @-} 
+fromList :: [Dict key val] -> Table key val 
 fromList xs = xs
 
+{-@ singleton :: forall <dom :: key -> Prop, range :: key -> val -> Prop>. 
+                 Dict <dom, range> key val -> [Dict <dom, range> key val]
+  @-} 
 singleton :: Dict key val -> Table key val 
 singleton d = [d]
-
-
 
 emptyTable :: Table t v 
 emptyTable = []
 
-union, diff, product :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
-union xs ys =  xs ++ ys 
+union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
+union xs ys = xs ++ ys 
 diff  xs ys = xs \\ ys  
+
+{-@ product :: forall <domain1 :: key -> Prop, 
+                       domain2 :: key -> Prop,
+                       domain  :: key -> Prop,
+                       range1  :: key -> val -> Prop,
+                       range2  :: key -> val -> Prop,
+                       range   :: key -> val -> Prop>.
+                       {key<domain1> <: key<domain>}
+                       {key<domain2> <: key<domain>}
+                       {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
+                       {k::key<domain1> |- val<range1 k> <: val<range k> }
+                       {k::key<domain2> |- val<range2 k> <: val<range k> }
+               [Dict <domain1, range1> key val] 
+            -> [Dict <domain2, range2> key val] 
+            -> [Dict <domain,  range > key val] 
+  @-}
+
+product :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
 product xs ys = [ productD x y | x <- xs, y <- ys]
 
 
 instance (Eq key, Eq val) => Eq (Dict key val) where
   (D ks1 f1) == (D ks2 f2) = all (\k -> k `elem` ks2 && f1 k == f2 k) ks1 
 
+{-@ productD :: forall <domain1 :: key -> Prop, 
+                       domain2 :: key -> Prop,
+                       domain  :: key -> Prop,
+                       range1  :: key -> val -> Prop,
+                       range2  :: key -> val -> Prop,
+                       range   :: key -> val -> Prop>.
+                       {key<domain1> <: key<domain>}
+                       {key<domain2> <: key<domain>}
+                       {k1:: key<domain1>, k2::key<domain2> |- {v:key | v = k1 && v = k2} <: {v:key | false}}
+                       {k::key<domain1> |- val<range1 k> <: val<range k> }
+                       {k::key<domain2> |- val<range2 k> <: val<range k> }
+               Dict <domain1, range1> key val 
+            -> Dict <domain2, range2> key val 
+            -> Dict <domain,  range > key val 
+  @-}
 
 productD :: Eq key => Dict key val -> Dict key val -> Dict key val
 productD (D ks1 f1) (D ks2 f2) 
@@ -47,15 +102,39 @@ productD (D ks1 f1) (D ks2 f2)
     let f i = if i `elem` ks1 then f1 (ensuredomain ks1 i) else f2 (ensuredomain ks2 i) in
     D ks f 
 
-
+{-@ project :: forall <domain :: key -> Prop, 
+                       domain1 :: key -> Prop, 
+                       range :: key -> val -> Prop>.
+                      {key<domain> <: key<domain1>}
+               keys:[key<domain>] 
+            -> [{v:Dict <domain1, range> key val | (Set_sub (listElts keys) (listElts (ddom v)))}] 
+            -> [{v:Dict <domain, range> key val  | (listElts (ddom v)) = listElts keys}]
+   @-}
 project :: Eq t => [t] -> Table t v -> Table t v
-project ks = map (projectD ks)
+project ks = imap -- map (projectD ks)
+  where 
+    imap [] = []
+    imap (x:xs) = projectD ks x : imap xs 
+
+{-@ projectD :: forall <domain :: key -> Prop, 
+                       domain1 :: key -> Prop, 
+                       range :: key -> val -> Prop>.
+                      {key<domain> <: key<domain1>}
+               keys:[key<domain>] 
+            -> {v:Dict <domain1, range> key val | (Set_sub (listElts keys) (listElts (ddom v)))} 
+            -> {v:Dict <domain, range> key val  | (listElts (ddom v)) = listElts keys}
+   @-}
 projectD ks (D _ f) = D ks f
 
 
 select :: Eq key => (key -> val -> Bool) -> Table key val -> Table key val 
 select f = catMaybes . map (selectD f)
 
+{-@ selectD :: forall<domain :: key -> Prop, range :: key -> val -> Prop>.
+              (k:key -> v:val<range k> -> Bool) 
+           -> x:Dict <domain, range> key val
+           -> Maybe ({v:Dict<domain, range> key val | v = x})
+  @-}
 
 selectD :: Eq key => (key -> val -> Bool) -> Dict key val -> Maybe (Dict key val)   
 selectD prop x@(D ks f)
@@ -66,12 +145,6 @@ selectD prop x@(D ks f)
 
 
 
-
-data Dict key val = D {dom :: [key], dfun :: key -> val}  
- 
-
-instance (Show t, Show v) => Show (Dict t v) where
-  show (D ks f) = concatMap (\k -> show k ++ "\t:=\t" ++ show (f k) ++ "\n" ) ks 
 
 
 values :: key -> [Dict key val]  -> [val]
