@@ -3,7 +3,6 @@ branches:
  only:
   - master
   - parser
-  - icfp
 
 env:
  - SMT=z3 TESTS=pos
