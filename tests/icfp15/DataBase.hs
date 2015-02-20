@@ -10,7 +10,7 @@ module DataBase  (
   ) where
 
 import qualified Data.Set
-import Data.Maybe (catMaybes)
+-- import Data.Maybe (catMaybes)
 import Prelude hiding (product, union, filter)
 {-@ LIQUID "--no-termination" @-}
 
@@ -49,9 +49,23 @@ fromList xs = xs
 singleton :: Dict key val -> Table key val 
 singleton d = [d]
 
+
+{-@ emptyTable :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+                   [Dict <domain, range> key val]
+  @-}
 emptyTable :: Table t v 
 emptyTable = []
 
+{-@ union :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+             x:[Dict <domain, range> key val]  
+          -> y:[Dict <domain, range> key val]
+          -> {v:[Dict <domain, range> key val] | listElts v = Set_cup (listElts x) (listElts y)}
+  @-}
+{-@ diff :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+             x:[Dict <domain, range> key val]  
+          -> y:[Dict <domain, range> key val]
+          -> {v:[Dict <domain, range> key val] | listElts v = Set_dif (listElts x) (listElts y)}
+  @-}
 union, diff :: (Eq key, Eq val) => Table key val -> Table key val -> Table key val
 union xs ys = xs ++ ys 
 diff  xs ys = xs \\ ys  
@@ -112,7 +126,8 @@ productD (D ks1 f1) (D ks2 f2)
    @-}
 project :: Eq t => [t] -> Table t v -> Table t v
 project ks [] = []
-project ks (x@(D _ f):xs) = projectD ks x : project ks xs 
+project ks (x:xs) = projectD ks x : project ks xs
+
 
 {-@ projectD :: forall <domain :: key -> Prop, 
                        domain1 :: key -> Prop, 
@@ -125,8 +140,17 @@ project ks (x@(D _ f):xs) = projectD ks x : project ks xs
 projectD ks (D _ f) = D ks f
 
 
+{-@ select :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+              (key -> val -> Bool)
+          -> x:[Dict <domain, range> key val]  
+          -> {v:[Dict <domain, range> key val] | Set_sub (listElts x) (listElts v)}
+  @-}
 select :: Eq key => (key -> val -> Bool) -> Table key val -> Table key val 
-select f = catMaybes . map (selectD f)
+select f = catMaybes . map (selectD f) 
+  where
+    catMaybes [] = []
+    catMaybes (Nothing:xs) = catMaybes xs
+    catMaybes (Just x : xs) = x:catMaybes xs
 
 {-@ selectD :: forall<domain :: key -> Prop, range :: key -> val -> Prop>.
               (k:key -> v:val<range k> -> Bool) 
@@ -141,40 +165,38 @@ selectD prop x@(D ks f)
    in  if all g ks then Just x else Nothing 
 
 
-
-
-
-
+{-@ values :: forall <dom:: key -> Prop, range :: key -> val -> Prop>. 
+  k:key<dom> -> [{v:Dict <dom, range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map go 
   where
     go (D _ f) = f k 
 
 
-{- empty :: {v:Dict <{\v -> false}, {\k v -> false}> key val | Set_emp (listElts (dom v))} @-}
+{-@ empty :: {v:Dict <{\v -> false}, {\k v -> false}> key val | Set_emp (listElts (ddom v))} @-}
 empty :: Dict key val
 empty = D [] (\x -> error "call empty")   -- TODO: replace error with liquidError?
 
 
 extend :: Eq key => key -> val -> Dict key val -> Dict key val
-{- extend :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+{-@ extend :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
               k:key<domain> -> val<range k> 
            -> x:Dict <{v:key<domain> | v != k}, range> key val 
-           -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_cup (listElts (dom x)) (Set_sng k))} @-}
+           -> {v:Dict <domain, range> key val | (listElts (ddom v)) = (Set_cup (listElts (ddom x)) (Set_sng k))} @-}
 extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
 
 data P k v = k := v
-{- data P k v <domain :: k -> Prop, range :: k -> v -> Prop> 
+{-@ data P k v <domain :: k -> Prop, range :: k -> v -> Prop> 
   = (:=) (kkey :: k<domain>) (kval :: v<range kkey>)
   @-}
 infixr 3 +=
 
-{- += :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
+{-@ += :: forall <domain :: key -> Prop, range :: key -> val -> Prop>.
               pp:P <domain, range> key val 
            -> x:Dict <{v:key<domain> | v != (kkey pp)}, range> key val 
-           -> {v:Dict <domain, range> key val | (listElts (dom v)) = (Set_cup (listElts (dom x)) (Set_sng (kkey pp)))} @-}
+           -> {v:Dict <domain, range> key val | (listElts (ddom v)) = (Set_cup (listElts (ddom x)) (Set_sng (kkey pp)))} @-}
 (+=) :: Eq key => P key val -> Dict key val -> Dict key val
 
 (t := v) += c = extend t v c
@@ -224,4 +246,8 @@ qual = undefined
 {-@ qual' :: forall <range :: key -> val -> Prop>. k:key -> val<range k> @-}
 qual' :: key -> val
 qual' = undefined
+
+{-@ qual1 :: ks:[key] -> {v:Dict key val | (listElts (ddom v)) = listElts ks} @-}
+qual1 :: [key] -> Dict key val 
+qual1 = undefined
 
