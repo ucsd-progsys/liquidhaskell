@@ -19,12 +19,15 @@ whileM  :: forall < p   :: World -> Prop
 @-}
 whileM :: RIO Bool -> RIO () -> RIO ()
 whileM (RIO cond) (RIO e) 
---     = undefined
+    = undefined
+{-
     = RIO $ \s1 -> case cond s1 of {(y, s2) -> 
        if y 
         then case e s2 of {(y2, s3) -> runState (whileM (RIO cond) (RIO e)) s3}
         else ((), s2)
       }
+-}
+
 -- First Condition Used to be:
 --        {x::(), s1::World<p>, b::{v:Bool | Prop v}, s2::World<qc s1 b> |- World<qe s2 x> <: World<p>}
 -- 

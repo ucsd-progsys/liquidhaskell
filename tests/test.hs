@@ -51,11 +51,11 @@ unitTests
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2) 
-    , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                    []           ExitSuccess
+    , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "errorcrash"  <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
     , testGroup "errorpos"    <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []           ExitSuccess
-    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                []           (ExitFailure 1)
+    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"]           (ExitFailure 1)
    ]
 
 benchTests
