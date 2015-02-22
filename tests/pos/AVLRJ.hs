@@ -6,9 +6,10 @@
 module AVL (Tree, empty, singleton, insert) where
 
 -- Basic functions
-data Tree a = Nil | Tree { key :: a, l::Tree a, r::Tree a} deriving Show
-
+data Tree a = Nil | Tree { kkey :: a, l::Tree a, r::Tree a} deriving Show
 {-@ data Tree [ht] a = Nil | Tree { key :: a, l::Tree {v:a | v < key }, r::Tree {v:a | key < v} } @-}
+
+-- NV: rename key to kkey because the record selector code produces a key String. TO FIX ASAP
 
 {-@ measure ht @-}
 ht              :: Tree a -> Int
@@ -49,8 +50,8 @@ insert a t@(Tree v _ _) = case compare a v of
 {-@ insL :: x:a -> s:{AVLTree a | x < key s && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insL a (Tree v l r)
   | siblDiff == 2 && bl' == 1  = rebalanceLL v l' r
-  | siblDiff == 2 && bl' == -1  = rebalanceLR v l' r
-  | siblDiff <= 1            = Tree v l' r
+  | siblDiff == 2 && bl' == -1 = rebalanceLR v l' r
+  | siblDiff <= 1              = Tree v l' r
   where
     l'                       = insert a l
     siblDiff                 = htDiff l' r
