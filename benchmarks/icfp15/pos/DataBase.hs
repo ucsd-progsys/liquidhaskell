@@ -33,8 +33,8 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
 
 
 instance (Show t, Show v, Eq t) => Show (Dict t v) where
-  show (D ks f) = let f k = show k ++ "\t:=\t" ++ show (f k) ++ "\n" 
-                  in concatMap f ks 
+  show (D ks f) = let g k = show k ++ "\t:=\t" ++ show (f k) ++ "\n" 
+                  in concatMap g ks 
 
 
 -- LIQUID : This discards the refinement of the Dict 
@@ -100,10 +100,6 @@ product xs ys = go xs ys
     go (x:xs) [] = go xs ys
     go (x:xs) (y:ys) = productD x y : go (x:xs) ys 
 
-product (x:xs) (y:ys) = [ productD x y] --  | x <- xs, y <- ys]
--- product (x:xs) (y:ys) = [productD x y] -- [ productD x y | x <- xs, y <- ys]
-
-
 instance (Eq key, Eq val) => Eq (Dict key val) where
   (D ks1 f1) == (D ks2 f2) = all (\k -> k `elem` ks2 && f1 k == f2 k) ks1 
 
@@ -126,6 +122,7 @@ productD (D ks1 f1) (D ks2 f2)
     -- ORDERING IN LETS IS IMPORTANT: ks should be in scope for f
     let f i = if i `elem` ks1 then f1 (ensuredomain ks1 i) else f2 (ensuredomain ks2 i) in
     D ks f 
+
 
 {-@ project :: forall <range :: key -> val -> Prop>.
                keys:[key] 
@@ -162,7 +159,7 @@ values k = map go
 
 {-@ empty :: {v:Dict <{\k v -> false}> key val | Set_emp (listElts (ddom v))} @-}
 empty :: Dict key val
-empty = D [] (\x -> error "call empty")   -- TODO: replace error with liquidError?
+empty = D [] (\x -> liquidError "call empty")   -- TODO: replace error with liquidError?
 
 
 extend :: Eq key => key -> val -> Dict key val -> Dict key val
