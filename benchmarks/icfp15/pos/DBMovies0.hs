@@ -33,8 +33,9 @@ movies :: Movies
 movies = fromList [movie1, movie2]
 
 
-{-@ tosee :: Titles @-}
-goood_movies  =  select (
+{-@ good_movies :: Titles @-}
+good_movies :: Titles
+good_movies  = project ["title"] $ select (
   \d -> toDouble (dfun d $ "star") > 8
   ) movies
 
@@ -43,10 +44,6 @@ goood_movies  =  select (
 type Tag = String 
 
 data Value = I Int | S String | D Double
-            deriving (Show, Eq)
-
-data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames 
-          | Paronnaud    | Almadovar | Haneke 
             deriving (Show, Eq)
 
 {-@ type Movies      = [MovieScheme] @-}
