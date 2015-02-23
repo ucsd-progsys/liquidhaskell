@@ -1,23 +1,49 @@
 module MovieClient where
-import DataBase
+import DataBase hiding (D)
 
-
+{-@ LIQUID "--real" @-}
 import GHC.CString  -- This import interprets Strings as constants!
 
 import Data.Maybe (catMaybes)
+
+import qualified DataBase as DB
 
 import Prelude hiding (product)
 
 import Control.Applicative ((<$>))
 
 
+
+movie1, movie2 :: MovieScheme
+{-@ movie1, movie2 :: MovieScheme @-}
+movie1 = ("title"    := S "Persepolis")
+      += ("director" := S "Paronnaud") 
+      += ("star"     := D 8) 
+      += ("year"     := I 2007) 
+      += empty
+
+movie2 = ("title"    := S "Birdman") 
+      += ("star"     := D 8.1) 
+      += ("director" := S "Iñárritu")
+      += ("year"     := I 2014) 
+      += empty
+         
+movies :: Movies 
+{-@ movies :: Movies @-}
+movies = fromList [movie1, movie2]
+
+
+{-@ good_movies :: Titles @-}
+good_movies :: Titles
+good_movies  = project ["title"] $ select (
+  \d -> toDouble (dfun d $ "star") > 8
+  ) movies
+
+
+
 type Tag = String 
 
-data Value = I Int | S Name  
-            deriving (Show, Eq)
-
-data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames 
-          | Paronnaud    | Almadovar | Haneke 
+data Value = I Int | S String | D Double
             deriving (Show, Eq)
 
 {-@ type Movies      = [MovieScheme] @-}
@@ -59,7 +85,7 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
 
 
 {-@ predicate ValidYear     V = isInt V  && 1889 <= toInt V  @-}
-{-@ predicate ValidStar     V = isInt V  && 0 <= toInt V && toInt V <= 10 @-}
+{-@ predicate ValidStar     V = isDouble V  && 0.0 <= toDouble V && toDouble V <= 10.0 @-}
 {-@ predicate ValidDirector V = isString V @-}
 {-@ predicate ValidTitle    V = isString V @-}
 
@@ -74,16 +100,7 @@ type DirStars  = Table Tag Value
 
 type MovieScheme = Dict Tag Value
 
-movies :: Movies 
-{-@ movies :: Movies @-}
-movies = fromList [movie1, movie2, movie3, movie4]
 
-movie1, movie2, movie3, movie4 :: MovieScheme
-{-@ movie1, movie2, movie3, movie4 :: MovieScheme @-}
-movie1 = mkMovie (S TalkToHer)    (S Almadovar) (I 8) (I 2002) 
-movie2 = mkMovie (S ChickenPlums) (S Paronnaud) (I 7) (I 2011)
-movie3 = mkMovie (S Persepolis)   (S Paronnaud) (I 8) (I 2007)
-movie4 = mkMovie (S FunnyGames)   (S Haneke)    (I 7) (I 2007) 
 
 mkMovie :: Value -> Value -> Value -> Value -> MovieScheme
 {-@ mkMovie :: {t:Value | ValidTitle t} 
@@ -98,22 +115,19 @@ seen :: Titles
 {-@ seen :: Titles @-}
 seen = [t1, t2]
   where 
-  	t1 = ("title" := S ChickenPlums) += empty
-  	t2 = ("title" := S FunnyGames)   += empty
+  	t1 = ("title" := S "ChickenPlums") += empty
+  	t2 = ("title" := S "FunnyGames")   += empty
 
 not_seen :: Movies
 not_seen = select isSeen movies
   where
-    isSeen = undefined
---    	isSeen t v | t == "title" = not $ v `elem` (values "title" seen)
---   	isSeen _ _                = True
+    isSeen (DB.D ks f) = not $ (f "title") `elem` (values "title" seen) 
 
+{-@ not_seen, to_see :: Movies @-}
 to_see = select isGoodMovie not_seen
   where
-    isGoodMovie = undefined
---    isGoodMovie t (I s) | t == "star"     = s >= 8
---    isGoodMovie t d     | t == "director" = d `elem` (values "director" good_directors)
---    isGoodMovie _ _                       = True
+    isGoodMovie (DB.D ks f)  = (f "director") `elem` (values "director" good_directors)
+                          && (toDouble (f "star")) >= 8.0
 
 directors, good_directors :: Directors
 {-@ directors, good_directors :: Directors @-}
@@ -122,19 +136,19 @@ directors = project ["director"] movies
 
 good_stars :: Stars
 {-@ good_stars :: Stars @-}
--- good_directors     = directors `diff` project ["director"] not_good_directors
+good_directors     = directors `diff` project ["director"] not_good_directors
 -- This _IS_ unsafe!
-good_directors     = directors `diff` not_good_directors
+-- good_directors     = directors `diff` not_good_directors
 
 not_good_directors :: DirStars 
 {-@ not_good_directors :: DirStars @-}
--- not_good_directors = project ["director", "star"] movies  `diff` product directors good_stars 
+not_good_directors = project ["director", "star"] movies  `diff` product directors good_stars 
 
  
 -- This _IS_ unsafe! 
-not_good_directors = project ["director", "star"] movies  `diff` product directors movies
+-- not_good_directors = project ["director", "star"] movies  `diff` product directors movies
 
-good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)  
+good_stars         = mk_star_table (D 8.0) `union` mk_star_table (D 9.0) `union` mk_star_table (D 10.0)  
 
 mk_star_table :: Value -> Stars
 {-@ mk_star_table :: {s:Value | ValidStar s} -> Stars @-}
@@ -149,11 +163,27 @@ mk_star_table s    = [("star" := s) += empty]
 {-@ measure toInt :: Value -> Int 
     toInt(I n) = n
   @-}
+{-@ measure toDouble :: Value -> Double 
+    toDouble(D n) = n
+  @-}
+
+{-@ toInt :: {v:Value | isInt v} -> Int @-}
+toInt :: Value -> Int
+toInt (I n) = n
+
+{-@ toDouble :: {v:Value | isDouble v} -> Double @-}
+toDouble :: Value -> Double
+toDouble (D n) = n
 
 {-@ measure isInt @-}
 isInt :: Value -> Bool
 isInt (I _) = True
 isInt _     = False
+
+{-@ measure isDouble @-}
+isDouble :: Value -> Bool
+isDouble (D _) = True
+isDouble _     = False
 
 {-@ measure isString @-}
 isString :: Value -> Bool
