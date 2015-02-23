@@ -21,15 +21,15 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
             deriving (Show, Eq)
 
 {-@ type Movies      = [MovieScheme] @-}
-{-@ type MovieScheme = {v:Dict <{\t -> MovieDomain t}, {\t val -> MovieRange t val}> Tag Value | ValidMovieScheme v} @-}
+{-@ type MovieScheme = {v:Dict <{\t val -> MovieRange t val}> Tag Value | ValidMovieScheme v} @-}
 {-@ type Directors      = [DirectorScheme] @-}
-{-@ type DirectorScheme = {v:Dict <{\t -> DirectorDomain t}, {\t val -> DirectorRange t val}> Tag Value | ValidDirectorScheme v} @-}
+{-@ type DirectorScheme = {v:Dict <{\t val -> DirectorRange t val}> Tag Value | ValidDirectorScheme v} @-}
 {-@ type Stars      = [StarScheme] @-}
-{-@ type StarScheme = {v:Dict <{\t -> StarDomain t}, {\t val -> StarRange t val}> Tag Value | ValidStarScheme v} @-}
+{-@ type StarScheme = {v:Dict <{\t val -> StarRange t val}> Tag Value | ValidStarScheme v} @-}
 {-@ type Titles      = [TitleScheme] @-}
-{-@ type TitleScheme = {v:Dict <{\t -> TitleDomain t}, {\t val -> TitleRange t val}> Tag Value | ValidTitleScheme v} @-}
+{-@ type TitleScheme = {v:Dict <{\t val -> TitleRange t val}> Tag Value | ValidTitleScheme v} @-}
 {-@ type DirStars      = [DirStarScheme] @-}
-{-@ type DirStarScheme = {v:Dict <{\t -> DirStarDomain t}, {\t val -> DirStarRange t val}> Tag Value | ValidDirStarScheme v} @-}
+{-@ type DirStarScheme = {v:Dict <{\t val -> DirStarRange t val}> Tag Value | ValidDirStarScheme v} @-}
 
 
 {-@ predicate ValidMovieScheme V = 
@@ -38,19 +38,15 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
 	  	                   (Set_cup (Set_sng director) 
 	  	                            (Set_sng title))))) @-}
 
-{-@ predicate MovieDomain T   = (T = year || T = star || T = director || T = title) @-}
-
 {-@ predicate MovieRange  T V =    (T = year     => ValidYear     V) 
                                 && (T = star     => ValidStar     V) 
                                 && (T = director => ValidDirector V) 
                                 && (T = title    => ValidTitle    V) @-}
 
 {-@ predicate ValidDirectorScheme V = (listElts (ddom V) = (Set_sng director)) @-} 
-{-@ predicate DirectorDomain T   = ( T = director ) @-}
 {-@ predicate DirectorRange  T V = (T = director => ValidDirector V) @-}
 
 {-@ predicate ValidStarScheme V = (listElts (ddom V) = (Set_sng star)) @-} 
-{-@ predicate StarDomain T      = (T = star) @-}
 {-@ predicate StarRange  T V    = (T = star => ValidStar V) @-}
 
 {-@ predicate ValidTitleScheme V = (listElts (ddom V) = (Set_sng title)) @-} 
@@ -108,14 +104,16 @@ seen = [t1, t2]
 not_seen :: Movies
 not_seen = select isSeen movies
   where
-   	isSeen t v | t == "title" = not $ v `elem` (values "title" seen)
-  	isSeen _ _                = True
+    isSeen = undefined
+--    	isSeen t v | t == "title" = not $ v `elem` (values "title" seen)
+--   	isSeen _ _                = True
 
 to_see = select isGoodMovie not_seen
   where
-   isGoodMovie t (I s) | t == "star"     = s >= 8
-   isGoodMovie t d     | t == "director" = d `elem` (values "director" good_directors)
-   isGoodMovie _ _                       = True
+    isGoodMovie = undefined
+--    isGoodMovie t (I s) | t == "star"     = s >= 8
+--    isGoodMovie t d     | t == "director" = d `elem` (values "director" good_directors)
+--    isGoodMovie _ _                       = True
 
 directors, good_directors :: Directors
 {-@ directors, good_directors :: Directors @-}
@@ -130,10 +128,11 @@ good_directors     = directors `diff` not_good_directors
 
 not_good_directors :: DirStars 
 {-@ not_good_directors :: DirStars @-}
-not_good_directors = project ["director", "star"] movies  `diff` product directors movies
+-- not_good_directors = project ["director", "star"] movies  `diff` product directors good_stars 
 
+ 
 -- This _IS_ unsafe! 
--- not_good_directors = project [Director, Star] movies  `diff` [ productD x y | x <- directors, y <- movies] 
+not_good_directors = project ["director", "star"] movies  `diff` product directors movies
 
 good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)  
 
