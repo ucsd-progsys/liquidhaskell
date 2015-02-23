@@ -64,8 +64,8 @@ import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
-import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr)
@@ -1431,8 +1431,8 @@ consE γ e@(Cast e' _)
 consE _ e@(Coercion _)
    = trueTy $ exprType e
 
-consE _ e	    
-  = errorstar $ "consE cannot handle " ++ showPpr e 
+consE _ e@(Type t)     
+  = errorstar $ "consE cannot handle type" ++ showPpr (e, t) 
 
 castTy _ τ (Var x)
   = do t <- trueTy τ 
@@ -1470,8 +1470,11 @@ cconsFreshE kvkind γ e
        return t
 
 checkUnbound γ e x t 
-  | x `notElem` (F.syms t) = t
-  | otherwise              = errorstar $ "consE: cannot handle App " ++ showPpr e ++ " at " ++ showPpr (loc γ)
+  | x `notElem` (F.syms t) 
+  = t
+  | otherwise              
+  = errorstar $ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
+                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ)
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)

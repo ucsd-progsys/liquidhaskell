@@ -193,6 +193,7 @@ Library
                     Language.Haskell.Liquid.Literals,
                     Language.Haskell.Liquid.Strata,
                     Language.Haskell.Liquid.Fresh,
+                    Language.Haskell.Liquid.Visitors,
                     Language.Haskell.Liquid.WiredIn,
                     Paths_liquidhaskell,
 
