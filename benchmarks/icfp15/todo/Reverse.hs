@@ -7,8 +7,10 @@ module Reverse where
 
 {-@ rev ::  forall <p :: a -> a -> Prop, q :: a -> a -> Prop, q1 :: a -> a -> Prop>.
   {x::a, y::a<p x> |- {v:a|v=x} <: a<q y>}
-  {x::a |- a<q x> <: a<q1 x>}
-  x:a -> [a<p x>]<p> -> [a<q x>]<q> ->[a]<q1> @-}
+  x:a -> [a<p x>]<p> -> [a<q x>]<q> ->[a]<q> @-}
 rev :: a -> [a] -> [a] -> [a]
 rev z []     a = z:a
-rev z (x:xs) a = rev x xs (z:a)
+rev z (x:xs) (ax:axs) = x : ax : [] -- a -- rev x xs (z:a)
+
+-- x :: p z 
+-- a :: 
