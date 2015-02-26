@@ -13,6 +13,7 @@ import Id
 import NameSet
 import TyCon
 import Var
+import TysWiredIn 
 
 import Control.Applicative ((<$>))
 import Control.Monad.Reader
@@ -26,9 +27,9 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mapSnd, thd3)
+import Language.Fixpoint.Misc
 import Language.Fixpoint.Names (takeWhileSym)
-import Language.Fixpoint.Types (Expr, SEnv, SortedReft, Symbol, TCEmb, fromListSEnv, insertSEnv, mkSubst, subst, substa, symbol)
+import Language.Fixpoint.Types (Expr(..), SEnv, SortedReft, Symbol, TCEmb, fromListSEnv, insertSEnv, mkSubst, subst, substa, symbol)
 
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan)
@@ -36,6 +37,8 @@ import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
+import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.CoreToLogic
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -61,8 +64,8 @@ makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> H
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
   
   = do sp <- throwLeft =<< execBare act initEnv
-       let env = ghcSpecEnv sp
-       throwLeft $ checkGhcSpec specs env $ postProcess cbs env sp
+       let renv = ghcSpecEnv sp cbs 
+       throwLeft $ checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
     throwLeft = either Ex.throw return
@@ -78,16 +81,21 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
-ghcSpecEnv sp        = fromListSEnv binds
+ghcSpecEnv sp cbs    = fromListSEnv binds
   where 
     emb              = tcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ t) <- meas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ t) <- ctors sp]
                      ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+                     ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
     rSort            = rTypeSortedReft emb 
     vSort            = rSort . varRSort 
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
+    lconsts          = literals cbs
+    stringrSort      :: RSort 
+    stringrSort      = ofType stringTy
+    isString s       = rTypeSort emb stringrSort == s
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec

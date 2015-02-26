@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFoldable            #-}
+{-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -46,6 +48,8 @@ import qualified Data.List           as L
 import qualified Data.Text           as T
 import Data.Bifunctor
 import Data.List (foldl')
+import qualified Data.Foldable    as F
+import qualified Data.Traversable as T
 
 import Text.Printf
 
@@ -60,8 +64,8 @@ import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
-import Language.Haskell.Liquid.GhcInterface
 import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr)
@@ -898,13 +902,25 @@ instance Freshable CG Integer where
 ----------------------- TERMINATION TYPE --------------------------------------
 -------------------------------------------------------------------------------
 
-makeDecrIndex :: (Var, SpecType)-> CG [Int]
-makeDecrIndex (x, t) 
+makeDecrIndex :: (Var, Template SpecType)-> CG [Int]
+makeDecrIndex (x, Assumed t)
+  = do dindex <- makeDecrIndexTy x t
+       case dindex of
+         Left _  -> return []
+         Right i -> return i
+makeDecrIndex (x, Asserted t)
+  = do dindex <- makeDecrIndexTy x t
+       case dindex of
+         Left msg -> addWarning msg >> return []
+         Right i  -> return i
+makeDecrIndex _ = return []
+
+makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
        hint   <- checkHint' (L.lookup x $ spDecr)
        case dindex of
-         Nothing -> addWarning msg >> return []
-         Just i  -> return $ fromMaybe [i] hint
+         Nothing -> return $ Left msg -- addWarning msg >> return []
+         Just i  -> return $ Right $ fromMaybe [i] hint
     where
        ts         = ty_args $ toRTypeRep t
        checkHint' = checkHint x ts isDecreasing
@@ -926,7 +942,7 @@ checkIndex (x, vs, t, index)
        mapM  (safeLogIndex msg  ts) index
     where
        loc   = getSrcSpan x
-       ts    = ty_args $ toRTypeRep t
+       ts    = ty_args $ toRTypeRep $ unTemplate t
        msg'  = ErrTermin [x] loc (text $ "No decreasing argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
        msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
@@ -1007,22 +1023,22 @@ consCBSizedTys γ xes
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
-       ts'      <- mapM refreshArgs $ (fromAsserted . thd3 <$> xets)
+       ts'      <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
        let vs    = zipWith collectArgs ts' es
        is       <- mapM makeDecrIndex (zip xs ts') >>= checkSameLens
        let ts = cmakeFinTy  <$> zip is ts'
-       let xeets = (\vis -> [(vis, x) | x <- zip3 xs is ts]) <$> (zip vs is)
+       let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType <$>) <$> xeets
-       let xts   = zip xs (Asserted <$> ts)
+       let xts   = zip xs ts
        γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
-       let xets' = zip3 xs es (Asserted <$> ts)
+       let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where
        (xs, es) = unzip xes
-       collectArgs    = collectArguments . length . ty_binds . toRTypeRep
+       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
@@ -1055,8 +1071,11 @@ consCBWithExprs γ xes
                    | otherwise              = Nothing
         err      = "Constant: consCBWithExprs"
 
-makeFinTy (ns, t) = fromRTypeRep $ trep {ty_args = args'}
-  where trep = toRTypeRep t
+makeFinTy (ns, t) = fmap go t
+  where
+    go t = fromRTypeRep $ trep {ty_args = args'}
+      where
+        trep = toRTypeRep t
         args' = mapNs ns makeFinType $ ty_args trep
 
 
@@ -1186,17 +1205,17 @@ extender γ _               = return γ
 
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
-data Template a = Asserted a | Assumed a | Unknown deriving (Functor)
+data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
 
+unTemplate (Asserted t) = t
+unTemplate (Assumed t) = t
+unTemplate _ = errorstar "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown 
-
-fromAsserted (Asserted t) = t
-fromAsserted _            = errorstar "Constraint.Generate.fromAsserted called on invalid inputs"
 
 safeFromAsserted _ (Asserted t) = t
 safeFromAsserted msg _ = errorstar $ "safeFromAsserted:" ++ msg 
@@ -1412,8 +1431,8 @@ consE γ e@(Cast e' _)
 consE _ e@(Coercion _)
    = trueTy $ exprType e
 
-consE _ e	    
-  = errorstar $ "consE cannot handle " ++ showPpr e 
+consE _ e@(Type t)     
+  = errorstar $ "consE cannot handle type" ++ showPpr (e, t) 
 
 castTy _ τ (Var x)
   = do t <- trueTy τ 
@@ -1451,8 +1470,11 @@ cconsFreshE kvkind γ e
        return t
 
 checkUnbound γ e x t 
-  | x `notElem` (F.syms t) = t
-  | otherwise              = errorstar $ "consE: cannot handle App " ++ showPpr e ++ " at " ++ showPpr (loc γ)
+  | x `notElem` (F.syms t) 
+  = t
+  | otherwise              
+  = errorstar $ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
+                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ)
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
