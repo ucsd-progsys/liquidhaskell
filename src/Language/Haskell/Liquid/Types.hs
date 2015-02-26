@@ -231,6 +231,7 @@ import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 import Language.Fixpoint.Names      (funConName, listConName, tupConName)
+import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
@@ -1313,67 +1314,34 @@ instance PPrint a => PPrint (Located a) where
   pprint = pprint . val 
 
 instance PPrint Int where
-  pprint = toFix
+  pprint = F.pprint
 
 instance PPrint Integer where
-  pprint = toFix
+  pprint = F.pprint
 
 instance PPrint Constant where
-  pprint = toFix
+  pprint = F.pprint
 
 instance PPrint Brel where
-  pprint Eq = text "=="
-  pprint Ne = text "/="
-  pprint r  = toFix r
+  pprint = F.pprint
 
 instance PPrint Bop where
-  pprint  = toFix 
+  pprint = F.pprint
 
 instance PPrint Sort where
-  pprint = toFix  
+  pprint = F.pprint
 
 instance PPrint Symbol where
   pprint = pprint . symbolText
 
 instance PPrint Expr where
-  pprint (EApp f es)     = {- parens $ -} intersperse empty $ (pprint f) : (pprint <$> es) 
-  pprint (ECon c)        = pprint c 
-  pprint (EVar s)        = pprint s
-  pprint (ELit s _)      = pprint s
-  pprint (ENeg e)        = text "-" <> parens (pprint e)
-  pprint (EBin o e1 e2)  = {- parens $ -} pprint e1 <+> pprint o <+> pprint e2
-  pprint (EIte p e1 e2)  = {- parens $ -} text "if" <+> parens (pprint p) <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
-  pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 
-  pprint (EBot)          = text "_|_"
-  pprint (ESym s)        = pprint s
+  pprint = F.pprint
 
 instance PPrint SymConst where
-  pprint (SL s)          = text $ T.unpack s
+  pprint = F.pprint
 
 instance PPrint Pred where
-  pprint PTop            = text "???"
-  pprint PTrue           = trueD 
-  pprint PFalse          = falseD
-  pprint (PBexp e)       = {- parens $ -} pprint e
-  pprint (PNot p)        = {- parens $ -} text "not" <+> parens (pprint p)
-  pprint (PImp p1 p2)    = {- parens $ -} pprint p1 <+> text "=>"  <+> pprint p2
-  pprint (PIff p1 p2)    = {- parens $ -} (pprint p1) <+> text "<=>" <+> (pprint p2)
-  pprint (PAnd ps)       = {- parens $ -} pprintBin trueD  andD ps
-  pprint (POr  ps)       = {- parens $ -} pprintBin falseD orD  ps 
-  pprint (PAtom r e1 e2) = {- parens $ -} pprint e1 <+> pprint r <+> pprint e2
-  pprint (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
-
-trueD  = text "true"
-falseD = text "false"
-andD   = text " &&"
-orD    = text " ||"
-
-pprintBin b _ []     = b
-pprintBin _ o xs     = intersperse o $ pprint <$> xs 
-
--- pprintBin b o []     = b
--- pprintBin b o [x]    = pprint x
--- pprintBin b o (x:xs) = pprint x <+> o <+> pprintBin b o xs 
+  pprint = F.pprint
 
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
@@ -1388,15 +1356,11 @@ instance PPrint Refa where
   pprint (RConc p)     = pprint p
   pprint k             = toFix k
  
-instance PPrint Reft where 
-  pprint r@(Reft (_,ras)) 
-    | isTauto r        = text "true"
-    | otherwise        = {- intersperse comma -} pprintBin trueD andD $ flattenRefas ras
+instance PPrint Reft where
+  pprint = F.pprint
 
 instance PPrint SortedReft where
-  pprint (RR so (Reft (v, ras))) 
-    = braces 
-    $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
+  pprint = F.pprint
 
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
