@@ -51,7 +51,7 @@ unitTests
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2) 
-    , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                    []           ExitSuccess
+    , testGroup "parserpos"   <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "errorcrash"  <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
     , testGroup "errorpos"    <$> dirTests "tests/parser/pos"                     []           ExitSuccess
    ]
@@ -63,7 +63,8 @@ benchTests
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
     , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
-
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []           ExitSuccess
+    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs", "DataBase.Domain.hs"]           (ExitFailure 1)
     ]
 
 ---------------------------------------------------------------------------

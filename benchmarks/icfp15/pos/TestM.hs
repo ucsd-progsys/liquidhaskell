@@ -1,4 +1,4 @@
-module Ex1 where
+module Test where
 
 import RIO
 
@@ -8,7 +8,7 @@ import RIO
 {-@ measure counter1 :: World -> Int @-}
 {-@ measure counter2 :: World -> Int @-}
 
-{-@ incr :: RIO <{\x -> true}, {\w1 x w2 -> x = 5 }> Int @-}
+{-@ incr :: RIO <{\x -> true}, {\w1 x w2 -> x = 5}> Int @-}
 incr :: RIO Int
 incr = undefined
 

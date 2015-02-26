@@ -238,7 +238,6 @@ import Language.Haskell.Liquid.Misc (mapSndM)
 
 
 import Data.Default
-
 -----------------------------------------------------------------------------
 -- | Command Line Config Options --------------------------------------------
 -----------------------------------------------------------------------------
@@ -302,7 +301,7 @@ data PPEnv
 
 ppEnv           = ppEnvPrintPreds
 _ppEnvCurrent    = PP False False False False
-ppEnvPrintPreds = PP True False False False
+ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
 
@@ -449,6 +448,13 @@ instance Hashable (PVar a) where
   hashWithSalt i (PV n _ _ _) = hashWithSalt i n
 
 
+
+--------------------------------------------------------------------
+------ Strictness --------------------------------------------------
+--------------------------------------------------------------------
+
+instance NFData Var
+instance NFData SrcSpan
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
@@ -991,20 +997,17 @@ instance Reftable Strata where
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
   ppTy               = ppTy_ureft
-  toReft (U r ps _)  = toReft r `meet` toReft ps
+  toReft (U r ps _)  = toReft r `meet` toReft ps 
   params (U r _ _)   = params r
   bot (U r _ s)      = U (bot r) (Pr []) (bot s)
   top (U r p s)      = U (top r) (top p) (top s)
 
   ofReft = error "TODO: UReft.ofReft"
 
-isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) && (isTauto $ ur_strata u)
-
-isTauto_ureft' u     = isTauto (ur_reft u) && isTauto (ur_pred u)
+isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
 
 ppTy_ureft u@(U r p s) d 
   | isTauto_ureft  u  = d
-  | isTauto_ureft' u  = d <> ppr_str s
   | otherwise         = ppr_reft r (ppTy p d) s
 
 ppr_reft r d s       = braces (toFix v <+> colon <+> d <> ppr_str s <+> text "|" <+> pprint r')
@@ -1050,6 +1053,7 @@ instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
   bot (Pr _)           = errorstar "No BOT instance for Predicate"
+  -- NV: This does not print abstract refinements....
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | isTauto r        = d 
            | not (ppPs ppEnv) = d
@@ -1336,6 +1340,7 @@ instance PPrint Expr where
   pprint (ECon c)        = pprint c 
   pprint (EVar s)        = pprint s
   pprint (ELit s _)      = pprint s
+  pprint (ENeg e)        = text "-" <> parens (pprint e)
   pprint (EBin o e1 e2)  = {- parens $ -} pprint e1 <+> pprint o <+> pprint e2
   pprint (EIte p e1 e2)  = {- parens $ -} text "if" <+> parens (pprint p) <+> text "then" <+> pprint e1 <+> text "else" <+> pprint e2 
   pprint (ECst e so)     = parens $ pprint e <+> text " : " <+> pprint so 

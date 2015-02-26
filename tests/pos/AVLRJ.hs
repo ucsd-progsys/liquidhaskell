@@ -6,9 +6,10 @@
 module AVL (Tree, empty, singleton, insert) where
 
 -- Basic functions
-data Tree a = Nil | Tree { key :: a, l::Tree a, r::Tree a} deriving Show
-
+data Tree a = Nil | Tree { kkey :: a, l::Tree a, r::Tree a} deriving Show
 {-@ data Tree [ht] a = Nil | Tree { key :: a, l::Tree {v:a | v < key }, r::Tree {v:a | key < v} } @-}
+
+-- NV: rename key to kkey because the record selector code produces a key String. TO FIX ASAP
 
 {-@ measure ht @-}
 ht              :: Tree a -> Int
@@ -49,8 +50,8 @@ insert a t@(Tree v _ _) = case compare a v of
 {-@ insL :: x:a -> s:{AVLTree a | x < key s && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insL a (Tree v l r)
   | siblDiff == 2 && bl' == 1  = rebalanceLL v l' r
-  | siblDiff == 2 && bl' == (0-1)  = rebalanceLR v l' r
-  | siblDiff <= 1            = Tree v l' r
+  | siblDiff == 2 && bl' == -1 = rebalanceLR v l' r
+  | siblDiff <= 1              = Tree v l' r
   where
     l'                       = insert a l
     siblDiff                 = htDiff l' r
@@ -59,7 +60,7 @@ insL a (Tree v l r)
 {-@ insR :: x:a -> s:{AVLTree a | key s < x && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insR a (Tree v l r)
   | siblDiff == 2 && br' == 1  = rebalanceRL v l r'
-  | siblDiff == 2 && br' == (0-1)  = rebalanceRR v l r'
+  | siblDiff == 2 && br' == -1  = rebalanceRR v l r'
   | siblDiff <= 1            = Tree v l r'
   where
     siblDiff                 = htDiff r' l
@@ -98,7 +99,7 @@ main = do
 {-@ measure balanced @-}
 balanced              :: Tree a -> Bool 
 balanced (Nil)        = True 
-balanced (Tree v l r) = ht l <= ht r + 1 && ht r <= ht l + 1 && balanced l && balanced r
+balanced (Tree v l r) = ht l - ht r <= 1 && ht l - ht r >= -1 && balanced l && balanced r
 
 {-@ type AVLTree a   = {v: Tree a | balanced v} @-}
 {-@ type AVLL a X    = AVLTree {v:a | v < X}    @-}
