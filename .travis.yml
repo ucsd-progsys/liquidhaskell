@@ -5,19 +5,18 @@ branches:
   - parser
 
 env:
- - SMT=z3 TESTS=pos
- - SMT=z3 TESTS=icfp_pos
- - SMT=z3 TESTS=neg
- - SMT=z3 TESTS=crash
- - SMT=z3 TESTS=text
- - SMT=z3 TESTS=bytestring
- - SMT=z3 TESTS=esop
- - SMT=z3 TESTS=vector-algorithms
- - SMT=cvc4 TESTS=pos
- - SMT=cvc4 TESTS=neg
- - SMT=cvc4 TESTS=crash
- - SMT=z3 TESTS=icfp_pos
- - SMT=z3 TESTS=icfp_neg
+ - SMT=z3 TESTS=Unit/pos
+ - SMT=z3 TESTS=Unit/neg
+ - SMT=z3 TESTS=Unit/crash
+ - SMT=z3 TESTS=Benchmarks/text
+ - SMT=z3 TESTS=Benchmarks/bytestring
+ - SMT=z3 TESTS=Benchmarks/esop
+ - SMT=z3 TESTS=Benchmarks/vector-algorithms
+ - SMT=cvc4 TESTS=Unit/pos
+ - SMT=cvc4 TESTS=Unit/neg
+ - SMT=cvc4 TESTS=Unit/crash
+ - SMT=z3 TESTS=Unit/icfp_pos
+ - SMT=z3 TESTS=Unit/icfp_neg
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
