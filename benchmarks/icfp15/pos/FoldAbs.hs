@@ -60,4 +60,7 @@ suc x = x + 1
 
 -- | Second: Appending two lists using `efoldr`
 {-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
-app xs ys = efoldr (\z zs -> Cons z zs) ys xs 
+app xs ys = efoldr (\z zs -> Cons z zs) ys xs
+
+
+            
