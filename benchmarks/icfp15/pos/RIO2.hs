@@ -1,4 +1,4 @@
-module RIO where
+module RIO2 where
 
 {-@ data RIO a <p :: World -> Prop, q :: World -> a -> World -> Prop> 
   = RIO (rs :: (x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}>))

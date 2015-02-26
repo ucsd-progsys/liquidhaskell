@@ -3,7 +3,7 @@ module IfM where
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
 
-import RIO 
+import RIO2 
 
 {-@
 ifM  :: forall < p  :: World -> Prop 
@@ -72,7 +72,7 @@ myif b e1 e2
 
 ifTest0     :: RIO Int
 {-@ ifTest0     :: RIO Int @-}
-ifTest0     = ifM (checkZeroX) (divX) (return 10)
+ifTest0     = ifMP (checkZeroX) (divX) (return 10)
   where 
     checkZeroX = do {x <- get; return $ x /= 0     }
     divX       = do {x <- get; return $ 100 `div` x}
