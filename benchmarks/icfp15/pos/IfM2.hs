@@ -3,7 +3,10 @@ module IfM where
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names" @-}
 
-import RIO 
+import RIO2 
+
+{-@ measure counter :: World -> Int @-}
+
 
 {-@
 ifM  :: forall < p  :: World -> Prop 
@@ -12,19 +15,17 @@ ifM  :: forall < p  :: World -> Prop
                , p2 :: World -> Prop
                , qe :: World -> a -> World -> Prop
                , q  :: World -> a -> World -> Prop>.                  
-       {b :: {v:Bool | Prop v},       w :: World<p> |- World<qc w b>  <: World<p1>    } 
-       {b :: {v:Bool | not (Prop v)}, w :: World<p> |- World<qc w b>  <: World<p2>    } 
-       {w1::World<p>, w2::World, y::a               |- World<qe w2 y> <: World<q w1 y>}
+       {b :: {v:Bool | Prop v},       w :: World<p> |- World<qc w b> <: World<p1>    } 
+       {b :: {v:Bool | not (Prop v)}, w :: World<p> |- World<qc w b> <: World<p2>    } 
+       {b :: Bool, w::World<p>                      |- World<qc w b> <: {v:World | v = w}}
           RIO <p , qc> Bool 
-       -> RIO <p1, qe> a
-       -> RIO <p2, qe> a
-       -> RIO <p , q > a
+       -> RIO <p1, q> a
+       -> RIO <p2, q> a
+       -> RIO <p , q> a
 @-}
 ifM :: RIO Bool -> RIO a -> RIO a -> RIO a
 ifM (RIO cond) e1 e2 
   = RIO $ \x -> case cond x of {(y, s) -> runState (if y then e1 else e2) s} 
-
-{-@ measure counter :: World -> Int @-}
 
 
 
@@ -57,8 +58,13 @@ ifTest0     = ifM (checkZeroX) (divX) (return 10)
     checkZeroX = do {x <- get; return $ x /= 0     }
     divX       = do {x <- get; return $ 100 `div` x}
 
+
+{-@ checkZeroXP :: RIO <{\w -> true}, {\w x wo -> w = wo}> Bool @-}
+checkZeroXP :: RIO Bool 
+checkZeroXP = get >>= \_ -> return True -- do {x <- get; return $ x /= 0     }
+
 ifTest1     :: RIO Int
-{-@ ifTest1 :: RIO Int @-}
+{-@ ifTest1     :: RIO Int @-}
 ifTest1     = ifM (checkNZeroX) (return 10) divX
   where 
     checkNZeroX = do {x <- get; return $ x == 0     }
