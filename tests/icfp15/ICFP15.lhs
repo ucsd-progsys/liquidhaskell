@@ -113,7 +113,7 @@ isPrime :: Int -> Bool
 {-@ isPrime :: n:Int -> {v:Bool | Prop v <=> isPrime n} @-}
 isPrime = undefined
 
--- | `positives` works by instantiating:
+-- | `primes` works by instantiating:
 -- p := \v   -> isPrime v
 -- q := \n v -> Prop v <=> isPrime n
 
