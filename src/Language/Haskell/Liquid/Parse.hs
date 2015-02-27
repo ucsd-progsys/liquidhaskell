@@ -184,6 +184,13 @@ holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", [hole
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = refasP <|> (reserved "_" >> return [hole])
 
+-- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
+-- to avoid parsing:
+--
+--   foo :: a -> b
+--   bar :: a
+--
+-- as `foo :: a -> b bar`..
 bbaseP :: Parser (Reft -> BareType)
 bbaseP 
   =  holeRefP
