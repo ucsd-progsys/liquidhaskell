@@ -160,6 +160,8 @@ posInteger = toI <$> (many1 digit <* spaces)
 locParserP :: Parser a -> Parser (Located a)
 locParserP p = liftM2 Loc getPosition p
 
+-- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
+-- whitespace, in order to avoid some parsers spanning multiple lines..
 condIdP  :: [Char] -> (String -> Bool) -> Parser Symbol
 condIdP chars f 
   = do c  <- letter
