@@ -35,7 +35,7 @@ instance Monad RIO where
     -> RIO <p2, q2> b
     -> RIO <p, q> b  ;
  return :: forall <p :: World -> Prop>.
-           x:a -> RIO <p, \w0 y -> {w1:World<p> | w0 == w1 && y == x}> a
+           x:a -> RIO <p, \w0 y -> {w1:World | w0 == w1 && y == x}> a
   @-}  
   (RIO g) >>= f = RIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
   (RIO g) >>  f = RIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
