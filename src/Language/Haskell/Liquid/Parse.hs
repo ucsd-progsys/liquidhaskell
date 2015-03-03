@@ -747,15 +747,15 @@ measureDefP bodyP
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP 
-  =  try tupPatP 
- <|> try (parens conPatP)
- <|> try (parens consPatP)
- <|>     (parens nilPatP)
+  =  parens (try conPatP <|> try consPatP <|> nilPatP <|> tupPatP)
+ <|> nullaryConPatP
 
-tupPatP  = mkTupPat  <$> (parens       $  sepBy locLowerIdP comma)
+tupPatP  = mkTupPat  <$> sepBy1 locLowerIdP comma
 conPatP  = (,)       <$> locParserP dataConNameP <*> sepBy locLowerIdP whiteSpace
 consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
-nilPatP  = mkNilPat  <$> brackets whiteSpace 
+nilPatP  = mkNilPat  <$> brackets whiteSpace
+
+nullaryConPatP = nilPatP <|> ((,[]) <$> locParserP dataConNameP)
 
 mkTupPat zs     = (tupDataCon (length zs), zs)
 mkNilPat _      = (dummyLoc "[]", []    )
@@ -769,7 +769,17 @@ tupDataCon n    = dummyLoc $ symbol $ "(" <> replicate (n - 1) ',' <> ")"
 
 dataConFieldsP 
   =   (braces $ sepBy predTypeDDP comma)
-  <|> (sepBy (parens predTypeDDP) spaces)
+  <|> (sepBy dataConFieldP spaces)
+
+dataConFieldP
+  = parens ( try predTypeDDP
+             <|> do v <- dummyBindP
+                    t <- bareTypeP
+                    return (v,t)
+           )
+    <|> do v <- dummyBindP
+           t <- bareTypeP
+           return (v,t)
 
 predTypeDDP 
   = liftM2 (,) bbindP bareTypeP
@@ -834,7 +844,7 @@ betweenMany leftP rightP p
          Nothing -> return []
 
 -- specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
-specWraps = betweenMany (string "{-@" >> spaces) (spaces >> string "@-}")
+specWraps = betweenMany (string "{-@" >> whiteSpace) (whiteSpace >> string "@-}")
 
 ---------------------------------------------------------------
 -- | Bundling Parsers into a Typeclass ------------------------
