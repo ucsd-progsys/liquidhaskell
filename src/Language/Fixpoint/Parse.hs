@@ -223,7 +223,7 @@ exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where 
-    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P spaces) 
+    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P blanks) 
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
