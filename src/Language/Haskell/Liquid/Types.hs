@@ -261,7 +261,7 @@ data Config = Config {
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
-  , smtsolver      :: SMTSolver  -- ^ name of smtsolver to use [default: z3-API]
+  , smtsolver      :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc4, mathsat in order]
   , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
   , shortErrors    :: Bool       -- ^ don't show subtyping errors and contexts. 
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
