@@ -652,7 +652,7 @@ rtAliasP f bodyP
   = do pos  <- getPosition
        name <- upperIdP
        spaces
-       args <- sepBy aliasIdP spaces
+       args <- sepBy aliasIdP blanks
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP 
        let (tArgs, vArgs) = partition (isLower . headSym) args
