@@ -31,6 +31,11 @@ import Control.Monad
 import Data.Maybe
 import System.Directory
 import System.Exit
+import System.Environment
+
+import System.Console.CmdArgs.Explicit
+import System.Console.CmdArgs.Implicit     hiding (Loud)
+import System.Console.CmdArgs.Text
 
 import Data.List                           (nub)
 import Data.Monoid
@@ -51,7 +56,7 @@ import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
 
 import Text.Parsec.Pos                     (newPos)
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint.HughesPJ           hiding (Mode)
 
 
 ---------------------------------------------------------------------------------
@@ -157,7 +162,7 @@ config = cmdArgsMode $ Config {
 
 getOpts :: IO Config
 getOpts = do cfg0    <- envCfg
-             cfg1    <- mkOpts =<< cmdArgsRun config
+             cfg1    <- mkOpts =<< cmdArgsRun' config
              pwd     <- getCurrentDirectory
              cfg     <- canonicalizePaths (fixCfg $ mconcat [cfg0, cfg1]) pwd
              whenNormal $ putStrLn copyright
@@ -168,6 +173,18 @@ getOpts = do cfg0    <- envCfg
                                (s:_) -> return (cfg {smtsolver = Just s})
                                _     -> do putStrLn "ERROR: LiquidHaskell requires z3, cvc4, or mathsat to be installed."
                                            exitWith $ ExitFailure 2
+
+cmdArgsRun' :: Mode (CmdArgs a) -> IO a
+cmdArgsRun' mode
+  = do parseResult <- process mode <$> getArgs
+       case parseResult of
+         Left err ->
+           putStrLn (help err) >> exitFailure
+         Right args ->
+           cmdArgsApply args
+  where
+    help err
+      = showText defaultWrap $ helpText [err] HelpFormatDefault mode
 
 find :: SMTSolver -> IO (Maybe SMTSolver)
 find smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
