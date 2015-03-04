@@ -40,8 +40,6 @@ import System.Console.CmdArgs.Text
 import Data.List                           (nub)
 import Data.Monoid
 
-import System.Console.CmdArgs              hiding (Loud)
-import System.Environment                  (lookupEnv, withArgs)
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
