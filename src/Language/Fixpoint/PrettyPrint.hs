@@ -65,7 +65,7 @@ instance PPrint Sort where
   pprint = toFix
 
 instance PPrint Symbol where
-  pprint = toFix
+  pprint = text . symbolString
 
 instance PPrint SymConst where
   pprint (SL x)          = doubleQuotes $ text $ T.unpack x
