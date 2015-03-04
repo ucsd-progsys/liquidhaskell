@@ -9,11 +9,13 @@ module Language.Haskell.Liquid.Errors (tidyError) where
 
 
 import           Control.Applicative                 ((<$>), (<*>))
+import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
-import           Data.Hashable
+import           Data.Generics                       (everywhere, mkT)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import           Data.Hashable
 import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
@@ -21,12 +23,11 @@ import           Language.Fixpoint.Misc              hiding (intersperse)
 import           Language.Fixpoint.Types             hiding (shiftVV)
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
+import           Language.Haskell.Liquid.Simplify
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Simplify
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
-import           Control.Arrow                       (second)
 
 
 type Ctx = M.HashMap Symbol SpecType
@@ -122,8 +123,10 @@ ppSpecTypeErr t
   | otherwise   = dt <+> dr 
     where
       dt        = rtypeDoc Lossy t'
-      dr        = maybe empty ((text "|" <+>) . pprint) ro 
+      dr        = maybe empty ((text "|" <+>) . pprint . everywhere (mkT noCasts)) ro 
       (t', ro)  = stripRType t
+      noCasts (ECst x _) = x
+      noCasts e          = e
 
 -- full = isNontrivialVV $ rTypeValueVar t = 
 
