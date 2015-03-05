@@ -150,7 +150,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.2.2.0
+                , liquid-fixpoint >= 0.2.3.0
                 , aeson
                 , bytestring
                 , fingertree
