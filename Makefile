@@ -19,18 +19,20 @@ rebuild: ocaml
 
 ocaml:
 	./configure
-	cd external/ocamlgraph && make clean && ./configure && make && cd ../..
+	cd external/ocamlgraph && ./configure && make clean && make && cd ../..
 	cd external/fixpoint/ && make clean && make -e && cd ../..
 
 binaries:
+	vagrant up
 	make ocaml
-	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-x64_64-darwin
-	vagrant ssh -c make -C /vagrant ocaml
-	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-x64_64-linux
-	vagrant ssh -c make -C /vagrant ocaml CCOPT=-m32
+	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-x86-darwin
+	vagrant ssh -c "make -C /vagrant ocaml" 64
+	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-x86-linux
+	vagrant ssh -c "make -C /vagrant ocaml" 32
 	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-i386-linux
-	vagrant ssh -c make -C /vagrant ocaml OCAMLLIB=/usr/i686-w64-mingw32/lib/ocaml/ OCAMLC=i686-w64-mingw32-ocamlc OCAMLOPT=i686-w64-mingw32-ocamlopt	
+	vagrant ssh -c "make -C /vagrant ocaml OCAMLLIB=/usr/i686-w64-mingw32/lib/ocaml/ OCAMLC=i686-w64-mingw32-ocamlc OCAMLOPT=i686-w64-mingw32-ocamlopt" 64
 	cp external/fixpoint/fixpoint.native external/fixpoint/fixpoint.native-i686-w64-mingw32
+	vagrant halt
 
 igoto:
 	$(CABAL) configure --ghc-options=$(OPTS) 

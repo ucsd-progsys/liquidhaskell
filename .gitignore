@@ -5,3 +5,21 @@
 *.o
 /dist*
 
+/.vagrant/
+/build.sh
+/external/fixpoint/config.make
+/external/fixpoint/fixpoint.native
+/external/fixpoint/misc
+/external/fixpoint/smtZ3.ml
+/external/ocamlgraph/META
+/external/ocamlgraph/Makefile
+/external/ocamlgraph/config.status
+/external/ocamlgraph/graph.a
+/external/ocamlgraph/graph.cma
+/external/ocamlgraph/graph.cmxa
+/external/ocamlgraph/src/dot_lexer.ml
+/external/ocamlgraph/src/dot_parser.ml
+/external/ocamlgraph/src/dot_parser.mli
+/external/ocamlgraph/src/dot_parser.output
+/external/ocamlgraph/src/gml.ml
+/external/ocamlgraph/src/version.ml
