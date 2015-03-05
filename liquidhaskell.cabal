@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.3.0.0
+Version:             0.3.1.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
