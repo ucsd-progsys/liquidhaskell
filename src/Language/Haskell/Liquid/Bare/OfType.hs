@@ -46,15 +46,15 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expandReft)
+  = ofBRType expandRTAliasApp (resolve l <=< expandReft) (resolve l <=< expandExpr)
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp return
+  = ofBRType failRTAliasApp return return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp return 
+  = ofBRType failRTAliasApp return return
 
 --------------------------------------------------------------------------------
 
@@ -76,10 +76,12 @@ mkSpecType l t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs t
-  = ofBRType expandRTAliasApp resolveReft t
+  = ofBRType expandRTAliasApp resolveReft resolveExpr t
   where
     resolveReft
       = (resolve l <=< expandReft) . txParam subvUReft (uPVar <$> πs) t
+    resolveExpr
+      = resolve l <=< expandExpr
 
 
 txParam f πs t = f (txPvar (predMap πs t))
@@ -100,9 +102,10 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 ofBRType :: (PPrint r, Reftable r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
+         -> (Expr -> BareM Expr)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft
+ofBRType appRTAlias resolveReft resolveExpr
   = go
   where
     go (RApp lc@(Loc l c) ts rs r)
@@ -136,7 +139,7 @@ ofBRType appRTAlias resolveReft
     go (RHole r)
       = RHole <$> resolveReft r
     go (RExprArg e)
-      = return $ RExprArg e
+      = RExprArg <$> resolveExpr e
 
     go_ref (RPropP ss r)
       = RPropP <$> mapM go_syms ss <*> resolveReft r
