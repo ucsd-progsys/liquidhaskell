@@ -1,9 +1,4 @@
 # NB: don't set `language: haskell` here
-branches:
- only:
-  - master
-  - parser
-
 env:
  - SMT=z3 TESTS=Unit/pos
  - SMT=z3 TESTS=Unit/neg
