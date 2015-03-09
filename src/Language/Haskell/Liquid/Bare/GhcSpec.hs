@@ -69,7 +69,7 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
     throwLeft = either Ex.throw return
-    initEnv   = BE name mempty mempty mempty env lmap' mempty
+    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
     lmap'     = case lmap of {Left e -> Ex.throw e; Right x -> x}
     
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
@@ -102,7 +102,8 @@ makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg cbs vars defVars exports specs
   = do name                                    <- gets modName
-       makeRTEnv specs
+       makeBounds specs 
+       makeRTEnv  specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -117,6 +118,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
          >>= makeSpecDictionaries embs vars specs
+
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty mempty

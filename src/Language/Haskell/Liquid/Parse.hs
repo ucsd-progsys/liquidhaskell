@@ -31,6 +31,7 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance 
+import Language.Haskell.Liquid.Bounds 
 
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (listConName, hpropConName, propConName, tupConName, headSym)
@@ -417,6 +418,22 @@ funArgsP  = try realP <|> empP
 
   
 
+boundP = do 
+  name   <- locParserP upperIdP
+  params <- many (locParserP symbolP)
+  reservedOp "="  
+  args   <- bargsP
+  body   <- predP
+  return $ Bound name params args body  
+ where 
+    bargsP = try ( do reservedOp "\\"
+                      xs <- many (locParserP symbolP)
+                      reservedOp  "->"
+                      return xs 
+                 )
+           <|> return []
+
+
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
@@ -478,6 +495,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | HMeas   LocSymbol
   | Inline  LocSymbol
+  | PBound  RBound
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -512,6 +530,7 @@ instance Show (Pspec a b) where
   show (IMeas  _) = "IMeas"  
   show (Class  _) = "Class" 
   show (Varia  _) = "Varia"
+  show (PBound _) = "Bound"
   show (RInst  _) = "RInst"
 
 
@@ -544,6 +563,7 @@ mkSpec name xs         = (name,)
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
+  , Measure.bounds     = S.fromList [i | PBound i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 
@@ -555,6 +575,7 @@ specP
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  ) 
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP ) 
     <|> (reservedToken "inline"   >> liftM Inline  inlineP ) 
+    <|> (reservedToken "bound"    >> liftM PBound  boundP)
     <|> try (reservedToken "class"    >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> try (reservedToken "instance" >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reservedToken "instance"  >> liftM RInst  instanceP )
