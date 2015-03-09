@@ -34,6 +34,7 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Bounds
 
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
@@ -65,6 +66,7 @@ data Spec ty bndr  = Spec {
   , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions  
   , rinstance  :: ![RInstance ty] 
   , dvariance  :: ![(LocSymbol, [Variance])]
+  , bounds     :: !RBEnv
   }
 
 
@@ -173,6 +175,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  =           termexprs s1  ++ termexprs s2
            , rinstance  =           rinstance s1  ++ rinstance s2
            , dvariance  =           dvariance s1  ++ dvariance s2  
+           , bounds     = S.union   (bounds s1)      (bounds s2) 
            }
 
   mempty
@@ -202,6 +205,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  = []
            , rinstance  = []
            , dvariance  = []
+           , bounds     = S.empty
            }
 
 -- MOVE TO TYPES

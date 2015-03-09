@@ -102,19 +102,13 @@ ofBRType :: (PPrint r, Reftable r)
          -> (r -> BareM r)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft
-  = go
+ofBRType appRTAlias resolveReft t
+  = go t
   where
-    go (RApp lc@(Loc l c) ts rs r)
-      = do env <- gets (typeAliases.rtEnv)
-           r'  <- resolveReft r
-           case M.lookup c env of
-             Just rta ->
-               appRTAlias l rta ts r'
-             Nothing ->
-               do c' <- matchTyCon lc (length ts)
-                  bareTCApp r' c' <$> mapM go_ref rs <*> mapM go ts
-
+    go t@(RApp _ _ _ _) -- (RApp lc@(Loc l c) ts rs r)
+      = do env <- get 
+           let aliases = typeAliases $ rtEnv env
+           goRApp (bounds env) aliases t   
     go (RAppTy t1 t2 r)
       = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
     go (RFun x t1 t2 _)
@@ -147,6 +141,20 @@ ofBRType appRTAlias resolveReft
 
     go_syms
       = secondM ofBSort
+
+    goRApp bounds _ (RApp c [t] _ _) | isBound bounds c
+      = go t -- NV TODO
+    goRApp _ aliases (RApp (Loc l c) ts _ r) | Just rta <- M.lookup c aliases
+      = appRTAlias l rta ts =<< resolveReft r
+    goRApp _ _ (RApp lc ts rs r)
+      =  do r' <- resolveReft r
+            c' <- matchTyCon lc (length ts)
+            bareTCApp r' c' <$> mapM go_ref rs <*> mapM go ts
+    goRApp _ _ _ = errorstar "This cannot happen"
+
+
+
+isBound _ _ = False -- NV TODO
 
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
 matchTyCon lc@(Loc _ c) arity

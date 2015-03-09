@@ -21,6 +21,8 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeInvariants
 
   , makeSpecDictionaries
+
+  , makeBounds
   ) where
 
 import MonadUtils (mapMaybeM)
@@ -46,6 +48,7 @@ import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4)
 import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -235,3 +238,7 @@ makeSpecDictionaryOne embs vars (RI x t xts)
                                -- the dictionary cannot be used
                                -- errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
 
+makeBounds specs 
+  = do bnds <- S.fromList <$> (mapM go $ concatMap (S.toList . Ms.bounds . snd ) specs)
+       modify $ \env -> env{ bounds = bnds }
+  where go bound = resolve (loc $ bname bound) bound

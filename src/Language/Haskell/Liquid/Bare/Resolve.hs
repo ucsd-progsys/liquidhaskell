@@ -21,6 +21,7 @@ import Language.Fixpoint.Types (Expr(..), Pred(..), Qualifier(..), Refa(..), Ref
 import Language.Haskell.Liquid.Misc (secondM, third3M)
 import Language.Haskell.Liquid.Types
 
+import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 
@@ -107,3 +108,6 @@ instance (Resolvable t) => Resolvable (PVar t) where
 instance Resolvable () where
   resolve _ = return 
 
+
+instance Resolvable (Bound Pred) where
+  resolve l (Bound name params args p) = Bound name params args <$> resolve l p

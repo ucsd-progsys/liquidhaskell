@@ -184,6 +184,7 @@ Library
                     Language.Haskell.Liquid.Misc, 
                     Language.Haskell.Liquid.CoreToLogic,
                     Language.Haskell.Liquid.Variance,
+                    Language.Haskell.Liquid.Bounds,
                     Language.Haskell.Liquid.Dictionaries,
                     Language.Haskell.Liquid.Qualifier, 
                     Language.Haskell.Liquid.TransformRec, 
