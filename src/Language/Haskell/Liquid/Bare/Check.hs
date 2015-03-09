@@ -37,7 +37,7 @@ import Language.Haskell.Liquid.GhcMisc (showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (dropThd3, firstDuplicate)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
-import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet)
+import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -198,7 +198,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
+errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (toType $ val t)
 
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------

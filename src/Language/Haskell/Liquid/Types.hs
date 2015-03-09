@@ -1466,7 +1466,7 @@ data TError t =
   | ErrMismatch { pos  :: !SrcSpan
                 , var  :: !Doc
                 , hs   :: !Type
-                , texp :: !t
+                , lq   :: !Type
                 } -- ^ Mismatch between Liquid and Haskell types
   
   | ErrAliasCycle { pos    :: !SrcSpan

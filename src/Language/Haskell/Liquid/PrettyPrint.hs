@@ -80,7 +80,7 @@ instance PPrint Name where
   pprint = pprDoc 
 
 instance PPrint Type where
-  pprint = pprDoc . tidyType emptyTidyEnv
+  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
 
 instance PPrint Class where
   pprint = pprDoc
