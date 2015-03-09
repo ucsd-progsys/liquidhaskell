@@ -47,7 +47,7 @@ import Language.Haskell.Liquid.Bare.DataType
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Measure
-import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
+-- import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
 import Language.Haskell.Liquid.Bare.Plugged
 import Language.Haskell.Liquid.Bare.RTEnv
 import Language.Haskell.Liquid.Bare.Spec
@@ -106,10 +106,10 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
+       (measures, cms', ms', cs', _xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
-       let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
+       syms                                    <- return [] -- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
+       let su  = mkSubst [] -- [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
          >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su 
