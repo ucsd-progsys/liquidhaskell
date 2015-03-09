@@ -46,15 +46,15 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expandReft) (resolve l <=< expandExpr)
+  = ofBRType expandRTAliasApp (resolve l <=< expandReft)
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp return return
+  = ofBRType failRTAliasApp return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp return return
+  = ofBRType failRTAliasApp return
 
 --------------------------------------------------------------------------------
 
@@ -76,12 +76,10 @@ mkSpecType l t
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs t
-  = ofBRType expandRTAliasApp resolveReft resolveExpr t
+  = ofBRType expandRTAliasApp resolveReft t
   where
     resolveReft
       = (resolve l <=< expandReft) . txParam subvUReft (uPVar <$> πs) t
-    resolveExpr
-      = resolve l <=< expandExpr
 
 
 txParam f πs t = f (txPvar (predMap πs t))
@@ -102,10 +100,9 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 ofBRType :: (PPrint r, Reftable r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
-         -> (Expr -> BareM Expr)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft resolveExpr
+ofBRType appRTAlias resolveReft
   = go
   where
     go (RApp lc@(Loc l c) ts rs r)
@@ -138,8 +135,8 @@ ofBRType appRTAlias resolveReft resolveExpr
       = RRTy <$> mapM (secondM go) e <*> resolveReft r <*> pure o <*> go t
     go (RHole r)
       = RHole <$> resolveReft r
-    go (RExprArg e)
-      = RExprArg <$> resolveExpr e
+    go (RExprArg (Loc l e))
+      = RExprArg . Loc l <$> resolve l e
 
     go_ref (RPropP ss r)
       = RPropP <$> mapM go_syms ss <*> resolveReft r
@@ -193,7 +190,7 @@ expandRTAliasApp l rta args r
 -- e.g. type Matrix a Row Col = List (List a Row) Col
 
 exprArg _   (RExprArg e)     
-  = e
+  = val e
 exprArg _   (RVar x _)       
   = EVar (symbol x)
 exprArg _   (RApp x [] [] _) 

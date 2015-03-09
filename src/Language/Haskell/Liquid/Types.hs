@@ -631,7 +631,7 @@ data RType c tv r
     , rt_ty     :: !(RType c tv r) 
     }
 
-  | RExprArg Expr                               -- ^ For expression arguments to type aliases
+  | RExprArg (Located Expr)                     -- ^ For expression arguments to type aliases
                                                 --   see tests/pos/vector2.hs
   | RAppTy{
       rt_arg   :: !(RType c tv r)
