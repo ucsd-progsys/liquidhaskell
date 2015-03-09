@@ -57,7 +57,7 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.SymSort
 
-makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
+makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
     --FIXME: cleanup this code
     unClass = snd . bkClass . fourth4 . bkUniv
@@ -69,7 +69,7 @@ makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
                  let αs  = map symbolRTyVar as
                  let as' = [rVar $ symbolTyVar a | a <- as ]
                  let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) t) | (s, t) <- ms]
-                 vts <- makeSpec (noCheckUnknown cfg) vs ms'
+                 vts <- makeSpec (noCheckUnknown cfg || cmod /= mod) vs ms'
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
                  let t   = rCls tc as'
@@ -129,7 +129,7 @@ makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec (noCheckUnknown cfg) vs (Ms.sigs spec ++ Ms.asmSigs spec)
+  = inModule mod $ makeSpec True vs (Ms.sigs spec ++ Ms.asmSigs spec)
 
 grepClassAsserts  = concatMap go 
    where

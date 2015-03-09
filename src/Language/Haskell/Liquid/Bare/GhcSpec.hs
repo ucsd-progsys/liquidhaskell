@@ -105,7 +105,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        makeRTEnv specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
-       (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses cfg vars) specs
+       (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
