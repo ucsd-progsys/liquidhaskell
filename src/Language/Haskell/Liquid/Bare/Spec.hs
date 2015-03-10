@@ -239,6 +239,13 @@ makeSpecDictionaryOne embs vars (RI x t xts)
                                -- errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
 
 makeBounds specs 
-  = do bnds <- S.fromList <$> (mapM go $ concatMap (S.toList . Ms.bounds . snd ) specs)
+  = do bnds <- M.fromList <$> (mapM go $ concatMap (M.toList . Ms.bounds . snd ) specs)
        modify $ \env -> env{ bounds = bnds }
-  where go bound = resolve (loc $ bname bound) bound
+  where go (x,bound) = (x,) <$> (mkBound bound)
+
+
+mkBound (Bound s pts xts r) 
+  = do ptys' <- mapM (\(x, t) -> ((x,) . toRSort) <$> mkSpecType (loc x) t) pts 
+       xtys' <- mapM (\(x, t) -> ((x,) . toRSort)<$> mkSpecType (loc x) t) xts 
+       Bound s ptys' xtys' <$> resolve (loc s) r 
+

@@ -66,7 +66,7 @@ data Spec ty bndr  = Spec {
   , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions  
   , rinstance  :: ![RInstance ty] 
   , dvariance  :: ![(LocSymbol, [Variance])]
-  , bounds     :: !RBEnv
+  , bounds     :: !(RRBEnv ty)
   }
 
 
@@ -175,7 +175,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  =           termexprs s1  ++ termexprs s2
            , rinstance  =           rinstance s1  ++ rinstance s2
            , dvariance  =           dvariance s1  ++ dvariance s2  
-           , bounds     = S.union   (bounds s1)      (bounds s2) 
+           , bounds     = M.union   (bounds s1)      (bounds s2) 
            }
 
   mempty
@@ -205,7 +205,7 @@ instance Monoid (Spec ty bndr) where
            , termexprs  = []
            , rinstance  = []
            , dvariance  = []
-           , bounds     = S.empty
+           , bounds     = M.empty
            }
 
 -- MOVE TO TYPES
@@ -248,6 +248,7 @@ instance Bifunctor Spec    where
         , imeasures  = first f  <$> (imeasures s)
         , classes    = fmap f   <$> (classes s)
         , rinstance  = fmap f   <$> (rinstance s)
+        , bounds     = fmap (first f) (bounds s)
         }
     where fmapP f (x, y)       = (fmap f x, fmap f y)
 
