@@ -5,6 +5,7 @@
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
 
+  , checkAppTys
   , checkDefAsserts
   , checkTerminationExpr
   , checkTy
@@ -206,13 +207,28 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc 
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
+checkRType emb env t         = checkAppTys t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
     cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
     insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p) 
     pbinds p                 = (pname p, pvarRType p :: RSort) 
                               : [(x, t) | (t, x, _) <- pargs p]
+
+checkAppTys t = go t
+  where
+    go (RAllT _ t)      = go t
+    go (RAllP _ t)      = go t
+    go (RAllS _ t)      = go t
+    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
+    go (RFun _ t1 t2 _) = go t1 <|> go t2
+    go (RVar _ _)       = Nothing
+    go (RAllE _ t1 t2)  = go t1 <|> go t2
+    go (REx _ t1 t2)    = go t1 <|> go t2
+    go (RAppTy t1 t2 _) = go t1 <|> go t2
+    go (RRTy _ _ _ t)   = go t
+    go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
+    go (RHole _)        = Nothing
 
 checkAbstractRefs t = go t
   where
