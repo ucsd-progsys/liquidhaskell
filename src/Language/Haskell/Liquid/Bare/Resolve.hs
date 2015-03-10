@@ -25,7 +25,7 @@ import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 
 class Resolvable a where
-  resolve     :: SourcePos -> a -> BareM a
+  resolve :: SourcePos -> a -> BareM a
 
 instance Resolvable a => Resolvable [a] where
   resolve = mapM . resolve

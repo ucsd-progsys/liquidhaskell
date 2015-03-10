@@ -221,8 +221,8 @@ maybeP p = liftM Just p <|> return Nothing
 
 bareTyArgP
   =  -- try (RExprArg . expr <$> binderP) <|>
-     try (RExprArg . expr <$> integer)
- <|> try (braces $ RExprArg <$> exprP)
+     try (RExprArg . fmap expr <$> locParserP integer)
+ <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
 

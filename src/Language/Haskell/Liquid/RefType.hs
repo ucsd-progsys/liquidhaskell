@@ -799,15 +799,20 @@ toType (RAllS _ t)
 toType (RVar (RTV α) _)        
   = TyVarTy α
 toType (RApp (RTyCon {rtc_tc = c}) ts _ _)   
-  = TyConApp c (toType <$> ts)
+  = TyConApp c (toType <$> filter notExprArg ts)
+  where
+  notExprArg (RExprArg _) = False
+  notExprArg _            = True
 toType (RAllE _ _ t)
   = toType t
 toType (REx _ _ t)
   = toType t
+toType (RAppTy t (RExprArg _) _)
+  = toType t
 toType (RAppTy t t' _)   
   = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
-  = errorstar $ "RefType.toType cannot handle 1: " ++ show t
+  = errorstar $ "CANNOT HAPPEN: RefType.toType called with: " ++ show t
 toType (RRTy _ _ _ t)      
   = toType t
 toType t

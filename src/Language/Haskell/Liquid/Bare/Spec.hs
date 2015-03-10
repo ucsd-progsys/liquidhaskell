@@ -23,10 +23,12 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeSpecDictionaries
   ) where
 
+import MonadUtils (mapMaybeM)
 import TyCon
 import Var
 
 import Control.Applicative ((<$>))
+import Control.Monad.Error
 import Control.Monad.State
 import Data.Maybe
 import Data.Monoid
@@ -47,7 +49,6 @@ import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
-import Language.Haskell.Liquid.Bare.Check (checkDefAsserts)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Lookup
@@ -56,7 +57,7 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.SymSort
 
-makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
+makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
     --FIXME: cleanup this code
     unClass = snd . bkClass . fourth4 . bkUniv
@@ -68,7 +69,7 @@ makeClasses cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
                  let αs  = map symbolRTyVar as
                  let as' = [rVar $ symbolTyVar a | a <- as ]
                  let ms' = [ (s, rFun "" (RApp c (flip RVar mempty <$> as) [] mempty) t) | (s, t) <- ms]
-                 vts <- makeSpec cfg vs ms'
+                 vts <- makeSpec (noCheckUnknown cfg || cmod /= mod) vs ms'
                  let sts = [(val s, unClass $ val t) | (s, _)    <- ms
                                                      | (_, _, t) <- vts]
                  let t   = rCls tc as'
@@ -122,13 +123,13 @@ makeAssertSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
-  = inModule mod $ makeSpec cfg vs $ Ms.sigs spec
+  = inModule mod $ makeSpec True vs $ Ms.sigs spec
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec cfg vs $ Ms.asmSigs spec
+  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
 
 grepClassAsserts  = concatMap go 
    where
@@ -153,11 +154,9 @@ makeDefaultMethods defVs sigs
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var] -> [(LocSymbol, BareType)] -> [(LocSymbol, BareType)]
                     -> BareM [(ModName, Var, Located SpecType)]
 makeLocalSpec cfg mod vs lvs cbs xbs
-  = do env   <- get
-       vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
-       unless (noCheckUnknown cfg)   $ checkDefAsserts env vbs1 xbs1
+  = do vbs1  <- fmap expand3 <$> varSymbols fchoose lvs (dupSnd <$> xbs1)
        vts1  <- map (addFst3 mod) <$> mapM mkVarSpec vbs1
-       vts2  <- makeSpec cfg vs xbs2
+       vts2  <- makeSpec (noCheckUnknown cfg) vs xbs2
        return $ vts1 ++ vts2
   where
     xbs1 = xbs1' ++ cbs
@@ -168,18 +167,24 @@ makeLocalSpec cfg mod vs lvs cbs xbs
     fchoose ls          = maybe ls (:[]) $ L.find (`elem` vs) ls
     modElem n x         = (takeModuleNames $ val x) == (symbol n)
 
-makeSpec :: Config -> [Var] -> [(LocSymbol, BareType)]
-                -> BareM [(ModName, Var, Located SpecType)]
-makeSpec cfg vs xbs
-  = do vbs <- map (joinVar vs) <$> lookupIds xbs
-       env@(BE { modName = mod}) <- get
-       unless (noCheckUnknown cfg) $ checkDefAsserts env vbs xbs
+makeSpec :: Bool -> [Var] -> [(LocSymbol, BareType)]
+                 -> BareM [(ModName, Var, Located SpecType)]
+makeSpec ignoreUnknown vs xbs
+  = do vbs <- map (joinVar vs) <$> lookupIds ignoreUnknown xbs
+       (BE { modName = mod}) <- get
        map (addFst3 mod) <$> mapM mkVarSpec vbs
 
 
-lookupIds = mapM lookup
+lookupIds ignoreUnknown
+  = mapMaybeM lookup
   where
-    lookup (s, t) = (,s,t) <$> lookupGhcVar s
+    lookup (s, t)
+      = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
+    handleError (ErrGhc {})
+      | ignoreUnknown
+        = return Nothing
+    handleError err
+      = throwError err
 
 mkVarSpec :: (Var, LocSymbol, BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, Loc l _, b) = tx <$> mkSpecType l b

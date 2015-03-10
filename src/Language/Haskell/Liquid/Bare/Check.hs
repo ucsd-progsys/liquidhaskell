@@ -5,7 +5,6 @@
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
 
-  , checkDefAsserts
   , checkTerminationExpr
   , checkTy
   ) where
@@ -22,14 +21,11 @@ import Control.Arrow ((&&&))
 import Control.Monad.Writer
 import Data.Maybe
 import Text.PrettyPrint.HughesPJ
-import Text.Printf
 
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, safeHead)
-import Language.Fixpoint.Names (isPrefixOfSym, stripParensSym)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
@@ -37,7 +33,7 @@ import Language.Haskell.Liquid.GhcMisc (showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (dropThd3, firstDuplicate)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
-import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet)
+import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -198,7 +194,7 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (val t)
+errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (toType $ val t)
 
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
@@ -206,13 +202,28 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc 
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
+checkRType emb env t         = checkAppTys t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
   where 
     cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
     insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p) 
     pbinds p                 = (pname p, pvarRType p :: RSort) 
                               : [(x, t) | (t, x, _) <- pargs p]
+
+checkAppTys t = go t
+  where
+    go (RAllT _ t)      = go t
+    go (RAllP _ t)      = go t
+    go (RAllS _ t)      = go t
+    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
+    go (RFun _ t1 t2 _) = go t1 <|> go t2
+    go (RVar _ _)       = Nothing
+    go (RAllE _ t1 t2)  = go t1 <|> go t2
+    go (REx _ t1 t2)    = go t1 <|> go t2
+    go (RAppTy t1 t2 _) = go t1 <|> go t2
+    go (RRTy _ _ _ t)   = go t
+    go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
+    go (RHole _)        = Nothing
 
 checkAbstractRefs t = go t
   where
@@ -328,27 +339,4 @@ checkMBody' emb sort γ body = case body of
                                  , ty_binds = tail $ ty_binds trep'
                                  , ty_args  = tail $ ty_args trep'             }
     trep' = toRTypeRep sort
-
-
-checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
-checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
-  where
-    undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
-    assertSigs                = filter isTarget xbs
-    definedSigs               = S.fromList $ snd3 <$> vbs
-    grumble                   = mapM_ (warn . berrUnknownVar)
-    moduleName                = symbol $ modName env
-    isTarget                  = isPrefixOfSym moduleName . stripParensSym . val . fst
-
-warn x = tell [x]
-
--------------------------------------------------------------------------------------
--- | Tasteful Error Messages --------------------------------------------------------
--------------------------------------------------------------------------------------
-
-berrUnknownVar       = berrUnknown "Variable"
-
-berrUnknown :: (PPrint a) => String -> Located a -> String 
-berrUnknown thing x  = printf "[%s]\nSpecification for unknown %s : %s"  
-                         thing (showpp $ loc x) (showpp $ val x)
 

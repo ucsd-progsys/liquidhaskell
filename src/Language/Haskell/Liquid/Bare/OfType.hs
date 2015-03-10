@@ -54,7 +54,7 @@ ofMeaSort
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp return 
+  = ofBRType failRTAliasApp return
 
 --------------------------------------------------------------------------------
 
@@ -135,8 +135,8 @@ ofBRType appRTAlias resolveReft
       = RRTy <$> mapM (secondM go) e <*> resolveReft r <*> pure o <*> go t
     go (RHole r)
       = RHole <$> resolveReft r
-    go (RExprArg e)
-      = return $ RExprArg e
+    go (RExprArg (Loc l e))
+      = RExprArg . Loc l <$> resolve l e
 
     go_ref (RPropP ss r)
       = RPropP <$> mapM go_syms ss <*> resolveReft r
@@ -190,7 +190,7 @@ expandRTAliasApp l rta args r
 -- e.g. type Matrix a Row Col = List (List a Row) Col
 
 exprArg _   (RExprArg e)     
-  = e
+  = val e
 exprArg _   (RVar x _)       
   = EVar (symbol x)
 exprArg _   (RApp x [] [] _) 

@@ -28,7 +28,7 @@ import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
 import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
 import GHC                              (Name, Class)
-import VarEnv                           (emptyTidyEnv)
+--import VarEnv                           (emptyTidyEnv)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
@@ -80,7 +80,7 @@ instance PPrint Name where
   pprint = pprDoc 
 
 instance PPrint Type where
-  pprint = pprDoc . tidyType emptyTidyEnv
+  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
 
 instance PPrint Class where
   pprint = pprDoc
