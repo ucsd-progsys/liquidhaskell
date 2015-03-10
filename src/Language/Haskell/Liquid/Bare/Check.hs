@@ -5,8 +5,6 @@
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
 
-  , checkAppTys
-  , checkDefAsserts
   , checkTerminationExpr
   , checkTy
   ) where
@@ -23,14 +21,11 @@ import Control.Arrow ((&&&))
 import Control.Monad.Writer
 import Data.Maybe
 import Text.PrettyPrint.HughesPJ
-import Text.Printf
 
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, safeHead)
-import Language.Fixpoint.Names (isPrefixOfSym, stripParensSym)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
@@ -344,27 +339,4 @@ checkMBody' emb sort γ body = case body of
                                  , ty_binds = tail $ ty_binds trep'
                                  , ty_args  = tail $ ty_args trep'             }
     trep' = toRTypeRep sort
-
-
-checkDefAsserts :: BareEnv -> [(Var, LocSymbol, BareType)] -> [(LocSymbol, BareType)] -> BareM ()
-checkDefAsserts env vbs xbs   = applyNonNull (return ()) grumble  undefSigs
-  where
-    undefSigs                 = [x | (x, _) <- assertSigs, not (x `S.member` definedSigs)]
-    assertSigs                = filter isTarget xbs
-    definedSigs               = S.fromList $ snd3 <$> vbs
-    grumble                   = mapM_ (warn . berrUnknownVar)
-    moduleName                = symbol $ modName env
-    isTarget                  = isPrefixOfSym moduleName . stripParensSym . val . fst
-
-warn x = tell [x]
-
--------------------------------------------------------------------------------------
--- | Tasteful Error Messages --------------------------------------------------------
--------------------------------------------------------------------------------------
-
-berrUnknownVar       = berrUnknown "Variable"
-
-berrUnknown :: (PPrint a) => String -> Located a -> String 
-berrUnknown thing x  = printf "[%s]\nSpecification for unknown %s : %s"  
-                         thing (showpp $ loc x) (showpp $ val x)
 
