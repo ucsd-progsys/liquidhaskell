@@ -5,7 +5,6 @@
 module Language.Haskell.Liquid.Bare.Check (
     checkGhcSpec
 
-  , checkAppTys
   , checkTerminationExpr
   , checkTy
   ) where
