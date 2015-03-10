@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Language.Haskell.Liquid.Bounds (
 
     Bound(..), 
@@ -57,14 +59,14 @@ instance Bifunctor Bound where
 	second f (Bound s ps xs e) = Bound s ps xs (f e)
 
 
-makeBound :: (PPrint r, Reftable r)
+makeBound :: (PPrint r, UReftable r)
          => RRBound RSort -> [Symbol] -> (RRType r) -> (RRType r)
 makeBound (Bound _ ps xs p) qs t 
   = RRTy [(dummySymbol, ct)] mempty OCons t
   where 
   	ct = foo (zip (val . fst <$> ps) qs) p xs
 
-foo :: (PPrint r, Reftable r) => [(Symbol, Symbol)] -> Pred -> [(LocSymbol, RSort)] -> RRType r
+foo :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> Pred -> [(LocSymbol, RSort)] -> RRType r
 foo penv (PImp p q) [(v, t)] 
   = RFun dummySymbol tp tq mempty
   where 
@@ -78,13 +80,19 @@ foo penv (PImp z zs) ((x, t):xs)
   	t' = ofRSort t `strengthen` makeRef penv x z 
 
 foo _ _ _ 
-  = undefined -- NV TODO
+  = error "foo" -- NV TODO
 
-makeRef :: (Reftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v (PBexp (EApp p es)) | Just q <- lookup (val p) penv  
-  = ofReft (Reft(val v, [RConc $ pApp q es]))
+makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
+makeRef penv v (PBexp (EApp p es)) | Just _ <- lookup (val p) penv  
+  = ofUReft (U (Reft(val v, [])) r mempty)
+  where EVar e = last es 
+        es'    = init es 
+        r      = Pr [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
+        Just q = lookup (val p) penv
+
 makeRef _ v p 
   = ofReft (Reft(val v, [RConc p]))
+--   = ofReft ( U (Reft(val v, [])) (Pr [PV q (PVProp ()) (last es) es]) mempty)
 
 
 pprint_bsyms [] = text ""
