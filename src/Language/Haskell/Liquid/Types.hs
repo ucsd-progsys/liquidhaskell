@@ -189,6 +189,9 @@ module Language.Haskell.Liquid.Types (
   -- * Refined Instances
   , RDEnv, DEnv(..), RInstance(..)
 
+  -- * Ureftable Instances
+  , UReftable(..)
+
   )
   where
 
@@ -995,6 +998,18 @@ instance Reftable Strata where
   top _              = []
 
   ofReft = error "TODO: Strata.ofReft"
+
+
+class Reftable r => UReftable r where 
+  ofUReft :: UReft Reft -> r 
+  ofUReft (U r _ _) = ofReft r 
+
+
+instance UReftable (UReft Reft) where
+   ofUReft r = r   
+
+instance UReftable () where
+   ofUReft _ = mempty
 
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft 
