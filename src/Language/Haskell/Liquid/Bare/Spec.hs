@@ -123,13 +123,13 @@ makeAssertSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
   | otherwise
-  = return []
+  = inModule mod $ makeSpec True vs $ Ms.sigs spec
 
 makeAssumeSpec cmod cfg vs lvs (mod,spec)
   | cmod == mod
   = makeLocalSpec cfg cmod vs lvs [] $ Ms.asmSigs spec
   | otherwise
-  = inModule mod $ makeSpec True vs (Ms.sigs spec ++ Ms.asmSigs spec)
+  = inModule mod $ makeSpec True vs $ Ms.asmSigs spec
 
 grepClassAsserts  = concatMap go 
    where
