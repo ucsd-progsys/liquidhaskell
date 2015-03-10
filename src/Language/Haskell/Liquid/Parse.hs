@@ -420,14 +420,14 @@ funArgsP  = try realP <|> empP
 
 boundP = do 
   name   <- locParserP upperIdP
-  params <- many (locParserP symbolP)
+  params <- many (parens tyBindP)
   reservedOp "="  
   args   <- bargsP
   body   <- predP
   return $ Bound name params args body  
  where 
     bargsP = try ( do reservedOp "\\"
-                      xs <- many (locParserP symbolP)
+                      xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs 
                  )
@@ -495,7 +495,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | HMeas   LocSymbol
   | Inline  LocSymbol
-  | PBound  RBound
+  | PBound  (Bound ty Pred)
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)
@@ -563,7 +563,7 @@ mkSpec name xs         = (name,)
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
-  , Measure.bounds     = S.fromList [i | PBound i <- xs]
+  , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   }
 

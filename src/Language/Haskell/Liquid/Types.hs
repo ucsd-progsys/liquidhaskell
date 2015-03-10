@@ -1004,7 +1004,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   bot (U r _ s)      = U (bot r) (Pr []) (bot s)
   top (U r p s)      = U (top r) (top p) (top s)
 
-  ofReft = error "TODO: UReft.ofReft"
+  ofReft r = U (ofReft r) mempty mempty 
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
 
