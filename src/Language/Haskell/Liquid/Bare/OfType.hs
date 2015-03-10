@@ -144,9 +144,12 @@ ofBRType appRTAlias resolveReft t
       = secondM ofBSort
 
     goRFun bounds _ (RApp c ps _ _) t | Just bnd <- M.lookup c bounds 
-      = makeBound bnd ps <$> go t
+      = makeBound bnd (bar <$> ps) <$> go t
     goRFun _ x t1 t2
-      = rFun x <$> go t1 <*> go t2 
+      = rFun x <$> go t1 <*> go t2
+
+    bar (RVar x _) = x
+    bar _          = errorstar "BAR"   
 
  
     goRApp aliases (RApp (Loc l c) ts _ r) | Just rta <- M.lookup c aliases
