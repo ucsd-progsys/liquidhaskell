@@ -222,7 +222,7 @@ substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
 substPredP msg su@(p, RProp ss _) (RProp s t) 
-  | length ss = length s
+  | length ss == length s
   = RProp ss  $ substPred (msg ++ ": substPredP") su t
   | otherwise       
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
