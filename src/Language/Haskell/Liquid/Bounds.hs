@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.Bounds (
 
 import Text.PrettyPrint.HughesPJ
 
+import Data.List (partition)
+import Data.Maybe
 import Data.Hashable
 import Data.Monoid
 import Data.Bifunctor
@@ -22,7 +24,7 @@ import qualified Data.HashMap.Strict as M
 import Control.Applicative                      ((<$>))
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc  (mapSnd)
+import Language.Fixpoint.Misc  
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
@@ -83,17 +85,33 @@ foo _ _ _
   = error "foo" -- NV TODO
 
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v (PBexp (EApp p es)) | Just _ <- lookup (val p) penv  
+makeRef penv v tt@(PAnd rs) | not (null pps)   
+  = ofUReft (U (Reft(val v, RConc <$> rrs)) (traceShow ("HOHO" ++ show tt) r) mempty)
+  where r      = Pr (boo penv <$> pps) -- [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
+        (pps, rrs) = traceShow "PARTITIONED" $ partition isPApp rs
+
+        isPApp r@(PBexp (EApp p _))  = traceShow ("IS PAPP " ++ show (r, penv) ) $ isJust $ lookup (val p) penv
+        isPApp _                   = False
+
+makeRef penv v rr | isPApp rr   
   = ofUReft (U (Reft(val v, [])) r mempty)
-  where EVar e = last es 
-        es'    = init es 
-        r      = Pr [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
-        Just q = lookup (val p) penv
+  where r      = Pr [boo penv rr] -- [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
+
+        isPApp r@(PBexp (EApp p _))  = traceShow ("IS PAPP " ++ show (r, penv) ) $ isJust $ lookup (val p) penv
+        isPApp _                   = False
 
 makeRef _ v p 
-  = ofReft (Reft(val v, [RConc p]))
+  = ofReft (Reft(val v, [RConc $ traceShow "PPP" p]))
 --   = ofReft ( U (Reft(val v, [])) (Pr [PV q (PVProp ()) (last es) es]) mempty)
 
+
+boo penv (PBexp (EApp p es)) = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
+  where
+  	EVar e = last es
+  	es'    = init es
+  	Just q = lookup (val p) penv 
+
+boo _ _ = error "BOBOBOBO" 
 
 pprint_bsyms [] = text ""
 pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
