@@ -51,20 +51,8 @@ addSymSortRef' _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
--- EFFECTS: why can't we replace the next two equations with (breaks many tests)
---
--- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ ptxs) (RPropP s r@(U _ (Pr [up]) _)) 
--- EFFECTS:   = RProp xts $ (ofRSort t) `strengthen` r
--- EFFECTS:     where
--- EFFECTS:       xts = safeZip "addRefSortMono" xs ts
--- EFFECTS:       xs  = snd3 <$> pargs up
--- EFFECTS:       ts  = fst3 <$> ptxs
---    
--- EFFECTS: addSymSortRef' (PV _ (PVProp t) _ _) (RPropP s r)
--- EFFECTS:   = RProp s $ (ofRSort t) `strengthen` r
-
 addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _)) 
-  = RProp xts ((ofRSort $ pvType p) `strengthen` r)
+  = RProp xts (ofRSort (pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
@@ -72,8 +60,8 @@ addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
       msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up) 
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
-addSymSortRef' _ _ _ (RPropP s r)
-  = RPropP s r
+addSymSortRef' _ _ p (RPropP s r)
+  = RProp s (ofRSort (pvType p) `strengthen` r)
 
 addSymSortRef' _ _ _ _
   = errorstar "TODO:EFFECTS:addSymSortRef'"
