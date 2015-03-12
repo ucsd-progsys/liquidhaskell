@@ -32,7 +32,7 @@ find q k i | q i       = k i
 \begin{code}
 
 {-@ bound Chain (p :: b -> c -> Prop) (q :: a -> b -> Prop) (r :: a -> c -> Prop) = 
-    \(x :: a) (y :: b) (z :: c) -> true => q x y =>  p y z => r x z 
+    \(x :: a) (y :: b) (z :: c) -> q x y =>  p y z => r x z 
   @-}
 
 -- {x::a, w::b<q x> |- c<p w> <: c<r x>}
