@@ -66,8 +66,35 @@ makeBound :: (PPrint r, UReftable r)
 makeBound (Bound _ ps xs p) qs t 
   = RRTy [(dummySymbol, ct)] mempty OCons t
   where 
-  	ct = traceShow "BOUND" $ foo (zip (val . fst <$> ps) qs) p xs
+  	ct = traceShow "BOUND" $ booz (zip (val . fst <$> ps) qs) (bkImp [] p) xs
 
+  	bkImp acc (PImp p q) = bkImp (p:acc) q
+  	bkImp acc p          = p:acc
+
+
+booz :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> [Pred] -> [(LocSymbol, RSort)] -> RRType r
+booz penv (q:qs) xts = go xts
+  where
+    (ps, rs) = partitionPs [] [] penv qs 
+    mkt t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, [])) 
+    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
+    tp t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, RConc <$> rs)) 
+    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
+    tq t x = ofRSort t `strengthen` makeRef penv x q 
+    go [] = error "booz.go"
+    go [(x, t)]      = RFun dummySymbol (tp t x) (tq t x) mempty 
+    go ((x, t):xtss) = RFun (val x) (mkt t x) (go xtss) mempty
+booz _ _ _ = error "booz"
+
+partitionPs qs rs _    [] 
+  = (M.fromListWith (++) qs, rs)
+partitionPs qs rs penv (q@(PBexp (EApp p es)):ps) | isJust $ lookup (val p) penv
+  = partitionPs ((x, [boo penv q]):qs) rs penv ps
+  where x = (\(EVar x) -> x) $ last es
+partitionPs qs rs penv (r:ps)
+  = partitionPs qs (r:rs) penv ps
+
+{-
 foo :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> Pred -> [(LocSymbol, RSort)] -> RRType r
 foo penv (PImp p q) [(v, t)] 
   = RFun dummySymbol tp tq mempty
@@ -83,7 +110,7 @@ foo penv (PImp z zs) ((x, t):xs)
 
 foo _ _ _ 
   = error "foo" -- NV TODO
-
+-}
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
 makeRef penv v tt@(PAnd rs) | not (null pps)   
   = ofUReft (U (Reft(val v, RConc <$> rrs)) (traceShow ("HOHO" ++ show tt) r) mempty)
