@@ -58,6 +58,7 @@ data Spec ty bndr  = Spec {
   , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
   , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
@@ -167,6 +168,7 @@ instance Monoid (Spec ty bndr) where
            , lvars      =           lvars s1      ++ lvars s2
            , lazy       = S.union   (lazy s1)        (lazy s2)
            , hmeas      = S.union   (hmeas s1)       (hmeas s2)
+           , hbounds    = S.union   (hbounds s1)     (hbounds s2)
            , inlines    = S.union   (inlines s1)     (inlines s2)
            , pragmas    =           pragmas s1    ++ pragmas s2
            , cmeasures  =           cmeasures s1  ++ cmeasures s2
@@ -197,6 +199,7 @@ instance Monoid (Spec ty bndr) where
            , lvars      = []
            , lazy       = S.empty
            , hmeas      = S.empty
+           , hbounds    = S.empty
            , inlines    = S.empty
            , pragmas    = []
            , cmeasures  = []

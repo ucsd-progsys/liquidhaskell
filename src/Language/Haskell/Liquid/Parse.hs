@@ -1,4 +1,9 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections, OverloadedStrings #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP, lhsSpecificationP, specSpecificationP
@@ -155,7 +160,7 @@ stringLiteral = Token.stringLiteral lexer
 -- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
--- | The top-level parser for "bare" refinement types. If refinements are
+-- | The top-level parser for "barehmeaarefinement types. If refinements are
 -- not supplied, then the default "top" refinement is used.
 
 bareTypeP :: Parser BareType 
@@ -495,6 +500,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | HMeas   LocSymbol
   | Inline  LocSymbol
+  | HBound  LocSymbol
   | PBound  (Bound ty Pred)
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
@@ -524,6 +530,7 @@ instance Show (Pspec a b) where
   show (LVars  _) = "LVars"  
   show (Lazy   _) = "Lazy"   
   show (HMeas  _) = "HMeas" 
+  show (HBound _) = "HBound" 
   show (Inline _) = "Inline"  
   show (Pragma _) = "Pragma" 
   show (CMeas  _) = "CMeas"  
@@ -554,9 +561,10 @@ mkSpec name xs         = (name,)
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
-  , Measure.lazy       = S.fromList [s | Lazy s  <- xs]
-  , Measure.hmeas      = S.fromList [s | HMeas s <- xs]
+  , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
+  , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
@@ -575,7 +583,8 @@ specP
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  ) 
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP ) 
     <|> (reservedToken "inline"   >> liftM Inline  inlineP ) 
-    <|> (reservedToken "bound"    >> liftM PBound  boundP)
+    <|> try (reservedToken "bound" >> liftM PBound  boundP)
+    <|> (reservedToken "bound"    >> liftM HBound  hboundP)
     <|> try (reservedToken "class"    >> reserved "measure" >> liftM CMeas cMeasureP)
     <|> try (reservedToken "instance" >> reserved "measure" >> liftM IMeas iMeasureP)
     <|> (reservedToken "instance"  >> liftM RInst  instanceP )
@@ -610,6 +619,9 @@ lazyVarP = locParserP binderP
 
 hmeasureP :: Parser LocSymbol
 hmeasureP = locParserP binderP
+
+hboundP :: Parser LocSymbol
+hboundP = locParserP binderP
 
 inlineP :: Parser LocSymbol
 inlineP = locParserP binderP
