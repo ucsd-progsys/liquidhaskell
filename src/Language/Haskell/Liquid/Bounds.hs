@@ -66,7 +66,7 @@ makeBound :: (PPrint r, UReftable r)
 makeBound (Bound _ ps xs p) qs t 
   = RRTy [(dummySymbol, ct)] mempty OCons t
   where 
-  	ct = foo (zip (val . fst <$> ps) qs) p xs
+  	ct = traceShow "BOUND" $ foo (zip (val . fst <$> ps) qs) p xs
 
 foo :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> Pred -> [(LocSymbol, RSort)] -> RRType r
 foo penv (PImp p q) [(v, t)] 
