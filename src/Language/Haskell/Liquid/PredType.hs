@@ -223,11 +223,11 @@ substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, 
 
 substPredP msg su@(p, RProp ss _) (RProp s t) 
   | length ss == length s
-  = RProp s  $ substPred (msg ++ ": substPredP") su t
+  = RProp ss  $ substPred (msg ++ ": substPredP") su t
   | otherwise       
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where
-   ss' = s ++  drop n ss
+   ss' = drop n ss ++ s
    n   = length ss - length (freeArgsPs p t)
 
 substPredP _ _  (RHProp _ _)       
