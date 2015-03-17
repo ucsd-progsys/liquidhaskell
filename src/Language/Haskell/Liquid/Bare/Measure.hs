@@ -223,7 +223,7 @@ toBound v x (vs, Left p) = traceShow "BOUND" (x', Bound x' fvs ps xs p)
     (ps', xs') = partitionPXS vs 
     (ps, xs) = (foo' <$> ps', foo <$> xs')
     foo v  = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
-    foo' v = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
+    foo' v = (dummyLoc $ symbol v, ofType $ varType v)
     fvs    = (((`RVar` mempty) . RTV) <$> (fst $ splitForAllTys $ varType v)) :: [RSort]
 
 toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
