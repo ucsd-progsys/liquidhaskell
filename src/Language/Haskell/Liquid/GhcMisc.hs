@@ -45,6 +45,7 @@ import           RdrName
 import           Type                         (liftedTypeKind)
 import           TypeRep
 import           Var
+import           IdInfo
 import qualified TyCon                        as TC
 import           Data.Char                    (isLower, isSpace)
 import           Data.Monoid                  (mempty)
@@ -158,9 +159,14 @@ isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 ------------------ Generic Helpers for DataConstructors ---------------
 -----------------------------------------------------------------------
 
+isDataConId id = case idDetails id of
+                  DataConWorkId _ -> True
+                  DataConWrapId _ -> True
+                  _               -> False
+
 getDataConVarUnique v
-  | isId v && isDataConWorkId v = getUnique $ idDataCon v
-  | otherwise                   = getUnique v
+  | isId v && isDataConId v = getUnique $ idDataCon v
+  | otherwise               = getUnique v
   
 
 newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)

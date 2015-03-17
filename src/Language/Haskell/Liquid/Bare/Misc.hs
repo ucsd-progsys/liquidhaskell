@@ -28,7 +28,7 @@ import qualified Data.List as L
 import Language.Fixpoint.Misc (sortDiff, sortNub)
 import Language.Fixpoint.Types (Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
-import Language.Haskell.Liquid.GhcMisc (showPpr)
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
 
@@ -115,7 +115,7 @@ mkVarExpr v
 
 varFunSymbol = dummyLoc . dataConSymbol . idDataCon 
 
-isFunVar v   = isDataConWorkId v && not (null αs) && isNothing tf
+isFunVar v   = isDataConId v && not (null αs) && isNothing tf
   where
     (αs, t)  = splitForAllTys $ varType v 
     tf       = splitFunTy_maybe t
