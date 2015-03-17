@@ -4,6 +4,7 @@
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
   , makeHaskellInlines
+  , makeHaskellBounds
 
   , makeMeasureSpec
   , makeMeasureSpec'
@@ -16,11 +17,13 @@ module Language.Haskell.Liquid.Bare.Measure (
   , varMeasures
   ) where
 
-import CoreSyn
+import TysWiredIn 
+import CoreSyn 
 import DataCon
 import Id
 import Name
 import Type hiding (isFunTy)
+import TypeRep
 import Var
 
 import Control.Applicative ((<$>), (<*>))
@@ -29,22 +32,27 @@ import Control.Monad.Error hiding (Error, forM)
 import Control.Monad.State hiding (forM)
 import Data.Bifunctor
 import Data.Maybe
+import Data.Char (toUpper)
 import Data.Monoid
 import Data.Traversable (forM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
 
+import qualified Data.List as L
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (hashMapMapKeys, mapFst, mapSnd, mlookup, sortNub)
-import Language.Fixpoint.Names (dropModuleNames, dummySymbol)
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Names
+import Language.Fixpoint.Types (Expr(..))
+import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -90,7 +98,7 @@ makeMeasureInline lmap cbs  x
     binders (Rec xes)    = fst <$> xes  
 
     coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
-                           Left (xs, e)  -> return (TI xs e)
+                           Left (xs, e)  -> return (TI (symbol <$> xs) e)
                            Right e -> throwError e
 
     mkError :: String -> Error
@@ -182,6 +190,75 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
 isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
+
+
+
+makeHaskellBounds :: CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
+makeHaskellBounds cbs xs 
+  = do lmap <- gets logicEnv
+       M.fromList <$> mapM (makeHaskellBound lmap cbs) (S.toList xs)
+
+
+makeHaskellBound lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
+    (NonRec v def:_)   -> do {e <- coreToFun' x v def; return $ toBound v x e}
+    (Rec [(v, def)]:_) -> do {e <- coreToFun' x v def; return $ toBound v x e}
+    _                  -> throwError $ mkError "Cannot make bound of haskell function"
+
+  where
+    binders (NonRec x _) = [x]
+    binders (Rec xes)    = fst <$> xes  
+
+    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
+                           Left (xs, e)  -> return (xs, e)
+                           Right e -> throwError e
+
+    mkError :: String -> Error
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+
+
+toBound :: Var -> LocSymbol -> ([Var], Either F.Pred F.Expr) -> (LocSymbol, RBound)
+toBound v x (vs, Left p) = traceShow "BOUND" (x', Bound x' fvs ps xs p)
+  where
+    x' = capitalize x 
+    (ps', xs') = partitionPXS vs 
+    (ps, xs) = (foo' <$> ps', foo <$> xs')
+    foo v  = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
+    foo' v = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
+    fvs    = (((`RVar` mempty) . RTV) <$> (fst $ splitForAllTys $ varType v)) :: [RSort]
+
+toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
+
+-- NV TODO: move to misc
+simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
+
+
+
+partitionPXS = traceShow "PARTITION" . L.partition isPredicate
+  where 
+    isPredicate x = hasBoolResult (x, varType x)
+
+hasBoolResult (x, ForAllTy _ t) = hasBoolResult (x, t)
+hasBoolResult (_, FunTy _ t)    | eqType boolTy t = True 
+hasBoolResult (x, FunTy _ t   ) = hasBoolResult (x, t)
+hasBoolResult _ = False
+
+{-
+hasBoolResult (x, t) 
+  = case splitForAllTy_maybe t of 
+      Nothing     -> case splitFunTy_maybe t of
+                       Nothing -> traceShow (showpp (x, t) ++ "HERE1") False 
+                       Just (_, s) -> traceShow (showpp (x, t) ++ showpp s ++ "HERE2")  $ eqType boolTy s 
+
+      Just (_, t) -> case splitFunTy_maybe t of
+                       Nothing -> False 
+                       Just (_, s) -> eqType boolTy s 
+-}
+capitalize = fmap (symbol . go . symbolString)
+  where 
+    go []     = []
+    go (x:xs) = toUpper x:xs
+
+
 
 
 

@@ -101,8 +101,8 @@ ghcSpecEnv sp cbs    = fromListSEnv binds
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' cfg cbs vars defVars exports specs
-  = do name                                    <- gets modName
-       makeBounds specs 
+  = do name          <- modName <$> get 
+       makeBounds name defVars cbs specs 
        makeRTEnv  specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
@@ -118,7 +118,6 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec3 datacons tycons embs syms             
          >>= makeGhcSpec4 defVars specs name su 
          >>= makeSpecDictionaries embs vars specs
-
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty mempty
@@ -181,11 +180,10 @@ makeGhcSpec4 defVars specs name su sp
                      , tySigs     = tx  <$> sigs
                      , asmSigs    = tx  <$> (asmSigs sp)
                      , measures   = mtx <$> (measures sp)
-                     }        
-    where
-       mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
-
-
+                     }  
+  where    
+    mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
+ 
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let tycons       = tcs        ++ wiredTyCons 
