@@ -153,6 +153,7 @@ module Language.Haskell.Liquid.Types (
   , ErrorResult
   , errSpan
   , errOther
+  , errToFCrash
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -1391,6 +1392,12 @@ data TError t =
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
+  | ErrFCrash  { pos  :: !SrcSpan
+               , msg  :: !Doc 
+               , ctx  :: !(M.HashMap Symbol t) 
+               , tact :: !t
+               , texp :: !t
+               } -- ^ liquid type error
   | ErrAssType { pos :: !SrcSpan
                , obl :: !Oblig
                , msg :: !Doc
@@ -1506,6 +1513,15 @@ data TError t =
 
 -- data LParseError = LPE !SourcePos [String] 
 --                    deriving (Data, Typeable, Generic)
+
+
+
+
+errToFCrash :: Error -> Error
+errToFCrash (ErrSubType l m g t1 t2) 
+  = ErrFCrash l m g t1 t2
+errToFCrash e 
+  = e
 
 
 instance Eq Error where
