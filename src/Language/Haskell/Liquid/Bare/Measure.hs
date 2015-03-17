@@ -42,7 +42,7 @@ import Language.Fixpoint.Names (dropModuleNames, dummySymbol)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 
 import Language.Haskell.Liquid.CoreToLogic
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
 
@@ -179,7 +179,7 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 
 
 
-varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConWorkId v, isSimpleType $ varType v ]
+varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
 isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
 

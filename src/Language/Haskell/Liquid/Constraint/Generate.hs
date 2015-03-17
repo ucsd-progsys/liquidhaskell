@@ -68,7 +68,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr)
+                                                , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -646,10 +646,10 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where 
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info
+    dcons        = filter isDCon $ impVars info -- ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType 
     dconToSym    = dataConSymbol . idDataCon
-    isDCon x     = isDataConWorkId x && not (hasBaseTypeVar x)
+    isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
