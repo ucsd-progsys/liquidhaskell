@@ -52,7 +52,7 @@ addSymSortRef' _ _ p (RProp s t)
       xs = spliceArgs "addSymSortRef 2" s p
 
 addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _)) 
-  = RProp xts (ofRSort (pvType p) `strengthen` r)
+  = RPropP xts r -- (ofRSort (pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
@@ -60,8 +60,8 @@ addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
       msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up) 
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
-addSymSortRef' _ _ p (RPropP s r)
-  = RProp s (ofRSort (pvType p) `strengthen` r)
+addSymSortRef' _ _ _ (RPropP s r)
+  = RPropP s r -- (ofRSort (pvType p) `strengthen` r)
 
 addSymSortRef' _ _ _ _
   = errorstar "TODO:EFFECTS:addSymSortRef'"
