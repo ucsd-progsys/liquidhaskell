@@ -425,16 +425,23 @@ funArgsP  = try realP <|> empP
 
 boundP = do 
   name   <- locParserP upperIdP
+  vs     <- bvsP
   params <- many (parens tyBindP)
   reservedOp "="  
   args   <- bargsP
   body   <- predP
-  return $ Bound name params args body  
+  return $ Bound name vs params args body  
  where 
     bargsP = try ( do reservedOp "\\"
                       xs <- many (parens tyBindP)
                       reservedOp  "->"
                       return xs 
+                 )
+           <|> return []
+    bvsP   = try ( do reserved "forall"
+                      xs <- many symbolP
+                      reserved  "."
+                      return ((`RAllT` mempty) <$> xs) 
                  )
            <|> return []
 

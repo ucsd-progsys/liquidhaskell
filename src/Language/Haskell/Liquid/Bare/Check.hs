@@ -267,7 +267,7 @@ checkAbstractRefs t = go t
     check s (U _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s                          
-                 = Just $ text "Incorrect Sort"        <+> pprint p
+                 = Just $ text "Incorrect Sort" <+> pprint (pvType' p) <+> pprint s <+> pprint p
                  | or [x == y | (_, x, EVar y) <- pargs p] 
                  = Just $ text "Missing arguments on " <+> pprint p
                  | otherwise                               

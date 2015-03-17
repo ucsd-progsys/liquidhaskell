@@ -21,7 +21,7 @@ import Data.Monoid
 import Data.Bifunctor
 
 import qualified Data.HashMap.Strict as M
-import Control.Applicative                      ((<$>))
+import Control.Applicative           ((<$>))
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc  
@@ -29,53 +29,64 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 
-data Bound t e = Bound { bname   :: LocSymbol    -- * The name of the bound
-                       , bparams :: [(LocSymbol, t)]  -- * These are abstract refinements, for now
-                       , bargs   :: [(LocSymbol, t)]  -- * These are value variables
-                       , bbody   :: e            -- * The body of the bound
-                       }	
 
-type RBound     = RRBound RSort
-type RRBound ty = Bound ty Pred
+data Bound t e 
+  = Bound { bname   :: LocSymbol         -- * The name of the bound
+          , tyvars  :: [t]               -- * Type variables that appear in the bounds
+          , bparams :: [(LocSymbol, t)]  -- * These are abstract refinements, for now
+          , bargs   :: [(LocSymbol, t)]  -- * These are value variables
+          , bbody   :: e                 -- * The body of the bound
+          }	
 
-type RBEnv = M.HashMap LocSymbol RBound 
-type RRBEnv ty = M.HashMap LocSymbol (RRBound ty) 
+type RBound        = RRBound RSort
+type RRBound tv    = Bound tv Pred
+
+type RBEnv         = M.HashMap LocSymbol RBound 
+type RRBEnv tv  = M.HashMap LocSymbol (RRBound tv) 
+
 
 
 instance Hashable (Bound t e) where
 	hashWithSalt i = hashWithSalt i . bname
 
 
-instance (PPrint e) => (Show (Bound t e)) where
+instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 	show = showpp
 
-instance (PPrint e) => (PPrint (Bound t e)) where
-	pprint (Bound s ps xs e) =   text "bound" <+> pprint s <+> pprint (fst <$> ps) <+> text "=" <+>
-	                             pprint_bsyms (fst <$> xs) <+> pprint e
+instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
+	pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+> 
+	                                text "forall" <+> pprint vs <+> text "." <+>
+	                                pprint (fst <$> ps) <+> text "=" <+>
+	                                pprint_bsyms (fst <$> xs) <+> pprint e
 
 
 
 
 instance Bifunctor Bound where
-	first  f (Bound s ps xs e) = Bound s (mapSnd f <$> ps) (mapSnd f <$> xs) e
-	second f (Bound s ps xs e) = Bound s ps xs (f e)
+	first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
+	second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 
 makeBound :: (PPrint r, UReftable r)
-         => RRBound RSort -> [Symbol] -> (RRType r) -> (RRType r)
-makeBound (Bound _ ps xs p) qs t 
-  = RRTy [(dummySymbol, ct)] mempty OCons t
+         => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
+makeBound (Bound _  vs ps xs p) ts qs t 
+  = RRTy [(dummySymbol, ct')] mempty OCons t
   where 
-  	ct = traceShow "BOUND" $ booz (zip (val . fst <$> ps) qs) (bkImp [] p) xs
+  	ct = traceShow "BOUND" $ booz (zip (val . fst <$> ps) qs) (traceShow "bkImpl" $ bkImp [] p) xs
 
   	bkImp acc (PImp p q) = bkImp (p:acc) q
   	bkImp acc p          = p:acc
+--   	mkForall vs t = foldr RAllT t [ v | RVar v _<- vs]
+
+--   	(ts, qs) = splitAt (length vs) qs'
+
+  	ct' = traceShow ("SUBTED form" ++ show ct) $ foldr subsTyVar_meet ct (traceShow "SUBST " [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]) 
 
 
 booz :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> [Pred] -> [(LocSymbol, RSort)] -> RRType r
 booz penv (q:qs) xts = go xts
   where
-    (ps, rs) = partitionPs [] [] penv qs 
+    (ps, rs) = traceShow ("partitionPs" ++ show penv) $ partitionPs [] [] penv qs 
     mkt t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, [])) 
     	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tp t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, RConc <$> rs)) 

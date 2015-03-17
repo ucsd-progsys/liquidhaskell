@@ -38,7 +38,6 @@ import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.RefType
 
 
-
 import qualified Data.HashMap.Strict as M
 
 import Data.Monoid
@@ -144,12 +143,12 @@ coreToDef x _ e = go $ inline_preds $ simplify e
 
     inline_preds = inline (eqType boolTy . varType)
 
-coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Symbol], Either Pred Expr)
+coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Pred Expr)
 coreToFun _ v e = go [] $ inline_preds $ simplify e
   where
     go acc (C.Lam x e)  | isTyVar    x = go acc e
     go acc (C.Lam x e)  | isErasable x = go acc e
-    go acc (C.Lam x e)  = go (symbol x : acc) e
+    go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
     go acc e            | eqType rty boolTy 
                         = (reverse acc,) . Left  <$> coreToPred e  
@@ -226,6 +225,8 @@ toPredApp p
       = POr <$> mapM coreToPred [e1, e2]
       | val f == symbol ("&&" :: String)
       = PAnd <$> mapM coreToPred [e1, e2]
+      | val f == symbol ("==>" :: String)
+      = PImp <$> coreToPred e1 <*> coreToPred e2
     go f es
       | val f == symbol ("or" :: String)
       = POr <$> mapM coreToPred es
