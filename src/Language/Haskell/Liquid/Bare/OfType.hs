@@ -103,8 +103,8 @@ ofBRType :: (PPrint r, UReftable r)
          -> (r -> BareM r)
          -> BRType r
          -> BareM (RRType r)
-ofBRType appRTAlias resolveReft t
-  = go t
+ofBRType appRTAlias resolveReft
+  = go
   where
     go t@(RApp _ _ _ _)
       = do aliases <- (typeAliases . rtEnv) <$> get 
@@ -146,13 +146,9 @@ ofBRType appRTAlias resolveReft t
     goRFun bounds _ (RApp c ps' _ _) t | Just bnd <- M.lookup c bounds 
       = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
            ts <- mapM go ts' 
-           makeBound bnd ts (bar <$> ps) <$> go t
+           makeBound bnd ts [x | RVar x <- ps] <$> go t
     goRFun _ x t1 t2
       = rFun x <$> go t1 <*> go t2
-
-    bar (RVar x _) = x
-    bar _          = errorstar "BAR"   
-
  
     goRApp aliases (RApp (Loc l c) ts _ r) | Just rta <- M.lookup c aliases
       = appRTAlias l rta ts =<< resolveReft r
