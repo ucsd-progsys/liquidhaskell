@@ -210,7 +210,7 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        name            <- gets modName 
        mapM_ (makeHaskellInlines  cbs name) specs
        hmeans          <- mapM (makeHaskellMeasures cbs name) specs
-       let measures     = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
+       let measures     = mconcat ((traceShow "ORIG" measures'):Ms.mkMSpec' dcSelectors:(traceShow "HASKELL" hmeans))
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
