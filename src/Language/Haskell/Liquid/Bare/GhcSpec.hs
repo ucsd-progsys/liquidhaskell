@@ -182,7 +182,7 @@ makeGhcSpec4 defVars specs name su sp
                      , measures   = mtx <$> (measures sp)
                      }  
     where    
-      mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
+       mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
  
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
