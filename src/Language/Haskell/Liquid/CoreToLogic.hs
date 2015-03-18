@@ -171,6 +171,8 @@ coreToPred (C.Var x)
   = return PFalse
   | x == trueDataConId
   = return PTrue
+  | eqType boolTy (varType x)
+  = return $ PBexp $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToPred p@(C.App _ _) = toPredApp p  
 coreToPred e
   = PBexp <$> coreToLogic e  
