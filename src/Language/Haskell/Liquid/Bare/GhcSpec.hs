@@ -181,8 +181,8 @@ makeGhcSpec4 defVars specs name su sp
                      , asmSigs    = tx  <$> (asmSigs sp)
                      , measures   = mtx <$> (measures sp)
                      }  
-  where    
-    mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
+    where    
+      mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
  
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
@@ -210,7 +210,7 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        name            <- gets modName 
        mapM_ (makeHaskellInlines  cbs name) specs
        hmeans          <- mapM (makeHaskellMeasures cbs name) specs
-       let measures     = mconcat ((traceShow "ORIG" measures'):Ms.mkMSpec' dcSelectors:(traceShow "HASKELL" hmeans))
+       let measures     = mconcat (measures':Ms.mkMSpec' dcSelectors:hmeans)
        let (cs, ms)     = makeMeasureSpec' measures
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l $ cSort t) | (Loc l x, t) <- cms ]
