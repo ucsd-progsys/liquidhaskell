@@ -49,7 +49,7 @@ import Language.Fixpoint.Types (Expr(..))
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
+import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId, showPpr)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bounds

@@ -425,9 +425,9 @@ funArgsP  = try realP <|> empP
 
 boundP = do 
   name   <- locParserP upperIdP
+  reservedOp "="  
   vs     <- bvsP
   params <- many (parens tyBindP)
-  reservedOp "="  
   args   <- bargsP
   body   <- predP
   return $ Bound name vs params args body  
@@ -441,10 +441,17 @@ boundP = do
     bvsP   = try ( do reserved "forall"
                       xs <- many symbolP
                       reserved  "."
-                      return ((`RAllT` mempty) <$> xs) 
+                      return ((`RVar` mempty) <$> xs) 
                  )
            <|> return []
-
+{-
+    bvsP   = try ( do reserved "forall"
+                      xs <- many symbolP
+                      reservedOp  "."
+                      return ((`RVar` mempty) <$> xs) 
+                 )
+           <|> return []
+-}
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
