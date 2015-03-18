@@ -183,8 +183,8 @@ makeGhcSpec4 defVars specs name su sp
                      }        
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
- 
- 
+
+
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
        let tycons       = tcs        ++ wiredTyCons 
