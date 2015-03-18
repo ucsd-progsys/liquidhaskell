@@ -248,12 +248,12 @@ makeBounds name defVars cbs specs
        modify   $ \env -> env{ bounds = hbounds `mappend` bnds }
   where 
     go (x,bound) = (x,) <$> (mkBound bound)
-    mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name]
+    mkThing mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name]
        
 
 mkBound (Bound s vs pts xts r) 
   = do ptys' <- mapM (\(x, t) -> ((x,) . toRSort) <$> mkSpecType (loc x) t) pts 
        xtys' <- mapM (\(x, t) -> ((x,) . toRSort) <$> mkSpecType (loc x) t) xts 
-       vs'   <-  (map toRSort) <$> mapM (mkSpecType (loc s)) vs 
+       vs'   <- map toRSort <$> mapM (mkSpecType (loc s)) vs 
        Bound s vs' ptys' xtys' <$> resolve (loc s) r 
 
