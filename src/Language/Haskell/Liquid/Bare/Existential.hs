@@ -85,8 +85,7 @@ expToBindRef (U r (Pr p) l)
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p
-  = do mpmap  <- pmap <$> get
-       let Just π = M.lookup (traceShow ("looking for \t in " ++ show mpmap ) $ pname p) mpmap 
+  = do Just π <- liftM (M.lookup (pname p)) (pmap <$> get) 
        let pargs0 = zip (pargs p) (fst3 <$> pargs π)
        pargs' <- mapM expToBindParg pargs0
        return $ p{pargs = pargs'}
