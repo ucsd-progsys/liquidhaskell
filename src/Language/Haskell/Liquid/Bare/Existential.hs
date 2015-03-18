@@ -8,7 +8,7 @@ import Data.Char
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar, fst3)
+import Language.Fixpoint.Misc
 import Language.Fixpoint.Names (headSym)
 import Language.Fixpoint.Types (Brel(..), Expr(..), Pred(..), Refa(..), Reft(..), Symbol, symbol, vv)
 
@@ -85,7 +85,8 @@ expToBindRef (U r (Pr p) l)
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p
-  = do Just π <- liftM (M.lookup (pname p)) (pmap <$> get)
+  = do mpmap  <- pmap <$> get
+       let Just π = M.lookup (traceShow ("looking for \t in " ++ show mpmap ) $ pname p) mpmap 
        let pargs0 = zip (pargs p) (fst3 <$> pargs π)
        pargs' <- mapM expToBindParg pargs0
        return $ p{pargs = pargs'}

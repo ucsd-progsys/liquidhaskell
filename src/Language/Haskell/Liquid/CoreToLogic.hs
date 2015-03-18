@@ -287,6 +287,7 @@ splitArgs e = (f, reverse es)
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
+tosymbol (C.Var c) | isDataConId  c = return $ dummyLoc $ symbol c 
 tosymbol (C.Var x) = return $ dummyLoc $ simpleSymbolVar x
 tosymbol  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
