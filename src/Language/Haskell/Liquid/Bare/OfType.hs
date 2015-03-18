@@ -146,7 +146,7 @@ ofBRType appRTAlias resolveReft
     goRFun bounds _ (RApp c ps' _ _) t | Just bnd <- M.lookup c bounds 
       = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
            ts <- mapM go ts' 
-           makeBound bnd ts [x | RVar x <- ps] <$> go t
+           makeBound bnd ts [x | RVar x _ <- ps] <$> go t
     goRFun _ x t1 t2
       = rFun x <$> go t1 <*> go t2
  

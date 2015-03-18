@@ -42,16 +42,18 @@ type RBound        = RRBound RSort
 type RRBound tv    = Bound tv Pred
 
 type RBEnv         = M.HashMap LocSymbol RBound 
-type RRBEnv tv  = M.HashMap LocSymbol (RRBound tv) 
-
+type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv) 
 
 
 instance Hashable (Bound t e) where
 	hashWithSalt i = hashWithSalt i . bname
 
+instance Eq (Bound t e) where
+  b1 == b2 = (bname b1) == (bname b2)  
 
 instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 	show = showpp
+
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
 	pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+> 
@@ -59,8 +61,8 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
 	                                pprint (fst <$> ps) <+> text "=" <+>
 	                                pprint_bsyms (fst <$> xs) <+> pprint e
 
-
-
+pprint_bsyms [] = text ""
+pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
 
 instance Bifunctor Bound where
 	first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
@@ -68,93 +70,80 @@ instance Bifunctor Bound where
 
 
 makeBound :: (PPrint r, UReftable r)
-         => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
+          => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
 makeBound (Bound _  vs ps xs p) ts qs t 
-  = RRTy [(dummySymbol, ct')] mempty OCons t
-  where 
-  	ct = traceShow "BOUND" $ booz (zip (val . fst <$> ps) qs) (traceShow "bkImpl" $ bkImp [] p) xs
-
-  	bkImp acc (PImp p q) = bkImp (p:acc) q
-  	bkImp acc p          = p:acc
---   	mkForall vs t = foldr RAllT t [ v | RVar v _<- vs]
-
---   	(ts, qs) = splitAt (length vs) qs'
-
-  	ct' = traceShow ("SUBTED form" ++ show ct) $ foldr subsTyVar_meet ct (traceShow "SUBST " [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]) 
-
-
-booz :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> [Pred] -> [(LocSymbol, RSort)] -> RRType r
-booz penv (q:qs) xts = go xts
+  = RRTy [(dummySymbol, ct)] mempty OCons t
   where
-    (ps, rs) = traceShow ("partitionPs" ++ show penv) $ partitionPs [] [] penv qs 
+    ct  = foldr subsTyVar_meet ct' su
+
+    ct' = makeBoundType penv rs xs 
+
+    penv = zip (val . fst <$> ps) qs
+    rs   = bkImp [] p
+
+    bkImp acc (PImp p q) = bkImp (p:acc) q
+    bkImp acc p          = p:acc
+
+    su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]    
+
+makeBoundType :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> [Pred] -> [(LocSymbol, RSort)] -> RRType r
+makeBoundType penv (q:qs) xts = go xts
+  where
+    -- NV TODO: Turn this into a proper error
+    go [] = errorstar "Bound with empty symbols"
+
+    go [(x, t)]      = RFun dummySymbol (tp t x)  (tq t x)  mempty 
+    go ((x, t):xtss) = RFun (val x)     (mkt t x) (go xtss) mempty
+
     mkt t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, [])) 
     	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tp t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, RConc <$> rs)) 
+    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft(val x, RConc <$> rs)) 
     	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tq t x = ofRSort t `strengthen` makeRef penv x q 
-    go [] = error "booz.go"
-    go [(x, t)]      = RFun dummySymbol (tp t x) (tq t x) mempty 
-    go ((x, t):xtss) = RFun (val x) (mkt t x) (go xtss) mempty
-booz _ _ _ = error "booz"
+    tq t x  = ofRSort t `strengthen` makeRef penv x q 
 
-partitionPs qs rs _    [] 
-  = (M.fromListWith (++) qs, rs)
-partitionPs qs rs penv (q@(PBexp (EApp p es)):ps) | isJust $ lookup (val p) penv
-  = partitionPs ((x, [boo penv q]):qs) rs penv ps
-  where x = (\(EVar x) -> x) $ last es
-partitionPs qs rs penv (r:ps)
-  = partitionPs qs (r:rs) penv ps
+    (ps, rs) = partitionPs penv qs 
 
-{-
-foo :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> Pred -> [(LocSymbol, RSort)] -> RRType r
-foo penv (PImp p q) [(v, t)] 
-  = RFun dummySymbol tp tq mempty
-  where 
-    t' = ofRSort t
-    tp = t' `strengthen` makeRef penv v p   
-    tq = t' `strengthen` makeRef penv v q 
 
-foo penv (PImp z zs) ((x, t):xs)  
-  = RFun (val x) t' (foo penv zs xs) mempty 
+-- NV TODO: Turn this into a proper error
+makeBoundType _ _ _           = errorstar "Bound with empty predicates" 
+
+
+partitionPs :: [(Symbol, Symbol)] -> [Pred] -> (M.HashMap Symbol [UsedPVar], [Pred])
+partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
-  	t' = ofRSort t `strengthen` makeRef penv x z 
+    makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
-foo _ _ _ 
-  = error "foo" -- NV TODO
--}
+isPApp penv (PBexp (EApp p _))  = isJust $ lookup (val p) penv
+isPApp _    _                   = False
+
+toUsedPVars penv q@(PBexp (EApp _ es)) = (x, [toUsedPVar penv q])
+  where
+    -- NV : TODO make this a better error
+    x = (\(EVar x) -> x) $ last es
+toUsedPVars _ _ = error "This cannot happen" 
+
+toUsedPVar penv (PBexp (EApp p es)) 
+  = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
+   where
+     EVar e = last es
+     es'    = init es
+     Just q = lookup (val p) penv 
+
+toUsedPVar _ _ = error "This cannot happen" 
+
+
+-- `makeRef` is used to make the refinement of the last implication, 
+-- thus it can contain both concrete and abstract refinements
+
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v tt@(PAnd rs) | not (null pps)   
-  = ofUReft (U (Reft(val v, RConc <$> rrs)) (traceShow ("HOHO" ++ show tt) r) mempty)
-  where r      = Pr (boo penv <$> pps) -- [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
-        (pps, rrs) = traceShow "PARTITIONED" $ partition isPApp rs
+makeRef penv v (PAnd rs)  
+  = ofUReft (U (Reft(val v, RConc <$> rrs)) r mempty)
+  where r      = Pr (toUsedPVar penv <$> pps)
+        (pps, rrs) = partition (isPApp penv) rs
 
-        isPApp r@(PBexp (EApp p _))  = traceShow ("IS PAPP " ++ show (r, penv) ) $ isJust $ lookup (val p) penv
-        isPApp _                   = False
-
-makeRef penv v rr | isPApp rr   
+makeRef penv v rr | isPApp penv rr   
   = ofUReft (U (Reft(val v, [])) r mempty)
-  where r      = Pr [boo penv rr] -- [PV q (PVProp ()) e (((), dummySymbol,) <$> es')]
+  where r      = Pr [toUsedPVar penv rr]
 
-        isPApp r@(PBexp (EApp p _))  = traceShow ("IS PAPP " ++ show (r, penv) ) $ isJust $ lookup (val p) penv
-        isPApp _                   = False
-
-makeRef _ v p 
-  = ofReft (Reft(val v, [RConc $ traceShow "PPP" p]))
---   = ofReft ( U (Reft(val v, [])) (Pr [PV q (PVProp ()) (last es) es]) mempty)
-
-
-boo penv (PBexp (EApp p es)) = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
-  where
-  	EVar e = last es
-  	es'    = init es
-  	Just q = lookup (val p) penv 
-
-boo _ _ = error "BOBOBOBO" 
-
-pprint_bsyms [] = text ""
-pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
-
-instance Eq (Bound t e) where
-	b1 == b2 = (bname b1) == (bname b2)  
-
-
+makeRef _    v p 
+  = ofReft (Reft(val v, [RConc $ p]))

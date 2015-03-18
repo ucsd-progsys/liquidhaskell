@@ -160,7 +160,7 @@ stringLiteral = Token.stringLiteral lexer
 -- BareTypes ---------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
--- | The top-level parser for "barehmeaarefinement types. If refinements are
+-- | The top-level parser for "bare" refinement types. If refinements are
 -- not supplied, then the default "top" refinement is used.
 
 bareTypeP :: Parser BareType 
@@ -444,14 +444,6 @@ boundP = do
                       return ((`RVar` mempty) <$> xs) 
                  )
            <|> return []
-{-
-    bvsP   = try ( do reserved "forall"
-                      xs <- many symbolP
-                      reservedOp  "."
-                      return ((`RVar` mempty) <$> xs) 
-                 )
-           <|> return []
--}
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
