@@ -35,6 +35,7 @@ import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (secondM)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Bounds
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Expand
@@ -97,7 +98,7 @@ rtypePredBinds = map uPVar . ty_preds . toRTypeRep
 
 --------------------------------------------------------------------------------
 
-ofBRType :: (PPrint r, Reftable r)
+ofBRType :: (PPrint r, UReftable r)
          => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
          -> (r -> BareM r)
          -> BRType r
@@ -105,20 +106,14 @@ ofBRType :: (PPrint r, Reftable r)
 ofBRType appRTAlias resolveReft
   = go
   where
-    go (RApp lc@(Loc l c) ts rs r)
-      = do env <- gets (typeAliases.rtEnv)
-           r'  <- resolveReft r
-           case M.lookup c env of
-             Just rta ->
-               appRTAlias l rta ts r'
-             Nothing ->
-               do c' <- matchTyCon lc (length ts)
-                  bareTCApp r' c' <$> mapM go_ref rs <*> mapM go ts
-
+    go t@(RApp _ _ _ _)
+      = do aliases <- (typeAliases . rtEnv) <$> get 
+           goRApp aliases t   
     go (RAppTy t1 t2 r)
       = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
     go (RFun x t1 t2 _)
-      = rFun x <$> go t1 <*> go t2
+      =  do env <- get 
+            goRFun (bounds env) x t1 t2 
     go (RVar a r)
       = RVar (symbolRTyVar a) <$> resolveReft r
     go (RAllT a t)
@@ -147,6 +142,22 @@ ofBRType appRTAlias resolveReft
 
     go_syms
       = secondM ofBSort
+
+    goRFun bounds _ (RApp c ps' _ _) t | Just bnd <- M.lookup c bounds 
+      = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
+           ts <- mapM go ts' 
+           makeBound bnd ts [x | RVar x _ <- ps] <$> go t
+    goRFun _ x t1 t2
+      = rFun x <$> go t1 <*> go t2
+ 
+    goRApp aliases (RApp (Loc l c) ts _ r) | Just rta <- M.lookup c aliases
+      = appRTAlias l rta ts =<< resolveReft r
+    goRApp _ (RApp lc ts rs r)
+      =  do r' <- resolveReft r
+            c' <- matchTyCon lc (length ts)
+            bareTCApp r' c' <$> mapM go_ref rs <*> mapM go ts
+    goRApp _ _ = errorstar "This cannot happen"
+
 
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
 matchTyCon lc@(Loc _ c) arity
