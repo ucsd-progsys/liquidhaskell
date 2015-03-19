@@ -650,6 +650,14 @@ levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
+Bounds
+======
+The bounds correspond to Horn
+implications between abstract refinements, which, as in the classical
+setting, correspond to subtyping constraints that must be satisfied by the concrete refinements used at any call-site.
+
+See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
+
 
 Invariants 
 ==========
