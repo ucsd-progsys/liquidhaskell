@@ -39,7 +39,8 @@ script:
  - cabal build
  - cabal copy
  - cabal register
- - ./dist/build/test/test --pattern "$TESTS/" --smtsolver "$SMT" -j2 +RTS -N2 -RTS
+ # travis_wait to prevent Travis from timing out tests that take > 10 minutes
+ - travis_wait ./dist/build/test/test --pattern "$TESTS/" --smtsolver "$SMT" -j2 +RTS -N2 -RTS
  # Removing cabal check, as it fails if the -Werror flag is on. We want -Werror flag!
  # - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
