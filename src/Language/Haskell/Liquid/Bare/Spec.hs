@@ -21,6 +21,9 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeInvariants
 
   , makeSpecDictionaries
+
+  , makeBounds
+  , makeHBounds
   ) where
 
 import MonadUtils (mapMaybeM)
@@ -46,6 +49,7 @@ import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4)
 import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -56,6 +60,7 @@ import Language.Haskell.Liquid.Bare.Misc (joinVar)
 import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.SymSort
+import Language.Haskell.Liquid.Bare.Measure
 
 makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
   where
@@ -80,11 +85,12 @@ makeQualifiers (mod,spec) = inModule mod mkQuals
   where
     mkQuals = mapM (\q -> resolve (q_pos q) q) $ Ms.qualifiers spec
 
-makeHints vs spec = varSymbols id vs $ Ms.decr spec
-makeLVar  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
-makeLazy  vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- S.toList $ Ms.lazy spec])
-makeHIMeas vs spec = fmap (uncurry $ flip Loc) <$> (varSymbols id vs $ [(v, loc v) | v <- (S.toList $ Ms.hmeas spec) ++ (S.toList $ Ms.inlines spec)])
-makeTExpr vs spec = varSymbols id vs $ Ms.termexprs spec
+makeHints   vs spec = varSymbols id vs $ Ms.decr spec
+makeLVar    vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- Ms.lvars spec])
+makeLazy    vs spec = fmap fst <$> (varSymbols id vs $ [(v, ()) | v <- S.toList $ Ms.lazy    spec])
+makeHBounds vs spec = varSymbols id vs $ [(v, v ) | v <- S.toList $ Ms.hbounds spec]
+makeHIMeas  vs spec = fmap (uncurry $ flip Loc) <$> (varSymbols id vs $ [(v, loc v) | v <- (S.toList $ Ms.hmeas spec) ++ (S.toList $ Ms.inlines spec)])
+makeTExpr   vs spec = varSymbols id vs $ Ms.termexprs spec
 
 varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f vs  = concatMapM go
@@ -234,4 +240,20 @@ makeSpecDictionaryOne embs vars (RI x t xts)
                 _ -> head vars -- HACK, but since it is not imported, 
                                -- the dictionary cannot be used
                                -- errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
+
+makeBounds name defVars cbs specs 
+  = do bnames  <- mkThing makeHBounds
+       hbounds <- makeHaskellBounds cbs bnames 
+       bnds    <- M.fromList <$> (mapM go (concatMap (M.toList . Ms.bounds . snd ) specs))
+       modify   $ \env -> env{ bounds = hbounds `mappend` bnds }
+  where 
+    go (x,bound) = (x,) <$> (mkBound bound)
+    mkThing mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name]
+       
+
+mkBound (Bound s vs pts xts r) 
+  = do ptys' <- mapM (\(x, t) -> ((x,) . toRSort) <$> mkSpecType (loc x) t) pts 
+       xtys' <- mapM (\(x, t) -> ((x,) . toRSort) <$> mkSpecType (loc x) t) xts 
+       vs'   <- map toRSort <$> mapM (mkSpecType (loc s)) vs 
+       Bound s vs' ptys' xtys' <$> resolve (loc s) r 
 

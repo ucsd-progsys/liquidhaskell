@@ -128,3 +128,12 @@ safeZipWith _ []     []     = []
 safeZipWith _ _ _ = error "safeZipWith: cannot happen!"      
 
 
+
+
+{-@ (==>) :: p:Bool -> q:Bool -> {v:Bool | Prop v <=> (Prop p =>  Prop q)} @-}
+infixr 8 ==>
+(==>) :: Bool -> Bool -> Bool
+False ==> False = True
+False ==> True  = True
+True  ==> True  = True
+True  ==> False = False
