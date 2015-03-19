@@ -23,12 +23,15 @@ before_install:
  - travis_retry sudo apt-get install ocaml camlidl
  - travis_retry cabal update
  - git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
- - pushd /tmp/fixpoint && cabal install -fbuild-external && popd
+ - pushd /tmp/fixpoint
+     && travis_retry cabal install --only-dependencies
+     && cabal install -fbuild-external
+     && popd
  - curl "http://goto.ucsd.edu/~gridaphobe/$SMT" -o "$HOME/.cabal/bin/$SMT"
  - chmod a+x "$HOME/.cabal/bin/$SMT"
 
 install:
- - cabal install --only-dependencies --enable-tests
+ - travis_retry cabal install --only-dependencies --enable-tests
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
 script:
