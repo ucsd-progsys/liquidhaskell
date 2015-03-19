@@ -83,7 +83,7 @@ strengthenResult v
         vxs = dropWhile isClassBind $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
-        mkA = \(x, t) -> if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
+        mkA = \(x, _) -> EVar x -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
 simplesymbol = symbol . getName
