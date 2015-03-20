@@ -1,0 +1,94 @@
+#!/bin/bash
+
+set -e
+
+## Helper Functions
+
+function prevent_timeout {
+  local cmd="$@"
+
+  $cmd &
+  local cmd_pid=$!
+
+  poke_stdout &
+  local poke_pid=$!
+
+  wait $cmd_pid
+  exit_code=$?
+  kill $poke_pid
+
+  return $exit_code
+}
+
+function poke_stdout {
+  # Print an invisible character every minute
+  while true; do
+    echo -ne "\xE2\x80\x8B"
+    sleep 60
+  done
+}
+
+## Testing Stages
+
+function install_ocaml {
+  travis_retry sudo apt-get update
+  travis_retry sudo apt-get install ocaml camlidl
+}
+
+function setup_cabal {
+  travis_retry cabal update
+}
+
+function install_fixpoint {
+  git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
+  pushd /tmp/fixpoint
+  travis_retry cabal install --only-dependencies
+  cabal install -fbuild-external
+  popd
+}
+
+function install_smt {
+ local smt="$1"
+
+ curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
+ chmod a+x "$HOME/.cabal/bin/$smt"
+}
+
+function install_cabal_deps {
+  travis_retry cabal install --only-dependencies --enable-tests
+}
+
+function do_build {
+  cabal configure -fdevel -O2 --enable-tests -v2
+  cabal build
+  cabal copy
+  cabal register
+}
+
+function do_test {
+  local tests="$1"
+  local smt="$2"
+
+  prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
+}
+
+function test_source_pkg {
+  cabal sdist
+  local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
+
+  if [ -f "$src_tgz" ]; then
+    cabal install "$src_tgz"
+  else
+    echo "expected '$src_tgz' not found"
+    return 1
+  fi
+}
+
+## Run Test Stage
+
+stage="$1"
+shift
+
+set -x
+$stage "$@"
+
