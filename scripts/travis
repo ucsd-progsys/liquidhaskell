@@ -96,14 +96,17 @@ function do_test {
 
 function test_source_pkg {
   cabal sdist
+
   local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
 
+  pushd dist
   if [ -f "$src_tgz" ]; then
     cabal install "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
   fi
+  popd dist
 }
 
 ## Run Test Stage
