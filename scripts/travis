@@ -4,6 +4,11 @@ set -e
 
 ## Helper Functions
 
+function loud {
+  echo "$ $@"
+  $@
+}
+
 # Source: https://github.com/travis-ci/travis-build/blob/fc4ae8a2ffa1f2b3a2f62533bbc4f8a9be19a8ae/lib/travis/build/script/templates/header.sh
 function travis_retry {
   local result=0
@@ -53,55 +58,55 @@ function poke_stdout {
 ## Testing Stages
 
 function install_ocaml {
-  travis_retry sudo apt-get update
-  travis_retry sudo apt-get install ocaml camlidl
+  loud travis_retry sudo apt-get update
+  loud travis_retry sudo apt-get install ocaml camlidl
 }
 
 function setup_cabal {
-  travis_retry cabal update
+  loud travis_retry cabal update
 }
 
 function install_fixpoint {
-  git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
-  pushd /tmp/fixpoint
-  travis_retry cabal install --only-dependencies
-  cabal install -fbuild-external
-  popd
+  loud git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
+  loud pushd /tmp/fixpoint
+  loud travis_retry cabal install --only-dependencies
+  loud cabal install -fbuild-external
+  loud popd
 }
 
 function install_smt {
  local smt="$1"
 
- curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
- chmod a+x "$HOME/.cabal/bin/$smt"
+ loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
+ loud chmod a+x "$HOME/.cabal/bin/$smt"
 }
 
 function install_cabal_deps {
-  travis_retry cabal install --only-dependencies --enable-tests
+  loud travis_retry cabal install --only-dependencies --enable-tests
 }
 
 function do_build {
-  cabal configure -fdevel -O2 --enable-tests -v2
-  cabal build
-  cabal copy
-  cabal register
+  loud cabal configure -fdevel -O2 --enable-tests -v2
+  loud cabal build
+  loud cabal copy
+  loud cabal register
 }
 
 function do_test {
   local tests="$1"
   local smt="$2"
 
-  prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
+  loud prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
 }
 
 function test_source_pkg {
-  cabal sdist
+  loud cabal sdist
 
   local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
 
   pushd dist
   if [ -f "$src_tgz" ]; then
-    cabal install "$src_tgz"
+    loud cabal install "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
@@ -114,6 +119,5 @@ function test_source_pkg {
 stage="$1"
 shift
 
-set -x
 $stage "$@"
 
