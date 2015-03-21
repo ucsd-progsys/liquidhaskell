@@ -1,0 +1,123 @@
+#!/bin/bash
+
+set -e
+
+## Helper Functions
+
+function loud {
+  echo "$ $@"
+  $@
+}
+
+# Source: https://github.com/travis-ci/travis-build/blob/fc4ae8a2ffa1f2b3a2f62533bbc4f8a9be19a8ae/lib/travis/build/script/templates/header.sh
+function travis_retry {
+  local result=0
+  local count=1
+  while [ $count -le 3 ]; do
+    [ $result -ne 0 ] && {
+      echo -e "\n${RED}The command \"$@\" failed. Retrying, $count of 3.${RESET}\n" >&2
+    }
+    "$@"
+    result=$?
+    [ $result -eq 0 ] && break
+    count=$(($count + 1))
+    sleep 1
+  done
+
+  [ $count -eq 3 ] && {
+    echo "\n${RED}The command \"$@\" failed 3 times.${RESET}\n" >&2
+  }
+
+  return $result
+}
+
+function prevent_timeout {
+  local cmd="$@"
+
+  $cmd &
+  local cmd_pid=$!
+
+  poke_stdout &
+  local poke_pid=$!
+
+  wait $cmd_pid
+  exit_code=$?
+  kill $poke_pid
+
+  return $exit_code
+}
+
+function poke_stdout {
+  # Print an invisible character every minute
+  while true; do
+    echo -ne "\xE2\x80\x8B"
+    sleep 60
+  done
+}
+
+## Testing Stages
+
+function install_ocaml {
+  loud travis_retry sudo apt-get update
+  loud travis_retry sudo apt-get install ocaml camlidl
+}
+
+function setup_cabal {
+  loud travis_retry cabal update
+}
+
+function install_fixpoint {
+  loud git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
+  loud pushd /tmp/fixpoint
+  loud travis_retry cabal install --only-dependencies
+  loud cabal install -fbuild-external
+  loud popd
+}
+
+function install_smt {
+ local smt="$1"
+
+ loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
+ loud chmod a+x "$HOME/.cabal/bin/$smt"
+}
+
+function install_cabal_deps {
+  loud travis_retry cabal install --only-dependencies --enable-tests
+}
+
+function do_build {
+  loud cabal configure -fdevel -O2 --enable-tests -v2
+  loud cabal build
+  loud cabal copy
+  loud cabal register
+}
+
+function do_test {
+  local tests="$1"
+  local smt="$2"
+
+  loud prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
+}
+
+function test_source_pkg {
+  loud cabal sdist
+
+  local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
+
+  pushd dist
+  if [ -f "$src_tgz" ]; then
+    loud cabal install "$src_tgz"
+  else
+    echo "expected '$src_tgz' not found"
+    return 1
+  fi
+  popd dist
+}
+
+## Run Test Stage
+
+stage="$1"
+shift
+
+$stage "$@"
+
