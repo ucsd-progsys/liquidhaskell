@@ -468,8 +468,6 @@ splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
     t2'  = ty_res   trep
     t1'  = last $ ty_args trep
 
-
-
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
        c1 <- splitC (SubR γ' o  r )
@@ -1294,6 +1292,8 @@ cconsE γ e t
 
 splitConstraints (RRTy [(_, cs)] _ OCons t) 
   = let (css, t') = splitConstraints t in (cs:css, t')
+splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
+  = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
 splitConstraints t                       
   = ([], t) 
 -------------------------------------------------------------------
@@ -1480,6 +1480,8 @@ dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
+dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
+  = (flip (RFun x tx)) r <$> dropConstraints γ t 
 dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
        addC (SubC  γ' t1 t2)  "dropConstraints"
