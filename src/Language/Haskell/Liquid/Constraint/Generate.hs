@@ -920,10 +920,11 @@ makeDecrIndexTy x t
          Nothing -> return $ Left msg -- addWarning msg >> return []
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
-       ts         = ty_args $ toRTypeRep t
+       ts         = ty_args $ toRTypeRep $ unOCons t
        checkHint' = checkHint x ts isDecreasing
        dindex     = L.findIndex isDecreasing ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter") 
+
 
 recType ((_, []), (_, [], t))
   = t
@@ -933,24 +934,42 @@ recType ((vs, indexc), (_, index, t))
   where v    = (vs !!)  <$> indexc
         dxt  = (xts !!) <$> index
         xts  = zip (ty_binds trep) (ty_args trep) 
-        trep = toRTypeRep t
+        trep = toRTypeRep $ unOCons t
 
 checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg' vs) index
        mapM  (safeLogIndex msg  ts) index
     where
        loc   = getSrcSpan x
-       ts    = ty_args $ toRTypeRep $ unTemplate t
-       msg'  = ErrTermin [x] loc (text $ "No decreasing argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
+       ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
+       msg'  = ErrTermin [x] loc (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
        msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
 makeRecType t vs dxs is
-  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+  = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
     (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
-    trep       = toRTypeRep t
+    trep       = toRTypeRep $ unOCons t
+
+unOCons (RAllT v t)        = RAllT v $ unOCons t
+unOCons (RAllP p t)        = RAllP p $ unOCons t 
+unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r 
+unOCons (RRTy _ _ OCons t) = unOCons t
+unOCons t                  = t 
+
+
+mergecondition (RAllT _ t1) (RAllT v t2) 
+  = RAllT v $ mergecondition t1 t2
+mergecondition (RAllP _ t1) (RAllP p t2) 
+  = RAllP p $ mergecondition t1 t2
+mergecondition (RRTy xts r OCons t1) t2 
+  = RRTy xts r OCons (mergecondition t1 t2)
+mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2)
+  = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
+mergecondition _ t 
+  = t  
 
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
@@ -1036,7 +1055,7 @@ consCBSizedTys γ xes
        return γ'
   where
        (xs, es) = unzip xes
-       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unTemplate
+       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
