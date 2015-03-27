@@ -937,7 +937,7 @@ mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe menv τ
 
 classBinds (RApp c ts _ _) 
    | isFracCls c
-   = [(rTyVarSymbol a, trueSortedReft FReal) | (RVar a _) <- ts]
+   = [(rTyVarSymbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
    | isNumCls c
    = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds _       

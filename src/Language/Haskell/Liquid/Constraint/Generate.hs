@@ -68,7 +68,7 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr)
+                                                , hasBaseTypeVar, showPpr, isDataConId)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -468,8 +468,6 @@ splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
     t2'  = ty_res   trep
     t1'  = last $ ty_args trep
 
-
-
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
        c1 <- splitC (SubR γ' o  r )
@@ -646,10 +644,10 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
   where 
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info
+    dcons        = filter isDCon $ impVars info -- ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType 
     dconToSym    = dataConSymbol . idDataCon
-    isDCon x     = isDataConWorkId x && not (hasBaseTypeVar x)
+    isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t 
   | F.isNontrivialVV vv
@@ -922,10 +920,11 @@ makeDecrIndexTy x t
          Nothing -> return $ Left msg -- addWarning msg >> return []
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
-       ts         = ty_args $ toRTypeRep t
+       ts         = ty_args $ toRTypeRep $ unOCons t
        checkHint' = checkHint x ts isDecreasing
        dindex     = L.findIndex isDecreasing ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter") 
+
 
 recType ((_, []), (_, [], t))
   = t
@@ -935,24 +934,42 @@ recType ((vs, indexc), (_, index, t))
   where v    = (vs !!)  <$> indexc
         dxt  = (xts !!) <$> index
         xts  = zip (ty_binds trep) (ty_args trep) 
-        trep = toRTypeRep t
+        trep = toRTypeRep $ unOCons t
 
 checkIndex (x, vs, t, index)
   = do mapM_ (safeLogIndex msg' vs) index
        mapM  (safeLogIndex msg  ts) index
     where
        loc   = getSrcSpan x
-       ts    = ty_args $ toRTypeRep $ unTemplate t
-       msg'  = ErrTermin [x] loc (text $ "No decreasing argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
+       ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
+       msg'  = ErrTermin [x] loc (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
        msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
 makeRecType t vs dxs is
-  = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+  = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
     (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
-    trep       = toRTypeRep t
+    trep       = toRTypeRep $ unOCons t
+
+unOCons (RAllT v t)        = RAllT v $ unOCons t
+unOCons (RAllP p t)        = RAllP p $ unOCons t 
+unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r 
+unOCons (RRTy _ _ OCons t) = unOCons t
+unOCons t                  = t 
+
+
+mergecondition (RAllT _ t1) (RAllT v t2) 
+  = RAllT v $ mergecondition t1 t2
+mergecondition (RAllP _ t1) (RAllP p t2) 
+  = RAllP p $ mergecondition t1 t2
+mergecondition (RRTy xts r OCons t1) t2 
+  = RRTy xts r OCons (mergecondition t1 t2)
+mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2)
+  = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
+mergecondition _ t 
+  = t  
 
 safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
@@ -1038,7 +1055,7 @@ consCBSizedTys γ xes
        return γ'
   where
        (xs, es) = unzip xes
-       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unTemplate
+       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
@@ -1294,6 +1311,8 @@ cconsE γ e t
 
 splitConstraints (RRTy [(_, cs)] _ OCons t) 
   = let (css, t') = splitConstraints t in (cs:css, t')
+splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
+  = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
 splitConstraints t                       
   = ([], t) 
 -------------------------------------------------------------------
@@ -1480,6 +1499,8 @@ dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
+dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
+  = (flip (RFun x tx)) r <$> dropConstraints γ t 
 dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
        addC (SubC  γ' t1 t2)  "dropConstraints"

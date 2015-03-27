@@ -11,7 +11,14 @@ module Language.Haskell.Liquid.Bare.Misc (
   , mapTyVars
 
   , symbolRTyVar
+  , simpleSymbolVar
+
+  , hasBoolResult
   ) where
+
+
+import TysWiredIn
+import Name
 
 import Id
 import Type
@@ -25,10 +32,11 @@ import Data.Maybe (isNothing)
 
 import qualified Data.List as L
 
-import Language.Fixpoint.Misc (sortDiff, sortNub)
-import Language.Fixpoint.Types (Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
+import Language.Fixpoint.Names (dropModuleNames)
+import Language.Fixpoint.Misc  (sortDiff, sortNub)
+import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
-import Language.Haskell.Liquid.GhcMisc (showPpr)
+import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
 
@@ -115,7 +123,7 @@ mkVarExpr v
 
 varFunSymbol = dummyLoc . dataConSymbol . idDataCon 
 
-isFunVar v   = isDataConWorkId v && not (null αs) && isNothing tf
+isFunVar v   = isDataConId v && not (null αs) && isNothing tf
   where
     (αs, t)  = splitForAllTys $ varType v 
     tf       = splitFunTy_maybe t
@@ -129,6 +137,11 @@ joinVar vs (v,s,t) = case L.find ((== showPpr v) . showPpr) vs of
                        Nothing -> (v,s,t)
 
 
+simpleSymbolVar :: Var -> Symbol
+simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 
-
+hasBoolResult (ForAllTy _ t) = hasBoolResult t
+hasBoolResult (FunTy _ t)    | eqType boolTy t = True 
+hasBoolResult (FunTy _ t)    = hasBoolResult t
+hasBoolResult _              = False
 

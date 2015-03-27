@@ -174,6 +174,16 @@ ppError' Full  dSp (ErrSubType _ _ c tA tE)
               , nests 2 [ text "In Context"
                         , pprint c                 ]]
 
+ppError' _  dSp (ErrFCrash _ _ c tA tE)
+  = dSp <+> text "Fixpoint Crash on Constraint"
+        $+$ sepVcat blankLine
+              [ nests 2 [ text "Inferred type" 
+                        , text "VV :" <+> pprint tA]
+              , nests 2 [ text "Required type" 
+                        , text "VV :" <+> pprint tE]
+              , nests 2 [ text "Context"
+                        , pprint c                 ]]
+
 ppError' _ dSp (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
     $+$ (nest 4 $ pprint e)
@@ -291,3 +301,4 @@ instance FromJSON Error where
 
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
+

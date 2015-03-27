@@ -4,6 +4,7 @@
 module Language.Haskell.Liquid.Bare.Measure (
     makeHaskellMeasures
   , makeHaskellInlines
+  , makeHaskellBounds
 
   , makeMeasureSpec
   , makeMeasureSpec'
@@ -16,7 +17,7 @@ module Language.Haskell.Liquid.Bare.Measure (
   , varMeasures
   ) where
 
-import CoreSyn
+import CoreSyn 
 import DataCon
 import Id
 import Name
@@ -29,26 +30,32 @@ import Control.Monad.Error hiding (Error, forM)
 import Control.Monad.State hiding (forM)
 import Data.Bifunctor
 import Data.Maybe
+import Data.Char (toUpper)
 import Data.Monoid
 import Data.Traversable (forM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
 
+import qualified Data.List as L
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (hashMapMapKeys, mapFst, mapSnd, mlookup, sortNub)
-import Language.Fixpoint.Names (dropModuleNames, dummySymbol)
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
+import Language.Fixpoint.Misc
+import Language.Fixpoint.Names
+import Language.Fixpoint.Types (Expr(..))
+import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
+import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult)
 import Language.Haskell.Liquid.Bare.Expand
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
@@ -90,7 +97,7 @@ makeMeasureInline lmap cbs  x
     binders (Rec xes)    = fst <$> xes  
 
     coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
-                           Left (xs, e)  -> return (TI xs e)
+                           Left (xs, e)  -> return (TI (symbol <$> xs) e)
                            Right e -> throwError e
 
     mkError :: String -> Error
@@ -179,11 +186,51 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 
 
 
-varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConWorkId v, isSimpleType $ varType v ]
+varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
 isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
 
 
+
+makeHaskellBounds :: CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
+makeHaskellBounds cbs xs 
+  = do lmap <- gets logicEnv
+       M.fromList <$> mapM (makeHaskellBound lmap cbs) (S.toList xs)
+
+
+makeHaskellBound lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
+    (NonRec v def:_)   -> do {e <- coreToFun' x v def; return $ toBound v x e}
+    (Rec [(v, def)]:_) -> do {e <- coreToFun' x v def; return $ toBound v x e}
+    _                  -> throwError $ mkError "Cannot make bound of haskell function"
+
+  where
+    binders (NonRec x _) = [x]
+    binders (Rec xes)    = fst <$> xes  
+
+    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
+                           Left (xs, e) -> return (xs, e)
+                           Right e      -> throwError e
+
+    mkError :: String -> Error
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+
+
+toBound :: Var -> LocSymbol -> ([Var], Either F.Pred F.Expr) -> (LocSymbol, RBound)
+toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
+  where
+    x'         = capitalizeBound x 
+    (ps', xs') = L.partition (hasBoolResult . varType) vs 
+    (ps , xs)  = (txp <$> ps', txx <$> xs')
+    txp v      = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
+    txx v      = (dummyLoc $ symbol v,          ofType $ varType v)
+    fvs        = (((`RVar` mempty) . RTV) <$> (fst $ splitForAllTys $ varType v)) :: [RSort]
+
+toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
+
+capitalizeBound = fmap (symbol . toUpperHead . symbolString)
+  where 
+    toUpperHead []     = []
+    toUpperHead (x:xs) = toUpper x:xs
 
 --------------------------------------------------------------------------------
 -- Expand Measures -------------------------------------------------------------

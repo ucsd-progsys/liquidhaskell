@@ -79,6 +79,7 @@ instance Resolvable Sort where
   resolve _ FInt         = return FInt
   resolve _ FReal        = return FReal
   resolve _ FNum         = return FNum
+  resolve _ FFrac        = return FFrac
   resolve _ s@(FObj _)   = return s --FObj . S <$> lookupName env m s
   resolve _ s@(FVar _)   = return s
   resolve l (FFunc i ss) = FFunc i <$> resolve l ss

@@ -3,6 +3,11 @@ module spec GHC.Real where
 
 GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
+class (GHC.Num.Num a) => GHC.Real.Fractional a where
+  (GHC.Real./)   :: x:a -> y:{v:a | v /= 0} -> {v:a | v == x / y}
+  GHC.Real.recip :: a -> a
+  GHC.Real.fromRational :: GHC.Real.Rational -> a
+
 class (GHC.Real.Real a, GHC.Enum.Enum a) => GHC.Real.Integral a where
   GHC.Real.quot :: a -> {v:a | v /= 0} -> a
   GHC.Real.rem :: a -> {v:a | v /= 0} -> a
