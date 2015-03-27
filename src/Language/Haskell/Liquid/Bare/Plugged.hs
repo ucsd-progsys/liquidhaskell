@@ -67,7 +67,7 @@ plugHoles tce tyi x f t (Loc l st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l . mkArrow αs ps' (ls1 ++ ls2) [] . pushCls cs' <$> go rt' st'''
+       Loc l . mkArrow αs ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -98,8 +98,7 @@ plugHoles tce tyi x f t (Loc l st)
     -- problem to the user.
     go _                st                 = return st
 
-    pushCls cs (RRTy e r o t) = RRTy e r o (pushCls cs t)
-    pushCls cs t              = foldr (uncurry rFun) t cs 
+    makeCls cs t              = foldr (uncurry rFun) t cs 
 
 addRefs :: TCEmb TyCon
      -> M.HashMap TyCon RTyCon

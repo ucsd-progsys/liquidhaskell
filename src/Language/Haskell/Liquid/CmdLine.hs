@@ -310,7 +310,7 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 resDocs _ Safe             = [text "SAFE"]
-resDocs k (Crash xs s)     = text ("ERROR: " ++ s) : pprManyOrdered k "" xs
+resDocs k (Crash xs s)     = text ("ERROR: " ++ s) : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "UNSAFE" : pprManyOrdered k "" (nub xs)
 resDocs _ (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl]
 
