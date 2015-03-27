@@ -35,6 +35,7 @@ install:
 
 script:
  - scripts/travis do_build
+ - ./dist/build/liquid/liquid tests/pos/grty1.hs
  - scripts/travis do_test "$TESTS" "$SMT"
  - scripts/travis test_source_pkg
 
