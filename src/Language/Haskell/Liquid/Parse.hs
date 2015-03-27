@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
@@ -768,7 +769,7 @@ binderP    =  try $ symbol <$> idP badc
   where 
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
-    bad c  = isSpace c || c `elem` "(,)"
+    bad c  = isSpace c || c `elem` ("(,)" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
              
 grabs p = try (liftM2 (:) p (grabs p)) 
@@ -834,7 +835,7 @@ dataConNameP
  <|> pwr <$> parens (idP bad)
   where 
      idP p  = symbol <$> many1 (satisfy (not . p))
-     bad c  = isSpace c || c `elem` "(,)"
+     bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = "(" <> s <> ")"
 
 dataSizeP 

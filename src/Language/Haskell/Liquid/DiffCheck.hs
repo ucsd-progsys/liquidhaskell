@@ -4,6 +4,7 @@
 --   a saved version of the file. 
 
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 
 module Language.Haskell.Liquid.DiffCheck (
@@ -31,7 +32,7 @@ import            Data.Monoid                   (mempty)
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
 import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM 
-import            CoreSyn                      
+import            CoreSyn                       hiding (sourceName)        
 import            Name
 import            SrcLoc  
 import            Var 

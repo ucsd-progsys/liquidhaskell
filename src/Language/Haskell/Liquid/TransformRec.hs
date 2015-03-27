@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -13,7 +14,6 @@ import           Bag
 import           Coercion
 import           Control.Arrow       (second)
 import           Control.Monad.State
-import           CoreLint
 import           CoreSyn
 import qualified Data.HashMap.Strict as M
 import           ErrUtils

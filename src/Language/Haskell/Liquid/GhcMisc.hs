@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
@@ -20,7 +21,7 @@ import           Debug.Trace
 
 import           Avail                        (availsToNameSet)
 import           BasicTypes                   (Arity)
-import           CoreSyn                      hiding (Expr)
+import           CoreSyn                      hiding (Expr, sourceName)
 import qualified CoreSyn as Core
 import           CostCentre
 import           GHC                          hiding (L)
@@ -28,6 +29,10 @@ import           HscTypes                     (Dependencies, ImportedMods, ModGu
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
 import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFileName_maybe)
+import           Bag
+import           ErrUtils
+import           CoreLint
+import           CoreMonad
 
 import           Language.Fixpoint.Names      (dropModuleNames)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
@@ -41,6 +46,7 @@ import           Panic                        (throwGhcException)
 import           HscTypes                     (HscEnv(..), FindResult(..))
 import           FastString
 import           TcRnDriver
+import           TcRnTypes
 
 import           RdrName
 import           Type                         (liftedTypeKind)
@@ -68,6 +74,14 @@ import qualified Text.PrettyPrint.HughesPJ    as PJ
 import Data.Monoid (mappend)
 
 import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
+
+
+#if __GLASGOW_HASKELL__ < 710
+import Language.Haskell.Liquid.Desugar.HscMain
+#else
+import qualified HscMain as GHC
+#endif
+
 
 -----------------------------------------------------------------------
 --------------- Datatype For Holding GHC ModGuts ----------------------
@@ -410,11 +424,57 @@ instance Symbolic FastString where
   symbol = symbol . fastStringText
 
 fastStringText = T.decodeUtf8 . fastStringToByteString
-symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
-
 
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
 tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
 tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
 tyConTyVarsDef c = TC.tyConTyVars c 
 
+
+
+----------------------------------------------------------------------
+-- GHC Compatibility Layer
+----------------------------------------------------------------------
+
+desugarModule :: TypecheckedModule -> Ghc DesugaredModule
+
+symbolFastString :: Symbol -> FastString
+
+lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
+
+synTyConRhs_maybe :: TyCon -> Maybe Type
+
+#if __GLASGOW_HASKELL__ < 710
+
+desugarModule tcm = do
+  let ms = pm_mod_summary $ tm_parsed_module tcm 
+  -- let ms = modSummary tcm
+  let (tcg, _) = tm_internals_ tcm
+  hsc_env <- getSession
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
+
+
+symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
+
+lintCoreBindings = CoreLint.lintCoreBindings
+
+synTyConRhs_maybe t
+  | Just (TC.SynonymTyCon rhs) <- TC.synTyConRhs_maybe t
+  = Just rhs
+synTyConRhs_maybe _                     = Nothing
+
+#else
+
+desugarModule = GHC.desugarModule
+
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
+
+type Prec = TyPrec
+
+lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
+
+synTyConRhs_maybe = TC.synTyConRhs_maybe
+
+#endif

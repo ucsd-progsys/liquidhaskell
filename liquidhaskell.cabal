@@ -216,6 +216,8 @@ Library
                     Language.Haskell.Liquid.Bare.SymSort
                     Language.Haskell.Liquid.Bare.Spec
 
+   if impl(ghc < 7.10)
+     exposed-modules:
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar.Desugar,
                     Language.Haskell.Liquid.Desugar.DsExpr,

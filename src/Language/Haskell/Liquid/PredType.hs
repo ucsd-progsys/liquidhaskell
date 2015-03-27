@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, UndecidableInstances, TupleSections, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, FlexibleContexts, UndecidableInstances, TupleSections, OverloadedStrings #-}
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)

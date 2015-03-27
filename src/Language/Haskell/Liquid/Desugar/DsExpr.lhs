@@ -8,8 +8,6 @@ Desugaring exporessions.
 \begin{code}
 module Language.Haskell.Liquid.Desugar.DsExpr ( dsExpr, dsLExpr, dsLocalBinds, dsValBinds, dsLit ) where
 
-import Language.Haskell.Liquid.GhcMisc (srcSpanTick)
-
 import Language.Haskell.Liquid.Desugar.Match
 import Language.Haskell.Liquid.Desugar.MatchLit
 import Language.Haskell.Liquid.Desugar.DsBinds
@@ -54,6 +52,11 @@ import Outputable
 import FastString
 
 import Control.Monad
+
+srcSpanTick :: Module -> SrcSpan -> Tickish a
+srcSpanTick m loc
+  = ProfNote (AllCafsCC m loc) False True
+
 \end{code}
 
 

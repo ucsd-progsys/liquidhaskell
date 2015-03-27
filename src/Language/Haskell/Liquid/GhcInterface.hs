@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-} 
 {-# LANGUAGE FlexibleInstances         #-}
@@ -15,7 +16,7 @@ import IdInfo
 import InstEnv
 import Bag (bagToList)
 import ErrUtils
-import GHC hiding (Target)
+import GHC hiding (Target, desugarModule)
 import DriverPhases (Phase(..))
 import DriverPipeline (compileFile)
 import Text.PrettyPrint.HughesPJ
@@ -25,7 +26,6 @@ import CoreSyn
 import Var
 import CoreMonad    (liftIO)
 import DataCon
-import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
@@ -154,6 +154,9 @@ updateDynFlags cfg
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
                       `gopt_set` Opt_PIC
+#if __GLASGOW_HASKELL__ >= 710
+                      `gopt_set` Opt_Debug
+#endif
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
@@ -188,7 +191,7 @@ getGhcModGuts1 fn = do
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
+       mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
        let deriv = getDerivedDictionaries mod_guts 
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
@@ -210,15 +213,6 @@ removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
 
-desugarModuleWithLoc :: TypecheckedModule -> Ghc DesugaredModule
-desugarModuleWithLoc tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm 
-  -- let ms = modSummary tcm
-  let (tcg, _) = tm_internals_ tcm
-  hsc_env <- getSession
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
 -- | Extracting Qualifiers -----------------------------------------------------
