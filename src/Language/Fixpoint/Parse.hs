@@ -1,21 +1,21 @@
 {-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
 
 module Language.Fixpoint.Parse (
-  
-  -- * Top Level Class for Parseable Values  
+
+  -- * Top Level Class for Parseable Values
     Inputable (..)
-  
-  -- * Top Level Class for Parseable Values  
+
+  -- * Top Level Class for Parseable Values
   , Parser
 
   -- * Lexer to add new tokens
-  , lexer 
+  , lexer
 
   -- * Some Important keyword and parsers
   , reserved, reservedOp
   , parens  , brackets, angles, braces
-  , semi    , comma     
-  , colon   , dcolon 
+  , semi    , comma
+  , colon   , dcolon
   , whiteSpace
   , blanks
 
@@ -49,9 +49,9 @@ module Language.Fixpoint.Parse (
   , freshIntP
 
   -- * Parsing Function
-  , doParse' 
+  , doParse'
   , parseFromFile
-  , remainderP 
+  , remainderP
   ) where
 
 import Control.Applicative ((<*>), (<$>), (<*))
@@ -87,7 +87,7 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "--"
-           , Token.identStart      = satisfy (\_ -> False) 
+           , Token.identStart      = satisfy (\_ -> False)
            , Token.identLetter     = satisfy (\_ -> False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
@@ -112,10 +112,10 @@ languageDef =
                                      ]
            , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
-                                     , "mod", "and", "or" 
+                                     , "mod", "and", "or"
                                   --, "is"
                                      , "&&", "||"
-                                     , "~", "=>", "<=>"
+                                     , "~", "=>", "==>", "<=>"
                                      , "->"
                                      , ":="
                                      , "&", "^", "<<", ">>", "--"
@@ -143,14 +143,14 @@ double        = Token.float         lexer
 
 blanks  = many (satisfy (`elem` [' ', '\t']))
 
-integer = posInteger 
-  
+integer = posInteger
+
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
 
 posInteger = toI <$> (many1 digit <* spaces)
   where
-    toI :: String -> Integer 
+    toI :: String -> Integer
     toI = read
 
 ----------------------------------------------------------------
@@ -163,7 +163,7 @@ locParserP p = liftM2 Loc getPosition p
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
 condIdP  :: [Char] -> (String -> Bool) -> Parser Symbol
-condIdP chars f 
+condIdP chars f
   = do c  <- letter
        cs <- many (satisfy (`elem` chars))
        blanks
@@ -175,7 +175,7 @@ upperIdP = condIdP symChars (not . isLower . head)
 lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isLower . head)
 
-locLowerIdP = locParserP lowerIdP 
+locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
 symbolP :: Parser Symbol
@@ -188,7 +188,7 @@ symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
-expr0P 
+expr0P
   =  (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
@@ -203,65 +203,65 @@ charsExpr cs
   where t = symbolText cs
 --  <|> try (parens $ condP EIte exprP)
 
-fastIfP f bodyP 
-  = do reserved "if" 
+fastIfP f bodyP
+  = do reserved "if"
        p <- predP
        reserved "then"
-       b1 <- bodyP 
+       b1 <- bodyP
        reserved "else"
-       b2 <- bodyP 
+       b2 <- bodyP
        return $ f p b1 b2
 
 
 expr1P :: Parser Expr
-expr1P 
-  =  try funAppP 
- <|> expr0P 
+expr1P
+  =  try funAppP
+ <|> expr0P
 
-exprP :: Parser Expr 
+exprP :: Parser Expr
 exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
-  where 
-    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P blanks) 
+  where
+    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P blanks)
     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
 
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
-litP = do reserved "lit" 
+litP = do reserved "lit"
           l <- stringLiteral
           s <- try (bvSortP "Size32" S32) <|> bvSortP "Size64" S64
           return $ ECon $ L (T.pack l) (mkSort s)
-  where 
+  where
     bvSortP ss s = do parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
                       return s
 
 
--- ORIG exprP :: Parser Expr 
+-- ORIG exprP :: Parser Expr
 -- ORIG exprP =  expr2P <|> lexprP
--- 
--- ORIG lexprP :: Parser Expr 
--- ORIG lexprP   
+--
+-- ORIG lexprP :: Parser Expr
+-- ORIG lexprP
 -- ORIG   =  try (parens exprP)
 -- ORIG  <|> try (parens exprCastP)
 -- ORIG  <|> try (parens $ condP EIte exprP)
 -- ORIG  <|> try exprFunP
 -- ORIG  <|> try (liftM (EVar . stringSymbol) upperIdP)
--- ORIG  <|> liftM expr symbolP 
+-- ORIG  <|> liftM expr symbolP
 -- ORIG  <|> liftM ECon constantP
 -- ORIG  <|> liftM ESym symconstP
 -- ORIG  <|> (reserved "_|_" >> return EBot)
--- ORIG 
+-- ORIG
 -- ORIG exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
--- ORIG   where 
--- ORIG     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces) 
+-- ORIG   where
+-- ORIG     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces)
 -- ORIG     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
 -- ORIG     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
 -- ORIG     funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
 
-parenBrackets  = parens . brackets 
+parenBrackets  = parens . brackets
 
 -- ORIG expr2P = buildExpressionParser bops lexprP
 
@@ -275,11 +275,11 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
 
-eMinus = EBin Minus (expr (0 :: Integer)) 
+eMinus = EBin Minus (expr (0 :: Integer))
 
 
 exprCastP
-  = do e  <- exprP 
+  = do e  <- exprP
        ((try dcolon) <|> colon)
        so <- sortP
        return $ ECst e so
@@ -305,10 +305,10 @@ trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
 pred0P :: Parser Pred
-pred0P =  trueP 
-      <|> falseP 
+pred0P =  trueP
+      <|> falseP
       <|> try (fastIfP pIte predP)
-      <|> try predrP 
+      <|> try predrP
       <|> try (parens predP)
       <|> try (liftM PBexp funAppP)
       <|> try (reservedOp "&&" >> liftM PAnd predsP)
@@ -327,11 +327,12 @@ lops = [ [Prefix (reservedOp "~"    >> return PNot)]
        , [Infix  (reservedOp "&&"   >> return (\x y -> PAnd [x,y])) AssocRight]
        , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
        , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
+       , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
        , [Infix  (reservedOp "<=>"  >> return PIff) AssocRight]]
-       
+
 predrP = do e1    <- exprP
             r     <- brelP
-            e2    <- exprP 
+            e2    <- exprP
             return $ r e1 e2
 
 brelP ::  Parser (Expr -> Expr -> Pred)
@@ -346,28 +347,28 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
 
-condP f bodyP 
+condP f bodyP
    =   try (condIteP f bodyP)
    <|> (condQmP f bodyP)
 
-condI = condIteP EIte 
+condI = condIteP EIte
 
 
-condIteP f bodyP 
-  = do reserved "if" 
+condIteP f bodyP
+  = do reserved "if"
        p <- predP
        reserved "then"
-       b1 <- bodyP 
+       b1 <- bodyP
        reserved "else"
-       b2 <- bodyP 
+       b2 <- bodyP
        return $ f p b1 b2
 
-condQmP f bodyP 
-  = do p  <- predP 
+condQmP f bodyP
+  = do p  <- predP
        reserved "?"
-       b1 <- bodyP 
+       b1 <- bodyP
        colon
-       b2 <- bodyP 
+       b2 <- bodyP
        return $ f p b1 b2
 
 ----------------------------------------------------------------------------------
@@ -381,7 +382,7 @@ fTyConP
   <|> (symbolFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi)) 
+refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi))
        <|> liftM ((:[]) . RConc) predP
 
 refBindP :: Parser Symbol -> Parser [Refa] -> Parser (Reft -> a) -> Parser a
@@ -405,8 +406,8 @@ refDefP vv = refBindP (optBindP vv)
 
 -- qualifierP = mkQual <$> upperIdP <*> parens $ sepBy1 sortBindP comma <*> predP
 
-qualifierP = do pos    <- getPosition 
-                n      <- upperIdP 
+qualifierP = do pos    <- getPosition
+                n      <- upperIdP
                 params <- parens $ sepBy1 sortBindP comma
                 _      <- colon
                 body   <- predP
@@ -415,13 +416,13 @@ qualifierP = do pos    <- getPosition
 sortBindP  = (,) <$> symbolP <* colon <*> sortP
 
 mkQual n xts p pos = Q n ((vv, t) : yts) (subst su p) pos
-  where 
+  where
     (vv,t):zts     = xts
     yts            = mapFst mkParam <$> zts
-    su             = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts 
-                       
+    su             = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
 mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
-  where 
+  where
     Just (c,cs)= T.uncons $ symbolText s
 
 ---------------------------------------------------------------------
@@ -442,7 +443,7 @@ defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
     <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
-sortedReftP = refP (RR <$> (sortP <* spaces)) 
+sortedReftP = refP (RR <$> (sortP <* spaces))
 
 wfCP :: Parser (WfC ())
 wfCP = do reserved "env"
@@ -452,25 +453,25 @@ wfCP = do reserved "env"
           return $ wfC env r Nothing ()
 
 subCP :: Parser (SubC ())
-subCP = do reserved "env" 
-           env <- envP 
+subCP = do reserved "env"
+           env <- envP
            reserved "grd"
            grd <- predP
            reserved "lhs"
-           lhs <- sortedReftP 
+           lhs <- sortedReftP
            reserved "rhs"
-           rhs <- sortedReftP 
+           rhs <- sortedReftP
            reserved "id"
            i   <- (integer <* spaces)
            tag <- tagP
-           return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag () 
+           return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
 
 tagP  :: Parser [Int]
 tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
      <|> (return [])
 
 envP  :: Parser IBindEnv
-envP  = do binds <- brackets $ sepBy (intP <* spaces) semi 
+envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
            return $ insertsIBindEnv binds emptyIBindEnv
 
 intP :: Parser Int
@@ -478,24 +479,24 @@ intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = FI cm ws bs gs lts kts qs
-  where 
+  where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
     bs     = rawBindEnv       [(n, x, r)        | IBind n x r <- defs]
     gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
     lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
-    kts    = KS $ S.fromList  [k                | Kut k       <- defs]     
+    kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [q                | Qul q       <- defs]
     cid    = fromJust . sid
-    notFun = not . isFunctionSortedReft . (`RR` trueReft) 
+    notFun = not . isFunctionSortedReft . (`RR` trueReft)
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------
 
 fixResultP :: Parser a -> Parser (FixResult a)
-fixResultP pp 
+fixResultP pp
   =  (reserved "SAT"   >> return Safe)
- <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))  
+ <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))
  <|> (reserved "CRASH" >> crashP pp)
 
 crashP pp
@@ -503,41 +504,41 @@ crashP pp
        msg <- many anyChar
        return $ Crash [i] msg
 
-predSolP 
-  = parens $ (predP  <* (comma >> iQualP)) 
-    
+predSolP
+  = parens $ (predP  <* (comma >> iQualP))
+
 
 iQualP
   = upperIdP >> (parens $ sepBy symbolP comma)
 
 solution1P
-  = do reserved "solution:" 
-       k  <- symbolP 
-       reserved ":=" 
+  = do reserved "solution:"
+       k  <- symbolP
+       reserved ":="
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
 
 solutionP :: Parser (M.HashMap Symbol Pred)
-solutionP 
+solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
-solutionFileP 
+solutionFileP
   = liftM2 (,) (fixResultP integer) solutionP
 
 ------------------------------------------------------------------------
 
-remainderP p  
+remainderP p
   = do res <- p
        str <- getInput
-       pos <- getPosition 
-       return (res, str, pos) 
+       pos <- getPosition
+       return (res, str, pos)
 
 doParse' parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
-      Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f 
+      Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f
       Right (r, "", _)  -> r
       Right (_, rem, l) -> die $ err (SS l l) $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
-    
+
 errorSpan e = SS l l where l = errorPos e
 
 parseFromFile :: Parser b -> SourceName -> IO b
@@ -554,7 +555,7 @@ freshIntP = do n <- getState
 
 commandsP = sepBy commandP semi
 
-commandP 
+commandP
   =  (reserved "var"      >> cmdVarP)
  <|> (reserved "push"     >> return Push)
  <|> (reserved "pop"      >> return Pop)
@@ -562,8 +563,8 @@ commandP
  <|> (reserved "assert"   >> (Assert Nothing <$> predP))
  <|> (reserved "distinct" >> (Distinct <$> (brackets $ sepBy exprP comma)))
 
-cmdVarP 
-  = do x <- bindP 
+cmdVarP
+  = do x <- bindP
        t <- sortP
        return $ Declare x [] t
 
@@ -576,19 +577,19 @@ class Inputable a where
   rr  :: String -> a
   rr' :: String -> String -> a
   rr' = \_ -> rr
-  rr  = rr' "" 
+  rr  = rr' ""
 
 instance Inputable Symbol where
   rr' = doParse' symbolP
 
 instance Inputable Constant where
-  rr' = doParse' constantP 
+  rr' = doParse' constantP
 
 instance Inputable Pred where
-  rr' = doParse' predP 
+  rr' = doParse' predP
 
 instance Inputable Expr where
-  rr' = doParse' exprP 
+  rr' = doParse' exprP
 
 instance Inputable [Refa] where
   rr' = doParse' refasP
@@ -597,13 +598,13 @@ instance Inputable (FixResult Integer) where
   rr' = doParse' $ fixResultP integer
 
 instance Inputable (FixResult Integer, FixSolution) where
-  rr' = doParse' solutionFileP 
+  rr' = doParse' solutionFileP
 
 instance Inputable (FInfo ()) where
   rr' = doParse' fInfoP
 
 instance Inputable Command where
-  rr' = doParse' commandP 
+  rr' = doParse' commandP
 
 instance Inputable [Command] where
   rr' = doParse' commandsP
@@ -615,7 +616,7 @@ instance Inputable [Command] where
 
 -- A few tricky predicates for parsing
 -- myTest1 = "((((v >= 56320) && (v <= 57343)) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o ((i - o) - 1)))) && (((numchars a o (i - (o -1))) >= 0) && (((i - o) - 1) >= 0)))) && ((not (((v >= 56320) && (v <= 57343)))) => (((numchars a o ((i - o) + 1)) == (1 + (numchars a o (i - o)))) && ((numchars a o (i - o)) >= 0))))"
--- 
+--
 -- myTest2 = "len x = len y - 1"
 -- myTest3 = "len x y z = len a b c - 1"
 -- myTest4 = "len x y z = len a b (c - 1)"
@@ -651,7 +652,7 @@ s8  = "x:{ v: Int | v > 0 } -> {v : Int | v >= x}"
 s9  = "v = x+y"
 s10 = "{v: Int | v = x + y}"
 
-s11 = "x:{v:Int | true } -> {v:Int | true }" 
+s11 = "x:{v:Int | true } -> {v:Int | true }"
 s12 = "y : {v:Int | true } -> {v:Int | v = x }"
 s13 = "x:{v:Int | true } -> y:{v:Int | true} -> {v:Int | v = x + y}"
 s14 = "x:{v:a  | true} -> y:{v:b | true } -> {v:a | (x < v && v < y) }"
@@ -661,24 +662,24 @@ s17 = "a"
 s18 = "x:a -> Bool"
 s20 = "forall a . x:Int -> Bool"
 
-s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }" 
+s21 = "x:{v : GHC.Prim.Int# | true } -> {v : Int | true }"
 
 r0  = (rr s0) :: Pred
 r0' = (rr s0) :: [Refa]
 r1  = (rr s1) :: [Refa]
 
 
-e1, e2  :: Expr  
+e1, e2  :: Expr
 e1  = rr "(k_1 + k_2)"
-e2  = rr "k_1" 
+e2  = rr "k_1"
 
 o1, o2, o3 :: FixResult Integer
-o1  = rr "SAT " 
+o1  = rr "SAT "
 o2  = rr "UNSAT [1, 2, 9,10]"
-o3  = rr "UNSAT []" 
+o3  = rr "UNSAT []"
 
 -- sol1 = doParse solution1P "solution: k_5 := [0 <= VV_int]"
--- sol2 = doParse solution1P "solution: k_4 := [(0 <= VV_int)]" 
+-- sol2 = doParse solution1P "solution: k_4 := [(0 <= VV_int)]"
 
 b0, b1, b2, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13 :: BareType
 b0  = rr "Int"
@@ -701,7 +702,7 @@ b13 = rr "x:(Int, [Bool]) -> [(String, String)]"
 m1 = ["len :: [a] -> Int", "len (Nil) = 0", "len (Cons x xs) = 1 + len(xs)"]
 m2 = ["tog :: LL a -> Int", "tog (Nil) = 100", "tog (Cons y ys) = 200"]
 
-me1, me2 :: Measure.Measure BareType Symbol 
-me1 = (rr $ intercalate "\n" m1) 
+me1, me2 :: Measure.Measure BareType Symbol
+me1 = (rr $ intercalate "\n" m1)
 me2 = (rr $ intercalate "\n" m2)
 -}
