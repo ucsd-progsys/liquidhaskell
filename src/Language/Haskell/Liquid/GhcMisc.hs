@@ -121,6 +121,9 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
+#if __GLASGOW_HASKELL__ >= 710
+tickSrcSpan (SourceNote ss _) = RealSrcSpan ss
+#endif
 tickSrcSpan _                 = noSrcSpan 
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------

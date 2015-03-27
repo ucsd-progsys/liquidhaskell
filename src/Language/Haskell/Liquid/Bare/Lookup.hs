@@ -142,10 +142,15 @@ tryPropTyCon s e
   where
     sx                 = symbol s
 
-
-lookupGhcDataCon dc  = case isTupleDC $ val dc of
-                         Just n  -> return $ tupleCon BoxedTuple n
-                         Nothing -> lookupGhcDataCon' dc 
+lookupGhcDataCon dc
+ | Just n <- isTupleDC (val dc)
+ = return $ tupleCon BoxedTuple n
+ | val dc == "[]"
+ = return nilDataCon
+ | val dc == ":"
+ = return consDataCon
+ | otherwise
+ = lookupGhcDataCon' dc
 
 isTupleDC zs
   | "(," `isPrefixOfSym` zs
