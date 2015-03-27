@@ -40,7 +40,7 @@ Source-Repository head
 
 Flag devel
   Description: turn on stricter error reporting for development
-  Default:     True
+  Default:     False
 
 Executable liquid
   default-language: Haskell98
