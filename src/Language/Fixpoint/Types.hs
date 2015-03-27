@@ -348,6 +348,7 @@ fObj = fTyconSort . TC
 data Sort = FInt
           | FReal
           | FNum                 -- ^ numeric kind for Num tyvars
+          | FFrac                -- ^ numeric kind for Fractional tyvars
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
@@ -364,6 +365,7 @@ instance Fixpoint Sort where
 toFix_sort (FVar i)     = text "@"   <> parens (toFix i)
 toFix_sort FInt         = text "int"
 toFix_sort FReal        = text "real"
+toFix_sort FFrac        = text "frac"
 toFix_sort (FObj x)     = toFix x
 toFix_sort FNum         = text "num"
 toFix_sort (FFunc n ts) = text "func" <> parens ((toFix n) <> (text ", ") <> (toFix ts))

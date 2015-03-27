@@ -207,7 +207,9 @@ checkOpTy f e t t'
   = throwError $ errOp e t t'
 
 checkFractional f l
-  = throwError $ errNonFractional l
+  = do t <- checkSym f l
+       unless (t == FFrac) (throwError $ errNonFractional l)
+       return ()
 
 checkNumeric f l
   = do t <- checkSym f l
@@ -219,7 +221,7 @@ checkNumeric f l
 -------------------------------------------------------------------------
 
 checkPred                  :: Env -> Pred -> CheckM () 
-
+ 
 checkPred f PTrue          = return ()
 checkPred f PFalse         = return ()
 checkPred f (PBexp e)      = checkPredBExp f e 
