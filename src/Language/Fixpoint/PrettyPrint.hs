@@ -1,15 +1,15 @@
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 
 module Language.Fixpoint.PrettyPrint where
 
-import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Types
-import Language.Fixpoint.Misc
-import Control.Applicative      ((<$>))
-import Text.Parsec
-import qualified Data.Text as T
+import           Control.Applicative       ((<$>))
+import qualified Data.Text                 as T
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types
+import           Text.Parsec
+import           Text.PrettyPrint.HughesPJ
 
 class PPrint a where
   pprint :: a -> Doc
