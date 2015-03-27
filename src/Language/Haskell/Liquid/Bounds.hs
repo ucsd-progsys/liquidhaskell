@@ -31,11 +31,11 @@ import Language.Haskell.Liquid.RefType
 
 
 data Bound t e 
-  = Bound { bname   :: LocSymbol         -- * The name of the bound
-          , tyvars  :: [t]               -- * Type variables that appear in the bounds
-          , bparams :: [(LocSymbol, t)]  -- * These are abstract refinements, for now
-          , bargs   :: [(LocSymbol, t)]  -- * These are value variables
-          , bbody   :: e                 -- * The body of the bound
+  = Bound { bname   :: LocSymbol         -- ^ The name of the bound
+          , tyvars  :: [t]               -- ^ Type variables that appear in the bounds
+          , bparams :: [(LocSymbol, t)]  -- ^ These are abstract refinements, for now
+          , bargs   :: [(LocSymbol, t)]  -- ^ These are value variables
+          , bbody   :: e                 -- ^ The body of the bound
           }	
 
 type RBound        = RRBound RSort
