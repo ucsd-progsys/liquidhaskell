@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.OfType (
@@ -13,7 +14,7 @@ module Language.Haskell.Liquid.Bare.OfType (
 
 import BasicTypes
 import Name
-import TyCon
+import TyCon hiding (synTyConRhs_maybe)
 import Type (expandTypeSynonyms)
 import TysWiredIn
 
@@ -32,7 +33,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
 
-import Language.Haskell.Liquid.GhcMisc (realTcArity, sourcePosSrcSpan, tyConTyVarsDef)
+import Language.Haskell.Liquid.GhcMisc 
 import Language.Haskell.Liquid.Misc (secondM)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
@@ -218,7 +219,7 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp r (Loc l c) rs ts | Just (SynonymTyCon rhs) <- synTyConRhs_maybe c
+bareTCApp r c rs ts | Just rhs <- synTyConRhs_maybe c
    = do when (realTcArity c < length ts) (Ex.throw err)
         return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
    where tvs = tyConTyVarsDef c

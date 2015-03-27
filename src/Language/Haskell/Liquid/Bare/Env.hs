@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts         #-}
+
 module Language.Haskell.Liquid.Bare.Env (
     BareM
   , Warn

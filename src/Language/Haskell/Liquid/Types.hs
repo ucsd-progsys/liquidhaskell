@@ -458,8 +458,9 @@ instance Hashable (PVar a) where
 ------ Strictness --------------------------------------------------
 --------------------------------------------------------------------
 
-instance NFData Var
-instance NFData SrcSpan
+instance NFData Var where rnf _ = ()
+instance NFData SrcSpan where rnf _ = ()
+
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
@@ -1561,9 +1562,9 @@ errOther = ErrOther noSrcSpan
 data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
                    } 
-                deriving (Eq, Ord) 
+                deriving (Eq, Ord, Generic) 
 
-instance NFData Cinfo 
+instance NFData Cinfo where rnf _ = ()
 
 
 ------------------------------------------------------------------------

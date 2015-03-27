@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
