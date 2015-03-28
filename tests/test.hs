@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP  #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -18,16 +19,22 @@ import System.IO
 import System.Process
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
 
+#if __GLASGOW_HASKELL__ >= 710
+testRunner = consoleTestReporter
+#else
+import Test.Tasty.Ingredients.Rerun
+testRunner = rerunningTests [ listingTests, consoleTestReporter ]
+#endif
+
 main :: IO ()
 main = run =<< tests 
   where
-    run   = defaultMainWithIngredients [ 
-                rerunningTests   [ listingTests, consoleTestReporter ]
+    run   = defaultMainWithIngredients [
+                testRunner
               , includingOptions [ Option (Proxy :: Proxy NumThreads)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
