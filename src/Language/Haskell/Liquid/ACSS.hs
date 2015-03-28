@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.ACSS (
   , hsannot
   , AnnMap (..)
   , breakS
-  , srcModuleName 
+  , srcModuleName
   , Status (..)
   ) where
 
@@ -14,30 +14,30 @@ import Language.Haskell.HsColour.HTML (renderAnchors, escape)
 import qualified Language.Haskell.HsColour.CSS as CSS
 
 import Data.Either (partitionEithers)
-import Data.Maybe  (fromMaybe) 
+import Data.Maybe  (fromMaybe)
 import qualified Data.HashMap.Strict as M
 import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GhcMisc
 
-data AnnMap  = Ann { 
+data AnnMap  = Ann {
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
   , errors :: [(Loc, Loc, String)]           -- ^ List of error intervals
-  , status :: !Status          
-  } 
-  
-data Status = Safe | Unsafe | Error | Crash 
+  , status :: !Status
+  }
+
+data Status = Safe | Unsafe | Error | Crash
               deriving (Eq, Ord, Show)
 
-data Annotation = A { 
+data Annotation = A {
     typ :: Maybe String         -- ^ type  string
-  , err :: Maybe String         -- ^ error string 
-  , lin :: Maybe (Int, Int)     -- ^ line number, total width of lines i.e. max (length (show lineNum)) 
+  , err :: Maybe String         -- ^ error string
+  , lin :: Maybe (Int, Int)     -- ^ line number, total width of lines i.e. max (length (show lineNum))
   } deriving (Show)
 
 
--- | Formats Haskell source code using HTML and mouse-over annotations 
+-- | Formats Haskell source code using HTML and mouse-over annotations
 hscolour :: Bool     -- ^ Whether to include anchors.
          -> Bool     -- ^ Whether input document is literate haskell or not
          -> String   -- ^ Haskell source code, Annotations as comments at end
@@ -47,9 +47,9 @@ hscolour anchor lhs = hsannot anchor Nothing lhs . splitSrcAndAnns
 
 type CommentTransform = Maybe (String -> [(TokenType, String)])
 
--- | Formats Haskell source code using HTML and mouse-over annotations 
+-- | Formats Haskell source code using HTML and mouse-over annotations
 hsannot  :: Bool             -- ^ Whether to include anchors.
-         -> CommentTransform -- ^ Function to refine comment tokens 
+         -> CommentTransform -- ^ Function to refine comment tokens
          -> Bool             -- ^ Whether input document is literate haskell or not
          -> (String, AnnMap) -- ^ Haskell Source, Annotations
          -> String           -- ^ Coloured Haskell source code.
@@ -63,7 +63,7 @@ litSpans :: [Lit] -> [(Lit, Loc)]
 litSpans lits = zip lits $ spans lits
   where spans = tokenSpans Nothing . map unL
 
-hsannot' baseLoc anchor tx = 
+hsannot' baseLoc anchor tx =
     CSS.pre
     . (if anchor then concatMap (renderAnchors renderAnnotToken)
                       . insertAnnotAnchors
@@ -72,26 +72,26 @@ hsannot' baseLoc anchor tx =
 
 -- | annotTokenise is absurdly slow: O(#tokens x #errors)
 
-annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Annotation)] 
-annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots 
-  where 
-    toks       = tokeniseWithCommentTransform tx src 
-    spans      = tokenSpans baseLoc $ map snd toks 
+annotTokenise :: Maybe Loc -> CommentTransform -> (String, AnnMap) -> [(TokenType, String, Annotation)]
+annotTokenise baseLoc tx (src, annm) = zipWith (\(x,y) z -> (x,y,z)) toks annots
+  where
+    toks       = tokeniseWithCommentTransform tx src
+    spans      = tokenSpans baseLoc $ map snd toks
     annots     = fmap (spanAnnot linWidth annm) spans
     linWidth   = length $ show $ length $ lines src
 
-spanAnnot w (Ann ts es _) span = A t e b 
-  where 
+spanAnnot w (Ann ts es _) span = A t e b
+  where
     t = fmap snd (M.lookup span ts)
     e = fmap (\_ -> "ERROR") $ find (span `inRange`) [(x,y) | (x,y,_) <- es]
     b = spanLine w span
 
-spanLine w (L (l, c)) 
-  | c == 1    = Just (l, w) 
+spanLine w (L (l, c))
+  | c == 1    = Just (l, w)
   | otherwise = Nothing
 
-inRange (L (l0, c0)) (L (l, c), L (l', c')) 
-  = l <= l0 && c <= c0 && l0 <= l' && c0 < c' 
+inRange (L (l0, c0)) (L (l, c), L (l', c'))
+  = l <= l0 && c <= c0 && l0 <= l' && c0 < c'
 
 tokeniseWithCommentTransform :: Maybe (String -> [(TokenType, String)]) -> String -> [(TokenType, String)]
 tokeniseWithCommentTransform Nothing  = tokenise
@@ -100,10 +100,10 @@ tokeniseWithCommentTransform (Just f) = concatMap (expand f) . tokenise
         expand _ z            = [z]
 
 tokenSpans :: Maybe Loc -> [String] -> [Loc]
-tokenSpans = scanl plusLoc . fromMaybe (L (1, 1)) 
+tokenSpans = scanl plusLoc . fromMaybe (L (1, 1))
 
 plusLoc :: Loc -> String -> Loc
-plusLoc (L (l, c)) s 
+plusLoc (L (l, c)) s
   = case '\n' `elemIndices` s of
       [] -> L (l, (c + n))
       is -> L ((l + length is), (n - maximum is))
@@ -111,19 +111,19 @@ plusLoc (L (l, c)) s
 
 renderAnnotToken :: (TokenType, String, Annotation) -> String
 renderAnnotToken (x, y, a)  = renderLinAnnot (lin a)
-                            $ renderErrAnnot (err a) 
-                            $ renderTypAnnot (typ a) 
+                            $ renderErrAnnot (err a)
+                            $ renderTypAnnot (typ a)
                             $ CSS.renderToken (x, y)
 
 
 
 renderTypAnnot (Just ann) s = printf "<a class=annot href=\"#\"><span class=annottext>%s</span>%s</a>" (escape ann) s
-renderTypAnnot Nothing    s = s     
+renderTypAnnot Nothing    s = s
 
-renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s 
+renderErrAnnot (Just _) s   = printf "<span class=hs-error>%s</span>" s
 renderErrAnnot Nothing  s   = s
 
-renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lineString d) s 
+renderLinAnnot (Just d) s   = printf "<span class=hs-linenum>%s: </span>%s" (lineString d) s
 renderLinAnnot Nothing  s   = s
 
 lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
@@ -136,25 +136,25 @@ lineString (i, w) = (replicate (w - (length is)) ' ') ++ is
 
 
 insertAnnotAnchors :: [(TokenType, String, a)] -> [Either String (TokenType, String, a)]
-insertAnnotAnchors toks 
+insertAnnotAnchors toks
   = stitch (zip toks' toks) $ insertAnchors toks'
-  where toks' = [(x,y) | (x,y,_) <- toks] 
+  where toks' = [(x,y) | (x,y,_) <- toks]
 
 stitch ::  Eq b => [(b, c)] -> [Either a b] -> [Either a c]
 stitch xys ((Left a) : rest)
   = (Left a) : stitch xys rest
-stitch ((x,y):xys) ((Right x'):rest) 
-  | x == x' 
+stitch ((x,y):xys) ((Right x'):rest)
+  | x == x'
   = (Right y) : stitch xys rest
   | otherwise
   = error "stitch"
 stitch _ []
   = []
-stitch _ _ 
+stitch _ _
   = error "stitch: cannot happen"
 
-splitSrcAndAnns ::  String -> (String, AnnMap) 
-splitSrcAndAnns s = 
+splitSrcAndAnns ::  String -> (String, AnnMap)
+splitSrcAndAnns s =
   let ls = lines s in
   case findIndex (breakS ==) ls of
     Nothing -> (s, Ann M.empty [] Safe)
@@ -165,26 +165,26 @@ splitSrcAndAnns s =
 
 srcModuleName :: String -> String
 srcModuleName = fromMaybe "Main" . tokenModule . tokenise
-  
-tokenModule toks 
-  = do i <- findIndex ((Keyword, "module") ==) toks 
+
+tokenModule toks
+  = do i <- findIndex ((Keyword, "module") ==) toks
        let (_, toks')  = splitAt (i+2) toks
        j <- findIndex ((Space ==) . fst) toks'
        let (toks'', _) = splitAt j toks'
        return $ concatMap snd toks''
 
-breakS = "MOUSEOVER ANNOTATIONS" 
+breakS = "MOUSEOVER ANNOTATIONS"
 
 annotParse :: String -> String -> AnnMap
 annotParse mname s = Ann (M.fromList ts) [(x,y,"") | (x,y) <- es] Safe
-  where 
+  where
     (ts, es)       = partitionEithers $ parseLines mname 0 $ lines s
 
 
-parseLines _ _ [] 
+parseLines _ _ []
   = []
 
-parseLines mname i ("":ls)      
+parseLines mname i ("":ls)
   = parseLines mname (i+1) ls
 
 parseLines mname i (_:_:l:c:"0":l':c':rest')
@@ -194,10 +194,10 @@ parseLines mname i (_:_:l:c:"0":l':c':rest')
           line' = (read l') :: Int
           col'  = (read c') :: Int
 
-parseLines mname i (x:f:l:c:n:rest) 
+parseLines mname i (x:f:l:c:n:rest)
   | f /= mname
   = parseLines mname (i + 5 + num) rest'
-  | otherwise 
+  | otherwise
   = Left (L (line, col), (x, anns)) : parseLines mname (i + 5 + num) rest'
     where line  = (read l) :: Int
           col   = (read c) :: Int
@@ -205,14 +205,14 @@ parseLines mname i (x:f:l:c:n:rest)
           anns  = intercalate "\n" $ take num rest
           rest' = drop num rest
 
-parseLines _ i _              
+parseLines _ i _
   = error $ "Error Parsing Annot Input on Line: " ++ show i
 
 instance Show AnnMap where
   show (Ann ts es _ ) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)
                                 ++ (concatMap ppAnnotErr [(x,y) | (x,y,_) <- es])
-      
-ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s 
+
+ppAnnotTyp (L (l, c), (x, s))     = printf "%s\n%d\n%d\n%d\n%s\n\n\n" x l c (length $ lines s) s
 ppAnnotErr (L (l, c), L (l', c')) = printf " \n%d\n%d\n0\n%d\n%d\n\n\n\n" l c l' c'
 
 
@@ -230,8 +230,8 @@ inlines :: String -> [String]
 inlines s = lines' s id
   where
   lines' []             acc = [acc []]
-  lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id	-- DOS
-  lines' ('\n':s)       acc = acc ['\n'] : lines' s id	-- Unix
+  lines' ('\^M':'\n':s) acc = acc ['\n'] : lines' s id  -- DOS
+  lines' ('\n':s)       acc = acc ['\n'] : lines' s id  -- Unix
   lines' (c:s)          acc = lines' s (acc . (c:))
 
 
@@ -246,7 +246,7 @@ classify (('>':x):xs)   = Code ('>':x) : classify xs
 classify (x:xs)         = Lit x: classify xs
 
 
-allProg name  = go 
+allProg name  = go
   where
     end       = "\\end{" ++ name ++ "}"
     go []     = []  -- Should give an error message,
@@ -262,4 +262,3 @@ joinL []                  = []
 joinL (Code c:Code c2:xs) = joinL (Code (c++c2):xs)
 joinL (Lit c :Lit c2 :xs) = joinL (Lit  (c++c2):xs)
 joinL (any:xs)            = any: joinL xs
-

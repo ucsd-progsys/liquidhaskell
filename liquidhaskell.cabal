@@ -79,7 +79,7 @@ Executable liquid
                , liquidhaskell
 
   Main-is: Liquid.hs
-  ghc-options: -W
+  ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
   if flag(devel)
     ghc-options: -Werror
   Default-Extensions: PatternGuards
@@ -234,7 +234,7 @@ Library
                     Language.Haskell.Liquid.Desugar.DsBinds,
                     Language.Haskell.Liquid.Desugar.DsGRHSs,
                     Language.Haskell.Liquid.Desugar.HscMain
-   ghc-options: -W
+   ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
    if flag(devel)
      ghc-options: -Werror
    ghc-prof-options: -fprof-auto
