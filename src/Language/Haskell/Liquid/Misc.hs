@@ -35,7 +35,13 @@ safeIndex err n ls
 safeFromJust _  (Just x) = x
 safeFromJust err _        = errorstar err
 
+fst4 (a,_,_,_) = a
+snd4 (_,b,_,_) = b
+
+mapFourth4 f (x, y, z, w) = (x, y, z, f w)
+
 addFst3   a (b, c) = (a, b, c)
+addThd3   c (a, b) = (a, b, c)
 dropFst3 (_, x, y) = (x, y)
 dropThd3 (x, y, _) = (x, y)
 
