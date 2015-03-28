@@ -254,7 +254,7 @@ constraintP
        t1 <- bareTypeP
        reserved "<:"
        t2 <- bareTypeP
-       return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol]) ((snd <$> xts) ++ [t1]) t2 
+       return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol]) [] ((snd <$> xts) ++ [t1]) t2
 
 
 constraintEnvP

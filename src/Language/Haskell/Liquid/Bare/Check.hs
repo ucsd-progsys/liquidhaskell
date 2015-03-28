@@ -25,12 +25,12 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, safeHead)
+import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, errorstar, safeHead)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
-import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
-import Language.Haskell.Liquid.Misc (dropThd3, firstDuplicate)
+import Language.Haskell.Liquid.GhcMisc (showPpr, showPpr, sourcePosSrcSpan)
+import Language.Haskell.Liquid.Misc (firstDuplicate, dropThd3, snd4)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
 import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
@@ -150,7 +150,7 @@ checkTerminationExpr emb env (v, Loc l t, es) = (mkErr <$> go es) <|> (mkErr' <$
     go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
-    xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
+    xss     = mapSnd rSort <$> (uncurry zip $ (\(x,y,_,_) -> (x,y)) $ bkArrowDeep t)
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le zero 
 
@@ -337,7 +337,7 @@ checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
     xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
+    su   = checkMBodyUnify (ty_res trep) (head $ snd4 $ bkArrowDeep sort)
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go
