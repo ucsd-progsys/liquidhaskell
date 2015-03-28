@@ -1,4 +1,9 @@
-{-# LANGUAGE NoMonomorphismRestriction, FlexibleInstances, UndecidableInstances, TypeSynonymInstances, TupleSections #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE UndecidableInstances      #-}
 
 module Language.Fixpoint.Parse (
 
@@ -54,30 +59,30 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
-import Control.Applicative ((<*>), (<$>), (<*))
-import Control.Monad
-import Text.Parsec
-import Text.Parsec.Expr
-import Text.Parsec.Pos
-import Text.Parsec.Language
-import Text.Parsec.String hiding (Parser, parseFromFile)
-import Text.Printf  (printf)
-import qualified Text.Parsec.Token as Token
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as S
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Control.Applicative         ((<$>), (<*), (<*>))
+import           Control.Monad
+import qualified Data.HashMap.Strict         as M
+import qualified Data.HashSet                as S
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
+import           Text.Parsec
+import           Text.Parsec.Expr
+import           Text.Parsec.Language
+import           Text.Parsec.Pos
+import           Text.Parsec.String          hiding (Parser, parseFromFile)
+import qualified Text.Parsec.Token           as Token
+import           Text.Printf                 (printf)
 
-import Data.Char (isLower, toUpper)
-import Language.Fixpoint.Misc hiding (dcolon)
-import Language.Fixpoint.Types
-import Language.Fixpoint.Bitvector
-import Language.Fixpoint.Errors
-import Language.Fixpoint.SmtLib2
+import           Data.Char                   (isLower, toUpper)
+import           Language.Fixpoint.Bitvector
+import           Language.Fixpoint.Errors
+import           Language.Fixpoint.Misc      hiding (dcolon)
+import           Language.Fixpoint.SmtLib2
+import           Language.Fixpoint.Types
 
-import Data.Maybe(maybe, fromJust)
+import           Data.Maybe                  (fromJust, maybe)
 
-import Data.Monoid (mempty)
+import           Data.Monoid                 (mempty)
 
 type Parser = Parsec String Integer
 

@@ -1,12 +1,12 @@
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -32,7 +32,7 @@ module Language.Fixpoint.Names (
   , qualifySymbol
   , suffixSymbol
 
-  -- * Hardwired global names 
+  -- * Hardwired global names
   , dummyName
   , preludeName
   , boolConName
@@ -48,23 +48,23 @@ module Language.Fixpoint.Names (
   , prims
 ) where
 
-import GHC.Generics         (Generic)
-import Data.Char
-import Data.String
-import Data.Typeable        (Typeable)
-import Data.Generics        (Data)
-import Data.Text                (Text)
-import qualified Data.Text      as T
-import Data.Monoid
-import Data.Interned
-import Data.Interned.Internal.Text
-import Data.Interned.Text
-import Data.Hashable
-import qualified Data.HashSet        as S
-import Control.Applicative
-import Control.DeepSeq
+import           Control.Applicative
+import           Control.DeepSeq
+import           Data.Char
+import           Data.Generics               (Data)
+import           Data.Hashable
+import qualified Data.HashSet                as S
+import           Data.Interned
+import           Data.Interned.Internal.Text
+import           Data.Interned.Text
+import           Data.Monoid
+import           Data.String
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
+import           Data.Typeable               (Typeable)
+import           GHC.Generics                (Generic)
 
-import Language.Fixpoint.Misc   (errorstar, stripParens, mapSnd)
+import           Language.Fixpoint.Misc      (errorstar, mapSnd, stripParens)
 
 ---------------------------------------------------------------
 ---------------------------- Symbols --------------------------
@@ -251,7 +251,7 @@ strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 
-size32Name   = "Size32" :: Symbol 
+size32Name   = "Size32" :: Symbol
 size64Name   = "Size64" :: Symbol
 bitVecName   = "BitVec" :: Symbol
 bvOrName     = "bvor"   :: Symbol
@@ -278,17 +278,17 @@ prims = [ propConName
         , size32Name
         , size64Name
         , bitVecName
-        , bvOrName 
+        , bvOrName
         , bvAndName
-        , "FAppTy" 
+        , "FAppTy"
         ]
 
 -- dropModuleNames []  = []
--- dropModuleNames s  
---   | s == tupConName = tupConName 
+-- dropModuleNames s
+--   | s == tupConName = tupConName
 --   | otherwise       = safeLast msg $ words $ dotWhite `fmap` stripParens s
---   where 
---     msg             = "dropModuleNames: " ++ s 
+--   where
+--     msg             = "dropModuleNames: " ++ s
 --     dotWhite '.'    = ' '
 --     dotWhite c      = c
 

@@ -1,7 +1,7 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
 
@@ -11,15 +11,15 @@ module Language.Fixpoint.Config (
   , SMTSolver (..)
   , GenQualifierSort (..)
   , UeqAllSorts (..)
-  , withTarget 
+  , withTarget
   , withUEqAllSorts
-) where  
-  
-import Language.Fixpoint.Files
-import System.FilePath       
-import System.Console.CmdArgs.Default
-import Data.Typeable        (Typeable)
-import Data.Generics        (Data)
+) where
+
+import           Data.Generics                  (Data)
+import           Data.Typeable                  (Typeable)
+import           Language.Fixpoint.Files
+import           System.Console.CmdArgs.Default
+import           System.FilePath
 
 
 class Command a  where
@@ -29,11 +29,11 @@ class Command a  where
 -- Configuration Options -----------------------------------------------
 ------------------------------------------------------------------------
 
-withTarget        :: Config -> FilePath -> Config 
+withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
-data Config 
-  = Config { 
+data Config
+  = Config {
       inFile      :: FilePath         -- target fq-file
     , outFile     :: FilePath         -- output file
     , solver      :: SMTSolver        -- which SMT solver to use
@@ -46,24 +46,24 @@ data Config
 instance Default Config where
   def = Config "" def def def def def def
 
-instance Command Config where 
-  command c =  command (genSorts c)    
-            ++ command (ueqAllSorts c) 
-            ++ command (solver c) 
-            ++ " -out " 
+instance Command Config where
+  command c =  command (genSorts c)
+            ++ command (ueqAllSorts c)
+            ++ command (solver c)
+            ++ " -out "
             ++ (outFile c) ++ " " ++ (inFile c)
 
 ---------------------------------------------------------------------------------------
--- newtype OFilePath = O FilePath 
+-- newtype OFilePath = O FilePath
 --     deriving (Eq, Data,Typeable,Show)
--- 
--- instance Default OFilePath where 
+--
+-- instance Default OFilePath where
 --   def = O "out"
--- 
--- instance Command OFilePath where 
+--
+-- instance Command OFilePath where
 --   command (O s) = " -out " ++ s
 
-newtype GenQualifierSort = GQS Bool 
+newtype GenQualifierSort = GQS Bool
     deriving (Eq, Data,Typeable,Show)
 
 instance Default GenQualifierSort where
@@ -71,9 +71,9 @@ instance Default GenQualifierSort where
 
 instance Command GenQualifierSort where
   command (GQS True)  = ""
-  command (GQS False) = "-no-gen-qual-sorts" 
+  command (GQS False) = "-no-gen-qual-sorts"
 
-newtype UeqAllSorts = UAS Bool 
+newtype UeqAllSorts = UAS Bool
     deriving (Eq, Data,Typeable,Show)
 
 instance Default UeqAllSorts where
@@ -81,7 +81,7 @@ instance Default UeqAllSorts where
 
 instance Command UeqAllSorts where
   command (UAS True)  = " -ueq-all-sorts "
-  command (UAS False) = "" 
+  command (UAS False) = ""
 
 withUEqAllSorts c b = c { ueqAllSorts = UAS b }
 
@@ -90,13 +90,13 @@ withUEqAllSorts c b = c { ueqAllSorts = UAS b }
 data SMTSolver = Z3 | Cvc4 | Mathsat | Z3mem
                  deriving (Eq,Data,Typeable)
 
-instance Command SMTSolver where 
+instance Command SMTSolver where
   command s = " -smtsolver " ++ show s
 
 instance Default SMTSolver where
   def = Z3
 
-instance Show SMTSolver where 
+instance Show SMTSolver where
   show Z3      = "z3"
   show Cvc4    = "cvc4"
   show Mathsat = "mathsat"
@@ -109,6 +109,4 @@ smtSolver "z3mem"   = Z3mem
 smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
--- defaultSolver       = fromMaybe Z3 
-
-
+-- defaultSolver       = fromMaybe Z3

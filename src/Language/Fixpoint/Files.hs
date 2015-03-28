@@ -29,11 +29,11 @@ module Language.Fixpoint.Files (
 
 ) where
 
-import qualified Control.Exception            as Ex
-import           Control.Monad -- .State
-import           Data.Functor                 ((<$>))
-import           Data.List                    hiding (find)
-import           Data.Maybe                   (fromMaybe)
+import qualified Control.Exception      as Ex
+import           Control.Monad
+import           Data.Functor           ((<$>))
+import           Data.List              hiding (find)
+import           Data.Maybe             (fromMaybe)
 import           System.Directory
 import           System.Environment
 import           System.FilePath
@@ -63,11 +63,11 @@ checkM f msg p
 data Ext = Cgi    -- ^ Constraint Generation Information
          | Fq     -- ^ Input to constraint solving (fixpoint)
          | Out    -- ^ Output from constraint solving (fixpoint)
-         | Html   -- ^ HTML file with inferred type annotations 
-         | Annot  -- ^ Text file with inferred types 
-         | Vim    -- ^ Vim annotation file 
-         | Hs     -- ^ Haskell source 
-         | LHs    -- ^ Literate Haskell source 
+         | Html   -- ^ HTML file with inferred type annotations
+         | Annot  -- ^ Text file with inferred types
+         | Vim    -- ^ Vim annotation file
+         | Hs     -- ^ Haskell source
+         | LHs    -- ^ Literate Haskell source
          | Js     -- ^ JavaScript source
          | Ts     -- ^ Typescript source
          | Spec   -- ^ Spec file (e.g. include/Prelude.spec)
@@ -108,7 +108,7 @@ extMap e = go e
     go Saved  = ".bak"
     go Cache  = ".err"
     go Smt2   = ".smt2"
-    go _      = errorstar $ "extMap: Unknown extension " ++ show e
+    -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath
 withExt f ext   =  replaceExtension f (extMap ext)
@@ -121,8 +121,8 @@ extFileName e f = path </> addExtension file ext
     ext         = extMap e
 
 tempDirectory   :: FilePath -> FilePath
-tempDirectory f 
-  | isTmp dir   = dir 
+tempDirectory f
+  | isTmp dir   = dir
   | otherwise   = dir </> tmpDirName
   where
     dir         = takeDirectory f
@@ -141,7 +141,7 @@ extModuleName modName ext =
   case explode modName of
     [] -> errorstar $ "malformed module name: " ++ modName
     ws -> extFileNameR ext $ foldr1 (</>) ws
-  where 
+  where
     explode = words . map (\c -> if c == '.' then ' ' else c)
 
 copyFiles :: [FilePath] -> FilePath -> IO ()
