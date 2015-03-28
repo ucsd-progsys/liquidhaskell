@@ -17,7 +17,7 @@ import Var
 
 import Language.Fixpoint.Names      (dropModuleNames)
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc 
+import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.GhcMisc ()
 import Language.Haskell.Liquid.Types
@@ -34,8 +34,8 @@ makeDictionary (RI c t xts) = (makeDictionaryName c t, M.fromList (mapFst val <$
 
 makeDictionaryName :: Located Symbol -> SpecType -> Symbol
 makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ (symbolString $ val t) ++ c')
-  where 
-  	c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
+  where
+        c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
 makeDictionaryName _ _              = errorstar "makeDictionaryName: called with invalid type"
 
@@ -63,4 +63,3 @@ dhasinfo Nothing _    = Nothing
 dhasinfo (Just xts) x = M.lookup x' xts
   where
      x' = (dropModuleNames $ symbol $ show x)
-

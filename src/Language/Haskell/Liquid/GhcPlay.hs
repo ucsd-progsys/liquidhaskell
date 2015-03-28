@@ -5,7 +5,7 @@
 
 module Language.Haskell.Liquid.GhcPlay where
 
-import GHC		
+import GHC
 import CoreSyn
 import Var
 import TypeRep
@@ -38,7 +38,7 @@ instance Subable CoreExpr where
   subTy s (App e1 e2)  = App (subTy s e1) (subTy s e2)
   subTy s (Lam b e)    | isTyVar b = Lam v' (subTy s e)
    where v' = case M.lookup b s of
-               Just (TyVarTy v) -> v      
+               Just (TyVarTy v) -> v
                _                -> b
 
   subTy s (Lam b e)      = Lam (subTy s b) (subTy s e)
@@ -58,7 +58,7 @@ instance Subable (Alt Var) where
  subTy s (a, b, e) = (a, map (subTy s) b, subTy s e)
 
 instance Subable Var where
- sub s v   | M.member v s = subVar $ s M.! v 
+ sub s v   | M.member v s = subVar $ s M.! v
            | otherwise    = v
  subTy s v = setVarType v (subTy s (varType v))
 
