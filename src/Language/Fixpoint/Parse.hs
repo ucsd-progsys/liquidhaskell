@@ -232,12 +232,8 @@ funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP
 -- | BitVector literal: lit "#x00000001" (BitVec (Size32 obj))
 litP = do reserved "lit"
           l <- stringLiteral
-          s <- try (bvSortP "Size32" S32) <|> bvSortP "Size64" S64
-          return $ ECon $ L (T.pack l) (mkSort s)
-  where
-    bvSortP ss s = do parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
-                      return s
-
+          t <- sortP
+          return $ ECon $ L (T.pack l) t
 
 -- ORIG exprP :: Parser Expr
 -- ORIG exprP =  expr2P <|> lexprP
@@ -291,7 +287,16 @@ sortP
   <|> try (string "Int"     >>  return FInt)
   <|> try (string "int"     >>  return FInt)
   <|> try (FObj . symbol <$> lowerIdP)
+  <|> try bvSortP
   <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
+
+bvSortP
+  = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
+
+bvSizeP ss s = do
+  parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
+  return s
+
 
 symCharsP   = condIdP symChars (`notElem` keyWordSyms)
 
