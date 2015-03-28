@@ -254,5 +254,8 @@ test-suite test
                      liquidhaskell,
                      optparse-applicative == 0.11.*,
                      tasty >= 0.10,
-                     tasty-hunit >= 0.9,
+                     tasty-hunit >= 0.9
+  if impl(ghc < 7.10)
+    build-depends:
+                     -- tasty-rerun fails to compile on 7.10
                      tasty-rerun >= 1.1
