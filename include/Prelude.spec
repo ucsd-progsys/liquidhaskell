@@ -19,13 +19,13 @@ assume GHC.Base.. :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a ->
                   -> (zcmp:a -> b<q zcmp>)
                   ->  xcmp:a -> c<r xcmp>
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
-                                -> { v:Integer |
+                                -> { v:GHC.Integer.Type.Integer |
                                      v = (x :: int) }
 assume GHC.Num.+                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.-                :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 
 embed GHC.Types.Double as real
-embed Integer  as int
+embed GHC.Integer.Type.Integer  as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
 type LeInt N = {v: GHC.Types.Int | v <= N }

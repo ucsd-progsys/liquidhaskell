@@ -20,7 +20,7 @@ class (GHC.Real.Real a, GHC.Enum.Enum a) => GHC.Real.Integral a where
                                           && (((x>=0) && (y>=1)) => (v<=x)))}
                                     ,{v:a | ((v >= 0) && (v < y))})
   GHC.Real.divMod :: a -> {v:a | v /= 0} -> (a, a)
-  GHC.Real.toInteger :: x:a -> {v:Integer | v = x}
+  GHC.Real.toInteger :: x:a -> {v:GHC.Integer.Type.Integer | v = x}
 
 -- fixpoint can't handle (x mod y), only (x mod c) so we need to be more clever here
 -- mod :: x:a -> y:a -> {v:a | v = (x mod y) }

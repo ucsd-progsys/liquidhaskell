@@ -19,7 +19,7 @@ import GHC (HscEnv)
 import HscMain
 import Name
 import PrelInfo                                 (wiredInThings)
-import PrelNames                                (fromIntegerName, smallIntegerName)
+import PrelNames                                (fromIntegerName, smallIntegerName, integerTyConName)
 import RdrName (setRdrNameSpace)
 import SrcLoc (SrcSpan, GenLocated(L))
 import TcRnDriver (tcRnLookupRdrName) 
@@ -92,6 +92,7 @@ wiredIn      = M.fromList $ special ++ wiredIns
   where
     wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
     special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
+               , ("GHC.Integer.Type.Integer", integerTyConName)
                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 symbolLookupEnv env mod s
