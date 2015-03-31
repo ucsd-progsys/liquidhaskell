@@ -119,7 +119,7 @@ instance PPrint Error where
 
 ppSpecTypeErr   :: SpecType -> Doc
 ppSpecTypeErr
-  = rtypeDoc Lossy . fmap (everywhere (mkT noCasts))
+  = rtypeDoc Lossy . tidySpecType Lossy . fmap (everywhere (mkT noCasts))
   where
     noCasts (ECst x _) = x
     noCasts e          = e
