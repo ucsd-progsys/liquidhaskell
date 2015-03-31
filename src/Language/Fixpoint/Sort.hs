@@ -124,8 +124,10 @@ instance Checkable SortedReft where
 checkExpr                  :: Env -> Expr -> CheckM Sort 
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
+checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt 
 checkExpr _ (ECon (R _))   = return FReal 
+checkExpr _ (ECon (L _ s)) = return s
 checkExpr f (EVar x)       = checkSym f x
 checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2

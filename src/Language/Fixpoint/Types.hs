@@ -51,6 +51,8 @@ module Language.Fixpoint.Types (
   , appFTyCon
   , fTyconSymbol
   , symbolFTycon
+
+  , strSort
   , fApp
   , fObj
 
