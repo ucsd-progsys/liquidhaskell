@@ -202,7 +202,7 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc 
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = checkAppTys t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
+checkRType emb env t         = checkAppTys t <|> checkFunRefs t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
   where 
     cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
@@ -237,6 +237,25 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
     = Nothing
   where expectedArity = realTcArity tc
 
+
+checkFunRefs t = go t
+  where
+    go (RAllT _ t)      = go t
+    go (RAllP _ t)      = go t
+    go (RAllS _ t)      = go t
+    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
+    go (RVar _ _)       = Nothing
+    go (RAllE _ t1 t2)  = go t1 <|> go t2
+    go (REx _ t1 t2)    = go t1 <|> go t2
+    go (RAppTy t1 t2 _) = go t1 <|> go t2
+    go (RRTy _ _ _ t)   = go t
+    go (RExprArg _)     = Nothing
+    go (RHole _)        = Nothing
+    go (RFun _ t1 t2 r)
+      | isTauto r
+        = go t1 <|> go t2
+      | otherwise
+        = Just $ text "Function types cannot have refinements"
 
 checkAbstractRefs t = go t
   where
