@@ -1,20 +1,20 @@
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 
 module Language.Fixpoint.Bitvector
        ( -- * Constructor
          Bv (..)
-       
-         -- * Sizes 
+
+         -- * Sizes
        , BvSize (..)
 
          -- * Operators
        , BvOp (..)
 
          -- * BitVector Sort Constructor
-       , mkSort 
+       , mkSort
 
-         -- * BitVector Expression Constructor 
+         -- * BitVector Expression Constructor
        , eOp
 
          -- * BitVector Type Constructor
@@ -22,14 +22,14 @@ module Language.Fixpoint.Bitvector
 
        ) where
 
-import qualified Data.Text as T
-import Language.Fixpoint.Types
-import Language.Fixpoint.Names
-import GHC.Generics         (Generic)
-import Data.Typeable        (Typeable)
-import Data.Generics        (Data)
+import           Data.Generics           (Data)
+import qualified Data.Text               as T
+import           Data.Typeable           (Typeable)
+import           GHC.Generics            (Generic)
+import           Language.Fixpoint.Names
+import           Language.Fixpoint.Types
 
-data Bv     = Bv BvSize String 
+data Bv     = Bv BvSize String
 
 data BvSize = S32   | S64
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -60,12 +60,11 @@ opName BvAnd = dummyLoc bvAndName
 opName BvOr  = dummyLoc bvOrName
 
 sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
-sizeTC       = symbolFTycon . dummyLoc . sizeName 
+sizeTC       = symbolFTycon . dummyLoc . sizeName
 sizeName S32 = size32Name
 sizeName S64 = size64Name
 
 bvTyCon      = symbolFTycon $ dummyLoc bitVecName
 
--- s32TyCon     = symbolFTycon $ dummyLoc size32Name 
+-- s32TyCon     = symbolFTycon $ dummyLoc size32Name
 -- s64TyCon     = symbolFTycon $ dummyLoc size64Name
-

@@ -1,13 +1,14 @@
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE DeriveGeneric             #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE DeriveTraversable         #-}
-{-# LANGUAGE DeriveFoldable            #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE UndecidableInstances      #-}
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 
 -- | This module contains the data types, operations and serialization functions
@@ -58,7 +59,7 @@ module Language.Fixpoint.Types (
 
   -- * Expressions and Predicates
   , SymConst (..)
-  , Constant (..) 
+  , Constant (..)
   , Bop (..), Brel (..)
   , Expr (..), Pred (..)
   , eVar
@@ -158,38 +159,39 @@ module Language.Fixpoint.Types (
   , dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
-import Debug.Trace          (trace)
+import           Debug.Trace               (trace)
 
-import GHC.Generics         (Generic)
-import Data.Typeable        (Typeable)
-import Data.Generics        (Data)
+import           Data.Generics             (Data)
+import           Data.Typeable             (Typeable)
+import           GHC.Generics              (Generic)
 
-import Data.Monoid hiding   ((<>))
-import Data.Functor
-import Data.Char            (ord, chr, isAlpha, isUpper, toLower)
-import Data.List            (nub, foldl', sort, stripPrefix, intersect)
-import Data.Hashable
-import qualified Data.Foldable as F
-import Data.Traversable
-import Data.Interned
-import Data.String
-import Data.Text (Text)
-import qualified Data.Text as T
+import           Data.Char                 (chr, isAlpha, isUpper, ord, toLower)
+import qualified Data.Foldable             as F
+import           Data.Functor
+import           Data.Hashable
+import           Data.Interned
+import           Data.List                 (foldl', intersect, nub, sort,
+                                            stripPrefix)
+import           Data.Monoid               hiding ((<>))
+import           Data.String
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T
+import           Data.Traversable
 
-import Data.Maybe           (fromMaybe)
-import Text.Printf          (printf)
-import Control.DeepSeq
-import Control.Arrow        ((***))
-import Control.Exception    (assert)
+import           Control.Arrow             ((***))
+import           Control.DeepSeq
+import           Control.Exception         (assert)
+import           Data.Maybe                (fromMaybe)
+import           Text.Printf               (printf)
 
-import Language.Fixpoint.Misc
-import Text.PrettyPrint.HughesPJ
-import Text.Parsec.Pos
+import           Language.Fixpoint.Misc
+import           Text.Parsec.Pos
+import           Text.PrettyPrint.HughesPJ
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import Data.Array            hiding (indices)
-import Language.Fixpoint.Names
+import           Data.Array                hiding (indices)
+import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as S
+import           Language.Fixpoint.Names
 
 class Fixpoint a where
   toFix    :: a -> Doc
@@ -342,7 +344,7 @@ fTyconSort = (`FApp` [])
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
 
- 
+
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
 ----------------------------------------------------------------------
@@ -355,7 +357,7 @@ data Sort = FInt
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type
-	      deriving (Eq, Ord, Show, Data, Typeable, Generic)
+              deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Hashable Sort
 
@@ -419,7 +421,7 @@ data SymConst = SL !Text
 
 data Constant = I !Integer
               | R !Double
-              | L !Text !Sort 
+              | L !Text !Sort
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
@@ -427,7 +429,7 @@ data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
 
 data Bop  = Plus | Minus | Times | Div | Mod
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
-	      -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
+              -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ESym !SymConst
           | ECon !Constant
@@ -450,8 +452,8 @@ instance Fixpoint Double where
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
-  toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t   
-                    
+  toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t
+
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
@@ -613,7 +615,7 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 -- | Generalizing Symbol, Expression, Predicate into Classes -----------
 ------------------------------------------------------------------------
 
--- | Values that can be viewed as Constants 
+-- | Values that can be viewed as Constants
 
 -- | Values that can be viewed as Expressions
 
@@ -687,7 +689,7 @@ newtype Reft = Reft (Symbol, [Refa]) deriving (Eq, Ord, Data, Typeable, Generic)
 instance Show Reft where
   show (Reft x) = render $ toFix x
 
-data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft } 
+data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Show, Data, Typeable, Generic)
 
 isNonTrivialSortedReft (RR _ (Reft (_, ras)))
@@ -789,7 +791,7 @@ insertFEnv   = insertSEnv . lower
 
 instance (Fixpoint a) => Fixpoint (SEnv a) where
   toFix (SE e) = vcat $ map pprxt $ hashMapToAscList e
-	where pprxt (x, t) = toFix x <+> colon <> colon  <+> toFix t
+        where pprxt (x, t) = toFix x <+> colon <> colon  <+> toFix t
 
 instance Fixpoint (SEnv a) => Show (SEnv a) where
   show = render . toFix
@@ -831,7 +833,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
 data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
-                 | UnknownError !String 
+                 | UnknownError !String
                    deriving (Show, Generic)
 
 type FixSolution = M.HashMap Symbol Pred
@@ -1155,7 +1157,7 @@ instance NFData Constant where
   rnf (I x)     = rnf x
   rnf (R x)     = rnf x
   rnf (L s t) = rnf s `seq` rnf t
-  
+
 instance NFData SymConst where
   rnf (SL x) = rnf x
 
@@ -1290,7 +1292,7 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance NFData Qualifier where
-  rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3 
+  rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where args = intersperse comma (toFix <$> xts)
@@ -1354,7 +1356,7 @@ class (Monoid r, Subable r) => Reftable r where
   toReft  :: r -> Reft
   ofReft  :: Reft -> r
   params  :: r -> [Symbol]          -- ^ parameters for Reft, vv + others
-  
+
 instance Monoid Pred where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
