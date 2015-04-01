@@ -4,7 +4,7 @@ import GHC.CString  -- This import interprets Strings as constants!
 
 
 bar :: () -> String 
-{-@ bar :: () -> {x:String | x = boo} @-}
+{-@ bar :: () -> {x:String | x = unpack "boo"} @-}
 bar _ = "foo"
 
 boo :: String
