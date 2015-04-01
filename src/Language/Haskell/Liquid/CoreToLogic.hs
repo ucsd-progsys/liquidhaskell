@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.CoreToLogic (
   ) where
 
 import GHC hiding (Located)
-import Var
+import Var 
 import Type 
 
 import qualified CoreSyn   as C
@@ -29,7 +29,7 @@ import TysWiredIn
 import Control.Applicative 
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names (dropModuleNames, isPrefixOfSym, propConName)
+import Language.Fixpoint.Names (dropModuleNames, propConName, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc
@@ -321,9 +321,9 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 simpleSymbolVar' = symbol . showPpr . getName
 
-isErasable v   = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
-isDead = isDeadOcc . occInfo . idInfo
+isDead     = isDeadOcc . occInfo . idInfo
 
 class Simplify a where
   simplify :: a -> a 
@@ -344,8 +344,14 @@ instance Simplify C.CoreExpr where
     = C.App (simplify e1) (simplify e2)
   simplify (C.Lam x e) | isTyVar x 
     = simplify e
+  simplify (C.Lam x e) | isErasable x 
+    = simplify e
   simplify (C.Lam x e) 
     = C.Lam x (simplify e)
+  simplify (C.Let (C.NonRec x _) e) | isErasable x
+    = simplify e 
+  simplify (C.Let (C.Rec xes) e)    | all (isErasable . fst) xes
+    = simplify e 
   simplify (C.Let xes e) 
     = C.Let (simplify xes) (simplify e)
   simplify (C.Case e x t alts) 
