@@ -1441,6 +1441,9 @@ symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 --   Used to transform parsed output from fixpoint back into fq.
 
 
+instance Symbolic SymConst where
+  symbol = encodeSymConst
+
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = symbol $ litPrefix `mappend` s
 
