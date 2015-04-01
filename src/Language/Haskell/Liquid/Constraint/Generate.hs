@@ -640,8 +640,9 @@ initCGI cfg info = CGInfo {
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
 
 coreBindLits tce info
-  = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts]
-                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons]
+  = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts ]
+                ++ [(F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
+                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where 
     lconsts      = literalConst tce <$> literals (cbs info)
     dcons        = filter isDCon $ impVars info -- ++ (snd <$> freeSyms (spec info))

@@ -22,7 +22,8 @@ import qualified CoreSyn   as C
 import Literal
 import IdInfo
 
-import qualified Data.ByteString as B
+import Data.Text.Encoding
+
 import TysWiredIn 
 
 import Control.Applicative 
@@ -312,15 +313,7 @@ mkLit _                = Nothing -- ELit sym sort
 
 mkI                    = Just . ECon . I  
 mkR                    = Just . ECon . F.R . fromRational
-mkS s                  = Just (ELit  (dummyLoc $ symbol s) stringSort)
-
-
-stringSort = rTypeSort M.empty (ofType stringTy :: RSort)
--- stringSort = rTypeSort M.empty (ofType stringTy :: RSort)
-
-
-instance Symbolic B.ByteString where
-  symbol x = symbol $ init $ tail $ show x
+mkS                    = Just . ESym . SL  . decodeUtf8
 
 ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 
