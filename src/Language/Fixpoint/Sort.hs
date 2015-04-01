@@ -360,6 +360,14 @@ unify1 θ t1 t2
   | t1 == t2                       = return θ
   | otherwise                      = throwError $ errUnify t1 t2
 
+toFix_sort (FApp c [t])
+  | isListTC c
+  = brackets $ toFix_sort t
+toFix_sort (FApp c [FApp c' [],t])
+  | isFAppTyTC c && isListTC c'
+  = brackets $ toFix_sort t
+
+
 unifyVar θ i t
   = case lookupVar i θ of
       Just t' -> if t == t' then return θ else throwError (errUnify t t')

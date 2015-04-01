@@ -25,6 +25,7 @@ module Language.Fixpoint.Names (
   , symbolText, symbolString
   , encode, vvCon
   , dropModuleNames
+--   , dropModuleNamesAndUnique
   , takeModuleNames
 
   -- * Creating Symbols
@@ -42,6 +43,7 @@ module Language.Fixpoint.Names (
   , propConName
   , hpropConName
   , strConName
+  , charConName
   , vvName
   , symSepName
   , size32Name, size64Name, bitVecName, bvAndName, bvOrName
@@ -238,7 +240,7 @@ instance Symbolic Symbol where
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
 
-preludeName, dummyName, boolConName, funConName, listConName, tupConName, propConName, strConName, vvName :: Symbol
+preludeName, dummyName, boolConName, funConName, listConName, tupConName, propConName, strConName, charConName, vvName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "_LIQUID_dummy"
 boolConName  = "Bool"
@@ -248,6 +250,7 @@ tupConName   = "()" -- "Tuple"
 propConName  = "Prop"
 hpropConName = "HProp"
 strConName   = "Str"
+charConName  = "Char"
 vvName       = "VV"
 symSepName   = '#'
 

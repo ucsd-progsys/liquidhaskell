@@ -54,8 +54,12 @@ module Language.Fixpoint.Types (
   , symbolFTycon
 
   , strSort
+  , charSort
+  , listOf
   , fApp
   , fObj
+  , isListTC
+  , isFAppTyTC
 
   -- * Expressions and Predicates
   , SymConst (..)
@@ -193,6 +197,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Language.Fixpoint.Names
 
+
 class Fixpoint a where
   toFix    :: a -> Doc
 
@@ -309,14 +314,18 @@ intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 strFTyCon  = TC $ dummyLoc strConName
+charFTyCon = TC $ dummyLoc charConName
 propFTyCon = TC $ dummyLoc propConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
+listFTyCon = TC $ dummyLoc listConName
 
 isListTC (TC (Loc _ c)) = c == listConName
 isTupTC  (TC (Loc _ c)) = c == tupConName
 isFAppTyTC = (== appFTyCon)
 
 fTyconSymbol (TC s) = s
+
+listOf t = FApp (TC (dummyLoc listConName)) [t]
 
 symbolFTycon :: LocSymbol -> FTycon
 symbolFTycon c
@@ -1457,8 +1466,11 @@ litPrefix    :: Text
 litPrefix    = "lit" `T.snoc` symSepName
 
 strSort      :: Sort
-strSort      = FApp strFTyCon []
+strSort      = FApp appFTyCon [FApp listFTyCon [], charSort]
+-- FApp strFTyCon []
 
+charSort     :: Sort
+charSort     = FApp charFTyCon []
 
 class SymConsts a where
   symConsts :: a -> [SymConst]
