@@ -64,9 +64,9 @@ import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
 import TypeRep          hiding (maybeParen, pprArrowChain)  
-import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
+import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, eqType)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon, 
-                         intTyCon, charTyCon)
+                         intTyCon, charTyCon, stringTy)
 
 import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust)
@@ -875,11 +875,12 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 ------------ From Old Fixpoint ---------------------------------
 ----------------------------------------------------------------
 
-
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = symbol . typeUniqueString
 
 typeSort :: TCEmb TyCon -> Type -> Sort 
+typeSort _ t | eqType t stringTy
+  = strSort
 typeSort tce τ@(ForAllTy _ _) 
   = typeSortForAll tce τ
 typeSort tce t@(FunTy _ _)
