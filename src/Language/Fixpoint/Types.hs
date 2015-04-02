@@ -1234,7 +1234,7 @@ lhsCs = sr_reft . slhs
 rhsCs = sr_reft . srhs
 
 removeLhsKvars cs vs
-  = error "TODO: cutsolver: removeLhsKvars (why?)"
+  = error "TODO:cutsolver: removeLhsKvars (why?)"
 
 -- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
 -- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}
