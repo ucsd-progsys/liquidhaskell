@@ -62,3 +62,4 @@ lint:
 
 tags:
 	hasktags -c src/
+	hasktags -e src/

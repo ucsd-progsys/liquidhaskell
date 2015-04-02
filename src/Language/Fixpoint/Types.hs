@@ -1251,28 +1251,6 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
     shiftR i r@(Reft (v, _)) = shiftVV r (v `mappend` symbol (show i))
 
 
--- subC γ p r1 r2 x y z   = (vvsu, SubC γ p r1' r2' x y z)
---   where (vvsu, r1', r2') = unifySRefts r1 r2
-
--- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
---   where (r1', r2')                =  unifyRefts r1 r2
-
--- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
---    | v1 == v2  = (r1, r2)
---    | otherwise = (r1, shiftVV r2 v1)
-
--- unifySRefts (RR t1 r1) (RR t2 r2) = (z, RR t1 r1', RR t2 r2')
---   where (z, r1', r2')             =  unifyRefts r1 r2
---
--- unifyRefts r1@(Reft (v1, _)) r2@(Reft (v2, _))
---   | v1 == v2  = ((v1, emptySubst), r1, r2)
---   | v1 /= vv_ = let (su, r2') = shiftVV r2 v1 in ((v1, su), r1 , r2')
---   | otherwise = let (su, r1') = shiftVV r1 v2 in ((v2, su), r1', r2 )
---
--- shiftVV (Reft (v, ras)) v' = (su, (Reft (v', subst su ras)))
---   where su = mkSubst [(v, EVar v')]
-
-
 ------------------------------------------------------------------------
 ----------------- Qualifiers -------------------------------------------
 ------------------------------------------------------------------------
@@ -1292,7 +1270,12 @@ instance NFData Qualifier where
   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
-  where args = intersperse comma (toFix <$> xts)
+  where
+    args              = intersperse comma (toFix <$> xts)
+
+------------------------------------------------------------------------
+----------------- Top-Level Constraint System --------------------------
+------------------------------------------------------------------------
 
 data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , ws    :: ![WfC a]
@@ -1302,26 +1285,6 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , kuts  :: Kuts
                   , quals :: ![Qualifier]
                   }
-
--- Original Ocaml definition
---
--- type 'bind cfg = {
---    a     : int                               (* Tag arity                            *)
---  ; ts    : Ast.Sort.t list                   (* New sorts, now = []                  *)
---  ; ps    : Ast.pred list                     (* New axioms, now = []                 *)
---  ; cs    : FixConstraint.t list              (* Implication Constraints              *)
---  ; ws    : FixConstraint.wf list             (* Well-formedness Constraints          *)
---  ; ds    : FixConstraint.dep list            (* Constraint Dependencies              *)
---  ; qs    : Qualifier.t list                  (* Qualifiers                           *)
---  ; kuts  : Ast.Symbol.t list                 (* "Cut"-Kvars, which break cycles      *)
---  ; bm    : 'bind Ast.Symbol.SMap.t           (* Initial Sol Bindings                 *)
---  ; uops  : Ast.Sort.t Ast.Symbol.SMap.t      (* Globals: measures + distinct consts) *)
---  ; cons  : Ast.Symbol.t list                 (* Distinct Constants, defined in uops  *)
---  ; assm  : FixConstraint.soln                (* Seed Solution: must be a fixpoint over constraints *)
--- }
-
-
--- toFixs = brackets . hsep . punctuate comma -- . map toFix
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where
