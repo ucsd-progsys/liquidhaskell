@@ -33,29 +33,34 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
 
 
 {-@ predicate ValidMovieScheme V = 
-	  ((listElts (ddom V) = Set_cup (Set_sng "year") 
-	  	                   (Set_cup (Set_sng "star") 
-	  	                   (Set_cup (Set_sng "director") 
-	  	                            (Set_sng "title"))))) @-}
+	  ((listElts (ddom V) = Set_cup (Set_sng (unpack "year")) 
+	  	                   (Set_cup (Set_sng (unpack "star")) 
+	  	                   (Set_cup (Set_sng (unpack "director")) 
+	  	                            (Set_sng (unpack "title") ))))) @-}
 
-{-@ predicate MovieRange  T V =    (T = "year"     => ValidYear     V) 
-                                && (T = "star"     => ValidStar     V) 
-                                && (T = "director" => ValidDirector V) 
-                                && (T = "title"    => ValidTitle    V) @-}
 
-{-@ predicate ValidDirectorScheme V = (listElts (ddom V) = (Set_sng "director")) @-} 
-{-@ predicate DirectorRange  T V = (T = "director" => ValidDirector V) @-}
 
-{-@ predicate ValidStarScheme V = (listElts (ddom V) = (Set_sng "star")) @-} 
-{-@ predicate StarRange  T V    = (T = "star" => ValidStar V) @-}
+{-@ predicate MovieRange  T V =    (T = (unpack "year")     => ValidYear     V) 
+                                && (T = (unpack "star")     => ValidStar     V) 
+                                && (T = (unpack "director") => ValidDirector V) 
+                                && (T = (unpack "title")    => ValidTitle    V) 
+                                @-}
 
-{-@ predicate ValidTitleScheme V = (listElts (ddom V) = (Set_sng "title")) @-} 
-{-@ predicate TitleDomain T   = ( T = "title") @-}
-{-@ predicate TitleRange  T V = (T = "title" => ValidTitle V) @-}
 
-{-@ predicate ValidDirStarScheme V = (listElts (ddom V) = Set_cup (Set_sng "director") (Set_sng "star")) @-} 
-{-@ predicate DirStarDomain T   = ( T = "director" || T = "star") @-}
-{-@ predicate DirStarRange  T V = (T = "director" => ValidDirector V) && (T = "star" => ValidStar V)  @-}
+
+{-@ predicate ValidDirectorScheme V = (listElts (ddom V) = (Set_sng (unpack "director"))) @-} 
+{-@ predicate DirectorRange  T V = (T = (unpack "director") => ValidDirector V) @-}
+
+{-@ predicate ValidStarScheme V = (listElts (ddom V) = (Set_sng (unpack "star"))) @-} 
+{-@ predicate StarRange  T V    = (T = (unpack "star") => ValidStar V) @-}
+
+{-@ predicate ValidTitleScheme V = (listElts (ddom V) = (Set_sng (unpack "title"))) @-} 
+{-@ predicate TitleDomain T   = ( T = (unpack "title")) @-}
+{-@ predicate TitleRange  T V = (T = (unpack "title") => ValidTitle V) @-}
+
+{-@ predicate ValidDirStarScheme V = (listElts (ddom V) = Set_cup (Set_sng (unpack "director")) (Set_sng (unpack "star"))) @-} 
+{-@ predicate DirStarDomain T   = ( T = (unpack "director") || T = (unpack "star")) @-}
+{-@ predicate DirStarRange  T V = (T = (unpack "director") => ValidDirector V) && (T = (unpack "star") => ValidStar V)  @-}
 
 
 {-@ predicate ValidYear     V = isInt V  && 1889 <= toInt V  @-}
