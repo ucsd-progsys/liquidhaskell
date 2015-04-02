@@ -27,9 +27,10 @@ prop2 = foo1 /= foo2
         foo2 = QQQQ
 
 
-{-@ prop3 :: {v:[String] | listElts v ~~ Set_sng "xx"} @-}
+-- one character strings seems to crash....
+{-@ prop3 :: {v:[String] | listElts v ~~ Set_sng "x"} @-}
 prop3 :: [String]
-prop3 = ["xx"]
+prop3 = ["x"]
 
 {-@ prop1 :: {v:Bool | Prop v <=> true} @-}
 prop1 :: Bool
