@@ -11,8 +11,8 @@ env:
  - SMT=cvc4 TESTS=Unit/pos
  - SMT=cvc4 TESTS=Unit/neg
  - SMT=cvc4 TESTS=Unit/crash
- - SMT=z3 TESTS=Unit/icfp_pos
- - SMT=z3 TESTS=Unit/icfp_neg
+ - SMT=z3 TESTS=Benchmarks/icfp_pos
+ - SMT=z3 TESTS=Benchmarks/icfp_neg
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
