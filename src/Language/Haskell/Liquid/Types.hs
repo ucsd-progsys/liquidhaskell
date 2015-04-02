@@ -12,6 +12,7 @@
 {-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -239,7 +240,7 @@ import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Misc (mapSndM)
+import Language.Haskell.Liquid.Misc (mapSndM, safeZip3WithError)
 
 
 import Data.Default
@@ -900,8 +901,10 @@ data RTypeRep c tv r
              , ty_res    :: (RType c tv r)
              }
 
-fromRTypeRep rep 
-  = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip3 (ty_binds rep) (ty_args rep) (ty_refts rep)) (ty_res rep)
+fromRTypeRep (RTypeRep {..})
+  = mkArrow ty_vars ty_preds ty_labels arrs ty_res
+  where
+    arrs = safeZip3WithError "fromRTypeRep" ty_binds ty_args ty_refts
 
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''

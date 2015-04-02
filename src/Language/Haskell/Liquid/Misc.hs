@@ -80,6 +80,10 @@ safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
 safeZipWithError msg _      _      = errorstar msg
 
+safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
+safeZip3WithError _   []     []     []     = []
+safeZip3WithError msg _      _      _      = errorstar msg
+
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 
 mapN 0 f (x:xs) = f x : xs
