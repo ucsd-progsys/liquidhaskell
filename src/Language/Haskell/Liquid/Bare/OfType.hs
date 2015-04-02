@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.OfType (
   ) where
 
 import BasicTypes
+import Name
 import TyCon
 import Type (expandTypeSynonyms)
 import TysWiredIn
@@ -31,7 +32,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
 
-import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (realTcArity, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (secondM)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
@@ -153,9 +154,11 @@ ofBRType appRTAlias resolveReft
     goRApp aliases (RApp (Loc l c) ts _ r) | Just rta <- M.lookup c aliases
       = appRTAlias l rta ts =<< resolveReft r
     goRApp _ (RApp lc ts rs r)
-      =  do r' <- resolveReft r
-            c' <- matchTyCon lc (length ts)
-            bareTCApp r' c' <$> mapM go_ref rs <*> mapM go ts
+      =  do r'  <- resolveReft r
+            lc' <- Loc (loc lc) <$> matchTyCon lc (length ts)
+            rs' <- mapM go_ref rs
+            ts' <- mapM go ts
+            bareTCApp r' lc' rs' ts'
     goRApp _ _ = errorstar "This cannot happen"
 
 
@@ -215,19 +218,23 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp r c rs ts | Just (SynonymTyCon rhs) <- synTyConRhs_maybe c
-   = tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r 
-   where tvs = tyConTyVars  c
+bareTCApp r (Loc l c) rs ts | Just (SynonymTyCon rhs) <- synTyConRhs_maybe c
+   = do when (realTcArity c < length ts) (Ex.throw err)
+        return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
+   where tvs = tyConTyVars c
          su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
          nts = length tvs
 
+         err :: Error
+         err = ErrAliasApp (sourcePosSrcSpan l) (length ts) (pprint c) (getSrcSpan c) (realTcArity c)
+
 -- TODO expandTypeSynonyms here to
-bareTCApp r c rs ts | isFamilyTyCon c && isTrivial t
-  = expandRTypeSynonyms $ t `strengthen` r 
+bareTCApp r (Loc _ c) rs ts | isFamilyTyCon c && isTrivial t
+  = return $ expandRTypeSynonyms $ t `strengthen` r
   where t = rApp c ts rs mempty
 
-bareTCApp r c rs ts 
-  = rApp c ts rs r
+bareTCApp r (Loc _ c) rs ts
+  = return $ rApp c ts rs r
 
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
