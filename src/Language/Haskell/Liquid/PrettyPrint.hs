@@ -39,6 +39,7 @@ import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)  
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
+import TyCon            (TyCon)
 import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort, sortBy)
@@ -78,6 +79,9 @@ instance PPrint Var where
 
 instance PPrint Name where
   pprint = pprDoc 
+
+instance PPrint TyCon where
+  pprint = pprDoc
 
 instance PPrint Type where
   pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???

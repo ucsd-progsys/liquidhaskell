@@ -29,7 +29,7 @@ import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, saf
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
-import Language.Haskell.Liquid.GhcMisc (showPpr, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (dropThd3, firstDuplicate)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
@@ -215,7 +215,9 @@ checkAppTys t = go t
     go (RAllT _ t)      = go t
     go (RAllP _ t)      = go t
     go (RAllS _ t)      = go t
-    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
+    go (RApp rtc ts _ _)
+      = checkTcArity rtc (length ts) <|>
+        foldl (\merr t -> merr <|> go t) Nothing ts
     go (RFun _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
@@ -224,6 +226,17 @@ checkAppTys t = go t
     go (RRTy _ _ _ t)   = go t
     go (RExprArg _)     = Just $ text "Logical expressions cannot appear inside a Haskell type"
     go (RHole _)        = Nothing
+
+checkTcArity (RTyCon { rtc_tc = tc }) givenArity
+  | expectedArity < givenArity
+    = Just $ text "Type constructor" <+> pprint tc
+        <+> text "expects a maximum" <+> pprint expectedArity
+        <+> text "arguments but was given" <+> pprint givenArity
+        <+> text "arguments"
+  | otherwise
+    = Nothing
+  where expectedArity = realTcArity tc
+
 
 checkAbstractRefs t = go t
   where
