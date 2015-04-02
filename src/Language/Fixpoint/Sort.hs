@@ -270,8 +270,8 @@ checkRelTy _ e Ne t1 t2            = unify [t1] [t2] >> return ()
 
 
 
-checkRelTy _ e Ueq t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
-checkRelTy _ e Une t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e Ueq t1 t2           = return ()
+checkRelTy _ e Une t1 t2           = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 
