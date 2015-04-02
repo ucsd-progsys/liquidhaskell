@@ -165,15 +165,15 @@ pprintBin _ b _ [] = b
 pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
 instance PPrint Refa where
-  pprintPrec z (RConc p)     = pprintPrec z p
-  pprintPrec _ k             = toFix k
+  pprintPrec z (Refa p)     = pprintPrec z p
+  pprintPrec _ k            = toFix k
 
 instance PPrint Reft where
-  pprint r@(Reft (_,ras))
+  pprint r@(Reft (_,ra))
     | isTauto r        = text "true"
     | otherwise        = {- intersperse comma -} pprintBin z trueD andD flat
     where
-      flat = flattenRefas ras
+      flat = flattenRefas [ra]
       z    = if length flat > 1 then 3 else 0
 
 instance PPrint SortedReft where

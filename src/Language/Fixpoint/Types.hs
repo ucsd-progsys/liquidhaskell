@@ -132,9 +132,6 @@ module Language.Fixpoint.Types (
   , sortSubst
   , targetSubstSyms
 
-  -- * Visitors
-  , reftKVars
-
   -- * Functions on @Result@
   , colorResult
 
@@ -239,21 +236,16 @@ exprSymbols = go
 predSymbols :: Pred -> [Symbol]
 predSymbols = go
   where
-    go (PAnd ps)        = concatMap go ps
-    go (POr ps)         = concatMap go ps
-    go (PNot p)         = go p
-    go (PIff p1 p2)     = go p1 ++ go p2
-    go (PImp p1 p2)     = go p1 ++ go p2
-    go (PBexp e)        = exprSymbols e
-    go (PAtom _ e1 e2)  = exprSymbols e1 ++ exprSymbols e2
-    go (PAll xts p)     = (fst <$> xts) ++ go p
-    go _                = []
-
-reftKVars :: Reft -> [Symbol]
-reftKVars (Reft (_, ra)) = predKVars $ raPred ra -- [k | (RKvar k _) <- ras]
-
-predKVars :: Pred -> [Symbol]
-predKVars = errorstar "TODO:predKVars"
+    go (PAnd ps)          = concatMap go ps
+    go (POr ps)           = concatMap go ps
+    go (PNot p)           = go p
+    go (PIff p1 p2)       = go p1 ++ go p2
+    go (PImp p1 p2)       = go p1 ++ go p2
+    go (PBexp e)          = exprSymbols e
+    go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
+    go (PKVar k (Su su')) = k : concatMap syms su'
+    go (PAll xts p)       = (fst <$> xts) ++ go p
+    go _                  = []
 
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
@@ -510,8 +502,8 @@ data Pred = PTrue
           | PIff  !Pred !Pred
           | PBexp !Expr
           | PAtom !Brel !Expr !Expr
+          | PKVar !Symbol !Subst
           | PAll  ![(Symbol, Sort)] !Pred
-          | RKvar !Symbol !Subst
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -526,6 +518,7 @@ instance Fixpoint Pred where
   toFix (PAnd ps)        = text "&&" <+> toFix ps
   toFix (POr  ps)        = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
+  toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
 
   simplify (PAnd [])     = PTrue
@@ -770,7 +763,6 @@ instance Functor SEnv where
 
 instance Fixpoint Refa where
   toFix (Refa p)     = toFix p
-  -- toFix (RKvar k su) = toFix k <> toFix su
   -- toFix (RPvar p)    = toFix p
 
 instance Fixpoint Reft where
@@ -985,6 +977,7 @@ instance Subable Pred where
   substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
   substf f (PBexp e)       = PBexp $ substf f e
   substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
+  substf _ p@(PKVar _ _)   = p
   substf _  (PAll _ _)     = errorstar "substf: FORALL"
   substf _  p              = p
 
@@ -995,6 +988,7 @@ instance Subable Pred where
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
   subst su (PBexp e)       = PBexp $ subst su e
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
+  subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
   subst _  (PAll _ _)      = errorstar "subst: FORALL"
   subst _  p               = p
 
@@ -1002,11 +996,8 @@ instance Subable Refa where
   syms (Refa p)           = syms p
   -- syms (RKvar k (Su su'))  = k : concatMap syms ({- M.elems -} su')
   subst su (Refa p)       = Refa $ subst su p
-  -- subst su (RKvar k su')   = RKvar k $ su' `catSubst` su
-  -- subst _  (RPvar p)     = RPvar p
   substa f                 = substf (EVar . f)
   substf f (Refa p)       = Refa (substf f p)
-  -- substf _ ra@(RKvar _ _)  = ra
 
 instance (Subable a, Subable b) => Subable (a,b) where
   syms  (x, y)   = syms x ++ syms y
@@ -1244,7 +1235,7 @@ removeLhsKvars cs vs
 
 trueSubCKvar k = subC emptyIBindEnv PTrue mempty rhs  Nothing [0]
   where
-    rhs        = RR mempty (Reft (vv_, Refa $ RKvar k emptySubst))
+    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k emptySubst))
 
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
@@ -1433,7 +1424,6 @@ instance Falseable Pred where
 
 instance Falseable Refa where
   isFalse (Refa p) = isFalse p
-  isFalse _        = False
 
 instance Falseable Reft where
   isFalse (Reft(_, (Refa p))) = isFalse p
@@ -1500,16 +1490,16 @@ instance SymConsts Expr where
   symConsts _              = []
 
 instance SymConsts Pred where
-  symConsts (RKvar _ (Su xes)) = concatMap symConsts $ snd <$> xes
-  symConsts (PNot p)       = symConsts p
-  symConsts (PAnd ps)      = concatMap symConsts ps
-  symConsts (POr ps)       = concatMap symConsts ps
-  symConsts (PImp p q)     = concatMap symConsts [p, q]
-  symConsts (PIff p q)     = concatMap symConsts [p, q]
-  symConsts (PAll _ p)     = symConsts p
-  symConsts (PBexp e)      = symConsts e
-  symConsts (PAtom _ e e') = concatMap symConsts [e, e']
-  symConsts _              = []
+  symConsts (PNot p)           = symConsts p
+  symConsts (PAnd ps)          = concatMap symConsts ps
+  symConsts (POr ps)           = concatMap symConsts ps
+  symConsts (PImp p q)         = concatMap symConsts [p, q]
+  symConsts (PIff p q)         = concatMap symConsts [p, q]
+  symConsts (PAll _ p)         = symConsts p
+  symConsts (PBexp e)          = symConsts e
+  symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
+  symConsts (PKVar _ (Su xes)) = concatMap symConsts $ snd <$> xes
+  symConsts _                  = []
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------

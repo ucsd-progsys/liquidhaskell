@@ -82,7 +82,7 @@ import           Language.Fixpoint.Types
 
 import           Data.Maybe                  (fromJust, maybe)
 
-import           Data.Monoid                 (mempty)
+import           Data.Monoid                 (mempty,mconcat)
 
 type Parser = Parsec String Integer
 
@@ -392,23 +392,23 @@ fTyConP
   <|> (symbolFTycon   <$> locUpperIdP)
 
 refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi))
-       <|> liftM ((:[]) . RConc) predP
+refasP  =  (try (brackets $ sepBy (Refa <$> predP) semi))
+       <|> liftM ((:[]) . Refa) predP
 
 refBindP :: Parser Symbol -> Parser [Refa] -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
-      vv  <- bp
+      x  <- bp
       t   <- kindP
       reserved "|"
       ras <- rp <* spaces
-      return $ t (Reft (vv, ras))
+      return $ t (Reft (x, mconcat ras))
 
-bindP       = liftM symbol (lowerIdP <* colon)
-optBindP vv = try bindP <|> return vv
+bindP      = liftM symbol (lowerIdP <* colon)
+optBindP x = try bindP <|> return x
 
 refP       = refBindP bindP refasP
-refDefP vv = refBindP (optBindP vv)
+refDefP x  = refBindP (optBindP x)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
