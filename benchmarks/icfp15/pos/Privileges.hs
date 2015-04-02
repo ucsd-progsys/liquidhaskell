@@ -18,5 +18,3 @@ data Privilege
 {-@ measure pcreateFile :: Privilege -> Prop @-}
 {-@ measure pcreateDir :: Privilege -> Prop @-}
 {-@ measure pcreateFilePrivs :: Privilege -> Privilege @-}
-
-main = ()
