@@ -8,7 +8,7 @@ data T a = T a
 elems       :: T a -> S.Set a
 elems (T a) = S.singleton a
 
-
 {-@ inline eqelems @-}
+eqelems :: Eq a => T a -> T a -> Bool
 eqelems s t = (elems s) == (elems t)
          

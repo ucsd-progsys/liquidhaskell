@@ -875,7 +875,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 ------------ From Old Fixpoint ---------------------------------
 ----------------------------------------------------------------
 
-
 typeUniqueSymbol :: Type -> Symbol 
 typeUniqueSymbol = symbol . typeUniqueString
 

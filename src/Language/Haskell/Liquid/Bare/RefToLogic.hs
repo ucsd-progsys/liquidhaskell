@@ -137,4 +137,5 @@ txPApp (s, (Right (TI xs (Left e)))) f es
 txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  = (dropModuleNames s1) == s2
+  = (dropModuleNamesAndUnique s1) == (dropModuleNamesAndUnique s2)
+dropModuleNamesAndUnique = dropModuleNames
