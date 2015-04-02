@@ -4,11 +4,11 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
--- import qualified Data.HashMap.Strict               as M
-import qualified Language.Fixpoint.Types           as F
+import qualified Data.HashMap.Strict  as M
+import qualified Language.Fixpoint.Types as F
 
 import           Language.Fixpoint.Config
-import           Language.Fixpoint.Solver.Types
+import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 
 
@@ -21,10 +21,9 @@ solve cfg fi = runSolverM $ solve_ cfg fi
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
 solve_ cfg fi = do
-  let s0  = initSolution cfg fi
+  let s0  = S.init cfg fi
   let wkl = W.init cfg fi
-  s      <- refineSolution s0 wkl
-  return  $ solutionResult fi s
+  refineSolution s0 wkl >>= solutionResult fi
 
 refineSolution :: Solution -> W.Worklist a -> SolveM Solution
 refineSolution s w
@@ -37,22 +36,21 @@ refineSolution s w
 
 
 ---------------------------------------------------------------------------
-solutionResult :: F.FInfo a -> Solution -> Result a
----------------------------------------------------------------------------
-solutionResult = error "TODO"
-
----------------------------------------------------------------------------
-initSolution :: Config -> F.FInfo a -> Solution
----------------------------------------------------------------------------
-initSolution = error "TODO"
-
-
----------------------------------------------------------------------------
--- | Single Step Refinement -----------------------------------------------
+-- | Step 2: Single Step Refinement ---------------------------------------
 ---------------------------------------------------------------------------
 
 refineC :: Solution -> F.SubC a -> SolveM (Bool, Solution)
 refineC = error "TODO"
+
+
+
+---------------------------------------------------------------------------
+-- | Step 3: Convert Solution into Result
+---------------------------------------------------------------------------
+solutionResult :: F.FInfo a -> Solution -> SolveM (Result a)
+---------------------------------------------------------------------------
+solutionResult = error "TODO"
+
 
 ---------------------------------------------------------------------------
 -- | Solver Monad ---------------------------------------------------------
@@ -66,8 +64,9 @@ data SolverState a = SoS { ssWorkList :: !(W.Worklist a)
 data SolveM a  = TODOSolveM
 
 instance Monad SolveM where
-  return = undefined
-  (>>=)  = undefined
+  return = error "TODO"
+  (>>=)  = error "TODO"
 
 runSolverM :: SolveM a -> IO a
 runSolverM = error "TODO"
+
