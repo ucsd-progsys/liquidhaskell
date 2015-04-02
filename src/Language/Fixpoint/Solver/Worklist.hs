@@ -1,7 +1,22 @@
-module Language.Fixpoint.Solver.Worklist (Worklist) where
+module Language.Fixpoint.Solver.Worklist
+       ( -- * Worklist type is opaque
+         Worklist
 
-import Language.Fixpoint.Solver.Types
+         -- * Initialize
+       , init
 
+         -- * Pop off a constraint
+       , pop
+
+         -- * Add a constraint and all its dependencies
+       , push
+
+       )
+       where
+
+import           Prelude hiding (init)
+import           Language.Fixpoint.Config
+import qualified Language.Fixpoint.Types as F
 
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
@@ -16,15 +31,14 @@ init = error "TODO"
 pop :: Worklist a -> Maybe (F.SubC a, Worklist a)
 ---------------------------------------------------------------------------
 pop = undefined
-    
+
 ---------------------------------------------------------------------------
-add :: F.SubC a -> Worklist a -> Worklist a
+push :: F.SubC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
-add = undefined
- 
+push = undefined
+
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
 
 data Worklist a = WL ![F.SubC a]
-
