@@ -21,7 +21,7 @@ ghc: 7.8
 before_install:
  - scripts/travis install_ocaml
  - scripts/travis setup_cabal
- - scripts/travis install_fixpoint
+ - scripts/travis clone_fixpoint
  - scripts/travis install_smt "$SMT"
 
 install:
