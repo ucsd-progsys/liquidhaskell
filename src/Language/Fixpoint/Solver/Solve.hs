@@ -6,16 +6,24 @@ module Language.Fixpoint.Solver.Solve (solve) where
 
 import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
-
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 
 
 ---------------------------------------------------------------------------
+-- | The output of the Solver
+---------------------------------------------------------------------------
+type Result a = (F.FixResult (F.SubC a), M.HashMap F.Symbol F.Pred)
+---------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
 solve cfg fi = runSolverM $ solve_ cfg fi
+
+
 
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
@@ -25,7 +33,7 @@ solve_ cfg fi = do
   let wkl = W.init cfg fi
   refineSolution s0 wkl >>= solutionResult fi
 
-refineSolution :: Solution -> W.Worklist a -> SolveM Solution
+refineSolution :: S.Solution -> W.Worklist a -> SolveM S.Solution
 refineSolution s w
   | Just (c, w') <- W.pop w
   = do (b, s') <- refineC s c
@@ -36,18 +44,18 @@ refineSolution s w
 
 
 ---------------------------------------------------------------------------
--- | Step 2: Single Step Refinement ---------------------------------------
+-- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-
-refineC :: Solution -> F.SubC a -> SolveM (Bool, Solution)
+refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
+---------------------------------------------------------------------------
 refineC = error "TODO"
 
 
 
 ---------------------------------------------------------------------------
--- | Step 3: Convert Solution into Result
+-- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-solutionResult :: F.FInfo a -> Solution -> SolveM (Result a)
+solutionResult :: F.FInfo a -> F.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
 solutionResult = error "TODO"
 
@@ -57,9 +65,8 @@ solutionResult = error "TODO"
 ---------------------------------------------------------------------------
 
 data SolverState a = SoS { ssWorkList :: !(W.Worklist a)
-                         , ssSolution :: !Solution
+                         , ssSolution :: !S.Solution
                          }
-
 
 data SolveM a  = TODOSolveM
 

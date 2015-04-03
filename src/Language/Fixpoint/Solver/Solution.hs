@@ -2,20 +2,16 @@
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
           Solution
-        , Result
 
           -- * Initial Solution
         , init
-
-          -- * Convert a Solution to a Result
-        , result
         )
 where
 
 
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (isNothing)
+import           Data.Maybe                     (isNothing, fromMaybe)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Sort
@@ -26,14 +22,10 @@ import           Prelude                        hiding (init)
 ---------------------------------------------------------------------------
 -- | Types ----------------------------------------------------------------
 ---------------------------------------------------------------------------
-
-type Result a = (F.FixResult (F.SubC a), M.HashMap F.Symbol F.Pred)
-
 type Solution = Sol KBind
-
 type Sol a    = M.HashMap F.Symbol a
-
 type KBind    = [EQual]
+
 
 ---------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------------
@@ -73,8 +65,10 @@ refineK env qs s (v, t, k) = M.insert k eqs' s
               Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
 instK env qs v t k = error "TODO"
+
 {- 1. generate ALL xts combinations
-   2. for each combination, instantiate, check SORT if ok then return it. -}
+   2. for each combination, instantiate,
+   3.   check SORT if ok then return it. -}
 
 wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
 wfKvar w@(F.WfC {F.wrft = sr})
@@ -82,18 +76,14 @@ wfKvar w@(F.WfC {F.wrft = sr})
   , F.isEmptySubst su = (v, F.sr_sort sr, k)
   | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show w
 
-wfEnv :: F.FInfo a -> F.WfC a -> F.SEnv F.SortedReft
-wfEnv = errorstar "TODO"
+wfEnv       :: F.FInfo a -> F.WfC a -> F.SEnv F.SortedReft
+wfEnv fi w  = F.fromListSEnv xts
+  where
+    wbinds  = F.elemsIBindEnv $ F.wenv w
+    bm      = F.bs fi
+    xts     = [ F.lookupBindEnv i bm | i <- wbinds]
 
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
 okInst env v t eq = isNothing $ checkSortedReftFull env sr
   where
     sr            = F.RR t (F.Reft (v, F.Refa (eqPred eq)))
-
-
----------------------------------------------------------------------------
--- | Convert Solution into Result
----------------------------------------------------------------------------
-result :: F.FInfo a -> Solution -> SolveM (Result a)
----------------------------------------------------------------------------
-result = error "TODO"

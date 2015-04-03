@@ -94,10 +94,9 @@ module Language.Fixpoint.Types (
 
   , FEnv, insertFEnv
   , IBindEnv, BindId
-  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv
+  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
   , BindEnv
-  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
-
+  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, lookupBindEnv
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
 
@@ -742,6 +741,10 @@ deleteIBindEnv i (FB s) = FB (S.delete i s)
 insertsIBindEnv :: [BindId] -> IBindEnv -> IBindEnv
 insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
 
+elemsIBindEnv :: IBindEnv -> [BindId]
+elemsIBindEnv (FB s) = S.toList s
+
+
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
@@ -758,6 +761,11 @@ rawBindEnv bs = BE (1 + nbs) be'
 
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = BE n $ M.map f m
+
+lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
+lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
+  where
+    err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
 
 
 instance Functor SEnv where
@@ -806,9 +814,10 @@ type BindId        = Int
 type FEnv          = SEnv SortedReft
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
-newtype SEnv a     = SE { se_binds :: M.HashMap Symbol a } deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
-data BindEnv       = BE { be_size  :: Int
-                        , be_binds :: M.HashMap BindId (Symbol, SortedReft)
+newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
+                     deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
+data BindEnv       = BE { beSize  :: Int
+                        , beBinds :: M.HashMap BindId (Symbol, SortedReft)
                         }
 
 
@@ -1432,8 +1441,8 @@ instance SymConsts (FInfo a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
       csLits   = concatMap symConsts                     $ M.elems  $  cm    fi
-      bsLits   = concatMap symConsts $ map snd $ M.elems $ be_binds $  bs    fi
-      gsLits   = concatMap symConsts $           M.elems $ se_binds $  gs    fi
+      bsLits   = concatMap symConsts $ map snd $ M.elems $ beBinds $  bs    fi
+      gsLits   = concatMap symConsts $           M.elems $ seBinds $  gs    fi
       qsLits   = concatMap symConsts $                     q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
