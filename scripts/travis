@@ -81,10 +81,11 @@ function install_smt {
 
 function install_cabal_deps {
   loud travis_retry cabal install --only-dependencies --enable-tests -fbuild-external . /tmp/fixpoint
+  loud travis_retry cabal install -fbuild-external /tmp/fixpoint
 }
 
 function do_build {
-  loud cabal configure -fdevel -O2 --enable-tests -v2
+  loud cabal configure -fdevel --enable-tests -v2
   loud cabal build -j4
   loud cabal copy
   loud cabal register
