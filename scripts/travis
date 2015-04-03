@@ -74,7 +74,7 @@ function clone_fixpoint {
 
 function install_smt {
  local smt="$1"
-
+ mkdir -p "$HOME/.cabal/bin"
  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
  loud chmod a+x "$HOME/.cabal/bin/$smt"
 }
