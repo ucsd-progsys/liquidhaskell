@@ -379,16 +379,14 @@ instance Simplify C.CoreExpr where
   inline _ (C.Type t)          = C.Type t
 
 isUndefined (_, _, e) = isUndefinedExpr e
-
-isUndefinedExpr (C.App e _)
-  = go2 (traceShow "GO0" e)
   where 
-    go2 (C.Var x) | (traceShow "SHOW PERROR" $ show x) `elem` perrors = True 
-    go2 _ = False 
- -- auto generated undefined case: (\_ -> (patError @type "error message")) void
-isUndefinedExpr _ = False 
+   -- auto generated undefined case: (\_ -> (patError @type "error message")) void
+   isUndefinedExpr (C.App (C.Var x) _) | (show x) `elem` perrors = True
+   -- otherwise 
+   isUndefinedExpr _ = False 
 
-perrors = []
+   perrors = ["Control.Exception.Base.patError"]
+
 
 instance Simplify C.CoreBind where
   simplify (C.NonRec x e) = C.NonRec x (simplify e)
