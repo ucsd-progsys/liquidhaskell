@@ -86,7 +86,7 @@ function install_cabal_deps {
 
 function do_build {
   loud cabal configure -fdevel --enable-tests -v2
-  loud cabal build -j4
+  loud cabal build -j2
   loud cabal copy
   loud cabal register
 }
