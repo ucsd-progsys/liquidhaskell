@@ -19,6 +19,7 @@ import Class     (classKey)
 import           Debug.Trace
 
 import           Avail                        (availsToNameSet)
+import           BasicTypes                   (Arity)
 import           CoreSyn                      hiding (Expr)
 import qualified CoreSyn as Core
 import           CostCentre
@@ -317,6 +318,19 @@ isDictionaryExpression _          = Nothing
 
 isDictionary x = L.isPrefixOf "$f" (symbolString $ dropModuleNames $ symbol x)
 isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
+
+
+realTcArity :: TyCon -> Arity
+realTcArity
+  = kindArity . TC.tyConKind
+
+kindArity :: Kind -> Arity
+kindArity (FunTy _ res)
+  = 1 + kindArity res
+kindArity (ForAllTy _ res)
+  = kindArity res
+kindArity _
+  = 0
 
 
 instance Hashable Var where
