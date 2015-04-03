@@ -72,7 +72,7 @@ function install_fixpoint {
   loud git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
   loud pushd /tmp/fixpoint
   loud travis_retry cabal install --only-dependencies
-  loud cabal install -fbuild-external
+  loud cabal install -fbuild-external --force-reinstall
   loud popd
 }
 
