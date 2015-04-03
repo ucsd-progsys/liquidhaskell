@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.2.3.3
+version:             0.2.3.2
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
