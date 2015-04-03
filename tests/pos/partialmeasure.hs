@@ -13,8 +13,6 @@ test =  cons 0 [1,2,3,4]
 hd       :: [a] -> a
 hd (x:_) = x
 
-hd1       :: [a] -> a
-hd1 (x:_) = x
 
 -- Instead of rejecting, can we just default to "un-refined" constructors?
 
