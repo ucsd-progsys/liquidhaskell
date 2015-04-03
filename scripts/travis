@@ -68,12 +68,8 @@ function setup_cabal {
   loud travis_retry cabal update
 }
 
-function install_fixpoint {
+function clone_fixpoint {
   loud git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
-  loud pushd /tmp/fixpoint
-  loud travis_retry cabal install --only-dependencies
-  loud cabal install -fbuild-external --force-reinstalls
-  loud popd
 }
 
 function install_smt {
@@ -84,12 +80,12 @@ function install_smt {
 }
 
 function install_cabal_deps {
-  loud travis_retry cabal install --only-dependencies --enable-tests
+  loud travis_retry cabal install --only-dependencies --enable-tests -fbuild-external . /tmp/fixpoint
 }
 
 function do_build {
   loud cabal configure -fdevel -O2 --enable-tests -v2
-  loud cabal build
+  loud cabal build -j4
   loud cabal copy
   loud cabal register
 }
@@ -108,7 +104,7 @@ function test_source_pkg {
 
   pushd dist
   if [ -f "$src_tgz" ]; then
-    loud cabal install "$src_tgz"
+    loud cabal install -j4 "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
