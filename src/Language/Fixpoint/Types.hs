@@ -71,8 +71,8 @@ module Language.Fixpoint.Types (
   , Predicate (..)
 
   -- * Constraints and Solutions
-  , SubC --(..)
-  , WfC --(..)
+  , SubC
+  , WfC (..)
   , sid
   , subC, lhsCs, rhsCs, wfC
   , Tag
@@ -82,6 +82,7 @@ module Language.Fixpoint.Types (
   , trueSubCKvar
   , removeLhsKvars
 
+    
   -- * Environments
   , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
@@ -124,6 +125,7 @@ module Language.Fixpoint.Types (
   , Subst
   , Subable (..)
   , mkSubst
+  , isEmptySubst
   -- , emptySubst
   -- , catSubst
   , substExcept
@@ -878,6 +880,8 @@ colorResult (Safe)      = Happy
 colorResult (Unsafe _)  = Angry
 colorResult (_)         = Sad
 
+instance Show (WfC a) where
+  show = showFix
 
 instance Show (SubC a) where
   show = showFix
@@ -1039,6 +1043,9 @@ emptySubst               = Su [] -- M.empty
 
 catSubst = unsafeCatSubst
 mkSubst = unsafeMkSubst
+
+isEmptySubst :: Subst -> Bool
+isEmptySubst (Su xes) = null xes
 
 unsafeMkSubst                  = Su -- . M.fromList
 
