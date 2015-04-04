@@ -55,7 +55,7 @@ refineC = error "TODO"
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-solutionResult :: F.FInfo a -> F.Solution -> SolveM (Result a)
+solutionResult :: F.FInfo a -> S.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
 solutionResult = error "TODO"
 

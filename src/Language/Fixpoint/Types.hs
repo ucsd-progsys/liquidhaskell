@@ -29,6 +29,7 @@ module Language.Fixpoint.Types (
 
   -- * Symbols
   , Symbol ()
+  , KVar
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -251,8 +252,9 @@ predSymbols = go
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
+type KVar    = Symbol
 
-newtype Kuts = KS (S.HashSet Symbol)
+newtype Kuts = KS (S.HashSet KVar)
 
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
@@ -503,7 +505,7 @@ data Pred = PTrue
           | PIff  !Pred !Pred
           | PBexp !Expr
           | PAtom !Brel !Expr !Expr
-          | PKVar !Symbol !Subst
+          | PKVar !KVar !Subst
           | PAll  ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)

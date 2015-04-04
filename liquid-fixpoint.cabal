@@ -152,6 +152,7 @@ Library
                    Language.Fixpoint.Visitor,
                    Language.Fixpoint.Sort,
                    Language.Fixpoint.Solver.Solve,
+                   Language.Fixpoint.Solver.Deps,
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
