@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)     
 import Language.Fixpoint.Misc      
-import Language.Fixpoint.Names      (dropModuleNames, dropModuleUnique)
+import Language.Fixpoint.Names
 
 import qualified Data.HashMap.Strict as M
 
@@ -137,7 +137,7 @@ txPApp (s, (Right (TI xs (Left e)))) f es
 txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  = traceShow ("cmpSymbol " ++ show (s1, s2)) $ (dropModuleNamesAndUnique s1) == (dropModuleNamesAndUnique s2)
+  = (dropModuleNamesAndUnique s1) == (dropModuleNamesAndUnique s2)
 
 
-dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
+dropModuleNamesAndUnique = dropModuleUnique {- . dropModuleNames -}
