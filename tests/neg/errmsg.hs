@@ -8,7 +8,7 @@ import Data.Set
    "Eq [Contravariant]" stuff. Can we remove it, or at least NOT show
    it when running in --short-names mode. -}
 
-{-@ foo :: (Eq a) => x:a -> xs:[a] -> {v:Bool | Prop v <=> (member x (elems xs))} @-}
+{-@ foo :: (Eq a) => x:a -> xs:[a] -> {v:Bool | Prop v <=> (Data.Set.member x (Data.Set.elems xs))} @-}
 foo          :: (Eq a) => a -> [a] -> Bool
 foo x (y:ys) = x == y || elem x ys
 foo _ []     = False
