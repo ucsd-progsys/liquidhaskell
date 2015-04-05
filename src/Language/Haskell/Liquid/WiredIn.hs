@@ -60,7 +60,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Jus
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
-      [tyv]      = tyConTyVars c
+      [tyv]      = tyConTyVarsDef c
       t          = rVar tyv :: RSort
       fld        = "fldList"
       x          = "xListSelector"
@@ -82,7 +82,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     l0            = dummyPos "LH.Bare.tupleTyDataCons"
     c             = tupleTyCon BoxedTuple n
     dc            = tupleCon BoxedTuple n 
-    tyvs@(tv:tvs) = tyConTyVars c
+    tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"
     fld           = "fld_Tuple"

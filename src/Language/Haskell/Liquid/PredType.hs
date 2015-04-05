@@ -48,7 +48,7 @@ makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
 mkRTyCon tc (TyConP αs' ps _ tyvariance predvariance size) = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
-  where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
+  where τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
