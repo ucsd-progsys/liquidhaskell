@@ -32,9 +32,9 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
   @-} 
 
 
-instance (Show t, Show v, Eq t) => Show (Dict t v) where
-  show (D ks f) = let g k = show k ++ "\t:=\t" ++ show (f k) ++ "\n" 
-                  in concatMap g ks 
+-- instance (Show t, Show v, Eq t) => Show (Dict t v) where
+--   show (D ks f) = let g k = show k ++ "\t:=\t" ++ show (f k) ++ "\n" 
+--                   in concatMap g ks 
 
 
 -- LIQUID : This discards the refinement of the Dict 
