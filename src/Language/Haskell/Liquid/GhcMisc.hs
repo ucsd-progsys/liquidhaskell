@@ -48,6 +48,7 @@ import           TypeRep
 import           Var
 import           IdInfo
 import qualified TyCon                        as TC
+-- import qualified DataCon                      as DC
 import           Data.Char                    (isLower, isSpace)
 import           Data.Monoid                  (mempty)
 import           Data.Hashable
@@ -410,3 +411,10 @@ instance Symbolic FastString where
 
 fastStringText = T.decodeUtf8 . fastStringToByteString
 symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
+
+
+tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
+tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
+tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
+tyConTyVarsDef c = TC.tyConTyVars c 
+
