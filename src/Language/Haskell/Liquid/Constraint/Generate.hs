@@ -875,6 +875,8 @@ refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
   = fst <$> refreshArgsSub t
 
+
+-- NV TODO: this does not refreshes args if they are wrapped in an RRTy
 refreshArgsSub :: SpecType -> CG (SpecType, F.Subst)
 refreshArgsSub t 
   = do ts     <- mapM refreshArgs ts_u

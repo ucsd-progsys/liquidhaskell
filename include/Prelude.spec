@@ -15,9 +15,9 @@ GHC.Exts.D# :: x:_ -> {v:_ | v = x}
 
 assume GHC.Base.. :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
                      {xcmp::a, wcmp::b<q xcmp> |- c<p wcmp> <: c<r xcmp>}
-                     (y:b -> c<p y>)
-                  -> (z:a -> b<q z>)
-                  ->  x:a -> c<r x>
+                     (ycmp:b -> c<p ycmp>)
+                  -> (zcmp:a -> b<q zcmp>)
+                  ->  xcmp:a -> c<r xcmp>
 assume GHC.Integer.smallInteger :: x:GHC.Prim.Int#
                                 -> { v:GHC.Integer.Type.Integer |
                                      v = (x :: int) }

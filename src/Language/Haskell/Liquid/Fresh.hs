@@ -85,6 +85,9 @@ trueRefType (RAllE y ty tx)
        tx' <- true tx
        return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
 
+trueRefType (RRTy e o r t)
+  = RRTy e o r <$> trueRefType t 
+
 trueRefType t 
   = return t
 
@@ -122,6 +125,9 @@ refreshRefType (RAllE y ty tx)
        ty' <- refresh ty
        tx' <- refresh tx
        return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
+
+refreshRefType (RRTy e o r t)
+  = RRTy e o r <$> refreshRefType t 
 
 refreshRefType t
   = return t
