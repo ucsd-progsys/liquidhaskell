@@ -351,13 +351,14 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
   where 
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
--- NV TODO: add _ps into environment
-checkMBody γ emb _ sort (Def _ _ps c bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def _ as c bs body) = checkMBody' emb sort γ' body
   where 
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
+    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
+    ats  = zip as (rTypeSortedReft emb <$> init txs)
     xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd4 $ bkArrowDeep sort)
+    su   = checkMBodyUnify (ty_res trep) (last txs) 
+    txs  = snd3 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go
