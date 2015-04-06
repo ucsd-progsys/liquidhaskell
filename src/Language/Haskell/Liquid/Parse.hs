@@ -778,6 +778,7 @@ binderP    =  try $ symbol <$> idP badc
 grabs p = try (liftM2 (:) p (grabs p)) 
        <|> return []
 
+-- NV TODO
 measureDefP :: Parser Body -> Parser (Def LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
@@ -786,7 +787,7 @@ measureDefP bodyP
        body    <- bodyP 
        whiteSpace
        let xs'  = (symbol . val) <$> xs
-       return   $ Def mname (symbol <$> c) xs' body
+       return   $ Def mname [] (symbol <$> c) xs' body
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP 
