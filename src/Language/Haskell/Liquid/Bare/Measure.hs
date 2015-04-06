@@ -143,7 +143,7 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = catMaybes (go
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-  where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
+  where eqn   = Def x [] dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
 
 

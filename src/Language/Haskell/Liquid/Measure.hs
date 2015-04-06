@@ -273,7 +273,7 @@ instance PPrint Body where
 
 -- MOVE TO TYPES
 instance PPrint a => PPrint (Def a) where
-  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body   
+  pprint (Def m p c bs body) = pprint m <+> pprint p <+> cbsd <> text " = " <> pprint body   
     where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
 
 -- MOVE TO TYPES
@@ -309,8 +309,9 @@ dataConTypes  s = (ctorTys, measTys)
     defsTy      = foldl1' meet . fmap defRefType 
     defsVar     = ctor . safeHead "defsVar" 
 
+-- NV HERE!!!!
 defRefType :: Def DataCon -> RRType Reft
-defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
+defRefType (Def f _ dc xs body) = mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
     xts = map (addThd3 mempty) $ safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc

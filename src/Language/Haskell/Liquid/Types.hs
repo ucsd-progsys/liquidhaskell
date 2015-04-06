@@ -1640,7 +1640,7 @@ cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
 --------------------------------------------------------------------------------
 --- Measures
 --------------------------------------------------------------------------------
--- MOVE TO TYPES
+
 data Measure ty ctor = M { 
     name :: LocSymbol
   , sort :: ty
@@ -1652,17 +1652,16 @@ data CMeasure ty
        , cSort :: ty
        }
 
--- MOVE TO TYPES
 data Def ctor 
   = Def { 
     measure :: LocSymbol
+  , dparams :: [Symbol]
   , ctor    :: ctor 
   , binds   :: [Symbol]
   , body    :: Body
   } deriving (Show, Data, Typeable)
 deriving instance (Eq ctor) => Eq (Def ctor)
 
--- MOVE TO TYPES
 data Body 
   = E Expr          -- ^ Measure Refinement: {v | v = e } 
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
@@ -1676,10 +1675,10 @@ instance Subable (Measure ty ctor) where
   subst  su (M n s es) = M n s $ subst  su <$> es
 
 instance Subable (Def ctor) where
-  syms (Def _ _ _ bd)      = syms bd
-  substa f  (Def m c b bd) = Def m c b $ substa f  bd
-  substf f  (Def m c b bd) = Def m c b $ substf f  bd
-  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+  syms (Def _ sp _ sb bd)  = sp ++ sb ++ syms bd
+  substa f  (Def m p c b bd) = Def m p c b $ substa f  bd
+  substf f  (Def m p c b bd) = Def m p c b $ substf f  bd
+  subst  su (Def m p c b bd) = Def m p c b $ subst  su bd
 
 instance Subable Body where
   syms (E e)       = syms e

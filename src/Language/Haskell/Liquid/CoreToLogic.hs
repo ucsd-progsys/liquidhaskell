@@ -134,10 +134,10 @@ coreToDef x _ e = go $ inline_preds $ simplify e
       | otherwise       = mapM goalt      alts
     go _                = throw "Measure Functions should have a case at top level"
 
-    goalt ((C.DataAlt d), xs, e)      = ((Def x d (symbol <$> xs)) . E) <$> coreToLogic e
+    goalt ((C.DataAlt d), xs, e)      = ((Def x [{- NV: add args -}] d (symbol <$> xs)) . E) <$> coreToLogic e
     goalt alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop ((C.DataAlt d), xs, e) = ((Def x d (symbol <$> xs)) . P) <$> coreToPred  e
+    goalt_prop ((C.DataAlt d), xs, e) = ((Def x [{- NV add args -}] d (symbol <$> xs)) . P) <$> coreToPred  e
     goalt_prop alt = throw $ "Bad alternative" ++ showPpr alt
 
     inline_preds = inline (eqType boolTy . varType)
