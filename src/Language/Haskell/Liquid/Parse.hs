@@ -779,7 +779,7 @@ grabs p = try (liftM2 (:) p (grabs p))
        <|> return []
 
 -- NV TODO
-measureDefP :: Parser Body -> Parser (Def LocSymbol)
+measureDefP :: Parser Body -> Parser (Def BareType LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- measurePatP

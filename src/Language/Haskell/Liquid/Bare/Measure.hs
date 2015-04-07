@@ -47,6 +47,7 @@ import Language.Fixpoint.Types (Expr(..))
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
+import Language.Haskell.Liquid.Misc    (mapSndM)
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
@@ -178,19 +179,20 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
--- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+mkMeasureSort ::  Ms.MSpec BareType LocSymbol -> BareM (Ms.MSpec SpecType LocSymbol)
 mkMeasureSort (Ms.MSpec c mm cm im)
-  = Ms.MSpec c <$> forM mm tx <*> forM cm tx <*> forM im tx
+  = Ms.MSpec <$> forM c (mapM txDef) <*> forM mm tx <*> forM cm tx <*> forM im tx
     where
-      tx m = liftM (\s' -> m {sort = s'}) (ofMeaSort (sort m))
+      tx :: Measure BareType ctor -> BareM (Measure SpecType ctor)
+      tx (M n s eqs) = M n <$> (ofMeaSort s) <*> (mapM txDef eqs)
 
+      txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
+      txDef def = liftM (\xs -> def{ dparams = xs}) (mapM (mapSndM ofMeaSort) (dparams def))
 
 
 varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
 isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
-
-
 
 makeHaskellBounds :: CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
 makeHaskellBounds cbs xs 
@@ -241,7 +243,7 @@ expandMeasure m
        return $ m { sort = generalize (sort m)
                   , eqns = eqns }
 
-expandMeasureDef :: Def LocSymbol -> BareM (Def LocSymbol)
+expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
 expandMeasureDef d
   = do body <- expandMeasureBody (loc $ measure d) $ body d
        return $ d { body = body }

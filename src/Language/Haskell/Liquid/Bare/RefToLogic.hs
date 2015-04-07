@@ -96,7 +96,7 @@ instance Transformable Expr where
 instance Transformable (Measure t c) where
 	tx s m x = x{eqns = tx s m <$> (eqns x)}
 
-instance Transformable (Def c) where
+instance Transformable (Def t c) where
 	tx s m x = x{body = tx s m (body x)} 
 
 instance Transformable Body where
