@@ -96,7 +96,7 @@ module Language.Fixpoint.Types (
   , IBindEnv, BindId
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv
   , BindEnv
-  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv
+  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, unionIBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
@@ -753,6 +753,8 @@ rawBindEnv bs = BE (1 + nbs) be'
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = (BE n $ M.map f m)
 
+unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2 
 
 instance Functor SEnv where
   fmap f (SE m) = SE $ fmap f m
