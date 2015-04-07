@@ -22,7 +22,7 @@ import DataCon
 
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
-import Data.List (foldl1')
+import Data.List (foldl1', foldl')
 
 import Data.Monoid hiding ((<>))
 import Data.Bifunctor
@@ -316,7 +316,7 @@ dataConTypes  s = (ctorTys, measTys)
 
 -- NV HERE!!!!
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
-defRefType (Def f args dc xs body) = mkArrow as [] [] xts t'
+defRefType (Def f args dc xs body) = traceShow "TYPE MADE" $ mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
     xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
@@ -324,7 +324,7 @@ defRefType (Def f args dc xs body) = mkArrow as [] [] xts t'
     t   = ofType $ dataConOrigResTy dc
     msg = "defRefType dc = " ++ showPpr dc 
 
-    mkForAlls _ t = t
+    mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
 
 refineWithCtorBody dc f as body t =
