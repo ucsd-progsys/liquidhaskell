@@ -124,7 +124,7 @@ getState = LM $ Left
 runToLogic lmap ferror (LM m) 
   = m $ LState {symbolMap = lmap, mkError = ferror}
 
-coreToDef :: LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def DataCon]
+coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
   where
     go args (C.Lam  x e) = go (x:args) e
@@ -134,11 +134,13 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
       | otherwise        = mapM (goalt      (reverse $ tail args)) alts
     go _ _               = throw "Measure Functions should have a case at top level"
 
-    goalt args ((C.DataAlt d), xs, e)      = ((Def x (symbol <$> args) d (symbol <$> xs)) . E . traceShow "coreToLogic" ) <$> coreToLogic e
+    goalt args ((C.DataAlt d), xs, e)      = ((Def x (toArgs args) d (symbol <$> xs)) . E) <$> coreToLogic e
     goalt _ alt = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop args ((C.DataAlt d), xs, e) = ((Def x (symbol <$> args) d (symbol <$> xs)) . P . traceShow ( "HE" ++ showPpr e ++ "coreToPred")) <$> coreToPred  e
+    goalt_prop args ((C.DataAlt d), xs, e) = ((Def x (toArgs args) d (symbol <$> xs)) . P) <$> coreToPred  e
     goalt_prop _ alt = throw $ "Bad alternative" ++ showPpr alt
+
+    toArgs args = [(symbol x, ofType $ varType x) | x <- args]
 
     inline_preds = inline (eqType boolTy . varType)
 

@@ -74,7 +74,7 @@ data Spec ty bndr  = Spec {
 
 -- MOVE TO TYPES
 data MSpec ty ctor = MSpec { 
-    ctorMap  :: M.HashMap Symbol [Def ctor]
+    ctorMap  :: M.HashMap Symbol [Def ty ctor]
   , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
   , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
   , imeas    :: ![Measure ty ctor]
@@ -109,7 +109,7 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
   where
     tx = fmap (qualifySymbol name)
 
-mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
+mkM ::  LocSymbol -> ty -> [Def ty bndr] -> Measure ty bndr
 mkM name typ eqns 
   | all ((name ==) . measure) eqns
   = M name typ eqns
@@ -213,7 +213,7 @@ instance Monoid (Spec ty bndr) where
            }
 
 -- MOVE TO TYPES
-instance Functor Def where
+instance Functor (Def t) where
   fmap f def = def { ctor = f (ctor def) }
 
 -- MOVE TO TYPES
@@ -230,13 +230,18 @@ instance Functor (MSpec t) where
            fm = fmap $ fmap f 
 
 -- MOVE TO TYPES
+instance Bifunctor Def where
+  first  f def  = def {dparams = mapSnd f <$> dparams def}
+  second f def  = def {ctor    = f $ ctor def}
+
+-- MOVE TO TYPES
 instance Bifunctor Measure where
-  first f (M n s eqs)  = M n (f s) eqs
-  second f (M n s eqs) = M n s (fmap f <$> eqs)
+  first f (M n s eqs)  = M n (f s) (first f <$> eqs)
+  second f (M n s eqs) = M n s (second f <$> eqs)
 
 -- MOVE TO TYPES
 instance Bifunctor MSpec   where
-  first f (MSpec c m cm im) = MSpec c (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
+  first f (MSpec c m cm im) = MSpec (fmap (fmap (first f)) c) (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
   second                    = fmap
 
 -- MOVE TO TYPES
@@ -272,8 +277,8 @@ instance PPrint Body where
 --   toFix (BTup n) = parens $ toFix n
 
 -- MOVE TO TYPES
-instance PPrint a => PPrint (Def a) where
-  pprint (Def m p c bs body) = pprint m <+> pprint p <+> cbsd <> text " = " <> pprint body   
+instance PPrint a => PPrint (Def t a) where
+  pprint (Def m p c bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body   
     where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
 
 -- MOVE TO TYPES
@@ -297,7 +302,7 @@ instance PPrint (CMeasure t) => Show (CMeasure t) where
 
 -- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
-mapTy f (M n ty eqs) = M n (f ty) eqs
+mapTy = first 
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
@@ -310,20 +315,22 @@ dataConTypes  s = (ctorTys, measTys)
     defsVar     = ctor . safeHead "defsVar" 
 
 -- NV HERE!!!!
-defRefType :: Def DataCon -> RRType Reft
-defRefType (Def f _ dc xs body) = mkArrow as [] [] xts t'
+defRefType :: Def (RRType Reft) DataCon -> RRType Reft
+defRefType (Def f args dc xs body) = mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
-    xts = map (addThd3 mempty) $ safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
-    t'  = refineWithCtorBody dc f body t 
+    xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
+    t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t 
     t   = ofType $ dataConOrigResTy dc
     msg = "defRefType dc = " ++ showPpr dc 
 
+    mkForAlls _ t = t
 
-refineWithCtorBody dc f body t =
+
+refineWithCtorBody dc f as body t =
   case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
+      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f (eVar <$> (as ++ [v]))) body])
     Nothing -> 
       errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 

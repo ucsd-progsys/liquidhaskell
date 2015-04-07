@@ -354,7 +354,7 @@ checkMeasure emb γ (M name@(Loc src n) sort body)
 checkMBody γ emb _ sort (Def _ as c bs body) = checkMBody' emb sort γ' body
   where 
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
-    ats  = zip as (rTypeSortedReft emb <$> init txs)
+    ats  = (mapSnd (rTypeSortedReft emb) <$> as)
     xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
     su   = checkMBodyUnify (ty_res trep) (last txs) 
