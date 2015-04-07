@@ -255,9 +255,12 @@ sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
-showPpr      = Out.showPpr unsafeGlobalDynFlags
-showSDoc     = Out.showSDoc unsafeGlobalDynFlags
-showSDocDump = Out.showSDocDump unsafeGlobalDynFlags
+showPpr       = showSDoc . ppr
+
+-- FIXME: somewhere we depend on this printing out all GHC entities with
+-- fully-qualified names...
+showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 

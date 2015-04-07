@@ -5,6 +5,7 @@
 module ToyMVar where
 
 import Prelude hiding (IO)
+import Control.Applicative
 import Data.Set 
 data RealWorld
 data MVar# s a 
@@ -53,3 +54,10 @@ newMVar# = let x = x in x
 instance Monad IO where --  GHC-Base.lhs
   return = undefined
   _ >> _ = undefined
+
+instance Applicative IO where
+  pure  = undefined
+  (<*>) = undefined
+
+instance Functor IO where
+  fmap = undefined

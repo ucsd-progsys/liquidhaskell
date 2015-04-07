@@ -1,0 +1,4 @@
+
+//Qualifiers about complex length relationships
+
+qualif LenSum(v:[a], ~A:[b], ~B:[c]): len([v]) = (len([~A]) [ +; - ] len([~B]))

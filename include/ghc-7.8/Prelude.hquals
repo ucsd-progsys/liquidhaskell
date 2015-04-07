@@ -1,0 +1,31 @@
+//BOT: Do not delete EVER!
+
+qualif Bot(v:@(0))    : 0 = 1 
+qualif Bot(v:obj)     : 0 = 1 
+qualif Bot(v:a)       : 0 = 1 
+qualif Bot(v:bool)    : 0 = 1 
+qualif Bot(v:int)     : 0 = 1 
+qualif CmpZ(v:a)      : v [ < ; <= ; > ; >= ; = ; != ] 0
+qualif Cmp(v:a,~A:a)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif Cmp(v:int,~A:int)  : v [ < ; <= ; > ; >= ; = ; != ] ~A
+qualif One(v:int)     : v = 1
+qualif True(v:bool)   : (? v) 
+qualif False(v:bool)  : ~ (? v) 
+qualif True1(v:GHC.Types.Bool)   : Prop(v)
+qualif False1(v:GHC.Types.Bool)  : ~ Prop(v)
+
+
+qualif Papp(v:a,~P:Pred a) : papp1(~P, v)
+constant papp1 : func(1, [Pred @(0); @(0); bool])
+
+qualif Papp2(v:a,~X:b,~P:Pred a b) : papp2(~P, v, ~X)
+constant papp2 : func(4, [Pred @(0) @(1); @(2); @(3); bool])
+
+qualif Papp3(v:a,~X:b, ~Y:c, ~P:Pred a b c) : papp3(~P, v, ~X, ~Y)
+constant papp3 : func(6, [Pred @(0) @(1) @(2); @(3); @(4); @(5); bool])
+
+// qualif Papp4(v:a,~X:b, ~Y:c, ~Z:d, ~P:Pred a b c d) : papp4(~P, v, ~X, ~Y, ~Z)
+constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool])
+
+
+constant Prop : func(0, [GHC.Types.Bool; bool])
