@@ -219,7 +219,7 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
-bareTCApp r c rs ts | Just rhs <- synTyConRhs_maybe c
+bareTCApp r (Loc l c) rs ts | Just rhs <- synTyConRhs_maybe c
    = do when (realTcArity c < length ts) (Ex.throw err)
         return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
    where tvs = tyConTyVarsDef c

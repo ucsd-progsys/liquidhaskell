@@ -1,0 +1,22 @@
+assume (>) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+assume (<) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+assume (>=) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+assume (<=) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+assume (==) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> Bool
+assume (+) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
+assume (*) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
+assume (-) :: forall a. forAll p1:a p2:a. (Ord a^True) => a^p1 -> a^p2 -> a^True
+assume ($) :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> a^q1 -> b^q2
+assume (.) :: forall b c a. forAll q1:a q2:b q3:c. (b^q2 -> c^q3) -> (a^q1 -> b^q2) -> a^q1 -> c^q3
+assume filter :: forall a. forAll p1:a. (a^p1 -> Bool) -> [a^p1]-> [a^p1]
+assume snd :: forall a b. forAll p1:a p2:b. (a^p1, b^p2)-> b^p2
+assume map :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2) -> [a^q1]-> [b^q2]
+assume (++) :: forall a. forAll q:a. [a^q]-> [a^q]-> [a^q]
+assume concat :: forall a. forAll q:a. [[a^q]]-> [a^q]
+assume foldl :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> a^q1) -> a^q1 -> [b^q2]-> a^q1
+assume foldr :: forall a b. forAll q1:a q2:b. (a^q1 -> b^q2 -> b^q2) -> b^q2 -> [a^q1]-> b^q2
+assume (,) :: forall a b. forAll q1:a q2:b. a^q1 -> b^q2 ->(a^q1, b^q2)
+assume Prelude.error :: forall a. forAll q2:a. [Char]-> a^q2
+assume Prelude.head :: forall a. forAll q:a. [a^q]-> a^q
+assume Prelude.tail :: forall a. forAll q:a. [a^q]-> [a^q]
+assume Prelude.enumFromTo :: forall a. forAll q:a. (Enum a^ True) => a^q -> a^q -> [a^q]

@@ -1,0 +1,3 @@
+qualif VecEmpty(v: Vector a)              : vlen([v]) [ = ; > ; >= ]  0 
+qualif Vlen(v:int, ~A: Vector a)          : v [ = ; <= ; < ]  vlen([~A]) 
+qualif CmpVlen(v: Vector a, ~A: Vector b) : vlen([v]) [ < ; <= ; > ; >= ; = ] vlen([~A]) 

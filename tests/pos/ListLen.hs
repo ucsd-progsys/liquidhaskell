@@ -17,6 +17,7 @@ clone x n
 -- check [] = [liquidAssertB True]
 -- check (xs:xss) = let n = length xs in map (\xs' -> liquidAssertB (length xs' == n)) xss
 
+chk :: [[a]] -> Bool
 chk [] = liquidAssertB True
 chk (xs:xss) =
   case xss of 

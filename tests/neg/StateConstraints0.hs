@@ -1,5 +1,6 @@
 module Compose where
 
+import Control.Applicative
 
 -- | TODO 
 -- | 
@@ -17,6 +18,11 @@ data ST s a = ST {runState :: s -> (a,s)}
 {-@ runState :: forall <p :: s -> Prop, q :: s -> s -> Prop, r :: s -> a -> Prop>. ST <p, q, r> s a -> x:s<p> -> (a<r x>, s<q x>) @-}
 
 
+instance Functor (ST s) where
+  fmap = undefined
+instance Applicative (ST s) where
+  pure  = undefined
+  (<*>) = undefined
 
 
 instance Monad (ST s) where

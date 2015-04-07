@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE TupleSections             #-}
 
 module Language.Haskell.Liquid.Misc where
@@ -58,9 +59,15 @@ third3 f (a,b,c) = (a,b,f c)
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : (zip4 xs1 xs2 xs3 xs4) 
 zip4 _ _ _ _                             = []
 
-getIncludeDir      = dropFileName <$> (getDataFileName $ "include" </> "Prelude.spec")
+#if __GLASGOW_HASKELL__ < 710
+ghc = "ghc-7.8"
+#else
+ghc = "ghc-7.10"
+#endif
+
+getIncludeDir      = dropFileName <$> getDataFileName ("include" </> ghc </> "Prelude.spec")
 getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
-getCoreToLogicPath = getDataFileName $ "include" </> "CoreToLogic.lg"
+getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 
 
 maximumWithDefault zero [] = zero

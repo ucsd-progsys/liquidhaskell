@@ -13,25 +13,45 @@ Category:            Language
 Build-Type:          Simple
 Cabal-version:       >=1.18
 
-data-files: include/*.hquals
-          , include/*.hs
-          , include/*.spec
-          , include/CoreToLogic.lg
-          , include/Control/*.spec
-          , include/Data/*.hquals
-          , include/Data/*.spec
-          , include/Data/Text/*.spec
-          , include/Data/Text/Fusion/*.spec
-          , include/Data/Text/Lazy/*.spec
-          , include/Foreign/*.spec
-          , include/Foreign/C/*.spec
-          , include/Foreign/Marshal/*.spec
-          , include/GHC/*.hquals
-          , include/GHC/*.spec
-          , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/*.hs
-          , include/Language/Haskell/Liquid/*.pred
-          , include/System/*.spec
+data-files: include/ghc-7.8/*.hquals
+          , include/ghc-7.8/*.hs
+          , include/ghc-7.8/*.spec
+          , include/ghc-7.8/CoreToLogic.lg
+          , include/ghc-7.8/Control/*.spec
+          , include/ghc-7.8/Data/*.hquals
+          , include/ghc-7.8/Data/*.spec
+          , include/ghc-7.8/Data/Text/*.spec
+          , include/ghc-7.8/Data/Text/Fusion/*.spec
+          , include/ghc-7.8/Data/Text/Lazy/*.spec
+          , include/ghc-7.8/Foreign/*.spec
+          , include/ghc-7.8/Foreign/C/*.spec
+          , include/ghc-7.8/Foreign/Marshal/*.spec
+          , include/ghc-7.8/GHC/*.hquals
+          , include/ghc-7.8/GHC/*.spec
+          , include/ghc-7.8/GHC/IO/*.spec
+          , include/ghc-7.8/Language/Haskell/Liquid/*.hs
+          , include/ghc-7.8/Language/Haskell/Liquid/*.pred
+          , include/ghc-7.8/System/*.spec
+          , syntax/liquid.css
+data-files: include/ghc-7.10/*.hquals
+          , include/ghc-7.10/*.hs
+          , include/ghc-7.10/*.spec
+          , include/ghc-7.10/CoreToLogic.lg
+          , include/ghc-7.10/Control/*.spec
+          , include/ghc-7.10/Data/*.hquals
+          , include/ghc-7.10/Data/*.spec
+          , include/ghc-7.10/Data/Text/*.spec
+          , include/ghc-7.10/Data/Text/Fusion/*.spec
+          , include/ghc-7.10/Data/Text/Lazy/*.spec
+          , include/ghc-7.10/Foreign/*.spec
+          , include/ghc-7.10/Foreign/C/*.spec
+          , include/ghc-7.10/Foreign/Marshal/*.spec
+          , include/ghc-7.10/GHC/*.hquals
+          , include/ghc-7.10/GHC/*.spec
+          , include/ghc-7.10/GHC/IO/*.spec
+          , include/ghc-7.10/Language/Haskell/Liquid/*.hs
+          , include/ghc-7.10/Language/Haskell/Liquid/*.pred
+          , include/ghc-7.10/System/*.spec
           , syntax/liquid.css
 
 Source-Repository head
@@ -40,6 +60,11 @@ Source-Repository head
 
 Flag devel
   Description: turn on stricter error reporting for development
+  Default:     False
+  Manual:      True
+
+Flag include
+  Description: use in-tree include directory
   Default:     False
 
 Executable liquid
@@ -155,7 +180,11 @@ Library
                 , bytestring
                 , fingertree
  
-   hs-source-dirs:  include, src
+   hs-source-dirs:  src
+   if impl(ghc >= 7.10)
+     hs-source-dirs: include/ghc-7.10
+   else
+     hs-source-dirs: include/ghc-7.8
  
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.Foreign, 
@@ -237,6 +266,8 @@ Library
    ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
    if flag(devel)
      ghc-options: -Werror
+   if flag(include)
+     hs-source-dirs: devel
    ghc-prof-options: -fprof-auto
    Default-Extensions: PatternGuards
 
