@@ -6,7 +6,6 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Visitor as V
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Graph                as G
-import Data.Hashable (Hashable)
 
 type KVar = F.Symbol
 
@@ -48,11 +47,10 @@ depsHelper subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
     rhsKVars = V.reftKVars $ F.rhsCs subC
 
 makeGraph :: [Edge] -> Graph
-makeGraph es = [(k,k,ks) | (k,ks) <- makeGraphHelper M.empty es]
-
-makeGraphHelper :: (Eq a, Hashable a) => M.HashMap a [a] -> [(a,a)] -> [(a,[a])]
-makeGraphHelper m []         = M.toList m
-makeGraphHelper m ((u,v):es) = makeGraphHelper (M.insertWith (++) u [v] m) es
+makeGraph es = [(k,k,ks) | (k,ks) <- go M.empty es]
+  where
+    go m []         = M.toList m
+    go m ((u,v):es) = go (M.insertWith (++) u [v] m) es
 
 {-
 data FInfo a = FI { bs    :: !BindEnv
