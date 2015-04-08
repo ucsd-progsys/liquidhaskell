@@ -1657,7 +1657,8 @@ data Def ty ctor
     measure :: LocSymbol
   , dparams :: [(Symbol, ty)]
   , ctor    :: ctor 
-  , binds   :: [Symbol]
+  , dsort   :: Maybe ty
+  , binds   :: [(Symbol, Maybe ty)]
   , body    :: Body
   } deriving (Show, Data, Typeable)
 deriving instance (Eq ctor, Eq ty) => Eq (Def ty ctor)
@@ -1675,10 +1676,10 @@ instance Subable (Measure ty ctor) where
   subst  su (M n s es) = M n s $ subst  su <$> es
 
 instance Subable (Def ty ctor) where
-  syms (Def _ sp _ sb bd)  = (fst <$> sp) ++ sb ++ syms bd
-  substa f  (Def m p c b bd) = Def m p c b $ substa f  bd
-  substf f  (Def m p c b bd) = Def m p c b $ substf f  bd
-  subst  su (Def m p c b bd) = Def m p c b $ subst  su bd
+  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ syms bd
+  substa f  (Def m p c t b bd) = Def m p c t b $ substa f  bd
+  substf f  (Def m p c t b bd) = Def m p c t b $ substf f  bd
+  subst  su (Def m p c t b bd) = Def m p c t b $ subst  su bd
 
 instance Subable Body where
   syms (E e)       = syms e

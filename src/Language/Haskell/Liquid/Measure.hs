@@ -28,6 +28,8 @@ import Data.Monoid hiding ((<>))
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 
+import Data.Maybe (fromMaybe)
+
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
@@ -231,7 +233,9 @@ instance Functor (MSpec t) where
 
 -- MOVE TO TYPES
 instance Bifunctor Def where
-  first  f def  = def {dparams = mapSnd f <$> dparams def}
+  first  f def  = def { dparams = mapSnd f <$> dparams def
+                      , dsort = f <$> dsort def
+                      , binds = mapSnd (f <$>) <$> binds def}
   second f def  = def {ctor    = f $ ctor def}
 
 -- MOVE TO TYPES
@@ -278,8 +282,8 @@ instance PPrint Body where
 
 -- MOVE TO TYPES
 instance PPrint a => PPrint (Def t a) where
-  pprint (Def m p c bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body   
-    where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
+  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body   
+    where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
 
 -- MOVE TO TYPES
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
@@ -314,14 +318,14 @@ dataConTypes  s = (ctorTys, measTys)
     defsTy      = foldl1' meet . fmap defRefType 
     defsVar     = ctor . safeHead "defsVar" 
 
--- NV HERE!!!!
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
-defRefType (Def f args dc xs body) = traceShow "TYPE MADE" $ mkArrow as [] [] xts t'
+defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
   where 
-    as  = RTV <$> dataConUnivTyVars dc
-    xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
+    t   = fromMaybe (ofType $ dataConOrigResTy dc) mt
+    xts = safeZipWith msg g xs $ ofType `fmap` dataConOrigArgTys dc
+    g (x, Nothing) t = (x, t)
+    g (x, Just t)  _ = (x, t)
     t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t 
-    t   = ofType $ dataConOrigResTy dc
     msg = "defRefType dc = " ++ showPpr dc 
 
     mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts

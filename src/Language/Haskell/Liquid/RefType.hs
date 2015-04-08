@@ -377,6 +377,15 @@ strengthenRefType t1 t2
 
          
 -- strengthenRefType_ :: RefTypable c tv r => RType c tv r -> RType c tv r -> RType c tv r
+strengthenRefType_ (RAllE x tx t1) (RAllE y ty t2) | x == y
+  = RAllE x (strengthenRefType_ tx ty) $ strengthenRefType_ t1 t2
+
+strengthenRefType_ (RAllE x tx t1) t2
+  = RAllE x tx $ strengthenRefType_ t1 t2
+
+strengthenRefType_ t1 (RAllE x tx t2)
+  = RAllE x tx $ strengthenRefType_ t1 t2
+
 strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
   = RAllT a1 $ strengthenRefType_ t1 t2
 

@@ -24,15 +24,16 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
+import Prelude hiding (mapM)
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad hiding (forM)
-import Control.Monad.Error hiding (Error, forM)
-import Control.Monad.State hiding (forM)
+import Control.Monad hiding (forM, mapM)
+import Control.Monad.Error hiding (Error, forM, mapM)
+import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 import Data.Monoid
-import Data.Traversable (forM)
+import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
 
@@ -144,7 +145,7 @@ makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = catMaybes (go
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-  where eqn   = Def x [] dc (mkx <$> [1 .. n]) (E (EVar $ mkx i)) 
+  where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
 
 
@@ -187,7 +188,10 @@ mkMeasureSort (Ms.MSpec c mm cm im)
       tx (M n s eqs) = M n <$> (ofMeaSort s) <*> (mapM txDef eqs)
 
       txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
-      txDef def = liftM (\xs -> def{ dparams = xs}) (mapM (mapSndM ofMeaSort) (dparams def))
+      txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds}) 
+                  (mapM (mapSndM ofMeaSort) (dparams def))
+                  (mapM ofMeaSort $ dsort def)
+                  (mapM (mapSndM $ mapM ofMeaSort) (binds def))
 
 
 varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
