@@ -130,17 +130,23 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
     go args (C.Lam  x e) = go (x:args) e
     go args (C.Tick _ e) = go args e
     go args (C.Case _ _ t alts) 
-      | eqType t boolTy  = mapM (goalt_prop (reverse $ tail args)) alts
-      | otherwise        = mapM (goalt      (reverse $ tail args)) alts
+      | eqType t boolTy  = mapM (goalt_prop (reverse $ tail args) (head args)) alts
+      | otherwise        = mapM (goalt      (reverse $ tail args) (head args)) alts
     go _ _               = throw "Measure Functions should have a case at top level"
 
-    goalt args ((C.DataAlt d), xs, e)      = ((Def x (toArgs args) d (symbol <$> xs)) . E) <$> coreToLogic e
-    goalt _ alt = throw $ "Bad alternative" ++ showPpr alt
+    goalt args dx ((C.DataAlt d), xs, e)      
+      = ((Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs)) . E) 
+        <$> coreToLogic e
+    goalt _ _ alt
+       = throw $ "Bad alternative" ++ showPpr alt
 
-    goalt_prop args ((C.DataAlt d), xs, e) = ((Def x (toArgs args) d (symbol <$> xs)) . P) <$> coreToPred  e
-    goalt_prop _ alt = throw $ "Bad alternative" ++ showPpr alt
+    goalt_prop args dx ((C.DataAlt d), xs, e) 
+      = ((Def x (toArgs id args) d (Just $ ofType $ varType dx) (toArgs Just xs)) . P) 
+        <$> coreToPred  e
+    goalt_prop _ _ alt 
+      = throw $ "Bad alternative" ++ showPpr alt
 
-    toArgs args = [(symbol x, ofType $ varType x) | x <- args]
+    toArgs f args = [(symbol x, f $ ofType $ varType x) | x <- args]
 
     inline_preds = inline (eqType boolTy . varType)
 

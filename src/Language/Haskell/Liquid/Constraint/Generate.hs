@@ -656,10 +656,13 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, RAllE y tyy tyx)
-  = do y' <- fresh 
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
+
+addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (msg, x, t)
+  where 
+    xs    = grapBindsWithType tyy γ
+    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx `F.subst1` (yy, F.EVar x) | x <- xs]
+    ttrue = fmap (\_ -> mempty) tyx
 
 addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
@@ -1561,7 +1564,7 @@ caseEnv γ x _   (DataAlt c) ys
        let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
        let r1            = dataConReft   c   ys' 
        let r2            = dataConMsReft rtd ys'
-       let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+       let xt            = (rtd `F.meet` xt0) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]

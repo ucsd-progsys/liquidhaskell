@@ -274,7 +274,7 @@ ppr_name                      = text . symbolString
     
 instance PPrint RTyVar where
   pprint (RTV α) 
-   | True {- ppTyVar ppEnv-} = ppr_tyvar α
+   | ppTyVar ppEnv = ppr_tyvar α
    | otherwise     = ppr_tyvar_short α
 
 ppr_tyvar       = text . tvId
