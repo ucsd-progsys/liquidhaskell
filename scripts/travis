@@ -57,6 +57,14 @@ function poke_stdout {
   done
 }
 
+function travis_fold_start {
+  echo "travis_fold:start:$1"
+}
+
+function travis_fold_end {
+  echo "travis_fold:end:$1"
+}
+
 ## Testing Stages
 
 function install_ocaml {
@@ -100,8 +108,10 @@ function do_test {
 
 function dump_fail_logs {
   find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+    travis_fold_start "${file}"
     echo " === Contents of log file ${file} === "
     cat "$file"
+    travis_fold_end "${file}"
   done
 }
 
