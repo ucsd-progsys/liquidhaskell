@@ -98,6 +98,13 @@ function do_test {
   loud prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
 }
 
+function dump_fail_logs {
+  find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+    echo " === Contents of log file ${file} === "
+    cat "$file"
+  done
+}
+
 function test_source_pkg {
   loud cabal sdist
 
