@@ -18,46 +18,41 @@ data Deps = Deps { depCuts    :: ![KVar]
                  }
             deriving (Eq, Ord, Show)
 
+-- TODO: currently ignores Kuts
+
 deps :: F.FInfo a -> Deps
 deps finfo = sccsToDeps sccs
   where
     subCs = M.elems (F.cm finfo)
-    edges = concatMap helper subCs
+    edges = concatMap depsHelper subCs
     graph = makeGraph edges
     sccs  = G.stronglyConnCompR graph
 
 sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Deps
 sccsToDeps xs = bar xs (Deps [] [])
 
+-- TODO: rewrite using State monad :)
 bar :: [G.SCC (KVar,KVar,[KVar])] -> Deps -> Deps
-bar []                    deps = deps
-bar (G.AcyclicSCC (v,_,_) : xs) deps = bar xs (deps { depNonCuts = v : (depNonCuts deps) })
-bar (G.CyclicSCC vs       : xs) deps = bar xs deps'
-  where
-    deps' = baz deps vs
-
--- assumes its input is *STRONGLY CONNECTED* (and 2+ vtxs)
-baz :: Deps -> Graph -> Deps
-baz deps ((v,_,_):vs) = bar sccs' deps'
+bar []                              deps = deps
+bar (G.AcyclicSCC (v,_,_)     : xs) deps = bar xs (deps { depNonCuts = v : (depNonCuts deps) })
+bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
   where
     sccs' = G.stronglyConnCompR vs
     deps' = (deps { depCuts = v : (depCuts deps) })
 
 -- TODO: currently ignores bindenvs
-helper :: F.SubC a -> [(KVar,KVar)]
-helper subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
+depsHelper :: F.SubC a -> [Edge]
+depsHelper subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
   where
     lhsKVars = V.reftKVars $ F.lhsCs subC
     rhsKVars = V.reftKVars $ F.rhsCs subC
 
 makeGraph :: [Edge] -> Graph
-makeGraph es = [(k,k,ks) | (k,ks) <- foo M.empty es]
+makeGraph es = [(k,k,ks) | (k,ks) <- makeGraphHelper M.empty es]
 
-foo :: (Eq a, Hashable a) => M.HashMap a [a] -> [(a,a)] -> [(a,[a])]
-foo m [] = M.toList m
-foo m es = foo (M.insertWith (++) u [v] m) (tail es)
-  where
-    (u,v) = head es
+makeGraphHelper :: (Eq a, Hashable a) => M.HashMap a [a] -> [(a,a)] -> [(a,[a])]
+makeGraphHelper m []         = M.toList m
+makeGraphHelper m ((u,v):es) = makeGraphHelper (M.insertWith (++) u [v] m) es
 
 {-
 data FInfo a = FI { bs    :: !BindEnv
@@ -73,4 +68,3 @@ data BindEnv       = BE { beSize  :: Int
 
 newtype IBindEnv   = FB (S.HashSet BindId)
 -}
-
