@@ -29,7 +29,7 @@ import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, errorstar, safeHead)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
-import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, showPpr, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (firstDuplicate, snd4)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
