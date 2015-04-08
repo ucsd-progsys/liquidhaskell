@@ -24,10 +24,24 @@ deps finfo = sccsToDeps sccs
     subCs = M.elems (F.cm finfo)
     edges = concatMap helper subCs
     graph = makeGraph edges
-    sccs  = G.stronglyConnComp graph
+    sccs  = G.stronglyConnCompR graph
 
-sccsToDeps :: [G.SCC node] -> Deps
-sccsToDeps = error "TODO"
+sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Deps
+sccsToDeps xs = bar xs (Deps [] [])
+
+bar :: [G.SCC (KVar,KVar,[KVar])] -> Deps -> Deps
+bar []                    deps = deps
+bar (G.AcyclicSCC (v,_,_) : xs) deps = bar xs (deps { depNonCuts = v : (depNonCuts deps) })
+bar (G.CyclicSCC vs       : xs) deps = bar xs deps'
+  where
+    deps' = baz deps vs
+
+-- assumes its input is *STRONGLY CONNECTED* (and 2+ vtxs)
+baz :: Deps -> Graph -> Deps
+baz deps ((v,_,_):vs) = bar sccs' deps'
+  where
+    sccs' = G.stronglyConnCompR vs
+    deps' = (deps { depCuts = v : (depCuts deps) })
 
 -- TODO: currently ignores bindenvs
 helper :: F.SubC a -> [(KVar,KVar)]
