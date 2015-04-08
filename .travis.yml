@@ -30,5 +30,6 @@ install:
 script:
  - scripts/travis do_build
  - scripts/travis do_test "$TESTS" "$SMT"
+ - scripts/travis dump_fail_logs
  - scripts/travis test_source_pkg
 
