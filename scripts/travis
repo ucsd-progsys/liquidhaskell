@@ -62,22 +62,6 @@ function pastebin {
   curl -s -F 'sprunge=<-' http://sprunge.us
 }
 
-function box_top {
-  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-}
-
-function box_divider {
-  echo "╠══════════════════════════════════════════════════════════════════════════════╣"
-}
-
-function box_line {
-  printf "║ %-76s ║\n" "${1}"
-}
-
-function box_bottom {
-  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
-}
-
 ## Testing Stages
 
 function install_ocaml {
@@ -120,16 +104,10 @@ function do_test {
 }
 
 function dump_fail_logs {
-  box_top
-  box_line "Log files for failed tests"
-  box_divider
-
   find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
-    box_line "${file}:"
-    box_line "    $(pastebin < "${file}")"
+    echo "${file}:"
+    echo "    $(pastebin < "${file}")"
   done
-
-  box_bottom
 }
 
 function test_source_pkg {
