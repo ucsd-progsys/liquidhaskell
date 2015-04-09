@@ -142,8 +142,8 @@ predKVars            = fold kvVis () []
     kv _ (PKVar k _) = [k]
     kv _ _           = []
 
-envKVars :: BindEnv -> F.SubC a -> [KVar]
-envKVars be c = squish [ kvs sr |  (_, sr) <- F.envCs be c]
+envKVars :: BindEnv -> SubC a -> [KVar]
+envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be c]
   where
     squish = S.toList  . S.fromList . concat
     kvs    = reftKVars . sr_reft
