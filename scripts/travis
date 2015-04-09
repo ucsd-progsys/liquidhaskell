@@ -107,7 +107,7 @@ function install_cabal_deps {
 
 function do_build {
   loud cabal configure -fdevel --enable-tests -v2
-  loud cabal build -j2
+  loud prevent_timeout cabal build -j2
   loud cabal copy
   loud cabal register
 }
@@ -139,7 +139,7 @@ function test_source_pkg {
 
   pushd dist
   if [ -f "$src_tgz" ]; then
-    loud cabal install -j4 "$src_tgz"
+    loud prevent_timeout cabal install -j4 "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
