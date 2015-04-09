@@ -58,12 +58,24 @@ function poke_stdout {
   done
 }
 
-function travis_fold_start {
-  echo "travis_fold:start:$1"
+function pastebin {
+  curl -s -F 'sprunge=<-' http://sprunge.us
 }
 
-function travis_fold_end {
-  echo "travis_fold:end:$1"
+function box_top {
+  echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+}
+
+function box_divider {
+  echo "╠══════════════════════════════════════════════════════════════════════════════╣"
+}
+
+function box_line {
+  printf "║ %-76s ║\n" "${1}"
+}
+
+function box_bottom {
+  echo "╚══════════════════════════════════════════════════════════════════════════════╝"
 }
 
 ## Testing Stages
@@ -108,12 +120,16 @@ function do_test {
 }
 
 function dump_fail_logs {
+  box_top
+  box_line "Log files for failed tests"
+  box_divider
+
   find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
-    travis_fold_start "${file}"
-    echo " === Contents of log file ${file} === "
-    cat "$file"
-    travis_fold_end "${file}"
+    box_line "${file}:"
+    box_line "    $(pastebin < "${file}")"
   done
+
+  box_bottom
 }
 
 function test_source_pkg {
