@@ -718,7 +718,7 @@ rTypeSortedReft' pflag γ
 
 normalize idx 
   = normalizeVV idx 
-  . normalizePds
+--   . normalizePds
 
 normalizeVV idx t@(RApp _ _ _ _)
   | not (F.isNontrivialVV (rTypeValueVar t))
