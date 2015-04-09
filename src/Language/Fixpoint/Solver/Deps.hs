@@ -22,8 +22,9 @@ data Deps = Deps { depCuts    :: ![KVar]
 deps :: F.FInfo a -> Deps
 deps finfo = sccsToDeps sccs
   where
+    bs    = F.bs finfo
     subCs = M.elems (F.cm finfo)
-    edges = concatMap depsHelper subCs
+    edges = concatMap (depsHelper bs) subCs
     graph = makeGraph edges
     sccs  = G.stronglyConnCompR graph
 
@@ -40,11 +41,12 @@ bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
     deps' = (deps { depCuts = v : (depCuts deps) })
 
 -- TODO: currently ignores bindenvs
-depsHelper :: F.SubC a -> [Edge]
-depsHelper subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
+depsHelper :: F.BindEnv -> F.SubC a -> [Edge]
+depsHelper bs subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
   where
-    lhsKVars = V.reftKVars $ F.lhsCs subC
-    rhsKVars = V.reftKVars $ F.rhsCs subC
+    envKVars       = V.envKVars bs           subC
+    lhsKVars       = V.reftKVars   $ F.lhsCs subC
+    rhsKVars       = V.reftKVars   $ F.rhsCs subC
 
 makeGraph :: [Edge] -> Graph
 makeGraph es = [(k,k,ks) | (k,ks) <- go M.empty es]

@@ -75,7 +75,7 @@ module Language.Fixpoint.Types (
   , SubC
   , WfC (..)
   , sid
-  , subC, lhsCs, rhsCs, wfC
+  , subC, lhsCs, rhsCs, envCs, wfC
   , Tag
   , FixResult (..)
   , FixSolution
@@ -94,7 +94,7 @@ module Language.Fixpoint.Types (
   , lookupSEnvWithDistance
 
   , FEnv, insertFEnv
-  , IBindEnv, BindId
+  , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
   , BindEnv
   , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, lookupBindEnv
@@ -814,12 +814,14 @@ type Tag           = [Int]
 
 type BindId        = Int
 type FEnv          = SEnv SortedReft
+type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
+
 data BindEnv       = BE { beSize  :: Int
-                        , beBinds :: M.HashMap BindId (Symbol, SortedReft)
+                        , beBinds :: BindMap (Symbol, SortedReft)
                         }
 
 
@@ -1239,11 +1241,13 @@ subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
     r2P        = Reft (v2, ra2s) -- [ra | ra@(Refa _  ) <- ra2s])
     -- r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
 
-lhsCs = sr_reft . slhs
-rhsCs = sr_reft . srhs
+lhsCs      = sr_reft . slhs
+rhsCs      = sr_reft . srhs
+envCs be c = [lookupBindEnv i be | i <- elemsIBindEnv (senv c)]
 
+  
 removeLhsKvars cs vs
-  = error "TODO:cutsolver: removeLhsKvars (why?)"
+  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
 
 -- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
 -- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}

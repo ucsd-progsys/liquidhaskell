@@ -15,6 +15,7 @@ module Language.Fixpoint.Visitor (
 
   -- * Clients
   , reftKVars
+  , envKVars
   ) where
 
 import           Control.Applicative       (Applicative, (<$>), (<*>))
@@ -22,7 +23,7 @@ import           Control.Monad.Trans.State (State, modify, runState)
 import           Data.Monoid
 import           Data.Traversable          (Traversable, traverse)
 import           Language.Fixpoint.Types
-
+import qualified Data.HashSet as S
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built up in a "top-down" fashion but not across siblings
@@ -130,7 +131,7 @@ visitPred v = vP
 
 
 ---------------------------------------------------------------------------------
-reftKVars :: Reft -> [Symbol]
+reftKVars :: Reft -> [KVar]
 ---------------------------------------------------------------------------------
 reftKVars (Reft (_, ra)) = predKVars $ raPred ra
 
@@ -140,3 +141,9 @@ predKVars            = fold kvVis () []
     kvVis            = defaultVisitor { accPred = kv }
     kv _ (PKVar k _) = [k]
     kv _ _           = []
+
+envKVars :: BindEnv -> F.SubC a -> [KVar]
+envKVars be c = squish [ kvs sr |  (_, sr) <- F.envCs be c]
+  where
+    squish = S.toList  . S.fromList . concat
+    kvs    = reftKVars . sr_reft
