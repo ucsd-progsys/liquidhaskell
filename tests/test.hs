@@ -93,6 +93,7 @@ mkTest code dir file
           let cmd     = testCmd liquid dir file smt
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
+          renameFile log $ log <.> (if code == c then "pass" else "fail")
           assertEqual "Wrong exit code" code c
   where
     test = dir </> file
