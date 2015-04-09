@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+set -eu
+set -o pipefail
 
 ## Helper Functions
 
@@ -57,6 +58,10 @@ function poke_stdout {
   done
 }
 
+function pastebin {
+  curl -s -F 'sprunge=<-' http://sprunge.us
+}
+
 ## Testing Stages
 
 function install_ocaml {
@@ -86,7 +91,7 @@ function install_cabal_deps {
 
 function do_build {
   loud cabal configure -fdevel --enable-tests -v2
-  loud cabal build -j2
+  loud prevent_timeout cabal build -j2
   loud cabal copy
   loud cabal register
 }
@@ -98,6 +103,13 @@ function do_test {
   loud prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
 }
 
+function dump_fail_logs {
+  find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+    echo "${file}:"
+    echo "    $(pastebin < "${file}")"
+  done
+}
+
 function test_source_pkg {
   loud cabal sdist
 
@@ -105,7 +117,7 @@ function test_source_pkg {
 
   pushd dist
   if [ -f "$src_tgz" ]; then
-    loud cabal install -j4 "$src_tgz"
+    loud prevent_timeout cabal install -j4 "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
