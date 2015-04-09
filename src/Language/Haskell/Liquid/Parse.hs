@@ -263,7 +263,11 @@ constraintEnvP
               return xts)
   <|> return []
 
-rrTy ct t = RRTy [(dummySymbol, ct)] mempty OCons t 
+rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t 
+  where
+    tr   = ty_res trep
+    xts  = zip (ty_binds trep) (ty_args trep)
+    trep = toRTypeRep ct 
 
 bareExistsP 
   = do reserved "exists"

@@ -64,6 +64,7 @@ import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
+import Language.Haskell.Liquid.Bounds 
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
@@ -456,17 +457,13 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+splitC (SubC γ (RRTy env _ OCons t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        c1 <- splitC (SubC γ' t1' t2')
        c2 <- splitC (SubC γ  t1  t2 )
        return $ c1 ++ c2
   where
-    trep = toRTypeRep t
-    xs   = init $ ty_binds trep
-    ts   = init $ ty_args  trep
-    t2'  = ty_res   trep
-    t1'  = last $ ty_args trep
+    (xts, t1', t2') = envToSub env 
 
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
@@ -1276,10 +1273,6 @@ cconsE γ e (RAllP p t)
     (css, t'') = splitConstraints t'
     γ'         = foldl (flip addConstraints) γ css 
 
-
--- cconsE γ e (RRTy [(_, cs)] _ OCons t)
---   = cconsE (addConstraints cs γ) e t
-
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
        cconsE γ' e t 
@@ -1312,7 +1305,7 @@ cconsE γ e t
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
-splitConstraints (RRTy [(_, cs)] _ OCons t) 
+splitConstraints (RRTy cs _ OCons t) 
   = let (css, t') = splitConstraints t in (cs:css, t')
 splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
@@ -1504,16 +1497,12 @@ dropExists γ t            = return (γ, t)
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = (flip (RFun x tx)) r <$> dropConstraints γ t 
-dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+dropConstraints γ (RRTy cts _ OCons t) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        addC (SubC  γ' t1 t2)  "dropConstraints"
        dropConstraints γ t
   where
-    trep = toRTypeRep ct
-    xs   = init $ ty_binds trep
-    ts   = init $ ty_args  trep
-    t2   = ty_res   trep
-    t1   = last $ ty_args trep
+    (xts, t1, t2) = envToSub cts 
 
 dropConstraints _ t = return t
 
