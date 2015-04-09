@@ -152,7 +152,7 @@ ppr_rtype _ _ (RExprArg e)
   = braces $ pprint e
 ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
-ppr_rtype bb p (RRTy [(_, e)] _ OCons t)         
+ppr_rtype bb p (RRTy e _ OCons t)         
   = sep [braces (ppr_rsubtype bb p e) <+> "=>", ppr_rtype bb p t]
 ppr_rtype bb p (RRTy e r o t)         
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
@@ -162,12 +162,13 @@ ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
 
-ppr_rsubtype bb p e = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
+ppr_rsubtype bb p e 
+  = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
   where
-    trep = toRTypeRep e
-    tr   = ty_res trep
-    tl   = last $ ty_args trep
-    env  = zip (init $ ty_binds trep) (init $ ty_args trep)
+    (el, r)  = (init e,  last e)
+    (env, l) = (init el, last el)
+    tr   = snd $ r
+    tl   = snd $ l
     pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t 
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
