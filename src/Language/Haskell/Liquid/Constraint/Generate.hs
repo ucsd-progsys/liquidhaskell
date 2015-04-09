@@ -434,20 +434,16 @@ splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
 
 splitC (SubC γ t1 (REx x tx t2)) 
   = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
-       let xs  = grapBindsWithType tx γ
-       let t2' = splitExistsCases x xs tx t2
-       splitC (SubC γ' t1 t2')
-
--- existential at the left hand side is treated like forall
-splitC (SubC γ (REx x tx t1) t2) 
-  = do -- let tx' = traceShow ("splitC: " ++ showpp z) tx 
-       γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
+
+splitC (SubC γ (REx x tx t1) t2) 
+  = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
+       splitC (SubC γ' t1 t2)
+
 
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
-
 
 splitC (SubC γ (RAllE x tx t1) t2)
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
@@ -656,6 +652,11 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -} 
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
+
+addCGEnv tx γ (msg, x, REx y tyy tyx)
+  = do y' <- fresh 
+       γ' <- addCGEnv tx γ (msg, y', tyy)
+       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
 addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
@@ -1463,24 +1464,6 @@ castTy γ τ e
 
 singletonReft = uTop . F.symbolReft . F.symbol 
 
--- | @consElimE@ is used to *synthesize* types by **existential elimination** 
---   instead of *checking* via a fresh template. That is, assuming
---      γ |- e1 ~> t1
---   we have
---      γ |- let x = e1 in e2 ~> Ex x t1 t2 
---   where
---      γ, x:t1 |- e2 ~> t2
---   instead of the earlier case where we generate a fresh template `t` and check
---      γ, x:t1 |- e <~ t
-
--- consElimE γ xs e
---   = do t     <- consE γ e
---        xts   <- forM xs $ \x -> (x,) <$> (γ ??= x)
---        return $ rEx xts t
-
--- | @consFreshE@ is used to *synthesize* types with a **fresh template** when
---   the above existential elimination is not easy (e.g. at joins, recursive binders)
-
 cconsFreshE kvkind γ e
   = do t   <- freshTy_type kvkind e $ exprType e
        addW $ WfC γ t
@@ -1740,22 +1723,6 @@ forallExprReft_ _ _ = Nothing -- F.exprReft e
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
-
-splitExistsCases z xs tx
-  = fmap $ fmap (exrefAddEq z xs tx)
-
-exrefAddEq z xs t (F.Reft(s, rs))
-  = F.Reft(s, [F.RConc (F.POr [ pand x | x <- xs])])
-  where tref                = fromMaybe mempty $ stripRTypeBase t
-        pand x              = F.PAnd $ (substzx x) (fFromRConc <$> rs)
-                                       ++ exrefToPred x tref
-        substzx x           = F.subst (F.mkSubst [(z, F.EVar x)])
-
-exrefToPred x uref
-  = F.subst (F.mkSubst [(v, F.EVar x)]) ((fFromRConc <$> r))
-  where (F.Reft(v, r))         = ur_reft uref
-fFromRConc (F.RConc p) = p
-fFromRConc _           = errorstar "can not hanlde existential type with kvars"
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
