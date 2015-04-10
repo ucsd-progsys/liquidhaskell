@@ -11,9 +11,9 @@ where
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (isNothing, fromMaybe)
+import           Data.Maybe                     (isNothing) -- , fromMaybe)
 import           Language.Fixpoint.Config
-import           Language.Fixpoint.Solver.Monad
+-- import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Sort
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
@@ -43,7 +43,7 @@ data EQual = EQ { eqQual :: !F.Qualifier
   @-}
 
 eQual :: F.Qualifier -> [F.Symbol] -> EQual
-eQual q xs = error "TODO:eQual"
+eQual = error "TODO:eQual"
 
 --------------------------------------------------------------------
 -- | Create Initial Solution from Qualifiers and WF constraints ----
