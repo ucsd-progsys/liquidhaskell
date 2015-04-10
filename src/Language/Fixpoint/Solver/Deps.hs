@@ -42,8 +42,9 @@ bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
 
 -- TODO: currently ignores bindenvs
 depsHelper :: F.BindEnv -> F.SubC a -> [Edge]
-depsHelper bs subC = [(k1,k2) | k1 <- lhsKVars , k2 <- rhsKVars]
+depsHelper bs subC = [(k1,k2) | k1 <- lhsKVars' , k2 <- rhsKVars]
   where
+    lhsKVars'      = envKVars ++ lhsKVars
     envKVars       = V.envKVars bs           subC
     lhsKVars       = V.reftKVars   $ F.lhsCs subC
     rhsKVars       = V.reftKVars   $ F.rhsCs subC
