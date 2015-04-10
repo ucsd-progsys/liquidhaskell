@@ -1,7 +1,7 @@
-module Language.Fixpoint.Solver.Deps where
+module Language.Fixpoint.Solver.Deps (solve, deps) where
 
-
-import qualified Language.Fixpoint.Types        as F
+import           Language.Fixpoint.Config
+import qualified Language.Fixpoint.Types  as F
 
 import qualified Language.Fixpoint.Visitor as V
 import qualified Data.HashMap.Strict       as M
@@ -16,6 +16,22 @@ data Deps = Deps { depCuts    :: ![KVar]
                  , depNonCuts :: ![KVar]
                  }
             deriving (Eq, Ord, Show)
+
+
+--------------------------------------------------------------
+-- | Dummy just for debugging --------------------------------
+--------------------------------------------------------------
+solve :: Config -> F.FInfo a -> IO (F.FixResult a)
+--------------------------------------------------------------
+solve cfg fi = do
+  error "TODO: Ben fill in code that computes and prints out cuts"
+  return F.Safe
+
+
+--------------------------------------------------------------
+-- | Compute Dependencies and Cuts ---------------------------
+--------------------------------------------------------------
+
 
 -- TODO: currently ignores Kuts
 
