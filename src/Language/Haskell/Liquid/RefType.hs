@@ -55,6 +55,10 @@ module Language.Haskell.Liquid.RefType (
 
   , mkDataConIdsTy
   , mkTyConInfo 
+
+
+  , strengthenRefTypeGen
+
   ) where
 
 import WwLib
@@ -359,6 +363,28 @@ nlzP ps t@(RAllE _ _ _)
 nlzP _ t
  = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
+
+strengthenRefTypeGen, strengthenRefType :: 
+         ( RefTypable c tv ()
+         , RefTypable c tv r 
+         , PPrint (RType c tv r)
+         ) => RType c tv r -> RType c tv r -> RType c tv r
+strengthenRefType_ :: 
+         ( RefTypable c tv ()
+         , RefTypable c tv r 
+         , PPrint (RType c tv r)
+         ) => (RType c tv r -> RType c tv r -> RType c tv r) 
+           ->  RType c tv r -> RType c tv r -> RType c tv r
+           
+strengthenRefTypeGen = strengthenRefType_ f
+  where
+    f (RAllT a t1) t2 = RAllT a $ strengthenRefType_ f t1 t2
+    f t1 (RAllT a t2) = RAllT a $ strengthenRefType_ f t1 t2
+    f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+                         (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
 --  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
@@ -367,7 +393,7 @@ nlzP _ t
 -- OLD: without unifying type variables, but checking α-equivalence
 strengthenRefType t1 t2 
   | eqt t1 t2 
-  = strengthenRefType_ t1 t2
+  = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = errorstar msg 
   where 
@@ -376,49 +402,48 @@ strengthenRefType t1 t2
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
          
--- strengthenRefType_ :: RefTypable c tv r => RType c tv r -> RType c tv r -> RType c tv r
-strengthenRefType_ (RAllE x tx t1) (RAllE y ty t2) | x == y
-  = RAllE x (strengthenRefType_ tx ty) $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
+  = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAllE x tx t1) t2
-  = RAllE x tx $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllE x tx t1) t2
+  = RAllE x tx $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ t1 (RAllE x tx t2)
-  = RAllE x tx $ strengthenRefType_ t1 t2
+strengthenRefType_ f t1 (RAllE x tx t2)
+  = RAllE x tx $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
-  = RAllT a1 $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllT a1 t1) (RAllT _ t2)
+  = RAllT a1 $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
-  = RAllP p1 $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllP p1 t1) (RAllP _ t2)
+  = RAllP p1 $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAllS s t1) t2
-  = RAllS s $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllS s t1) t2
+  = RAllS s $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ t1 (RAllS s t2)
-  = RAllS s $ strengthenRefType_ t1 t2
+strengthenRefType_ f t1 (RAllS s t2)
+  = RAllS s $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
+strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
   = RAppTy t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ t1 t2
-          t' = strengthenRefType_ t1' t2'
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f t1' t2'
 
-strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
+strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
   = RFun x1 t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ t1 t2
-          t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f t1' $ subst1 t2' (x2, EVar x1)
 
-strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
+strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
-    where ts  = zipWith strengthenRefType_ t1s t2s
+    where ts  = zipWith (strengthenRefType_ f) t1s t2s
           rs  = meets rs1 rs2
 
 
-strengthenRefType_ (RVar v1 r1)  (RVar _ r2)
+strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
   = RVar v1 (r1 `meet` r2)
  
-strengthenRefType_ t1 _ 
-  = t1
+strengthenRefType_ f t1 t2  
+  = f t1 t2
 
 meets [] rs                 = rs
 meets rs []                 = rs
