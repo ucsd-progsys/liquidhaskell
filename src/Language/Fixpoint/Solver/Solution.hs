@@ -30,11 +30,11 @@ type KBind    = [EQual]
 -- | Expanded or Instantiated Qualifier -----------------------------
 ---------------------------------------------------------------------
 
-data EQual = EQ { eqQual :: !F.Qualifier
-                , eqPred :: !F.Pred
-                , eqArgs :: ![F.Expr]
-                }
-               deriving (Eq, Ord, Show)
+data EQual = EQL { eqQual :: !F.Qualifier
+                 , eqPred :: !F.Pred
+                 , eqArgs :: ![F.Expr]
+                 }
+             deriving (Eq, Ord, Show)
 
 {-@ data EQual = EQ { eqQual :: F.Qualifier
                     , eqPred :: F.Pred
@@ -43,7 +43,12 @@ data EQual = EQ { eqQual :: !F.Qualifier
   @-}
 
 eQual :: F.Qualifier -> [F.Symbol] -> EQual
-eQual = error "TODO:eQual"
+eQual q xs = EQL q p es
+  where
+    p      = F.subst su $  F.q_body q
+    su     = F.mkSubst  $  safeZip "eQual" qxs es
+    es     = F.eVar    <$> xs
+    qxs    = fst       <$> F.q_params q
 
 --------------------------------------------------------------------
 -- | Create Initial Solution from Qualifiers and WF constraints ----

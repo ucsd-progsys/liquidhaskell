@@ -1052,19 +1052,25 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-newtype Subst = Su [(Symbol, Expr)] deriving (Eq, Ord, Data, Typeable, Generic)
+newtype Subst = Su [(Symbol, Expr)]
+                deriving (Eq, Ord, Data, Typeable, Generic)
 
+appSubst :: Subst -> Symbol -> Expr
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
+
+emptySubst :: Subst
 emptySubst               = Su [] -- M.empty
 
-
+catSubst :: Subst -> Subst -> Subst
 catSubst = unsafeCatSubst
-mkSubst = unsafeMkSubst
+
+mkSubst  :: [(Symbol, Expr)] -> Subst
+mkSubst  = unsafeMkSubst
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = null xes
 
-unsafeMkSubst                  = Su -- . M.fromList
+unsafeMkSubst  = Su
 
 unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
   where
