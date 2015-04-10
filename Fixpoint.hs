@@ -57,3 +57,4 @@ solveNative cfg file
        let fi   = rr' file str :: FInfo ()
        res     <- D.solve cfg fi
        putStrLn $ "Result: " ++ show res
+       error "TODO: solveNative"
