@@ -1,4 +1,11 @@
-module Language.Fixpoint.Solver.Deps (solve, deps) where
+module Language.Fixpoint.Solver.Deps
+       ( -- * Dummy Solver for Debugging Kuts
+         solve
+
+         -- * Compute KV-Dependencies
+       , deps
+
+       ) where
 
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Types  as F
@@ -9,13 +16,12 @@ import qualified Data.Graph                as G
 
 type KVar = F.Symbol
 
-type Edge = (KVar,KVar)
-type Graph = [(KVar,KVar,[KVar])]
-
-data Deps = Deps { depCuts    :: ![KVar]
-                 , depNonCuts :: ![KVar]
-                 }
-            deriving (Eq, Ord, Show)
+type Edge  = (KVar, KVar)
+type Graph = [(KVar, KVar, [KVar])]
+data Deps  = Deps { depCuts    :: ![KVar]
+                  , depNonCuts :: ![KVar]
+                  }
+             deriving (Eq, Ord, Show)
 
 
 --------------------------------------------------------------
@@ -31,7 +37,6 @@ solve cfg fi = do
 --------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------
 --------------------------------------------------------------
-
 
 -- TODO: currently ignores Kuts
 
@@ -56,7 +61,6 @@ bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
     sccs' = G.stronglyConnCompR vs
     deps' = (deps { depCuts = v : (depCuts deps) })
 
--- TODO: currently ignores bindenvs
 depsHelper :: F.BindEnv -> F.SubC a -> [Edge]
 depsHelper bs subC = [(k1,k2) | k1 <- lhsKVars' , k2 <- rhsKVars]
   where
@@ -85,3 +89,5 @@ data BindEnv       = BE { beSize  :: Int
 
 newtype IBindEnv   = FB (S.HashSet BindId)
 -}
+
+---------------------------------------------------------------
