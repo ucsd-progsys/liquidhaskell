@@ -16,4 +16,4 @@ foo :: F Int -> Int
 foo (F x) = x + 1
 foo E     = 0
 
-bar = F
+-- bar = F

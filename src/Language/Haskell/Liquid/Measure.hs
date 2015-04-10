@@ -315,7 +315,7 @@ dataConTypes  s = (ctorTys, measTys)
     ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds)
                                            | (_, ds) <- M.toList (ctorMap s)
                                                        ]
-    defsTy      = foldl1' meet . fmap defRefType 
+    defsTy      = foldl1' strengthenRefTypeGen . fmap defRefType 
     defsVar     = ctor . safeHead "defsVar" 
 
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
