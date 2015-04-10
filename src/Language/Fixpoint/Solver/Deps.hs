@@ -2,12 +2,15 @@ module Language.Fixpoint.Solver.Deps
        ( -- * Dummy Solver for Debugging Kuts
          solve
 
-         -- * Compute KV-Dependencies
+         -- * KV-Dependencies
        , deps
 
+         -- * Reads and Writes of Constraints
+       , lhsKVars, rhsKVars
        ) where
 
 import           Language.Fixpoint.Config
+import           Language.Fixpoint.Misc  (groupList)
 import qualified Language.Fixpoint.Types  as F
 
 import qualified Language.Fixpoint.Visitor as V
@@ -45,8 +48,8 @@ deps finfo = sccsToDeps sccs
   where
     bs    = F.bs finfo
     subCs = M.elems (F.cm finfo)
-    edges = concatMap (depsHelper bs) subCs
-    graph = makeGraph edges
+    edges = concatMap (subcEdges bs) subCs
+    graph = [(k,k,ks) | (k, ks) <- groupList edges]
     sccs  = G.stronglyConnCompR graph
 
 sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Deps
@@ -61,19 +64,18 @@ bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
     sccs' = G.stronglyConnCompR vs
     deps' = (deps { depCuts = v : (depCuts deps) })
 
-depsHelper :: F.BindEnv -> F.SubC a -> [Edge]
-depsHelper bs subC = [(k1,k2) | k1 <- lhsKVars' , k2 <- rhsKVars]
-  where
-    lhsKVars'      = envKVars ++ lhsKVars
-    envKVars       = V.envKVars bs           subC
-    lhsKVars       = V.reftKVars   $ F.lhsCs subC
-    rhsKVars       = V.reftKVars   $ F.rhsCs subC
+subcEdges :: F.BindEnv -> F.SubC a -> [Edge]
+subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c, k2 <- rhsKVars c]
 
-makeGraph :: [Edge] -> Graph
-makeGraph es = [(k,k,ks) | (k,ks) <- go M.empty es]
+lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
+lhsKVars bs c = envKVs ++ lhsKVs
   where
-    go m []         = M.toList m
-    go m ((u,v):es) = go (M.insertWith (++) u [v] m) es
+    envKVs    = V.envKVars bs           c
+    lhsKVs    = V.reftKVars   $ F.lhsCs c
+
+rhsKVars :: F.SubC a -> [KVar]
+rhsKVars = V.reftKVars . F.rhsCs
+
 
 {-
 data FInfo a = FI { bs    :: !BindEnv

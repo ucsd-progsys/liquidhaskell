@@ -15,6 +15,7 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
+import           Language.Fixpoint.Solver.Deps 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Types   as F
@@ -39,10 +40,10 @@ pop  :: Worklist a -> Maybe (F.SubC a, Worklist a)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
-  Just (getC w i, w {wCs = is})
+  Just (getC (wCm w) i, w {wCs = is})
 
-getC :: Worklist a -> CId -> F.SubC a
-getC w i = fromMaybe err $ M.lookup i $ wCm w
+getC :: M.HashMap CId a -> CId -> a
+getC cm i = fromMaybe err $ M.lookup i cm
   where
     err  = errorstar "getC: bad CId i"
 
@@ -80,7 +81,37 @@ data CDeps = CDs { cRoots :: ![CId]
                  }
 
 cDeps :: F.FInfo a -> CDeps
-cDeps = error "TODO"
+cDeps fi = CDs (error "TODO:roots") (kvSucc fi)
+
+type KVRead = M.HashMap F.KVar [CId]
+
+kvSucc :: F.FInfo a -> CSucc
+kvSucc fi = succs cm rdBy
+  where
+    rdBy  = kvRead fi
+    cm    = F.cm fi
+
+succs cm rdBy i = sortNub $ concatMap kvReads iKs
+  where
+    ci          = getC cm i
+    iKs         = rhsKVars ci
+    kvReads k   = M.lookupDefault [] k rdBy
+
+kvRead :: F.FInfo a -> KVRead
+kvRead = error "TODO"
+
+type CSucc = CId -> [CId]
+
+{-
+
+  readBy   :: KVar -> [CId]
+  writesTo :: CId -> [KVar]
+
+  1. GRAPH c1 ---> c2   if   WR(c1, K) and RD(c2, K)
+  2. ROOTS
+
+ -}
+
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------
