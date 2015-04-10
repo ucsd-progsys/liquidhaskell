@@ -15,6 +15,9 @@ module Language.Fixpoint.Sort  (
 
   -- CUTSOLVER , pruneUnsortedReft
 
+  -- * Unify
+  , unify
+
   -- * Apply Substitution
   , apply
   ) where
@@ -24,21 +27,21 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
-import           Data.Maybe                (catMaybes, fromMaybe)
-import           Data.Monoid
+import           Data.Maybe                (fromMaybe)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
-import           Debug.Trace               (trace)
+-- import           Debug.Trace               (trace)
 
 -- | Types used throughout checker
 
 type CheckM a = Either String a
 type Env      = Symbol -> SESearch Sort
-fProp         = FApp boolFTyCon []
--- fProp         = FApp propFTyCon []
+
+fProp :: Sort
+fProp = FApp boolFTyCon []
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -159,7 +162,7 @@ checkIte f p e1 e2
   = do tp <- checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
-       ((`apply` t1) <$> unify [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
+       ((`apply` t1) <$> unifys [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
 
 -- | Helper for checking cast expressions
 
@@ -167,7 +170,7 @@ checkCst f t (EApp g es)
   = checkApp f (Just t) g es
 checkCst f t e
   = do t' <- checkExpr f e
-       ((`apply` t) <$> unify [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
+       ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
 checkApp f to g es
   = snd <$> checkApp' f to g es
@@ -178,7 +181,7 @@ checkApp' f to g es
        (n, its, ot) <- sortFunction gt
        unless (length its == length es) $ throwError (errArgArity g its es)
        ets          <- mapM (checkExpr f) es
-       θ            <- unify its ets
+       θ            <- unifys its ets
        let t         = apply θ ot
        case to of
          Nothing    -> return (θ, t)
@@ -230,9 +233,8 @@ checkNumeric f l
 -------------------------------------------------------------------------
 
 checkPred                  :: Env -> Pred -> CheckM ()
-
-checkPred f PTrue          = return ()
-checkPred f PFalse         = return ()
+checkPred _ PTrue          = return ()
+checkPred _ PFalse         = return ()
 checkPred f (PBexp e)      = checkPredBExp f e
 checkPred f (PNot p)       = checkPred f p
 checkPred f (PImp p p')    = mapM_ (checkPred f) [p, p']
@@ -240,15 +242,16 @@ checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
 checkPred f (POr ps)       = mapM_ (checkPred f) ps
 checkPred f (PAtom r e e') = checkRel f r e e'
-checkPred f p              = throwError $ errUnexpectedPred p
+checkPred _ p              = throwError $ errUnexpectedPred p
 
+checkPredBExp :: Env -> Expr -> CheckM ()
 checkPredBExp f e          = do t <- checkExpr f e
                                 unless (t == fProp) (throwError $ errBExp e t)
                                 return ()
 
 
 -- | Checking Relations
-
+checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq (EVar x) (EApp g es) = checkRelEqVar f x g es
 checkRel f Eq (EApp g es) (EVar x) = checkRelEqVar f x g es
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
@@ -258,18 +261,18 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
 checkRelTy :: (Fixpoint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l')
-checkRelTy f _ _ FInt (FObj l)     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy f _ _ (FObj l) FInt     = (checkNumeric f l) `catchError` (\_ -> throwError $ errNonNumeric l)
-checkRelTy f _ _ FReal FReal       = return ()
-checkRelTy f _ _ FReal (FObj l)    = (checkFractional f l) `catchError` (\_ -> throwError $ errNonFractional l)
-checkRelTy f _ _ (FObj l) FReal    = (checkFractional f l) `catchError` (\_ -> throwError $ errNonFractional l)
+checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
+checkRelTy f _ _ (FObj l) FInt     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
+checkRelTy _ _ _ FReal FReal       = return ()
+checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
+checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
 
 checkRelTy _ e Eq t1 t2
   | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
-checkRelTy _ e Eq t1 t2            = unify [t1] [t2] >> return ()
-checkRelTy _ e Ne t1 t2            = unify [t1] [t2] >> return ()
+checkRelTy _ e Eq t1 t2            = unifys [t1] [t2] >> return ()
+checkRelTy _ e Ne t1 t2            = unifys [t1] [t2] >> return ()
 
 -- ORIG checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
 -- ORIG checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
@@ -293,8 +296,8 @@ isAppTy (FApp _ _) = True
 isAppTy _          = False
 
 
-isPoly :: Sort -> Bool
-isPoly = not . null . fVars
+-- isPoly :: Sort -> Bool
+-- isPoly = not . null . fVars
 
 fVars (FVar i)     = [i]
 fVars (FFunc _ ts) = concatMap fVars ts
@@ -303,68 +306,33 @@ fVars _            = []
 
 
 -------------------------------------------------------------------------
--- | Error messages -----------------------------------------------------
--------------------------------------------------------------------------
-
-errUnify t1 t2       = printf "Cannot unify %s with %s" (showFix t1) (showFix t2)
-
-errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
-                         (showFix ts) (showFix ts')
-
-errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
-                         (showFix e) (showFix t1) (showFix t2)
-
-errBExp e t          = printf "BExp %s with non-propositional type %s" (showFix e) (showFix t)
-
-errOp e t t'
-  | t == t'          = printf "Operands have non-numeric types %s in %s"
-                         (showFix t) (showFix e)
-  | otherwise        = printf "Operands have different types %s and %s in %s"
-                         (showFix t) (showFix t') (showFix e)
-
-errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showFix g) (length its) (length es) (showFix (EApp g es))
-
-errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
-                         (showFix e1) (showFix t1) (showFix e2) (showFix t2)
-
-errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
-                         (showFix e) (showFix t') (showFix t)
-
-errUnbound x         = printf "Unbound Symbol %s" (showFix x)
-errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
-                        (showFix x)
-                        (foldr1 (\w s -> w ++ ", " ++ s) (showFix <$> xs))
-
-errNonFunction t     = printf "Sort %s is not a function" (showFix t)
-
-errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
-errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
-
-errNonFractional  l  = printf "FObj sort %s is not fractional" (showFix l)
-
-errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
-
--------------------------------------------------------------------------
--- | Utilities for working with sorts -----------------------------------
--------------------------------------------------------------------------
-
 -- | Unification of Sorts
+-------------------------------------------------------------------------
+unify :: Sort -> Sort -> Maybe TVSubst
+-------------------------------------------------------------------------
+unify t1 t2 = case unify1 emptySubst t1 t2 of
+                Left _   -> Nothing
+                Right su -> Just su
 
-unify                              = unifyMany emptySubst
+-------------------------------------------------------------------------
+unifys :: [Sort] -> [Sort] -> CheckM TVSubst
+-------------------------------------------------------------------------
+unifys = unifyMany emptySubst
 
+unifyMany :: TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
 unifyMany θ ts ts'
-  | length ts == length ts'        = foldM (uncurry . unify1) θ $ zip ts ts'
-  | otherwise                      = throwError $ errUnifyMany ts ts'
+  | length ts == length ts' = foldM (uncurry . unify1) θ $ zip ts ts'
+  | otherwise               = throwError $ errUnifyMany ts ts'
 
--- unify1 _ FNum _                    = Nothing
-unify1 θ (FVar i) t                = unifyVar θ i t
-unify1 θ t (FVar i)                = unifyVar θ i t
+unify1 :: TVSubst -> Sort -> Sort -> CheckM TVSubst
+unify1 θ (FVar i) t         = unifyVar θ i t
+unify1 θ t (FVar i)         = unifyVar θ i t
 unify1 θ (FApp c ts) (FApp c' ts')
-  | c == c'                        = unifyMany θ ts ts'
+  | c == c'                 = unifyMany θ ts ts'
 unify1 θ t1 t2
-  | t1 == t2                       = return θ
-  | otherwise                      = throwError $ errUnify t1 t2
+  | t1 == t2                = return θ
+  | otherwise               = throwError $ errUnify t1 t2
+-- unify1 _ FNum _          = Nothing
 
 unifyVar :: TVSubst -> Int -> Sort -> CheckM TVSubst
 unifyVar θ i t
@@ -417,3 +385,36 @@ updateVar i t (Th m) = Th (M.insert i t m)
 
 emptySubst :: TVSubst
 emptySubst = Th M.empty
+
+-------------------------------------------------------------------------
+-- | Error messages -----------------------------------------------------
+-------------------------------------------------------------------------
+
+errUnify t1 t2       = printf "Cannot unify %s with %s" (showFix t1) (showFix t2)
+
+errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
+                         (showFix ts) (showFix ts')
+errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
+                         (showFix e) (showFix t1) (showFix t2)
+errBExp e t          = printf "BExp %s with non-propositional type %s" (showFix e) (showFix t)
+errOp e t t'
+  | t == t'          = printf "Operands have non-numeric types %s in %s"
+                         (showFix t) (showFix e)
+  | otherwise        = printf "Operands have different types %s and %s in %s"
+                         (showFix t) (showFix t') (showFix e)
+errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
+                         (showFix g) (length its) (length es) (showFix (EApp g es))
+errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
+                         (showFix e1) (showFix t1) (showFix e2) (showFix t2)
+errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
+                         (showFix e) (showFix t') (showFix t)
+errUnbound x         = printf "Unbound Symbol %s" (showFix x)
+errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
+                        (showFix x)
+                        (foldr1 (\w s -> w ++ ", " ++ s) (showFix <$> xs))
+errNonFunction t     = printf "Sort %s is not a function" (showFix t)
+errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
+errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
+errNonFractional  l  = printf "FObj sort %s is not fractional" (showFix l)
+errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
+

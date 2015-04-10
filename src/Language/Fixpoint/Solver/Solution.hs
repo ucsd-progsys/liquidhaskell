@@ -8,7 +8,6 @@ module Language.Fixpoint.Solver.Solution
         )
 where
 
-
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -57,7 +56,13 @@ init _ fi = L.foldl' (refine fi qs) s0 ws
     qs    = F.quals fi
     ws    = F.ws    fi
 
-refine :: F.FInfo a -> [F.Qualifier] -> Solution -> F.WfC a -> Solution
+--------------------------------------------------------------------
+refine :: F.FInfo a
+       -> [F.Qualifier]
+       -> Solution
+       -> F.WfC a
+       -> Solution
+--------------------------------------------------------------------
 refine fi qs s w = refineK (wfEnv fi w) qs s (wfKvar w)
 
 
@@ -72,11 +77,13 @@ refineK env qs s (v, t, k) = M.insert k eqs' s
              Nothing  -> instK env v t qs
              Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
+--------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
       -> [EQual]
+--------------------------------------------------------------------
 instK env v t = concatMap (instKQ env v t)
 
 instKQ :: F.SEnv F.SortedReft
@@ -84,29 +91,36 @@ instKQ :: F.SEnv F.SortedReft
        -> F.Sort
        -> F.Qualifier
        -> [EQual]
-instKQ env v t q  = do
-  (su0, v0) <- candidates [(v, t)] qt
-  xs        <- match xts [v0] (apply su0 <$> qts)
-  return     $ eQual q (reverse xs)
-
-  where
-    qt : qts = snd <$> F.q_params q
-    xts      = F.toListSEnv (F.sr_sort <$> env)
+instKQ env v t q
+  = do (su0, v0) <- candidates [(v, t)] qt
+       xs        <- match xts [v0] (apply su0 <$> qts)
+       return     $ eQual q (reverse xs)
+    where
+       qt : qts   = snd <$> F.q_params q
+       xts        = F.toListSEnv (F.sr_sort <$> env)
 
 match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
-match xts = go
-  where
-     go xs (t : ts)
-          = do (su, x) <- candidates xts t
-               let ts'  = apply su <$> ts
-               go (x : xs) ts'
-     go xs []
-          = return xs
+match xts xs (t : ts)
+  = do (su, x) <- candidates xts t
+       match xts (x : xs) (apply su <$> ts)
+match _   xs []
+  = return xs
 
+
+-----------------------------------------------------------------------
 candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(TVSubst, F.Symbol)]
-candidates = error "TODO" -- HEREHEREHEREHEREHERE
+-----------------------------------------------------------------------
+candidates xts t'
+  = [(su, x) | (x, t) <- xts, su <- maybeList $ unify t' t]
 
+maybeList :: Maybe a -> [a]
+maybeList (Just x)  = [x]
+maybeList (Nothing) = []
+
+
+-----------------------------------------------------------------------
 wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
+-----------------------------------------------------------------------
 wfKvar w@(F.WfC {F.wrft = sr})
   | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr
   , F.isEmptySubst su = (v, F.sr_sort sr, k)
@@ -119,7 +133,10 @@ wfEnv fi w  = F.fromListSEnv xts
     bm      = F.bs fi
     xts     = [ F.lookupBindEnv i bm | i <- wbinds]
 
+-----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
+-----------------------------------------------------------------------
 okInst env v t eq = isNothing $ checkSortedReftFull env sr
   where
     sr            = F.RR t (F.Reft (v, F.Refa (eqPred eq)))
+
