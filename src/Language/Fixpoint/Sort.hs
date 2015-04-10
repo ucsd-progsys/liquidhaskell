@@ -4,14 +4,20 @@
 -- operations on Fixpoint expressions and predicates.
 
 module Language.Fixpoint.Sort  (
+  -- * Sort Substitutions
+    TVSubst
+
   -- * Checking Well-Formedness
-    checkSorted
+  , checkSorted
   , checkSortedReft
   , checkSortedReftFull
   , checkSortFull
-  -- CUTSOLVER , pruneUnsortedReft
-  ) where
 
+  -- CUTSOLVER , pruneUnsortedReft
+
+  -- * Apply Substitution
+  , apply
+  ) where
 
 
 import           Control.Applicative
@@ -19,6 +25,7 @@ import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (catMaybes, fromMaybe)
+import           Data.Monoid
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.PrettyPrint.HughesPJ
@@ -50,7 +57,7 @@ checkSortedReftFull γ t
       Left err -> Just (text err)
       Right _  -> Nothing
     where
-      γ' = mapSEnv sr_sort γ
+      γ' = sr_sort <$> γ
 
 checkSortFull :: Checkable a => SEnv SortedReft -> Sort -> a -> Maybe Doc
 checkSortFull γ s t
@@ -58,7 +65,7 @@ checkSortFull γ s t
       Left err -> Just (text err)
       Right _  -> Nothing
     where
-      γ' = mapSEnv sr_sort γ
+      γ' = sr_sort <$> γ
 
 checkSorted :: Checkable a => SEnv Sort -> a -> Maybe Doc
 checkSorted γ t
@@ -344,7 +351,7 @@ errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix 
 
 -- | Unification of Sorts
 
-unify                              = unifyMany (Th M.empty)
+unify                              = unifyMany emptySubst
 
 unifyMany θ ts ts'
   | length ts == length ts'        = foldM (uncurry . unify1) θ $ zip ts ts'
@@ -359,27 +366,25 @@ unify1 θ t1 t2
   | t1 == t2                       = return θ
   | otherwise                      = throwError $ errUnify t1 t2
 
+unifyVar :: TVSubst -> Int -> Sort -> CheckM TVSubst
 unifyVar θ i t
   = case lookupVar i θ of
       Just t' -> if t == t' then return θ else throwError (errUnify t t')
       Nothing -> return $ updateVar i t θ
 
--- | Sort Substitutions
-newtype TVSubst      = Th (M.HashMap Int Sort)
-
--- | API for manipulating substitutions
-lookupVar i (Th m)   = M.lookup i m
-updateVar i t (Th m) = Th (M.insert i t m)
-
 -------------------------------------------------------------------------
 -- | Applying a Type Substitution ---------------------------------------
 -------------------------------------------------------------------------
-
+apply :: TVSubst -> Sort -> Sort
+-------------------------------------------------------------------------
 apply θ          = sortMap f
   where
     f t@(FVar i) = fromMaybe t (lookupVar i θ)
     f t          = t
 
+-------------------------------------------------------------------------
+sortMap :: (Sort -> Sort) -> Sort -> Sort
+-------------------------------------------------------------------------
 sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
 sortMap f (FApp  c ts) = FApp  c (sortMap f <$> ts)
 sortMap f t            = f t
@@ -388,6 +393,7 @@ sortMap f t            = f t
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
 
+sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
 sortFunction (FFunc n ts') = return (n, ts, t)
   where
     ts                     = take numArgs ts'
@@ -395,3 +401,19 @@ sortFunction (FFunc n ts') = return (n, ts, t)
     numArgs                = length ts' - 1
 
 sortFunction t             = throwError $ errNonFunction t
+
+
+------------------------------------------------------------------------
+-- | API for manipulating Sort Substitutions ---------------------------
+------------------------------------------------------------------------
+
+newtype TVSubst = Th (M.HashMap Int Sort)
+
+lookupVar :: Int -> TVSubst -> Maybe Sort
+lookupVar i (Th m)   = M.lookup i m
+
+updateVar :: Int -> Sort -> TVSubst -> TVSubst
+updateVar i t (Th m) = Th (M.insert i t m)
+
+emptySubst :: TVSubst
+emptySubst = Th M.empty

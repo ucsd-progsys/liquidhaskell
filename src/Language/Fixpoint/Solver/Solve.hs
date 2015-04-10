@@ -17,12 +17,10 @@ import qualified Language.Fixpoint.Solver.Worklist as W
 type Result a = (F.FixResult (F.SubC a), M.HashMap F.Symbol F.Pred)
 ---------------------------------------------------------------------------
 
-
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
 solve cfg fi = runSolverM $ solve_ cfg fi
-
 
 
 ---------------------------------------------------------------------------

@@ -83,11 +83,12 @@ module Language.Fixpoint.Types (
   , trueSubCKvar
   , removeLhsKvars
 
-    
+
   -- * Environments
   , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
-  , mapSEnv, mapSEnvWithKey
+  -- , mapSEnv
+  , mapSEnvWithKey
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
   , filterSEnv
@@ -705,11 +706,13 @@ isFunctionSortedReft _                  = False
 ---------------------------------------------------------------
 ----------------- Environments  -------------------------------
 ---------------------------------------------------------------
+ 
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
+
 mapSEnv f (SE env)      = SE (fmap f env)
 mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
 deleteSEnv x (SE env)   = SE (M.delete x env)
@@ -771,7 +774,8 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 
 
 instance Functor SEnv where
-  fmap f (SE m) = SE $ fmap f m
+  fmap = mapSEnv
+  -- fmap f (SE m) = SE $ fmap f m
 
 instance Fixpoint Refa where
   toFix (Refa p)     = toFix p

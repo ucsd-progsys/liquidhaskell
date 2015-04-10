@@ -9,6 +9,7 @@ module Language.Fixpoint.Solver.Solution
 where
 
 
+import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (isNothing, fromMaybe)
@@ -19,17 +20,16 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init)
 
----------------------------------------------------------------------------
--- | Types ----------------------------------------------------------------
----------------------------------------------------------------------------
+---------------------------------------------------------------------
+-- | Types ----------------------------------------------------------
+---------------------------------------------------------------------
 type Solution = Sol KBind
-type Sol a    = M.HashMap F.Symbol a
+type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
 
-
----------------------------------------------------------------------------
--- | Expanded or Instantiated Qualifier -----------------------------------
----------------------------------------------------------------------------
+---------------------------------------------------------------------
+-- | Expanded or Instantiated Qualifier -----------------------------
+---------------------------------------------------------------------
 
 data EQual = EQ { eqQual :: !F.Qualifier
                 , eqPred :: !F.Pred
@@ -43,11 +43,14 @@ data EQual = EQ { eqQual :: !F.Qualifier
                     }
   @-}
 
----------------------------------------------------------------------------
--- | Create Initial Solution from Qualifiers and WF constraints
----------------------------------------------------------------------------
+eQual :: F.Qualifier -> [F.Symbol] -> EQual
+eQual q xs = error "TODO:eQual"
+
+--------------------------------------------------------------------
+-- | Create Initial Solution from Qualifiers and WF constraints ----
+--------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
----------------------------------------------------------------------------
+--------------------------------------------------------------------
 init _ fi = L.foldl' (refine fi qs) s0 ws
   where
     s0    = M.empty
@@ -55,46 +58,53 @@ init _ fi = L.foldl' (refine fi qs) s0 ws
     ws    = F.ws    fi
 
 refine :: F.FInfo a -> [F.Qualifier] -> Solution -> F.WfC a -> Solution
-refine fi qs s w   = refineK (wfEnv fi w) qs s (wfKvar w)
+refine fi qs s w = refineK (wfEnv fi w) qs s (wfKvar w)
 
+
+refineK :: F.SEnv F.SortedReft
+        -> [F.Qualifier]
+        -> Solution
+        -> (F.Symbol, F.Sort, F.KVar)
+        -> Solution
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
     eqs' = case M.lookup k s of
-             Nothing  -> instK env v t k qs
+             Nothing  -> instK env v t qs
              Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
-instK :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> F.Symbol -> [F.Qualifier] -> [EQual]
-instK env v t k = concatMap (instKQ env v t k)
+instK :: F.SEnv F.SortedReft
+      -> F.Symbol
+      -> F.Sort
+      -> [F.Qualifier]
+      -> [EQual]
+instK env v t = concatMap (instKQ env v t)
 
-instKQ :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> F.Symbol -> F.Qualifier -> [EQual]
-instKQ env v t k q = error "TODO"
+instKQ :: F.SEnv F.SortedReft
+       -> F.Symbol
+       -> F.Sort
+       -> F.Qualifier
+       -> [EQual]
+instKQ env v t q  = do
+  (su0, v0) <- candidates [(v, t)] qt
+  xs        <- match xts [v0] (apply su0 <$> qts)
+  return     $ eQual q (reverse xs)
 
-{-
+  where
+    qt : qts = snd <$> F.q_params q
+    xts      = F.toListSEnv (F.sr_sort <$> env)
 
-  (qv, qt) : qvts = params q
+match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
+match xts = go
+  where
+     go xs (t : ts)
+          = do (su, x) <- candidates xts t
+               let ts'  = apply su <$> ts
+               go (x : xs) ts'
+     go xs []
+          = return xs
 
-  bind0 = t1 t2 t3 t4    s1 s2 s3 s4
-
-  match :: [(Symbol, Sort)] -> [(Symbol, Sort)] -> [[Expr]]
-  match xts (vt : yts) = do
-    (th0, y0) <- candidates [(v,t)] qt
-    es        <- go th0 [Var y0] yts
-    return     $ reverse es
-
-    where
-      go th es ((y,t) : yts)
-        = do (th', x) <- candidates xts t
-             let th'' = th <> th'
-             let yts' = [(y, apply th t) | (y, t) <- yts]
-             go xts th'' (Var x : es) yts'
-      go th es []
-        = return es
-
-
-   1. generate ALL xts combinations
-   2. for each combination, instantiate,
-   3.   check SORT if ok then return it.
--}
+candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(TVSubst, F.Symbol)]
+candidates = error "TODO" -- HEREHEREHEREHEREHERE
 
 wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
 wfKvar w@(F.WfC {F.wrft = sr})
