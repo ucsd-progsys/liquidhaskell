@@ -24,7 +24,7 @@ where
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (isNothing) -- , fromMaybe)
+import           Data.Maybe                     (maybeToList, isNothing) -- , fromMaybe)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
@@ -153,12 +153,7 @@ match _   xs []
 candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 -----------------------------------------------------------------------
 candidates xts t'
-  = [(su, x) | (x, t) <- xts, su <- maybeList $ So.unify t' t]
-
-maybeList :: Maybe a -> [a]
-maybeList (Just x)  = [x]
-maybeList (Nothing) = []
-
+  = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
 
 -----------------------------------------------------------------------
 wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
