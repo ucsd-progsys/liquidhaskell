@@ -174,13 +174,14 @@ sortNub = nubOrd . L.sort
 
 
 sortDiff :: (Ord a) => [a] -> [a] -> [a]
-sortDiff x1s x2s                 = go (sortNub x1s) (sortNub x2s)
-  where go xs@(x:xs') ys@(y:ys')
-          | x <  y               = x : go xs' ys
-          | x == y               = go xs' ys'
-          | otherwise            = go xs ys'
-        go xs []                 = xs
-        go [] _                  = []
+sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
+  where
+    go xs@(x:xs') ys@(y:ys')
+      | x <  y               = x : go xs' ys
+      | x == y               = go xs' ys'
+      | otherwise            = go xs ys'
+    go xs []                 = xs
+    go [] _                  = []
 
 
 

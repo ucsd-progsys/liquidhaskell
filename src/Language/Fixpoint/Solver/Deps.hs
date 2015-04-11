@@ -58,15 +58,16 @@ sccsToDeps xs = bar xs (Deps [] [])
 
 -- TODO: rewrite using State monad :)
 bar :: [G.SCC (KVar,KVar,[KVar])] -> Deps -> Deps
-bar []                              deps = deps
-bar (G.AcyclicSCC (v,_,_)     : xs) deps = bar xs (deps { depNonCuts = v : (depNonCuts deps) })
-bar (G.CyclicSCC ((v,_,_):vs) : xs) deps = bar xs (bar sccs' deps')
+bar []                              ds = ds
+bar (G.AcyclicSCC (v,_,_)     : xs) ds = bar xs (ds {depNonCuts = v : depNonCuts ds})
+bar (G.CyclicSCC ((v,_,_):vs) : xs) ds = bar xs (bar sccs' ds')
   where
-    sccs' = G.stronglyConnCompR vs
-    deps' = (deps { depCuts = v : (depCuts deps) })
+    sccs'                              = G.stronglyConnCompR vs
+    ds'                                = ds { depCuts = v : depCuts ds }
 
 subcEdges :: F.BindEnv -> F.SubC a -> [Edge]
-subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c, k2 <- rhsKVars c]
+subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c
+                           , k2 <- rhsKVars c    ]
 
 lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
@@ -77,20 +78,5 @@ lhsKVars bs c = envKVs ++ lhsKVs
 rhsKVars :: F.SubC a -> [KVar]
 rhsKVars = V.reftKVars . F.rhsCs
 
-
-{-
-data FInfo a = FI { bs    :: !BindEnv
-                  , kuts  :: Kuts
-                  , ...}
-
-data SubC a = SubC { senv  :: !IBindEnv
-                   , ...}
-
-data BindEnv       = BE { beSize  :: Int
-                        , beBinds :: M.HashMap BindId (Symbol, SortedReft)
-                        }
-
-newtype IBindEnv   = FB (S.HashSet BindId)
--}
 
 ---------------------------------------------------------------

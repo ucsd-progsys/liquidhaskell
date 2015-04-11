@@ -15,12 +15,13 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Solver.Deps 
+import           Language.Fixpoint.Solver.Deps
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
-import qualified Data.HashSet              as S
+import qualified Data.Set                  as S
+import qualified Data.List                 as L
 import           Data.Maybe (fromMaybe)
 
 ---------------------------------------------------------------------------
@@ -60,7 +61,6 @@ sid' c  = fromMaybe err $ F.sid c
   where
     err = errorstar "sid': SubC without id"
 
-
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ type CId    = Integer
 type CSucc  = CId -> [CId]
 type KVRead = M.HashMap F.KVar [CId]
 
-data Worklist a = WL { wCs   :: S.HashSet CId
+data Worklist a = WL { wCs   :: S.Set CId
                      , wDeps :: CSucc
                      , wCm   :: M.HashMap CId (F.SubC a)
                      }
@@ -83,7 +83,12 @@ data CDeps = CDs { cRoots :: ![CId]
                  }
 
 cDeps :: F.FInfo a -> CDeps
-cDeps fi = CDs (error "TODO:roots") (kvSucc fi)
+cDeps fi = CDs rs next
+  where
+    next = kvSucc fi
+    is   = M.keys $ F.cm fi
+    is'  = concatMap next is
+    rs   = sortDiff is is'
 
 kvSucc :: F.FInfo a -> CSucc
 kvSucc fi = succs cm rdBy
@@ -102,29 +107,16 @@ kvReadBy :: F.FInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
                              , k       <- lhsKVars bs ci]
   where
-    cm      = F.cm fi 
+    cm      = F.cm fi
     bs      = F.bs fi
-
-
-
-{-
-
-  readBy   :: KVar -> [CId]
-  writesTo :: CId -> [KVar]
-
-  1. GRAPH c1 ---> c2   if   WR(c1, K) and RD(c2, K)
-  2. ROOTS
-
- -}
-
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-sAdds :: S.HashSet a -> [a] -> S.HashSet a
-sAdds = error "TODO"
+sAdds :: (Ord a) => S.Set a -> [a] -> S.Set a
+sAdds = L.foldl' (flip S.insert)
 
-sPop :: S.HashSet a -> Maybe (a, S.HashSet a)
-sPop = error "TODO"
+sPop :: S.Set a -> Maybe (a, S.Set a)
+sPop = S.minView
 
