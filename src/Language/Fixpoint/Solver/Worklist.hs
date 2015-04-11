@@ -51,7 +51,7 @@ getC cm i = fromMaybe err $ M.lookup i cm
 ---------------------------------------------------------------------------
 push :: F.SubC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
-push c w = w {wCs = sAdds (wCs w) (i:js)}
+push c w = w {wCs = sAdds (wCs w) js}
   where
     i    = sid' c
     js   = wDeps w i

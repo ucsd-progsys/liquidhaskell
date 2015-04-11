@@ -511,6 +511,14 @@ data Pred = PTrue
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance Hashable Brel
+instance Hashable Bop
+instance Hashable SymConst
+instance Hashable Constant
+instance Hashable Subst
+instance Hashable Expr
+instance Hashable Pred
+
 instance Fixpoint Pred where
   toFix PTop             = text "???"
   toFix PTrue            = text "true"

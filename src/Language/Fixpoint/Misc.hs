@@ -186,6 +186,14 @@ sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
 
 
 
+folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+folds f b = L.foldl' step ([], b)
+  where
+     step (cs, acc) x = (c:cs, x')
+       where
+         (c, x')      = f acc x
+
+
 
 distinct ::  Ord a => [a] -> Bool
 distinct xs = length xs == length (sortNub xs)

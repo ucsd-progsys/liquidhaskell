@@ -35,6 +35,7 @@ import           Prelude                        hiding (init, lookup)
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
 ---------------------------------------------------------------------
+
 type Solution = Sol KBind
 type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
@@ -72,7 +73,17 @@ eQual q xs = EQL q p es
 --------------------------------------------------------------------
 update :: Solution -> [(F.KVar, EQual)] -> (Bool, Solution)
 --------------------------------------------------------------------
-update = error "TODO:Solution.update"
+update s kqs = (or bs, s')
+  where
+    kqss     = M.toList $ group kqs
+    (bs, s') = folds update1 s kqss
+
+update1 :: Solution -> (F.KVar, KBind) -> (Bool, Solution)
+update1 s (k, qs) = (change, M.insert k qs s)
+  where
+    oldQs         = lookup s k
+    change        = length oldQs /= length qs
+
 
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
@@ -113,7 +124,9 @@ instK :: F.SEnv F.SortedReft
       -> [F.Qualifier]
       -> [EQual]
 --------------------------------------------------------------------
-instK env v t = concatMap (instKQ env v t)
+instK env v t = unique . concatMap (instKQ env v t)
+  where
+    unique qs = M.elems $ M.fromList [(eqPred q, q) | q <- qs ]
 
 instKQ :: F.SEnv F.SortedReft
        -> F.Symbol
