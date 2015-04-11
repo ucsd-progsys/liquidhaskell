@@ -6,7 +6,8 @@ module Language.Fixpoint.Solver.Deps
        , deps
 
          -- * Reads and Writes of Constraints
-       , lhsKVars, rhsKVars
+       , lhsKVars
+       , rhsKVars
        ) where
 
 import           Language.Fixpoint.Config

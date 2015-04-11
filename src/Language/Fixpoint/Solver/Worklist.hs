@@ -65,10 +65,12 @@ sid' c  = fromMaybe err $ F.sid c
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-type CId   = Integer
+type CId    = Integer
+type CSucc  = CId -> [CId]
+type KVRead = M.HashMap F.KVar [CId]
 
 data Worklist a = WL { wCs   :: S.HashSet CId
-                     , wDeps :: CId -> [CId]
+                     , wDeps :: CSucc
                      , wCm   :: M.HashMap CId (F.SubC a)
                      }
 
@@ -83,24 +85,27 @@ data CDeps = CDs { cRoots :: ![CId]
 cDeps :: F.FInfo a -> CDeps
 cDeps fi = CDs (error "TODO:roots") (kvSucc fi)
 
-type KVRead = M.HashMap F.KVar [CId]
-
 kvSucc :: F.FInfo a -> CSucc
 kvSucc fi = succs cm rdBy
   where
-    rdBy  = kvRead fi
-    cm    = F.cm fi
+    rdBy  = kvReadBy fi
+    cm    = F.cm     fi
 
+succs :: M.HashMap CId (F.SubC a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
     ci          = getC cm i
     iKs         = rhsKVars ci
     kvReads k   = M.lookupDefault [] k rdBy
 
-kvRead :: F.FInfo a -> KVRead
-kvRead = error "TODO"
+kvReadBy :: F.FInfo a -> KVRead
+kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
+                             , k       <- lhsKVars bs ci]
+  where
+    cm      = F.cm fi 
+    bs      = F.bs fi
 
-type CSucc = CId -> [CId]
+
 
 {-
 
