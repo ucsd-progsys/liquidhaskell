@@ -26,6 +26,7 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (isNothing) -- , fromMaybe)
 import           Language.Fixpoint.Config
+import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
@@ -175,17 +176,37 @@ okInst env v t eq = isNothing $ So.checkSortedReftFull env sr
 class Solvable a where
   apply :: Solution -> a -> F.Pred
 
+instance Solvable EQual where
+  apply _ = eqPred
+
+instance Solvable F.KVar where
+  apply s k = apply s $ safeLookup err k s
+    where
+      err   = "apply: Unknown KVar " ++ show k
+
+instance Solvable (F.KVar, F.Subst) where
+  apply s (k, su) = F.subst su (apply s k)
+
 instance Solvable F.Pred where
-  apply = error "TODO:apply-pred"
+  apply s = V.trans (V.defaultVisitor {V.txPred = tx}) () ()
+    where
+      tx _ (F.PKVar k su) = apply s (k, su)
+      tx _ p              = p
+
+instance Solvable F.Refa where
+  apply s = apply s . F.raPred
 
 instance Solvable F.Reft where
-  apply = error "TODO:apply-pred"
+  apply s = apply s . F.reftPred
 
 instance Solvable F.SortedReft where
-  apply = error "TODO:apply-pred"
+  apply s = apply s . F.sr_reft
 
 instance Solvable (F.Symbol, F.SortedReft) where
-  apply = error "TODO:apply-pred"
+  apply s (x, sr)   = p `F.subst1` (v, F.eVar x)
+    where
+      p             = apply s r
+      F.Reft (v, r) = F.sr_reft sr
 
 instance Solvable a => Solvable [a] where
   apply s = F.pAnd . fmap (apply s)

@@ -132,6 +132,7 @@ mlookup m k
       Just v  -> v
       Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
+safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 
 mfromJust ::  String -> Maybe a -> a
 mfromJust _ (Just x) = x

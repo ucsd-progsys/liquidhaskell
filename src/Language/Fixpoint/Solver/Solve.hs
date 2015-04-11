@@ -100,5 +100,3 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c
-
-
