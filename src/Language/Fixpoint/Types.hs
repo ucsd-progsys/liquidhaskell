@@ -112,6 +112,7 @@ module Language.Fixpoint.Types (
   , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
+  , reftPred
   , isFunctionSortedReft
   , isNonTrivialSortedReft
   , isTautoReft
@@ -701,6 +702,11 @@ isFunctionSortedReft (RR (FFunc _ _) _) = True
 isFunctionSortedReft _                  = False
 
 -- sortedReftValueVariable (RR _ (Reft (v,_))) = v
+
+
+reftPred :: Reft -> Pred
+reftPred (Reft (_, Refa p)) = p
+
 
 ---------------------------------------------------------------
 ----------------- Environments  -------------------------------

@@ -5,6 +5,9 @@ module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
           Solution
         , Cand
+        , EQual (..)
+
+          -- * Types with Template/KVars
         , Solvable (..)
 
           -- * Initial Solution
@@ -12,6 +15,9 @@ module Language.Fixpoint.Solver.Solution
 
           -- * Update Solution
         , update
+
+          -- * Lookup Solution
+        , lookup
         )
 where
 
@@ -23,7 +29,7 @@ import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
-import           Prelude                        hiding (init)
+import           Prelude                        hiding (init, lookup)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -32,6 +38,9 @@ type Solution = Sol KBind
 type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
 type Cand a   = [(F.Pred, a)]
+
+lookup :: Solution -> F.KVar -> KBind
+lookup s k = M.lookupDefault [] k s
 
 ---------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------

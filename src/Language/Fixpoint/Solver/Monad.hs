@@ -13,6 +13,7 @@ module Language.Fixpoint.Solver.Monad
        where
 
 import qualified Language.Fixpoint.Types as F
+import           Language.Fixpoint.Solver.Solution
 
 ---------------------------------------------------------------------------
 -- | Solver Monad ---------------------------------------------------------

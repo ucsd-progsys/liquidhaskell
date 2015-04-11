@@ -52,10 +52,23 @@ refineC fi s c = S.update s <$> filterValid lhs rhs
     rhs        = rhsCands    s c
 
 lhsPred :: F.FInfo a -> S.Solution -> F.SubC a -> F.Pred
-lhsPred = error "TODO"
+lhsPred fi s c = F.pAnd $ pLhs : pGrd : pBinds
+  where
+    pGrd       = F.sgrd c
+    pLhs       = S.apply s  $  F.lhsCs    c
+    pBinds     = S.apply s <$> F.envCs be c
+    be         = F.bs fi
 
-rhsCands :: S.Solution -> F.SubC a -> Cand (Kvar, EQual)
-rhsCands = error "TODO"
+rhsCands :: S.Solution -> F.SubC a -> S.Cand (F.KVar, S.EQual)
+rhsCands s c   = [ cnd k su q | (k, su) <- ks c, q <- S.lookup s k]
+  where
+    ks         = predKs . F.reftPred . F.rhsCs
+    cnd k su q = (F.subst su (S.eqPred q), (k, q))
+
+predKs :: F.Pred -> [(F.KVar, F.Subst)]
+predKs (F.PAnd ps)    = concatMap predKs ps
+predKs (F.PKVar k su) = [(k, su)]
+predKs _              = []
 
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
@@ -63,5 +76,6 @@ rhsCands = error "TODO"
 solutionResult :: F.FInfo a -> S.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
 solutionResult = error "TODO"
+
 
 
