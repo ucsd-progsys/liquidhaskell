@@ -6,8 +6,13 @@ module Language.Fixpoint.Solver.Monad
 
          -- * Execution
        , runSolverM
+
+         -- * SMT Query
+       , filterValid
        )
        where
+
+import qualified Language.Fixpoint.Types as F
 
 ---------------------------------------------------------------------------
 -- | Solver Monad ---------------------------------------------------------
@@ -24,4 +29,5 @@ runSolverM x = x
 --                                   let SolveM y = k z
 --                                   y
 
-
+filterValid :: F.Pred -> Cand a -> SolveM [a]
+filterValid = error "TODO:filterValid"

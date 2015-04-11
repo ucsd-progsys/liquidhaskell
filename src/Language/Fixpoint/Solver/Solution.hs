@@ -2,9 +2,13 @@
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
           Solution
+        , Cand (..)
 
           -- * Initial Solution
         , init
+
+          -- * Update Solution
+        , update
         )
 where
 
@@ -24,6 +28,8 @@ import           Prelude                        hiding (init)
 type Solution = Sol KBind
 type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
+type Cand a   = [(F.Pred, a)]
+
 
 ---------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------
@@ -48,6 +54,13 @@ eQual q xs = EQL q p es
     su     = F.mkSubst  $  safeZip "eQual" qxs es
     es     = F.eVar    <$> xs
     qxs    = fst       <$> F.q_params q
+
+--------------------------------------------------------------------
+-- | Update Solution -----------------------------------------------
+--------------------------------------------------------------------
+update :: Solution -> [(F.KVar, EQual)] -> (Bool, Solution)
+--------------------------------------------------------------------
+update = error "TODO:Solution.update"
 
 --------------------------------------------------------------------
 -- | Create Initial Solution from Qualifiers and WF constraints ----
