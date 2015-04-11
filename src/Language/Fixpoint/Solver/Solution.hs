@@ -13,7 +13,6 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (isNothing) -- , fromMaybe)
 import           Language.Fixpoint.Config
--- import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Sort
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F

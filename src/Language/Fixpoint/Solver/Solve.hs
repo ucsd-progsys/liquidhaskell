@@ -9,7 +9,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
-
+import           Language.Fixpoint.Solver.Monad
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver
@@ -31,14 +31,14 @@ solve_ cfg fi = do
   let wkl = W.init cfg fi
   refineSolution s0 wkl >>= solutionResult fi
 
+---------------------------------------------------------------------------
 refineSolution :: S.Solution -> W.Worklist a -> SolveM S.Solution
+---------------------------------------------------------------------------
 refineSolution s w
-  | Just (c, w') <- W.pop w
-  = do (b, s') <- refineC s c
-       if b then refineSolution s' (W.push c w')
-            else return s'
-  | otherwise
-  = return s
+  | Just (c, w') <- W.pop w = do (b, s') <- refineC s c
+                                 if b then refineSolution s' (W.push c w')
+                                      else return s'
+  | otherwise               = return s
 
 
 ---------------------------------------------------------------------------
@@ -57,21 +57,4 @@ solutionResult :: F.FInfo a -> S.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
 solutionResult = error "TODO"
 
-
----------------------------------------------------------------------------
--- | Solver Monad ---------------------------------------------------------
----------------------------------------------------------------------------
-
-data SolverState a = SoS { ssWorkList :: !(W.Worklist a)
-                         , ssSolution :: !S.Solution
-                         }
-
-data SolveM a  = TODOSolveM
-
-instance Monad SolveM where
-  return = error "TODO"
-  (>>=)  = error "TODO"
-
-runSolverM :: SolveM a -> IO a
-runSolverM = error "TODO"
 

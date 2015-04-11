@@ -1,17 +1,27 @@
 -- | This is a wrapper around IO that permits SMT queries
 
-module Language.Fixpoint.Solver.Monad where
+module Language.Fixpoint.Solver.Monad
+       ( -- * Type
+         SolveM
+
+         -- * Execution
+       , runSolverM
+       )
+       where
 
 ---------------------------------------------------------------------------
 -- | Solver Monad ---------------------------------------------------------
 ---------------------------------------------------------------------------
 
-data SolveM a  = TODOSolveM
-
-instance Monad SolveM where
-  return = error "TODO"
-  (>>=)  = error "TODO"
+type SolveM a = IO a
 
 runSolverM :: SolveM a -> IO a
-runSolverM = error "TODO"
+runSolverM x = x
+
+-- instance Monad SolveM where
+--   return            = SolveM . return
+--   (SolveM x) >>= k  = SolveM $ do z <- x
+--                                   let SolveM y = k z
+--                                   y
+
 
