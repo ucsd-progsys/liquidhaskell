@@ -9,6 +9,9 @@ module Language.Fixpoint.Solver.Monad
 
          -- * SMT Query
        , filterValid
+
+         -- * Access "Globals"
+       , getBinds
        )
        where
 
@@ -32,3 +35,6 @@ runSolverM x = x
 
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 filterValid = error "TODO:filterValid"
+
+getBinds :: SolveM F.BindEnv
+getBinds = error "TODO"

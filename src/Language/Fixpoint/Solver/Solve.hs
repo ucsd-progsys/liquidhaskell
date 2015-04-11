@@ -1,9 +1,11 @@
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Solve a system of horn-clause constraints ----------------------------
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
+import           Control.Monad (filterM)
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
@@ -15,7 +17,7 @@ import           Language.Fixpoint.Solver.Monad
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-type Result a = (F.FixResult (F.SubC a), M.HashMap F.Symbol F.Pred)
+type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
@@ -26,17 +28,17 @@ solve cfg fi = runSolverM $ solve_ cfg fi
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi = refine fi s0 wkl >>= solutionResult fi
+solve_ cfg fi = refine s0 wkl >>= solutionResult fi
   where
     s0        = S.init cfg fi
     wkl       = W.init cfg fi
 
 ---------------------------------------------------------------------------
-refine :: F.FInfo a -> S.Solution -> W.Worklist a -> SolveM S.Solution
+refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 ---------------------------------------------------------------------------
-refine fi s w
-  | Just (c, w') <- W.pop w = do (b, s') <- refineC fi s c
-                                 if b then refine fi s' (W.push c w')
+refine s w
+  | Just (c, w') <- W.pop w = do (b, s') <- refineC s c
+                                 if b then refine s' (W.push c w')
                                       else return s'
   | otherwise               = return s
 
@@ -44,20 +46,19 @@ refine fi s w
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: F.FInfo a -> S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
+refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
-refineC fi s c = S.update s <$> filterValid lhs rhs
-  where
-    lhs        = lhsPred  fi s c
-    rhs        = rhsCands    s c
+refineC s c = do
+  lhs    <- lhsPred  s c <$> getBinds
+  let rhs = rhsCands s c
+  S.update s <$> filterValid lhs rhs
 
-lhsPred :: F.FInfo a -> S.Solution -> F.SubC a -> F.Pred
-lhsPred fi s c = F.pAnd $ pLhs : pGrd : pBinds
+lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
+lhsPred s c be = F.pAnd $ pLhs : pGrd : pBinds
   where
     pGrd       = F.sgrd c
     pLhs       = S.apply s  $  F.lhsCs    c
     pBinds     = S.apply s <$> F.envCs be c
-    be         = F.bs fi
 
 rhsCands :: S.Solution -> F.SubC a -> S.Cand (F.KVar, S.EQual)
 rhsCands s c   = [ cnd k su q | (k, su) <- ks c, q <- S.lookup s k]
@@ -75,7 +76,29 @@ predKs _              = []
 ---------------------------------------------------------------------------
 solutionResult :: F.FInfo a -> S.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solutionResult = error "TODO"
+solutionResult fi s = (, sol) <$> result fi s
+  where
+    sol             = M.map (F.pAnd . fmap S.eqPred) s
 
+result :: F.FInfo a -> S.Solution -> SolveM (F.FixResult (F.SubC a))
+result fi s = res <$> filterM (isSat s) cs
+  where
+    cs      = M.elems $ F.cm fi
+    res []  = F.Safe
+    res cs' = F.Unsafe cs'
+
+---------------------------------------------------------------------------
+isSat :: S.Solution -> F.SubC a -> SolveM Bool
+---------------------------------------------------------------------------
+isSat s c = do
+  lp    <- lhsPred s c <$> getBinds
+  let rp = rhsPred s c
+  isValid lp rp
+
+isValid :: F.Pred -> F.Pred -> SolveM Bool
+isValid p q = (not . null) <$> filterValid p [(q, ())]
+
+rhsPred :: S.Solution -> F.SubC a -> F.Pred
+rhsPred s c = S.apply s $ F.rhsCs c
 
 
