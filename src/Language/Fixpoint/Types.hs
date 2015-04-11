@@ -74,8 +74,7 @@ module Language.Fixpoint.Types (
   -- * Constraints and Solutions
   , SubC
   , WfC (..)
-  , sid
-  , subC, lhsCs, rhsCs, envCs, wfC
+  , sid, sgrd, subC, lhsCs, rhsCs, envCs, wfC
   , Tag
   , FixResult (..)
   , FixSolution
@@ -1251,11 +1250,14 @@ subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
     r2P        = Reft (v2, ra2s) -- [ra | ra@(Refa _  ) <- ra2s])
     -- r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
 
+lhsCs, rhsCs :: SubC a -> Reft
 lhsCs      = sr_reft . slhs
 rhsCs      = sr_reft . srhs
+
+envCs :: BindEnv -> SubC a -> [(Symbol, SortedReft)]
 envCs be c = [lookupBindEnv i be | i <- elemsIBindEnv (senv c)]
 
-  
+
 removeLhsKvars cs vs
   = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
 
