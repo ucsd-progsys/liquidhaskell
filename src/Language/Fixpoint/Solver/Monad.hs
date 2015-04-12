@@ -15,45 +15,54 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
+import           Language.Fixpoint.Config  (Config, solver)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Solver.Solution
-import           Control.Monad        (forM, forM_)
+-- import           Control.Monad        (forM, forM_)
 import           Data.Maybe           (catMaybes)
 import           Control.Applicative  ((<$>))
+import           Control.Monad.State.Strict
 
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
 ---------------------------------------------------------------------------
 
-type SolveM a = IO a
+type SolveM = StateT SolverState IO
 
-runSolverM :: F.BindEnv -> SolveM a -> IO a
-runSolverM be act = error "TODO"
+data SolverState = SS { ssCtx   :: !Context
+                      , ssBinds :: !F.BindEnv
+                      }
 
--- instance Monad SolveM where
---   return            = SolveM . return
---   (SolveM x) >>= k  = SolveM $ do z <- x
---                                   let SolveM y = k z
---                                   y
+---------------------------------------------------------------------------
+runSolverM :: Config -> F.BindEnv -> SolveM a -> IO a
+---------------------------------------------------------------------------
+runSolverM cfg be act = do
+  ctx <-  makeContext (solver cfg)
+  fst <$> runStateT (declare be >> act) (SS ctx be)
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
-getBinds = error "TODO"
+getBinds = ssBinds <$> get
 
----------------------------------------------------------------------------
+
+withContext :: (Context -> IO a) -> SolveM a
+withContext k = (lift . k) =<< getContext
+
 getContext :: SolveM Context
----------------------------------------------------------------------------
-getContext = error "TODO"
+getContext = ssCtx <$> get
+
 
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs = catMaybes <$> do
-  me <- getContext
+filterValid p qs = withContext $ filterValid_ p qs
+
+filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
+filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
     smtBracket me $ do
@@ -64,10 +73,10 @@ filterValid p qs = catMaybes <$> do
 ---------------------------------------------------------------------------
 declare :: F.BindEnv -> SolveM ()
 ---------------------------------------------------------------------------
-declare be = do
-  me <- getContext
+declare be = withContext $ \me ->
   forM_ (F.bindEnvToList be) $ \ (_, x, t) ->
     smtDecl me x [] (F.sr_sort t)
+
 
 {- 1. xs    = syms p ++ syms qs
    2. decls = xs + env
