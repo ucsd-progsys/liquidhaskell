@@ -28,7 +28,7 @@ solve cfg fi = runSolverM $ solve_ cfg fi
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi = refine s0 wkl >>= solutionResult fi
+solve_ cfg fi = declare fi >> refine s0 wkl >>= result fi
   where
     s0        = S.init cfg fi
     wkl       = W.init cfg fi
@@ -49,19 +49,17 @@ refine s w
 refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
 refineC s c = do
-  (env, lhs) <-  lhsPred  s c <$> getBinds
+  lhs        <-  lhsPred  s c <$> getBinds
   let rhs     =  rhsCands s c
-  S.update s <$> filterValid env lhs rhs
+  S.update s <$> filterValid lhs rhs
 
-lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> (F.FEnv, F.Pred)
-lhsPred s c be = (env, lhs)
+lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
+lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
   where
-    env      = F.fromListSEnv xts
-    lhs      = F.pAnd $ pGrd : pLhs : pBinds
-    pGrd     = F.sgrd c
-    pLhs     = S.apply s  $  F.lhsCs c
-    pBinds   = S.apply s <$> xts
-    xts      = F.envCs be $  F.senv c
+    pGrd       = F.sgrd c
+    pLhs       = S.apply s  $  F.lhsCs c
+    pBinds     = S.apply s <$> xts
+    xts        = F.envCs be $  F.senv c
 
 rhsCands :: S.Solution -> F.SubC a -> S.Cand (F.KVar, S.EQual)
 rhsCands s c   = [ cnd k su q | (k, su) <- ks c, q <- S.lookup s k]
@@ -77,29 +75,29 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-solutionResult :: F.FInfo a -> S.Solution -> SolveM (Result a)
+result :: F.FInfo a -> S.Solution -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solutionResult fi s = (, sol) <$> result fi s
+result fi s = (, sol) <$> result_ fi s
   where
-    sol             = M.map (F.pAnd . fmap S.eqPred) s
+    sol     = M.map (F.pAnd . fmap S.eqPred) s
 
-result :: F.FInfo a -> S.Solution -> SolveM (F.FixResult (F.SubC a))
-result fi s = res <$> filterM (isSat s) cs
+result_ :: F.FInfo a -> S.Solution -> SolveM (F.FixResult (F.SubC a))
+result_ fi s = res <$> filterM (isSat s) cs
   where
-    cs      = M.elems $ F.cm fi
-    res []  = F.Safe
-    res cs' = F.Unsafe cs'
+    cs       = M.elems $ F.cm fi
+    res []   = F.Safe
+    res cs'  = F.Unsafe cs'
 
 ---------------------------------------------------------------------------
 isSat :: S.Solution -> F.SubC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isSat s c = do
-  (env, lp) <- lhsPred s c <$> getBinds
-  let rp     = rhsPred s c
-  isValid env lp rp
+  lp    <- lhsPred s c <$> getBinds
+  let rp = rhsPred s c
+  isValid lp rp
 
-isValid :: F.FEnv -> F.Pred -> F.Pred -> SolveM Bool
-isValid env p q = (not . null) <$> filterValid env p [(q, ())]
+isValid :: F.Pred -> F.Pred -> SolveM Bool
+isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c

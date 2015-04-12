@@ -7,16 +7,45 @@ module Language.Fixpoint.Solver.Monad
          -- * Execution
        , runSolverM
 
+         -- * Declare Variables and Sorts
+       , declare
+
+         -- * Get Binds
+       , getBinds
+
          -- * SMT Query
        , filterValid
-
-         -- * Access "Globals"
-       , getBinds
        )
        where
 
-import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types   as F
+import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Solver.Solution
+import           Control.Monad        (forM)
+import           Data.Maybe           (catMaybes)
+import           Control.Applicative  ((<$>))
+
+---------------------------------------------------------------------------
+filterValid :: F.Pred -> Cand a -> SolveM [a]
+---------------------------------------------------------------------------
+filterValid p qs = catMaybes <$> do
+  me <- getContext
+  smtAssert me p
+  forM qs $ \(q, x) ->
+    smtBracket me $ do
+      smtAssert me (F.PNot q)
+      valid <- smtCheckUnsat me
+      return $ if valid then Just x else Nothing
+
+declare :: F.FInfo a -> SolveM ()
+declare = error "TODO"
+
+{- 1. xs    = syms p ++ syms qs
+   2. decls = xs + env
+   3. [decl x t | (x, t) <- decls]
+  -}
+
+
 
 ---------------------------------------------------------------------------
 -- | Solver Monad ---------------------------------------------------------
@@ -39,8 +68,7 @@ getBinds :: SolveM F.BindEnv
 getBinds = error "TODO"
 
 ---------------------------------------------------------------------------
-filterValid :: F.FEnv -> F.Pred -> Cand a -> SolveM [a]
+getContext :: SolveM Context
 ---------------------------------------------------------------------------
-filterValid env p qs = error "TODO:filterValid"
-  -- compute syms = syms p ++ syms qs
-  -- compute decls using syms + env
+getContext = error "TODO"
+

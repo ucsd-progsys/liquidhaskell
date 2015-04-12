@@ -1,6 +1,4 @@
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -37,7 +35,16 @@ module Language.Fixpoint.SmtLib2 (
     , command
     , smtWrite
 
+    -- * Query API
+    , smtDecl
+    , smtAssert
+    , smtCheckUnsat
+    , smtBracket
+    , smtDistinct
+
+    -- * Theory Symbols
     , smt_set_funs
+
     ) where
 
 import           Language.Fixpoint.Config (SMTSolver (..))
@@ -256,12 +263,27 @@ smtFile = extFileName Smt2 "out"
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
 
+smtPush, smtPop   :: Context -> IO ()
+smtPush me        = interact' me Push
+smtPop me         = interact' me Pop
+
+smtDecl :: Context -> Symbol -> [Sort] -> Sort -> IO ()
 smtDecl me x ts t = interact' me (Declare x ts t)
-smtPush me        = interact' me (Push)
-smtPop me         = interact' me (Pop)
+
+smtAssert :: Context -> Pred -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
+
+smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)
+
+smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
+
+smtBracket :: Context -> IO a -> IO a
+smtBracket me a   = do smtPush me
+                       r <- a
+                       smtPop me
+                       return r
 
 respSat Unsat     = True
 respSat Sat       = False
