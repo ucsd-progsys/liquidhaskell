@@ -492,7 +492,7 @@ defsFInfo defs = FI cm ws bs gs lts kts qs
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
-    bs     = rawBindEnv       [(n, x, r)        | IBind n x r <- defs]
+    bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
     lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]

@@ -97,8 +97,10 @@ module Language.Fixpoint.Types (
   , FEnv, insertFEnv
   , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
+
   , BindEnv
-  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, lookupBindEnv
+  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv
+  , bindEnvFromList, bindEnvToList
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
@@ -772,12 +774,15 @@ insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
-rawBindEnv :: [(BindId, Symbol, SortedReft)] -> BindEnv
-rawBindEnv bs = BE (1 + nbs) be'
+bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
+bindEnvFromList bs = BE (1 + nbs) be'
   where
-    nbs       = length bs
-    be        = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
-    be'       = assert (M.size be == nbs) be
+    nbs            = length bs
+    be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
+    be'            = assert (M.size be == nbs) be
+
+bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
+bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
 
 mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
 mapBindEnv f (BE n m) = BE n $ M.map f m
