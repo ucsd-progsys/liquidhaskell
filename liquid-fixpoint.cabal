@@ -150,14 +150,17 @@ Library
                    Language.Fixpoint.Bitvector,
                    Language.Fixpoint.Visitor,
                    Language.Fixpoint.Sort,
-                   Language.Fixpoint.Solver.Solve,
-                   Language.Fixpoint.Solver.Deps,
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.SmtLib2,
-                   Language.Fixpoint.Misc
-  
+                   Language.Fixpoint.Misc,
+                   Language.Fixpoint.Solver.Solution,
+                   Language.Fixpoint.Solver.Worklist,
+                   Language.Fixpoint.Solver.Monad,
+                   Language.Fixpoint.Solver.Deps,
+                   Language.Fixpoint.Solver.Solve
+                     
   Build-Depends: base >= 4.7 && < 5
                , array
                , attoparsec
