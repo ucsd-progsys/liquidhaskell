@@ -23,12 +23,14 @@ type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
-solve cfg fi = runSolverM $ solve_ cfg fi
+solve cfg fi = runSolverM (F.bs fi') $ solve_ cfg fi'
+  where
+    fi'      = rename fi
 
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi = declare fi >> refine s0 wkl >>= result fi
+solve_ cfg fi = refine s0 wkl >>= result fi
   where
     s0        = S.init cfg fi
     wkl       = W.init cfg fi
@@ -41,7 +43,6 @@ refine s w
                                  if b then refine s' (W.push c w')
                                       else return s'
   | otherwise               = return s
-
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -101,3 +102,14 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c
+
+
+---------------------------------------------------------------------------
+-- | Alpha Rename bindings to ensure each var appears in unique binder
+---------------------------------------------------------------------------
+rename :: F.FInfo a -> F.FInfo a
+---------------------------------------------------------------------------
+
+-- TODO: Fix `rename` to enforce uniqueness, AND add bindings for VVs
+rename fi = fi -- error "TODO"
+

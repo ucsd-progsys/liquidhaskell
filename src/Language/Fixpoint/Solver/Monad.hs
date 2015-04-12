@@ -7,9 +7,6 @@ module Language.Fixpoint.Solver.Monad
          -- * Execution
        , runSolverM
 
-         -- * Declare Variables and Sorts
-       , declare
-
          -- * Get Binds
        , getBinds
 
@@ -37,6 +34,16 @@ filterValid p qs = catMaybes <$> do
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
 
+
+---------------------------------------------------------------------------
+-- | Solver Monad ---------------------------------------------------------
+---------------------------------------------------------------------------
+
+type SolveM a = IO a
+
+runSolverM :: F.BindEnv -> SolveM a -> IO a
+runSolverM be act = error "TODO"
+
 declare :: F.FInfo a -> SolveM ()
 declare = error "TODO"
 
@@ -47,14 +54,6 @@ declare = error "TODO"
 
 
 
----------------------------------------------------------------------------
--- | Solver Monad ---------------------------------------------------------
----------------------------------------------------------------------------
-
-type SolveM a = IO a
-
-runSolverM :: SolveM a -> IO a
-runSolverM x = x
 
 -- instance Monad SolveM where
 --   return            = SolveM . return
@@ -71,4 +70,5 @@ getBinds = error "TODO"
 getContext :: SolveM Context
 ---------------------------------------------------------------------------
 getContext = error "TODO"
+
 
