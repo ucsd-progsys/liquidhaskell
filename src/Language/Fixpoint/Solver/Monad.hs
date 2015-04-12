@@ -19,7 +19,6 @@ import           Language.Fixpoint.Config  (Config, solver)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Solver.Solution
--- import           Control.Monad        (forM, forM_)
 import           Data.Maybe           (catMaybes)
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict

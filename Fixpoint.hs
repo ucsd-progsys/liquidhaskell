@@ -6,6 +6,8 @@ import System.Environment              (getArgs)
 -- import System.Console.GetOpt
 import Language.Fixpoint.Config hiding (config)
 import Data.Maybe                      (fromMaybe, listToMaybe)
+import System.Exit
+
 import System.Console.CmdArgs
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import Control.Applicative ((<$>))
@@ -16,8 +18,8 @@ import Text.PrettyPrint.HughesPJ
 main = do cfg <- getOpts
           whenLoud $ putStrLn $ "Options: " ++ show cfg
           if (native cfg)
-            then solveNative cfg (inFile cfg)
-            else solveFile   cfg
+            then solveNative' cfg (inFile cfg)
+            else solveFile    cfg
 
 
 
@@ -52,9 +54,23 @@ banner args =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of C
 -- | Hook for Haskell Solver ---------------------------------
 --------------------------------------------------------------
 
+-- | Fake Dependencies Harness
+
+solveNative :: Config -> FilePath -> IO ExitCode
 solveNative cfg file
   = do str     <- readFile file
        let fi   = rr' file str :: FInfo ()
        res     <- D.solve cfg fi
        putStrLn $ "Result: " ++ show res
        error "TODO: solveNative"
+
+
+-- | Real Haskell Native Solver
+solveNative' :: Config -> FilePath -> IO ExitCode
+solveNative' cfg file
+  = do str     <- readFile file
+       let fi   = rr' file str :: FInfo ()
+       res     <- S.solve cfg fi
+       putStrLn $ "Result: " ++ show res
+       return     ExitSuccess
+

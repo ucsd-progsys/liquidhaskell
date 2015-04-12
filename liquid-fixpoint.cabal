@@ -104,7 +104,6 @@ Executable fixpoint.native
                , directory
                , filepath
                , mtl
-               , transformers
                , parsec
                , pretty
                , process
