@@ -33,8 +33,14 @@ runSolverM x = x
 --                                   let SolveM y = k z
 --                                   y
 
-filterValid :: F.Pred -> Cand a -> SolveM [a]
-filterValid = error "TODO:filterValid"
-
+---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
+---------------------------------------------------------------------------
 getBinds = error "TODO"
+
+---------------------------------------------------------------------------
+filterValid :: F.FEnv -> F.Pred -> Cand a -> SolveM [a]
+---------------------------------------------------------------------------
+filterValid env p qs = error "TODO:filterValid"
+  -- compute syms = syms p ++ syms qs
+  -- compute decls using syms + env

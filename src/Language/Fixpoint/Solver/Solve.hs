@@ -49,16 +49,19 @@ refine s w
 refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
 refineC s c = do
-  lhs    <- lhsPred  s c <$> getBinds
-  let rhs = rhsCands s c
-  S.update s <$> filterValid lhs rhs
+  (env, lhs) <-  lhsPred  s c <$> getBinds
+  let rhs     =  rhsCands s c
+  S.update s <$> filterValid env lhs rhs
 
-lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
-lhsPred s c be = F.pAnd $ pLhs : pGrd : pBinds
+lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> (F.FEnv, F.Pred)
+lhsPred s c be = (env, lhs)
   where
-    pGrd       = F.sgrd c
-    pLhs       = S.apply s  $  F.lhsCs    c
-    pBinds     = S.apply s <$> F.envCs be c
+    env      = F.fromListSEnv xts
+    lhs      = F.pAnd $ pGrd : pLhs : pBinds
+    pGrd     = F.sgrd c
+    pLhs     = S.apply s  $  F.lhsCs c
+    pBinds   = S.apply s <$> xts
+    xts      = F.envCs be $  F.senv c
 
 rhsCands :: S.Solution -> F.SubC a -> S.Cand (F.KVar, S.EQual)
 rhsCands s c   = [ cnd k su q | (k, su) <- ks c, q <- S.lookup s k]
@@ -91,12 +94,12 @@ result fi s = res <$> filterM (isSat s) cs
 isSat :: S.Solution -> F.SubC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isSat s c = do
-  lp    <- lhsPred s c <$> getBinds
-  let rp = rhsPred s c
-  isValid lp rp
+  (env, lp) <- lhsPred s c <$> getBinds
+  let rp     = rhsPred s c
+  isValid env lp rp
 
-isValid :: F.Pred -> F.Pred -> SolveM Bool
-isValid p q = (not . null) <$> filterValid p [(q, ())]
+isValid :: F.FEnv -> F.Pred -> F.Pred -> SolveM Bool
+isValid env p q = (not . null) <$> filterValid env p [(q, ())]
 
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c

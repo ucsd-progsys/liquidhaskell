@@ -74,7 +74,8 @@ module Language.Fixpoint.Types (
   -- * Constraints and Solutions
   , SubC
   , WfC (..)
-  , sid, sgrd, subC, lhsCs, rhsCs, envCs, wfC
+  , sid, sgrd, senv, subC, lhsCs, rhsCs, wfC
+  , envCs
   , Tag
   , FixResult (..)
   , FixSolution
@@ -98,6 +99,7 @@ module Language.Fixpoint.Types (
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
   , BindEnv
   , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, lookupBindEnv
+
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
 
@@ -717,9 +719,9 @@ reftPred (Reft (_, Refa p)) = p
 
 
 ---------------------------------------------------------------
------------------ Environments  -------------------------------
+-- | Environments ---------------------------------------------
 ---------------------------------------------------------------
- 
+
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
@@ -1268,8 +1270,12 @@ lhsCs, rhsCs :: SubC a -> Reft
 lhsCs      = sr_reft . slhs
 rhsCs      = sr_reft . srhs
 
-envCs :: BindEnv -> SubC a -> [(Symbol, SortedReft)]
-envCs be c = [lookupBindEnv i be | i <- elemsIBindEnv (senv c)]
+envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
+envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
+
+-- mkFEnv :: BindEnv -> IBindEnv -> FEnv
+-- mkFEnv be env = fromListSEnv $ envCs be env
+
 
 
 removeLhsKvars cs vs

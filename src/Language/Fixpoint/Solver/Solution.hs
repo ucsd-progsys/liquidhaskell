@@ -3,9 +3,7 @@
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
-          Solution
-        , Cand
-        , EQual (..)
+          Solution, Cand, EQual (..)
 
           -- * Types with Template/KVars
         , Solvable (..)
@@ -103,7 +101,9 @@ refine :: F.FInfo a
        -> F.WfC a
        -> Solution
 --------------------------------------------------------------------
-refine fi qs s w = refineK (wfEnv fi w) qs s (wfKvar w)
+refine fi qs s w = refineK env qs s (wfKvar w)
+  where
+    env          = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
 
 
 refineK :: F.SEnv F.SortedReft
@@ -162,13 +162,6 @@ wfKvar w@(F.WfC {F.wrft = sr})
   | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr
   , F.isEmptySubst su = (v, F.sr_sort sr, k)
   | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show w
-
-wfEnv :: F.FInfo a -> F.WfC a -> F.SEnv F.SortedReft
-wfEnv fi w  = F.fromListSEnv xts
-  where
-    wbinds  = F.elemsIBindEnv $ F.wenv w
-    bm      = F.bs fi
-    xts     = [ F.lookupBindEnv i bm | i <- wbinds]
 
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
