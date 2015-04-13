@@ -163,7 +163,7 @@ posInteger = toI <$> (many1 digit <* spaces)
 ----------------------------------------------------------------
 
 locParserP :: Parser a -> Parser (Located a)
-locParserP p = liftM2 Loc getPosition p
+locParserP p = Loc <$> getPosition <*> p
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
@@ -187,7 +187,8 @@ symbolP :: Parser Symbol
 symbolP = symbol <$> symCharsP
 
 constantP :: Parser Constant
-constantP = try (liftM R double) <|> liftM I integer
+constantP =  try (R <$> double)
+         <|> I <$>integer
 
 symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
@@ -320,9 +321,13 @@ pred0P =  trueP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
-      <|> try (liftM PBexp funAppP)
-      <|> try (reservedOp "&&" >> liftM PAnd predsP)
-      <|> try (reservedOp "||" >> liftM POr  predsP)
+      <|> try (PBexp <$> funAppP)
+      <|> try (reservedOp "&&" >> PAnd <$> predsP)
+      <|> try (reservedOp "||" >> POr  <$> predsP)
+      <|> try kvarP
+
+kvarP :: Parser Pred
+kvarP = error "TODO"
 
 predP  :: Parser Pred
 predP  = buildExpressionParser lops pred0P
@@ -393,7 +398,7 @@ fTyConP
 
 refasP :: Parser [Refa]
 refasP  =  (try (brackets $ sepBy (Refa <$> predP) semi))
-       <|> liftM ((:[]) . Refa) predP
+       <|> ((:[]) . Refa) <$> predP
 
 refBindP :: Parser Symbol -> Parser [Refa] -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
@@ -404,7 +409,7 @@ refBindP bp rp kindP
       ras <- rp <* spaces
       return $ t (Reft (x, mconcat ras))
 
-bindP      = liftM symbol (lowerIdP <* colon)
+bindP      = symbol    <$> (lowerIdP <* colon)
 optBindP x = try bindP <|> return x
 
 refP       = refBindP bindP refasP
@@ -533,7 +538,7 @@ solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
 solutionFileP
-  = liftM2 (,) (fixResultP integer) solutionP
+  = (,) <$> fixResultP integer <*> solutionP
 
 ------------------------------------------------------------------------
 
