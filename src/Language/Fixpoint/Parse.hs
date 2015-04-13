@@ -443,14 +443,14 @@ fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> many defP
 
 defP :: Parser (Def ())
-defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
-    <|> Axm   <$> (reserved "axiom"       >> colon >> predP)
-    <|> Cst   <$> (reserved "constraint"  >> colon >> subCP)
-    <|> Wfc   <$> (reserved "wf"          >> colon >> wfCP)
-    <|> Con   <$> (reserved "constant"    >> symbolP) <*> (colon >> sortP)
-    <|> Qul   <$> (reserved "qualifier"   >> qualifierP)
-    <|> Kut   <$> (reserved "cut"         >> symbolP)
-    <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
+defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
+    <|> Axm   <$> (reserved "axiom"      >> colon >> predP)
+    <|> Cst   <$> (reserved "constraint" >> colon >> subCP)
+    <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
+    <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
+    <|> Qul   <$> (reserved "qualif"     >> qualifierP)
+    <|> Kut   <$> (reserved "cut"        >> symbolP)
+    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))

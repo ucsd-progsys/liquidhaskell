@@ -66,13 +66,12 @@ solveNative cfg file
        putStrLn $ "Result: " ++ show res
        error "TODO: solveNative"
 
-
 -- | Real Haskell Native Solver
 solveNative' :: Config -> FilePath -> IO ExitCode
 solveNative' cfg file = exit (ExitFailure 2) $ do
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  (res, s) <- S.solve cfg fi
+  (res, _) <- S.solve cfg fi
   let res'  = sid <$> res
-  putStrLn  $ "Result: " ++ show res' 
+  putStrLn  $ "Result: " ++ show res'
   return      ExitSuccess
