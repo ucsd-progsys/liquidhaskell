@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-
+{-# LANGUAGE ScopedTypeVariables       #-}
 module Language.Fixpoint.Errors (
   -- * Concrete Location Type
     SrcSpan (..)
@@ -26,6 +26,7 @@ module Language.Fixpoint.Errors (
 
   -- * Fatal Exit
   , die
+  , exit
 
   ) where
 
@@ -41,6 +42,7 @@ import           System.FilePath
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+import           Control.Exception (catch)
 
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
@@ -111,14 +113,12 @@ dummySpan = SS l l
 ---------------------------------------------------------------------
 catMessage :: Error -> String -> Error
 ---------------------------------------------------------------------
-catMessage err msg = err {errMsg = msg ++ errMsg err}
+catMessage e msg = e {errMsg = msg ++ errMsg e}
 
 ---------------------------------------------------------------------
 catError :: Error -> Error -> Error
 ---------------------------------------------------------------------
 catError e1 e2 = catMessage e1 $ show e2
-
-
 
 ---------------------------------------------------------------------
 err :: SrcSpan -> String -> Error
@@ -129,3 +129,10 @@ err = Error
 die :: Error -> a
 ---------------------------------------------------------------------
 die = throw
+
+---------------------------------------------------------------------
+exit :: a -> IO a -> IO a
+---------------------------------------------------------------------
+exit def act = catch act $ \(e :: Error) -> do
+  putStrLn $ "Unexpected Error: " ++ showpp e
+  return def

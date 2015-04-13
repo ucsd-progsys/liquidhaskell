@@ -13,6 +13,7 @@ import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
+import qualified Data.List as L
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver
@@ -27,6 +28,7 @@ solve cfg fi = runSolverM cfg be $ solve_ cfg fi'
   where
     fi'      = rename fi
     be       = F.bs fi'
+
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
@@ -111,5 +113,17 @@ rename :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
 
 -- TODO: Fix `rename` to enforce uniqueness, AND add bindings for VVs
-rename fi = fi -- error "TODO"
+rename fi = fi {F.bs = be'} -- error "TODO"
+  where
+    vts   = map subcVV $ M.elems $ F.cm fi
+    be'   = L.foldl' addVV be vts
+    be    = F.bs fi
 
+addVV :: F.BindEnv -> (F.Symbol, F.SortedReft) -> F.BindEnv
+addVV b (x, t) = snd $ F.insertBindEnv x t b
+
+subcVV :: F.SubC a -> (F.Symbol, F.SortedReft)
+subcVV c = (x, sr)
+  where
+    sr   = F.slhs c
+    x    = F.reftBind $ F.sr_reft sr

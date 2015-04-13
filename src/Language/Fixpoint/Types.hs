@@ -74,7 +74,7 @@ module Language.Fixpoint.Types (
   -- * Constraints and Solutions
   , SubC
   , WfC (..)
-  , sid, sgrd, senv, subC, lhsCs, rhsCs, wfC
+  , sid, sgrd, senv, slhs, subC, lhsCs, rhsCs, wfC
   , envCs
   , Tag
   , FixResult (..)
@@ -116,7 +116,7 @@ module Language.Fixpoint.Types (
   , usymbolReft             -- singleton: v ~~ x
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
-  , reftPred
+  , reftPred, reftBind
   , isFunctionSortedReft
   , isNonTrivialSortedReft
   , isTautoReft
@@ -719,6 +719,8 @@ isFunctionSortedReft _                  = False
 reftPred :: Reft -> Pred
 reftPred (Reft (_, Refa p)) = p
 
+reftBind :: Reft -> Symbol
+reftBind (Reft (x, _)) = x
 
 ---------------------------------------------------------------
 -- | Environments ---------------------------------------------

@@ -14,6 +14,8 @@ import Control.Applicative ((<$>))
 import Language.Fixpoint.Parse
 import Language.Fixpoint.Types
 import Text.PrettyPrint.HughesPJ
+import qualified Control.Exception as Ex
+import Language.Fixpoint.Errors (exit)
 
 main = do cfg <- getOpts
           whenLoud $ putStrLn $ "Options: " ++ show cfg
@@ -67,10 +69,9 @@ solveNative cfg file
 
 -- | Real Haskell Native Solver
 solveNative' :: Config -> FilePath -> IO ExitCode
-solveNative' cfg file
-  = do str     <- readFile file
-       let fi   = rr' file str :: FInfo ()
-       res     <- S.solve cfg fi
-       putStrLn $ "Result: " ++ show res
-       return     ExitSuccess
-
+solveNative' cfg file = exit (ExitFailure 2) $ do
+  str     <- readFile file
+  let fi   = rr' file str :: FInfo ()
+  res     <- S.solve cfg fi
+  putStrLn $ "Result: " ++ show res
+  return     ExitSuccess

@@ -547,7 +547,8 @@ doParse' parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
       Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f
       Right (r, "", _)  -> r
-      Right (_, rem, l) -> die $ err (SS l l) $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
+      Right (_, rem, l) -> die $ err (SS l l)
+                               $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
 
 errorSpan e = SS l l where l = errorPos e
 

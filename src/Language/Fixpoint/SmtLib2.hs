@@ -48,6 +48,7 @@ module Language.Fixpoint.SmtLib2 (
     ) where
 
 import           Language.Fixpoint.Config (SMTSolver (..))
+import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
 
@@ -98,7 +99,7 @@ data Command      = Push
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
                   | Assert    (Maybe Int) Pred
-                  | Distinct  [Expr] -- {v:[Expr] | (len v) >= 2}
+                  | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   deriving (Eq, Show)
 
@@ -288,7 +289,7 @@ smtBracket me a   = do smtPush me
 respSat Unsat     = True
 respSat Sat       = False
 respSat Unknown   = False
-respSat r         = error "crash: SMTLIB2 respSat"
+respSat r         = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
 
 interact' me cmd  = command me cmd >> return ()
 
