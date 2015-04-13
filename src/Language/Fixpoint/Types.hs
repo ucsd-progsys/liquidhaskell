@@ -259,7 +259,7 @@ predSymbols = go
 ---------------------------------------------------------------
 type KVar    = Symbol
 
-newtype Kuts = KS (S.HashSet KVar)
+newtype Kuts = KS (S.HashSet KVar) deriving (Show)
 
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
@@ -811,9 +811,6 @@ instance Fixpoint SortedReft where
     = braces
     $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix ras
 
-instance Fixpoint FEnv where
-  toFix (SE m)   = toFix (hashMapToAscList m)
-
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
 
@@ -824,9 +821,13 @@ insertFEnv   = insertSEnv . lower
                     Nothing     -> s
                     Just (c,s') -> consSym (toLower c) s'
 
+-- instance (Fixpoint a) => Fixpoint (SEnv a) where
+--   toFix (SE e)    = vcat $ map pprxt $ hashMapToAscList e
+--     where
+--       pprxt (x,t) = toFix x <+> colon <> colon  <+> toFix t
+
 instance (Fixpoint a) => Fixpoint (SEnv a) where
-  toFix (SE e) = vcat $ map pprxt $ hashMapToAscList e
-        where pprxt (x, t) = toFix x <+> colon <> colon  <+> toFix t
+   toFix (SE m)   = toFix (hashMapToAscList m)
 
 instance Fixpoint (SEnv a) => Show (SEnv a) where
   show = render . toFix
@@ -849,7 +850,7 @@ newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
 data BindEnv       = BE { beSize  :: Int
                         , beBinds :: BindMap (Symbol, SortedReft)
                         }
-
+                     deriving (Show)
 
 data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred
@@ -1266,12 +1267,16 @@ instance Hashable FTycon where
 
 wfC  = WfC
 
-subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
+subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) i y z
   = [subC' r2' | r2' <- [r2P], not $ isTauto r2']
   where
-    subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2' vvCon)) x y z
+    subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vv')) (RR t2 (shiftVV r2' vv')) i y z
     r2P        = Reft (v2, ra2s) -- [ra | ra@(Refa _  ) <- ra2s])
     -- r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
+    vv'        = mkVV i
+
+mkVV (Just i)  = vv $ Just i
+mkVV Nothing   = vvCon
 
 lhsCs, rhsCs :: SubC a -> Reft
 lhsCs      = sr_reft . slhs
@@ -1346,6 +1351,7 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , kuts  :: Kuts
                   , quals :: ![Qualifier]
                   }
+               deriving (Show)
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where
