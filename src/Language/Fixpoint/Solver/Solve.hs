@@ -51,10 +51,12 @@ refine s w
 ---------------------------------------------------------------------------
 refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
-refineC s c = do
-  lhs        <-  lhsPred  s c <$> getBinds
-  let rhs     =  rhsCands s c
-  S.update s <$> filterValid lhs rhs
+refineC s c
+  | null rhs  = return (False, s)
+  | otherwise = do lhs        <-  lhsPred  s c <$> getBinds
+                   S.update s <$> filterValid lhs rhs
+  where
+    rhs       =  rhsCands s c
 
 lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
@@ -85,19 +87,19 @@ result fi s = (, sol) <$> result_ fi s
     sol     = M.map (F.pAnd . fmap S.eqPred) s
 
 result_ :: F.FInfo a -> S.Solution -> SolveM (F.FixResult (F.SubC a))
-result_ fi s = res <$> filterM (isSat s) cs
+result_ fi s = res <$> filterM (isUnsat s) cs
   where
     cs       = M.elems $ F.cm fi
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
 
 ---------------------------------------------------------------------------
-isSat :: S.Solution -> F.SubC a -> SolveM Bool
+isUnsat :: S.Solution -> F.SubC a -> SolveM Bool
 ---------------------------------------------------------------------------
-isSat s c = do
+isUnsat s c = do
   lp    <- lhsPred s c <$> getBinds
   let rp = rhsPred s c
-  isValid lp rp
+  not   <$> isValid lp rp
 
 isValid :: F.Pred -> F.Pred -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]

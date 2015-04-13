@@ -69,7 +69,7 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush,
                                            openFile)
 import           System.Process
-
+import           Debug.Trace (trace)
 import qualified Data.Attoparsec.Text     as A
 
 {- Usage:

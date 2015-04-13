@@ -70,8 +70,9 @@ solveNative cfg file
 -- | Real Haskell Native Solver
 solveNative' :: Config -> FilePath -> IO ExitCode
 solveNative' cfg file = exit (ExitFailure 2) $ do
-  str     <- readFile file
-  let fi   = rr' file str :: FInfo ()
-  res     <- S.solve cfg fi
-  putStrLn $ "Result: " ++ show res
-  return     ExitSuccess
+  str      <- readFile file
+  let fi    = rr' file str :: FInfo ()
+  (res, s) <- S.solve cfg fi
+  let res'  = sid <$> res
+  putStrLn  $ "Result: " ++ show res' 
+  return      ExitSuccess
