@@ -327,7 +327,10 @@ pred0P =  trueP
       <|> try kvarP
 
 kvarP :: Parser Pred
-kvarP = error "TODO"
+kvarP = PKVar <$> symbolP <*> substP
+
+substP :: Parser Subst
+substP = mkSubst <$> many (brackets $ pairP symbolP comma exprP)
 
 predP  :: Parser Pred
 predP  = buildExpressionParser lops pred0P
@@ -428,7 +431,11 @@ qualifierP = do pos    <- getPosition
                 body   <- predP
                 return  $ mkQual n params body pos
 
-sortBindP  = (,) <$> symbolP <* colon <*> sortP
+sortBindP = (,) <$> symbolP <* colon <*> sortP
+
+pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
+pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
+
 
 mkQual n xts p pos = Q n ((vv, t) : yts) (subst su p) pos
   where
