@@ -1099,8 +1099,8 @@ makeFinTy (ns, t) = fmap go t
 makeTermEnvs γ xtes xes ts ts' = withTRec γ . zip xs <$> rts
   where
     vs   = zipWith collectArgs ts es
-    ys   = (fst3 . bkArrowDeep) <$> ts 
-    ys'  = (fst3 . bkArrowDeep) <$> ts'
+    ys   = (fst4 . bkArrowDeep) <$> ts
+    ys'  = (fst4 . bkArrowDeep) <$> ts'
     sus' = zipWith mkSub ys ys'
     sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
     ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
@@ -1580,14 +1580,14 @@ altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where 
-        tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
-        (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''           = zipWith F.subst sus (yts'++[rt])
-        (t3,yts)        = (last yts'', init yts'')
-        sus             = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
-        (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
-        tvs'            = rVar <$> αs
-        tvys            = ofType . varType <$> αs
+        tbody              = instantiatePvs (instantiateTys td ts) $ reverse rs
+        (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
+        yts''              = zipWith F.subst sus (yts'++[rt])
+        (t3,yts)           = (last yts'', init yts'')
+        sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
+        (αs, ys')          = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        tvs'               = rVar <$> αs
+        tvys               = ofType . varType <$> αs
 
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
@@ -1723,20 +1723,20 @@ forallExprReft γ r
 
 forallExprReft_ γ (F.EApp f es) 
   = case forallExprReftLookup γ (val f) of
-      Just (xs,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
+      Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
 forallExprReft_ γ (F.EVar x) 
   = case forallExprReftLookup γ x of 
-      Just (_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t 
+      Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
 forallExprReft_ _ _ = Nothing -- F.exprReft e 
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
-    snap                 = mapThd3 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
+    snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)

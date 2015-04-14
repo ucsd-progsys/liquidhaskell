@@ -58,11 +58,11 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
     mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = errorstar "PredType.dataConPSpecType.tx called on invalid inputs"                           
     yts'     = tx [] xs ys ts
-    ts'      = map ("" ,) cs ++ yts'
+    ts'      = map ("" , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = subst su rt
 
