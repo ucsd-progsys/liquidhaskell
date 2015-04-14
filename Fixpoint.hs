@@ -16,6 +16,7 @@ import Language.Fixpoint.Types
 import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 import Language.Fixpoint.Errors (exit)
+import Language.Fixpoint.PrettyPrint (showpp)
 
 main = do cfg <- getOpts
           whenLoud $ putStrLn $ "Options: " ++ show cfg
@@ -71,7 +72,8 @@ solveNative' :: Config -> FilePath -> IO ExitCode
 solveNative' cfg file = exit (ExitFailure 2) $ do
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  (res, _) <- S.solve cfg fi
+  (res, s) <- S.solve cfg fi
   let res'  = sid <$> res
-  putStrLn  $ "Result: " ++ show res'
+  putStrLn  $ "Solution:\n" ++ showpp s
+  putStrLn  $ "Result: "    ++ show res'
   return      ExitSuccess
