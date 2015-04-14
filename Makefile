@@ -8,6 +8,8 @@ CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
 
 DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
 
+TASTY=./dist/build/test/test
+
 all:
 	$(CABAL) install --ghc-options=$(OPTS) 
 
@@ -63,3 +65,10 @@ lint:
 tags:
 	hasktags -c src/
 	hasktags -e src/
+
+
+test:
+	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
+	cabal build
+	cabal exec $(TASTY)
+

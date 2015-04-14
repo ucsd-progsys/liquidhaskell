@@ -1,7 +1,7 @@
 
 import qualified Language.Fixpoint.Solver.Deps  as D
 import qualified Language.Fixpoint.Solver.Solve as S
-import Language.Fixpoint.Interface     (solveFile)
+import Language.Fixpoint.Interface     (resultExit, solveFile)
 import System.Environment              (getArgs)
 -- import System.Console.GetOpt
 import Language.Fixpoint.Config hiding (config)
@@ -17,14 +17,17 @@ import Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 import Language.Fixpoint.Errors (exit)
 import Language.Fixpoint.PrettyPrint (showpp)
+import Debug.Trace (trace)
 
+main :: IO ExitCode
 main = do cfg <- getOpts
           whenLoud $ putStrLn $ "Options: " ++ show cfg
-          if (native cfg)
-            then solveNative' cfg (inFile cfg)
-            else solveFile    cfg
+          e <- solveMe cfg
+          exitWith $ trace ("EXIT: " ++ show e) e
 
-
+solveMe cfg
+  | native cfg = solveNative' cfg (inFile cfg)
+  | otherwise  = solveFile cfg
 
 config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
@@ -76,4 +79,4 @@ solveNative' cfg file = exit (ExitFailure 2) $ do
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'
-  return      ExitSuccess
+  return    $ resultExit res'

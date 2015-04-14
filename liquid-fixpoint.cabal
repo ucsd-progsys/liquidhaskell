@@ -194,13 +194,14 @@ test-suite test
   ghc-options:      -O2 -threaded
   main-is:          test.hs
   build-depends:    base,
-                    -- directory,
-                    -- filepath,
-                    -- process,
+                    directory,
+                    filepath,
+                    process,
                     -- tagged,
                     liquid-fixpoint,
                     -- optparse-applicative == 0.11.*,
                     tasty >= 0.10,
-                    tasty-quickcheck,
+                    -- tasty-quickcheck,
+                    tasty-hunit,
                     tasty-rerun >= 1.1,
                     text
