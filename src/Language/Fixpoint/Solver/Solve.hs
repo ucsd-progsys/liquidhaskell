@@ -49,7 +49,8 @@ refine s w
 
 refine' s w = do
   i <- getIter
-  trace (msg i) $ refine s w
+  -- trace (msg i) $
+  refine s w
   where
     msg i   = "Solution at " ++ show i ++ ": " ++ showpp s ++ "\n" ++ showpp w ++ "\n"
 
@@ -62,9 +63,7 @@ refineC s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
                    kqs   <- filterValid lhs rhs
-                   let s' = S.update s ks kqs
-                   i     <- getIter
-                   return $ trace (msg i kqs s') $ s'
+                   return $ S.update s ks kqs
   where
     (ks, rhs)  =  rhsCands s c
     msg i z s' = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'

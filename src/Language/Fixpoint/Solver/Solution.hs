@@ -76,7 +76,7 @@ eQual q xs = EQL q p es
 ------------------------------------------------------------------------
 update :: Solution -> [F.KVar] -> [(F.KVar, EQual)] -> (Bool, Solution)
 -------------------------------------------------------------------------
-update s ks kqs = traceShow msg (or bs, s')
+update s ks kqs = {- traceShow msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
