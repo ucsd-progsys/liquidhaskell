@@ -358,7 +358,7 @@ checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
     xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
     su   = checkMBodyUnify (ty_res trep) (last txs) 
-    txs  = snd3 $ bkArrowDeep sort
+    txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go
