@@ -33,7 +33,6 @@ import Data.Maybe (fromMaybe)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc (addThd3)
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance
@@ -323,8 +322,8 @@ defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
   where 
     t   = fromMaybe (ofType $ dataConOrigResTy dc) mt
     xts = safeZipWith msg g xs $ ofType `fmap` dataConOrigArgTys dc
-    g (x, Nothing) t = (x, t)
-    g (x, Just t)  _ = (x, t)
+    g (x, Nothing) t = (x, t, mempty) 
+    g (x, Just t)  _ = (x, t, mempty)
     t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t 
     msg = "defRefType dc = " ++ showPpr dc 
 
