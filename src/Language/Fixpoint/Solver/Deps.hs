@@ -12,6 +12,7 @@ module Language.Fixpoint.Solver.Deps
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc  (groupList)
+import           Language.Fixpoint.Names (nonSymbol)
 import qualified Language.Fixpoint.Types  as F
 
 import qualified Language.Fixpoint.Visitor as V
@@ -21,7 +22,6 @@ import qualified Data.Graph                as G
 type KVar = F.Symbol
 
 type Edge  = (KVar, KVar)
-type Graph = [(KVar, KVar, [KVar])]
 data Deps  = Deps { depCuts    :: ![KVar]
                   , depNonCuts :: ![KVar]
                   }
@@ -34,7 +34,13 @@ data Deps  = Deps { depCuts    :: ![KVar]
 solve :: Config -> F.FInfo a -> IO (F.FixResult a)
 --------------------------------------------------------------
 solve cfg fi = do
-  error "TODO: Ben fill in code that computes and prints out cuts"
+  let d = deps fi
+  print "(begin cuts debug)"
+  print "Cuts:"
+  print (depCuts d)
+  print "Non-cuts:"
+  print (depNonCuts d)
+  print "(end cuts debug)"
   return F.Safe
 
 
@@ -68,6 +74,7 @@ bar (G.CyclicSCC ((v,_,_):vs) : xs) ds = bar xs (bar sccs' ds')
 subcEdges :: F.BindEnv -> F.SubC a -> [Edge]
 subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c
                            , k2 <- rhsKVars c    ]
+              ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
 
 lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
