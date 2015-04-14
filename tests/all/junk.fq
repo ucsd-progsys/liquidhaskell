@@ -1,4 +1,0 @@
-
-qualif Zog(v:a) : (10 <= v)
-
-bind 0 a : {v : int | [k0]}
