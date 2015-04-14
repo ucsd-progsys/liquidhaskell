@@ -1,0 +1,11 @@
+bind 0  xs    : {VV : [int] | [] }
+bind 1  assm  : {VV : int   | [? Set_emp([listElts([xs])])]}
+
+constant listElts : func(1, [[@(0)]; Set_Set @(0)])
+
+constraint:
+  env [ 0 ; 1 ]
+  grd true
+  lhs {VV : int | []}
+  rhs {VV : int | [(listElts([xs]) = Set_empty([]))]} 
+  id 1
