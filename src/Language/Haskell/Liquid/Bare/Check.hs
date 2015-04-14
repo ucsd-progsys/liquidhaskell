@@ -25,12 +25,12 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, snd3, errorstar, safeHead)
+import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, errorstar, safeHead)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
 import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
-import Language.Haskell.Liquid.Misc (dropThd3, firstDuplicate)
+import Language.Haskell.Liquid.Misc (firstDuplicate, snd4)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
 import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
@@ -150,7 +150,7 @@ checkTerminationExpr emb env (v, Loc l t, es) = (mkErr <$> go es) <|> (mkErr' <$
     go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
     env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
-    xss     = mapSnd rSort <$> (uncurry zip $ dropThd3 $ bkArrowDeep t)
+    xss     = mapSnd rSort <$> (uncurry zip $ (\(x,y,_,_) -> (x,y)) $ bkArrowDeep t)
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le zero 
 
@@ -202,7 +202,7 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc 
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = checkAppTys t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t 
+checkRType emb env t         = checkAppTys t <|> checkFunRefs t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
   where 
     cb c ts                  = classBinds (rRCls c ts)
     f env me r err           = err <|> checkReft env emb me r
@@ -237,6 +237,25 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
     = Nothing
   where expectedArity = realTcArity tc
 
+
+checkFunRefs t = go t
+  where
+    go (RAllT _ t)      = go t
+    go (RAllP _ t)      = go t
+    go (RAllS _ t)      = go t
+    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
+    go (RVar _ _)       = Nothing
+    go (RAllE _ t1 t2)  = go t1 <|> go t2
+    go (REx _ t1 t2)    = go t1 <|> go t2
+    go (RAppTy t1 t2 _) = go t1 <|> go t2
+    go (RRTy _ _ _ t)   = go t
+    go (RExprArg _)     = Nothing
+    go (RHole _)        = Nothing
+    go (RFun _ t1 t2 r)
+      | isTauto r
+        = go t1 <|> go t2
+      | otherwise
+        = Just $ text "Function types cannot have refinements"
 
 checkAbstractRefs t = go t
   where
@@ -337,7 +356,7 @@ checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
     xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd3 $ bkArrowDeep sort)
+    su   = checkMBodyUnify (ty_res trep) (head $ snd4 $ bkArrowDeep sort)
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go
@@ -355,6 +374,7 @@ checkMBody' emb sort γ body = case body of
     sty   = rTypeSortedReft emb sort' 
     sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
                                  , ty_binds = tail $ ty_binds trep'
-                                 , ty_args  = tail $ ty_args trep'             }
+                                 , ty_args  = tail $ ty_args trep'
+                                 , ty_refts = tail $ ty_refts trep'            }
     trep' = toRTypeRep sort
 

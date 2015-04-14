@@ -921,13 +921,13 @@ mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 expandProductType x t 
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
            τs         = fst $ splitFunTys $ toType t
            trep       = toRTypeRep t
-           (xs', ts') = unzip $ concatMap mkProductTy $ zip3 τs (ty_binds trep) (ty_args trep)
+           (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
           
-mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe menv τ
-  where f    = ((<$>) ((,) dummySymbol . ofType)) . third4
+mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
+  where f    = ((<$>) ((dummySymbol, , mempty) . ofType)) . third4
         menv = (emptyFamInstEnv, emptyFamInstEnv)
           
 -----------------------------------------------------------------------------------------

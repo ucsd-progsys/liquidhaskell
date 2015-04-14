@@ -35,7 +35,13 @@ safeIndex err n ls
 safeFromJust _  (Just x) = x
 safeFromJust err _        = errorstar err
 
+fst4 (a,_,_,_) = a
+snd4 (_,b,_,_) = b
+
+mapFourth4 f (x, y, z, w) = (x, y, z, f w)
+
 addFst3   a (b, c) = (a, b, c)
+addThd3   c (a, b) = (a, b, c)
 dropFst3 (_, x, y) = (x, y)
 dropThd3 (x, y, _) = (x, y)
 
@@ -73,6 +79,10 @@ maximumWithDefault _    xs = maximum xs
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
 safeZipWithError msg _      _      = errorstar msg
+
+safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
+safeZip3WithError _   []     []     []     = []
+safeZip3WithError msg _      _      _      = errorstar msg
 
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 

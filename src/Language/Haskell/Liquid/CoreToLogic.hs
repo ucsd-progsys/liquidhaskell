@@ -45,11 +45,11 @@ import Data.Monoid
 
 
 logicType :: (Reftable r) => Type -> RRType r
-logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
+logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, ty_refts = refts}
   where 
     t   = toRTypeRep $ ofType τ 
     res = mkResType $ ty_res t
-    (binds, args) =  unzip $ dropWhile isClassBind $ zip (ty_binds t) (ty_args t)
+    (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
     
 
     mkResType t 
@@ -58,8 +58,6 @@ logicType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args}
 
 isBool (RApp (RTyCon{rtc_tc = c}) _ _ _) = c == boolTyCon
 isBool _ = False
-
-isClassBind   = isClassType . snd
 
 {- strengthenResult type: the refinement depends on whether the result type is a Bool or not:
 
@@ -78,10 +76,10 @@ strengthenResult v
     fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
   where rep = toRTypeRep t
         res = ty_res rep
-        xs  = intSymbol (symbol ("x" :: String)) <$> [1..]
+        xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
         r'  = U (exprReft (EApp f (mkA <$> vxs)))         mempty mempty
         r   = U (propReft (PBexp $ EApp f (mkA <$> vxs))) mempty mempty
-        vxs = dropWhile isClassBind $ zip xs (ty_args rep)
+        vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
         mkA = \(x, _) -> EVar x -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
