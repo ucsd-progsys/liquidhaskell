@@ -456,7 +456,9 @@ instance SMTLIB2 Expr where
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
   smt2 (PFalse)         = "false"
+  smt2 (PAnd [])        = "true"
   smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps)
+  smt2 (POr [])         = "false"
   smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
   smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
   smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
