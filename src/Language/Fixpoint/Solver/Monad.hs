@@ -9,10 +9,13 @@ module Language.Fixpoint.Solver.Monad
 
          -- * Get Binds
        , getBinds
-       , getIter
 
          -- * SMT Query
        , filterValid
+
+         -- * Debug
+       , tickIter
+
        )
        where
 
@@ -57,6 +60,10 @@ incIter :: SolveM ()
 ---------------------------------------------------------------------------
 incIter = modify $ \s -> s {ssIter = 1 + ssIter s}
 
+---------------------------------------------------------------------------
+tickIter :: SolveM Int
+---------------------------------------------------------------------------
+tickIter = incIter >> getIter
 
 withContext :: (Context -> IO a) -> SolveM a
 withContext k = (lift . k) =<< getContext
@@ -71,7 +78,6 @@ getContext = ssCtx <$> get
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
 filterValid p qs = do
-  incIter
   withContext $ filterValid_ p qs
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]

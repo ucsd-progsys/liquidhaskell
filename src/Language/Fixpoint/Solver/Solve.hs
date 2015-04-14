@@ -33,7 +33,7 @@ solve cfg fi = runSolverM cfg be $ solve_ cfg fi'
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi = refine' s0 wkl >>= result fi
+solve_ cfg fi = refine s0 wkl >>= result fi
   where
     s0        = S.init cfg fi
     wkl       = W.init cfg fi
@@ -42,31 +42,25 @@ solve_ cfg fi = refine' s0 wkl >>= result fi
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 ---------------------------------------------------------------------------
 refine s w
-  | Just (c, w') <- W.pop w = do (b, s') <- refineC s c
+  | Just (c, w') <- W.pop w = do i       <- tickIter
+                                 (b, s') <- refineC i s c
                                  let w'' = if b then W.push c w' else w'
-                                 refine' s' w''
+                                 refine s' w''
   | otherwise               = return s
-
-refine' s w = do
-  i <- getIter
-  -- trace (msg i) $
-  refine s w
-  where
-    msg i   = "Solution at " ++ show i ++ ": " ++ showpp s ++ "\n" ++ showpp w ++ "\n"
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
+refineC :: Int -> S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
-refineC s c
+refineC i s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
                    kqs   <- filterValid lhs rhs
                    return $ S.update s ks kqs
   where
-    (ks, rhs)  =  rhsCands s c
-    msg i z s' = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'
+    (ks, rhs) =  rhsCands s c
+    msg z s'  = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'
 
 lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds

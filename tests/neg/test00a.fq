@@ -1,4 +1,3 @@
-
 // This qualifier saves the day; solve constraints WITHOUT IT
 
 qualif Zog(v:a) : (10 <= v)

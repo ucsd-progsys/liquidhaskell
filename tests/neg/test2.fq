@@ -1,0 +1,56 @@
+
+// This qualifier saves the day; solve constraints WITHOUT IT
+qualif Zog(v:a): (10 <= v)
+
+// But you may use this one
+qualif Pog(v:a): (0 <= v)
+
+bind 0 x: {v: int | v = 9 }
+bind 1 a: {v: int | k1    }
+bind 2 y: {v: int | v = 20}
+bind 3 b: {v: int | k1    }
+bind 4 c: {v: int | k0    }
+
+constraint:
+  env [ ]
+  grd true
+  lhs {v : int | v = 0}
+  rhs {v : int | k1 }
+  id 0 
+
+
+constraint:
+  env [ 0; 1]
+  grd true
+  lhs {v : int | v = x + a}
+  rhs {v : int | k0}
+  id 1 
+
+constraint:
+  env [2; 3]
+  grd true 
+  lhs {v : int | v = y + b}
+  rhs {v : int | k0}
+  id 2 
+
+constraint:
+  env [ ]
+  grd true 
+  lhs {v : int | k0}
+  rhs {v : int | k1}
+  id 3
+
+constraint:
+  env [4]
+  grd true 
+  lhs {v : int | v = c  }
+  rhs {v : int | 10 <= v}
+  id 4 
+
+wf:
+  env [ ]
+  reft {v: int | k0}
+
+wf:
+  env [ ]
+  reft {v: int | k1}
