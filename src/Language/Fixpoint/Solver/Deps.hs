@@ -60,18 +60,15 @@ deps finfo = sccsToDeps sccs (F.kuts finfo)
     sccs  = G.stronglyConnCompR graph
 
 sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> F.Kuts -> Deps
-sccsToDeps xs ks = execState (bar xs ks) (Deps [] [])
+sccsToDeps xs ks = execState (mapM_ (bar ks) xs) (Deps [] [])
 
-bar :: [G.SCC (KVar,KVar,[KVar])] -> F.Kuts -> State Deps ()
-bar []                          _  = do return ()
-bar (G.AcyclicSCC (v,_,_) : xs) ks = do ds <- get
-                                        put (ds { depNonCuts = v : depNonCuts ds })
-                                        bar xs ks
-bar (G.CyclicSCC vs : xs)       ks = do let (v,vs') = chooseCut vs ks
-                                        ds <- get
-                                        put (ds { depCuts = v : depCuts ds })
-                                        bar (G.stronglyConnCompR vs') ks
-                                        bar xs ks
+bar :: F.Kuts -> G.SCC (KVar,KVar,[KVar]) -> State Deps ()
+bar _  (G.AcyclicSCC (v,_,_)) = do ds <- get
+                                   put ds {depNonCuts = v : depNonCuts ds}
+bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
+                                   ds <- get
+                                   put ds {depCuts = v : depCuts ds}
+                                   mapM_ (bar ks) (G.stronglyConnCompR vs')
 
 chooseCut :: [(KVar,KVar,[KVar])] -> F.Kuts -> (KVar, [(KVar,KVar,[KVar])])
 chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
@@ -82,8 +79,8 @@ chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
                          else (head $ S.toList is)
 
 subcEdges :: F.BindEnv -> F.SubC a -> [(KVar, KVar)]
-subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c
-                           , k2 <- rhsKVars c    ]
+subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
+                                  , k2 <- rhsKVars c    ]
               ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
 -- this nonSymbol hack is one way to prevent nodes with
 -- potential outdegree 0 from getting pruned by
