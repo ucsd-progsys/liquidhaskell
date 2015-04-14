@@ -159,12 +159,14 @@ instance ( Monoid r, Reftable r, RefTypable b c r, RefTypable b c ()) => Monoid 
   mappend (RPropP s1 r1) (RPropP s2 r2) 
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
+    | otherwise  = RPropP s1 $ r1 `meet` 
+                               (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
   
   mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
-    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
+    | otherwise    = RProp s1 $ t1  `strengthenRefType` 
+                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
