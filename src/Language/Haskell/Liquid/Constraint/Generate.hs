@@ -1547,7 +1547,7 @@ caseEnv γ x _   (DataAlt c) ys
        let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
        let r1            = dataConReft   c   ys' 
        let r2            = dataConMsReft rtd ys'
-       let xt            = (rtd `F.meet` xt0) `strengthen` (uTop (r1 `F.meet` r2))
+       let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
