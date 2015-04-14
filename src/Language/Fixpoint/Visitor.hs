@@ -14,8 +14,10 @@ module Language.Fixpoint.Visitor (
   , fold
 
   -- * Clients
-  , reftKVars
-  , envKVars
+  , reftKVars, envKVars
+
+  -- * Sorts
+  , foldSort, mapSort
   ) where
 
 import           Control.Applicative       (Applicative, (<$>), (<*>))
@@ -24,9 +26,10 @@ import           Data.Monoid
 import           Data.Traversable          (Traversable, traverse)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
+import qualified Data.List    as L
 
 data Visitor acc ctx = Visitor {
- -- | Context @ctx@ is built up in a "top-down" fashion but not across siblings
+ -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
     ctxExpr :: ctx -> Expr -> ctx
   , ctxPred :: ctx -> Pred -> ctx
 
@@ -147,3 +150,28 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
   where
     squish = S.toList  . S.fromList . concat
     kvs    = reftKVars . sr_reft
+
+
+
+---------------------------------------------------------------------------------
+-- | Visitors over @Sort@
+---------------------------------------------------------------------------------
+foldSort :: (a -> Sort -> a) -> a -> Sort -> a
+---------------------------------------------------------------------------------
+foldSort f = step
+  where
+    step b t          = go (f b t) t
+    go b (FFunc _ ts) = L.foldl' step b ts
+    go b (FApp _ ts)  = L.foldl' step b ts
+    go b _            = b
+
+
+---------------------------------------------------------------------------------
+mapSort :: (Sort -> Sort) -> Sort -> Sort
+---------------------------------------------------------------------------------
+mapSort f = step
+  where
+    step            = go . f
+    go (FFunc n ts) = FFunc n $ step <$> ts
+    go (FApp c ts)  = FApp c  $ step <$> ts
+    go t            = t

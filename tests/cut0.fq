@@ -1,5 +1,6 @@
 
 qualif Zog(v:a) : (10 <= v)
+qualif Bog(v:a, x:a) : (x <= v)
 
 bind 0 a : {v: int | k0}
 

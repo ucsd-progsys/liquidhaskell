@@ -80,6 +80,7 @@ import           Language.Fixpoint.Misc      hiding (dcolon)
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names     (vv)
+import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust, maybe)
 
@@ -439,9 +440,28 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
 mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
   where
-    (vv,t):zts = xts
+    (vv,t):zts = gSorts xts
     yts        = mapFst mkParam <$> zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
+gSorts :: [(a, Sort)] -> [(a, Sort)]
+gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
+  where
+    su         = (`zip` [0..]) . sortNub . concatMap sortVars . map snd $ xts
+
+substVars :: [(Symbol, Int)] -> Sort -> Sort
+substVars su = mapSort tx
+  where
+    tx (FObj x)
+      | Just i <- lookup x su = FVar i
+    tx t                      = t
+
+sortVars :: Sort -> [Symbol]
+sortVars = foldSort go []
+  where
+    go b (FObj x) = x : b
+    go b _        = b
+
 
 mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
   where
