@@ -9,6 +9,7 @@ module Language.Fixpoint.Solver.Monad
 
          -- * Get Binds
        , getBinds
+       , getIter
 
          -- * SMT Query
        , filterValid
@@ -31,6 +32,7 @@ type SolveM = StateT SolverState IO
 
 data SolverState = SS { ssCtx   :: !Context
                       , ssBinds :: !F.BindEnv
+                      , ssIter  :: !Int
                       }
 
 ---------------------------------------------------------------------------
@@ -38,12 +40,22 @@ runSolverM :: Config -> F.BindEnv -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg be act = do
   ctx <-  makeContext (solver cfg)
-  fst <$> runStateT (declare be >> act) (SS ctx be)
+  fst <$> runStateT (declare be >> act) (SS ctx be 0)
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
 getBinds = ssBinds <$> get
+
+---------------------------------------------------------------------------
+getIter :: SolveM Int
+---------------------------------------------------------------------------
+getIter = ssIter <$> get
+
+---------------------------------------------------------------------------
+incIter :: SolveM ()
+---------------------------------------------------------------------------
+incIter = modify $ \s -> s {ssIter = 1 + ssIter s}
 
 
 withContext :: (Context -> IO a) -> SolveM a
@@ -58,7 +70,9 @@ getContext = ssCtx <$> get
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs = withContext $ filterValid_ p qs
+filterValid p qs = do
+  incIter
+  withContext $ filterValid_ p qs
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do

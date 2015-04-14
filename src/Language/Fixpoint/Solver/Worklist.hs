@@ -16,6 +16,7 @@ module Language.Fixpoint.Solver.Worklist
 
 import           Prelude hiding (init)
 import           Language.Fixpoint.Solver.Deps
+import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Types   as F
@@ -73,6 +74,9 @@ data Worklist a = WL { wCs   :: S.Set CId
                      , wDeps :: CSucc
                      , wCm   :: M.HashMap CId (F.SubC a)
                      }
+
+instance PPrint (Worklist a) where
+  pprint = pprint . S.toList . wCs
 
 ---------------------------------------------------------------------------
 -- | Constraint Dependencies ----------------------------------------------

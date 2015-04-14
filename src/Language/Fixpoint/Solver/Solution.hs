@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternGuards     #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
@@ -23,6 +24,7 @@ import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing) -- , fromMaybe)
+import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
@@ -52,6 +54,9 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  }
              deriving (Eq, Ord, Show)
 
+instance PPrint EQual where
+  pprint = pprint . eqPred
+
 {-@ data EQual = EQ { eqQual :: F.Qualifier
                     , eqPred :: F.Pred
                     , eqArgs :: {v: [F.Expr] | len v = len (q_params eqQual)}
@@ -66,15 +71,21 @@ eQual q xs = EQL q p es
     es     = F.eVar    <$> xs
     qxs    = fst       <$> F.q_params q
 
---------------------------------------------------------------------
--- | Update Solution -----------------------------------------------
---------------------------------------------------------------------
-update :: Solution -> [(F.KVar, EQual)] -> (Bool, Solution)
---------------------------------------------------------------------
-update s kqs = (or bs, s')
+------------------------------------------------------------------------
+-- | Update Solution ---------------------------------------------------
+------------------------------------------------------------------------
+update :: Solution -> [F.KVar] -> [(F.KVar, EQual)] -> (Bool, Solution)
+-------------------------------------------------------------------------
+update s ks kqs = traceShow msg (or bs, s')
   where
-    kqss     = M.toList $ group kqs
-    (bs, s') = folds update1 s kqss
+    kqss        = groupKs ks kqs
+    (bs, s')    = folds update1 s kqss
+    msg         = "s = " ++ showpp s
+
+groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
+groupKs ks kqs = M.toList $ groupBase m0 kqs
+  where
+    m0         = M.fromList $ (,[]) <$> ks
 
 update1 :: Solution -> (F.KVar, KBind) -> (Bool, Solution)
 update1 s (k, qs) = (change, M.insert k qs s)

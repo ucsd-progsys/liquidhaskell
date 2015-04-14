@@ -159,7 +159,8 @@ inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 concatMaps    = fmap sortNub . L.foldl' (M.unionWith (++)) M.empty
 
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
-group         = L.foldl' (\m (k, v) -> inserts k v m) M.empty
+group         = groupBase M.empty
+groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
 

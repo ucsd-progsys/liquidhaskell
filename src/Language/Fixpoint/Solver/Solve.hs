@@ -10,11 +10,12 @@ import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
+import           Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import qualified Data.List as L
-
+import           Debug.Trace (trace)
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
@@ -32,7 +33,7 @@ solve cfg fi = runSolverM cfg be $ solve_ cfg fi'
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi = refine s0 wkl >>= result fi
+solve_ cfg fi = refine' s0 wkl >>= result fi
   where
     s0        = S.init cfg fi
     wkl       = W.init cfg fi
@@ -42,9 +43,15 @@ refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 ---------------------------------------------------------------------------
 refine s w
   | Just (c, w') <- W.pop w = do (b, s') <- refineC s c
-                                 if b then refine s' (W.push c w')
-                                      else return s'
+                                 let w'' = if b then W.push c w' else w'
+                                 refine' s' w''
   | otherwise               = return s
+
+refine' s w = do
+  i <- getIter
+  trace (msg i) $ refine s w
+  where
+    msg i   = "Solution at " ++ show i ++ ": " ++ showpp s ++ "\n" ++ showpp w ++ "\n"
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -53,10 +60,14 @@ refineC :: S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
 refineC s c
   | null rhs  = return (False, s)
-  | otherwise = do lhs        <-  lhsPred  s c <$> getBinds
-                   S.update s <$> filterValid lhs rhs
+  | otherwise = do lhs   <- lhsPred  s c <$> getBinds
+                   kqs   <- filterValid lhs rhs
+                   let s' = S.update s ks kqs
+                   i     <- getIter
+                   return $ trace (msg i kqs s') $ s'
   where
-    rhs       =  rhsCands s c
+    (ks, rhs)  =  rhsCands s c
+    msg i z s' = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'
 
 lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
@@ -66,10 +77,11 @@ lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
     pBinds     = S.apply s <$> xts
     xts        = F.envCs be $  F.senv c
 
-rhsCands :: S.Solution -> F.SubC a -> S.Cand (F.KVar, S.EQual)
-rhsCands s c   = [ cnd k su q | (k, su) <- ks c, q <- S.lookup s k]
+rhsCands :: S.Solution -> F.SubC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
+rhsCands s c   = (fst <$> ks, kqs)
   where
-    ks         = predKs . F.reftPred . F.rhsCs
+    kqs        = [ cnd k su q | (k, su) <- ks, q <- S.lookup s k]
+    ks         = predKs . F.reftPred . F.rhsCs $ c
     cnd k su q = (F.subst su (S.eqPred q), (k, q))
 
 predKs :: F.Pred -> [(F.KVar, F.Subst)]

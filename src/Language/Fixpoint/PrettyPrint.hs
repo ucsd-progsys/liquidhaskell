@@ -42,6 +42,9 @@ instance (PPrint a, PPrint b) => PPrint (a,b) where
 instance PPrint SourcePos where
   pprint = text . show
 
+instance PPrint Bool where
+  pprint = text . show
+
 instance PPrint () where
   pprint = text . show
 
