@@ -12,16 +12,18 @@ module Language.Fixpoint.Solver.Deps
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc  (groupList)
+import           Language.Fixpoint.Names (nonSymbol)
 import qualified Language.Fixpoint.Types  as F
 
 import qualified Language.Fixpoint.Visitor as V
 import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as S
 import qualified Data.Graph                as G
+
+import Control.Monad.State
 
 type KVar = F.Symbol
 
-type Edge  = (KVar, KVar)
-type Graph = [(KVar, KVar, [KVar])]
 data Deps  = Deps { depCuts    :: ![KVar]
                   , depNonCuts :: ![KVar]
                   }
@@ -34,7 +36,13 @@ data Deps  = Deps { depCuts    :: ![KVar]
 solve :: Config -> F.FInfo a -> IO (F.FixResult a)
 --------------------------------------------------------------
 solve cfg fi = do
-  error "TODO: Ben fill in code that computes and prints out cuts"
+  let d = deps fi
+  print "(begin cuts debug)"
+  print "Cuts:"
+  print (depCuts d)
+  print "Non-cuts:"
+  print (depNonCuts d)
+  print "(end cuts debug)"
   return F.Safe
 
 
@@ -42,10 +50,8 @@ solve cfg fi = do
 -- | Compute Dependencies and Cuts ---------------------------
 --------------------------------------------------------------
 
--- TODO: currently ignores Kuts
-
 deps :: F.FInfo a -> Deps
-deps finfo = sccsToDeps sccs
+deps finfo = sccsToDeps sccs (F.kuts finfo)
   where
     bs    = F.bs finfo
     subCs = M.elems (F.cm finfo)
@@ -53,21 +59,32 @@ deps finfo = sccsToDeps sccs
     graph = [(k,k,ks) | (k, ks) <- groupList edges]
     sccs  = G.stronglyConnCompR graph
 
-sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Deps
-sccsToDeps xs = bar xs (Deps [] [])
+sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> F.Kuts -> Deps
+sccsToDeps xs ks = execState (mapM_ (bar ks) xs) (Deps [] [])
 
--- TODO: rewrite using State monad :)
-bar :: [G.SCC (KVar,KVar,[KVar])] -> Deps -> Deps
-bar []                              ds = ds
-bar (G.AcyclicSCC (v,_,_)     : xs) ds = bar xs (ds {depNonCuts = v : depNonCuts ds})
-bar (G.CyclicSCC ((v,_,_):vs) : xs) ds = bar xs (bar sccs' ds')
+bar :: F.Kuts -> G.SCC (KVar,KVar,[KVar]) -> State Deps ()
+bar _  (G.AcyclicSCC (v,_,_)) = do ds <- get
+                                   put ds {depNonCuts = v : depNonCuts ds}
+bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
+                                   ds <- get
+                                   put ds {depCuts = v : depCuts ds}
+                                   mapM_ (bar ks) (G.stronglyConnCompR vs')
+
+chooseCut :: [(KVar,KVar,[KVar])] -> F.Kuts -> (KVar, [(KVar,KVar,[KVar])])
+chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
   where
-    sccs'                              = G.stronglyConnCompR vs
-    ds'                                = ds { depCuts = v : depCuts ds }
+    vs' = [x | (x,_,_) <- vs]
+    is  = S.intersection (S.fromList vs') ks
+    v   = if (S.null is) then (head vs') 
+                         else (head $ S.toList is)
 
-subcEdges :: F.BindEnv -> F.SubC a -> [Edge]
-subcEdges bs c = [(k1, k2) | k1 <- lhsKVars bs c
-                           , k2 <- rhsKVars c    ]
+subcEdges :: F.BindEnv -> F.SubC a -> [(KVar, KVar)]
+subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
+                                  , k2 <- rhsKVars c    ]
+              ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
+-- this nonSymbol hack is one way to prevent nodes with
+-- potential outdegree 0 from getting pruned by
+-- stronglyConnCompR
 
 lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
