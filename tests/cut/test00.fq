@@ -3,8 +3,6 @@
 // This qualifier saves the day; solve constraints WITHOUT IT
 // qualif Zog(v:a) : (10 <= v)
 
-qualif Bog(v:a, x:a) : (x <= v)
-
 bind 0 a : {v: int | k0}
 
 constraint:
@@ -22,8 +20,7 @@ constraint:
   id 2 
 
 constraint:
-  env [ 0
-      ]
+  env [ 0 ]
   grd true 
   lhs {v : int | v = a}
   rhs {v : int | 10 <= v}
