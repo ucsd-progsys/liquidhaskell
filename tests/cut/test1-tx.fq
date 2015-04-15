@@ -3,9 +3,43 @@
 // qualif Zog(v:a) : (10 <= v)
 
 constraint:
-  env [a : {v : int | (\exists x. (x = 10) /\ (v = x)) 
-                   \/ (\exists y. (y = 20) /\ (v = y)) }]
+  env [a : {v : int | (exists x:int. x=10 /\ v=x) 
+                   \/ (exists y:int. y=20 /\ v=y) }]
   grd true 
   lhs {v : int | v = a  }
   rhs {v : int | 10 <= v}
   id 3 
+
+/*
+
+Rewriting constraints as:
+
+    id 1
+    x:int, v:int |- (v=10)[x/v] /\ (v=x) => k0
+    x:int, v:int |- (x=10) /\ (v=x) => k0
+
+    id 2
+    y:int, v:int |- (v=20)[y/v] /\ (v=y) => k0
+    y:int, v:int |- (y=20) /\ (v=y) => k0
+
+Projecting out all variables NOT in the WF of k0
+
+    id 1
+    v:int |- (exists x:int. x=10 /\ v=x) => k0
+
+    id 2
+    v:int |- (exists y:int. y=20 /\ v=y) => k0
+
+Take the \/ of all constraints on k0
+
+    k0 = (exists x:int. x=10 /\ v=x) \/ (exists y:int. y=20 /\ v=y)
+     
+So you get:
+
+    env [a : {v : int | (exists x:int. x=10 /\ v=x) \/ (exists y:int. y=20 /\ v=y) }]
+    grd true 
+    lhs {v : int | v = a  }
+    rhs {v : int | 10 <= v}
+    id 3
+
+*/

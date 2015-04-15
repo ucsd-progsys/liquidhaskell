@@ -6,64 +6,113 @@
 qualif Pog(v:a): (0 <= v)
 
 
-// Version 1 (eliminate k1)
-
-constraint:
-  env [ x: {v: int | v = 10}; 
-        a: {v: int | k0 \/ (v=0) }]
-  grd true
-  lhs {v : int | v = x + a}
-  rhs {v : int | k0}
-  id 1 
-
-constraint:
-  env [y: {v: int | v = 20}; 
-       b: {v: int | k0 \/ (v=0) }]
-  grd true 
-  lhs {v : int | v = y + b}
-  rhs {v : int | k0}
-  id 2 
-
-constraint:
-  env [c: {v: int | k0    }]
-  grd true 
-  lhs {v : int | v = c  }
-  rhs {v : int | 10 <= v}
-  id 4 
-
-wf:
-  env [ ]
-  reft {v: int | k0}
 
 
+/* 
+
+-- Version 1 (eliminate k1) --
+
+Rewriting constraints as:
+
+    id 0
+    v:int |- (v=0) => k1
+
+    id 3
+    v:int |- k0 => k1
+
+Projecting out all variables NOT in the WF of k1
+
+    N/A
+
+Take the \/ of all constraints on k1
+
+    k1 = (v=0) \/ k0
+
+So you get:
+
+  bind 0 x: {v: int | v = 10      }
+  bind 1 a: {v: int | (v=0) \/ k0 }
+  bind 2 y: {v: int | v = 20      }
+  bind 3 b: {v: int | (v=0) \/ k0 }
+  bind 4 c: {v: int | k0          }
+
+  constraint:
+    env [ 0; 1]
+    grd true
+    lhs {v : int | v = x + a}
+    rhs {v : int | k0}
+    id 1 
+
+  constraint:
+    env [2; 3]
+    grd true 
+    lhs {v : int | v = y + b}
+    rhs {v : int | k0}
+    id 2 
+
+  constraint:
+    env [4]
+    grd true 
+    lhs {v : int | v = c  }
+    rhs {v : int | 10 <= v}
+    id 4 
+
+  wf:
+    env [ ]
+    reft {v: int | k1}
 
 
 
-// Version 2 (eliminate k0)
 
-constraint:
-  env [ ]
-  grd true
-  lhs {v : int | v = 0}
-  rhs {v : int | k1 }
-  id 0 
+-- Version 1 (eliminate k0) --
 
-constraint:
-  env [ ]
-  grd true 
-  lhs {v : int | (\exists x a. (x=10) /\ k1[a/v] /\ (v = x+a))
-              /\ (\exists y b. (y=20) /\ k1[b/v] /\ (v = y+b)) }
-  rhs {v : int | k1}
-  id 3
+Rewriting constraints as:
 
-constraint:
-  env [c: {v: int | (\exists x a. (x=10) /\ k1[a/v] /\ (v = x+a))
-                 /\ (\exists y b. (y=20) /\ k1[b/v] /\ (v = y+b)) }]
-  grd true 
-  lhs {v : int | v = c  }
-  rhs {v : int | 10 <= v}
-  id 4 
+    id 1
+    x:int, a:int, v:int |- (v=10)[x/v] /\ k1[a/v] /\ (v=x+a) => k0
+    x:int, a:int, v:int |- (x=10) /\ k1[a/v] /\ (v=x+a) => k0
 
-wf:
-  env [ ]
-  reft {v: int | k1}
+    id 2
+    y:int, b:int, v:int |- (v=20)[y/v] /\ k1[b/v] /\ (v=y+b) => k0
+    y:int, b:int, v:int |- (y=20) /\ k1[b/v] /\ (v=y+b) => k0
+
+Projecting out all variables NOT in the WF of k0
+
+    id 1
+    v:int |- (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a)) => k0
+    
+    id 2
+    v:int |- (exists y:int b:int. (y=20) /\ k1[b/v] /\ (v=y+b)) => k0
+
+Take the \/ of all constraints on k0
+
+    k0 = (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a))
+      \/ (exists y:int b:int. (y=20) /\ k1[b/v] /\ (v=y+b))
+
+So you get:
+
+  bind 4 c: {v: int | (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a))
+                   \/ (exists y:int b:int. (y=20) /\ k1[b/v] /\ (v=y+b))    }
+
+  constraint:
+    env [ ]
+    grd true
+    lhs {v : int | v = 0}
+    rhs {v : int | k1 }
+    id 0 
+
+
+  constraint:
+    env [ ]
+    grd true 
+    lhs {v : int | (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a))
+                \/ (exists y:int b:int. (y=20) /\ k1[b/v] /\ (v=y+b))}
+    rhs {v : int | k1}
+    id 3
+
+  constraint:
+    env [4]
+    grd true 
+    lhs {v : int | v = c  }
+    rhs {v : int | 10 <= v}
+    id 4 
