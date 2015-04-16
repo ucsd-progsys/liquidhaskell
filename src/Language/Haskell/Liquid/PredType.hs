@@ -48,7 +48,7 @@ makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
 mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
 mkRTyCon tc (TyConP αs' ps _ tyvariance predvariance size) = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
-  where τs   = [rVar α :: RSort |  α <- TC.tyConTyVars tc]
+  where τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
         pvs' = subts (zip αs' τs) <$> ps
 
 dataConPSpecType :: DataCon -> DataConP -> SpecType 
@@ -58,11 +58,11 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt) = mkArrow vs ps ls ts' rt'
     mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t)
+    tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = errorstar "PredType.dataConPSpecType.tx called on invalid inputs"                           
     yts'     = tx [] xs ys ts
-    ts'      = map ("" ,) cs ++ yts'
+    ts'      = map ("" , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = subst su rt
 

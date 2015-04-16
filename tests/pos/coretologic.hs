@@ -6,7 +6,7 @@ import Data.Set
 -- appear in type and alias specifications, not just in
 -- measures as in `goo` below?
 
-{-@ type IsEmp a = {v:[a] | listElts v = empty } @-}
+{-@ type IsEmp a = {v:[a] | Data.Set.elems v = Data.Set.empty } @-}
 
 {-@ foo :: IsEmp Int @-}
 foo :: [Int]

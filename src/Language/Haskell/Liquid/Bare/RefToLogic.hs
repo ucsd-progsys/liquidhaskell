@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)     
 import Language.Fixpoint.Misc      
-import Language.Fixpoint.Names      (dropModuleNames)
+import Language.Fixpoint.Names
 
 import qualified Data.HashMap.Strict as M
 
@@ -71,7 +71,7 @@ instance Transformable Pred where
 	tx s m (PNot p)        = PNot (tx s m p)
 	tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
 	tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
-	tx s m (PBexp (EApp f es)) = txPApp (s, m) f es
+	tx s m (PBexp (EApp f es)) = txPApp (s, m) f (tx s m <$> es)
 	tx s m (PBexp e)       = PBexp (tx s m e)
 	tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
 	tx s m (PAll xss p) 
@@ -83,7 +83,7 @@ instance Transformable Expr where
 	tx s m (EVar s') 
 	   | cmpSymbol s s'   = mexpr m
 	   | otherwise        = EVar s'
-	tx s m (EApp f es)    = txEApp (s, m) f es
+	tx s m (EApp f es)    = txEApp (s, m) f (tx s m <$> es)
 	tx _ _ (ESym c)       = ESym c
 	tx _ _ (ECon c)       = ECon c
 	tx _ _ (ELit l s')    = ELit l s'
@@ -138,4 +138,6 @@ txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
   = (dropModuleNamesAndUnique s1) == (dropModuleNamesAndUnique s2)
-dropModuleNamesAndUnique = dropModuleNames
+
+
+dropModuleNamesAndUnique = dropModuleUnique {- . dropModuleNames -}

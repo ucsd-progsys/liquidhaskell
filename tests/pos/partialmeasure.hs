@@ -12,7 +12,7 @@ test =  cons 0 [1,2,3,4]
 {-@ measure hd @-}
 hd       :: [a] -> a
 hd (x:_) = x
-hd []    = undefined
+
 
 -- Instead of rejecting, can we just default to "un-refined" constructors?
 

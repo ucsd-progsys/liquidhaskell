@@ -221,7 +221,7 @@ makeSpecDictionaries embs vars specs sp
        return $ sp {dicts = ds}
 
 makeSpecDictionary embs vars (_, spec)  
-  = mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
+  = catMaybes <$> mapM (makeSpecDictionaryOne embs vars) (Ms.rinstance spec)
 
 makeSpecDictionaryOne embs vars (RI x t xts) 
   = do t'  <-  mkTy t
@@ -229,17 +229,15 @@ makeSpecDictionaryOne embs vars (RI x t xts)
        ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
        let v = lookupName d   
-       return (v, dts)
+       return ((, dts) <$> v)
   where 
     mkTy  t  = mkSpecType (loc x) t
     mkTy' t  = generalize  <$> mkTy t
     (xs, ts) = unzip xts
     lookupName x 
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of 
-                [(_, x)] -> x
-                _ -> head vars -- HACK, but since it is not imported, 
-                               -- the dictionary cannot be used
-                               -- errorstar ("makeSpecDictionary: " ++ show x ++ "\tnot in\n" ++ show vars)
+                [(_, x)] -> Just x
+                _        -> Nothing 
 
 makeBounds name defVars cbs specs 
   = do bnames  <- mkThing makeHBounds

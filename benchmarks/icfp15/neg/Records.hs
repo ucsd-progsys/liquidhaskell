@@ -8,7 +8,8 @@ import DataBase
 data Value = I Int
 
 
-{-@ rec   :: {v:Dict <{\v -> v == bar}, {\x y -> true}> String Value | listElts (ddom v) = (Set_sng foo)} @-}
+{-@ rec   :: {v:Dict <{\x y -> true}> String Value | listElts (ddom v) ~~ (Set_sng "bar")} @-}
+
 rec :: Dict String Value
 rec = ("foo" := I 8) += empty
 
