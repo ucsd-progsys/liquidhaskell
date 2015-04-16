@@ -89,7 +89,7 @@ import Language.Haskell.Liquid.Variance
 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar)
+import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Fixpoint.Names (listConName, tupConName)
 import Data.List (sort, foldl')
 
@@ -241,7 +241,7 @@ class FreeVar a v where
 
 -- MOVE TO TYPES
 instance FreeVar RTyCon RTyVar where
-  freeVars = (RTV <$>) . tyConTyVars . rtc_tc
+  freeVars = (RTV <$>) . tyConTyVarsDef . rtc_tc
 
 -- MOVE TO TYPES
 instance FreeVar LocSymbol Symbol where
@@ -451,7 +451,7 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
     rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
     n                          = length fVs
-    fVs                        = tyConTyVars $ rtc_tc rc
+    fVs                        = tyConTyVarsDef $ rtc_tc rc
     as                         = choosen n ts (rVar <$> fVs)
   
     choosen 0 _ _           = []
@@ -495,8 +495,8 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
     ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
     ts'  = if null ts then rVar <$> βs else toRSort <$> ts
     rc'  = M.lookupDefault rc c tyi
-    αs   = TC.tyConTyVars $ rtc_tc rc'
-    βs   = TC.tyConTyVars c
+    αs   = tyConTyVarsDef $ rtc_tc rc'
+    βs   = tyConTyVarsDef c
     rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
 isNumeric tce c 
@@ -921,13 +921,13 @@ mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
 expandProductType x t 
   | ofType (varType x) == toRSort t = (x, t)
   | otherwise                       = (x, t')
-     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
+     where t'         = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
            τs         = fst $ splitFunTys $ toType t
            trep       = toRTypeRep t
-           (xs', ts') = unzip $ concatMap mkProductTy $ zip3 τs (ty_binds trep) (ty_args trep)
+           (xs', ts', rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
           
-mkProductTy (τ, x, t) = maybe [(x, t)] f $ deepSplitProductType_maybe menv τ
-  where f    = ((<$>) ((,) dummySymbol . ofType)) . third4
+mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
+  where f    = ((<$>) ((dummySymbol, , mempty) . ofType)) . third4
         menv = (emptyFamInstEnv, emptyFamInstEnv)
           
 -----------------------------------------------------------------------------------------
@@ -1020,7 +1020,7 @@ mkTyConInfo c usertyvar userprvariance f
         go _ _   (LitTy _)       = []
 
         varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
-        tyvars        = TC.tyConTyVars c
+        tyvars        = tyConTyVarsDef c
         n             = (TC.tyConArity c) - 1
         errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
         dindex        = -1

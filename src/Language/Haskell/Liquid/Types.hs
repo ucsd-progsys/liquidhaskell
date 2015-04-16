@@ -12,6 +12,7 @@
 {-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -239,7 +240,7 @@ import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Misc (mapSndM)
+import Language.Haskell.Liquid.Misc (mapSndM, safeZip3WithError)
 
 
 import Data.Default
@@ -895,31 +896,34 @@ data RTypeRep c tv r
              , ty_preds  :: [PVar (RType c tv ())]
              , ty_labels :: [Symbol]
              , ty_binds  :: [Symbol]
+             , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
              }
 
-fromRTypeRep rep 
-  = mkArrow (ty_vars rep) (ty_preds rep) (ty_labels rep) (zip (ty_binds rep) (ty_args rep)) (ty_res rep)
+fromRTypeRep (RTypeRep {..})
+  = mkArrow ty_vars ty_preds ty_labels arrs ty_res
+  where
+    arrs = safeZip3WithError "fromRTypeRep" ty_binds ty_args ty_refts
 
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
-toRTypeRep t         = RTypeRep αs πs ls xs ts t''
+toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
   where
-    (αs, πs, ls, t') = bkUniv  t
-    (xs, ts, t'')    = bkArrow t'
+    (αs, πs, ls, t')  = bkUniv  t
+    (xs, ts, rs, t'') = bkArrow t'
 
-mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts 
+mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts
   where 
-    mkArrs xts t  = foldr (uncurry rFun) t xts 
+    mkArrs xts t  = foldr (\(b,t1,r) t2 -> RFun b t1 t2 r) t xts 
 
 bkArrowDeep (RAllT _ t)     = bkArrowDeep t
 bkArrowDeep (RAllP _ t)     = bkArrowDeep t
 bkArrowDeep (RAllS _ t)     = bkArrowDeep t
-bkArrowDeep (RFun x t t' _) = let (xs, ts, t'') = bkArrowDeep t'  in (x:xs, t:ts, t'')
-bkArrowDeep t               = ([], [], t)
+bkArrowDeep (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrowDeep t'  in (x:xs, t:ts, r:rs, t'')
+bkArrowDeep t               = ([], [], [], t)
 
-bkArrow (RFun x t t' _) = let (xs, ts, t'') = bkArrow t'  in (x:xs, t:ts, t'')
-bkArrow t               = ([], [], t)
+bkArrow (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrow t'  in (x:xs, t:ts, r:rs, t'')
+bkArrow t               = ([], [], [], t)
 
 safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
@@ -966,8 +970,8 @@ addInvCond t r'
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
 addObligation o t r = mkArrow αs πs ls xts $ RRTy [] r o t2
   where (αs, πs, ls, t1) = bkUniv t
-        (xs, ts, t2)     = bkArrow t1
-        xts              = zip xs ts
+        (xs, ts, rs, t2) = bkArrow t1
+        xts              = zip3 xs ts rs
 
 --------------------------------------------
 

@@ -31,6 +31,7 @@ import Control.Applicative      ((<$>))
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.Misc (addThd3)
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance
@@ -312,7 +313,7 @@ defRefType :: Def DataCon -> RRType Reft
 defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
   where 
     as  = RTV <$> dataConUnivTyVars dc
-    xts = safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
+    xts = map (addThd3 mempty) $ safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
     t'  = refineWithCtorBody dc f body t 
     t   = ofType $ dataConOrigResTy dc
     msg = "defRefType dc = " ++ showPpr dc 

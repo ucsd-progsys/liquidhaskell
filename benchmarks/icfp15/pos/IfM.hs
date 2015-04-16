@@ -73,7 +73,7 @@ get = undefined
 
 {-@ qual1 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b <=> n /= 0) && (Prop b <=> counter v /= 0)}> {v:Bool | Prop v <=> n /= 0} @-}
 qual1 :: Int -> RIO Bool
-qual1 = \x -> return (x /= 0)
+qual1 = undefined
 
 {-@ qual2 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b <=> counter w2 /= 0}> Bool @-}
 qual2 :: RIO Bool
@@ -81,8 +81,7 @@ qual2 = undefined
 
 {-@ qual3 :: n:Int -> RIO <{v:World | counter v = n}, \w1 b -> {v:World |  (Prop b <=> n == 0) && (Prop b <=> counter v == 0)}> {v:Bool | Prop v <=> n == 0} @-}
 qual3 :: Int -> RIO Bool
-qual3 = \x -> return (x == 0)
-
+qual3 = undefined
 {-@ qual4 :: RIO <{\x -> true}, {\w1 b w2 -> Prop b <=> counter w2 == 0}> Bool @-}
 qual4 :: RIO Bool
 qual4 = undefined

@@ -64,6 +64,7 @@ import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
+import Language.Haskell.Liquid.Bounds 
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)          
@@ -456,17 +457,13 @@ splitC (SubC γ t1 (RAllE x tx t2))
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
 
-splitC (SubC γ (RRTy [(_, t)] _ OCons t1) t2)
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+splitC (SubC γ (RRTy env _ OCons t1) t2)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        c1 <- splitC (SubC γ' t1' t2')
        c2 <- splitC (SubC γ  t1  t2 )
        return $ c1 ++ c2
   where
-    trep = toRTypeRep t
-    xs   = init $ ty_binds trep
-    ts   = init $ ty_args  trep
-    t2'  = ty_res   trep
-    t1'  = last $ ty_args trep
+    (xts, t1', t2') = envToSub env 
 
 splitC (SubC γ (RRTy e r o t1) t2) 
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e 
@@ -875,6 +872,8 @@ refreshArgs :: SpecType -> CG SpecType
 refreshArgs t 
   = fst <$> refreshArgsSub t
 
+
+-- NV TODO: this does not refreshes args if they are wrapped in an RRTy
 refreshArgsSub :: SpecType -> CG (SpecType, F.Subst)
 refreshArgsSub t 
   = do ts     <- mapM refreshArgs ts_u
@@ -1100,8 +1099,8 @@ makeFinTy (ns, t) = fmap go t
 makeTermEnvs γ xtes xes ts ts' = withTRec γ . zip xs <$> rts
   where
     vs   = zipWith collectArgs ts es
-    ys   = (fst3 . bkArrowDeep) <$> ts 
-    ys'  = (fst3 . bkArrowDeep) <$> ts'
+    ys   = (fst4 . bkArrowDeep) <$> ts
+    ys'  = (fst4 . bkArrowDeep) <$> ts'
     sus' = zipWith mkSub ys ys'
     sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
     ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
@@ -1274,10 +1273,6 @@ cconsE γ e (RAllP p t)
     (css, t'') = splitConstraints t'
     γ'         = foldl (flip addConstraints) γ css 
 
-
--- cconsE γ e (RRTy [(_, cs)] _ OCons t)
---   = cconsE (addConstraints cs γ) e t
-
 cconsE γ (Let b e) t    
   = do γ'  <- consCBLet γ b
        cconsE γ' e t 
@@ -1310,7 +1305,7 @@ cconsE γ e t
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
-splitConstraints (RRTy [(_, cs)] _ OCons t) 
+splitConstraints (RRTy cs _ OCons t) 
   = let (css, t') = splitConstraints t in (cs:css, t')
 splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
@@ -1502,16 +1497,12 @@ dropExists γ t            = return (γ, t)
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = (flip (RFun x tx)) r <$> dropConstraints γ t 
-dropConstraints γ (RRTy [(_, ct)] _ OCons t) 
-  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ (zip xs ts)
+dropConstraints γ (RRTy cts _ OCons t) 
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        addC (SubC  γ' t1 t2)  "dropConstraints"
        dropConstraints γ t
   where
-    trep = toRTypeRep ct
-    xs   = init $ ty_binds trep
-    ts   = init $ ty_args  trep
-    t2   = ty_res   trep
-    t1   = last $ ty_args trep
+    (xts, t1, t2) = envToSub cts 
 
 dropConstraints _ t = return t
 
@@ -1589,14 +1580,14 @@ altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where 
-        tbody           = instantiatePvs (instantiateTys td ts) $ reverse rs
-        (ys0, yts', rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''           = zipWith F.subst sus (yts'++[rt])
-        (t3,yts)        = (last yts'', init yts'')
-        sus             = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
-        (αs, ys')       = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
-        tvs'            = rVar <$> αs
-        tvys            = ofType . varType <$> αs
+        tbody              = instantiatePvs (instantiateTys td ts) $ reverse rs
+        (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
+        yts''              = zipWith F.subst sus (yts'++[rt])
+        (t3,yts)           = (last yts'', init yts'')
+        sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
+        (αs, ys')          = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        tvs'               = rVar <$> αs
+        tvys               = ofType . varType <$> αs
 
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
@@ -1732,20 +1723,20 @@ forallExprReft γ r
 
 forallExprReft_ γ (F.EApp f es) 
   = case forallExprReftLookup γ (val f) of
-      Just (xs,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
+      Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
 forallExprReft_ γ (F.EVar x) 
   = case forallExprReftLookup γ x of 
-      Just (_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t 
+      Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
 forallExprReft_ _ _ = Nothing -- F.exprReft e 
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where 
-    snap                 = mapThd3 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
+    snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
