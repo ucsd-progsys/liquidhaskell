@@ -4,6 +4,7 @@ module Language.Fixpoint.Solver.Deps
 
          -- * KV-Dependencies
        , deps
+       , Deps
 
          -- * Reads and Writes of Constraints
        , lhsKVars
@@ -82,9 +83,8 @@ subcEdges :: F.BindEnv -> F.SubC a -> [(KVar, KVar)]
 subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
                                   , k2 <- rhsKVars c    ]
               ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
--- this nonSymbol hack is one way to prevent nodes with
--- potential outdegree 0 from getting pruned by
--- stronglyConnCompR
+-- this nonSymbol hack is one way to prevent nodes with potential 
+-- outdegree 0 from getting pruned by stronglyConnCompR
 
 lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
