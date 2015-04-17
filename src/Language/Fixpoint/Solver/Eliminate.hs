@@ -1,13 +1,25 @@
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll) where
+       (eliminateAll, solve) where
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
 import qualified Language.Fixpoint.Visitor     as V
 
 import qualified Data.HashMap.Strict           as M
-import qualified Data.List                     as L
 
+
+--------------------------------------------------------------
+-- | Dummy just for debugging --------------------------------
+--------------------------------------------------------------
+import qualified Text.PrettyPrint.HughesPJ as Debug
+import           Language.Fixpoint.Config
+solve :: Config -> FInfo a -> IO (FixResult a)
+--------------------------------------------------------------
+solve cfg fi = do
+  let d = D.deps fi
+  let blah = toFixpoint (eliminateAll fi d)
+  putStr (Debug.render blah)
+  return Safe
 
 
 class Elimable a where
@@ -53,10 +65,11 @@ eliminateAll :: FInfo a -> D.Deps -> FInfo a
 eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
 eliminate :: FInfo a -> KVar -> FInfo a
-eliminate fInfo kv = elimKVar kv orPred fInfo
+eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs })
   where
-    (relevantSubCs, remainingSubCs) = L.partition (\subC -> kv `elem` (D.rhsKVars subC)) (M.elems (cm fInfo))
-    orPred = POr (map (foo kv fInfo) relevantSubCs)
+    relevantSubCs  = M.filter (\subC ->       kv `elem` (D.rhsKVars subC)) (cm fInfo)
+    remainingSubCs = M.filter (\subC -> not $ kv `elem` (D.rhsKVars subC)) (cm fInfo)
+    orPred = POr (map (foo kv fInfo) (M.elems relevantSubCs))
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
 --Assume we are given the kvar corresponding to the constraint's RHS
