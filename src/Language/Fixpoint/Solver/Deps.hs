@@ -4,7 +4,7 @@ module Language.Fixpoint.Solver.Deps
 
          -- * KV-Dependencies
        , deps
-       , Deps
+       , Deps (..)
 
          -- * Reads and Writes of Constraints
        , lhsKVars
