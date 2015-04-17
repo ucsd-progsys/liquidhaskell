@@ -65,11 +65,12 @@ eliminateAll :: FInfo a -> D.Deps -> FInfo a
 eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
 eliminate :: FInfo a -> KVar -> FInfo a
-eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs })
+eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs})
   where
     relevantSubCs  = M.filter (\subC ->       kv `elem` (D.rhsKVars subC)) (cm fInfo)
     remainingSubCs = M.filter (\subC -> not $ kv `elem` (D.rhsKVars subC)) (cm fInfo)
     orPred = POr (map (foo kv fInfo) (M.elems relevantSubCs))
+    remainingWs = filter (\wfc -> not $ kv `elem` V.reftKVars (sr_reft (wrft wfc))) (ws fInfo)
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
 --Assume we are given the kvar corresponding to the constraint's RHS
@@ -121,29 +122,3 @@ blah (sym, sr) = subst1 (reftPred reft) sub
   where
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))
-
-
-{-
-data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
-                  , ws    :: ![WfC a]
-                  , bs    :: !BindEnv
-                  , gs    :: !FEnv
-                  , lits  :: ![(Symbol, Sort)]
-                  ...
-                  }
-
-data SubC a = SubC { srhs  :: !SortedReft
-                     ...
-                   }
-
-data Expr = ESym !SymConst
-          | ECon !Constant
-          | EVar !Symbol
-          | ELit !LocSymbol !Sort
-          | EApp !LocSymbol ![Expr]
-          | ENeg !Expr
-          | EBin !Bop !Expr !Expr
-          | EIte !Pred !Expr !Expr
-          | ECst !Expr !Sort
-          | EBot
--}
