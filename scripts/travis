@@ -40,12 +40,12 @@ function prevent_timeout {
   $cmd &
   local cmd_pid=$!
 
-  poke_stdout &
+  poke_stdout 2>/dev/null &
   local poke_pid=$!
 
   wait $cmd_pid
   exit_code=$?
-  kill $poke_pid
+  kill $poke_pid &>/dev/null
 
   return $exit_code
 }
@@ -64,13 +64,9 @@ function pastebin {
 
 ## Testing Stages
 
-function install_ocaml {
-  loud travis_retry sudo apt-get update
-  loud travis_retry sudo apt-get install ocaml camlidl
-}
-
 function setup_cabal {
   loud travis_retry cabal update
+  loud cabal sandbox init
 }
 
 function clone_fixpoint {
@@ -87,6 +83,7 @@ function install_smt {
 function install_cabal_deps {
   loud travis_retry cabal install --only-dependencies --enable-tests -fbuild-external . /tmp/fixpoint
   loud travis_retry cabal install -fbuild-external /tmp/fixpoint
+  loud cp .cabal-sandbox/bin/* "$HOME/.cabal/bin/"
 }
 
 function do_build {
@@ -113,16 +110,22 @@ function dump_fail_logs {
 function test_source_pkg {
   loud cabal sdist
 
-  local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
+  local src_tgz="dist/$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
 
-  pushd dist
   if [ -f "$src_tgz" ]; then
     loud prevent_timeout cabal install -j4 "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
   fi
-  popd dist
+}
+
+function do_cleanup {
+  loud ghc-pkg unregister liquidhaskell --force || true
+  loud ghc-pkg unregister liquid-fixpoint --force || true
+
+  loud cabal sandbox hc-pkg -- unregister liquidhaskell --force || true
+  loud cabal sandbox hc-pkg -- unregister liquid-fixpoint --force || true
 }
 
 ## Run Test Stage
