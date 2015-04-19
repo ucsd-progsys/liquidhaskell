@@ -13,7 +13,8 @@ sudo: false
 cache:
   apt: true
   directories:
-  - .cabal-sandbox
+  - $HOME/.cabal
+  - $HOME/.ghc
 
 env:
  - SMT=z3 TESTS=Unit/pos
