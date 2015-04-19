@@ -23,7 +23,7 @@ env:
  - SMT=z3 TESTS=Benchmarks/text
  - SMT=z3 TESTS=Benchmarks/bytestring
  - SMT=z3 TESTS=Benchmarks/esop
- - SMT=z3 TESTS=Benchmarks/vector-algorithms
+ - SMT=z3 TESTS=Benchmarks/vect-algs
  - SMT=cvc4 TESTS=Unit/pos
  - SMT=cvc4 TESTS=Unit/neg
  - SMT=cvc4 TESTS=Unit/crash
