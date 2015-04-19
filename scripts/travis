@@ -69,7 +69,6 @@ function pastebin {
 
 function setup_cabal {
   loud travis_retry cabal update
-  loud cabal sandbox init
 }
 
 function clone_fixpoint {
@@ -86,7 +85,6 @@ function install_smt {
 function install_cabal_deps {
   loud travis_retry cabal install --only-dependencies --enable-tests -fbuild-external . /tmp/fixpoint
   loud travis_retry cabal install -fbuild-external /tmp/fixpoint
-  loud cp .cabal-sandbox/bin/* "$HOME/.cabal/bin/"
 }
 
 function do_build {
@@ -126,9 +124,6 @@ function test_source_pkg {
 function do_cleanup {
   loud ghc-pkg unregister liquidhaskell --force || true
   loud ghc-pkg unregister liquid-fixpoint --force || true
-
-  loud cabal sandbox hc-pkg -- unregister liquidhaskell --force || true
-  loud cabal sandbox hc-pkg -- unregister liquid-fixpoint --force || true
 }
 
 ## Run Test Stage
