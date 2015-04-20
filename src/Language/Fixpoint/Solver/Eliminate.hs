@@ -6,6 +6,7 @@ import qualified Language.Fixpoint.Solver.Deps as D
 import qualified Language.Fixpoint.Visitor     as V
 
 import qualified Data.HashMap.Strict           as M
+import           Data.List (partition)
 
 
 --------------------------------------------------------------
@@ -69,21 +70,25 @@ eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = rema
   where
     relevantSubCs  = M.filter (\subC ->       kv `elem` (D.rhsKVars subC)) (cm fInfo)
     remainingSubCs = M.filter (\subC -> not $ kv `elem` (D.rhsKVars subC)) (cm fInfo)
-    orPred = POr (map (foo kv fInfo) (M.elems relevantSubCs))
-    remainingWs = filter (\wfc -> not $ kv `elem` V.reftKVars (sr_reft (wrft wfc))) (ws fInfo)
+    (kVarSReft, remainingWs) = bar kv (ws fInfo)
+    orPred = POr (map (foo kVarSReft fInfo) (M.elems relevantSubCs))
+
+--TODO: ignores the WfC's env
+bar :: KVar -> [WfC a] -> (SortedReft, [WfC a])
+bar kv ws = (wrft w', ws')
+  where
+    (w, ws') = partition (\wfc -> elem kv (V.reftKVars (sr_reft (wrft wfc)))) ws
+    w' | (length w) == 1 = head w
+       | otherwise       = error $ (show kv) ++ " needs exactly one wf constraint"
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
---Assume we are given the kvar corresponding to the constraint's RHS
---TODO: ignores the WfC's env. also assumes will find exactly one wfc for a given kvar
-foo :: KVar -> FInfo a -> SubC a -> Pred
-foo kv fInfo subC = pr'
+foo :: SortedReft -> FInfo a -> SubC a -> Pred
+foo kvSreft fInfo subC = pr'
   where
     bindings = envCs (bs fInfo) (senv subC)
-    srefts = map wrft (ws fInfo)
-    sreft = head [sr | sr <- srefts, elem kv (V.reftKVars (sr_reft sr))]
-    kVarVV = reftBind $ sr_reft sreft
+    kVarVV = reftBind $ sr_reft kvSreft
     pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    pr' = projectNonWFVars [(kVarVV,sr_sort sreft)] pr
+    pr' = projectNonWFVars [(kVarVV, sr_sort kvSreft)] pr
 
 projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
 projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
