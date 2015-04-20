@@ -58,7 +58,7 @@ instance Elimable (FInfo a) where
                        }
 
 instance Elimable BindEnv where
-  elimKVar kv pr benv = mapBindEnv (\(sym, sr) -> (sym, (elimKVar kv pr sr))) benv
+  elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, (elimKVar kv pr sr)))
 
 
 eliminateAll :: FInfo a -> D.Deps -> FInfo a
@@ -74,21 +74,16 @@ eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = rema
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
 --Assume we are given the kvar corresponding to the constraint's RHS
+--TODO: ignores the WfC's env. also assumes will find exactly one wfc for a given kvar
 foo :: KVar -> FInfo a -> SubC a -> Pred
 foo kv fInfo subC = pr'
   where
     bindings = envCs (bs fInfo) (senv subC)
-    pr = predAndSimpleEnvFromEnvAndLhs bindings (slhs subC)
-    (_, pr') = projectNonWFVars (bar (ws fInfo) kv) pr --TODO: remove unused retval
-
---TODO: ignores the WfC's env. also assumes will find exactly one wfc for a given kvar
-bar :: [WfC a] -> KVar -> [(Symbol,Sort)]
-bar wfcs kv = [(sym, sort)]
-  where
-    srefts = map wrft wfcs
+    srefts = map wrft (ws fInfo)
     sreft = head [sreft | sreft <- srefts, elem kv (V.reftKVars (sr_reft sreft))]
-    sym = reftBind $ sr_reft sreft
-    sort = sr_sort sreft
+    kVarVV = reftBind $ sr_reft sreft
+    pr = baz $ (zoink kVarVV (slhs subC)) : bindings
+    (_, pr') = projectNonWFVars [(kVarVV,sr_sort sreft)] pr --TODO: remove unused retval
 
 projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> ([(Symbol,Sort)],Pred)
 projectNonWFVars wfVars (vars, pr) = (vars', pr')
@@ -96,13 +91,11 @@ projectNonWFVars wfVars (vars, pr) = (vars', pr')
     vars' = [var | var <- vars, elem var wfVars]
     pr' = PExist [var | var <- vars, not (elem var wfVars)] pr
 
--- [ x : {v : int | v = 10}
--- , y : {v : int | v = 20} ]
--- lhs {v : int | v = x}
--- ->
--- [v:int, x:int, y:int], (x = 10) /\ (y = 20) /\ (v = x)
-predAndSimpleEnvFromEnvAndLhs :: [(Symbol, SortedReft)] -> SortedReft -> ([(Symbol,Sort)],Pred)
-predAndSimpleEnvFromEnvAndLhs bindings lhs = baz $ (reftBind $ sr_reft lhs, lhs) : bindings
+zoink :: Symbol -> SortedReft -> (Symbol, SortedReft)
+zoink sym lhs = (sym, subst1 lhs (oldV, eVar sym))
+  where
+    reft = sr_reft lhs
+    oldV = reftBind reft
 
 -- [ x : {v : int | v = 10}
 -- , y : {v : int | v = 20} ]
