@@ -33,17 +33,17 @@ env:
  # - TESTS=hscolour
 
 before_install:
- - scripts/travis setup_cabal
+ - scripts/travis clean_cache "$SMT"
  - scripts/travis clone_fixpoint
- - scripts/travis install_smt "$SMT"
 
 install:
  - scripts/travis install_cabal_deps
+ - scripts/travis install_smt "$SMT"
 
 script:
  - scripts/travis do_build
  - scripts/travis do_test "$TESTS" "$SMT" && scripts/travis test_source_pkg
- - scripts/travis do_cleanup
+ - scripts/travis clean_cache "$SMT"
 
 after_failure:
  - scripts/travis dump_fail_logs
