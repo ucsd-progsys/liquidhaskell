@@ -80,36 +80,25 @@ foo kv fInfo subC = pr'
   where
     bindings = envCs (bs fInfo) (senv subC)
     srefts = map wrft (ws fInfo)
-    sreft = head [sreft | sreft <- srefts, elem kv (V.reftKVars (sr_reft sreft))]
+    sreft = head [sr | sr <- srefts, elem kv (V.reftKVars (sr_reft sr))]
     kVarVV = reftBind $ sr_reft sreft
     pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    (_, pr') = projectNonWFVars [(kVarVV,sr_sort sreft)] pr --TODO: remove unused retval
+    pr' = projectNonWFVars [(kVarVV,sr_sort sreft)] pr
 
-projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> ([(Symbol,Sort)],Pred)
-projectNonWFVars wfVars (vars, pr) = (vars', pr')
-  where
-    vars' = [var | var <- vars, elem var wfVars]
-    pr' = PExist [var | var <- vars, not (elem var wfVars)] pr
+projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
+projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
 
 zoink :: Symbol -> SortedReft -> (Symbol, SortedReft)
 zoink sym lhs = (sym, subst1 lhs (oldV, eVar sym))
   where
-    reft = sr_reft lhs
-    oldV = reftBind reft
+    oldV = reftBind $ sr_reft lhs
 
--- [ x : {v : int | v = 10}
--- , y : {v : int | v = 20} ]
--- ->
--- [x:int, y:int], (x = 10) /\ (y = 20)
+-- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
 baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
-baz bindings = (bs, pr)
+baz bindings = (bs, PAnd $ map blah bindings)
   where
     bs = map (\(sym, sreft) -> (sym, sr_sort sreft)) bindings
-    pr = PAnd $ map blah bindings
 
--- x : {v : int | v = 10}
--- ->
--- (x = 10)
 blah :: (Symbol, SortedReft) -> Pred
 blah (sym, sr) = subst1 (reftPred reft) sub
   where
