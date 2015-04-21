@@ -29,11 +29,11 @@ instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
-  pprint (x, y, z)  = parens $ (pprint x) <> text "," <> (pprint y) <> text "," <> (pprint z)
+  pprint (x, y, z)  = parens $ pprint x <> text "," <> pprint y <> text "," <> pprint z
 
 
 instance (PPrint a, PPrint b) => PPrint (a,b) where
-  pprint (x, y)  = (pprint x) <+> text ":" <+> (pprint y)
+  pprint (x, y)  = pprint x <+> text ":" <+> pprint y
 
 instance PPrint SourcePos where
   pprint = text . show
@@ -111,7 +111,7 @@ instance PPrint Expr where
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
                                    intersperse empty $
-                                     (pprint f) : (pprintPrec (za+1) <$> es)
+                                     pprint f : (pprintPrec (za+1) <$> es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -182,4 +182,4 @@ instance PPrint SortedReft where
     $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
 
 instance PPrint a => PPrint (Located a) where
-  pprint (Loc _ x) = pprint x
+  pprint (Loc _ _ x) = pprint x
