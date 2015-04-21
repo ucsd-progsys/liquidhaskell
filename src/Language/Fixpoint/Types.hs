@@ -9,11 +9,12 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
-
--- | This module contains the data types, operations and serialization functions
--- for representing Fixpoint's implication (i.e. subtyping) and well-formedness
--- constraints in Haskell. The actual constraint solving is done by the
--- `fixpoint.native` which is written in Ocaml.
+-- | This module contains the data types, operations and
+--   serialization functions for representing Fixpoint's
+--   implication (i.e. subtyping) and well-formedness
+--   constraints in Haskell. The actual constraint
+--   solving is done by the `fixpoint.native` which
+--   is written in Ocaml.
 
 module Language.Fixpoint.Types (
 
@@ -501,6 +502,7 @@ instance Fixpoint Expr where
 --------------------- Predicates -------------------------
 ----------------------------------------------------------
 
+
 data Pred = PTrue
           | PFalse
           | PAnd  ![Pred]
@@ -512,8 +514,15 @@ data Pred = PTrue
           | PAtom !Brel !Expr !Expr
           | PKVar !KVar !Subst
           | PAll  ![(Symbol, Sort)] !Pred
+          | PEx   ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+{-@ type ListNE a = {v:[a] | 0 < len v} @-}
+
+{-@ PAnd :: ListNE Pred -> Pred @-}
+
+
 
 instance Hashable Brel
 instance Hashable Bop
