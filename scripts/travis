@@ -75,9 +75,6 @@ function clean_cache {
   loud ghc-pkg unregister liquidhaskell --force || true
   loud ghc-pkg unregister liquid-fixpoint --force || true
   loud rm "$HOME/.cabal/bin/$smt" || true
-
-  loud find "$HOME/.cabal"
-  loud find "$HOME/.ghc"
 }
 
 function clone_fixpoint {
