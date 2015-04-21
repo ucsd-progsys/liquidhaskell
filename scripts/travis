@@ -26,7 +26,6 @@ function travis_retry {
     result=$?
     set -e
     [ $result -eq 0 ] && break
-    result=$?
     count=$(($count + 1))
     sleep 1
   done
@@ -44,12 +43,14 @@ function prevent_timeout {
   $cmd &
   local cmd_pid=$!
 
-  poke_stdout 2>/dev/null &
+  poke_stdout &
   local poke_pid=$!
 
   wait $cmd_pid
   exit_code=$?
-  kill $poke_pid &>/dev/null
+
+  kill $poke_pid
+  (wait $poke_pid 2>/dev/null) || true
 
   return $exit_code
 }
