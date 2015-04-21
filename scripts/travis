@@ -102,7 +102,7 @@ function install_cabal_deps {
 
 function _install_cabal_deps {
   loud travis_retry cabal update || return 1
-  loud travis_retry cabal install --only-dependencies --upgrade-dependencies --enable-tests -fbuild-external . /tmp/fixpoint || return 1
+  loud travis_retry cabal install --max-backjumps 2000 --only-dependencies --upgrade-dependencies --enable-tests -fbuild-external . /tmp/fixpoint || return 1
 }
 
 function do_build {
