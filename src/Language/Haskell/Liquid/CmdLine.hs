@@ -211,9 +211,10 @@ envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
               Nothing -> return mempty
               Just s  -> parsePragma $ envLoc s
          where
-            envLoc  = Loc (newPos "ENVIRONMENT" 0 0)
+            envLoc  = Loc l l
+            l       = newPos "ENVIRONMENT" 0 0
 
-copyright = "LiquidHaskell Copyright 2009-14 Regents of the University of California. All Rights Reserved.\n"
+copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of California. All Rights Reserved.\n"
 
 mkOpts :: Config -> IO Config
 mkOpts cfg
@@ -323,4 +324,3 @@ addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs Full
-

@@ -23,17 +23,17 @@ import Control.Applicative
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
-propTyCon, hpropTyCon :: TyCon 
+propTyCon, hpropTyCon :: TyCon
 propTyCon  = symbolTyCon 'w' 24 propConName
-hpropTyCon = symbolTyCon 'w' 24 hpropConName  
+hpropTyCon = symbolTyCon 'w' 24 hpropConName
 
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
 -----------------------------------------------------------------------
 
-propType :: Reftable r => RRType r 
-propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty 	
+propType :: Reftable r => RRType r
+propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
 
 
@@ -41,7 +41,7 @@ propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 ------ Predicate Types for WiredIns --------------------------------
 --------------------------------------------------------------------
 
-maxArity :: Arity 
+maxArity :: Arity
 maxArity = 7
 
 wiredTyCons     = fst wiredTyDataCons
@@ -49,14 +49,14 @@ wiredDataCons   = snd wiredTyDataCons
 
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
-  where 
+  where
     (tcs, dcs)  = unzip l
     l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt)
-                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt)])
+                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt l0)
+                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -66,8 +66,8 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Jus
       x          = "xListSelector"
       xs         = "xsListSelector"
       p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
-      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)] 
-      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty                 
+      px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)]
+      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
@@ -75,13 +75,13 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Jus
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt)])
-  where 
+                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt l0)])
+  where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
     l0            = dummyPos "LH.Bare.tupleTyDataCons"
     c             = tupleTyCon BoxedTuple n
-    dc            = tupleCon BoxedTuple n 
+    dc            = tupleCon BoxedTuple n
     tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"
@@ -98,7 +98,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
-pdVarReft = (\p -> U mempty p mempty) . pdVar 
+pdVarReft = (\p -> U mempty p mempty) . pdVar
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
 mkps _  _      _           = error "Bare : mkps"
@@ -109,4 +109,3 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
     p                                   = PV n (PVProp t) (vv Nothing) args
     a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = error "Bare : mkps_"
-
