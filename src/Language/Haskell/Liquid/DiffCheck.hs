@@ -33,15 +33,15 @@ import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM
 import            CoreSyn
 import            Name
-import            SrcLoc
+import            SrcLoc hiding (Located)
 import            Var
 import qualified  Data.HashSet                  as S
 import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
-import            Language.Fixpoint.Types         (FixResult (..))
+import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (GhcSpec (..), AnnInfo (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Types   (GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.GhcMisc
 import            Language.Haskell.Liquid.Visitors
 import            Language.Haskell.Liquid.Errors   ()
@@ -108,9 +108,20 @@ sliceSaved' is lm sp (DC cbs res)
     dfs              = coreDefs cbs ++ specDefs sp
     chDfs            = coreDefs cbs'
 
+-------------------------------------------------------------------------
 globalDiff :: [Int] -> GhcSpec -> Bool
-globalDiff _ _ = error "TODO: return True if change in INVARIANT or DATACONS?"
+-------------------------------------------------------------------------
+globalDiff ls sp = measDiff || invsDiff || dconsDiff
+  where
+    measDiff  = any (isDiff ls) (snd  <$> meas sp)
+    invsDiff  = any (isDiff ls) (invariants   sp)
+    dconsDiff = any (isDiff ls) (dloc . snd <$> dconsP sp)
+    dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
+isDiff :: [Int] -> Located a -> Bool
+isDiff ls x = any hits ls
+  where
+    hits i  = line x <= i && i <= lineE x
 
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
@@ -134,8 +145,9 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 specDefs :: GhcSpec -> [Def]
 -------------------------------------------------------------------------
-specDefs _ = error "TODO:specDefs" 
-
+specDefs sp    = def <$> (tySigs sp ++ asmSigs sp ++ ctors sp)
+  where
+    def (x, t) = D (line t) (lineE t) x
 
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
@@ -410,3 +422,11 @@ instance FromJSON a => FromJSON (AnnInfo a)
 
 instance ToJSON (Output Doc)
 instance FromJSON (Output Doc)
+
+
+line :: Located a -> Int
+line  = sourceLine . loc
+
+lineE :: Located a -> Int
+lineE = sourceLine . locE
+
