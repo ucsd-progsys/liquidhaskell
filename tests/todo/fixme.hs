@@ -1,8 +1,10 @@
-module Foo where
+module Foo () where
 
-type List a = [a]
-type Point  = List Double
+{-@ LIQUID "--diff"           @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--no-termination" @-}
 
-{-@ foo :: n:Nat -> Point n @-}
-foo :: Int -> List Double
-foo _ = []
+baz = bob 10
+
+bob :: Int -> Int
+bob x = x
