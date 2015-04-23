@@ -42,7 +42,7 @@ import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Misc          (mkGraph)
 import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Files
-import            Language.Haskell.Liquid.Types   (GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Types   (SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.GhcMisc
 import            Language.Haskell.Liquid.Visitors
 import            Language.Haskell.Liquid.Errors   ()
@@ -109,12 +109,21 @@ sliceSaved' is lm (DC cbs res sp)
   | otherwise        = Just $ DC cbs' res' sp'
   where
     cbs'             = thinWith sigs cbs $ diffVars is dfs
-    sigs             = sigVars is sp
+    sigs             = S.fromList $ M.keys sigm
+    sigm             = sigVars is sp
     res'             = adjustOutput lm cm res
     cm               = checkedItv chDfs
     dfs              = coreDefs cbs ++ specDefs sp
     chDfs            = coreDefs cbs'
-    sp'              = error "TODO"
+    sp'              = assumeSpec sigm sp
+
+-- Add the specified signatures for vars-with-preserved-sigs,
+-- whose bodies have been pruned from [CoreBind] into the "assumes"
+assumeSpec :: M.HashMap Var (Located SpecType) -> GhcSpec -> GhcSpec
+assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
+  where
+    assm           = M.fromList $ asmSigs sp
+
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
@@ -128,8 +137,8 @@ diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ 
       | i > end d    = go (i:is) ds
       | otherwise    = binder d : go (i:is) ds
 
-sigVars :: [Int] -> GhcSpec -> [Var]
-sigVars ls sp = [ x | (x, t) <- specSigs sp, ok t ]
+sigVars :: [Int] -> GhcSpec -> M.HashMap Var (Located SpecType)
+sigVars ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
   where
     ok        = not . isDiff ls
 
@@ -152,12 +161,12 @@ isDiff ls x = any hits ls
 -------------------------------------------------------------------------
 thin :: [CoreBind] -> [Var] -> [CoreBind]
 -------------------------------------------------------------------------
-thin = thinWith []
+thin = thinWith S.empty
 
-thinWith :: [Var] -> [CoreBind] -> [Var] -> [CoreBind]
+thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs ys
   where
-    ys               = txClosure (coreDeps cbs) (S.fromList sigs) (S.fromList xs)
+    ys               = txClosure (coreDeps cbs) sigs (S.fromList xs)
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -200,7 +209,7 @@ specDefs       = map def . specSigs
   where
     def (x, t) = D (line t) (lineE t) x
 
--- specSigs :: GhcSpec -> [(Var, Located SpecType)]
+specSigs :: GhcSpec -> [(Var, Located SpecType)]
 specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
 
 -------------------------------------------------------------------------
