@@ -161,14 +161,15 @@ thinWith sigs cbs xs = filterBinds cbs ys
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
   where
-    calls   = concatMap dep bs
+    calls   = concatMap deps bs
     calls'  = [(y, x) | (x, y) <- calls]
-    dep b   = [(x, y) | x <- bindersOf b, y <- callees b]
-    callees = S.fromList . freeVars S.empty
+    deps b  = [(x, y) | x <- bindersOf b
+                      , y <- freeVars S.empty b]
+
 
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
-txClosure d sigs   = error "TODO" ++ {- tracePpr "INCCHECK: tx changed vars" $ -}
+txClosure d sigs   = {- tracePpr "INCCHECK: tx changed vars" $ -}
                      go S.empty {- tracePpr "INCCHECK: seed changed vars" -}
   where
     next           = S.unions . fmap deps . S.toList
@@ -178,7 +179,7 @@ txClosure d sigs   = error "TODO" ++ {- tracePpr "INCCHECK: tx changed vars" $ -
       | otherwise  = let seen' = S.union seen new
                          new'  = next new `S.difference` seen'
                          new'' = new'     `S.difference` sigs
-                     in go seen' new'
+                     in go seen' new''
 
 
 
