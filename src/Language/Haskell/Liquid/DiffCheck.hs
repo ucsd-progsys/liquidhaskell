@@ -39,6 +39,7 @@ import qualified  Data.HashSet                  as S
 import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
+import            Language.Fixpoint.Misc          (mkGraph)
 import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.Types   (GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
@@ -48,8 +49,10 @@ import            Language.Haskell.Liquid.Errors   ()
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
 
+
 import qualified  Data.ByteString               as B
 import qualified  Data.ByteString.Lazy          as LB
+
 
 -------------------------------------------------------------------------
 -- Data Types -----------------------------------------------------------
@@ -60,6 +63,7 @@ data DiffCheck = DC { newBinds  :: [CoreBind]
                     , oldOutput :: !(Output Doc)
                     }
 
+-- | Variable definitions
 data Def  = D { start  :: Int -- ^ line at which binder definition starts
               , end    :: Int -- ^ line at which binder definition ends
               , binder :: Var -- ^ name of binder
@@ -80,6 +84,7 @@ instance Show Def where
 
 
 
+-------------------------------------------------------------------------
 -- | `slice` returns a subset of the @[CoreBind]@ of the input `target`
 --    file which correspond to top-level binders whose code has changed
 --    and their transitive dependencies.
@@ -102,15 +107,32 @@ sliceSaved' is lm sp (DC cbs res)
   | globalDiff is sp = Nothing
   | otherwise        = Just $ DC cbs' res'
   where
-    cbs'             = thin cbs $ diffVars is dfs
+    cbs'             = thinWith sigs cbs $ diffVars is dfs
+    sigs             = sigVars is sp
     res'             = adjustOutput lm cm res
     cm               = checkedItv chDfs
     dfs              = coreDefs cbs ++ specDefs sp
     chDfs            = coreDefs cbs'
 
--------------------------------------------------------------------------
+
+diffVars :: [Int] -> [Def] -> [Var]
+diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
+                       go (L.sort ls) defs
+  where
+    defs             = L.sort defs'
+    go _      []     = []
+    go []     _      = []
+    go (i:is) (d:ds)
+      | i < start d  = go is (d:ds)
+      | i > end d    = go (i:is) ds
+      | otherwise    = binder d : go (i:is) ds
+
+sigVars :: [Int] -> GhcSpec -> [Var]
+sigVars ls sp = [ x | (x, t) <- specSigs sp, ok t ]
+  where
+    ok        = not . isDiff ls
+
 globalDiff :: [Int] -> GhcSpec -> Bool
--------------------------------------------------------------------------
 globalDiff ls sp = measDiff || invsDiff || dconsDiff
   where
     measDiff  = any (isDiff ls) (snd  <$> meas sp)
@@ -123,14 +145,41 @@ isDiff ls x = any hits ls
   where
     hits i  = line x <= i && i <= lineE x
 
+-------------------------------------------------------------------------
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
 --   to those binders that depend on any of the @Var@s provided.
 -------------------------------------------------------------------------
 thin :: [CoreBind] -> [Var] -> [CoreBind]
 -------------------------------------------------------------------------
-thin cbs xs = filterBinds cbs ys
+thin = thinWith []
+
+thinWith :: [Var] -> [CoreBind] -> [Var] -> [CoreBind]
+thinWith sigs cbs xs = filterBinds cbs ys
   where
-    ys      = dependentVars (coreDeps cbs) $ S.fromList xs
+    ys               = txClosure (coreDeps cbs) (S.fromList sigs) (S.fromList xs)
+
+coreDeps    :: [CoreBind] -> Deps
+coreDeps bs = mkGraph $ calls ++ calls'
+  where
+    calls   = concatMap dep bs
+    calls'  = [(y, x) | (x, y) <- calls]
+    dep b   = [(x, y) | x <- bindersOf b, y <- callees b]
+    callees = S.fromList . freeVars S.empty
+
+
+txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
+txClosure d sigs   = error "TODO" ++ {- tracePpr "INCCHECK: tx changed vars" $ -}
+                     go S.empty {- tracePpr "INCCHECK: seed changed vars" -}
+  where
+    next           = S.unions . fmap deps . S.toList
+    deps x         = M.lookupDefault S.empty x d
+    go seen new
+      | S.null new = seen
+      | otherwise  = let seen' = S.union seen new
+                         new'  = next new `S.difference` seen'
+                         new'' = new'     `S.difference` sigs
+                     in go seen' new'
+
 
 
 -------------------------------------------------------------------------
@@ -145,9 +194,12 @@ filterBinds cbs ys = filter f cbs
 -------------------------------------------------------------------------
 specDefs :: GhcSpec -> [Def]
 -------------------------------------------------------------------------
-specDefs sp    = def <$> (tySigs sp ++ asmSigs sp ++ ctors sp)
+specDefs       = map def . specSigs
   where
     def (x, t) = D (line t) (lineE t) x
+
+-- specSigs :: GhcSpec -> [(Var, Located SpecType)]
+specSigs sp = tySigs sp ++ asmSigs sp ++ ctors sp
 
 -------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
@@ -162,6 +214,7 @@ coreDef b    = meetSpans b eSp vSp
     vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
 
 
+-------------------------------------------------------------------------
 -- | `meetSpans` cuts off the start-line to be no less than the line at which
 --   the binder is defined. Without this, i.e. if we ONLY use the ticks and
 --   spans appearing inside the definition of the binder (i.e. just `eSp`)
@@ -182,8 +235,8 @@ meetSpans _ (Just (l,l')) (Just (m,_))
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan _ _                = Nothing
 
-catSpans b []             = error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs             = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+catSpans b []               = error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
+catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
 
 bindFile (NonRec x _) = varFile x
 bindFile (Rec xes)    = varFile $ fst $ head xes
@@ -218,47 +271,7 @@ isJunkSpan (RealSrcSpan _) = False
 isJunkSpan _               = True
 
 -------------------------------------------------------------------------
-coreDeps  :: [CoreBind] -> Deps
--------------------------------------------------------------------------
-coreDeps  = M.fromList . concatMap bindDep
-
-bindDep b = [(x, ys) | x <- bindersOf b]
-  where
-    ys    = S.fromList $ freeVars S.empty b
-
-
-
-
--------------------------------------------------------------------------
-dependentVars :: Deps -> S.HashSet Var -> S.HashSet Var
--------------------------------------------------------------------------
-dependentVars d    = {- tracePpr "INCCHECK: tx changed vars" $ -}
-                     go S.empty {- tracePpr "INCCHECK: seed changed vars" -}
-  where
-    pre            = S.unions . fmap deps . S.toList
-    deps x         = M.lookupDefault S.empty x d
-    go seen new
-      | S.null new = seen
-      | otherwise  = let seen' = S.union seen new
-                         new'  = pre new `S.difference` seen'
-                     in go seen' new'
-
--------------------------------------------------------------------------
-diffVars :: [Int] -> [Def] -> [Var]
--------------------------------------------------------------------------
-diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
-                       go (L.sort ls) defs
-  where
-    defs             = L.sort defs'
-    go _      []     = []
-    go []     _      = []
-    go (i:is) (d:ds)
-      | i < start d  = go is (d:ds)
-      | i > end d    = go (i:is) ds
-      | otherwise    = binder d : go (i:is) ds
-
--------------------------------------------------------------------------
--- Diff Interface -------------------------------------------------------
+-- | Diff Interface -----------------------------------------------------
 -------------------------------------------------------------------------
 
 
@@ -332,12 +345,14 @@ adjustResult lm cm (Unsafe es)    = errorsResult Unsafe      $ adjustErrors lm c
 adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
 adjustResult _  _  r              = r
 
+errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
 errorsResult _ []                 = Safe
 errorsResult f es                 = f es
 
+adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
-    adjustError (ErrSaved sp msg) =  (`ErrSaved` msg) <$> adjustSrcSpan lm cm sp
+    adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$> adjustSrcSpan lm cm sp
     adjustError e                 = Just e
 
 -------------------------------------------------------------------------
