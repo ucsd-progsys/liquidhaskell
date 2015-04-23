@@ -23,6 +23,7 @@ module Language.Haskell.Liquid.DiffCheck (
    )
    where
 
+-- import            Debug.Trace (trace)
 import            Control.Applicative          ((<$>), (<*>))
 import            Data.Aeson
 import qualified  Data.Text as T
@@ -123,7 +124,8 @@ assumeSpec :: M.HashMap Var (Located SpecType) -> GhcSpec -> GhcSpec
 assumeSpec sigm sp = sp { asmSigs = M.toList $ M.union sigm assm }
   where
     assm           = M.fromList $ asmSigs sp
-
+    -- sigm'       = trace ("INCCHECK: sigm = " ++ show zs) sigm
+    -- zs          = M.keys sigm
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
@@ -179,8 +181,10 @@ coreDeps bs = mkGraph $ calls ++ calls'
 
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
-txClosure d sigs   = {- tracePpr "INCCHECK: tx changed vars" $ -}
-                     go S.empty {- tracePpr "INCCHECK: seed changed vars" -}
+txClosure d sigs xs = -- tracePpr "INCCHECK: tx changed vars" $
+                      go S.empty -- $
+                      -- tracePpr "INCCHECK: seed changed vars" $
+                      xs
   where
     next           = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
@@ -188,7 +192,7 @@ txClosure d sigs   = {- tracePpr "INCCHECK: tx changed vars" $ -}
       | S.null new = seen
       | otherwise  = let seen' = S.union seen new
                          new'  = next new `S.difference` seen'
-                         new'' = new'     `S.difference` sigs
+                         new'' = new'  `S.difference` sigs
                      in go seen' new''
 
 
