@@ -341,9 +341,8 @@ data GhcSpec = SP {
   , meas       :: ![(Symbol, Located SpecType)]  -- ^ Measure Types
                                                  -- eg.  len :: [a] -> Int
   , invariants :: ![Located SpecType]            -- ^ Data Type Invariants
-
-  , ialiases   :: ![(Located SpecType, Located SpecType)] -- ^ Data Type Invariant Aliases
                                                  -- eg.  forall a. {v: [a] | len(v) >= 0}
+  , ialiases   :: ![(Located SpecType, Located SpecType)] -- ^ Data Type Invariant Aliases
   , dconsP     :: ![(DataCon, DataConP)]         -- ^ Predicated Data-Constructors
                                                  -- e.g. see tests/pos/Map.hs
   , tconsP     :: ![(TyCon, TyConP)]             -- ^ Predicated Type-Constructors
