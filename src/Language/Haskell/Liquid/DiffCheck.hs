@@ -3,8 +3,8 @@
 --   modified since it was last checked, as determined by a diff against
 --   a saved version of the file.
 
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Language.Haskell.Liquid.DiffCheck (
 
@@ -61,6 +61,7 @@ import qualified  Data.ByteString.Lazy          as LB
 -- | Main type of value returned for diff-check.
 data DiffCheck = DC { newBinds  :: [CoreBind]
                     , oldOutput :: !(Output Doc)
+                    , newSpec   :: !GhcSpec
                     }
 
 -- | Variable definitions
@@ -100,12 +101,12 @@ sliceSaved :: FilePath -> FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffChe
 sliceSaved target saved cbs sp
   = do (is, lm) <- lineDiff target saved
        res      <- loadResult target
-       return    $ sliceSaved' is lm sp (DC cbs res)
+       return    $ sliceSaved' is lm (DC cbs res sp)
 
-sliceSaved' :: [Int] -> LMap -> GhcSpec -> DiffCheck -> Maybe DiffCheck
-sliceSaved' is lm sp (DC cbs res)
+sliceSaved' :: [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
+sliceSaved' is lm (DC cbs res sp)
   | globalDiff is sp = Nothing
-  | otherwise        = Just $ DC cbs' res'
+  | otherwise        = Just $ DC cbs' res' sp'
   where
     cbs'             = thinWith sigs cbs $ diffVars is dfs
     sigs             = sigVars is sp
@@ -113,7 +114,7 @@ sliceSaved' is lm sp (DC cbs res)
     cm               = checkedItv chDfs
     dfs              = coreDefs cbs ++ specDefs sp
     chDfs            = coreDefs cbs'
-
+    sp'              = error "TODO"
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
