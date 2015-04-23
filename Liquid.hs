@@ -54,9 +54,10 @@ liquidOne target info =
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
      dc <- prune cfg cbs' target info
      let cbs'' = maybe cbs' DC.newBinds dc
-     let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info {cbs = cbs''}
+     let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
+     let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     out      <- solveCs cfg target cgi info dc
+     out      <- solveCs cfg target cgi info' dc
      donePhase Loud "solve"
      let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
      DC.saveResult target out'
