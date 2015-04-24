@@ -3,7 +3,9 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
-import qualified Language.Fixpoint.Visitor     as V
+import           Language.Fixpoint.Visitor (reftKVars)
+import           Language.Fixpoint.Names   (nonSymbol)
+import           Language.Fixpoint.Misc    (errorstar)
 
 import qualified Data.HashMap.Strict           as M
 import           Data.List (partition)
@@ -68,8 +70,8 @@ eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 eliminate :: FInfo a -> KVar -> FInfo a
 eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs})
   where
-    relevantSubCs  = M.filter (\subC ->       kv `elem` (D.rhsKVars subC)) (cm fInfo)
-    remainingSubCs = M.filter (\subC -> not $ kv `elem` (D.rhsKVars subC)) (cm fInfo)
+    relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
+    remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
     (kVarSReft, remainingWs) = bar kv (ws fInfo)
     orPred = POr (map (foo kVarSReft fInfo) (M.elems relevantSubCs))
 
@@ -77,9 +79,9 @@ eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = rema
 bar :: KVar -> [WfC a] -> (SortedReft, [WfC a])
 bar kv ws = (wrft w', ws')
   where
-    (w, ws') = partition (\wfc -> elem kv (V.reftKVars (sr_reft (wrft wfc)))) ws
-    w' | (length w) == 1 = head w
-       | otherwise       = error $ (show kv) ++ " needs exactly one wf constraint"
+    (w, ws') = partition (elem kv . reftKVars . sr_reft . wrft) ws
+    w' | [x] <- w  = x
+       | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
 foo :: SortedReft -> FInfo a -> SubC a -> Pred
