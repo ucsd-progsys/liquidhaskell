@@ -29,12 +29,8 @@ module Language.Fixpoint.Types (
   , resultDoc
 
   -- * Symbols
-<<<<<<< HEAD
-  , Symbol ()
-  , KVar
-=======
   , Symbol
->>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
+  , KVar
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -108,12 +104,9 @@ module Language.Fixpoint.Types (
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
   , BindEnv
-<<<<<<< HEAD
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv
   , bindEnvFromList, bindEnvToList
-=======
-  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, unionIBindEnv
->>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
+  , unionIBindEnv
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
@@ -233,11 +226,7 @@ showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
 
 traceFix     ::  (Fixpoint a) => String -> a -> a
-<<<<<<< HEAD
-traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x)  x
-=======
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
->>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
 
 type TCEmb a    = M.HashMap a FTycon
 
@@ -331,14 +320,9 @@ strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
 
-<<<<<<< HEAD
 isListTC, isFAppTyTC :: FTycon -> Bool
-isListTC (TC (Loc _ c)) = c == listConName
--- isTupTC  (TC (Loc _ c)) = c == tupConName
-=======
 isListTC (TC (Loc _ _ c)) = c == listConName
 isTupTC  (TC (Loc _ _ c)) = c == tupConName
->>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
 isFAppTyTC = (== appFTyCon)
 
 fTyconSymbol :: FTycon -> Located Symbol
