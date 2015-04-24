@@ -25,6 +25,7 @@ module Language.Fixpoint.Names (
   , symbolText, symbolString
   , encode, vvCon
   , dropModuleNames
+  , dropModuleUnique
   , takeModuleNames
 
   -- * Creating Symbols
@@ -292,8 +293,17 @@ prims = [ propConName
 --     dotWhite '.'    = ' '
 --     dotWhite c      = c
 
-dropModuleNames          = mungeModuleNames safeLast "dropModuleNames: "
-takeModuleNames          = mungeModuleNames safeInit "takeModuleNames: "
+sepModNames = "."
+sepUnique   = "#"
+
+dropModuleNames          = mungeNames safeLast sepModNames "dropModuleNames: "
+takeModuleNames          = mungeNames safeInit sepModNames "takeModuleNames: "
+
+dropModuleUnique         = mungeNames safeHead sepUnique   "dropModuleUnique: "
+
+safeHead :: String -> [T.Text] -> Symbol
+safeHead msg [] = errorstar $ "safeHead with empty list" ++ msg
+safeHead _ (x:_) = symbol x
 
 safeInit :: String -> [T.Text] -> Symbol
 safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
@@ -303,9 +313,9 @@ safeLast :: String -> [T.Text] -> Symbol
 safeLast _ xs@(_:_)      = symbol $ last xs
 safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
 
-mungeModuleNames :: (String -> [T.Text] -> Symbol) -> String -> Symbol -> Symbol
-mungeModuleNames _ _ ""  = ""
-mungeModuleNames f msg s'@(symbolText -> s)
+mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
+mungeNames _ _ _ ""  = ""
+mungeNames f d msg s'@(symbolText -> s)
   | s' == tupConName
   = tupConName
-  | otherwise            = f (msg ++ T.unpack s) $ T.splitOn "." $ stripParens s
+  | otherwise            = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s

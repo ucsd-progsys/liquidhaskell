@@ -136,8 +136,10 @@ instance Checkable SortedReft where
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
-checkExpr _ (ECon (I _))   = return FInt
-checkExpr _ (ECon (R _))   = return FReal
+checkExpr _ (ESym _)       = return strSort
+checkExpr _ (ECon (I _))   = return FInt 
+checkExpr _ (ECon (R _))   = return FReal 
+checkExpr _ (ECon (L _ s)) = return s
 checkExpr f (EVar x)       = checkSym f x
 checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
@@ -274,13 +276,8 @@ checkRelTy _ e Ne t1 t2
 checkRelTy _ e Eq t1 t2            = unifys [t1] [t2] >> return ()
 checkRelTy _ e Ne t1 t2            = unifys [t1] [t2] >> return ()
 
--- ORIG checkRelTy _ e Eq t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
--- ORIG checkRelTy _ e Ne t1 t2            = unless (t1 == t2 && t1 /= fProp)  (throwError $ errRel e t1 t2)
-
-
-
-checkRelTy _ e Ueq t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
-checkRelTy _ e Une t1 t2           = unless (isAppTy t1 && isAppTy t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e Ueq t1 t2           = return ()
+checkRelTy _ e Une t1 t2           = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 

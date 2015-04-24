@@ -9,7 +9,7 @@ module Language.Fixpoint.Misc where
 import qualified Control.Exception                as Ex
 import           Data.Hashable
 import           Data.Traversable                 (traverse)
--- import qualified Data.HashSet        as S
+import qualified Data.HashSet        as S
 import           Control.Applicative              ((<$>))
 import           Control.Monad                    (forM_, (>=>))
 import qualified Data.ByteString                  as B
@@ -163,6 +163,10 @@ group         = groupBase M.empty
 groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
+
+mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
+mkGraph = fmap S.fromList . group
+
 
 -- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f xs = L.foldl' (\m x -> inserts (f x) x m) M.empty xs

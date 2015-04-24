@@ -165,7 +165,10 @@ posInteger = toI <$> (many1 digit <* spaces)
 ----------------------------------------------------------------
 
 locParserP :: Parser a -> Parser (Located a)
-locParserP p = Loc <$> getPosition <*> p
+locParserP p = do l1 <- getPosition
+                  x  <- p
+                  l2 <- getPosition
+                  return $ Loc l1 l2 x
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..

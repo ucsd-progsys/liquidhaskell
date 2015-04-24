@@ -29,8 +29,12 @@ module Language.Fixpoint.Types (
   , resultDoc
 
   -- * Symbols
+<<<<<<< HEAD
   , Symbol ()
   , KVar
+=======
+  , Symbol
+>>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
   , anfPrefix, tempPrefix, vv, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -53,8 +57,12 @@ module Language.Fixpoint.Types (
   , appFTyCon
   , fTyconSymbol
   , symbolFTycon
+
+  , strSort
   , fApp
   , fObj
+  , isListTC
+  , isFAppTyTC
 
   -- * Expressions and Predicates
   , SymConst (..)
@@ -100,8 +108,12 @@ module Language.Fixpoint.Types (
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
   , BindEnv
+<<<<<<< HEAD
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv
   , bindEnvFromList, bindEnvToList
+=======
+  , rawBindEnv, insertBindEnv, emptyBindEnv, mapBindEnv, unionIBindEnv
+>>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
@@ -191,6 +203,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Language.Fixpoint.Names
 
+
 class Fixpoint a where
   toFix    :: a -> Doc
 
@@ -220,7 +233,11 @@ showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
 
 traceFix     ::  (Fixpoint a) => String -> a -> a
+<<<<<<< HEAD
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x)  x
+=======
+traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
+>>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
 
 type TCEmb a    = M.HashMap a FTycon
 
@@ -314,9 +331,14 @@ strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
 
+<<<<<<< HEAD
 isListTC, isFAppTyTC :: FTycon -> Bool
 isListTC (TC (Loc _ c)) = c == listConName
 -- isTupTC  (TC (Loc _ c)) = c == tupConName
+=======
+isListTC (TC (Loc _ _ c)) = c == listConName
+isTupTC  (TC (Loc _ _ c)) = c == tupConName
+>>>>>>> 272d32278a08690c90ac17bf1dc4f45dd62c5e75
 isFAppTyTC = (== appFTyCon)
 
 fTyconSymbol :: FTycon -> Located Symbol
@@ -803,6 +825,8 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
   where
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
 
+unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2 
 
 instance Functor SEnv where
   fmap = mapSEnv
@@ -1478,6 +1502,9 @@ symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 --   Used to transform parsed output from fixpoint back into fq.
 
 
+instance Symbolic SymConst where
+  symbol = encodeSymConst
+
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = symbol $ litPrefix `mappend` s
 
@@ -1491,8 +1518,7 @@ litPrefix    :: Text
 litPrefix    = "lit" `T.snoc` symSepName
 
 strSort      :: Sort
-strSort      = FApp strFTyCon []
-
+strSort      = FInt 
 
 class SymConsts a where
   symConsts :: a -> [SymConst]
@@ -1566,8 +1592,9 @@ editDistance xs ys = table ! (m,n)
 -- | Located Values ---------------------------------------------------------
 -----------------------------------------------------------------------------
 
-data Located a = Loc { loc :: !SourcePos
-                     , val :: a
+data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
+                     , locE :: !SourcePos -- ^ End Position
+                     , val  :: a
                      } deriving (Data, Typeable, Generic)
 
 instance (IsString a) => IsString (Located a) where
@@ -1577,7 +1604,7 @@ type LocSymbol = Located Symbol
 type LocText   = Located Text
 
 dummyLoc :: a -> Located a
-dummyLoc = Loc (dummyPos "Fixpoint.Types.dummyLoc")
+dummyLoc = Loc l l where l = dummyPos "Fixpoint.Types.dummyLoc"
 
 dummyPos   :: String -> SourcePos
 dummyPos s = newPos s 0 0
@@ -1598,32 +1625,32 @@ instance Expression a => Expression (Located a) where
   expr   = expr . val
 
 instance Functor Located where
-  fmap f (Loc l x) =  Loc l (f x)
+  fmap f (Loc l l' x) =  Loc l l' (f x)
 
 instance F.Foldable Located where
-  foldMap f (Loc _ x) = f x
+  foldMap f (Loc _ _ x) = f x
 
 instance Traversable Located where
-  traverse f (Loc l x) = Loc l <$> f x
+  traverse f (Loc l l' x) = Loc l l' <$> f x
 
 instance Show a => Show (Located a) where
-  show (Loc l x) = show x ++ " defined at " ++ show l
+  show (Loc l l' x) = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
 
 instance Eq a => Eq (Located a) where
-  (Loc _ x) == (Loc _ y) = x == y
+  (Loc _ _ x) == (Loc _ _ y) = x == y
 
 instance Ord a => Ord (Located a) where
   compare x y = compare (val x) (val y)
 
 instance Subable a => Subable (Located a) where
-  syms (Loc _ x)     = syms x
-  substa f (Loc l x) = Loc l (substa f x)
-  substf f (Loc l x) = Loc l (substf f x)
-  subst su (Loc l x) = Loc l (subst su x)
+  syms (Loc _ _ x)   = syms x
+  substa f (Loc l l' x) = Loc l l' (substa f x)
+  substf f (Loc l l' x) = Loc l l' (substf f x)
+  subst su (Loc l l' x) = Loc l l' (subst su x)
 
 instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val
 
 instance (NFData a) => NFData (Located a) where
   -- FIXME: no instance NFData SrcSpan
-  rnf (Loc _ x) = rnf x
+  rnf (Loc _ _  x) = rnf x
