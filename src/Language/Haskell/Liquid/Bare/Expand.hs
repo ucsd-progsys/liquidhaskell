@@ -54,7 +54,7 @@ mapPredM f = go
 
 expandPred :: Pred -> BareM Pred
 
-expandPred p@(PBexp (EApp (Loc l f') es))
+expandPred p@(PBexp (EApp (Loc l _ f') es))
   = do env <- gets (predAliases.rtEnv)
        return $
          case M.lookup f' env of
@@ -96,7 +96,7 @@ expandPred PTop
 
 expandExpr :: Expr -> BareM Expr
 
-expandExpr (EApp f@(Loc l f') es)
+expandExpr (EApp f@(Loc l _ f') es)
   = do env <- gets (exprAliases.rtEnv)
        case M.lookup f' env of
          Just re ->
@@ -133,7 +133,7 @@ expandApp l re es
   = subst su $ rtBody re
   where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
         msg = "Malformed alias application at " ++ show l ++ "\n\t"
-               ++ show (rtName re) 
+               ++ show (rtName re)
                ++ " defined at " ++ show (rtPos re)
                ++ "\n\texpects " ++ show (length $ rtVArgs re)
                ++ " arguments but it is given " ++ show (length es)
