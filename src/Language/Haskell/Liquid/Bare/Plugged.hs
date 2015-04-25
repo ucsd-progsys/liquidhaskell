@@ -121,4 +121,8 @@ maybeTrue x target exports r
     name        = getName x
     notExported = not $ getName x `elemNameSet` exports
 
-killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
+-- killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
+killHoles x = x { ur_reft = zap $ ur_reft x }
+  where
+    zap     = mapKVars (\k -> if isHole k then Just PTrue else Nothing)
+

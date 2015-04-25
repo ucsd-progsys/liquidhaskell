@@ -89,7 +89,7 @@ module Language.Haskell.Liquid.Types (
   , rFun, rCls, rRCls
 
   -- * Manipulating `Predicates`
-  , pvars, pappSym, pToRef, pApp
+  , pvars, pappSym, pApp
 
   -- * Some tests on RTypes
   , isBase
@@ -234,6 +234,7 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
+import Language.Fixpoint.Visitor    (kvars)
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
@@ -955,24 +956,25 @@ addTermCond = addObligation OTerm
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
-  | null rv
+  | isTauto $ ur_reft r' -- null rv
   = t
   | otherwise
   = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
-  where trep = toRTypeRep t
-        tbd  = ty_res trep
-        r    = r'{ur_reft = Reft (v, rx)}
-        su   = (v, EVar x')
-        x'   = "xInv"
-        rx   = [RConc $ PIff (PBexp $ EVar v) $ subst1 r su | RConc r <- rv]
-
-        Reft(v, rv) = ur_reft r'
+  where
+    trep = toRTypeRep t
+    tbd  = ty_res trep
+    r    = r' {ur_reft = Reft (v, Refa rx)}
+    su   = (v, EVar x')
+    x'   = "xInv"
+    rx   = PIff (PBexp $ EVar v) $ subst1 (raPred rv) su
+    Reft(v, rv) = ur_reft r'
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r = mkArrow αs πs ls xts $ RRTy [] r o t2
-  where (αs, πs, ls, t1) = bkUniv t
-        (xs, ts, rs, t2) = bkArrow t1
-        xts              = zip3 xs ts rs
+addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
+  where
+    (αs, πs, ls, t1) = bkUniv t
+    (xs, ts, rs, t2) = bkArrow t1
+    xts              = zip3 xs ts rs
 
 --------------------------------------------
 
@@ -1081,19 +1083,21 @@ instance Reftable Predicate where
            | not (ppPs ppEnv) = d
            | otherwise        = d <> (angleBrackets $ pprint r)
 
-  toReft (Pr ps@(p:_))        = Reft (parg p, pToRef <$> ps)
+  toReft (Pr ps@(p:_))        = Reft (parg p, refa $ pToRef <$> ps)
   toReft _                    = mempty
   params                      = errorstar "TODO: instance of params for Predicate"
 
   ofReft = error "TODO: Predicate.ofReft"
 
-
-pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
+pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 
 pApp      :: Symbol -> [Expr] -> Pred
 pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
 pappSym n  = symbol $ "papp" ++ show n
+
+refa :: [Pred] -> Refa
+refa = Refa . pAnd
 
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
@@ -1374,8 +1378,7 @@ instance PPrint Predicate where
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
 
 instance PPrint Refa where
-  pprint (RConc p)     = pprint p
-  pprint k             = toFix k
+  pprint = pprint . raPred
 
 instance PPrint Reft where
   pprint = F.pprint
@@ -1802,12 +1805,19 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` ()
 
-hole = RKvar "HOLE" mempty
+-- isHole (PKVar ("HOLE") _) = True
+-- isHole _                  = False
+-- hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 
-isHole (RKvar ("HOLE") _) = True
-isHole _                  = False
+hasHole :: Reftable r => r -> Bool
+hasHole = any isHole . kvars . toReft
 
-hasHole (toReft -> (Reft (_, rs))) = any isHole rs
+hole = PKVar "HOLE" mempty
+
+isHole :: KVar -> Bool
+isHole "HOLE" = True
+isHole _      = False
+
 
 -- classToRApp :: SpecType -> SpecType
 -- classToRApp (RCls cl ts)
