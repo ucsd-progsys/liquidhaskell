@@ -47,19 +47,19 @@ makePluggedAsmSigs embs tcEnv sigs
       (x,) <$> plugHoles embs tcEnv x r τ t
 
 makePluggedDataCons embs tcEnv dcs
-  = forM dcs $ \(dc, Loc l dcp) -> do
+  = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
-       tyArgs <- zipWithM (\t1 (x,t2) -> 
-                   (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l t2)) 
+       tyArgs <- zipWithM (\t1 (x,t2) ->
+                   (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l l' t2))
                  dts (reverse $ tyArgs dcp)
-       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l (tyRes dcp))
-       return (dc, Loc l dcp { freeTyVars = map rTyVar das
-                             , freePred = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
-                             , tyArgs = reverse tyArgs
-                             , tyRes = tyRes})
+       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l l' (tyRes dcp))
+       return (dc, Loc l l' dcp { freeTyVars = map rTyVar das
+                                , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
+                                , tyArgs     = reverse tyArgs
+                                , tyRes      = tyRes})
 
 
-plugHoles tce tyi x f t (Loc l st) 
+plugHoles tce tyi x f t (Loc l l' st)
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
                     Right s -> return $ vmap s
@@ -67,7 +67,7 @@ plugHoles tce tyi x f t (Loc l st)
            st''' = subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l . mkArrow αs ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
+       Loc l l' . mkArrow αs ps' (ls1 ++ ls2) [] . makeCls cs' <$> go rt' st'''
   where
     (αs, _, ls1, rt)  = bkUniv (ofType t :: SpecType)
     (cs, rt')         = bkClass rt
@@ -98,7 +98,7 @@ plugHoles tce tyi x f t (Loc l st)
     -- problem to the user.
     go _                st                 = return st
 
-    makeCls cs t              = foldr (uncurry rFun) t cs 
+    makeCls cs t              = foldr (uncurry rFun) t cs
 
 addRefs :: TCEmb TyCon
      -> M.HashMap TyCon RTyCon
@@ -122,4 +122,3 @@ maybeTrue x target exports r
     notExported = not $ getName x `elemNameSet` exports
 
 killHoles r@(U (Reft (v,rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
-
