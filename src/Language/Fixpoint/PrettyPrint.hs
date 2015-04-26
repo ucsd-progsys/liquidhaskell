@@ -162,6 +162,7 @@ instance PPrint Pred where
                                    pprintPrec (za+1) e2
     where za = 4
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
+  pprintPrec _ p@(PKVar {})    = toFix p
 
 trueD  = text "true"
 falseD = text "false"
