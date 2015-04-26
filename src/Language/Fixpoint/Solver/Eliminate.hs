@@ -3,7 +3,7 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
-import           Language.Fixpoint.Visitor (reftKVars)
+import           Language.Fixpoint.Visitor (kvars)
 import           Language.Fixpoint.Names   (nonSymbol)
 import           Language.Fixpoint.Misc    (errorstar)
 
@@ -79,7 +79,7 @@ eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = rema
 bar :: KVar -> [WfC a] -> (SortedReft, [WfC a])
 bar kv ws = (wrft w', ws')
   where
-    (w, ws') = partition (elem kv . reftKVars . sr_reft . wrft) ws
+    (w, ws') = partition (elem kv . kvars . sr_reft . wrft) ws
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
