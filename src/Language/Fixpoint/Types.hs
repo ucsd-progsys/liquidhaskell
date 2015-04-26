@@ -514,16 +514,16 @@ instance Fixpoint Expr where
 
 data Pred = PTrue
           | PFalse
-          | PAnd  ![Pred]
-          | POr   ![Pred]
-          | PNot  !Pred
-          | PImp  !Pred !Pred
-          | PIff  !Pred !Pred
-          | PBexp !Expr
-          | PAtom !Brel !Expr !Expr
-          | PKVar !KVar !Subst
-          | PAll  ![(Symbol, Sort)] !Pred
-          | PEx   ![(Symbol, Sort)] !Pred
+          | PAnd   ![Pred]
+          | POr    ![Pred]
+          | PNot   !Pred
+          | PImp   !Pred !Pred
+          | PIff   !Pred !Pred
+          | PBexp  !Expr
+          | PAtom  !Brel !Expr !Expr
+          | PKVar  !KVar !Subst
+          | PAll   ![(Symbol, Sort)] !Pred
+          | PExist ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
