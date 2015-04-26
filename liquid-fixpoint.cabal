@@ -159,6 +159,7 @@ Library
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
                    Language.Fixpoint.Solver.Deps,
+                   Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Solve
                      
   Build-Depends: base >= 4.7 && < 5
