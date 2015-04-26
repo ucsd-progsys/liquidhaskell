@@ -12,8 +12,7 @@ module Language.Fixpoint.Sort  (
   , checkSortedReft
   , checkSortedReftFull
   , checkSortFull
-
-  -- CUTSOLVER , pruneUnsortedReft
+  , pruneUnsortedReft
 
   -- * Unify
   , unify
@@ -27,13 +26,13 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
-import           Data.Maybe                (fromMaybe)
+import           Data.Maybe                (catMaybes, fromMaybe)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
--- import           Debug.Trace               (trace)
+import           Debug.Trace               (trace)
 
 -- | Types used throughout checker
 
@@ -76,21 +75,20 @@ checkSorted γ t
       Left err -> Just (text err)
       Right _  -> Nothing
 
--- CUTSOLVER pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
--- CUTSOLVER pruneUnsortedReft γ (RR s (Reft (v, ra)))
--- CUTSOLVER   = RR s (Reft (v, catMaybes (go ra)))
--- CUTSOLVER   where
--- CUTSOLVER     go r = case checkRefa f r of
--- CUTSOLVER              Left war -> trace (wmsg war r) Nothing
--- CUTSOLVER              Right _  -> Just r
--- CUTSOLVER     γ'   = insertSEnv v s γ
--- CUTSOLVER     f    = (`lookupSEnvWithDistance` γ')
--- CUTSOLVER 
--- CUTSOLVER     wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
+pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
+pruneUnsortedReft γ (RR s (Reft (v, Refa p))) = RR s (Reft (v, tx p))
+  where
+    tx   = refa . catMaybes . map ok . conjuncts
+    ok p = case checkPred f p of
+             Left war -> trace (wmsg war p) Nothing
+             Right _  -> Just p
+    γ'   = insertSEnv v s γ
+    f    = (`lookupSEnvWithDistance` γ')
+    wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
+
 
 checkRefa f (Refa p) = checkPred f p
 checkRefa f _        = return ()
-
 
 class Checkable a where
   check     :: SEnv Sort -> a -> CheckM ()
@@ -108,10 +106,6 @@ instance Checkable Expr where
   checkSort γ s e = void $ checkExpr f (ECst e s)
     where
       f           =  (`lookupSEnvWithDistance` γ)
-
-  -- ORIG checkSort γ s e = do {t <- checkExpr f e; checkEqSort s t}
-  -- ORIG  where f =  (`lookupSEnvWithDistance` γ)
-
 
 checkEqSort s t
   | s == t    = return ()

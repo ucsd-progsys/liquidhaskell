@@ -90,10 +90,10 @@ lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
   where
     envKVs    = V.envKVars bs           c
-    lhsKVs    = V.reftKVars   $ F.lhsCs c
+    lhsKVs    = V.kvars       $ F.lhsCs c
 
 rhsKVars :: F.SubC a -> [KVar]
-rhsKVars = V.reftKVars . F.rhsCs
+rhsKVars = V.kvars . F.rhsCs
 
 
 ---------------------------------------------------------------

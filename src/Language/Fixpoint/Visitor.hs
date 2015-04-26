@@ -14,7 +14,9 @@ module Language.Fixpoint.Visitor (
   , fold
 
   -- * Clients
-  , reftKVars, envKVars
+  , kvars
+  , envKVars
+  , mapKVars
 
   -- * Sorts
   , foldSort, mapSort
@@ -134,12 +136,22 @@ visitPred v = vP
 
 
 ---------------------------------------------------------------------------------
-reftKVars :: Reft -> [KVar]
+-- reftKVars :: Reft -> [KVar]
 ---------------------------------------------------------------------------------
-reftKVars (Reft (_, ra)) = predKVars $ raPred ra
 
-predKVars            :: Pred -> [Symbol]
-predKVars            = fold kvVis () []
+-- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
+-- predKVars            :: Pred -> [Symbol]
+
+mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
+mapKVars f             = trans kvVis () []
+  where
+    kvVis              = defaultVisitor { txPred = txK }
+    txK _ (PKVar k su)
+      | Just p' <- f k = subst su p'
+    txK _ p            = p
+
+kvars :: Visitable t => t -> [KVar]
+kvars                = fold kvVis () []
   where
     kvVis            = defaultVisitor { accPred = kv }
     kv _ (PKVar k _) = [k]
@@ -149,7 +161,7 @@ envKVars :: BindEnv -> SubC a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
   where
     squish = S.toList  . S.fromList . concat
-    kvs    = reftKVars . sr_reft
+    kvs    = kvars . sr_reft
 
 
 

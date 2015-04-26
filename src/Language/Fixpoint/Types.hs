@@ -31,7 +31,7 @@ module Language.Fixpoint.Types (
   -- * Symbols
   , Symbol
   , KVar
-  , anfPrefix, tempPrefix, vv, intKvar
+  , anfPrefix, tempPrefix, vv, vv_, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
   , symbolText, symbolString
@@ -112,6 +112,8 @@ module Language.Fixpoint.Types (
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
 
   -- * Constructing Refinements
+  , refa
+  , reft                    -- "smart
   , trueSortedReft          -- trivial reft
   , trueRefa                -- trivial reft
   , trueReft                -- trivial reft
@@ -129,9 +131,10 @@ module Language.Fixpoint.Types (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, squishRefas
+  , flattenRefas, squishRefas, conjuncts
   , shiftVV
-
+  , mapPredReft
+ 
   -- * Substitutions
   , Subst
   , Subable (..)
@@ -705,6 +708,13 @@ propReft p    = Reft (vv_, Refa $ PIff (eProp vv_) (prop p))
 predReft      :: (Predicate a) => a -> Reft
 predReft p    = Reft (vv_, Refa $ prop p)
 
+reft :: Symbol -> Pred -> Reft
+reft v p = Reft (v, Refa p)
+
+mapPredReft :: (Pred -> Pred) -> Reft -> Reft
+mapPredReft f (Reft (v, Refa p)) = Reft (v, Refa (f p))
+
+
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
 ---------------------------------------------------------------
@@ -736,6 +746,10 @@ reftPred (Reft (_, Refa p)) = p
 
 reftBind :: Reft -> Symbol
 reftBind (Reft (x, _)) = x
+
+refa :: [Pred] -> Refa
+refa = Refa . pAnd
+
 
 ---------------------------------------------------------------
 -- | Environments ---------------------------------------------
@@ -1099,7 +1113,7 @@ appSubst :: Subst -> Symbol -> Expr
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
 
 emptySubst :: Subst
-emptySubst               = Su [] -- M.empty
+emptySubst = Su [] -- M.empty
 
 catSubst :: Subst -> Subst -> Subst
 catSubst = unsafeCatSubst
@@ -1162,12 +1176,13 @@ symbolReft    = exprReft . eVar
 usymbolReft   :: (Symbolic a) => a -> Reft
 usymbolReft   = uexprReft . eVar
 
-vv_           = vv Nothing
+vv_ :: Symbol
+vv_ = vv Nothing
 
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
-trueReft  = Reft (vv_, Refa PTrue)
+trueReft  = Reft (vv_, trueRefa)
 falseReft = Reft (vv_, Refa PFalse)
 
 trueRefa  :: Refa
@@ -1318,7 +1333,7 @@ removeLhsKvars cs vs
 
 trueSubCKvar k = subC emptyIBindEnv PTrue mempty rhs  Nothing [0]
   where
-    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k emptySubst))
+    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
 
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
@@ -1402,7 +1417,8 @@ class (Monoid r, Subable r) => Reftable r where
 instance Monoid Pred where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
-
+  mconcat     = pAnd
+  
 instance Monoid Refa where
   mempty          = Refa mempty
   mappend ra1 ra2 = Refa $ mappend (raPred ra1) (raPred ra2)
