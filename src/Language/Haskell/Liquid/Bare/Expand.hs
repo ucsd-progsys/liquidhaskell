@@ -46,7 +46,7 @@ mapPredM f = go
     go (PBexp e)       = PBexp <$> f e
     go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
     go (PAll xs p)     = PAll xs <$> go p
-    go (PEx xs p)      = PEx  xs <$> go p
+    go (PExist xs p)   = PExist xs <$> go p
     go PTop            = return PTop
 
 --------------------------------------------------------------------------------
@@ -77,8 +77,8 @@ expandPred (PIff p q)
   = PIff <$> expandPred p <*> expandPred q
 expandPred (PAll xs p)
   = PAll xs <$> expandPred p
-expandPred (PEx xs p)
-  = PEx xs <$> expandPred p
+expandPred (PExist xs p)
+  = PExist xs <$> expandPred p
 expandPred p
   = return p
 
