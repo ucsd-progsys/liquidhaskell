@@ -828,7 +828,6 @@ unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
 instance Functor SEnv where
   fmap = mapSEnv
-  -- fmap f (SE m) = SE $ fmap f m
 
 instance Fixpoint Refa where
   toFix (Refa p)     = toFix p
