@@ -27,17 +27,17 @@ expandReft :: RReft -> BareM RReft
 expandReft = txPredReft expandPred expandExpr
 
 txPredReft :: (Pred -> BareM Pred) -> (Expr -> BareM Expr) -> RReft -> BareM RReft
-txPredReft f fe (U r p l) = (\r -> U r p l) <$> txPredReft' f r
-  where 
-    txPredReft' f (Reft (v, ras)) = Reft . (v,) <$> mapM (txPredRefa f) ras
-    txPredRefa  f (RConc p)       = fmap RConc $ (f <=< mapPredM fe) p
-    txPredRefa  _ z               = return z
+txPredReft f fe u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
+  where
+    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> txPredRefa ra
+    txPredRefa  (Refa p)       = Refa        <$> (f <=< mapPredM fe) p
 
 mapPredM :: (Expr -> BareM Expr) -> Pred -> BareM Pred
 mapPredM f = go
   where
     go PTrue           = return PTrue
     go PFalse          = return PFalse
+    go p@(PKVar _ _)   = return p
     go (PAnd ps)       = PAnd <$> mapM go ps
     go (POr ps)        = POr  <$> mapM go ps
     go (PNot p)        = PNot <$> go p
@@ -46,6 +46,7 @@ mapPredM f = go
     go (PBexp e)       = PBexp <$> f e
     go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
     go (PAll xs p)     = PAll xs <$> go p
+    go (PEx xs p)      = PEx  xs <$> go p
     go PTop            = return PTop
 
 --------------------------------------------------------------------------------
@@ -64,31 +65,22 @@ expandPred p@(PBexp (EApp (Loc l _ f') es))
              p
 expandPred p@(PBexp _)
   = return p
-
 expandPred (PAnd ps)
   = PAnd <$> mapM expandPred ps
 expandPred (POr ps)
   = POr <$> mapM expandPred ps
-
 expandPred (PNot p)
   = PNot <$> expandPred p
-expandPred (PAll xts p)
-  = PAll xts <$> expandPred p
-
 expandPred (PImp p q)
   = PImp <$> expandPred p <*> expandPred q
 expandPred (PIff p q)
   = PIff <$> expandPred p <*> expandPred q
-
-expandPred p@(PAtom _ _ _)
+expandPred (PAll xs p)
+  = PAll xs <$> expandPred p
+expandPred (PEx xs p)
+  = PEx xs <$> expandPred p
+expandPred p
   = return p
-
-expandPred PTrue
-  = return PTrue
-expandPred PFalse
-  = return PFalse
-expandPred PTop
-  = return PTop
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
@@ -137,4 +129,3 @@ expandApp l re es
                ++ " defined at " ++ show (rtPos re)
                ++ "\n\texpects " ++ show (length $ rtVArgs re)
                ++ " arguments but it is given " ++ show (length es)
-

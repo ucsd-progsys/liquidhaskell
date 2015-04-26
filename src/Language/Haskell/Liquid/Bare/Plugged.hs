@@ -24,8 +24,9 @@ import Data.Monoid
 
 import qualified Data.HashMap.Strict as M
 
+import Language.Fixpoint.Visitor 
 import Language.Fixpoint.Names (dummySymbol)
-import Language.Fixpoint.Types (Reft(..), TCEmb)
+import Language.Fixpoint.Types (Pred (..), Refa (..), TCEmb)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
@@ -81,7 +82,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f r }
       where
         t'       = everywhere (mkT $ addRefs tce tyi) t
-        addHoles = fmap (const $ f $ uReft ("v", [hole]))
+        addHoles = fmap (const $ f $ uReft ("v", Refa hole))
     go (RVar _ _)       v@(RVar _ _)       = return v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'

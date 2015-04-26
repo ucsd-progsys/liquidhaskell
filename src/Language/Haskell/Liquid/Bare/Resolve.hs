@@ -42,6 +42,7 @@ instance Resolvable Pred where
   resolve l (PBexp b)       = PBexp   <$> resolve l b
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
+  resolve l (PEx  vs p)     = PEx     <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve _ p               = return p
 
 instance Resolvable Expr where
@@ -94,10 +95,9 @@ instance Resolvable (UReft Reft) where
   resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s
 
 instance Resolvable Reft where
-  resolve l (Reft (s, ras)) = Reft . (s,) <$> mapM resolveRefa ras
+  resolve l (Reft (s, ra)) = Reft . (s,) <$> resolveRefa ra
     where
-      resolveRefa (RConc p) = RConc <$> resolve l p
-      resolveRefa kv        = return kv
+      resolveRefa (Refa p) = Refa <$> resolve l p
 
 instance Resolvable Predicate where
   resolve l (Pr pvs) = Pr <$> resolve l pvs
