@@ -1096,9 +1096,6 @@ pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
 pappSym n  = symbol $ "papp" ++ show n
 
-refa :: [Pred] -> Refa
-refa = Refa . pAnd
-
 ---------------------------------------------------------------
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
