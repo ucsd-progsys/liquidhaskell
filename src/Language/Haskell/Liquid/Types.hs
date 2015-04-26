@@ -1809,6 +1809,7 @@ instance NFData KVProf where
 hasHole :: Reftable r => r -> Bool
 hasHole = any isHole . kvars . toReft
 
+hole :: Pred
 hole = PKVar "HOLE" mempty
 
 isHole :: KVar -> Bool

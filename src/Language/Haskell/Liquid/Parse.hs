@@ -186,10 +186,11 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", [hole]))
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
-refasHoleP  = refasP <|> (reserved "_" >> return [hole])
-
+refasHoleP  = try refaP
+           <|> (reserved "_" >> return (Refa hole))
+           
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
 --
@@ -384,9 +385,9 @@ symsP
 dummyRSort
   = RVar "dummy" mempty
 
-refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi))
-       <|> liftM ((:[]) . RConc) predP
+refaP :: Parser Refa
+refaP  =  try (refa <$> (brackets $ sepBy predP semi))
+       <|> Refa <$> predP
 
 predicatesP
    =  try (angles $ sepBy1 predicate1P comma)
@@ -395,7 +396,7 @@ predicatesP
 predicate1P
    =  try (RProp <$> symsP <*> refP bbaseP)
   <|> (RPropP [] . predUReft <$> monoPredicate1P)
-  <|> (braces $ bRProp <$> symsP' <*> refasP)
+  <|> (braces $ bRProp <$> symsP' <*> refaP)
    where
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
