@@ -54,15 +54,11 @@ module Language.Haskell.Liquid.RefType (
   , shiftVV
 
   , mkDataConIdsTy
-<<<<<<< HEAD
   , mkTyConInfo 
 
 
   , strengthenRefTypeGen
 
-=======
-  , mkTyConInfo
->>>>>>> origin/master
   ) where
 
 import WwLib
@@ -163,16 +159,10 @@ instance ( Monoid r, Reftable r, RefTypable b c r, RefTypable b c ()) => Monoid 
   mappend (RPropP s1 r1) (RPropP s2 r2)
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
-<<<<<<< HEAD
     | otherwise  = RPropP s1 $ r1 `meet` 
                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
   
   mappend (RProp s1 t1) (RProp s2 t2) 
-=======
-    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-
-  mappend (RProp s1 t1) (RProp s2 t2)
->>>>>>> origin/master
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp s1 $ t1  `strengthenRefType` 
@@ -403,15 +393,9 @@ strengthenRefTypeGen = strengthenRefType_ f
 --                 (render t1) (render (toRSort t1)) (render t2) (render (toRSort t2))
 
 -- OLD: without unifying type variables, but checking α-equivalence
-<<<<<<< HEAD
 strengthenRefType t1 t2 
   | eqt t1 t2 
   = strengthenRefType_ (\x _ -> x) t1 t2
-=======
-strengthenRefType t1 t2
-  | eqt t1 t2
-  = strengthenRefType_ t1 t2
->>>>>>> origin/master
   | otherwise
   = errorstar msg
   where
@@ -419,8 +403,6 @@ strengthenRefType t1 t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
-<<<<<<< HEAD
-         
 strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
   = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
 
@@ -432,12 +414,6 @@ strengthenRefType_ f t1 (RAllE x tx t2)
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT _ t2)
   = RAllT a1 $ strengthenRefType_ f t1 t2
-=======
-
--- strengthenRefType_ :: RefTypable c tv r => RType c tv r -> RType c tv r -> RType c tv r
-strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
-  = RAllT a1 $ strengthenRefType_ t1 t2
->>>>>>> origin/master
 
 strengthenRefType_ f (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ f t1 t2
@@ -448,20 +424,12 @@ strengthenRefType_ f (RAllS s t1) t2
 strengthenRefType_ f t1 (RAllS s t2)
   = RAllS s $ strengthenRefType_ f t1 t2
 
-<<<<<<< HEAD
 strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
-=======
-strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
->>>>>>> origin/master
   = RAppTy t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
-<<<<<<< HEAD
 strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
-=======
-strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
->>>>>>> origin/master
   = RFun x1 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' $ subst1 t2' (x2, EVar x1)
@@ -474,15 +442,8 @@ strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
 
 strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
   = RVar v1 (r1 `meet` r2)
-<<<<<<< HEAD
- 
 strengthenRefType_ f t1 t2  
   = f t1 t2
-=======
-
-strengthenRefType_ t1 _
-  = t1
->>>>>>> origin/master
 
 meets [] rs                 = rs
 meets rs []                 = rs

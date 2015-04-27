@@ -1641,13 +1641,7 @@ cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
 --------------------------------------------------------------------------------
 --- Measures
 --------------------------------------------------------------------------------
-<<<<<<< HEAD
-
-data Measure ty ctor = M { 
-=======
--- MOVE TO TYPES
 data Measure ty ctor = M {
->>>>>>> origin/master
     name :: LocSymbol
   , sort :: ty
   , eqns :: [Def ty ctor]
@@ -1658,7 +1652,6 @@ data CMeasure ty
        , cSort :: ty
        }
 
-<<<<<<< HEAD
 data Def ty ctor 
   = Def { 
     measure :: LocSymbol
@@ -1666,26 +1659,12 @@ data Def ty ctor
   , ctor    :: ctor 
   , dsort   :: Maybe ty
   , binds   :: [(Symbol, Maybe ty)]
-=======
--- MOVE TO TYPES
-data Def ctor
-  = Def {
-    measure :: LocSymbol
-  , ctor    :: ctor
-  , binds   :: [Symbol]
->>>>>>> origin/master
   , body    :: Body
   } deriving (Show, Data, Typeable)
 deriving instance (Eq ctor, Eq ty) => Eq (Def ty ctor)
 
-<<<<<<< HEAD
-data Body 
-  = E Expr          -- ^ Measure Refinement: {v | v = e } 
-=======
--- MOVE TO TYPES
 data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e }
->>>>>>> origin/master
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Pred   -- ^ Measure Refinement: {v | p}
   deriving (Show, Eq, Data, Typeable)

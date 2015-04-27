@@ -236,16 +236,6 @@ bareAtomNoAppP
   =  refP bbaseNoAppP
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
-<<<<<<< HEAD
-=======
-bareAllExprP
-  = do reserved "forall"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry RAllE) t zs
-
->>>>>>> origin/master
 bareConstraintP
   = do ct   <- braces constraintP
        t    <- bareTypeP
@@ -272,21 +262,6 @@ rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
 
-<<<<<<< HEAD
-=======
-bareExistsP
-  = do reserved "exists"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry REx) t zs
-
-exBindP
-  = do b <- binderP <* colon
-       t <- bareArgP b
-       return (b,t)
-
->>>>>>> origin/master
 bareAllS
   = do reserved "forall"
        ss <- (angles $ sepBy1 symbolP comma)

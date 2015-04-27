@@ -352,18 +352,11 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-<<<<<<< HEAD
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
   where 
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
     xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
-=======
-checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
-  where
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
->>>>>>> origin/master
     trep = toRTypeRep ct
     su   = checkMBodyUnify (ty_res trep) (last txs) 
     txs  = snd4 $ bkArrowDeep sort
@@ -381,15 +374,9 @@ checkMBody' emb sort γ body = case body of
     R s p -> checkSortFull (insertSEnv s sty γ) psort p
   where
     psort = FApp propFTyCon []
-<<<<<<< HEAD
-    sty   = rTypeSortedReft emb sort' 
-    sort' = ty_res trep'
-    
-=======
     sty   = rTypeSortedReft emb sort'
     sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
                                  , ty_binds = tail $ ty_binds trep'
                                  , ty_args  = tail $ ty_args trep'
                                  , ty_refts = tail $ ty_refts trep'            }
->>>>>>> origin/master
     trep' = toRTypeRep sort
