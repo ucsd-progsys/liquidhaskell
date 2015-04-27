@@ -238,6 +238,7 @@ checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
 checkPred f (POr ps)       = mapM_ (checkPred f) ps
 checkPred f (PAtom r e e') = checkRel f r e e'
+checkPred _ (PKVar {})     = return ()
 checkPred _ p              = throwError $ errUnexpectedPred p
 
 checkPredBExp :: Env -> Expr -> CheckM ()

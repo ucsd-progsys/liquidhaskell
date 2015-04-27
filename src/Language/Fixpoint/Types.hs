@@ -831,16 +831,16 @@ instance Functor SEnv where
   fmap = mapSEnv
 
 instance Fixpoint Refa where
-  toFix (Refa p)     = toFix p
+  toFix (Refa p)     = toFix $ conjuncts p
   -- toFix (RPvar p)    = toFix p
 
 instance Fixpoint Reft where
   toFix = pprReftPred
 
 instance Fixpoint SortedReft where
-  toFix (RR so (Reft (v, Refa p)))
+  toFix (RR so (Reft (v, ra)))
     = braces
-    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> brackets (toFix p)
+    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix ra
 
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
