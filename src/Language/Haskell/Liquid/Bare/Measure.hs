@@ -48,12 +48,8 @@ import Language.Fixpoint.Types (Expr(..))
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
-<<<<<<< HEAD
 import Language.Haskell.Liquid.Misc    (mapSndM)
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
-=======
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
->>>>>>> origin/master
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bounds
@@ -149,11 +145,7 @@ makeMeasureSelectors (dc, (Loc l l' (DataConP _ vs _ _ _ xts r _))) = catMaybes 
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-<<<<<<< HEAD
   where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i)) 
-=======
-  where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i))
->>>>>>> origin/master
         mkx j = symbol ("xx" ++ show j)
 
 
@@ -204,8 +196,6 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 
 varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 
-<<<<<<< HEAD
-=======
 isSimpleType t   = null tvs && isNothing (splitFunTy_maybe tb)
   where
     (tvs, tb)    = splitForAllTys t
@@ -216,7 +206,6 @@ varSpecType v    = Loc l l' (ofType $ varType v)
     l'           = getSourcePosE v
 
 
->>>>>>> origin/master
 makeHaskellBounds :: CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
 makeHaskellBounds cbs xs
   = do lmap <- gets logicEnv
