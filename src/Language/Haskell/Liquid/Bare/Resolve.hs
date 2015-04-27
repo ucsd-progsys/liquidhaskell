@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeSynonymInstances #-}  
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Haskell.Liquid.Bare.Resolve (
     Resolvable(..)
@@ -54,26 +54,26 @@ instance Resolvable Expr where
   resolve _ x              = return x
 
 instance Resolvable LocSymbol where
-  resolve _ ls@(Loc l s)
-    | s `elem` prims 
+  resolve _ ls@(Loc l l' s)
+    | s `elem` prims
     = return ls
-    | otherwise 
+    | otherwise
     = do env <- gets (typeAliases . rtEnv)
          case M.lookup s env of
-           Nothing | isCon s -> do v <- lookupGhcVar $ Loc l s
+           Nothing | isCon s -> do v <- lookupGhcVar ls -- $ Loc l s
                                    let qs = symbol v
-                                   addSym (qs,v)
-                                   return $ Loc l qs
+                                   addSym (qs, v)
+                                   return $ Loc l l' qs
            _                 -> return ls
 
 addSym x = modify $ \be -> be { varEnv = (varEnv be) `L.union` [x] }
 
-isCon c 
+isCon c
   | Just (c,_) <- T.uncons $ symbolText c = isUpper c
   | otherwise                             = False
 
 instance Resolvable Symbol where
-  resolve l x = fmap val $ resolve l $ Loc l x 
+  resolve l x = fmap val $ resolve l $ Loc l l x
 
 instance Resolvable Sort where
   resolve _ FInt         = return FInt
@@ -85,10 +85,10 @@ instance Resolvable Sort where
   resolve l (FFunc i ss) = FFunc i <$> resolve l ss
   resolve _ (FApp tc ss)
     | tcs' `elem` prims  = FApp tc <$> ss'
-    | otherwise          = FApp <$> (symbolFTycon.Loc l.symbol <$> lookupGhcTyCon tcs) <*> ss'
+    | otherwise          = FApp <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs) <*> ss'
       where
-        tcs@(Loc l tcs') = fTyconSymbol tc
-        ss'              = resolve l ss
+        tcs@(Loc l l' tcs') = fTyconSymbol tc
+        ss'                 = resolve l ss
 
 instance Resolvable (UReft Reft) where
   resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s
@@ -106,5 +106,4 @@ instance (Resolvable t) => Resolvable (PVar t) where
   resolve l (PV n t v as) = PV n t v <$> mapM (third3M (resolve l)) as
 
 instance Resolvable () where
-  resolve _ = return 
-
+  resolve _ = return

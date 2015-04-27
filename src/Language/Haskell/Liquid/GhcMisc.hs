@@ -54,7 +54,7 @@ import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
-import           Data.Aeson                 
+import           Data.Aeson
 import qualified Data.Text.Encoding           as T
 import qualified Data.Text.Unsafe             as T
 import           Control.Applicative          ((<$>), (<*>))
@@ -107,7 +107,7 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan _                 = noSrcSpan 
+tickSrcSpan _                 = noSrcSpan
 -----------------------------------------------------------------------
 --------------- Generic Helpers for Accessing GHC Innards -------------
 -----------------------------------------------------------------------
@@ -119,7 +119,7 @@ stringTyVar s = mkTyVar name liftedTypeKind
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon c n s = TC.mkKindTyCon name superKind
-  where 
+  where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
 
@@ -131,7 +131,7 @@ isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType _               = False
 validTyVar :: String -> Bool
-validTyVar s@(c:_) = isLower c && all (not . isSpace) s 
+validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
 
 tvId α = {- traceShow ("tvId: α = " ++ show α) $ -} showPpr α ++ show (varUnique α)
@@ -169,50 +169,50 @@ isDataConId id = case idDetails id of
 getDataConVarUnique v
   | isId v && isDataConId v = getUnique $ idDataCon v
   | otherwise               = getUnique v
-  
+
 
 newtype Loc    = L (Int, Int) deriving (Eq, Ord, Show)
 
 instance Hashable Loc where
-  hashWithSalt i (L z) = hashWithSalt i z 
+  hashWithSalt i (L z) = hashWithSalt i z
 
 --instance (Uniquable a) => Hashable a where
 
 instance Hashable SrcSpan where
-  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s) 
+  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
   hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 instance Outputable a => Outputable (S.HashSet a) where
-  ppr = ppr . S.toList 
+  ppr = ppr . S.toList
 
 instance ToJSON RealSrcSpan where
   toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
-                     , "startLine" .= l1 -- srcSpanStartLine sp 
+                     , "startLine" .= l1 -- srcSpanStartLine sp
                      , "startCol"  .= c1 -- srcSpanStartCol  sp
                      , "endLine"   .= l2 -- srcSpanEndLine   sp
                      , "endCol"    .= c2 -- srcSpanEndCol    sp
                      ]
-    where 
-      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp          
+    where
+      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
 
 unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
-  where    
+  where
     f                 = unpackFS $ srcSpanFile rsp
-    l1                = srcSpanStartLine rsp 
+    l1                = srcSpanStartLine rsp
     c1                = srcSpanStartCol  rsp
     l2                = srcSpanEndLine   rsp
     c2                = srcSpanEndCol    rsp
-    
+
 
 instance FromJSON RealSrcSpan where
-  parseJSON (Object v) = realSrcSpan <$> v .: "filename" 
+  parseJSON (Object v) = realSrcSpan <$> v .: "filename"
                                      <*> v .: "startLine"
                                      <*> v .: "startCol"
                                      <*> v .: "endLine"
                                      <*> v .: "endCol"
   parseJSON _          = mempty
 
-realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2 
+realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
   where
     loc1                  = mkRealSrcLoc (fsLit f) l1 c1
     loc2                  = mkRealSrcLoc (fsLit f) l2 c2
@@ -220,21 +220,21 @@ realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
 
 
 instance ToJSON SrcSpan where
-  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]  
+  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
   toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
 
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
                             case tag of
-                              False -> return noSrcSpan 
+                              False -> return noSrcSpan
                               True  -> RealSrcSpan <$> v .: "spanInfo"
   parseJSON _          = mempty
 
 
 -------------------------------------------------------
 
-toFixSDoc = PJ.text . PJ.render . toFix 
-sDocDoc   = PJ.text . showSDoc 
+toFixSDoc = PJ.text . PJ.render . toFix
+sDocDoc   = PJ.text . showSDoc
 pprDoc    = sDocDoc . ppr
 
 -- Overriding Outputable functions because they now require DynFlags!
@@ -245,7 +245,7 @@ showSDocDump = Out.showSDocDump unsafeGlobalDynFlags
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
 instance Fixpoint Var where
-  toFix = pprDoc 
+  toFix = pprDoc
 
 instance Fixpoint Name where
   toFix = pprDoc
@@ -266,18 +266,24 @@ instance Show TyCon where
   show = showPpr
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
-sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc 
+sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
 
 sourcePosSrcLoc    :: SourcePos -> SrcLoc
-sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col  
-  where 
+sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
+  where
     file          = sourceName p
     line          = sourceLine p
     col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
-srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos" 
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos"
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
+
+srcSpanSourcePosE :: SrcSpan -> SourcePos
+srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos"
+srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
+
+
 
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
 srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
@@ -285,15 +291,24 @@ srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
 lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 
-realSrcSpanSourcePos :: RealSrcSpan -> SourcePos 
+realSrcSpanSourcePos :: RealSrcSpan -> SourcePos
 realSrcSpanSourcePos s = newPos file line col
-  where 
+  where
     file               = unpackFS $ srcSpanFile s
     line               = srcSpanStartLine       s
     col                = srcSpanStartCol        s
 
-getSourcePos           = srcSpanSourcePos . getSrcSpan 
 
+realSrcSpanSourcePosE :: RealSrcSpan -> SourcePos
+realSrcSpanSourcePosE s = newPos file line col
+  where
+    file                = unpackFS $ srcSpanFile s
+    line                = srcSpanEndLine       s
+    col                 = srcSpanEndCol        s
+
+
+getSourcePos           = srcSpanSourcePos  . getSrcSpan
+getSourcePosE          = srcSpanSourcePosE . getSrcSpan
 
 collectArguments n e = if length xs > n then take n xs else xs
   where (vs', e') = collectValBinders' $ snd $ collectTyBinders e
@@ -307,9 +322,9 @@ collectValBinders' expr = go [] expr
     go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
-ignoreLetBinds (Let (NonRec _ _) e') 
+ignoreLetBinds (Let (NonRec _ _) e')
   = ignoreLetBinds e'
-ignoreLetBinds e 
+ignoreLetBinds e
   = e
 
 isDictionaryExpression :: Core.Expr Id -> Maybe Id
@@ -335,10 +350,10 @@ kindArity _
 
 
 instance Hashable Var where
-  hashWithSalt = uniqueHash 
+  hashWithSalt = uniqueHash
 
 instance Hashable TyCon where
-  hashWithSalt = uniqueHash 
+  hashWithSalt = uniqueHash
 
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
@@ -394,7 +409,7 @@ instance Symbolic Var where
   symbol = varSymbol
 
 varSymbol ::  Var -> Symbol
-varSymbol v 
+varSymbol v
   | us `isSuffixOfSym` vs = vs
   | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
   where us  = symbol $ showPpr $ getDataConVarUnique v
@@ -416,5 +431,4 @@ symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeU
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
 tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
 tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
-tyConTyVarsDef c = TC.tyConTyVars c 
-
+tyConTyVarsDef c = TC.tyConTyVars c

@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Bare.Measure (
   , varMeasures
   ) where
 
-import CoreSyn 
+import CoreSyn
 import DataCon
 import Id
 import Name
@@ -48,8 +48,12 @@ import Language.Fixpoint.Types (Expr(..))
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
+<<<<<<< HEAD
 import Language.Haskell.Liquid.Misc    (mapSndM)
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, sourcePosSrcSpan, isDataConId)
+=======
+import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
+>>>>>>> origin/master
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bounds
@@ -65,69 +69,69 @@ import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
 makeHaskellMeasures :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM (Ms.MSpec SpecType DataCon)
-makeHaskellMeasures _   name' (name, _   ) | name /= name' 
+makeHaskellMeasures _   name' (name, _   ) | name /= name'
   = return mempty
-makeHaskellMeasures cbs _     (_   , spec) 
+makeHaskellMeasures cbs _     (_   , spec)
   = do lmap <- gets logicEnv
        Ms.mkMSpec' <$> mapM (makeMeasureDefinition lmap cbs') (S.toList $ Ms.hmeas spec)
-  where 
+  where
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 
 makeHaskellInlines :: [CoreBind] -> ModName -> (ModName, Ms.BareSpec) -> BareM ()
-makeHaskellInlines _   name' (name, _   ) | name /= name' 
+makeHaskellInlines _   name' (name, _   ) | name /= name'
   = return mempty
-makeHaskellInlines cbs _     (_   , spec) 
+makeHaskellInlines cbs _     (_   , spec)
   = do lmap <- gets logicEnv
-       mapM_ (makeMeasureInline lmap cbs') (S.toList $ Ms.inlines spec) 
-  where 
+       mapM_ (makeMeasureInline lmap cbs') (S.toList $ Ms.inlines spec)
+  where
     cbs'                  = concatMap unrec cbs
     unrec cb@(NonRec _ _) = [cb]
     unrec (Rec xes)       = [NonRec x e | (x, e) <- xes]
 
 
 makeMeasureInline :: LogicMap -> [CoreBind] ->  LocSymbol -> BareM ()
-makeMeasureInline lmap cbs  x 
+makeMeasureInline lmap cbs  x
   = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
     (NonRec v def:_)   -> do {e <- coreToFun' x v def; updateInlines x e}
     (Rec [(v, def)]:_) -> do {e <- coreToFun' x v def; updateInlines x e}
     _                  -> throwError $ mkError "Cannot inline haskell function"
   where
     binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes  
+    binders (Rec xes)    = fst <$> xes
 
-    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
+    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of
                            Left (xs, e)  -> return (TI (symbol <$> xs) e)
                            Right e -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
 
 
-updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in 
+updateInlines x v = modify $ \s -> let iold  = M.insert (val x) v (inlines s) in
                                    s{inlines = M.map (f iold) iold }
-  where f imap = txRefToLogic mempty imap 
+  where f imap = txRefToLogic mempty imap
 
 
 makeMeasureDefinition :: LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
-makeMeasureDefinition lmap cbs x 
+makeMeasureDefinition lmap cbs x
   = case (filter ((val x `elem`) . (map (dropModuleNames . simplesymbol)) . binders) cbs) of
     (NonRec v def:_)   -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
     (Rec [(v, def)]:_) -> (Ms.mkM x (logicType $ varType v)) <$> coreToDef' x v def
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes  
+    binders (Rec xes)    = fst <$> xes
 
-    coreToDef' x v def = case (runToLogic lmap mkError $ coreToDef x v def) of 
+    coreToDef' x v def = case (runToLogic lmap mkError $ coreToDef x v def) of
                            Left l  -> return  l
                            Right e -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
 simplesymbol = symbol . getName
 
@@ -135,17 +139,21 @@ strengthenHaskellMeasures :: S.HashSet (Located Var) -> [(Var, Located SpecType)
 strengthenHaskellMeasures hmeas = (\v -> (val v, fmap strengthenResult v)) <$> (S.toList hmeas)
 
 makeMeasureSelectors :: (DataCon, Located DataConP) -> [Measure SpecType DataCon]
-makeMeasureSelectors (dc, (Loc loc (DataConP _ vs _ _ _ xts r))) = catMaybes (go <$> zip (reverse xts) [1..])
+makeMeasureSelectors (dc, (Loc l l' (DataConP _ vs _ _ _ xts r _))) = catMaybes (go <$> zip (reverse xts) [1..])
   where
     go ((x,t), i)
       | isFunTy t = Nothing
-      | True      = Just $ makeMeasureSelector (Loc loc x) (dty t) dc n i
-        
+      | True      = Just $ makeMeasureSelector (Loc l l' x) (dty t) dc n i
+
     dty t         = foldr RAllT  (RFun dummySymbol r (fmap mempty t) mempty) vs
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
+<<<<<<< HEAD
   where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i)) 
+=======
+  where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i))
+>>>>>>> origin/master
         mkx j = symbol ("xx" ++ show j)
 
 
@@ -171,7 +179,7 @@ mkMeasureDCon m = (forM (measureCtors m) $ \n -> (val n,) <$> lookupGhcDataCon n
 
 mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(Symbol, DataCon)] -> Ms.MSpec t DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
-  where 
+  where
     m'  = fmap (tx.val) m
     cm' = hashMapMapKeys (tx' . tx) $ Ms.ctorMap m'
     tx  = mlookup (M.fromList ndcs)
@@ -194,12 +202,23 @@ mkMeasureSort (Ms.MSpec c mm cm im)
                   (mapM (mapSndM $ mapM ofMeaSort) (binds def))
 
 
-varMeasures vars   = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
-varSpecType v      = Loc (getSourcePos v) (ofType $ varType v)
-isSimpleType t     = null tvs && isNothing (splitFunTy_maybe tb) where (tvs, tb) = splitForAllTys t 
+varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
 
+<<<<<<< HEAD
+=======
+isSimpleType t   = null tvs && isNothing (splitFunTy_maybe tb)
+  where
+    (tvs, tb)    = splitForAllTys t
+
+varSpecType v    = Loc l l' (ofType $ varType v)
+  where
+    l            = getSourcePos  v
+    l'           = getSourcePosE v
+
+
+>>>>>>> origin/master
 makeHaskellBounds :: CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
-makeHaskellBounds cbs xs 
+makeHaskellBounds cbs xs
   = do lmap <- gets logicEnv
        M.fromList <$> mapM (makeHaskellBound lmap cbs) (S.toList xs)
 
@@ -211,21 +230,21 @@ makeHaskellBound lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
 
   where
     binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes  
+    binders (Rec xes)    = fst <$> xes
 
-    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of 
+    coreToFun' x v def = case (runToLogic lmap mkError $ coreToFun x v def) of
                            Left (xs, e) -> return (xs, e)
                            Right e      -> throwError e
 
     mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)         
+    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
 
 toBound :: Var -> LocSymbol -> ([Var], Either F.Pred F.Expr) -> (LocSymbol, RBound)
 toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
   where
-    x'         = capitalizeBound x 
-    (ps', xs') = L.partition (hasBoolResult . varType) vs 
+    x'         = capitalizeBound x
+    (ps', xs') = L.partition (hasBoolResult . varType) vs
     (ps , xs)  = (txp <$> ps', txx <$> xs')
     txp v      = (dummyLoc $ simpleSymbolVar v, ofType $ varType v)
     txx v      = (dummyLoc $ symbol v,          ofType $ varType v)
@@ -234,7 +253,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
 toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
 
 capitalizeBound = fmap (symbol . toUpperHead . symbolString)
-  where 
+  where
     toUpperHead []     = []
     toUpperHead (x:xs) = toUpper x:xs
 
@@ -256,4 +275,3 @@ expandMeasureBody :: SourcePos -> Body -> BareM Body
 expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandPred p)
 expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandPred p)
 expandMeasureBody l (E e)   = E   <$> resolve l e
-
