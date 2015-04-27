@@ -222,13 +222,8 @@ ppr_dbind bb p x t
 ppr_rty_fun bb prefix t
   = prefix <+> ppr_rty_fun' bb t
 
-ppr_rty_fun' bb (RFun b t t' r)
-  | isTauto r
-    = pp
-  | otherwise
-    = ppTy r $ parens pp
-  where
-    pp = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+ppr_rty_fun' bb (RFun b t t' _)
+  = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
