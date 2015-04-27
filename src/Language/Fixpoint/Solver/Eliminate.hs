@@ -67,30 +67,31 @@ instance Elimable BindEnv where
 eliminateAll :: FInfo a -> D.Deps -> FInfo a
 eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
+--TODO: ignores the WfC's env
 eliminate :: FInfo a -> KVar -> FInfo a
 eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs})
   where
     relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
     remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
-    (kVarSReft, remainingWs) = bar kv (ws fInfo)
-    orPred = POr (map (foo kVarSReft fInfo) (M.elems relevantSubCs))
+    (kvWfC, remainingWs) = bar kv (ws fInfo)
+    orPred = POr (map (foo kvWfC fInfo) (M.elems relevantSubCs))
 
---TODO: ignores the WfC's env
-bar :: KVar -> [WfC a] -> (SortedReft, [WfC a])
-bar kv ws = (wrft w', ws')
+bar :: KVar -> [WfC a] -> (WfC a, [WfC a])
+bar kv ws = (w', ws')
   where
     (w, ws') = partition (elem kv . kvars . sr_reft . wrft) ws
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
-foo :: SortedReft -> FInfo a -> SubC a -> Pred
-foo kvSreft fInfo subC = pr'
+foo :: WfC a -> FInfo a -> SubC a -> Pred
+foo wfc fInfo subC = pr'
   where
+    kvSreft = wrft wfc
     bindings = envCs (bs fInfo) (senv subC)
     kVarVV = reftBind $ sr_reft kvSreft
     pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    pr' = projectNonWFVars [(kVarVV, sr_sort kvSreft)] pr
+    pr' = projectNonWFVars ((kVarVV, sr_sort kvSreft) : envBinds wfc fInfo) pr
 
 projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
 projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
@@ -111,3 +112,6 @@ blah (sym, sr) = subst1 (reftPred reft) sub
   where
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))
+
+envBinds :: WfC a -> FInfo a -> [(Symbol, Sort)]
+envBinds w f = traceFix "hi" [(sym, sr_sort srft) | (sym, srft) <- envCs (bs f) (wenv w)]
