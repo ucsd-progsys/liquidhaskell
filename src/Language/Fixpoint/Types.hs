@@ -825,7 +825,7 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
     err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
-unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2 
+unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
 instance Functor SEnv where
   fmap = mapSEnv
@@ -838,9 +838,9 @@ instance Fixpoint Reft where
   toFix = pprReftPred
 
 instance Fixpoint SortedReft where
-  toFix (RR so (Reft (v, ras)))
+  toFix (RR so (Reft (v, Refa p)))
     = braces
-    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix ras
+    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> brackets (toFix p)
 
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
