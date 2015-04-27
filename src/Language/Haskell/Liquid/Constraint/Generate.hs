@@ -660,12 +660,12 @@ addCGEnv tx γ (msg, x, REx y tyy tyx)
 
 addCGEnv _ _ (_, _, RAllE _ _ _)
   = error "NOOO" -- addCGEnv tx γ (msg, x, t)
--- addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
---   = error "NOOO" -- addCGEnv tx γ (msg, x, t)
---   where 
---     xs    = grapBindsWithType tyy γ
---     t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx `F.subst1` (yy, F.EVar x) | x <- xs]
---     ttrue = fmap (\_ -> mempty) tyx
+addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (msg, x, t)
+  where 
+    xs    = grapBindsWithType tyy γ
+    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx `F.subst1` (yy, F.EVar x) | x <- xs]
+    ttrue = fmap (\_ -> mempty) tyx
 
 addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
