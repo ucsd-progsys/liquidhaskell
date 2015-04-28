@@ -99,8 +99,8 @@ refTypeQuals' l tce t0        = go emptySEnv t0
 
 refTopQuals l tce t0 γ t
   = [ mkQual l t0 γ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
-                             , let (Refa p)               = ra
-                             , pa                        <- atoms p
+                             , pa                        <- conjuncts $ raPred ra
+                             , not $ isHole pa
     ] ++
     [ mkPQual l tce t0 γ s e | let (U _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
                              , p <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
@@ -129,5 +129,5 @@ lookupSort t0 x γ  = fromMaybe (errorstar msg) $ lookupSEnv x γ
 
 orderedFreeVars γ = nub . filter (`memberSEnv` γ) . syms
 
-atoms (PAnd ps)   = concatMap atoms ps
-atoms p           = [p]
+-- atoms (PAnd ps)   = concatMap atoms ps
+-- atoms p           = [p]
