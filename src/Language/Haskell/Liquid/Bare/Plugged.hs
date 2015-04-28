@@ -123,9 +123,9 @@ maybeTrue x target exports r
 
 -- killHoles r@(U (Reft (v, rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
-killHoles r = r { ur_reft = mapPredReft dropHoles' $ ur_reft r }
+killHoles r = r { ur_reft = mapPredReft dropHoles $ ur_reft r }
   where
-    dropHoles' p = traceFix ("dropHoles p = " ++ show p) $ dropHoles p
+    -- dropHoles' p = traceFix ("dropHoles p = " ++ show p) $ dropHoles p
     dropHoles    = pAnd . filter (not . isHole) . conjuncts
 
 -- NEWCUTSOLVER killHoles x = x { ur_reft = zap $ ur_reft x }
