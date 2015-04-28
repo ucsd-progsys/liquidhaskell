@@ -310,11 +310,11 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
 
 bsplitW' γ t pflag
-  | F.isNonTrivialSortedReft r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
-  | otherwise                   = []
+  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
+  | otherwise         = []
   where
-    r'                          = rTypeSortedReft' pflag γ t
-    ci                          = Ci (loc γ) Nothing
+    r'                = rTypeSortedReft' pflag γ t
+    ci                = Ci (loc γ) Nothing
 
 ------------------------------------------------------------
 splitS  :: SubC -> CG [([Stratum], [Stratum])]
@@ -564,13 +564,14 @@ bsplitC γ t1 t2
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
-  where [s1, s2]   = getStrata <$> [t1, t2]
-        wrn        =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
+  where
+    [s1, s2]  = getStrata <$> [t1, t2]
+    wrn       =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
 bsplitC' γ t1 t2 pflag
-  | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
+  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
   = F.subC γ' grd (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
-  | F.isNonTrivialSortedReft r2'
+  | F.isNonTrivial r2'
   = F.subC γ' grd r1'  r2' Nothing tag ci
   | otherwise
   = []

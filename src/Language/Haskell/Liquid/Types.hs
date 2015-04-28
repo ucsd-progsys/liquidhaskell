@@ -234,7 +234,6 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Visitor    (kvars)
 import Language.Fixpoint.Types      hiding (Predicate, Def, R)
 import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
@@ -1802,19 +1801,22 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` ()
 
--- isHole (PKVar ("HOLE") _) = True
--- isHole _                  = False
 -- hasHole (toReft -> (Reft (_, rs))) = any isHole rs
-
-hasHole :: Reftable r => r -> Bool
-hasHole = any isHole . kvars . toReft
 
 hole :: Pred
 hole = PKVar "HOLE" mempty
 
-isHole :: KVar -> Bool
-isHole "HOLE" = True
-isHole _      = False
+isHole :: Pred -> Bool
+isHole (PKVar ("HOLE") _) = True
+isHole _                  = False
+
+hasHole :: Reftable r => r -> Bool
+hasHole = any isHole . conjuncts . reftPred . toReft
+
+
+-- isHole :: KVar -> Bool
+-- isHole "HOLE" = True
+-- isHole _      = False
 
 
 -- classToRApp :: SpecType -> SpecType
