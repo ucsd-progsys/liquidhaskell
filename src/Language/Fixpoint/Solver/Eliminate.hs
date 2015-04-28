@@ -3,7 +3,7 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
-import           Language.Fixpoint.Visitor (kvars)
+import           Language.Fixpoint.Visitor (kvars, mapKVars)
 import           Language.Fixpoint.Names   (nonSymbol)
 import           Language.Fixpoint.Misc    (errorstar)
 
@@ -28,32 +28,21 @@ solve cfg fi = do
 class Elimable a where
   elimKVar :: KVar -> Pred -> a -> a
 
-instance Elimable Pred where
-  elimKVar kv pr p@(PKVar k su) | kv == k   = subst su pr
-                                | otherwise = p
-  elimKVar kv pr (PAnd ps)      = PAnd $ map (elimKVar kv pr) ps
-  elimKVar kv pr (POr ps)       = POr  $ map (elimKVar kv pr) ps
-  elimKVar kv pr (PNot p)       = PNot (elimKVar kv pr p)
-  elimKVar kv pr (PImp p q)     = PImp (elimKVar kv pr p) (elimKVar kv pr q)
-  elimKVar kv pr (PIff p q)     = PIff (elimKVar kv pr p) (elimKVar kv pr q)
-  elimKVar kv pr (PAll bs p)    = PAll   bs (elimKVar kv pr p)
-  elimKVar kv pr (PExist bs p)  = PExist bs (elimKVar kv pr p)
-  elimKVar _ _ p                = p
-
 instance Elimable (SubC a) where
-  elimKVar kv pr x = x { sgrd = elimKVar kv pr (sgrd x)
+  elimKVar kv pr x = x { sgrd = mapKVars go (sgrd x)
                        , slhs = elimKVar kv pr (slhs x)
                        --, srhs = elimKVar kv pr (srhs x)
                        }
+    where
+      go k = if kv == k then Just pr else Nothing
 
 instance Elimable SortedReft where
   elimKVar kv pr x = x { sr_reft = elimKVar kv pr (sr_reft x) }
 
 instance Elimable Reft where
-  elimKVar kv pr (Reft (s, refa)) = Reft (s, (elimKVar kv pr refa))
-
-instance Elimable Refa where
-  elimKVar kv pr x = x { raPred = elimKVar kv pr (raPred x) }
+  elimKVar kv pr = mapKVars go
+    where
+      go k = if kv == k then Just pr else Nothing
 
 instance Elimable (FInfo a) where
   elimKVar kv pr x = x { cm = M.map (elimKVar kv pr) (cm x)
@@ -67,30 +56,31 @@ instance Elimable BindEnv where
 eliminateAll :: FInfo a -> D.Deps -> FInfo a
 eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
+--TODO: ignores the WfC's env
 eliminate :: FInfo a -> KVar -> FInfo a
 eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs})
   where
     relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
     remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
-    (kVarSReft, remainingWs) = bar kv (ws fInfo)
-    orPred = POr (map (foo kVarSReft fInfo) (M.elems relevantSubCs))
+    (kvWfC, remainingWs) = bar kv (ws fInfo)
+    orPred = POr (map (foo kvWfC fInfo) (M.elems relevantSubCs))
 
---TODO: ignores the WfC's env
-bar :: KVar -> [WfC a] -> (SortedReft, [WfC a])
-bar kv ws = (wrft w', ws')
+bar :: KVar -> [WfC a] -> (WfC a, [WfC a])
+bar kv ws = (w', ws')
   where
     (w, ws') = partition (elem kv . kvars . sr_reft . wrft) ws
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
 --TODO: ignores a constraint's sgrd, stag, and sinfo
-foo :: SortedReft -> FInfo a -> SubC a -> Pred
-foo kvSreft fInfo subC = pr'
+foo :: WfC a -> FInfo a -> SubC a -> Pred
+foo wfc fInfo subC = pr'
   where
+    kvSreft = wrft wfc
     bindings = envCs (bs fInfo) (senv subC)
     kVarVV = reftBind $ sr_reft kvSreft
     pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    pr' = projectNonWFVars [(kVarVV, sr_sort kvSreft)] pr
+    pr' = projectNonWFVars ((kVarVV, sr_sort kvSreft) : envBinds wfc fInfo) pr
 
 projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
 projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
@@ -111,3 +101,6 @@ blah (sym, sr) = subst1 (reftPred reft) sub
   where
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))
+
+envBinds :: WfC a -> FInfo a -> [(Symbol, Sort)]
+envBinds w f = traceFix "hi" [(sym, sr_sort srft) | (sym, srft) <- envCs (bs f) (wenv w)]
