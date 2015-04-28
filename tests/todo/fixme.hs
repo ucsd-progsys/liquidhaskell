@@ -1,8 +1,6 @@
-module Foo where
+module Foo () where
 
-type List a = [a]
-type Point  = List Double
+baz = bob 10
 
-{-@ foo :: n:Nat -> Point n @-}
-foo :: Int -> List Double
-foo _ = []
+bob :: Int -> Int
+bob x = x

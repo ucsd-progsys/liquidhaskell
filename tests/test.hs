@@ -31,14 +31,14 @@ testRunner = rerunningTests [ listingTests, consoleTestReporter ]
 #endif
 
 main :: IO ()
-main = run =<< tests 
+main = run =<< tests
   where
     run   = defaultMainWithIngredients [
                 testRunner
               , includingOptions [ Option (Proxy :: Proxy NumThreads)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    
+
     tests = group "Tests" [ unitTests, benchTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
@@ -53,17 +53,17 @@ instance IsOption SmtSolver where
       <> help (untag (optionHelp :: Tagged SmtSolver String))
       )
 
-unitTests  
-  = group "Unit" [ 
+unitTests
+  = group "Unit" [
       testGroup "pos"         <$> dirTests "tests/pos"                            []           ExitSuccess
     , testGroup "neg"         <$> dirTests "tests/neg"                            []           (ExitFailure 1)
-    , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2) 
+    , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
    ]
 
 benchTests
-  = group "Benchmarks" [ 
+  = group "Benchmarks" [
       testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
     , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
     , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
@@ -100,6 +100,7 @@ mkTest code dir file
           let cmd     = testCmd liquid dir file smt
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
+          renameFile log $ log <.> (if code == c then "pass" else "fail")
           assertEqual "Wrong exit code" code c
   where
     test = dir </> file
@@ -113,7 +114,7 @@ knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> String
 ---------------------------------------------------------------------------
-testCmd liquid dir file smt 
+testCmd liquid dir file smt
   = printf "cd %s && %s --verbose --smtsolver %s %s" dir liquid (show smt) file
 
 
@@ -182,5 +183,3 @@ partitionM f = go [] []
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f []     = pure []
 concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
-
-

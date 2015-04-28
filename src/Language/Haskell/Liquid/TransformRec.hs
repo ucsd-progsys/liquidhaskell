@@ -15,13 +15,14 @@ import           Coercion
 import           Control.Arrow       (second)
 import           Control.Monad.State
 import           CoreSyn
+import           CoreUtils
 import qualified Data.HashMap.Strict as M
 import           ErrUtils
 import           Id                  (idOccInfo, setIdInfo)
 import           IdInfo
 import           MkCore              (mkCoreLams)
 import           SrcLoc
-import           Type                (mkForAllTys)
+import           Type                (mkForAllTys, splitForAllTys)
 import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
@@ -136,7 +137,7 @@ transExpr e
 isNonPolyRec (Let (Rec xes) _) = any nonPoly (snd <$> xes)
 isNonPolyRec _                 = False
 
-nonPoly = null . fst . collectTyBinders
+nonPoly = null . fst . splitForAllTys . exprType
 
 collectNonRecLets = go []
   where go bs (Let b@(NonRec _ _) e') = go (b:bs) e'

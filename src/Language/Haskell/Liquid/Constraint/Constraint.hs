@@ -23,13 +23,17 @@ addConstraints t γ = γ {lcs = mappend (typeToConstraint t) (lcs γ)}
 
 constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ  <$> ts)
 
-constraintToLogicOne γ t
-  =  pAnd [subConstraintToLogicOne (zip xs xts) (last xs, (last $ (fst <$> xts), r))  | xts <- xss]
-        where rep = toRTypeRep t
-              ts  = ty_args  rep
-              r   = ty_res   rep
-              xs  = ty_binds rep
-              xss = combinations ((\t -> [(x, t) | x <- grapBindsWithType t γ]) <$> ts)
+constraintToLogicOne γ env
+  =  pAnd [subConstraintToLogicOne 
+            (zip xs xts) 
+            (last xs, 
+            (last $ (fst <$> xts), r))  
+          | xts <- xss]
+  where 
+   xts      = init env 
+   (xs, ts) = unzip xts 
+   r        = snd $ last env
+   xss      = combinations ((\t -> [(x, t) | x <- grapBindsWithType t γ]) <$> ts)
 
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where

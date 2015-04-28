@@ -27,7 +27,7 @@ import Control.Monad.Error hiding (Error)
 import Control.Monad.State
 import Control.Monad.Writer
 
-import qualified Control.Exception   as Ex 
+import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
@@ -51,7 +51,7 @@ type TCEnv = M.HashMap TyCon RTyCon
 type InlnEnv = M.HashMap Symbol TInline
 
 data TInline = TI { tiargs :: [Symbol]
-                  , tibody :: Either Pred Expr 
+                  , tibody :: Either Pred Expr
                   } deriving (Show)
 
 
@@ -60,7 +60,7 @@ data BareEnv = BE { modName  :: !ModName
                   , tcEnv    :: !TCEnv
                   , rtEnv    :: !RTEnv
                   , varEnv   :: ![(Symbol,Var)]
-                  , hscEnv   :: HscEnv 
+                  , hscEnv   :: HscEnv
                   , logicEnv :: LogicMap
                   , inlines  :: InlnEnv
                   , bounds   :: RBEnv
@@ -78,15 +78,15 @@ inModule m act = do
   modify $ setModule old
   return res
 
-withVArgs l vs act = do
+withVArgs l l' vs act = do
   old <- gets rtEnv
-  mapM_ (mkExprAlias l . symbol . showpp) vs
+  mapM_ (mkExprAlias l l' . symbol . showpp) vs
   res <- act
   modify $ \be -> be { rtEnv = old }
   return res
 
-mkExprAlias l v
-  = setRTAlias v (RTA v [] [] (RExprArg (Loc l $ EVar $ symbol v)) l)
+mkExprAlias l l' v
+  = setRTAlias v (RTA v [] [] (RExprArg (Loc l l' $ EVar $ symbol v)) l l')
 
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
@@ -100,10 +100,9 @@ setREAlias s a =
 ------------------------------------------------------------------
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
 ------------------------------------------------------------------
-execBare act benv = 
+execBare act benv =
    do z <- evalStateT (runErrorT (runWriterT act)) benv `Ex.catch` (return . Left)
       case z of
         Left s        -> return $ Left s
-        Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++) 
+        Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++)
                             return $ Right x
-

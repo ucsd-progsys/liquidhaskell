@@ -52,7 +52,7 @@ data CGEnv
         } -- deriving (Data, Typeable)
 
 
-data LConstraint = LC [SpecType]
+data LConstraint = LC [[(F.Symbol, SpecType)]]
 
 
 instance PPrint CGEnv where
