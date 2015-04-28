@@ -126,8 +126,7 @@ module Language.Fixpoint.Types (
   , predReft                -- any pred : p
   , reftPred, reftBind
   , isFunctionSortedReft
-  , isNonTrivialSortedReft
-  , isTautoReft
+  , isNonTrivial
   , isSingletonReft
   , isEVar
   , isFalse
@@ -606,12 +605,6 @@ isTautoPred z  = z == PTop || z == PTrue || eqT z
                = x /= y
     eqT _      = False
 
-isTautoReft :: Reft -> Bool
-isTautoReft (Reft (_, ra)) = isTautoPred $ raPred ra
-
-isTautoRa :: Refa -> Bool
-isTautoRa (Refa p)         = isTautoPred p
-
 isEVar :: Expr -> Bool
 isEVar (EVar _) = True
 isEVar _        = False
@@ -631,17 +624,17 @@ pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
 
 mkProp        = PBexp . EApp (dummyLoc propConName) . (: [])
 
-pprReft (Reft (v, ra)) d
-  | isTautoRa ra
+pprReft (Reft (v, Refa p)) d
+  | isTautoPred p
   = d
   | otherwise
-  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [ra])
+  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [Refa p])
 
-pprReftPred (Reft (_, ra))
-  | isTautoRa ra
+pprReftPred (Reft (_, Refa p))
+  | isTautoPred p
   = text "true"
   | otherwise
-  = ppRas [ra]
+  = ppRas [Refa p]
 
 ppRas = cat . punctuate comma . map toFix . flattenRefas
 
@@ -732,15 +725,14 @@ instance Show Reft where
 data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Show, Data, Typeable, Generic)
 
-isNonTrivialSortedReft :: SortedReft -> Bool
-isNonTrivialSortedReft (RR _ r) = not $ isTautoReft r
-
 isFunctionSortedReft :: SortedReft -> Bool
 isFunctionSortedReft (RR (FFunc _ _) _) = True
 isFunctionSortedReft _                  = False
 
--- sortedReftValueVariable (RR _ (Reft (v,_))) = v
+isNonTrivial :: Reftable r => r -> Bool
+isNonTrivial = not .isTauto
 
+-- sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
 reftPred :: Reft -> Pred
 reftPred (Reft (_, Refa p)) = p
@@ -1297,16 +1289,44 @@ instance Hashable FTycon where
 -------- Constraint Constructor Wrappers ----------------------------------
 ---------------------------------------------------------------------------
 
+wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
 wfC  = WfC
 
-subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) i y z
-  = [subC' r2' | r2' <- [r2P], not $ isTauto r2']
-  where
-    subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vv')) (RR t2 (shiftVV r2' vv')) i y z
-    r2P        = Reft (v2, ra2s) -- [ra | ra@(Refa _  ) <- ra2s])
-    -- r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
-    vv'        = mkVV i
+-- subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+-- subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) i y z
+--   = error "TODO:subC" -- NEW [subC' r2' | r2' <- [r2P], not $ isTauto r2']
+--   where
+--     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vv')) (RR t2 (shiftVV r2' vv')) i y z
+--     r2P        = Reft (v2, ra2s) -- ORIG [ra | ra@(Refa _  ) <- ra2s])
+--     -- ORIG r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
+--     vv'        = mkVV i
 
+
+-- ORIG subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
+-- ORIG   = [subC' r2' | r2' <- [r2K, r2P], not $ isTauto r2']
+-- ORIG   where
+-- ORIG     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2' vvCon)) x y z
+-- ORIG     r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
+-- ORIG     r2P        = Reft (v2, [ra | ra@(RConc _  ) <- ra2s])
+
+
+subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+-- subC γ p (RR t1 r1) (RR t2 r2) i y z
+subC γ p sr1 sr2 i y z = [SubC γ p sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
+   where
+     RR t1 r1          = sr1
+     RR t2 r2          = sr2
+     sr1'              = RR t1 $ shiftVV r1  vv'
+     sr2' r2'          = RR t2 $ shiftVV r2' vv'
+     vv'               = mkVV i
+
+reftConjuncts :: Reft -> [Reft]
+reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- refaConjuncts ra]
+
+refaConjuncts :: Refa -> [Refa]
+refaConjuncts (Refa p)       = [Refa p' | p' <- conjuncts p, not $ isTautoPred p']
+
+mkVV :: Maybe Integer -> Symbol
 mkVV (Just i)  = vv $ Just i
 mkVV Nothing   = vvCon
 
@@ -1418,7 +1438,7 @@ instance Monoid Pred where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
   mconcat     = pAnd
-  
+
 instance Monoid Refa where
   mempty          = Refa mempty
   mappend ra1 ra2 = Refa $ mappend (raPred ra1) (raPred ra2)
@@ -1448,8 +1468,15 @@ instance Reftable () where
   ofReft _  = mempty
   params _  = []
 
+-- NUKE isTautoReft :: Reft -> Bool
+-- NUKE isTautoReft (Reft (_, ra)) = isTautoRa ra
+-- NUKE
+-- NUKE isTautoRa :: Refa -> Bool
+-- NUKE isTautoRa = isTautoPred . raPred
+
+
 instance Reftable Reft where
-  isTauto  = isTautoReft
+  isTauto  = isTautoPred . reftPred
   ppTy     = pprReft
   toReft   = id
   ofReft   = id
