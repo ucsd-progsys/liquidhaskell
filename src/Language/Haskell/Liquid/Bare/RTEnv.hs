@@ -42,27 +42,30 @@ makeRTAliases
   = graphExpand buildTypeEdges expBody
   where
     expBody (mod, xt)
-      = inModule mod $ 
-          do let l = rtPos xt
-             body <- withVArgs l (rtVArgs xt) $ ofBareType l $ rtBody xt
+      = inModule mod $
+          do let l  = rtPos  xt
+             let l' = rtPosE xt
+             body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
 
 makeRPAliases
   = graphExpand buildPredEdges expBody
-  where 
+  where
     expBody (mod, xt)
       = inModule mod $
-          do let l = rtPos xt
-             body <- withVArgs l (rtVArgs xt) $ resolve l =<< (expandPred $ rtBody xt)
+          do let l  = rtPos  xt
+             let l' = rtPosE xt
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandPred $ rtBody xt)
              setRPAlias (rtName xt) $ xt { rtBody = body }
 
 makeREAliases
   = graphExpand buildExprEdges expBody
-  where 
+  where
     expBody (mod, xt)
       = inModule mod $
-          do let l = rtPos xt
-             body <- withVArgs l (rtVArgs xt) $ resolve l =<< (expandExpr $ rtBody xt)
+          do let l  = rtPos  xt
+             let l' = rtPosE xt
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandExpr $ rtBody xt)
              setREAlias (rtName xt) $ xt { rtBody = body }
 
 
@@ -128,7 +131,7 @@ checkCyclicAliases table graph
 
 
 genExpandOrder :: AliasTable t -> Graph Symbol -> [(ModName, RTAlias Symbol t)]
-genExpandOrder table graph 
+genExpandOrder table graph
   = map (fromAliasSymbol table) symOrder
   where
     (digraph, lookupVertex, _)
@@ -142,7 +145,7 @@ buildTypeEdges :: AliasTable BareType -> BareType -> [Symbol]
 buildTypeEdges table
   = ordNub . go
   where go :: BareType -> [Symbol]
-        go (RApp (Loc _ c) ts rs _)
+        go (RApp (Loc _ _ c) ts rs _)
           = go_alias c ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
 
         go (RFun _ t1 t2 _)
@@ -183,7 +186,7 @@ buildPredEdges :: AliasTable Pred -> Pred -> [Symbol]
 buildPredEdges table
   = ordNub . go
   where go :: Pred -> [Symbol]
-        go (PBexp (EApp (Loc _ f) _))
+        go (PBexp (EApp (Loc _ _ f) _))
           = case M.lookup f table of
               Just _  -> [f]
               Nothing -> [ ]
@@ -219,7 +222,7 @@ buildPredEdges table
 buildExprEdges table
   = ordNub . go
   where go :: Expr -> [Symbol]
-        go (EApp (Loc _ f) es)
+        go (EApp (Loc _ _ f) es)
           = go_alias f ++ concatMap go es
 
         go (ENeg e)
@@ -248,4 +251,3 @@ buildExprEdges table
           = case M.lookup f table of
               Just _  -> [f]
               Nothing -> [ ]
-

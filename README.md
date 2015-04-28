@@ -11,8 +11,10 @@ LiquidHaskell requires (in addition to the cabal dependencies)
 How To Clone, Build and Install
 -------------------------------
 
+
 To begin building, run the following commands in the root
 directory of the distribution:
+
 
 1. Install a suitable smt solver binary, e.g.
 

@@ -126,8 +126,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p (RFun x t t' _)
-  = pprArrowChain p $ ppr_dbind bb FunPrec x t : ppr_fun_tail bb t'
+ppr_rtype bb p t@(RFun _ _ _ _)
+  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb rs
@@ -152,7 +152,7 @@ ppr_rtype _ _ (RExprArg e)
   = braces $ pprint e
 ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
-ppr_rtype bb p (RRTy [(_, e)] _ OCons t)
+ppr_rtype bb p (RRTy e _ OCons t)         
   = sep [braces (ppr_rsubtype bb p e) <+> "=>", ppr_rtype bb p t]
 ppr_rtype bb p (RRTy e r o t)
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
@@ -162,13 +162,14 @@ ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
 
-ppr_rsubtype bb p e = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
+ppr_rsubtype bb p e 
+  = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
   where
-    trep = toRTypeRep e
-    tr   = ty_res trep
-    tl   = last $ ty_args trep
-    env  = zip (init $ ty_binds trep) (init $ ty_args trep)
-    pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
+    (el, r)  = (init e,  last e)
+    (env, l) = (init el, last el)
+    tr   = snd $ r
+    tl   = snd $ l
+    pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t 
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
 ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
@@ -184,14 +185,7 @@ ppSpine (RVar _ _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
 ppSpine (RRTy _ _ _ _)   = text "RRTy"
 
--- | From GHC: TypeRep
--- pprArrowChain p [a,b,c]  generates   a -> b -> c
-pprArrowChain :: Prec -> [Doc] -> Doc
-pprArrowChain _ []         = empty
-pprArrowChain p (arg:args) = maybeParen p FunPrec $
-                             sep [arg, sep (map (arrow <+>) args)]
-
--- | From GHC: TypeRep
+-- | From GHC: TypeRep 
 maybeParen :: Prec -> Prec -> Doc -> Doc
 maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
@@ -224,11 +218,15 @@ ppr_dbind bb p x t
   | otherwise
   = pprint x <> colon <> ppr_rtype bb p t
 
--- ppr_fun_tail :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> RType p c tv r -> [Doc]
-ppr_fun_tail bb (RFun b t t' _)
-  = (ppr_dbind bb FunPrec b t) : (ppr_fun_tail bb t')
-ppr_fun_tail bb t
-  = [ppr_rtype bb TopPrec t]
+
+ppr_rty_fun bb prefix t
+  = prefix <+> ppr_rty_fun' bb t
+
+ppr_rty_fun' bb (RFun b t t' _)
+  = ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+ppr_rty_fun' bb t
+  = ppr_rtype bb TopPrec t
+
 
 -- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall bb p t

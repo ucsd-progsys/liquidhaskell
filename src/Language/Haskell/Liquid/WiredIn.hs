@@ -55,8 +55,8 @@ wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt)
-                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt)])
+                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt l0)
+                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -75,7 +75,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Jus
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt)])
+                    , [(dc, DataConP l0 (RTV <$> tyvs) ps [] []  cargs  lt l0)])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant

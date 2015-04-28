@@ -9,7 +9,8 @@ module Language.Haskell.Liquid.Bounds (
 
     RBEnv, RRBEnv,
 
-    makeBound
+    makeBound, 
+    envToSub
 
         ) where
 
@@ -72,12 +73,12 @@ instance Bifunctor Bound where
 
 makeBound :: (PPrint r, UReftable r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
-makeBound (Bound _  vs ps xs p) ts qs t
-  = RRTy [(dummySymbol, ct)] mempty OCons t
+makeBound (Bound _  vs ps xs p) ts qs t 
+  = RRTy cts mempty OCons t
   where
-    ct  = foldr subsTyVar_meet ct' su
+    cts  = (\(x, t) -> (x, foldr subsTyVar_meet t su)) <$> cts'
 
-    ct' = makeBoundType penv rs xs
+    cts' = makeBoundType penv rs xs 
 
     penv = zip (val . fst <$> ps) qs
     rs   = bkImp [] p
@@ -87,14 +88,18 @@ makeBound (Bound _  vs ps xs p) ts qs t
 
     su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]
 
-makeBoundType :: (PPrint r, UReftable r) => [(Symbol, Symbol)] -> [Pred] -> [(LocSymbol, RSort)] -> RRType r
+makeBoundType :: (PPrint r, UReftable r)
+              => [(Symbol, Symbol)] 
+              -> [Pred] 
+              -> [(LocSymbol, RSort)] 
+              -> [(Symbol, RRType r)]
 makeBoundType penv (q:qs) xts = go xts
   where
     -- NV TODO: Turn this into a proper error
     go [] = errorstar "Bound with empty symbols"
 
-    go [(x, t)]      = RFun dummySymbol (tp t x)  (tq t x)  mempty
-    go ((x, t):xtss) = RFun (val x)     (mkt t x) (go xtss) mempty
+    go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
+    go ((x, t):xtss) = (val x, mkt t x):(go xtss)
 
     mkt t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, []))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
@@ -132,6 +137,12 @@ toUsedPVar penv (PBexp (EApp p es))
 
 toUsedPVar _ _ = error "This cannot happen"
 
+envToSub = go []
+  where
+    go _   []              = error "This cannot happen: envToSub on 0 elems"
+    go _   [(_,_)]         = error "This cannot happen: envToSub on 1 elem"
+    go ack [(_,l), (_, r)] = (reverse ack, l, r)
+    go ack (x:xs)          = go (x:ack) xs
 
 -- `makeRef` is used to make the refinement of the last implication,
 -- thus it can contain both concrete and abstract refinements
