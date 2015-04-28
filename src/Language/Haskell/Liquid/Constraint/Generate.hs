@@ -73,6 +73,7 @@ import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
+import Language.Haskell.Liquid.RefSplit 
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
@@ -658,12 +659,13 @@ addCGEnv tx γ (msg, x, REx y tyy tyx)
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
+addCGEnv tx γ (msg, x, (RAllE yy tyy tyx))
   = addCGEnv tx γ (msg, x, t)
   where 
     xs    = grapBindsWithType tyy γ
-    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx `F.subst1` (yy, F.EVar x) | x <- xs]
-    ttrue = fmap (\_ -> mempty) tyx
+    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
+
+    (tyx', ttrue) = splitXRelatedRefs yy tyx
 
 addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
