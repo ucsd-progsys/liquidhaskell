@@ -380,8 +380,6 @@ strengthenRefType_ ::
            
 strengthenRefTypeGen = strengthenRefType_ f
   where
-    f (RAllT a t1) t2 = RAllT a $ strengthenRefType_ f t1 t2
-    f t1 (RAllT a t2) = RAllT a $ strengthenRefType_ f t1 t2
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
@@ -403,17 +401,15 @@ strengthenRefType t1 t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
-strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
-  = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
-
-strengthenRefType_ f (RAllE x tx t1) t2
-  = RAllE x tx $ strengthenRefType_ f t1 t2
-
-strengthenRefType_ f t1 (RAllE x tx t2)
-  = RAllE x tx $ strengthenRefType_ f t1 t2
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT _ t2)
   = RAllT a1 $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f (RAllT a t1) t2
+  = RAllT a $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f t1 (RAllT a t2)
+  = RAllT a $ strengthenRefType_ f t1 t2
 
 strengthenRefType_ f (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ f t1 t2
@@ -424,15 +420,24 @@ strengthenRefType_ f (RAllS s t1) t2
 strengthenRefType_ f t1 (RAllS s t2)
   = RAllS s $ strengthenRefType_ f t1 t2
 
+strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
+  = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f (RAllE x tx t1) t2
+  = RAllE x tx $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f t1 (RAllE x tx t2)
+  = RAllE x tx $ strengthenRefType_ f t1 t2
+
 strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
   = RAppTy t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
 strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
-  = RFun x1 t t' (r1 `meet` r2)
+  = RFun x2 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
-          t' = strengthenRefType_ f t1' $ subst1 t2' (x2, EVar x1)
+          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2' 
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
@@ -550,8 +555,8 @@ freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [α]
-freeTyVars (RAllE _ _ t)   = freeTyVars t
-freeTyVars (REx _ _ t)     = freeTyVars t
+freeTyVars (RAllE _ tx t)  = freeTyVars tx `L.union` freeTyVars t
+freeTyVars (REx _ tx t)    = freeTyVars tx `L.union` freeTyVars t
 freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole _)       = []
