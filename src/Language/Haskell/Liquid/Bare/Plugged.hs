@@ -25,7 +25,7 @@ import Data.Monoid
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Names (dummySymbol)
-import Language.Fixpoint.Types (traceFix, mapPredReft, pAnd, conjuncts, Refa (..), TCEmb)
+import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, Refa (..), TCEmb)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
