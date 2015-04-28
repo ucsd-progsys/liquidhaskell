@@ -22,7 +22,7 @@ import DataCon
 
 import qualified Data.HashMap.Strict as M 
 import qualified Data.HashSet        as S 
-import Data.List (foldl1', foldl')
+import Data.List (foldl')
 
 import Data.Monoid hiding ((<>))
 import Data.Bifunctor
@@ -314,7 +314,9 @@ dataConTypes  s = (ctorTys, measTys)
     ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds)
                                            | (_, ds) <- M.toList (ctorMap s)
                                                        ]
-    defsTy      = foldl1' strengthenRefTypeGen . fmap defRefType 
+    defsTy ds@(d:_) = foldl' strengthenRefTypeGen (ofType $ dataConUserType $ ctor d) (defRefType <$> ds)
+    defsTy []       = errorstar "Measure.defsTy: This cannot happen"
+
     defsVar     = ctor . safeHead "defsVar" 
 
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
