@@ -11,10 +11,10 @@ data Vec a = Nil | Cons a (Vec a)
 
 {-@ data Vec [llen] a = Nil | Cons (x::a) (xs::(Vec a)) @-}
 
--- | We can encode the notion of length as an inductive measure @llen@ 
+-- | We can encode the notion of length as an inductive measure @llen@
 
-{-@ measure llen     :: forall a. Vec a -> Int 
-    llen (Nil)       = 0 
+{-@ measure llen     :: forall a. Vec a -> Int
+    llen (Nil)       = 0
     llen (Cons x xs) = 1 + llen(xs)
   @-}
 
@@ -28,29 +28,29 @@ sizeOf Nil         = 0
 sizeOf (Cons _ xs) = 1 + sizeOf xs
 
 -------------------------------------------------------------------------
--- | Higher-order fold -------------------------------------------------- 
+-- | Higher-order fold --------------------------------------------------
 -------------------------------------------------------------------------
 
 -- | Time to roll up the sleeves. Here's a a higher-order @foldr@ function
 -- for our `Vec` type. Note that the `op` argument takes an extra /ghost/
--- parameter that will let us properly describe the type of `efoldr` 
+-- parameter that will let us properly describe the type of `efoldr`
 
-{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>. 
-                (xs:Vec a -> x:a -> b <p xs> -> b <p (Ex.Cons x xs)>) 
-              -> b <p Ex.Nil> 
+{-@ efoldr :: forall a b <p :: x0:Vec a -> x1:b -> Prop>.
+                (xs:Vec a -> x:a -> b <p xs> -> b <p (Ex.Cons x xs)>)
+              -> b <p Ex.Nil>
               -> ys: Vec a
               -> b <p ys>
   @-}
 efoldr :: (Vec a -> a -> b -> b) -> b -> Vec a -> b
 efoldr op b Nil         = b
-efoldr op b (Cons x xs) = op xs x (efoldr op b xs) 
+efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 
 -------------------------------------------------------------------------
--- | Clients of `efold` ------------------------------------------------- 
+-- | Clients of `efold` -------------------------------------------------
 -------------------------------------------------------------------------
 
--- | Finally, lets write a few /client/ functions that use `efoldr` to 
--- operate on the `Vec`s. 
+-- | Finally, lets write a few /client/ functions that use `efoldr` to
+-- operate on the `Vec`s.
 
 -- | First: Computing the length using `efoldr`
 {-@ size :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
@@ -60,14 +60,10 @@ size = efoldr (\_ _ n -> n + 1) 0
 -- | The above uses a helper that counts up the size. (Pesky hack to avoid writing qualifier v = ~A + 1)
 {-@ suc :: x:Int -> {v: Int | v = x + 1} @-}
 suc :: Int -> Int
-suc x = x + 1 
+suc x = x + 1
 
 
 
 -- | Second: Appending two lists using `efoldr`
-{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
-app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs 
-
-
-
-
+{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-}
+app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs
