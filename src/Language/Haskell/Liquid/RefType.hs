@@ -138,6 +138,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , RefTypable c tv ()
          , RefTypable c tv r
          , PPrint (RType c tv r)
+         , FreeVar c tv 
          )
         => Monoid (RType c tv r)  where
   mempty  = errorstar "mempty: RType"
@@ -153,7 +154,8 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
   mempty      = errorstar "mempty: RType 2"
   mappend _ _ = errorstar "mappend: RType 2"
 
-instance ( Monoid r, Reftable r, RefTypable b c r, RefTypable b c ()) => Monoid (RTProp b c r) where
+instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ())) 
+         => Monoid (RTProp b c r) where
   mempty         = errorstar "mempty: RTProp"
 
   mappend (RPropP s1 r1) (RPropP s2 r2)
@@ -170,7 +172,8 @@ instance ( Monoid r, Reftable r, RefTypable b c r, RefTypable b c ()) => Monoid 
 
   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
-instance (Reftable r, RefTypable c tv r, RefTypable c tv ()) => Reftable (RTProp c tv r) where
+instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c) 
+    => Reftable (RTProp c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp  _ t) = isTrivial t
   isTauto (RHProp _ _) = errorstar "RefType: Reftable isTauto in RHProp"
@@ -232,7 +235,7 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (TyConable c, Reftable r, PPrint r, PPrint c) => RefTypable c Symbol r where
+instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
 --   ppCls   = ppClassSymbol
   ppRType = ppr_rtype ppEnv
 
@@ -370,20 +373,27 @@ strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
          , RefTypable c tv r 
          , PPrint (RType c tv r)
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
          ) => RType c tv r -> RType c tv r -> RType c tv r
 strengthenRefType_ :: 
          ( RefTypable c tv ()
          , RefTypable c tv r 
          , PPrint (RType c tv r)
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
          ) => (RType c tv r -> RType c tv r -> RType c tv r) 
            ->  RType c tv r -> RType c tv r -> RType c tv r
            
-strengthenRefTypeGen = strengthenRefType_ f
+strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
                          (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+ 
 
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
@@ -402,8 +412,9 @@ strengthenRefType t1 t2
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
 
-strengthenRefType_ f (RAllT a1 t1) (RAllT _ t2)
-  = RAllT a1 $ strengthenRefType_ f t1 t2
+strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
+  = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_nomeet (a2, toRSort t, t) t2)
+  where t = RVar a1 mempty
 
 strengthenRefType_ f (RAllT a t1) t2
   = RAllT a $ strengthenRefType_ f t1 t2
