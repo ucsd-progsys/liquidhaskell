@@ -413,7 +413,7 @@ strengthenRefType t1 t2
 
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
-  = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_nomeet (a2, toRSort t, t) t2)
+  = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (a2, toRSort t, t) t2)
   where t = RVar a1 mempty
 
 strengthenRefType_ f (RAllT a t1) t2
