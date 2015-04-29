@@ -659,7 +659,7 @@ addCGEnv tx γ (msg, x, REx y tyy tyx)
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (msg, x, (RAllE yy tyy tyx))
+addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
   where 
     xs    = grapBindsWithType tyy γ
