@@ -24,10 +24,14 @@ module Language.Haskell.Liquid.Constraint.Generate (
   ) where
 
 import CoreUtils     (exprType)
-
+import MkCore
+import Coercion
+import DataCon
+import Pair
 import CoreSyn
 import SrcLoc
 import Type
+import TyCon
 import PrelNames
 import TypeRep
 import Class            (Class, className)
@@ -1296,6 +1300,17 @@ cconsE γ (Lam x e) (RFun y ty t _)
 cconsE γ (Tick tt e) t
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
+-- GHC 7.10 encodes type classes with a single method as newtypes and
+-- `cast`s between the method and class type instead of applying the
+-- class constructor. Just rewrite the core to what we're used to
+-- seeing..
+cconsE γ (Cast e co) t
+  | Pair _t1 t2 <- coercionKind co
+  , isClassPred t2
+  , (tc,ts) <- splitTyConApp t2
+  , [dc]   <- tyConDataCons tc
+  = cconsE γ (mkCoreConApps dc $ map Type ts ++ [e]) t
+
 cconsE γ e@(Cast e' _) t
   = do t' <- castTy γ (exprType e) e'
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e)
@@ -1440,6 +1455,17 @@ consE γ (Tick tt e)
        addLocA Nothing l (AnnUse t)
        return t
     where l = tickSrcSpan tt
+
+-- GHC 7.10 encodes type classes with a single method as newtypes and
+-- `cast`s between the method and class type instead of applying the
+-- class constructor. Just rewrite the core to what we're used to
+-- seeing..
+consE γ (Cast e co)
+  | Pair _t1 t2 <- coercionKind co
+  , isClassPred t2
+  , (tc,ts) <- splitTyConApp t2
+  , [dc]   <- tyConDataCons tc
+  = consE γ (mkCoreConApps dc $ map Type ts ++ [e])
 
 consE γ e@(Cast e' _)
   = castTy γ (exprType e) e'
