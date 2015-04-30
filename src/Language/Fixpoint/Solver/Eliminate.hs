@@ -57,22 +57,22 @@ eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
 --TODO: ignores the WfC's env
 eliminate :: FInfo a -> KVar -> FInfo a
-eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs})
+eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs })
   where
     relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
     remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
-    (kvWfC, remainingWs) = bar kv (ws fInfo)
-    orPred = POr (map (foo kvWfC fInfo) (M.elems relevantSubCs))
+    (kvWfC, remainingWs) = findWfC kv (ws fInfo)
+    orPred = POr (map (extractPred kvWfC fInfo) (M.elems relevantSubCs))
 
-bar :: KVar -> [WfC a] -> (WfC a, [WfC a])
-bar kv ws = (w', ws')
+findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
+findWfC kv ws = (w', ws')
   where
     (w, ws') = partition (elem kv . kvars . sr_reft . wrft) ws
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
-foo :: WfC a -> FInfo a -> SubC a -> Pred
-foo wfc fInfo subC = pr'
+extractPred :: WfC a -> FInfo a -> SubC a -> Pred
+extractPred wfc fInfo subC = pr'
   where
     kvSreft = wrft wfc
     bindings = envCs (bs fInfo) (senv subC)
