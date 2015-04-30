@@ -186,7 +186,7 @@ import qualified Data.Text                 as T
 import           Data.Traversable
 import           Control.DeepSeq
 import           Control.Exception         (assert)
-import           Data.Maybe                (fromMaybe)
+import           Data.Maybe                (mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
 import           Language.Fixpoint.Misc
@@ -613,11 +613,21 @@ isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
 
 isSingletonReft :: Reft -> Maybe Expr
-isSingletonReft (Reft (v, Refa p)) = go $ simplify p
-  where 
-    go (PAtom r e1 e2) | e1 == EVar v && isEq r = Just e2
-                       | e2 == EVar v && isEq r = Just e1
-    go _                                        = Nothing
+isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts $ raPred ra
+
+firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
+firstMaybe f = listToMaybe . mapMaybe f
+
+--   where 
+--     go (PAtom r e1 e2) | e1 == EVar v && isEq r = Just e2
+--                        | e2 == EVar v && isEq r = Just e1
+--     go _                                        = Nothing
+
+isSingletonExpr :: Symbol -> Pred -> Maybe Expr
+isSingletonExpr v (PAtom r e1 e2)
+  | e1 == EVar v && isEq r = Just e2
+  | e2 == EVar v && isEq r = Just e1
+isSingletonExpr _ _        = Nothing
 
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
