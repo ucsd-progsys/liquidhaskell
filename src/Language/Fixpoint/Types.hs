@@ -613,10 +613,11 @@ isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
 
 isSingletonReft :: Reft -> Maybe Expr
-isSingletonReft (Reft (v, Refa (PAtom r e1 e2)))
-  | e1 == EVar v && isEq r = Just e2
-  | e2 == EVar v && isEq r = Just e1
-isSingletonReft _          = Nothing
+isSingletonReft (Reft (v, Refa p)) = go $ simplify p
+  where 
+    go (PAtom r e1 e2) | e1 == EVar v && isEq r = Just e2
+                       | e2 == EVar v && isEq r = Just e1
+    go _                                        = Nothing
 
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
