@@ -100,14 +100,12 @@ splitRef f (U r p s) = (U r1 p1 s, U r2 p2 s)
 		(r1, r2) = splitReft f r 
 		(p1, p2) = splitPred f p
 
-splitReft f (Reft (v, xs)) = (Reft (v, xs1), Reft (v, xs2))
-  where 
-  	(xs1, xs2) = go [] [] xs 
-  	go l r []                              = (l, r)
-  	go l r (k@(RKvar _ _):xs)              = go (k:l) (k:r) xs
-  	go l r ((RConc (PAnd ps)):xs)          = go l r ((RConc <$> ps) ++ xs)
-  	go l r (q@(RConc p)  :xs) | isFree f p = go (q:l) r xs 
-  	                          | otherwise  = go l (q:r) xs 
+splitReft f (Reft (v, Refa xs)) = (Reft (v, Refa $ pAnd xs1), Reft (v, Refa $ pAnd xs2))
+  where
+    (xs1, xs2)       = partition (isFree f) (unPAnd xs)
+
+    unPAnd (PAnd ps) = concatMap unPAnd ps 
+    unPAnd p         = [p]
 
 splitPred f (Pr ps) = (Pr ps1, Pr ps2)
   where

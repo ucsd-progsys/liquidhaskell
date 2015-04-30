@@ -1760,6 +1760,7 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
+{-
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
 
@@ -1773,6 +1774,7 @@ exrefAddEq z xs t (F.Reft (s, F.Refa rs))
 exrefToPred x u             = F.subst (F.mkSubst [(v, F.EVar x)]) p
   where
     F.Reft (v, F.Refa p)    = ur_reft u
+-}
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
