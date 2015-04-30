@@ -8,7 +8,7 @@ import           Language.Fixpoint.Names   (nonSymbol)
 import           Language.Fixpoint.Misc    (errorstar)
 
 import qualified Data.HashMap.Strict           as M
-import           Data.List (partition)
+import           Data.List (partition, (\\))
 
 
 --------------------------------------------------------------
@@ -74,19 +74,21 @@ findWfC kv ws = (w', ws')
 extractPred :: WfC a -> BindEnv -> SubC a -> Pred
 extractPred wfc be subC = pr'
   where
+    wfcIBinds  = elemsIBindEnv $ wenv wfc
+    subcIBinds = elemsIBindEnv $ senv subC
+    unmatchedIBinds | wfcIBinds `setLEq` subcIBinds = subcIBinds \\ wfcIBinds
+                    | otherwise = errorstar $ "kVar is not well formed (missing bindings)"
+    unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
+    unmatchedBindings = envCs be unmatchedIBindEnv
+
     kvSreft = wrft wfc
-    bindings = envCs be (senv subC)
     kVarVV = reftBind $ sr_reft kvSreft
-    pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    pr' = projectNonWFVars ((kVarVV, sr_sort kvSreft) : envBinds wfc be) pr
 
-projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
-projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
+    (vars,pr) = baz $ unmatchedBindings
+    pr' = PExist vars $ PAnd $ [(blah (kVarVV, slhs subC)) , pr]
 
-zoink :: Symbol -> SortedReft -> (Symbol, SortedReft)
-zoink sym lhs = (sym, subst1 lhs (oldV, eVar sym))
-  where
-    oldV = reftBind $ sr_reft lhs
+setLEq :: (Eq a) => [a] -> [a] -> Bool
+setLEq xs ys = (xs \\ ys) == []
 
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
 baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
@@ -94,11 +96,9 @@ baz bindings = (bs, PAnd $ map blah bindings)
   where
     bs = map (\(sym, sreft) -> (sym, sr_sort sreft)) bindings
 
+-- [ x:{v:int|v=10} ] -> (x=10)
 blah :: (Symbol, SortedReft) -> Pred
 blah (sym, sr) = subst1 (reftPred reft) sub
   where
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))
-
-envBinds :: WfC a -> BindEnv -> [(Symbol, Sort)]
-envBinds w be = traceFix "hi" [(sym, sr_sort srft) | (sym, srft) <- envCs be (wenv w)]
