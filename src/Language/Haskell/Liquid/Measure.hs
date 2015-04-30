@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FlexibleContexts       #-} 
+{-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 
-module Language.Haskell.Liquid.Measure (  
+module Language.Haskell.Liquid.Measure (
     Spec (..)
-  , BareSpec  
+  , BareSpec
   , MSpec (..)
   , mkM, mkMSpec, mkMSpec'
   , qualifySpec
@@ -20,8 +20,8 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 
-import qualified Data.HashMap.Strict as M 
-import qualified Data.HashSet        as S 
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.List (foldl1')
 
 import Data.Monoid hiding ((<>))
@@ -40,15 +40,15 @@ import Language.Haskell.Liquid.Bounds
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
 
-data Spec ty bndr  = Spec { 
+data Spec ty bndr  = Spec {
     measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
-  , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types   
+  , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
   , invariants :: ![Located ty]                 -- ^ Data type invariants
   , ialiases   :: ![(Located ty, Located ty)]   -- ^ Data type invariants to be checked
   , imports    :: ![Symbol]                     -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions 
+  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
@@ -65,15 +65,15 @@ data Spec ty bndr  = Spec {
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                  -- ^ Refined Type-Classes
-  , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions  
-  , rinstance  :: ![RInstance ty] 
+  , termexprs  :: ![(LocSymbol, [Expr])]        -- ^ Terminating Conditions for functions
+  , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(LocSymbol, [Variance])]
   , bounds     :: !(RRBEnv ty)
   }
 
 
 -- MOVE TO TYPES
-data MSpec ty ctor = MSpec { 
+data MSpec ty ctor = MSpec {
     ctorMap  :: M.HashMap Symbol [Def ctor]
   , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
   , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
@@ -82,22 +82,22 @@ data MSpec ty ctor = MSpec {
 
 
 instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
-  show (MSpec ct m cm im) 
-    = "\nMSpec:\n" ++ 
-      "\nctorMap:\t "  ++ show ct ++ 
-      "\nmeasMap:\t "  ++ show m  ++ 
-      "\ncmeasMap:\t " ++ show cm ++ 
-      "\nimeas:\t "    ++ show im ++ 
-      "\n" 
+  show (MSpec ct m cm im)
+    = "\nMSpec:\n" ++
+      "\nctorMap:\t "  ++ show ct ++
+      "\nmeasMap:\t "  ++ show m  ++
+      "\ncmeasMap:\t " ++ show cm ++
+      "\nimeas:\t "    ++ show im ++
+      "\n"
 
 instance Eq ctor => Monoid (MSpec ty ctor) where
   mempty = MSpec M.empty M.empty M.empty []
 
-  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2) 
-    | null dups 
+  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2)
+    | null dups
     = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
            (cm1 `M.union` cm2) (im1 ++ im2)
-    | otherwise 
+    | otherwise
     = errorstar $ err (head dups)
     where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
           err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
@@ -110,7 +110,7 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
     tx = fmap (qualifySymbol name)
 
 mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
-mkM name typ eqns 
+mkM name typ eqns
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
@@ -120,12 +120,12 @@ mkM name typ eqns
 --         -> MSpec ty LocSymbol
 
 mkMSpec' ms = MSpec cm mm M.empty []
-  where 
+  where
     cm     = groupMap (symbol . ctor) $ concatMap eqns ms
     mm     = M.fromList [(name m, m) | m <- ms ]
 
 mkMSpec ms cms ims = MSpec cm mm cmm ims
-  where 
+  where
     cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
     mm     = M.fromList [(name m, m) | m <- ms' ]
     cmm    = M.fromList [(name m, m) | m <- cms ]
@@ -136,11 +136,11 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
 
 
 
-checkDuplicateMeasure ms 
-  = case M.toList dups of 
+checkDuplicateMeasure ms
+  = case M.toList dups of
       []         -> ms
-      mms        -> errorstar $ concatMap err mms 
-    where 
+      mms        -> errorstar $ concatMap err mms
+    where
       gms        = group [(name m , m) | m <- ms]
       dups       = M.filter ((1 <) . length) gms
       err (m,ms) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp m) (showpp $ map (loc . name) ms)
@@ -152,9 +152,9 @@ checkDuplicateMeasure ms
 instance Monoid (Spec ty bndr) where
   mappend s1 s2
     = Spec { measures   =           measures s1   ++ measures s2
-           , asmSigs    =           asmSigs s1    ++ asmSigs s2 
-           , sigs       =           sigs s1       ++ sigs s2 
-           , localSigs  =           localSigs s1  ++ localSigs s2 
+           , asmSigs    =           asmSigs s1    ++ asmSigs s2
+           , sigs       =           sigs s1       ++ sigs s2
+           , localSigs  =           localSigs s1  ++ localSigs s2
            , invariants =           invariants s1 ++ invariants s2
            , ialiases   =           ialiases s1   ++ ialiases s2
            , imports    = sortNub $ imports s1    ++ imports s2
@@ -177,23 +177,23 @@ instance Monoid (Spec ty bndr) where
            , classes    =           classes s1    ++ classes s1
            , termexprs  =           termexprs s1  ++ termexprs s2
            , rinstance  =           rinstance s1  ++ rinstance s2
-           , dvariance  =           dvariance s1  ++ dvariance s2  
-           , bounds     = M.union   (bounds s1)      (bounds s2) 
+           , dvariance  =           dvariance s1  ++ dvariance s2
+           , bounds     = M.union   (bounds s1)      (bounds s2)
            }
 
   mempty
-    = Spec { measures   = [] 
-           , asmSigs    = [] 
-           , sigs       = [] 
-           , localSigs  = [] 
+    = Spec { measures   = []
+           , asmSigs    = []
+           , sigs       = []
+           , localSigs  = []
            , invariants = []
            , ialiases   = []
            , imports    = []
-           , dataDecls  = [] 
-           , includes   = [] 
-           , aliases    = [] 
-           , paliases   = [] 
-           , ealiases   = [] 
+           , dataDecls  = []
+           , includes   = []
+           , aliases    = []
+           , paliases   = []
+           , ealiases   = []
            , embeds     = M.empty
            , qualifiers = []
            , decr       = []
@@ -227,7 +227,7 @@ instance Functor CMeasure where
 instance Functor (MSpec t) where
   fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm (fmap (fmap f) im)
      where fc = fmap $ fmap $ fmap f
-           fm = fmap $ fmap f 
+           fm = fmap $ fmap f
 
 -- MOVE TO TYPES
 instance Bifunctor Measure where
@@ -263,9 +263,9 @@ instance Bifunctor Spec    where
 
 -- MOVE TO TYPES
 instance PPrint Body where
-  pprint (E e)   = pprint e  
+  pprint (E e)   = pprint e
   pprint (P p)   = pprint p
-  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)   
+  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)
 
 -- instance PPrint a => Fixpoint (PPrint a) where
 --   toFix (BDc c)  = toFix c
@@ -273,7 +273,7 @@ instance PPrint Body where
 
 -- MOVE TO TYPES
 instance PPrint a => PPrint (Def a) where
-  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body   
+  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body
     where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
 
 -- MOVE TO TYPES
@@ -301,35 +301,33 @@ mapTy f (M n ty eqs) = M n (f ty) eqs
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
-  where 
+  where
     measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
     ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds)
                                            | (_, ds) <- M.toList (ctorMap s)
                                                        ]
-    defsTy      = foldl1' meet . fmap defRefType 
-    defsVar     = ctor . safeHead "defsVar" 
+    defsTy      = foldl1' meet . fmap defRefType
+    defsVar     = ctor . safeHead "defsVar"
 
 defRefType :: Def DataCon -> RRType Reft
 defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
-  where 
+  where
     as  = RTV <$> dataConUnivTyVars dc
     xts = map (addThd3 mempty) $ safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
-    t'  = refineWithCtorBody dc f body t 
+    t'  = refineWithCtorBody dc f body t
     t   = ofType $ dataConOrigResTy dc
-    msg = "defRefType dc = " ++ showPpr dc 
+    msg = "defRefType dc = " ++ showPpr dc
 
 
 refineWithCtorBody dc f body t =
-  case stripRTypeBase t of 
+  case stripRTypeBase t of
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, [RConc $ bodyPred (EApp f [eVar v]) body])
-    Nothing -> 
+      strengthen t $ Reft (v, Refa $ bodyPred (EApp f [eVar v]) body)
+    Nothing ->
       errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Pred
 bodyPred fv (E e)    = PAtom Eq fv e
-bodyPred fv (P p)    = PIff  (PBexp fv) p 
+bodyPred fv (P p)    = PIff  (PBexp fv) p
 bodyPred fv (R v' p) = subst1 p (v', fv)
-
-
