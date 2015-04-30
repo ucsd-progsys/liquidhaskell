@@ -86,7 +86,6 @@ instance Visitable Pred where
 
 instance Visitable Refa where
   visit v c (Refa p) =  Refa <$> visit v c p
-  visit _ _ r        = return r
 
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra

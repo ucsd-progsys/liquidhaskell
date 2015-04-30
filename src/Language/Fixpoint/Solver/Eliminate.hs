@@ -29,8 +29,7 @@ class Elimable a where
   elimKVar :: KVar -> Pred -> a -> a
 
 instance Elimable (SubC a) where
-  elimKVar kv pr x = x { sgrd = mapKVars go (sgrd x)
-                       , slhs = elimKVar kv pr (slhs x)
+  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x)
                        --, srhs = elimKVar kv pr (srhs x)
                        }
     where
@@ -72,7 +71,6 @@ bar kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
---TODO: ignores a constraint's sgrd, stag, and sinfo
 foo :: WfC a -> FInfo a -> SubC a -> Pred
 foo wfc fInfo subC = pr'
   where
