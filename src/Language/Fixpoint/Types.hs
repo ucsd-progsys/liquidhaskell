@@ -1204,9 +1204,11 @@ squishRefas ras =  [squish (raPred <$> ras)]
   where
     squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
 
-conjuncts (PAnd ps)          = concatMap conjuncts ps
-conjuncts p | isTautoPred p  = []
-            | otherwise      = [p]
+conjuncts (PAnd ps) = concatMap conjuncts ps
+conjuncts p
+  | isTautoPred p   = []
+  | otherwise       = [p]
+
 ----------------------------------------------------------------
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
@@ -1487,7 +1489,7 @@ instance Reftable () where
 
 
 instance Reftable Reft where
-  isTauto  = isTautoPred . reftPred
+  isTauto  = all isTautoPred . conjuncts . reftPred
   ppTy     = pprReft
   toReft   = id
   ofReft   = id
