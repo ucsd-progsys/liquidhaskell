@@ -62,7 +62,7 @@ eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = rema
     relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
     remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
     (kvWfC, remainingWs) = findWfC kv (ws fInfo)
-    orPred = POr (map (extractPred kvWfC fInfo) (M.elems relevantSubCs))
+    orPred = POr (map (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs))
 
 findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
 findWfC kv ws = (w', ws')
@@ -71,14 +71,14 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> FInfo a -> SubC a -> Pred
-extractPred wfc fInfo subC = pr'
+extractPred :: WfC a -> BindEnv -> SubC a -> Pred
+extractPred wfc be subC = pr'
   where
     kvSreft = wrft wfc
-    bindings = envCs (bs fInfo) (senv subC)
+    bindings = envCs be (senv subC)
     kVarVV = reftBind $ sr_reft kvSreft
     pr = baz $ (zoink kVarVV (slhs subC)) : bindings
-    pr' = projectNonWFVars ((kVarVV, sr_sort kvSreft) : envBinds wfc fInfo) pr
+    pr' = projectNonWFVars ((kVarVV, sr_sort kvSreft) : envBinds wfc be) pr
 
 projectNonWFVars :: [(Symbol,Sort)] -> ([(Symbol,Sort)],Pred) -> Pred
 projectNonWFVars wfVars (vars, pr) = PExist [v | v <- vars, not (elem v wfVars)] pr
@@ -100,5 +100,5 @@ blah (sym, sr) = subst1 (reftPred reft) sub
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))
 
-envBinds :: WfC a -> FInfo a -> [(Symbol, Sort)]
-envBinds w f = traceFix "hi" [(sym, sr_sort srft) | (sym, srft) <- envCs (bs f) (wenv w)]
+envBinds :: WfC a -> BindEnv -> [(Symbol, Sort)]
+envBinds w be = traceFix "hi" [(sym, sr_sort srft) | (sym, srft) <- envCs be (wenv w)]
