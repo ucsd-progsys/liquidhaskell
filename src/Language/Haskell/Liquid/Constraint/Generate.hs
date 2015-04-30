@@ -1728,6 +1728,8 @@ forallExprRefType γ t = t `strengthen` (uTop r')
         r             = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 forallExprReft γ r
+-- NV to RJ the type of ex Nil is {v:List a | PAnd [v = Nil]}
+-- which was rejected by F.isSignletonReft
   = do e  <- F.isSingletonReft r
        r' <- forallExprReft_ γ e
        return r'
