@@ -29,7 +29,7 @@ import DataCon
 
 import qualified Data.HashMap.Strict as M
 import Data.List        (partition, foldl')
-import Data.Monoid      (mempty, mappend)
+import Data.Monoid      (mempty, mappend, mconcat)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
@@ -102,17 +102,20 @@ dataConTy _ _
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s)
-  = U (Reft (v, rs ++ rs')) (Pr ps2) s
-  where rs'              = r . (v,) . pargs <$> ps1
-        (ps1, ps2)       = partition (==p) ps
+replacePredsWithRefs (p, r) (U (Reft(v, Refa rs)) (Pr ps) s)
+  = U (Reft (v, Refa rs'')) (Pr ps2) s
+  where
+    rs''             = mconcat $ rs : rs'
+    rs'              = r . (v,) . pargs <$> ps1
+    (ps1, ps2)       = partition (== p) ps
 
 pVartoRConc p (v, args) | length args == length (pargs p)
-  = RConc $ pApp (pname p) $ EVar v:(thd3 <$> args)
+  = pApp (pname p) $ EVar v : (thd3 <$> args)
 
 pVartoRConc p (v, args)
-  = RConc $ pApp (pname p) $ EVar v : args'
-  where args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
+  = pApp (pname p) $ EVar v : args'
+  where
+    args' = (thd3 <$> args) ++ (drop (length args) (thd3 <$> pargs p))
 
 -----------------------------------------------------------------------
 -- | @pvarRType π@ returns a trivial @RType@ corresponding to the
