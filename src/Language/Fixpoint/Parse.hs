@@ -79,10 +79,12 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names     (vv)
+import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust, maybe)
 
-import           Data.Monoid                 (mempty)
+import           Data.Monoid                 (mempty,mconcat)
 
 type Parser = Parsec String Integer
 
@@ -190,7 +192,8 @@ symbolP :: Parser Symbol
 symbolP = symbol <$> symCharsP
 
 constantP :: Parser Constant
-constantP = try (liftM R double) <|> liftM I integer
+constantP =  try (R <$> double)
+         <|> I <$>integer
 
 symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
@@ -323,9 +326,18 @@ pred0P =  trueP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
-      <|> try (liftM PBexp funAppP)
-      <|> try (reservedOp "&&" >> liftM PAnd predsP)
-      <|> try (reservedOp "||" >> liftM POr  predsP)
+      <|> try (PBexp <$> funAppP)
+      <|> try (reservedOp "&&" >> PAnd <$> predsP)
+      <|> try (reservedOp "||" >> POr  <$> predsP)
+      <|> kvarP
+
+kvarP :: Parser Pred
+kvarP = PKVar <$> symbolP <*> substP
+
+substP :: Parser Subst
+substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
+  where
+    aP = reserved ":="
 
 predP  :: Parser Pred
 predP  = buildExpressionParser lops pred0P
@@ -394,30 +406,27 @@ fTyConP
   <|> (reserved "real" >> return realFTyCon)
   <|> (symbolFTycon   <$> locUpperIdP)
 
-refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi))
-       <|> liftM ((:[]) . RConc) predP
+refaP :: Parser Refa
+refaP = Refa <$> predP
 
-refBindP :: Parser Symbol -> Parser [Refa] -> Parser (Reft -> a) -> Parser a
+refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
-      vv  <- bp
-      t   <- kindP
+      x  <- bp
+      t  <- kindP
       reserved "|"
-      ras <- rp <* spaces
-      return $ t (Reft (vv, ras))
+      ra <- rp <* spaces
+      return $ t (Reft (x, ra))
 
-bindP       = liftM symbol (lowerIdP <* colon)
-optBindP vv = try bindP <|> return vv
+bindP      = symbol    <$> (lowerIdP <* colon)
+optBindP x = try bindP <|> return x
 
-refP       = refBindP bindP refasP
-refDefP vv = refBindP (optBindP vv)
+refP       = refBindP bindP refaP
+refDefP x  = refBindP (optBindP x)
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
-
--- qualifierP = mkQual <$> upperIdP <*> parens $ sepBy1 sortBindP comma <*> predP
 
 qualifierP = do pos    <- getPosition
                 n      <- upperIdP
@@ -426,13 +435,36 @@ qualifierP = do pos    <- getPosition
                 body   <- predP
                 return  $ mkQual n params body pos
 
-sortBindP  = (,) <$> symbolP <* colon <*> sortP
+sortBindP = (,) <$> symbolP <* colon <*> sortP
 
-mkQual n xts p pos = Q n ((vv, t) : yts) (subst su p) pos
+pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
+pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
+
+
+mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
   where
-    (vv,t):zts     = xts
-    yts            = mapFst mkParam <$> zts
-    su             = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+    (vv,t):zts = gSorts xts
+    yts        = mapFst mkParam <$> zts
+    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
+gSorts :: [(a, Sort)] -> [(a, Sort)]
+gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
+  where
+    su         = (`zip` [0..]) . sortNub . concatMap sortVars . map snd $ xts
+
+substVars :: [(Symbol, Int)] -> Sort -> Sort
+substVars su = mapSort tx
+  where
+    tx (FObj x)
+      | Just i <- lookup x su = FVar i
+    tx t                      = t
+
+sortVars :: Sort -> [Symbol]
+sortVars = foldSort go []
+  where
+    go b (FObj x) = x : b
+    go b _        = b
+
 
 mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
   where
@@ -446,14 +478,14 @@ fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> many defP
 
 defP :: Parser (Def ())
-defP =  Srt   <$> (reserved "sort"        >> colon >> sortP)
-    <|> Axm   <$> (reserved "axiom"       >> colon >> predP)
-    <|> Cst   <$> (reserved "constraint"  >> colon >> subCP)
-    <|> Wfc   <$> (reserved "wf"          >> colon >> wfCP)
-    <|> Con   <$> (reserved "constant"    >> symbolP) <*> (colon >> sortP)
-    <|> Qul   <$> (reserved "qualifier"   >> qualifierP)
-    <|> Kut   <$> (reserved "cut"         >> symbolP)
-    <|> IBind <$> (reserved "bind"        >> intP) <*> symbolP <*> (colon >> sortedReftP)
+defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
+    <|> Axm   <$> (reserved "axiom"      >> colon >> predP)
+    <|> Cst   <$> (reserved "constraint" >> colon >> subCP)
+    <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
+    <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
+    <|> Qul   <$> (reserved "qualif"     >> qualifierP)
+    <|> Kut   <$> (reserved "cut"        >> symbolP)
+    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -479,6 +511,14 @@ subCP = do reserved "env"
            tag <- tagP
            return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
 
+-- idVV :: Integer -> SortedReft -> SortedReft
+-- idVV i sr = sr {sr_reft = ri }
+--   where
+--     ri    = shiftVV r vvi
+--     r     = sr_reft sr
+--     vvi   = vv $ Just i
+
+
 tagP  :: Parser [Int]
 tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
      <|> (return [])
@@ -495,7 +535,7 @@ defsFInfo defs = FI cm ws bs gs lts kts qs
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
-    bs     = rawBindEnv       [(n, x, r)        | IBind n x r <- defs]
+    bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
     lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
@@ -536,7 +576,7 @@ solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
 solutionFileP
-  = liftM2 (,) (fixResultP integer) solutionP
+  = (,) <$> fixResultP integer <*> solutionP
 
 ------------------------------------------------------------------------
 
@@ -550,7 +590,8 @@ doParse' parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
       Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f
       Right (r, "", _)  -> r
-      Right (_, rem, l) -> die $ err (SS l l) $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
+      Right (_, rem, l) -> die $ err (SS l l)
+                               $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
 
 errorSpan e = SS l l where l = errorPos e
 
@@ -589,8 +630,8 @@ cmdVarP
 class Inputable a where
   rr  :: String -> a
   rr' :: String -> String -> a
-  rr' = \_ -> rr
-  rr  = rr' ""
+  rr' _ = rr
+  rr    = rr' ""
 
 instance Inputable Symbol where
   rr' = doParse' symbolP
@@ -604,8 +645,8 @@ instance Inputable Pred where
 instance Inputable Expr where
   rr' = doParse' exprP
 
-instance Inputable [Refa] where
-  rr' = doParse' refasP
+instance Inputable Refa where
+  rr' = doParse' refaP
 
 instance Inputable (FixResult Integer) where
   rr' = doParse' $ fixResultP integer

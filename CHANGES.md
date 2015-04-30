@@ -8,11 +8,17 @@
 
 - Added support for theory of Bitvectors -- see `Language.Fixpoint.Bitvector`
 
+- Added support for string literals
 
 ## 0.2.1.0
-- Pre-compiled binaries of the underlying ocaml solver are now provided for Linux, Mac OSX, and Windows. No more need to install Ocaml!
+
+- Pre-compiled binaries of the underlying ocaml solver are now
+  provided for Linux, Mac OSX, and Windows.
+
+  No more need to install Ocaml!
 
 ## 0.2.0.0
+
 - Parsing has been improved to require *much* fewer parentheses.
 
 - Experimental support for Z3's theory of real numbers with the `--real` flag.

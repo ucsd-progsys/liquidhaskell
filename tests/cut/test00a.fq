@@ -1,0 +1,32 @@
+// This qualifier saves the day; solve constraints WITHOUT IT
+// qualif Zog(v:a) : (10 <= v)
+
+bind 0 x : {v : int | true}
+bind 1 y : {v : int | true}
+bind 2 z : {v : int | true}
+
+constraint:
+  env [0]
+  grd true
+  lhs {v : int | (x = 10)}
+  rhs {v : int | k0[v:=x]}
+  id 1 
+
+constraint:
+  env [1]
+  grd true 
+  lhs {v : int | y = 20}
+  rhs {v : int | k0[v:=y]}
+  id 2 
+
+constraint:
+  env [2]
+  grd true 
+  lhs {v : int | k0[v:=z]}
+  rhs {v : int | 10 <= z}
+  id 3 
+
+wf:
+  env [ ]
+  reft {v: int | k0}
+

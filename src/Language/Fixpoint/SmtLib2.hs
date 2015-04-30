@@ -1,6 +1,4 @@
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -37,10 +35,20 @@ module Language.Fixpoint.SmtLib2 (
     , command
     , smtWrite
 
+    -- * Query API
+    , smtDecl
+    , smtAssert
+    , smtCheckUnsat
+    , smtBracket
+    , smtDistinct
+
+    -- * Theory Symbols
     , smt_set_funs
+
     ) where
 
 import           Language.Fixpoint.Config (SMTSolver (..))
+import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
 
@@ -61,7 +69,7 @@ import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush,
                                            openFile)
 import           System.Process
-
+import           Debug.Trace (trace)
 import qualified Data.Attoparsec.Text     as A
 
 {- Usage:
@@ -91,7 +99,7 @@ data Command      = Push
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
                   | Assert    (Maybe Int) Pred
-                  | Distinct  [Expr] -- {v:[Expr] | (len v) >= 2}
+                  | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   deriving (Eq, Show)
 
@@ -256,17 +264,32 @@ smtFile = extFileName Smt2 "out"
 -- | SMT Commands -----------------------------------------------------------
 -----------------------------------------------------------------------------
 
+smtPush, smtPop   :: Context -> IO ()
+smtPush me        = interact' me Push
+smtPop me         = interact' me Pop
+
+smtDecl :: Context -> Symbol -> [Sort] -> Sort -> IO ()
 smtDecl me x ts t = interact' me (Declare x ts t)
-smtPush me        = interact' me (Push)
-smtPop me         = interact' me (Pop)
+
+smtAssert :: Context -> Pred -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
+
+smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)
+
+smtCheckUnsat :: Context -> IO Bool
 smtCheckUnsat me  = respSat <$> command me CheckSat
+
+smtBracket :: Context -> IO a -> IO a
+smtBracket me a   = do smtPush me
+                       r <- a
+                       smtPop me
+                       return r
 
 respSat Unsat     = True
 respSat Sat       = False
 respSat Unknown   = False
-respSat r         = error "crash: SMTLIB2 respSat"
+respSat r         = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
 
 interact' me cmd  = command me cmd >> return ()
 
@@ -433,7 +456,9 @@ instance SMTLIB2 Expr where
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
   smt2 (PFalse)         = "false"
+  smt2 (PAnd [])        = "true"
   smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps)
+  smt2 (POr [])         = "false"
   smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
   smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
   smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)

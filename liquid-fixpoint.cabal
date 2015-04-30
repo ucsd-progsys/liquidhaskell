@@ -102,7 +102,6 @@ Executable fixpoint.native
                , containers
                , deepseq
                , directory
-               -- , filemanip
                , filepath
                , mtl
                , parsec
@@ -155,8 +154,14 @@ Library
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.SmtLib2,
-                   Language.Fixpoint.Misc
-  
+                   Language.Fixpoint.Misc,
+                   Language.Fixpoint.Solver.Solution,
+                   Language.Fixpoint.Solver.Worklist,
+                   Language.Fixpoint.Solver.Monad,
+                   Language.Fixpoint.Solver.Deps,
+                   Language.Fixpoint.Solver.Eliminate,
+                   Language.Fixpoint.Solver.Solve
+                     
   Build-Depends: base >= 4.7 && < 5
                , array
                , attoparsec
@@ -183,21 +188,21 @@ Library
                , unordered-containers
                , text-format
 
--- test-suite test
---   default-language: Haskell98
---   type:              exitcode-stdio-1.0
---   hs-source-dirs:    tests
---   ghc-options:       -O2 -threaded
---   main-is:           test.hs
---   build-depends:     base,
---                      -- directory,
---                      -- filepath,
---                      -- process,
---                      -- tagged,
---                      liquid-fixpoint,
---                      -- optparse-applicative == 0.11.*,
---                      QuickCheck,
---                      tasty >= 0.10,
---                      tasty-quickcheck,
---                      tasty-rerun >= 1.1,
---                      text
+test-suite test
+  default-language: Haskell98
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   tests
+  ghc-options:      -O2 -threaded
+  main-is:          test.hs
+  build-depends:    base,
+                    directory,
+                    filepath,
+                    process,
+                    -- tagged,
+                    liquid-fixpoint,
+                    -- optparse-applicative == 0.11.*,
+                    tasty >= 0.10,
+                    -- tasty-quickcheck,
+                    tasty-hunit,
+                    tasty-rerun >= 1.1,
+                    text

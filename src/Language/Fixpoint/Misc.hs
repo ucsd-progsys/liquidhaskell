@@ -132,6 +132,7 @@ mlookup m k
       Just v  -> v
       Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
+safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 
 mfromJust ::  String -> Maybe a -> a
 mfromJust _ (Just x) = x
@@ -158,7 +159,8 @@ inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 concatMaps    = fmap sortNub . L.foldl' (M.unionWith (++)) M.empty
 
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
-group         = L.foldl' (\m (k, v) -> inserts k v m) M.empty
+group         = groupBase M.empty
+groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
 
@@ -178,14 +180,23 @@ sortNub = nubOrd . L.sort
 
 
 sortDiff :: (Ord a) => [a] -> [a] -> [a]
-sortDiff x1s x2s                 = go (sortNub x1s) (sortNub x2s)
-  where go xs@(x:xs') ys@(y:ys')
-          | x <  y               = x : go xs' ys
-          | x == y               = go xs' ys'
-          | otherwise            = go xs ys'
-        go xs []                 = xs
-        go [] _                  = []
+sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
+  where
+    go xs@(x:xs') ys@(y:ys')
+      | x <  y               = x : go xs' ys
+      | x == y               = go xs' ys'
+      | otherwise            = go xs ys'
+    go xs []                 = xs
+    go [] _                  = []
 
+
+
+folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+folds f b = L.foldl' step ([], b)
+  where
+     step (cs, acc) x = (c:cs, x')
+       where
+         (c, x')      = f acc x
 
 
 

@@ -1,32 +1,118 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Main where
 
-import Language.Fixpoint.Names
-import Language.Fixpoint.Parse
-import Language.Fixpoint.PrettyPrint
-import Language.Fixpoint.Types
+-- import Language.Fixpoint.Config
+-- import Language.Fixpoint.Names
+-- import Language.Fixpoint.Parse
+-- import Language.Fixpoint.PrettyPrint
+-- import Language.Fixpoint.Types
 
-import Control.Monad
-import Data.Proxy
-import Data.Text (Text, cons, inits, pack)
-import Test.QuickCheck
+import Control.Applicative
+-- import Data.Char
+-- import Data.Tagged
+-- import Data.Typeable
+-- import Options.Applicative
+import System.Directory
+import System.Exit
+import System.FilePath
+import System.IO
+-- import qualified System.Posix as Posix
+import System.Process
+
+-- import Control.Monad
+-- import Data.Proxy
+-- import Data.Text (Text, cons, inits, pack)
+-- import Test.QuickCheck
 import Test.Tasty
-import Test.Tasty.Ingredients.Rerun
-import Test.Tasty.Options
-import Test.Tasty.QuickCheck
-import Test.Tasty.Runners
+import Test.Tasty.HUnit
+-- import Test.Tasty.Ingredients.Rerun
+-- import Test.Tasty.Options
+-- import Test.Tasty.QuickCheck
+-- import Test.Tasty.Runners
+import Text.Printf
 
 main :: IO ()
-main = run tests 
+main = defaultMain =<< tests
   where
-    run   = defaultMainWithIngredients [ 
-                rerunningTests   [ listingTests, consoleTestReporter ]
-              , includingOptions [ Option (Proxy :: Proxy QuickCheckTests)
-                                 ]
-              ]
-    
-    tests = testGroup "Tests" [ quickCheckTests ]
+    tests = group "Tests" [unitTests] -- [ quickCheckTests ]
+    -- run   = defaultMainWithIngredients [
+    --             rerunningTests   [ listingTests, consoleTestReporter ]
+    --           , includingOptions [ Option (Proxy :: Proxy QuickCheckTests)
+    --                              ]
+    --           ]
+
+
+unitTests
+  = group "Unit" [
+      testGroup "pos" <$> dirTests "tests/pos" []  ExitSuccess
+    , testGroup "neg" <$> dirTests "tests/neg" []  (ExitFailure 1)
+   ]
+
+---------------------------------------------------------------------------
+dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+---------------------------------------------------------------------------
+dirTests root ignored code
+  = do files    <- walkDirectory root
+       let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
+       return    $ mkTest code root <$> tests --  hs f code | f <- hs]
+
+isTest   :: FilePath -> Bool
+isTest f = takeExtension f `elem` [".fq"]
+
+---------------------------------------------------------------------------
+mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
+---------------------------------------------------------------------------
+mkTest code dir file
+  = -- askOption $ \(smt :: SMTSolver) ->
+    testCase file $
+      if test `elem` knownToFail
+      then do
+        printf "%s is known to fail: SKIPPING" test
+        assertEqual "" True True
+      else do
+        createDirectoryIfMissing True $ takeDirectory log
+        bin <- canonicalizePath ".cabal-sandbox/bin/fixpoint"
+        withFile log WriteMode $ \h -> do
+          let cmd     = testCmd bin dir file
+          (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
+          c          <- waitForProcess ph
+          assertEqual "Wrong exit code" code c
+  where
+    test = dir </> file
+    log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
+
+knownToFail = []
+
+---------------------------------------------------------------------------
+testCmd :: FilePath -> FilePath -> FilePath -> String
+---------------------------------------------------------------------------
+testCmd bin dir file = printf "cd %s && %s -n %s" dir bin file
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+
+{-
 
 quickCheckTests :: TestTree
 quickCheckTests
@@ -98,7 +184,7 @@ arbExpr n = frequency
               ,(1, fmap EVar arbitrary)
               ,(1, return EBot)
               -- ,liftM2 ELit arbitrary arbitrary -- restrict literals somehow
-              ,(2, choose (1,3) >>= \m -> liftM2 EApp arbitrary (vectorOf m (arbExpr (n `div` 2)))) 
+              ,(2, choose (1,3) >>= \m -> liftM2 EApp arbitrary (vectorOf m (arbExpr (n `div` 2))))
               ,(2, liftM3 EBin arbitrary (arbExpr (n `div` 2)) (arbExpr (n `div` 2)))
               ,(2, liftM3 EIte (arbPred (max 2 (n `div` 2)) `suchThat` isRel)
                                (arbExpr (n `div` 2))
@@ -143,3 +229,35 @@ instance Arbitrary Constant where
 instance Arbitrary a => Arbitrary (Located a) where
   arbitrary = fmap dummyLoc arbitrary
   shrink = fmap dummyLoc . shrink . val
+
+-}
+
+----------------------------------------------------------------------------------------
+-- Generic Helpers
+----------------------------------------------------------------------------------------
+
+group n xs = testGroup n <$> sequence xs
+
+----------------------------------------------------------------------------------------
+walkDirectory :: FilePath -> IO [FilePath]
+----------------------------------------------------------------------------------------
+walkDirectory root
+  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< getDirectoryContents root
+       (fs++) <$> concatMapM walkDirectory ds
+  where
+    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+
+partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
+partitionM f = go [] []
+  where
+    go ls rs []     = return (ls,rs)
+    go ls rs (x:xs) = do b <- f x
+                         if b then go (x:ls) rs xs
+                              else go ls (x:rs) xs
+
+-- isDirectory :: FilePath -> IO Bool
+-- isDirectory = fmap Posix.isDirectory . Posix.getFileStatus
+
+concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
+concatMapM _ []     = pure []
+concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs

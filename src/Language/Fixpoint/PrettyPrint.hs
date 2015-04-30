@@ -10,6 +10,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
+import qualified Data.HashMap.Strict as M
 
 class PPrint a where
   pprint :: a -> Doc
@@ -28,6 +29,9 @@ instance PPrint a => PPrint (Maybe a) where
 instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
 
+instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
+  pprint = pprint . M.toList
+
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
   pprint (x, y, z)  = parens $ pprint x <> text "," <> pprint y <> text "," <> pprint z
 
@@ -36,6 +40,9 @@ instance (PPrint a, PPrint b) => PPrint (a,b) where
   pprint (x, y)  = pprint x <+> text ":" <+> pprint y
 
 instance PPrint SourcePos where
+  pprint = text . show
+
+instance PPrint Bool where
   pprint = text . show
 
 instance PPrint () where
@@ -155,6 +162,7 @@ instance PPrint Pred where
                                    pprintPrec (za+1) e2
     where za = 4
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
+  pprintPrec _ p@(PKVar {})    = toFix p
 
 trueD  = text "true"
 falseD = text "false"
@@ -165,15 +173,15 @@ pprintBin _ b _ [] = b
 pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
 instance PPrint Refa where
-  pprintPrec z (RConc p)     = pprintPrec z p
-  pprintPrec _ k             = toFix k
+  pprintPrec z (Refa p)     = pprintPrec z p
+  pprintPrec _ k            = toFix k
 
 instance PPrint Reft where
-  pprint r@(Reft (_,ras))
+  pprint r@(Reft (_,ra))
     | isTauto r        = text "true"
     | otherwise        = {- intersperse comma -} pprintBin z trueD andD flat
     where
-      flat = flattenRefas ras
+      flat = flattenRefas [ra]
       z    = if length flat > 1 then 3 else 0
 
 instance PPrint SortedReft where

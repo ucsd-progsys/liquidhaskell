@@ -1,0 +1,12 @@
+
+
+// This qualifier saves the day; solve constraints WITHOUT IT
+// qualif Zog(v:a) : (10 <= v)
+
+constraint:
+  env [ a : {v:int | (v=10) \/ (v=20)}
+      ]
+  grd true 
+  lhs {v : int | v = a}
+  rhs {v : int | 10 <= v}
+  id 3 
