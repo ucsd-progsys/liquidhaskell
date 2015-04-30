@@ -256,7 +256,7 @@ checkFunRefs t = go t
       | isTauto r
         = go t1 <|> go t2
       | otherwise
-        = Just $ text "Function types cannot have refinements"
+        = Just $ text "Function types cannot have refinements:" <+> (pprint r)
 
 checkAbstractRefs t = go t
   where
