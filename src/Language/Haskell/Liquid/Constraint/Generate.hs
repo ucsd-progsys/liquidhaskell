@@ -1724,16 +1724,18 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
-  where r'            = fromMaybe mempty $ forallExprReft γ r
-        r             = F.sr_reft $ rTypeSortedReft (emb γ) t
+  where
+    r'                = fromMaybe mempty $ forallExprReft γ r
+    r                 = F.sr_reft $ rTypeSortedReft (emb γ) t
 
-forallExprReft γ r
--- NV to RJ the type of ex Nil is {v:List a | PAnd [v = Nil]}
--- which was rejected by F.isSignletonReft
-  = do e  <- F.isSingletonReft r
-       r' <- forallExprReft_ γ e
-       return r'
+forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
+forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
 
+--   = do e  <- F.isSingletonReft r
+--        r' <- forallExprReft_ γ e
+--        return r'
+
+forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
 forallExprReft_ γ (F.EApp f es)
   = case forallExprReftLookup γ (val f) of
       Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in

@@ -26,6 +26,7 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, Refa (..), TCEmb)
+-- import Language.Fixpoint.Types (traceFix, showFix)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
@@ -123,12 +124,9 @@ maybeTrue x target exports r
 
 -- killHoles r@(U (Reft (v, rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 
-killHoles r = r { ur_reft = mapPredReft dropHoles $ ur_reft r }
+killHoles ur = ur { ur_reft = tx $ ur_reft ur }
   where
-    -- dropHoles' p = traceFix ("dropHoles p = " ++ show p) $ dropHoles p
+    tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} mapPredReft dropHoles r
     dropHoles    = pAnd . filter (not . isHole) . conjuncts
 
--- NEWCUTSOLVER killHoles x = x { ur_reft = zap $ ur_reft x }
--- NEWCUTSOLVER   where
--- NEWCUTSOLVER     zap     = mapKVars (\k -> if isHole k then Just PTrue else Nothing)
 
