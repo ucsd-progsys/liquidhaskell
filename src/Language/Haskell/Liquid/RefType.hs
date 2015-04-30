@@ -87,6 +87,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
+import Language.Fixpoint.Visitor (mapKVars)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
 import Language.Haskell.Liquid.Variance
@@ -118,9 +119,9 @@ uRTypeGen       :: Reftable b => RType c tv a -> RType c tv b
 uRTypeGen       = fmap $ const mempty
 
 uPVar           :: PVar t -> UsedPVar
-uPVar           = void -- fmap (const ())
+uPVar           = void
 
-uReft           ::  (Symbol, [Refa]) -> UReft Reft
+uReft           :: (Symbol, Refa) -> UReft Reft
 uReft           = uTop . Reft
 
 uTop            ::  r -> UReft r
@@ -800,21 +801,24 @@ dataConSymbol = symbol . dataConWorkId
 dataConReft ::  DataCon -> [Symbol] -> Reft
 dataConReft c []
   | c == trueDataCon
-  = Reft (vv_, [RConc $ eProp vv_])
+  = predReft $ eProp vv_
   | c == falseDataCon
-  = Reft (vv_, [RConc $ PNot $ eProp vv_])
+  = predReft $ PNot $ eProp vv_
+
 dataConReft c [x]
   | c == intDataCon
-  = Reft (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))])
+  = symbolReft x -- OLD (vv_, [RConc (PAtom Eq (EVar vv_) (EVar x))])
 dataConReft c _
   | not $ isBaseDataCon c
   = mempty
 dataConReft c xs
-  = Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
-  where dcValue | null xs && null (dataConUnivTyVars c)
-                = EVar $ dataConSymbol c
-                | otherwise
-                = EApp (dummyLoc $ dataConSymbol c) (EVar <$> xs)
+  = exprReft dcValue -- OLD Reft (vv_, [RConc (PAtom Eq (EVar vv_) dcValue)])
+  where
+    dcValue
+      | null xs && null (dataConUnivTyVars c)
+      = EVar $ dataConSymbol c
+      | otherwise
+      = EApp (dummyLoc $ dataConSymbol c) (eVar <$> xs)
 
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 
@@ -825,13 +829,13 @@ isBaseTy (FunTy _ _)     = False
 isBaseTy (ForAllTy _ _)  = False
 isBaseTy (LitTy _)       = True
 
-vv_ = vv Nothing
 
 dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
-  where trep = toRTypeRep ty
-        xs   = ty_binds trep
-        ts   = ty_args  trep
-        su   = mkSubst $ [(x, EVar y) | ((x, _), y) <- zip (zip xs ts) ys]
+  where
+    trep = toRTypeRep ty
+    xs   = ty_binds trep
+    ts   = ty_args  trep
+    su   = mkSubst $ [(x, EVar y) | ((x, _), y) <- zip (zip xs ts) ys]
 
 ---------------------------------------------------------------
 ---------------------- Embedding RefTypes ---------------------
@@ -882,12 +886,15 @@ rTypeSort tce = typeSort tce . toType
 -------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
 -------------------------------------------------------------------------------
-applySolution = fmap . fmap . mapReft . map . appSolRefa
+applySolution = fmap . fmap . mapReft . appSolRefa
   where
-    appSolRefa _ ra@(RConc _)        = ra
-    -- appSolRefa _ p@(RPvar _)  = p
-    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s
-    mapReft f (U (Reft (x, zs)) p s) = U (Reft (x, squishRefas $ f zs)) p s
+    mapReft f (U (Reft (x, z)) p s) = U (Reft (x, f z)) p s
+-- OLD    appSolRefa _ ra@(RConc _)        = ra
+-- OLD    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s
+
+appSolRefa s (Refa p) = Refa $ mapKVars f p
+  where
+    f k               = Just $ M.lookupDefault PTop k s
 
 -------------------------------------------------------------------------------
 shiftVV :: SpecType -> Symbol -> SpecType
@@ -1008,11 +1015,12 @@ makeDecrType = mkDType [] []
 
 mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))]
   = (x, ) $ t `strengthen` tr
-  where tr     = uTop $ Reft (vv, [RConc $ pOr (r:acc)])
-        r      = cmpLexRef xvs (v', vv, f)
-        v'     = symbol v
-        Just f = sizeFunction $ rtc_info c
-        vv     = "vvRec"
+  where
+    tr     = uTop $ Reft (vv, Refa $ pOr (r:acc))
+    r      = cmpLexRef xvs (v', vv, f)
+    v'     = symbol v
+    Just f = sizeFunction $ rtc_info c
+    vv     = "vvRec"
 
 mkDType xvs acc ((v, (x, (RApp c _ _ _))):vxts)
   = mkDType ((v', x, f):xvs) (r:acc) vxts
@@ -1028,9 +1036,10 @@ cmpLexRef vxs (v, x, g)
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
 
-makeLexRefa es' es = uTop $ Reft (vv, [RConc $ PIff (PBexp $ EVar vv) $ pOr rs])
-  where rs = makeLexReft [] [] es es'
-        vv = "vvRec"
+makeLexRefa es' es = uTop $ Reft (vv, Refa $ PIff (PBexp $ EVar vv) $ pOr rs)
+  where
+    rs = makeLexReft [] [] es es'
+    vv = "vvRec"
 
 makeLexReft _ acc [] []
   = acc
