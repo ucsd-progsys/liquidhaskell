@@ -10,7 +10,7 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Names (headSym)
-import Language.Fixpoint.Types (Brel(..), Expr(..), Pred(..), Refa(..), Reft(..), Symbol, symbol, vv)
+import Language.Fixpoint.Types (Expr(..), Symbol, symbol, exprReft)
 
 import Language.Haskell.Liquid.RefType (strengthen, uTop)
 import Language.Haskell.Liquid.Types
@@ -21,10 +21,10 @@ import Language.Haskell.Liquid.Types
 
 data ExSt = ExSt { fresh :: Int
                  , emap  :: M.HashMap Symbol (RSort, Expr)
-                 , pmap  :: M.HashMap Symbol RPVar 
+                 , pmap  :: M.HashMap Symbol RPVar
                  }
 
--- | Niki: please write more documentation for this, maybe an example? 
+-- | Niki: please write more documentation for this, maybe an example?
 -- I can't really tell whats going on... (RJ)
 
 txExpToBind   :: SpecType -> SpecType
@@ -32,19 +32,19 @@ txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
   where πs = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
 
 expToBindT :: SpecType -> State ExSt SpecType
-expToBindT (RVar v r) 
+expToBindT (RVar v r)
   = expToBindRef r >>= addExists . RVar v
-expToBindT (RFun x t1 t2 r) 
+expToBindT (RFun x t1 t2 r)
   = do t1' <- expToBindT t1
        t2' <- expToBindT t2
        expToBindRef r >>= addExists . RFun x t1' t2'
-expToBindT (RAllT a t) 
+expToBindT (RAllT a t)
   = liftM (RAllT a) (expToBindT t)
 expToBindT (RAllP p t)
   = liftM (RAllP p) (expToBindT t)
 expToBindT (RAllS s t)
   = liftM (RAllS s) (expToBindT t)
-expToBindT (RApp c ts rs r) 
+expToBindT (RApp c ts rs r)
   = do ts' <- mapM expToBindT ts
        rs' <- mapM expToBindReft rs
        expToBindRef r >>= addExists . RApp c ts' rs'
@@ -58,7 +58,7 @@ expToBindT (RRTy xts r o t)
        t'   <- expToBindT t
        return $ RRTy xts' r' o t'
   where
-     (xs, ts) = unzip xts 
+     (xs, ts) = unzip xts
 expToBindT t
   = return t
 
@@ -68,7 +68,7 @@ expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
 expToBindReft (RHProp _ _) = errorstar "TODO:EFFECTS:expToBindReft"
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
-getBinds 
+getBinds
   = do bds <- emap <$> get
        modify $ \st -> st{emap = M.empty}
        return bds
@@ -77,7 +77,7 @@ addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
 addExist t x (tx, e) = REx x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
-        r  = Reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
+        r  = exprReft e 
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (U r (Pr p) l)
@@ -96,14 +96,13 @@ expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
 expToBindExpr :: Expr ->  RSort -> State ExSt Expr
 expToBindExpr e@(EVar s) _ | isLower $ headSym $ symbol s
   = return e
-expToBindExpr e t         
+expToBindExpr e t
   = do s <- freshSymbol
        modify $ \st -> st{emap = M.insert s (t, e) (emap st)}
        return $ EVar s
 
 freshSymbol :: State ExSt Symbol
-freshSymbol 
+freshSymbol
   = do n <- fresh <$> get
        modify $ \s -> s{fresh = n+1}
        return $ symbol $ "ex#" ++ show n
-
