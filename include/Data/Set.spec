@@ -2,38 +2,38 @@ module spec Data.Set where
 
 embed Data.Set.Set as Set_Set
 
-----------------------------------------------------------------------------------------------
--- | Logical Set Operators: Interpreted "natively" by the SMT solver -------------------------
-----------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------
+// -- | Logical Set Operators: Interpreted "natively" by the SMT solver -------------------------
+// ----------------------------------------------------------------------------------------------
 
--- | union
+// union
 measure Set_cup  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 
--- | intersection
+// intersection
 measure Set_cap  :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 
--- | difference
+// difference
 measure Set_dif   :: (Data.Set.Set a) -> (Data.Set.Set a) -> (Data.Set.Set a)
 
--- | singleton
+// singleton
 measure Set_sng   :: a -> (Data.Set.Set a)
 
--- | emptiness test
+// emptiness test
 measure Set_emp   :: (Data.Set.Set a) -> Prop
 
--- | empty set 
+// empty set
 measure Set_empty :: forall a. GHC.Types.Int -> (Data.Set.Set a)
 
 
--- | membership test
+// membership test
 measure Set_mem  :: a -> (Data.Set.Set a) -> Prop
 
--- | inclusion test
-measure Set_sub  :: (Data.Set.Set a) -> (Data.Set.Set a) -> Prop 
+// inclusion test
+measure Set_sub  :: (Data.Set.Set a) -> (Data.Set.Set a) -> Prop
 
----------------------------------------------------------------------------------------------
--- | Refined Types for Data.Set Operations --------------------------------------------------
----------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
+// -- | Refined Types for Data.Set Operations --------------------------------------------------
+// ---------------------------------------------------------------------------------------------
 
 isSubsetOf    :: (GHC.Classes.Ord a) => x:(Data.Set.Set a) -> y:(Data.Set.Set a) -> {v:Bool | ((Prop v) <=> (Set_sub x y))}
 member        :: (GHC.Classes.Ord a) => x:a -> xs:(Data.Set.Set a) -> {v:Bool | ((Prop v) <=> (Set_mem x xs))}
@@ -49,10 +49,10 @@ difference    :: GHC.Classes.Ord a => xs:(Data.Set.Set a) -> ys:(Data.Set.Set a)
 
 fromList :: GHC.Classes.Ord a => xs:[a] -> {v:Data.Set.Set a | v = (listElts xs)}
 
----------------------------------------------------------------------------------------------
--- | The set of elements in a list ----------------------------------------------------------
----------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
+// -- | The set of elements in a list ----------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
 
-measure listElts :: [a] -> (Data.Set.Set a) 
+measure listElts :: [a] -> (Data.Set.Set a)
 listElts([])   = {v | (Set_emp v)}
 listElts(x:xs) = {v | v = (Set_cup (Set_sng x) (listElts xs)) }
