@@ -141,8 +141,8 @@ command me !cmd      = {-# SCC "command" #-} say me cmd >> hear me cmd
 
 
 
-smtWrite         :: Context -> LT.Text -> IO ()
-smtWrite me !s    = smtWriteRaw me s
+smtWrite :: Context -> LT.Text -> IO ()
+smtWrite me !s = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
 smtRead me = {-# SCC "smtRead" #-}
@@ -207,9 +207,9 @@ hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: SMTSolver -> IO Context
+makeContext   :: SMTSolver -> FilePath -> IO Context
 --------------------------------------------------------------------------
-makeContext s
+makeContext s f
   = do me  <- makeProcess s
        pre <- smtPreamble s me
        createDirectoryIfMissing True $ takeDirectory smtFile
@@ -217,9 +217,12 @@ makeContext s
        let me' = me { cLog = Just hLog }
        mapM_ (smtWrite me') pre
        return me'
+    where
+       smtFile = extFileName Smt2 f
+
 
 makeContextNoLog s
-  = do me <- makeProcess s
+  = do me  <- makeProcess s
        pre <- smtPreamble s me
        mapM_ (smtWrite me) pre
        return me
@@ -253,12 +256,9 @@ smtPreamble Z3 me
        r <- (!!1) . T.splitOn "\"" <$> smtReadRaw me
        case T.words r of
          "4.3.2" : _  -> return $ z3_432_options ++ z3Preamble
-         _            -> return $ z3_options ++ z3Preamble
+         _            -> return $ z3_options     ++ z3Preamble
 smtPreamble _  _
   = return smtlibPreamble
-
-smtFile :: FilePath
-smtFile = extFileName Smt2 "out"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
@@ -278,9 +278,6 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
 
-
-
-  
 smtAssert :: Context -> Pred -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
 

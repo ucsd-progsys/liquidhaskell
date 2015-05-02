@@ -19,7 +19,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
-import           Language.Fixpoint.Config  (Config, solver)
+import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Solver.Validate
@@ -43,7 +43,7 @@ data SolverState = SS { ssCtx   :: !Context
 runSolverM :: Config -> F.BindEnv -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg be act = do
-  ctx <-  makeContext (solver cfg)
+  ctx <-  makeContext (solver cfg) (inFile cfg)
   fst <$> runStateT (declare be >> act) (SS ctx be 0)
 
 ---------------------------------------------------------------------------
