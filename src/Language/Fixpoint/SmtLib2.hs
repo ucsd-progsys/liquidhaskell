@@ -463,11 +463,6 @@ instance SMTLIB2 Expr where
   smt2 (EVar x)         = smt2 x
   smt2 (ELit x _)       = smt2 x
   smt2 (EApp f es)      = smt2App f es
-  -- smt2 (EApp f [e])     | val f == "Set_emp"
-  --                       = format "(= {} {})"      (emp, smt2 e)
-  -- smt2 (EApp f [e])     | val f == "Set_sng"
-  --                       = format "({} {} {})"     (add, emp, smt2 e)
-  -- smt2 (EApp f es)      = format "({} {})"        (smt2 f, smt2s es)
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)

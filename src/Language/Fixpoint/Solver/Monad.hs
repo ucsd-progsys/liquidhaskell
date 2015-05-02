@@ -22,6 +22,7 @@ module Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Config  (Config, solver)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.SmtLib2
+import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (catMaybes)
 import           Control.Applicative  ((<$>))
@@ -77,7 +78,7 @@ getContext = ssCtx <$> get
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs = do
+filterValid p qs = -- do
   withContext $ filterValid_ p qs
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
@@ -93,8 +94,12 @@ filterValid_ p qs me = catMaybes <$> do
 declare :: F.BindEnv -> SolveM ()
 ---------------------------------------------------------------------------
 declare be = withContext $ \me ->
-  forM_ (F.bindEnvToList be) $ \ (_, x, t) ->
-    smtDecl me x $ F.sr_sort t
+  forM_ (symbolSorts be) $ \(x, t) ->
+    smtDecl me x t
+
+symbolSorts :: F.BindEnv -> [(F.Symbol, F.Sort)]
+symbolSorts be = [ (x, t) | (x, [(t,_)]) <- symBinds be]
+
 
 
 {- 1. xs    = syms p ++ syms qs

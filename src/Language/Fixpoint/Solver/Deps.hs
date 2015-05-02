@@ -76,14 +76,14 @@ chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
   where
     vs' = [x | (x,_,_) <- vs]
     is  = S.intersection (S.fromList vs') ks
-    v   = if (S.null is) then (head vs') 
+    v   = if (S.null is) then (head vs')
                          else (head $ S.toList is)
 
 subcEdges :: F.BindEnv -> F.SubC a -> [(KVar, KVar)]
 subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
                                   , k2 <- rhsKVars c    ]
               ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
--- this nonSymbol hack is one way to prevent nodes with potential 
+-- this nonSymbol hack is one way to prevent nodes with potential
 -- outdegree 0 from getting pruned by stronglyConnCompR
 
 lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
