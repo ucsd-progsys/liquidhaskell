@@ -201,6 +201,8 @@ isNontrivialVV      = not . (vv Nothing ==)
 
 
 dummySymbol         = dummyName
+
+intSymbol :: (Show a) => Symbol -> a -> Symbol 
 intSymbol x i       = x `mappend` symbol (show i)
 
 tempSymbol          :: Symbol -> Integer -> Symbol

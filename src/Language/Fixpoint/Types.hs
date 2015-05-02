@@ -16,7 +16,6 @@
 --   solving is done by the `fixpoint.native` which
 --   is written in Ocaml.
 
-
 module Language.Fixpoint.Types (
 
   -- * Top level serialization
@@ -51,6 +50,7 @@ module Language.Fixpoint.Types (
   , realFTyCon
   , strFTyCon
   , propFTyCon
+  , listFTyCon
   , appFTyCon
   , fTyconSymbol
   , symbolFTycon
@@ -315,12 +315,13 @@ toFixConstant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, appFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, appFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
+listFTyCon = TC $ dummyLoc listConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
 
 isListTC, isFAppTyTC :: FTycon -> Bool
@@ -520,7 +521,7 @@ data Pred = PTrue
           | PImp   !Pred !Pred
           | PIff   !Pred !Pred
           | PBexp  !Expr
-          | PAtom  !Brel !Expr !Expr
+          | PAtom  !Brel  !Expr !Expr
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Pred
           | PExist ![(Symbol, Sort)] !Pred

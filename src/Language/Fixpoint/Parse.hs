@@ -93,7 +93,7 @@ type Parser = Parsec String Integer
 languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
-           , Token.commentLine     = "--"
+           , Token.commentLine     = "//"
            , Token.identStart      = satisfy (\_ -> False)
            , Token.identLetter     = satisfy (\_ -> False)
            , Token.reservedNames   = [ "SAT"
@@ -234,9 +234,9 @@ exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where
-    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P blanks)
-    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
-    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+    exprFunSpacesP = EApp <$> funSymbolP <*> sepBy1 expr0P blanks
+    exprFunCommasP = EApp <$> funSymbolP <*> parens        (sepBy exprP comma)
+    exprFunSemisP  = EApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
 
@@ -293,13 +293,19 @@ exprCastP
 
 dcolon = string "::" <* spaces
 
+varSortP  = FVar  <$> parens intP
+funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
+
+sortsP = brackets $ sepBy sortP semi
+
 sortP
-  =   try (string "Integer" >>  return FInt)
-  <|> try (string "Int"     >>  return FInt)
-  <|> try (string "int"     >>  return FInt)
-  <|> try (FObj . symbol <$> lowerIdP)
+  =   try (parens $ sortP)
+  <|> try (string "@"    >> varSortP)
+  <|> try (string "func" >> funcSortP)
+  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
-  <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
+  <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
+  <|> (FObj . symbol <$> lowerIdP)
 
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
@@ -320,16 +326,21 @@ keyWordSyms = ["if", "then", "else", "mod"]
 trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
+
 pred0P :: Parser Pred
 pred0P =  trueP
       <|> falseP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
+      <|> try (reserved "?" >> predP)
       <|> try (PBexp <$> funAppP)
       <|> try (reservedOp "&&" >> PAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
       <|> kvarP
+
+
+-- qmP    = reserved "?" <|> reserved "Bexp"
 
 kvarP :: Parser Pred
 kvarP = PKVar <$> symbolP <*> substP
@@ -345,7 +356,6 @@ predP  = buildExpressionParser lops pred0P
 
 predsP = brackets $ sepBy predP semi
 
-qmP    = reserved "?" <|> reserved "Bexp"
 
 lops = [ [Prefix (reservedOp "~"    >> return PNot)]
        , [Prefix (reservedOp "not " >> return PNot)]
@@ -401,13 +411,16 @@ condQmP f bodyP
 ----------------------------------------------------------------------------------
 
 fTyConP
-  =   (reserved "int"  >> return intFTyCon)
-  <|> (reserved "bool" >> return boolFTyCon)
-  <|> (reserved "real" >> return realFTyCon)
-  <|> (symbolFTycon   <$> locUpperIdP)
+  =   (reserved "int"     >> return intFTyCon)
+  <|> (reserved "Integer" >> return intFTyCon)
+  <|> (reserved "Int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "real"    >> return realFTyCon)
+  <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (symbolFTycon      <$> locUpperIdP)
 
 refaP :: Parser Refa
-refaP = Refa <$> predP
+refaP = refa <$> brackets (sepBy predP semi)
 
 refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
@@ -418,7 +431,8 @@ refBindP bp rp kindP
       ra <- rp <* spaces
       return $ t (Reft (x, ra))
 
-bindP      = symbol    <$> (lowerIdP <* colon)
+-- bindP      = symbol    <$> (lowerIdP <* colon)
+bindP      = symbolP <* colon
 optBindP x = try bindP <|> return x
 
 refP       = refBindP bindP refaP
