@@ -94,7 +94,7 @@ declare :: F.BindEnv -> SolveM ()
 ---------------------------------------------------------------------------
 declare be = withContext $ \me ->
   forM_ (F.bindEnvToList be) $ \ (_, x, t) ->
-    smtDecl me x [] (F.sr_sort t)
+    smtDecl me x $ F.sr_sort t
 
 
 {- 1. xs    = syms p ++ syms qs

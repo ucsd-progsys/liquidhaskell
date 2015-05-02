@@ -126,7 +126,7 @@ module Language.Fixpoint.Types (
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
   , reftPred, reftBind
-  , isFunctionSortedReft
+  , isFunctionSortedReft, functionSort
   , isNonTrivial
   , isSingletonReft
   , isEVar
@@ -134,7 +134,7 @@ module Language.Fixpoint.Types (
   , flattenRefas, squishRefas, conjuncts
   , shiftVV
   , mapPredReft
- 
+
   -- * Substitutions
   , Subst
   , Subable (..)
@@ -187,7 +187,7 @@ import qualified Data.Text                 as T
 import           Data.Traversable
 import           Control.DeepSeq
 import           Control.Exception         (assert)
-import           Data.Maybe                (mapMaybe, listToMaybe, fromMaybe)
+import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
 import           Language.Fixpoint.Misc
@@ -373,6 +373,8 @@ data Sort = FInt
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+{-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
 instance Hashable Sort
 
@@ -739,8 +741,16 @@ data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Show, Data, Typeable, Generic)
 
 isFunctionSortedReft :: SortedReft -> Bool
-isFunctionSortedReft (RR (FFunc _ _) _) = True
-isFunctionSortedReft _                  = False
+isFunctionSortedReft = isJust . functionSort . sr_sort
+
+functionSort :: Sort -> Maybe (Int, [Sort], Sort)
+functionSort (FFunc n ts) = Just (n, its, t)
+  where
+    (its, t)              = safeUnsnoc "functionSort" ts
+functionSort _            = Nothing
+
+
+
 
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not .isTauto

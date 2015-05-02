@@ -268,9 +268,19 @@ smtPush, smtPop   :: Context -> IO ()
 smtPush me        = interact' me Push
 smtPop me         = interact' me Pop
 
-smtDecl :: Context -> Symbol -> [Sort] -> Sort -> IO ()
-smtDecl me x ts t = interact' me (Declare x ts t)
+smtDecl :: Context -> Symbol -> Sort -> IO ()
+smtDecl me x t = interact' me (Declare x ins out)
+  where
+    (ins, out) = deconSort t
 
+deconSort :: Sort -> ([Sort], Sort)
+deconSort t = case functionSort t of
+                Just (_, ins, out) -> (ins, out)
+                Nothing            -> ([] , t  )
+
+
+
+  
 smtAssert :: Context -> Pred -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
 
@@ -286,9 +296,9 @@ smtBracket me a   = do smtPush me
                        smtPop me
                        return r
 
-respSat Unsat     = True
-respSat Sat       = False
-respSat Unknown   = False
+respSat Unsat   = True
+respSat Sat     = False
+respSat Unknown = False
 respSat r         = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
 
 interact' me cmd  = command me cmd >> return ()
@@ -319,10 +329,20 @@ com   = "smt_set_com"
 sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 
+setEmp = "Set_emp"  :: Symbol
+setCap = "Set_cap"  :: Symbol
+setSub = "Set_sub"  :: Symbol
+setAdd = "Set_add"  :: Symbol
+setMem = "Set_mem"  :: Symbol
+setCom = "Set_com"  :: Symbol
+setCup = "Set_cup"  :: Symbol
+setDif = "Set_dif"  :: Symbol
+setSng = "Set_sng"  :: Symbol
+
 smt_set_funs :: M.HashMap Symbol Raw
-smt_set_funs = M.fromList [ ("Set_emp",emp),("Set_add",add),("Set_cup",cup)
-                          , ("Set_cap",cap),("Set_mem",mem),("Set_dif",dif)
-                          , ("Set_sub",sub),("Set_com",com)]
+smt_set_funs = M.fromList [ (setEmp, emp), (setAdd, add), (setCup, cup)
+                          , (setCap, cap), (setMem, mem), (setDif, dif)
+                          , (setSub, sub), (setCom, com)]
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options
@@ -396,7 +416,7 @@ instance SMTLIB2 Sort where
   smt2 (FApp t []) | t == boolFTyCon = "Bool"
   smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
   smt2 (FObj s)    = smt2 s
-  smt2 (FFunc _ _) = error "smt2 FFunc"
+  smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
@@ -442,16 +462,25 @@ instance SMTLIB2 Expr where
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
   smt2 (ELit x _)       = smt2 x
-  smt2 (EApp f [])      = smt2 f
-  smt2 (EApp f [e])     | val f == "Set_emp"
-                        = format "(= {} {})"      (emp, smt2 e)
-  smt2 (EApp f [e])     | val f == "Set_sng"
-                        = format "({} {} {})"     (add, emp, smt2 e)
-  smt2 (EApp f es)      = format "({} {})"        (smt2 f, smt2s es)
+  smt2 (EApp f es)      = smt2App f es
+  -- smt2 (EApp f [e])     | val f == "Set_emp"
+  --                       = format "(= {} {})"      (emp, smt2 e)
+  -- smt2 (EApp f [e])     | val f == "Set_sng"
+  --                       = format "({} {} {})"     (add, emp, smt2 e)
+  -- smt2 (EApp f es)      = format "({} {})"        (smt2 f, smt2s es)
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
-  smt2 _                = error "TODO: SMTLIB2 Expr"
+  smt2 (ECst e _)       = smt2 e
+  smt2 e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
+
+smt2App :: LocSymbol -> [Expr] -> LT.Text
+smt2App f []            = smt2 f
+smt2App f [e]
+  | val f == setEmp     = format "(= {} {})"      (emp, smt2 e)
+  | val f == setSng     = format "({} {} {})"     (add, emp, smt2 e)
+smt2App f es            = format "({} {})"        (smt2 f, smt2s es)
+
 
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
@@ -501,3 +530,6 @@ smt2s = LT.intercalate " " . fmap smt2
 (check-sat)
 (pop 1)
 -}
+
+-------------------------------------------------------------------
+
