@@ -95,7 +95,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
 --------------------------------------------------------------------
-init _ fi = traceShow "init solution"  s
+init _ fi = tracepp "init solution" s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -147,7 +147,13 @@ instKQ env v t q
        return     $ eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       xts        = F.toListSEnv (F.sr_sort <$> env)
+       xts        = instCands env
+
+instCands :: F.SEnv F.SortedReft -> [(F.Symbol, F.Sort)]
+instCands = filter isOk . F.toListSEnv . fmap F.sr_sort
+  where
+    isOk  = isNothing . F.functionSort . snd
+
 
 match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
 match xts xs (t : ts)
