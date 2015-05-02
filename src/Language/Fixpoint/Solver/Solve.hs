@@ -11,11 +11,13 @@ import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Solver.Validate
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import qualified Data.List as L
 import           Debug.Trace (trace)
+
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
@@ -25,10 +27,10 @@ type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
-solve cfg fi = runSolverM cfg be $ solve_ cfg fi'
+solve cfg fi  = runSolverM cfg be $ solve_ cfg fi'
   where
-    fi'      = rename fi
-    be       = F.bs fi'
+    Right fi' = validate cfg fi
+    be        = F.bs fi'
 
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)
@@ -112,25 +114,3 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c
 
-
----------------------------------------------------------------------------
--- | Alpha Rename bindings to ensure each var appears in unique binder
----------------------------------------------------------------------------
-rename :: F.FInfo a -> F.FInfo a
----------------------------------------------------------------------------
-
--- TODO: Fix `rename` to enforce uniqueness, AND add bindings for VVs
-rename fi = fi {F.bs = be'} -- error "TODO"
-  where
-    vts   = map subcVV $ M.elems $ F.cm fi
-    be'   = L.foldl' addVV be vts
-    be    = F.bs fi
-
-addVV :: F.BindEnv -> (F.Symbol, F.SortedReft) -> F.BindEnv
-addVV b (x, t) = snd $ F.insertBindEnv x t b
-
-subcVV :: F.SubC a -> (F.Symbol, F.SortedReft)
-subcVV c = (x, sr)
-  where
-    sr   = F.slhs c
-    x    = F.reftBind $ F.sr_reft sr
