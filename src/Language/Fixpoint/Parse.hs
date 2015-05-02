@@ -420,7 +420,8 @@ fTyConP
   <|> (symbolFTycon      <$> locUpperIdP)
 
 refaP :: Parser Refa
-refaP = refa <$> brackets (sepBy predP semi)
+refaP =  try (refa <$> brackets (sepBy predP semi))
+     <|> (Refa <$> predP)
 
 refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP

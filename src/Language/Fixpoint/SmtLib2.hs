@@ -412,7 +412,7 @@ instance SMTLIB2 Sort where
   smt2 (FApp t []) | t == intFTyCon = "Int"
   smt2 (FApp t []) | t == boolFTyCon = "Bool"
   smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
-  smt2 (FObj s)    = smt2 s
+  -- smt2 (FObj s)    = smt2 s
   smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
   smt2 _           = "Int"
 
