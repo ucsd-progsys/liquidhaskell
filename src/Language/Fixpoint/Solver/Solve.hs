@@ -27,10 +27,9 @@ type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
-solve cfg fi  = runSolverM cfg be $ solve_ cfg fi'
+solve cfg fi  = runSolverM cfg fi' $ solve_ cfg fi'
   where
     Right fi' = validate cfg fi
-    be        = F.bs fi'
 
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (Result a)

@@ -57,11 +57,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
 instance PPrint EQual where
   pprint = pprint . eqPred
 
-{-@ data EQual = EQ { eqQual :: F.Qualifier
-                    , eqPred :: F.Pred
-                    , eqArgs :: {v: [F.Expr] | len v = len (q_params eqQual)}
-                    }
-  @-}
+{-@ EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
 eQual :: F.Qualifier -> [F.Symbol] -> EQual
 eQual q xs = EQL q p es
@@ -80,7 +76,7 @@ update s ks kqs = {- traceShow msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
-    msg         = "s = " ++ showpp s
+    -- msg         = "s = " ++ showpp s
 
 groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
 groupKs ks kqs = M.toList $ groupBase m0 kqs
@@ -99,8 +95,9 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
 --------------------------------------------------------------------
-init _ fi = L.foldl' (refine fi qs) s0 ws
+init _ fi = traceShow "init solution"  s
   where
+    s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
     qs    = F.quals fi
     ws    = F.ws    fi

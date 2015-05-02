@@ -21,6 +21,7 @@ module Language.Fixpoint.Solver.Monad
 
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
+import qualified Language.Fixpoint.Errors  as E
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
@@ -40,11 +41,13 @@ data SolverState = SS { ssCtx   :: !Context
                       }
 
 ---------------------------------------------------------------------------
-runSolverM :: Config -> F.BindEnv -> SolveM a -> IO a
+runSolverM :: Config -> F.FInfo b -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg be act = do
+runSolverM cfg fi act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
-  fst <$> runStateT (declare be >> act) (SS ctx be 0)
+  fst <$> runStateT (declare fi >> act) (SS ctx be 0)
+  where
+    be = F.bs fi
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
@@ -91,18 +94,8 @@ filterValid_ p qs me = catMaybes <$> do
       return $ if valid then Just x else Nothing
 
 ---------------------------------------------------------------------------
-declare :: F.BindEnv -> SolveM ()
+declare :: F.FInfo a -> SolveM ()
 ---------------------------------------------------------------------------
-declare be = withContext $ \me ->
-  forM_ (symbolSorts be) $ \(x, t) ->
-    smtDecl me x t
-
-symbolSorts :: F.BindEnv -> [(F.Symbol, F.Sort)]
-symbolSorts be = [ (x, t) | (x, [(t,_)]) <- symBinds be]
-
-
-
-{- 1. xs    = syms p ++ syms qs
-   2. decls = xs + env
-   3. [decl x t | (x, t) <- decls]
-  -}
+declare fi = withContext $ \me -> do
+  xts <- either E.die return $ symbolSorts fi
+  forM_ xts $ uncurry $ smtDecl me

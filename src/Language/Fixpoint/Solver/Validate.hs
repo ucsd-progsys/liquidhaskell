@@ -4,8 +4,9 @@
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate and Transform FInfo to enforce invariants
          validate
+
          -- * Sorts for each Symbol
-       , symBinds
+       , symbolSorts
        )
        where
 
@@ -21,27 +22,46 @@ import qualified Data.List as L
 -- import           Debug.Trace (trace)
 import           Text.Printf
 
+---------------------------------------------------------------------------
 validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
-validate _ = checkUnique . renameVV
+---------------------------------------------------------------------------
+validate _ = Right . renameVV
 
 ---------------------------------------------------------------------------
--- | Check whether each binder appears with a UNIQUE SORT in the BindEnv
+-- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
-checkUnique :: F.FInfo a -> Either E.Error (F.FInfo a)
+symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
-checkUnique fi = case duplicates $ F.bs fi of
-                  [] -> Right fi
-                  ds -> Left $ dupBindErrors ds
+symbolSorts fi = compact . (\z -> lits ++ consts ++ z) =<< bindSorts fi
+  where
+    lits       = F.lits fi
+    consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
 
-duplicates :: F.BindEnv -> [SymBinds]
-duplicates = filter ((1 <) . length . snd) . symBinds
+compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
+compact xts
+  | null bad  = Right [(x, t) | (x, [t]) <- ok ]
+  | otherwise = Left $ dupBindErrors bad
+  where
+    (bad, ok) = L.partition multiSorted . binds $ xts
+    binds     = M.toList . M.map Misc.sortNub . Misc.group
 
-dupBindErrors :: [SymBinds] -> E.Error
-dupBindErrors = foldr1 E.catError . map dupBindError
+---------------------------------------------------------------------------
+bindSorts  :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
+---------------------------------------------------------------------------
+bindSorts fi
+  | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
+  | otherwise  = Left $ dupBindErrors [ (x, map fst ts) | (x, ts) <- bad]
+  where
+    (bad, ok)  = L.partition multiSorted . binds $ fi
+    binds      = symBinds . F.bs
 
-dupBindError :: SymBinds -> E.Error
-dupBindError (x, y) = E.err E.dummySpan
-                    $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
+multiSorted :: (x, [t]) -> Bool
+multiSorted = (1 <) . length . snd
+
+dupBindErrors :: [(F.Symbol, [F.Sort])] -> E.Error
+dupBindErrors = foldr1 E.catError . map dbe
+  where
+   dbe (x, y) = E.err E.dummySpan $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
 
 ---------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]
@@ -75,3 +95,6 @@ subcVV c = (x, sr)
   where
     sr   = F.slhs c
     x    = F.reftBind $ F.sr_reft sr
+
+
+
