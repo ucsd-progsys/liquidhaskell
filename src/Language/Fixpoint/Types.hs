@@ -307,7 +307,7 @@ toFixGs :: SEnv SortedReft -> Doc
 toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
 
 toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> toFix so
+  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
