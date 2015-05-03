@@ -43,7 +43,7 @@ import Data.Monoid
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real)
+import Language.Fixpoint.Config            hiding (Config, real, native, getOpts)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -82,6 +82,8 @@ config = cmdArgsMode $ Config {
  , real
     = def
           &= help "Supports real number arithmetic"
+ , native
+    = def &= help "Use native (Haskell) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -144,9 +146,6 @@ config = cmdArgsMode $ Config {
           &= typ "OPTION"
           &= help "Tell GHC to compile and link against these files"
 
- -- , verbose
- --    = def &= help "Generate Verbose Output"
- --          &= name "verbose-output"
 
  } &= verbosity
    &= program "liquid"
@@ -247,12 +246,13 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def def 2 def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
                          , real           = real      c1         ||     real           c2
                          , diffcheck      = diffcheck c1         ||     diffcheck      c2
+                         , native         = native    c1         ||     native         c2
                          , binders        = sortNub $ binders c1 ++     binders        c2
                          , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2
                          , notermination  = notermination  c1    ||     notermination  c2

@@ -81,8 +81,8 @@ prune cfg cbs target info
     sp            = spec info
 
 solveCs cfg target cgi info dc
-  = do let finfo = cgInfoFInfo info cgi
-       (r, sol) <- solve fx target (hqFiles info) finfo
+  = do finfo    <- cgInfoFInfo info cgi
+       (r, sol) <- solve fx target finfo
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
@@ -90,7 +90,11 @@ solveCs cfg target cgi info dc
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_errors  = warns} { o_result = res }
     where
-       fx        = def { FC.solver = fromJust (smtsolver cfg), FC.real = real cfg }
+       fx        = def { FC.solver  = fromJust (smtsolver cfg)
+                       , FC.real    = real   cfg
+                       , FC.native  = native cfg
+                       , FC.srcFile = target
+                       }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
 
 
