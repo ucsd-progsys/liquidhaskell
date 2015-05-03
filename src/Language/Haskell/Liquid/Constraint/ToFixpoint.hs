@@ -8,7 +8,7 @@ import qualified Language.Fixpoint.Types        as F
 import Language.Haskell.Liquid.Constraint.Types
 
 import Language.Haskell.Liquid.Types hiding     ( binds )
-import Language.Fixpoint.Misc                   ( mapSnd, concatMapM )
+import Language.Fixpoint.Misc                   ( mapSnd )
 import Language.Fixpoint.Interface              ( parseQualifiers )
 
 -- import           Control.Applicative ((<$>))

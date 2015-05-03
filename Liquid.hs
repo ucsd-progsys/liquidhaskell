@@ -82,7 +82,7 @@ prune cfg cbs target info
 
 solveCs cfg target cgi info dc
   = do finfo    <- cgInfoFInfo info cgi
-       (r, sol) <- solve fx target finfo
+       (r, sol) <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
