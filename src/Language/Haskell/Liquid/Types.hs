@@ -234,7 +234,7 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Predicate, Def, R)
+import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
 import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
@@ -255,6 +255,7 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , real           :: Bool       -- ^ supports real number arithmetic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
+  , native         :: Bool       -- ^ use native (Haskell) fixpoint constraint solver
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
