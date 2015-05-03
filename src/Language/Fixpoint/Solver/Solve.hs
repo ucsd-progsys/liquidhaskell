@@ -19,20 +19,14 @@ import qualified Data.List as L
 import           Debug.Trace (trace)
 
 ---------------------------------------------------------------------------
--- | The output of the Solver
----------------------------------------------------------------------------
-type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
-solve :: Config -> F.FInfo a -> IO (Result a)
+solve :: Config -> F.FInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg fi  = runSolverM cfg fi' $ solve_ cfg fi'
   where
     Right fi' = validate cfg fi
 
 ---------------------------------------------------------------------------
-solve_ :: Config -> F.FInfo a -> SolveM (Result a)
+solve_ :: Config -> F.FInfo a -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 solve_ cfg fi = refine s0 wkl >>= result fi
   where
@@ -86,7 +80,7 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: F.FInfo a -> S.Solution -> SolveM (Result a)
+result :: F.FInfo a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result fi s = (, sol) <$> result_ fi s
   where

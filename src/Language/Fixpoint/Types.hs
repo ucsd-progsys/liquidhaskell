@@ -77,18 +77,21 @@ module Language.Fixpoint.Types (
   , Expression (..)
   , Predicate (..)
 
-  -- * Constraints and Solutions
-  , SubC
+  -- * Constraints
   , WfC (..)
-  , sid, sgrd, senv, slhs, subC, lhsCs, rhsCs, wfC
-  , envCs
+  , SubC, sid, sgrd, senv, slhs, subC, lhsCs, rhsCs, wfC
   , Tag
-  , FixResult (..)
-  , FixSolution
+
+  -- * Accessing Constraints
+  , envCs
   , addIds, sinfo
   , trueSubCKvar
   , removeLhsKvars
 
+  -- * Solutions
+  , Result
+  , FixResult (..)
+  , FixSolution
 
   -- * Environments
   , SEnv, SESearch(..)
@@ -914,6 +917,14 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    , winfo :: !a
                    }
               deriving (Generic)
+
+
+---------------------------------------------------------------------------
+-- | The output of the Solver
+---------------------------------------------------------------------------
+type Result a = (FixResult (SubC a), M.HashMap KVar Pred)
+---------------------------------------------------------------------------
+
 
 data FixResult a = Crash [a] String
                  | Safe
