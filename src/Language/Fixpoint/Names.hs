@@ -29,7 +29,7 @@ module Language.Fixpoint.Names (
   , takeModuleNames
 
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol
+  , dummySymbol, intSymbol, tempSymbol, existSymbol
   , qualifySymbol
   , suffixSymbol
 
@@ -205,12 +205,14 @@ dummySymbol         = dummyName
 intSymbol :: (Show a) => Symbol -> a -> Symbol 
 intSymbol x i       = x `mappend` symbol (show i)
 
-tempSymbol          :: Symbol -> Integer -> Symbol
-tempSymbol prefix n = intSymbol (tempPrefix `mappend` prefix) n
+tempSymbol, existSymbol :: Symbol -> Integer -> Symbol
+tempSymbol  prefix n = intSymbol (tempPrefix  `mappend` prefix) n
+existSymbol prefix n = intSymbol (existPrefix `mappend` prefix) n
 
-tempPrefix, anfPrefix :: Symbol
+tempPrefix, anfPrefix, existPrefix :: Symbol
 tempPrefix          = "lq_tmp_"
 anfPrefix           = "lq_anf_"
+existPrefix         = "lq_ext_"
 
 nonSymbol :: Symbol
 nonSymbol           = ""
