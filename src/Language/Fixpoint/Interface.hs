@@ -100,7 +100,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
     fn          = srcFile cfg
 
 execFq cfg fn fi
-  = do appendFile fq qstr
+  = do writeFile fq qstr
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
        solveFile $ cfg `withTarget` fq
     where

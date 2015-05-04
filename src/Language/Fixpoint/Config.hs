@@ -119,6 +119,7 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
   , outFile     = "out" &= help "Output file"
+  , srcFile     = def   &= help "Source File from which FQ is generated"
   , solver      = def   &= help "Name of SMT Solver"
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "use UEq on all sorts"

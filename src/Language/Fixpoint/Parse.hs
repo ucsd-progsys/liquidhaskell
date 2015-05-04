@@ -59,7 +59,7 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
-import           Control.Applicative         ((<$>), (<*), (<*>))
+import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
 import           Control.Monad
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
@@ -184,6 +184,9 @@ upperIdP = condIdP symChars (not . isLower . head)
 
 lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isLower . head)
+
+symCharsP :: Parser Symbol
+symCharsP = condIdP symChars (`notElem` keyWordSyms)
 
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
@@ -315,7 +318,6 @@ bvSizeP ss s = do
   return s
 
 
-symCharsP   = condIdP symChars (`notElem` keyWordSyms)
 
 keyWordSyms = ["if", "then", "else", "mod"]
 
@@ -323,27 +325,29 @@ keyWordSyms = ["if", "then", "else", "mod"]
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
-trueP  = reserved "true"  >> return PTrue
-falseP = reserved "false" >> return PFalse
-
 
 pred0P :: Parser Pred
 pred0P =  trueP
       <|> falseP
+      <|> try kvarP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
-      <|> try (reserved "?" >> predP)
+      <|> try (PBexp <$> (reserved "?" *> exprP))
       <|> try (PBexp <$> funAppP)
       <|> try (reservedOp "&&" >> PAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
-      <|> kvarP
-
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
+trueP, falseP :: Parser Pred
+trueP  = reserved "true"  >> return PTrue
+falseP = reserved "false" >> return PFalse
+
 kvarP :: Parser Pred
-kvarP = PKVar <$> symbolP <*> substP
+kvarP = PKVar <$> kP <*> substP
+  where
+    kP = condIdP symChars (('k' ==) . head)
 
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
