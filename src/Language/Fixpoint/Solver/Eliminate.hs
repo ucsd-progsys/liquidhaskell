@@ -9,6 +9,7 @@ import           Language.Fixpoint.Misc    (errorstar)
 
 import qualified Data.HashMap.Strict           as M
 import           Data.List (partition, (\\))
+import           Control.Monad.State
 
 
 --------------------------------------------------------------
@@ -57,12 +58,27 @@ eliminateAll fInfo ds = foldl eliminate fInfo (D.depNonCuts ds)
 
 --TODO: ignores the WfC's env
 eliminate :: FInfo a -> KVar -> FInfo a
-eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = remainingSubCs , ws = remainingWs })
+eliminate fInfo kv = elimKVar kv orPred (fInfo { cm = newSubCs , ws = remainingWs , bs = be' })
   where
     relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
     remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
     (kvWfC, remainingWs) = findWfC kv (ws fInfo)
-    orPred = POr (map (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs))
+    predsAndBindings = map (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs)
+    preds    = map fst predsAndBindings
+    bindings = concatMap snd predsAndBindings
+    orPred = POr preds
+
+    be = bs fInfo
+    (ids, be') = insertsBindEnv [(sym, trueSortedReft srt) | (sym, srt) <- bindings] be
+    newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
+
+insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
+insertsBindEnv bs = runState (mapM go bs)
+  where
+    go (sym, srft) = do be <- get
+                        let (id, be') = insertBindEnv sym srft be
+                        put be'
+                        return id
 
 findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
 findWfC kv ws = (w', ws')
@@ -71,12 +87,12 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> BindEnv -> SubC a -> Pred
-extractPred wfc be subC = pr'
+extractPred :: WfC a -> BindEnv -> SubC a -> (Pred, [(Symbol, Sort)])
+extractPred wfc be subC = (PAnd $ [(blah (kVarVV, slhs subC)) , pr], vars)
   where
     wfcIBinds  = elemsIBindEnv $ wenv wfc
     subcIBinds = elemsIBindEnv $ senv subC
-    unmatchedIBinds | wfcIBinds `setLEq` subcIBinds = subcIBinds \\ wfcIBinds
+    unmatchedIBinds | wfcIBinds `subset` subcIBinds = subcIBinds \\ wfcIBinds
                     | otherwise = errorstar $ "kVar is not well formed (missing bindings)"
     unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
     unmatchedBindings = envCs be unmatchedIBindEnv
@@ -85,10 +101,14 @@ extractPred wfc be subC = pr'
     kVarVV = reftBind $ sr_reft kvSreft
 
     (vars,pr) = baz $ unmatchedBindings
-    pr' = PExist vars $ PAnd $ [(blah (kVarVV, slhs subC)) , pr]
 
-setLEq :: (Eq a) => [a] -> [a] -> Bool
-setLEq xs ys = (xs \\ ys) == []
+
+--trueSortedReft :: Sort -> SortedReft
+--insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
+
+
+subset :: (Eq a) => [a] -> [a] -> Bool
+subset xs ys = (xs \\ ys) == []
 
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
 baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
