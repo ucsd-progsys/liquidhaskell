@@ -43,6 +43,8 @@ module Language.Fixpoint.Names (
   , propConName
   , hpropConName
   , strConName
+  , nilName
+  , consName
   , vvName
   , symSepName
   , size32Name, size64Name, bitVecName, bvAndName, bvOrName
@@ -252,6 +254,9 @@ strConName   = "Str"
 vvName       = "VV"
 symSepName   = '#'
 
+nilName      = "nil"    :: Symbol
+consName     = "cons"   :: Symbol
+
 size32Name   = "Size32" :: Symbol
 size64Name   = "Size64" :: Symbol
 bitVecName   = "BitVec" :: Symbol
@@ -282,6 +287,8 @@ prims = [ propConName
         , bvOrName
         , bvAndName
         , "FAppTy"
+        , nilName
+        , consName
         ]
 
 -- dropModuleNames []  = []

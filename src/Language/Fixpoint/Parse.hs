@@ -79,7 +79,7 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names     (vv)
+import           Language.Fixpoint.Names     (vv, nilName, consName)
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust, maybe)
@@ -117,7 +117,7 @@ languageDef =
                                      , "|"
                                      , "if", "then", "else"
                                      ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
+           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
                                      , "mod", "and", "or"
                                   --, "is"
@@ -200,13 +200,20 @@ symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  (fastIfP EIte exprP)
+  =  nilP 
+ <|> (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
  <|> try (parens  exprP)
  <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
+
+
+nilP = do 
+  reserved "["
+  reserved "]"
+  return $ EVar nilName
 
 charsExpr cs
   | isLower (T.head t) = expr cs
@@ -280,10 +287,11 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
+       , [ Infix  (reservedOp ":"    >> return (eCons     )) AssocLeft]
        ]
 
-eMinus = EBin Minus (expr (0 :: Integer))
-
+eMinus     = EBin Minus (expr (0 :: Integer))
+eCons x xs = EApp (dummyLoc consName) [x,xs]
 
 exprCastP
   = do e  <- exprP
