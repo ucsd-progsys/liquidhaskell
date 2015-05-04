@@ -1,5 +1,5 @@
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll, solve) where
+       (eliminateAll) where
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
@@ -10,14 +10,14 @@ import           Language.Fixpoint.Misc    (errorstar)
 import qualified Data.HashMap.Strict           as M
 import           Data.List (partition, (\\))
 import           Data.Foldable (foldlM)
-import           Control.Monad.State
+import           Control.Monad.State (get, put, runState, evalState, State)
 
 
 --------------------------------------------------------------
--- | Dummy just for debugging --------------------------------
---------------------------------------------------------------
-solve :: FInfo a -> FInfo a
-solve fi = eliminateAll fi (D.deps fi)
+eliminateAll :: FInfo a -> FInfo a
+eliminateAll fi = evalState (foldlM eliminate fi (D.depNonCuts ds)) 0
+  where
+    ds = D.deps fi
 --------------------------------------------------------------
 
 
@@ -25,9 +25,8 @@ class Elimable a where
   elimKVar :: KVar -> Pred -> a -> a
 
 instance Elimable (SubC a) where
-  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x)
-                       --, srhs = elimKVar kv pr (srhs x)
-                       }
+  -- we don't bother editing srhs since if kv is on the rhs then the entire constraint should get eliminated
+  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x) }
     where
       go k = if kv == k then Just pr else Nothing
 
@@ -47,9 +46,6 @@ instance Elimable (FInfo a) where
 instance Elimable BindEnv where
   elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, (elimKVar kv pr sr)))
 
-
-eliminateAll :: FInfo a -> D.Deps -> FInfo a
-eliminateAll fInfo ds = evalState (foldlM eliminate fInfo (D.depNonCuts ds)) 0
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
 eliminate fInfo kv = do
