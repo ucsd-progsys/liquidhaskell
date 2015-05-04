@@ -32,7 +32,7 @@ import           System.IO                        (IOMode (..), hPutStr,
                                                    withFile)
 import           Text.Printf
 
-import qualified Language.Fixpoint.Solver.Deps   as D
+import qualified Language.Fixpoint.Solver.Eliminate   as E
 import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Files
@@ -72,7 +72,7 @@ solveNative cfg
   = do let file = inFile cfg
        str     <- readFile file
        let fi   = rr' file str :: FInfo ()
-       res     <- D.solve cfg fi
+       res     <- E.solve cfg fi
        putStrLn $ "Result: " ++ show res
        error "TODO: solveNative"
 
