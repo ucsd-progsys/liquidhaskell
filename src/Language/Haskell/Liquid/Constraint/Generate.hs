@@ -60,6 +60,7 @@ import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import Language.Fixpoint.Sort (pruneUnsortedReft)
+import Language.Fixpoint.Visitor
 
 import Language.Haskell.Liquid.Fresh
 
@@ -69,7 +70,7 @@ import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Strata
-import Language.Haskell.Liquid.Bounds 
+import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
@@ -78,6 +79,7 @@ import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
+import Language.Haskell.Liquid.RefSplit 
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
@@ -314,11 +316,11 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
 
 bsplitW' γ t pflag
-  | F.isNonTrivialSortedReft r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
-  | otherwise                   = []
+  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
+  | otherwise         = []
   where
-    r'                          = rTypeSortedReft' pflag γ t
-    ci                          = Ci (loc γ) Nothing
+    r'                = rTypeSortedReft' pflag γ t
+    ci                = Ci (loc γ) Nothing
 
 ------------------------------------------------------------
 splitS  :: SubC -> CG [([Stratum], [Stratum])]
@@ -366,8 +368,9 @@ splitS (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
 
 splitS (SubC γ t1 (RAllP p t))
   = splitS $ SubC γ t1 t'
-  where t' = fmap (replacePredsWithRefs su) t
-        su = (uPVar p, pVartoRConc p)
+  where
+    t' = fmap (replacePredsWithRefs su) t
+    su = (uPVar p, pVartoRConc p)
 
 splitS (SubC _ t1@(RAllP _ _) t2)
   = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
@@ -439,9 +442,7 @@ splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
 
 splitC (SubC γ t1 (REx x tx t2))
   = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
-       let xs  = grapBindsWithType tx γ
-       let t2' = splitExistsCases x xs tx t2
-       splitC (SubC γ' t1 t2')
+       splitC (SubC γ' t1 t2)
 
 -- existential at the left hand side is treated like forall
 splitC (SubC γ (REx x tx t1) t2)
@@ -452,7 +453,6 @@ splitC (SubC γ (REx x tx t1) t2)
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
-
 
 splitC (SubC γ (RAllE x tx t1) t2)
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
@@ -468,7 +468,7 @@ splitC (SubC γ (RRTy env _ OCons t1) t2)
        c2 <- splitC (SubC γ  t1  t2 )
        return $ c1 ++ c2
   where
-    (xts, t1', t2') = envToSub env 
+    (xts, t1', t2') = envToSub env
 
 splitC (SubC γ (RRTy e r o t1) t2)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e
@@ -493,8 +493,9 @@ splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
 
 splitC (SubC γ t1 (RAllP p t))
   = splitC $ SubC γ t1 t'
-  where t' = fmap (replacePredsWithRefs su) t
-        su = (uPVar p, pVartoRConc p)
+  where
+    t' = fmap (replacePredsWithRefs su) t
+    su = (uPVar p, pVartoRConc p)
 
 splitC (SubC _ t1@(RAllP _ _) t2)
   = errorstar $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
@@ -536,7 +537,7 @@ splitC (SubR γ o r)
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
     r1  = F.RR s $ F.toReft r
-    r2  = F.RR s $ F.Reft (vv, [F.RConc $ F.PBexp $ F.EVar vv])
+    r2  = F.RR s $ F.Reft (vv, F.Refa $ F.PBexp $ F.EVar vv)
     vv  = "vvRec"
     s   = F.FApp F.boolFTyCon []
     ci  = Ci src err
@@ -557,7 +558,7 @@ bsplitC γ t1 t2
   = do checkStratum γ t1 t2
        pflag <- pruneRefs <$> get
        γ' <- γ ++= ("bsplitC", v, t1)
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  [F.RConc $ constraintToLogic γ' (lcs γ')])}
+       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  F.Refa $ constraintToLogic γ' (lcs γ'))}
        let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
        return $ bsplitC' γ' t1' t2 pflag
   where
@@ -566,13 +567,14 @@ bsplitC γ t1 t2
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
-  where [s1, s2]   = getStrata <$> [t1, t2]
-        wrn        =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
+  where
+    [s1, s2]  = getStrata <$> [t1, t2]
+    wrn       =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
 bsplitC' γ t1 t2 pflag
-  | F.isFunctionSortedReft r1' && F.isNonTrivialSortedReft r2'
+  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
   = F.subC γ' grd (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
-  | F.isNonTrivialSortedReft r2'
+  | F.isNonTrivial r2'
   = F.subC γ' grd r1'  r2' Nothing tag ci
   | otherwise
   = []
@@ -661,12 +663,21 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, RAllE y tyy tyx)
-  = do y' <- fresh
+
+addCGEnv tx γ (msg, x, REx y tyy tyx)
+  = do y' <- fresh 
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (_, x, t')
+addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (msg, x, t)
+  where 
+    xs    = grapBindsWithType tyy γ
+    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
+
+    (tyx', ttrue) = splitXRelatedRefs yy tyx
+
+addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'
        let γ' = γ { renv = insertREnv x t (renv γ) }
@@ -854,7 +865,7 @@ isKut RecBindE = True
 isKut _        = False
 
 specTypeKVars :: SpecType -> [F.Symbol]
-specTypeKVars = foldReft ((++) . (F.reftKVars . ur_reft)) []
+specTypeKVars = foldReft ((++) . (kvars . ur_reft)) []
 
 trueTy  :: Type -> CG SpecType
 trueTy = ofType' >=> true
@@ -1208,11 +1219,18 @@ consBind isRec γ (x, e, Unknown)
 noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
 
 killSubst :: RReft -> RReft
-killSubst = fmap tx
+killSubst = fmap killSubstReft
+
+killSubstReft :: F.Reft -> F.Reft
+killSubstReft = trans kv () ()
   where
-    tx (F.Reft (s, rs)) = F.Reft (s, map f rs)
-    f (F.RKvar k _) = F.RKvar k mempty
-    f (F.RConc p)   = F.RConc p
+    kv    = defaultVisitor { txPred = ks }
+    ks _ (F.PKVar k _) = F.PKVar k mempty
+    ks _ p             = p
+
+    -- tx (F.Reft (s, rs)) = F.Reft (s, map f rs)
+    -- f (F.RKvar k _)     = F.RKvar k mempty
+    -- f (F.RConc p)       = F.RConc p
 
 defAnn True  = AnnRDf
 defAnn False = AnnDef
@@ -1278,7 +1296,7 @@ cconsE γ e (RAllP p t)
     (css, t'') = splitConstraints t'
     γ'         = foldl (flip addConstraints) γ css
 
-cconsE γ (Let b e) t    
+cconsE γ (Let b e) t
   = do γ'  <- consCBLet γ b
        cconsE γ' e t
 
@@ -1321,7 +1339,7 @@ cconsE γ e t
        addC (SubC γ te' t) ("cconsE" ++ showPpr e)
 
 
-splitConstraints (RRTy cs _ OCons t) 
+splitConstraints (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints t in (cs:css, t')
 splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
@@ -1523,13 +1541,13 @@ dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
 dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
-  = (flip (RFun x tx)) r <$> dropConstraints γ t 
-dropConstraints γ (RRTy cts _ OCons t) 
+  = (flip (RFun x tx)) r <$> dropConstraints γ t
+dropConstraints γ (RRTy cts _ OCons t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        addC (SubC  γ' t1 t2)  "dropConstraints"
        dropConstraints γ t
   where
-    (xts, t1, t2) = envToSub cts 
+    (xts, t1, t2) = envToSub cts
 
 dropConstraints _ t = return t
 
@@ -1588,7 +1606,7 @@ caseEnv γ x _   (DataAlt c) ys
        let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
-       let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+       let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
@@ -1606,7 +1624,7 @@ altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
 altReft _ _ _            = error "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
-  where 
+  where
         tbody              = instantiatePvs (instantiateTys td ts) $ reverse rs
         (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
         yts''              = zipWith F.subst sus (yts'++[rt])
@@ -1740,46 +1758,50 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
-  where r'            = fromMaybe mempty $ forallExprReft γ r
-        r             = F.sr_reft $ rTypeSortedReft (emb γ) t
+  where
+    r'                = fromMaybe mempty $ forallExprReft γ r
+    r                 = F.sr_reft $ rTypeSortedReft (emb γ) t
 
-forallExprReft γ r
-  = do e  <- F.isSingletonReft r
-       r' <- forallExprReft_ γ e
-       return r'
+forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
+forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
 
+--   = do e  <- F.isSingletonReft r
+--        r' <- forallExprReft_ γ e
+--        return r'
+
+forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
 forallExprReft_ γ (F.EApp f es)
   = case forallExprReftLookup γ (val f) of
       Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
-forallExprReft_ γ (F.EVar x) 
-  = case forallExprReftLookup γ x of 
+forallExprReft_ γ (F.EVar x)
+  = case forallExprReftLookup γ x of
       Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing       -> Nothing -- F.exprReft e
 
 forallExprReft_ _ _ = Nothing -- F.exprReft e
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
-  where 
+  where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
+{-
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
 
-exrefAddEq z xs t (F.Reft(s, rs))
-  = F.Reft(s, [F.RConc (F.POr [ pand x | x <- xs])])
-  where tref                = fromMaybe mempty $ stripRTypeBase t
-        pand x              = F.PAnd $ (substzx x) (fFromRConc <$> rs)
-                                       ++ exrefToPred x tref
-        substzx x           = F.subst (F.mkSubst [(z, F.EVar x)])
+exrefAddEq z xs t (F.Reft (s, F.Refa rs))
+  = F.Reft(s, F.Refa (F.POr [ pand x | x <- xs]))
+  where
+    tref      = fromMaybe mempty $ stripRTypeBase t
+    pand x    = substzx x rs `mappend` exrefToPred x tref
+    substzx x = F.subst (F.mkSubst [(z, F.EVar x)])
 
-exrefToPred x uref
-  = F.subst (F.mkSubst [(v, F.EVar x)]) ((fFromRConc <$> r))
-  where (F.Reft(v, r))         = ur_reft uref
-fFromRConc (F.RConc p) = p
-fFromRConc _           = errorstar "can not hanlde existential type with kvars"
+exrefToPred x u             = F.subst (F.mkSubst [(v, F.EVar x)]) p
+  where
+    F.Reft (v, F.Refa p)    = ur_reft u
+-}
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------

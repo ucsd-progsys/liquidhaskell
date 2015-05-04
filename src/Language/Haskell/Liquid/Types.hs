@@ -89,7 +89,7 @@ module Language.Haskell.Liquid.Types (
   , rFun, rCls, rRCls
 
   -- * Manipulating `Predicates`
-  , pvars, pappSym, pToRef, pApp
+  , pvars, pappSym, pApp
 
   -- * Some tests on RTypes
   , isBase
@@ -959,24 +959,25 @@ addTermCond = addObligation OTerm
 
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
-  | null rv
+  | isTauto $ ur_reft r' -- null rv
   = t
   | otherwise
   = fromRTypeRep $ trep {ty_res = RRTy [(x', tbd)] r OInv tbd}
-  where trep = toRTypeRep t
-        tbd  = ty_res trep
-        r    = r'{ur_reft = Reft (v, rx)}
-        su   = (v, EVar x')
-        x'   = "xInv"
-        rx   = [RConc $ PIff (PBexp $ EVar v) $ subst1 r su | RConc r <- rv]
-
-        Reft(v, rv) = ur_reft r'
+  where
+    trep = toRTypeRep t
+    tbd  = ty_res trep
+    r    = r' {ur_reft = Reft (v, Refa rx)}
+    su   = (v, EVar x')
+    x'   = "xInv"
+    rx   = PIff (PBexp $ EVar v) $ subst1 (raPred rv) su
+    Reft(v, rv) = ur_reft r'
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r = mkArrow αs πs ls xts $ RRTy [] r o t2
-  where (αs, πs, ls, t1) = bkUniv t
-        (xs, ts, rs, t2) = bkArrow t1
-        xts              = zip3 xs ts rs
+addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
+  where
+    (αs, πs, ls, t1) = bkUniv t
+    (xs, ts, rs, t2) = bkArrow t1
+    xts              = zip3 xs ts rs
 
 --------------------------------------------
 
@@ -1085,14 +1086,13 @@ instance Reftable Predicate where
            | not (ppPs ppEnv) = d
            | otherwise        = d <> (angleBrackets $ pprint r)
 
-  toReft (Pr ps@(p:_))        = Reft (parg p, pToRef <$> ps)
+  toReft (Pr ps@(p:_))        = Reft (parg p, refa $ pToRef <$> ps)
   toReft _                    = mempty
   params                      = errorstar "TODO: instance of params for Predicate"
 
   ofReft = error "TODO: Predicate.ofReft"
 
-
-pToRef p = RConc $ pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
+pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 
 pApp      :: Symbol -> [Expr] -> Pred
 pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
@@ -1378,8 +1378,7 @@ instance PPrint Predicate where
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
 
 instance PPrint Refa where
-  pprint (RConc p)     = pprint p
-  pprint k             = toFix k
+  pprint = pprint . raPred
 
 instance PPrint Reft where
   pprint = F.pprint
@@ -1646,11 +1645,10 @@ cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
 --------------------------------------------------------------------------------
 --- Measures
 --------------------------------------------------------------------------------
--- MOVE TO TYPES
 data Measure ty ctor = M {
     name :: LocSymbol
   , sort :: ty
-  , eqns :: [Def ctor]
+  , eqns :: [Def ty ctor]
   } deriving (Data, Typeable)
 
 data CMeasure ty
@@ -1658,17 +1656,17 @@ data CMeasure ty
        , cSort :: ty
        }
 
--- MOVE TO TYPES
-data Def ctor
-  = Def {
+data Def ty ctor 
+  = Def { 
     measure :: LocSymbol
-  , ctor    :: ctor
-  , binds   :: [Symbol]
+  , dparams :: [(Symbol, ty)]
+  , ctor    :: ctor 
+  , dsort   :: Maybe ty
+  , binds   :: [(Symbol, Maybe ty)]
   , body    :: Body
   } deriving (Show, Data, Typeable)
-deriving instance (Eq ctor) => Eq (Def ctor)
+deriving instance (Eq ctor, Eq ty) => Eq (Def ty ctor)
 
--- MOVE TO TYPES
 data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e }
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
@@ -1681,11 +1679,11 @@ instance Subable (Measure ty ctor) where
   substf f  (M n s es) = M n s $ substf f  <$> es
   subst  su (M n s es) = M n s $ subst  su <$> es
 
-instance Subable (Def ctor) where
-  syms (Def _ _ _ bd)      = syms bd
-  substa f  (Def m c b bd) = Def m c b $ substa f  bd
-  substf f  (Def m c b bd) = Def m c b $ substf f  bd
-  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+instance Subable (Def ty ctor) where
+  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ syms bd
+  substa f  (Def m p c t b bd) = Def m p c t b $ substa f  bd
+  substf f  (Def m p c t b bd) = Def m p c t b $ substf f  bd
+  subst  su (Def m p c t b bd) = Def m p c t b $ subst  su bd
 
 instance Subable Body where
   syms (E e)       = syms e
@@ -1807,12 +1805,23 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` ()
 
-hole = RKvar "HOLE" mempty
+-- hasHole (toReft -> (Reft (_, rs))) = any isHole rs
 
-isHole (RKvar ("HOLE") _) = True
+hole :: Pred
+hole = PKVar "HOLE" mempty
+
+isHole :: Pred -> Bool
+isHole (PKVar ("HOLE") _) = True
 isHole _                  = False
 
-hasHole (toReft -> (Reft (_, rs))) = any isHole rs
+hasHole :: Reftable r => r -> Bool
+hasHole = any isHole . conjuncts . reftPred . toReft
+
+
+-- isHole :: KVar -> Bool
+-- isHole "HOLE" = True
+-- isHole _      = False
+
 
 -- classToRApp :: SpecType -> SpecType
 -- classToRApp (RCls cl ts)
