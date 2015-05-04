@@ -1,6 +1,8 @@
 module MultiParams where
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names" @-}
+
 import Data.Tuple 
 import Language.Haskell.Liquid.Prelude ((==>))
 
@@ -39,7 +41,8 @@ find f [] = Nothing
 find f (x:xs) | f x       = Just x 
               | otherwise = Nothing 
 
-
+cons x xs = (x:xs)
+nil = []
 -- | Generate all assignments
 
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
