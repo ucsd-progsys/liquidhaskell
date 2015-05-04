@@ -33,8 +33,7 @@ find q k i | q i       = k i
 \begin{code}
 {-@ bound chain @-}
 chain :: (b -> c -> Bool) -> (a -> b -> Bool) -> (a -> c -> Bool) -> a -> b -> c -> Bool
-chain p q r = \ x y z -> q x y ==> p y z ==> r x z 
-
+chain p q r = \ x y z -> q x y ==> p y z ==> r x z
 {-@
 (.) :: forall <p :: b -> c -> Prop, q :: a -> b -> Prop, r :: a -> c -> Prop>. 
        (Chain b c a p q r) => 

@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bounds (
 
     RBEnv, RRBEnv,
 
-    makeBound, 
+    makeBound,
     envToSub
 
         ) where
@@ -58,10 +58,10 @@ instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-        pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
-                                        text "forall" <+> pprint vs <+> text "." <+>
-                                        pprint (fst <$> ps) <+> text "=" <+>
-                                        pprint_bsyms (fst <$> xs) <+> pprint e
+	pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
+	                                text "forall" <+> pprint vs <+> text "." <+>
+	                                pprint (fst <$> ps) <+> text "=" <+>
+	                                pprint_bsyms (fst <$> xs) <+> pprint e
 
 pprint_bsyms [] = text ""
 pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
@@ -73,12 +73,12 @@ instance Bifunctor Bound where
 
 makeBound :: (PPrint r, UReftable r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
-makeBound (Bound _  vs ps xs p) ts qs t 
+makeBound (Bound _  vs ps xs p) ts qs t
   = RRTy cts mempty OCons t
   where
     cts  = (\(x, t) -> (x, foldr subsTyVar_meet t su)) <$> cts'
 
-    cts' = makeBoundType penv rs xs 
+    cts' = makeBoundType penv rs xs
 
     penv = zip (val . fst <$> ps) qs
     rs   = bkImp [] p
@@ -89,9 +89,9 @@ makeBound (Bound _  vs ps xs p) ts qs t
     su  = [(α, toRSort t, t) | (RVar α _, t) <-  zip vs ts ]
 
 makeBoundType :: (PPrint r, UReftable r)
-              => [(Symbol, Symbol)] 
-              -> [Pred] 
-              -> [(LocSymbol, RSort)] 
+              => [(Symbol, Symbol)]
+              -> [Pred]
+              -> [(LocSymbol, RSort)]
               -> [(Symbol, RRType r)]
 makeBoundType penv (q:qs) xts = go xts
   where
@@ -101,10 +101,10 @@ makeBoundType penv (q:qs) xts = go xts
     go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
     go ((x, t):xtss) = (val x, mkt t x):(go xtss)
 
-    mkt t x = ofRSort t `strengthen` ofUReft (U (Reft(val x, []))
-                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft(val x, RConc <$> rs))
-                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
+    mkt t x = ofRSort t `strengthen` ofUReft (U (Reft (val x, mempty))
+    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
+    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft (val x, refa rs))
+    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
     (ps, rs) = partitionPs penv qs
@@ -148,14 +148,14 @@ envToSub = go []
 -- thus it can contain both concrete and abstract refinements
 
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v (PAnd rs)
-  = ofUReft (U (Reft(val v, RConc <$> rrs)) r mempty)
-  where r      = Pr (toUsedPVar penv <$> pps)
-        (pps, rrs) = partition (isPApp penv) rs
+makeRef penv v (PAnd rs) = ofUReft (U (Reft (val v, refa rrs)) r mempty)
+  where
+    r                    = Pr  (toUsedPVar penv <$> pps)
+    (pps, rrs)           = partition (isPApp penv) rs
 
-makeRef penv v rr | isPApp penv rr
-  = ofUReft (U (Reft(val v, [])) r mempty)
-  where r      = Pr [toUsedPVar penv rr]
+makeRef penv v rr
+  | isPApp penv rr       = ofUReft (U (Reft(val v, mempty)) r mempty)
+  where
+    r                    = Pr [toUsedPVar penv rr]
 
-makeRef _    v p
-  = ofReft (Reft(val v, [RConc $ p]))
+makeRef _    v p         = ofReft (Reft(val v, Refa p))

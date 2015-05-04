@@ -3,6 +3,20 @@ ghc:
  - '7.8'
  - '7.10'
 
+addons:
+  apt:
+    packages:
+    - ocaml
+    - camlidl
+
+sudo: false
+
+cache:
+  apt: true
+  directories:
+  - $HOME/.cabal
+  - $HOME/.ghc
+
 env:
  - SMT=z3 TESTS=Unit/pos
  - SMT=z3 TESTS=Unit/neg
@@ -10,7 +24,7 @@ env:
  - SMT=z3 TESTS=Benchmarks/text
  - SMT=z3 TESTS=Benchmarks/bytestring
  - SMT=z3 TESTS=Benchmarks/esop
- - SMT=z3 TESTS=Benchmarks/vector-algorithms
+ - SMT=z3 TESTS=Benchmarks/vect-algs
  - SMT=cvc4 TESTS=Unit/pos
  - SMT=cvc4 TESTS=Unit/neg
  - SMT=cvc4 TESTS=Unit/crash
@@ -19,19 +33,17 @@ env:
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
-
 before_install:
- - scripts/travis install_ocaml
- - scripts/travis setup_cabal
+ - scripts/travis clean_cache "$SMT"
  - scripts/travis clone_fixpoint
- - scripts/travis install_smt "$SMT"
 
 install:
  - scripts/travis install_cabal_deps
+ - scripts/travis install_smt "$SMT"
 
 script:
- - scripts/travis do_build
- - scripts/travis do_test "$TESTS" "$SMT" && scripts/travis test_source_pkg
+ - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT" && scripts/travis test_source_pkg
+ - scripts/travis clean_cache "$SMT"
 
 after_failure:
  - scripts/travis dump_fail_logs

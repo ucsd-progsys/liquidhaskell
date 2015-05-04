@@ -25,15 +25,16 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
+import Prelude hiding (mapM)
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad hiding (forM)
-import Control.Monad.Error hiding (Error, forM)
-import Control.Monad.State hiding (forM)
+import Control.Monad hiding (forM, mapM)
+import Control.Monad.Error hiding (Error, forM, mapM)
+import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
 import Data.Maybe
 import Data.Char (toUpper)
 import Data.Monoid
-import Data.Traversable (forM)
+import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
 
@@ -48,6 +49,7 @@ import Language.Fixpoint.Types (Expr(..))
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
+import Language.Haskell.Liquid.Misc    (mapSndM)
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType)
 import Language.Haskell.Liquid.Types
@@ -144,7 +146,7 @@ makeMeasureSelectors (dc, (Loc l l' (DataConP _ vs _ _ _ xts r _))) = catMaybes 
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-  where eqn   = Def x dc (mkx <$> [1 .. n]) (E (EVar $ mkx i))
+  where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i)) 
         mkx j = symbol ("xx" ++ show j)
 
 
@@ -179,12 +181,18 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
--- mkMeasureSort :: (PVarable pv, Reftable r) => Ms.MSpec (BRType pv r) bndr-> BareM (Ms.MSpec (RRType pv r) bndr)
+mkMeasureSort ::  Ms.MSpec BareType LocSymbol -> BareM (Ms.MSpec SpecType LocSymbol)
 mkMeasureSort (Ms.MSpec c mm cm im)
-  = Ms.MSpec c <$> forM mm tx <*> forM cm tx <*> forM im tx
+  = Ms.MSpec <$> forM c (mapM txDef) <*> forM mm tx <*> forM cm tx <*> forM im tx
     where
-      tx m = liftM (\s' -> m {sort = s'}) (ofMeaSort (sort m))
+      tx :: Measure BareType ctor -> BareM (Measure SpecType ctor)
+      tx (M n s eqs) = M n <$> (ofMeaSort s) <*> (mapM txDef eqs)
 
+      txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
+      txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds}) 
+                  (mapM (mapSndM ofMeaSort) (dparams def))
+                  (mapM ofMeaSort $ dsort def)
+                  (mapM (mapSndM $ mapM ofMeaSort) (binds def))
 
 
 varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
@@ -248,7 +256,7 @@ expandMeasure m
        return $ m { sort = generalize (sort m)
                   , eqns = eqns }
 
-expandMeasureDef :: Def LocSymbol -> BareM (Def LocSymbol)
+expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
 expandMeasureDef d
   = do body <- expandMeasureBody (loc $ measure d) $ body d
        return $ d { body = body }

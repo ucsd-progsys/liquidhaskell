@@ -169,8 +169,8 @@ bareTypeP :: Parser BareType
 bareTypeP
   =  try bareAllP
  <|> bareAllS
- <|> bareAllExprP
- <|> bareExistsP
+--  <|> bareAllExprP
+--  <|> bareExistsP
  <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
@@ -187,10 +187,11 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", [hole]))
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
-refasHoleP  = refasP <|> (reserved "_" >> return [hole])
-
+refasHoleP  = try refaP
+           <|> (reserved "_" >> return (Refa hole))
+           
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
 --
@@ -237,13 +238,6 @@ bareAtomNoAppP
   =  refP bbaseNoAppP
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
-bareAllExprP
-  = do reserved "forall"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry RAllE) t zs
-
 bareConstraintP
   = do ct   <- braces constraintP
        t    <- bareTypeP
@@ -269,18 +263,6 @@ rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t
     tr   = ty_res trep
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
-
-bareExistsP
-  = do reserved "exists"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry REx) t zs
-
-exBindP
-  = do b <- binderP <* colon
-       t <- bareArgP b
-       return (b,t)
 
 bareAllS
   = do reserved "forall"
@@ -385,9 +367,9 @@ symsP
 dummyRSort
   = RVar "dummy" mempty
 
-refasP :: Parser [Refa]
-refasP  =  (try (brackets $ sepBy (RConc <$> predP) semi))
-       <|> liftM ((:[]) . RConc) predP
+refaP :: Parser Refa
+refaP  =  try (refa <$> (brackets $ sepBy predP semi))
+       <|> Refa <$> predP
 
 predicatesP
    =  try (angles $ sepBy1 predicate1P comma)
@@ -396,7 +378,7 @@ predicatesP
 predicate1P
    =  try (RProp <$> symsP <*> refP bbaseP)
   <|> (RPropP [] . predUReft <$> monoPredicate1P)
-  <|> (braces $ bRProp <$> symsP' <*> refasP)
+  <|> (braces $ bRProp <$> symsP' <*> refaP)
    where
     symsP'       = do ss    <- symsP
                       fs    <- mapM refreshSym (fst <$> ss)
@@ -780,7 +762,7 @@ binderP    =  try $ symbol <$> idP badc
 grabs p = try (liftM2 (:) p (grabs p))
        <|> return []
 
-measureDefP :: Parser Body -> Parser (Def LocSymbol)
+measureDefP :: Parser Body -> Parser (Def BareType LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- measurePatP
@@ -788,7 +770,7 @@ measureDefP bodyP
        body    <- bodyP
        whiteSpace
        let xs'  = (symbol . val) <$> xs
-       return   $ Def mname (symbol <$> c) xs' body
+       return   $ Def mname [] (symbol <$> c) Nothing ((,Nothing) <$> xs') body
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP

@@ -200,6 +200,7 @@ Library
                     Language.Haskell.Liquid.GhcInterface, 
                     Language.Haskell.Liquid.World, 
                     Language.Haskell.Liquid.RefType, 
+                    Language.Haskell.Liquid.RefSplit, 
                     Language.Haskell.Liquid.Errors, 
                     Language.Haskell.Liquid.PredType, 
                     Language.Haskell.Liquid.ACSS, 

@@ -142,112 +142,66 @@ genExpandOrder table graph
 --------------------------------------------------------------------------------
 
 buildTypeEdges :: AliasTable BareType -> BareType -> [Symbol]
-buildTypeEdges table
-  = ordNub . go
-  where go :: BareType -> [Symbol]
-        go (RApp (Loc _ _ c) ts rs _)
-          = go_alias c ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+buildTypeEdges table = ordNub . go
+  where
+    go :: BareType -> [Symbol]
+    go (RApp c ts rs _) = go_alias (val c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RFun _ t1 t2 _) = go t1 ++ go t2
+    go (RAppTy t1 t2 _) = go t1 ++ go t2
+    go (RAllE _ t1 t2)  = go t1 ++ go t2
+    go (REx _ t1 t2)    = go t1 ++ go t2
+    go (RAllT _ t)      = go t
+    go (RAllP _ t)      = go t
+    go (RAllS _ t)      = go t
+    go (RVar _ _)       = []
+    go (RExprArg _)     = []
+    go (RHole _)        = []
+    go (RRTy env _ _ t) = concatMap (go . snd) env ++ go t
+    go_alias c          = [c | M.member c table]
+    -- case M.lookup c table of
+    --                         Just _  -> [c]
+    --                         Nothing -> [ ]
 
-        go (RFun _ t1 t2 _)
-          = go t1 ++ go t2
-        go (RAppTy t1 t2 _)
-          = go t1 ++ go t2
-        go (RAllE _ t1 t2)
-          = go t1 ++ go t2
-        go (REx _ t1 t2)
-          = go t1 ++ go t2
-        go (RAllT _ t)
-          = go t
-        go (RAllP _ t)
-          = go t
-        go (RAllS _ t)
-          = go t
-
-        go (RVar _ _)
-          = []
-        go (RExprArg _)
-          = []
-        go (RHole _)
-          = []
-
-        go (RRTy env _ _ t)
-          = concatMap (go . snd) env ++ go t
-
-        go_alias c
-          = case M.lookup c table of
-              Just _  -> [c]
-              Nothing -> [ ]
-
-        go_ref (RPropP _ _) = Nothing
-        go_ref (RProp  _ t) = Just t
-        go_ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildTypeEdges"
+    go_ref (RPropP _ _) = Nothing
+    go_ref (RProp  _ t) = Just t
+    go_ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildTypeEdges"
 
 buildPredEdges :: AliasTable Pred -> Pred -> [Symbol]
-buildPredEdges table
-  = ordNub . go
-  where go :: Pred -> [Symbol]
-        go (PBexp (EApp (Loc _ _ f) _))
-          = case M.lookup f table of
-              Just _  -> [f]
-              Nothing -> [ ]
-        go (PBexp _)
-          = []
+buildPredEdges table = ordNub . go
+  where
+    go :: Pred -> [Symbol]
+    go (PBexp (EApp lf _)) = [ f | let f = val lf, M.member f table]
+    go (PAnd ps)           = concatMap go ps
+    go (POr ps)            = concatMap go ps
+    go (PNot p)            = go p
+    go (PImp p q)          = go p ++ go q
+    go (PIff p q)          = go p ++ go q
+    go (PAll _ p)          = go p
+    go _                   = []
 
-        go (PAnd ps)
-          = concatMap go ps
-        go (POr ps)
-          = concatMap go ps
+    -- go (PBexp _)           = []
+    -- go (PAtom _ _ _)       = []
+    -- go PTrue               = []
+    -- go PFalse              = []
+    -- go PTop                = []
 
-        go (PNot p)
-          = go p
+buildExprEdges table  = ordNub . go
+  where
+    go :: Expr -> [Symbol]
+    go (EApp lf es)   = go_alias (val lf) ++ concatMap go es
+    go (ENeg e)       = go e
+    go (EBin _ e1 e2) = go e1 ++ go e2
+    go (EIte _ e1 e2) = go e1 ++ go e2
+    go (ECst e _)     = go e
+    go _              = []
 
-        go (PImp p q)
-          = go p ++ go q
-        go (PIff p q)
-          = go p ++ go q
+    -- go (ELit _ _)     = []
+    -- go (ESym _)       = []
+    -- go (ECon _)       = []
+    -- go (EVar _)       = []
+    -- go EBot           = []
 
-        go (PAll _ p)
-          = go p
-
-        go (PAtom _ _ _)
-          = []
-
-        go PTrue
-          = []
-        go PFalse
-          = []
-        go PTop
-          = []
-
-buildExprEdges table
-  = ordNub . go
-  where go :: Expr -> [Symbol]
-        go (EApp (Loc _ _ f) es)
-          = go_alias f ++ concatMap go es
-
-        go (ENeg e)
-          = go e
-        go (EBin _ e1 e2)
-          = go e1 ++ go e2
-        go (EIte _ e1 e2)
-          = go e1 ++ go e2
-
-        go (ECst e _)
-          = go e
-
-        go (ELit _ _)
-          = []
-        go (ESym _)
-          = []
-        go (ECon _)
-          = []
-        go (EVar _)
-          = []
-
-        go EBot
-          = []
-
-        go_alias f
-          = case M.lookup f table of
-              Just _  -> [f]
-              Nothing -> [ ]
+    go_alias f           = [f | M.member f table ]
+    --   = case M.lookup f table of
+    --       Just _  -> [f]
+    --       Nothing -> [ ]
