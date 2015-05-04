@@ -16,15 +16,9 @@ import           Control.Monad.State
 --------------------------------------------------------------
 -- | Dummy just for debugging --------------------------------
 --------------------------------------------------------------
-import qualified Text.PrettyPrint.HughesPJ as Debug
-import           Language.Fixpoint.Config
-solve :: Config -> FInfo a -> IO (FixResult a)
+solve :: FInfo a -> FInfo a
+solve fi = eliminateAll fi (D.deps fi)
 --------------------------------------------------------------
-solve cfg fi = do
-  let d = D.deps fi
-  let blah = toFixpoint (eliminateAll fi d)
-  putStr (Debug.render blah)
-  return Safe
 
 
 class Elimable a where
@@ -54,8 +48,6 @@ instance Elimable BindEnv where
   elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, (elimKVar kv pr sr)))
 
 
--- NOTE: assumes that eliminateAll is called only once for a given constraints file.
---       if not, starting the fresh-variable counter again at 0 is bad
 eliminateAll :: FInfo a -> D.Deps -> FInfo a
 eliminateAll fInfo ds = evalState (foldlM eliminate fInfo (D.depNonCuts ds)) 0
 

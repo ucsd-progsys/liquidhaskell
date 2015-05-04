@@ -72,8 +72,8 @@ solveNative cfg
   = do let file = inFile cfg
        str     <- readFile file
        let fi   = rr' file str :: FInfo ()
-       res     <- E.solve cfg fi
-       putStrLn $ "Result: " ++ show res
+       let res  = E.solve fi
+       putStrLn $ "Result: \n" ++ (render $ toFixpoint res)
        error "TODO: solveNative"
 
 ---------------------------------------------------------------------------
