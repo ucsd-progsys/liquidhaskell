@@ -352,12 +352,14 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
-  where
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
+checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
+  where 
+    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
+    ats  = (mapSnd (rTypeSortedReft emb) <$> as)
+    xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd4 $ bkArrowDeep sort)
+    su   = checkMBodyUnify (ty_res trep) (last txs) 
+    txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go

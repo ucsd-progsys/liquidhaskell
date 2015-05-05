@@ -20,18 +20,19 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
-import Data.List (foldl1')
+import qualified Data.HashMap.Strict as M 
+import qualified Data.HashSet        as S 
+import Data.List (foldl')
 
 import Data.Monoid hiding ((<>))
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 
+import Data.Maybe (fromMaybe)
+
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc (addThd3)
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance
@@ -73,8 +74,8 @@ data Spec ty bndr  = Spec {
 
 
 -- MOVE TO TYPES
-data MSpec ty ctor = MSpec {
-    ctorMap  :: M.HashMap Symbol [Def ctor]
+data MSpec ty ctor = MSpec { 
+    ctorMap  :: M.HashMap Symbol [Def ty ctor]
   , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
   , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
   , imeas    :: ![Measure ty ctor]
@@ -109,8 +110,8 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
   where
     tx = fmap (qualifySymbol name)
 
-mkM ::  LocSymbol -> ty -> [Def bndr] -> Measure ty bndr
-mkM name typ eqns
+mkM ::  LocSymbol -> ty -> [Def ty bndr] -> Measure ty bndr
+mkM name typ eqns 
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
@@ -213,7 +214,7 @@ instance Monoid (Spec ty bndr) where
            }
 
 -- MOVE TO TYPES
-instance Functor Def where
+instance Functor (Def t) where
   fmap f def = def { ctor = f (ctor def) }
 
 -- MOVE TO TYPES
@@ -230,13 +231,20 @@ instance Functor (MSpec t) where
            fm = fmap $ fmap f
 
 -- MOVE TO TYPES
+instance Bifunctor Def where
+  first  f def  = def { dparams = mapSnd f <$> dparams def
+                      , dsort = f <$> dsort def
+                      , binds = mapSnd (f <$>) <$> binds def}
+  second f def  = def {ctor    = f $ ctor def}
+
+-- MOVE TO TYPES
 instance Bifunctor Measure where
-  first f (M n s eqs)  = M n (f s) eqs
-  second f (M n s eqs) = M n s (fmap f <$> eqs)
+  first f (M n s eqs)  = M n (f s) (first f <$> eqs)
+  second f (M n s eqs) = M n s (second f <$> eqs)
 
 -- MOVE TO TYPES
 instance Bifunctor MSpec   where
-  first f (MSpec c m cm im) = MSpec c (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
+  first f (MSpec c m cm im) = MSpec (fmap (fmap (first f)) c) (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
   second                    = fmap
 
 -- MOVE TO TYPES
@@ -272,9 +280,9 @@ instance PPrint Body where
 --   toFix (BTup n) = parens $ toFix n
 
 -- MOVE TO TYPES
-instance PPrint a => PPrint (Def a) where
-  pprint (Def m c bs body) = pprint m <> text " " <> cbsd <> text " = " <> pprint body
-    where cbsd = parens (pprint c <> hsep (pprint `fmap` bs))
+instance PPrint a => PPrint (Def t a) where
+  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body   
+    where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
 
 -- MOVE TO TYPES
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
@@ -297,7 +305,7 @@ instance PPrint (CMeasure t) => Show (CMeasure t) where
 
 -- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
-mapTy f (M n ty eqs) = M n (f ty) eqs
+mapTy = first 
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
@@ -306,24 +314,29 @@ dataConTypes  s = (ctorTys, measTys)
     ctorTys     = concatMap mkDataConIdsTy [(defsVar ds, defsTy ds)
                                            | (_, ds) <- M.toList (ctorMap s)
                                                        ]
-    defsTy      = foldl1' meet . fmap defRefType
-    defsVar     = ctor . safeHead "defsVar"
+    defsTy ds@(d:_) = foldl' strengthenRefTypeGen (ofType $ dataConUserType $ ctor d) (defRefType <$> ds)
+    defsTy []       = errorstar "Measure.defsTy: This cannot happen"
 
-defRefType :: Def DataCon -> RRType Reft
-defRefType (Def f dc xs body) = mkArrow as [] [] xts t'
-  where
-    as  = RTV <$> dataConUnivTyVars dc
-    xts = map (addThd3 mempty) $ safeZip msg xs $ ofType `fmap` dataConOrigArgTys dc
-    t'  = refineWithCtorBody dc f body t
-    t   = ofType $ dataConOrigResTy dc
-    msg = "defRefType dc = " ++ showPpr dc
+    defsVar     = ctor . safeHead "defsVar" 
+
+defRefType :: Def (RRType Reft) DataCon -> RRType Reft
+defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
+  where 
+    t   = fromMaybe (ofType $ dataConOrigResTy dc) mt
+    xts = safeZipWith msg g xs $ ofType `fmap` dataConOrigArgTys dc
+    g (x, Nothing) t = (x, t, mempty) 
+    g (x, Just t)  _ = (x, t, mempty)
+    t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t 
+    msg = "defRefType dc = " ++ showPpr dc 
+
+    mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
 
-refineWithCtorBody dc f body t =
-  case stripRTypeBase t of
+refineWithCtorBody dc f as body t =
+  case stripRTypeBase t of 
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, Refa $ bodyPred (EApp f [eVar v]) body)
-    Nothing ->
+      strengthen t $ Reft (v, Refa $ bodyPred (EApp f (eVar <$> (as ++ [v]))) body)
+    Nothing -> 
       errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 

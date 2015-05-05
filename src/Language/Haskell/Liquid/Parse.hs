@@ -168,8 +168,8 @@ bareTypeP :: Parser BareType
 bareTypeP
   =  try bareAllP
  <|> bareAllS
- <|> bareAllExprP
- <|> bareExistsP
+--  <|> bareAllExprP
+--  <|> bareExistsP
  <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
@@ -237,13 +237,6 @@ bareAtomNoAppP
   =  refP bbaseNoAppP
  <|> try (dummyP (bbaseNoAppP <* spaces))
 
-bareAllExprP
-  = do reserved "forall"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry RAllE) t zs
-
 bareConstraintP
   = do ct   <- braces constraintP
        t    <- bareTypeP
@@ -269,18 +262,6 @@ rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t
     tr   = ty_res trep
     xts  = zip (ty_binds trep) (ty_args trep)
     trep = toRTypeRep ct
-
-bareExistsP
-  = do reserved "exists"
-       zs <- brackets $ sepBy1 exBindP comma
-       dot
-       t  <- bareTypeP
-       return $ foldr (uncurry REx) t zs
-
-exBindP
-  = do b <- binderP <* colon
-       t <- bareArgP b
-       return (b,t)
 
 bareAllS
   = do reserved "forall"
@@ -780,7 +761,7 @@ binderP    =  try $ symbol <$> idP badc
 grabs p = try (liftM2 (:) p (grabs p))
        <|> return []
 
-measureDefP :: Parser Body -> Parser (Def LocSymbol)
+measureDefP :: Parser Body -> Parser (Def BareType LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- measurePatP
@@ -788,7 +769,7 @@ measureDefP bodyP
        body    <- bodyP
        whiteSpace
        let xs'  = (symbol . val) <$> xs
-       return   $ Def mname (symbol <$> c) xs' body
+       return   $ Def mname [] (symbol <$> c) Nothing ((,Nothing) <$> xs') body
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP

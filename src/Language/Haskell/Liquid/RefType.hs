@@ -54,7 +54,11 @@ module Language.Haskell.Liquid.RefType (
   , shiftVV
 
   , mkDataConIdsTy
-  , mkTyConInfo
+  , mkTyConInfo 
+
+
+  , strengthenRefTypeGen
+
   ) where
 
 import WwLib
@@ -135,6 +139,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , RefTypable c tv ()
          , RefTypable c tv r
          , PPrint (RType c tv r)
+         , FreeVar c tv 
          )
         => Monoid (RType c tv r)  where
   mempty  = errorstar "mempty: RType"
@@ -150,22 +155,26 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
   mempty      = errorstar "mempty: RType 2"
   mappend _ _ = errorstar "mappend: RType 2"
 
-instance ( Monoid r, Reftable r, RefTypable b c r, RefTypable b c ()) => Monoid (RTProp b c r) where
+instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ())) 
+         => Monoid (RTProp b c r) where
   mempty         = errorstar "mempty: RTProp"
 
   mappend (RPropP s1 r1) (RPropP s2 r2)
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP (s1 ++ s2) $ r1 `meet` r2
-
-  mappend (RProp s1 t1) (RProp s2 t2)
+    | otherwise  = RPropP s1 $ r1 `meet` 
+                               (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
+  
+  mappend (RProp s1 t1) (RProp s2 t2) 
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
-    | otherwise    = RProp (s1 ++ s2) $ t1  `strengthenRefType` t2
+    | otherwise    = RProp s1 $ t1  `strengthenRefType` 
+                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
-instance (Reftable r, RefTypable c tv r, RefTypable c tv ()) => Reftable (RTProp c tv r) where
+instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c) 
+    => Reftable (RTProp c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp  _ t) = isTrivial t
   isTauto (RHProp _ _) = errorstar "RefType: Reftable isTauto in RHProp"
@@ -227,7 +236,7 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (TyConable c, Reftable r, PPrint r, PPrint c) => RefTypable c Symbol r where
+instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
 --   ppCls   = ppClassSymbol
   ppRType = ppr_rtype ppEnv
 
@@ -360,15 +369,42 @@ nlzP ps t@(RAllE _ _ _)
 nlzP _ t
  = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
+
+strengthenRefTypeGen, strengthenRefType :: 
+         ( RefTypable c tv ()
+         , RefTypable c tv r 
+         , PPrint (RType c tv r)
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
+         ) => RType c tv r -> RType c tv r -> RType c tv r
+strengthenRefType_ :: 
+         ( RefTypable c tv ()
+         , RefTypable c tv r 
+         , PPrint (RType c tv r)
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
+         ) => (RType c tv r -> RType c tv r -> RType c tv r) 
+           ->  RType c tv r -> RType c tv r -> RType c tv r
+           
+strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
+  where
+    f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+                         (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+ 
+
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
 --  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
 --                 (render t1) (render (toRSort t1)) (render t2) (render (toRSort t2))
 
 -- OLD: without unifying type variables, but checking α-equivalence
-strengthenRefType t1 t2
-  | eqt t1 t2
-  = strengthenRefType_ t1 t2
+strengthenRefType t1 t2 
+  | eqt t1 t2 
+  = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = errorstar msg
   where
@@ -377,40 +413,54 @@ strengthenRefType t1 t2
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
 
--- strengthenRefType_ :: RefTypable c tv r => RType c tv r -> RType c tv r -> RType c tv r
-strengthenRefType_ (RAllT a1 t1) (RAllT _ t2)
-  = RAllT a1 $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
+  = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (a2, toRSort t, t) t2)
+  where t = RVar a1 mempty
 
-strengthenRefType_ (RAllP p1 t1) (RAllP _ t2)
-  = RAllP p1 $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllT a t1) t2
+  = RAllT a $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAllS s t1) t2
-  = RAllS s $ strengthenRefType_ t1 t2
+strengthenRefType_ f t1 (RAllT a t2)
+  = RAllT a $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ t1 (RAllS s t2)
-  = RAllS s $ strengthenRefType_ t1 t2
+strengthenRefType_ f (RAllP p1 t1) (RAllP _ t2)
+  = RAllP p1 $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
+strengthenRefType_ f (RAllS s t1) t2
+  = RAllS s $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f t1 (RAllS s t2)
+  = RAllS s $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
+  = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f (RAllE x tx t1) t2
+  = RAllE x tx $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f t1 (RAllE x tx t2)
+  = RAllE x tx $ strengthenRefType_ f t1 t2
+
+strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
   = RAppTy t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ t1 t2
-          t' = strengthenRefType_ t1' t2'
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f t1' t2'
 
-strengthenRefType_ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
-  = RFun x1 t t' (r1 `meet` r2)
-    where t  = strengthenRefType_ t1 t2
-          t' = strengthenRefType_ t1' $ subst1 t2' (x2, EVar x1)
+strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
+  = RFun x2 t t' (r1 `meet` r2)
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2' 
 
-strengthenRefType_ (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
+strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
-    where ts  = zipWith strengthenRefType_ t1s t2s
+    where ts  = zipWith (strengthenRefType_ f) t1s t2s
           rs  = meets rs1 rs2
 
 
-strengthenRefType_ (RVar v1 r1)  (RVar _ r2)
+strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
   = RVar v1 (r1 `meet` r2)
-
-strengthenRefType_ t1 _
-  = t1
+strengthenRefType_ f t1 t2  
+  = f t1 t2
 
 meets [] rs                 = rs
 meets rs []                 = rs
@@ -517,8 +567,8 @@ freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [α]
-freeTyVars (RAllE _ _ t)   = freeTyVars t
-freeTyVars (REx _ _ t)     = freeTyVars t
+freeTyVars (RAllE _ tx t)  = freeTyVars tx `L.union` freeTyVars t
+freeTyVars (REx _ tx t)    = freeTyVars tx `L.union` freeTyVars t
 freeTyVars (RExprArg _)    = []
 freeTyVars (RAppTy t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RHole _)       = []

@@ -75,10 +75,9 @@ getBinds
 
 addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
-addExist t x (tx, e) = RAllE x t' t
-  where
-    t'               = (ofRSort tx) `strengthen` uTop r
-    r                = exprReft e -- Reft (vv Nothing, [RConc (PAtom Eq (EVar (vv Nothing)) e)])
+addExist t x (tx, e) = REx x t' t
+  where t' = (ofRSort tx) `strengthen` uTop r
+        r  = exprReft e 
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (U r (Pr p) l)

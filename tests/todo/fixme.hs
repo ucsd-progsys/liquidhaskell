@@ -1,6 +1,9 @@
-module Foo () where
+data L a = Nil
 
-baz = bob 10
+{-@ measure bar :: L Int -> Int
+    bar Nil = 0
+  @-}   
 
-bob :: Int -> Int
-bob x = x
+{-@ measure barr :: L Int -> Prop
+    barr Nil = true
+  @-}     

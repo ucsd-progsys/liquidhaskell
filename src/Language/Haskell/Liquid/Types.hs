@@ -1641,11 +1641,10 @@ cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
 --------------------------------------------------------------------------------
 --- Measures
 --------------------------------------------------------------------------------
--- MOVE TO TYPES
 data Measure ty ctor = M {
     name :: LocSymbol
   , sort :: ty
-  , eqns :: [Def ctor]
+  , eqns :: [Def ty ctor]
   } deriving (Data, Typeable)
 
 data CMeasure ty
@@ -1653,17 +1652,17 @@ data CMeasure ty
        , cSort :: ty
        }
 
--- MOVE TO TYPES
-data Def ctor
-  = Def {
+data Def ty ctor 
+  = Def { 
     measure :: LocSymbol
-  , ctor    :: ctor
-  , binds   :: [Symbol]
+  , dparams :: [(Symbol, ty)]
+  , ctor    :: ctor 
+  , dsort   :: Maybe ty
+  , binds   :: [(Symbol, Maybe ty)]
   , body    :: Body
   } deriving (Show, Data, Typeable)
-deriving instance (Eq ctor) => Eq (Def ctor)
+deriving instance (Eq ctor, Eq ty) => Eq (Def ty ctor)
 
--- MOVE TO TYPES
 data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e }
   | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
@@ -1676,11 +1675,11 @@ instance Subable (Measure ty ctor) where
   substf f  (M n s es) = M n s $ substf f  <$> es
   subst  su (M n s es) = M n s $ subst  su <$> es
 
-instance Subable (Def ctor) where
-  syms (Def _ _ _ bd)      = syms bd
-  substa f  (Def m c b bd) = Def m c b $ substa f  bd
-  substf f  (Def m c b bd) = Def m c b $ substf f  bd
-  subst  su (Def m c b bd) = Def m c b $ subst  su bd
+instance Subable (Def ty ctor) where
+  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ syms bd
+  substa f  (Def m p c t b bd) = Def m p c t b $ substa f  bd
+  substf f  (Def m p c t b bd) = Def m p c t b $ substf f  bd
+  subst  su (Def m p c t b bd) = Def m p c t b $ subst  su bd
 
 instance Subable Body where
   syms (E e)       = syms e

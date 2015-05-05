@@ -74,6 +74,7 @@ import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
+import Language.Haskell.Liquid.RefSplit 
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
@@ -436,9 +437,7 @@ splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
 
 splitC (SubC γ t1 (REx x tx t2))
   = do γ' <- (γ, "addExBind 1") += (x, forallExprRefType γ tx)
-       let xs  = grapBindsWithType tx γ
-       let t2' = splitExistsCases x xs tx t2
-       splitC (SubC γ' t1 t2')
+       splitC (SubC γ' t1 t2)
 
 -- existential at the left hand side is treated like forall
 splitC (SubC γ (REx x tx t1) t2)
@@ -449,7 +448,6 @@ splitC (SubC γ (REx x tx t1) t2)
 splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- (γ, "addExBind 0") += (x, forallExprRefType γ tx)
        splitC (SubC γ' t1 t2)
-
 
 splitC (SubC γ (RAllE x tx t1) t2)
   = do γ' <- (γ, "addExBind 2") += (x, forallExprRefType γ tx)
@@ -660,12 +658,21 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, RAllE y tyy tyx)
-  = do y' <- fresh
+
+addCGEnv tx γ (msg, x, REx y tyy tyx)
+  = do y' <- fresh 
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (_, x, t')
+addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (msg, x, t)
+  where 
+    xs    = grapBindsWithType tyy γ
+    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
+
+    (tyx', ttrue) = splitXRelatedRefs yy tyx
+
+addCGEnv tx γ (_, x, t') 
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'
        let γ' = γ { renv = insertREnv x t (renv γ) }
@@ -1572,7 +1579,7 @@ caseEnv γ x _   (DataAlt c) ys
        let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
-       let xt            = xt0 `strengthen` (uTop (r1 `F.meet` r2))
+       let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
        let cbs           = safeZip "cconsCase" (x':ys') (xt0:yts)
        cγ'              <- addBinders γ x' cbs
        cγ               <- addBinders cγ' x' [(x', xt)]
@@ -1753,6 +1760,7 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
+{-
 splitExistsCases z xs tx
   = fmap $ fmap (exrefAddEq z xs tx)
 
@@ -1766,7 +1774,7 @@ exrefAddEq z xs t (F.Reft (s, F.Refa rs))
 exrefToPred x u             = F.subst (F.mkSubst [(v, F.EVar x)]) p
   where
     F.Reft (v, F.Refa p)    = ur_reft u
-
+-}
 
 -------------------------------------------------------------------------------
 -------------------- Cleaner Signatures For Rec-bindings ----------------------
