@@ -50,7 +50,7 @@ instance IsOption SmtSolver where
 newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable)
 instance IsOption LiquidOpts where
   defaultValue = LO ""
-  parseValue = LO
+  parseValue = Just . LO
   optionName = return "liquid-opts"
   optionHelp = return "Extra options to pass to LiquidHaskell"
   optionCLParser =
