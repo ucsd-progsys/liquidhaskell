@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import qualified Data.List as L
 import           Debug.Trace (trace)
-
+import           Text.Printf (printf)
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
@@ -41,7 +41,12 @@ refine s w
                                  (b, s') <- refineC i s c
                                  let w'' = if b then W.push c w' else w'
                                  refine s' w''
+                                 --  $ trace (refineMsg i c b w'') w''
   | otherwise               = return s
+
+-- DEBUG
+-- refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"
+--                     i (show $ F.sid c) (show b) (showpp w)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -52,10 +57,10 @@ refineC i s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
                    kqs   <- filterValid lhs rhs
-                   return $ S.update s ks kqs
+                   return $ S.update s ks {-  $ tracepp (msg ks rhs kqs) -} kqs
   where
-    (ks, rhs) =  rhsCands s c
-    msg z s'  = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'
+    (ks, rhs) = rhsCands s c
+    -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" i (showpp ks) (length xs) (length ys)
 
 lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds

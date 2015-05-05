@@ -81,8 +81,10 @@ getContext = ssCtx <$> get
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs = -- do
-  withContext $ filterValid_ p qs
+filterValid p qs =
+  withContext $ \me ->
+    smtBracket me $
+      filterValid_ p qs me
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do

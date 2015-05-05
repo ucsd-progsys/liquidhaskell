@@ -45,11 +45,12 @@ data Config
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
     , native      :: Bool             -- ^ use haskell solver
     , real        :: Bool             -- ^ interpret div and mul in SMT
+    , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def
-
+  def = Config "" def def def def def def def def
+  
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
@@ -123,8 +124,9 @@ config = Config {
   , solver      = def   &= help "Name of SMT Solver"
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "use UEq on all sorts"
-  , native      = False &= help "Use (new, non-working) Haskell Solver"
-  , real        = False &= help "Experimental support for the theory of real numbers"
+  , native      = False &= help "(alpha) Haskell Solver"
+  , real        = False &= help "(alpha) Theory of real numbers"
+  , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   }
   &= verbosity
   &= program "fixpoint"

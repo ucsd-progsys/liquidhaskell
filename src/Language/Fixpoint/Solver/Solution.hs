@@ -31,6 +31,7 @@ import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
+import           Text.Printf (printf)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -72,11 +73,12 @@ eQual q xs = EQL q p es
 ------------------------------------------------------------------------
 update :: Solution -> [F.KVar] -> [(F.KVar, EQual)] -> (Bool, Solution)
 -------------------------------------------------------------------------
-update s ks kqs = {- traceShow msg -} (or bs, s')
+update s ks kqs = {- tracepp msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
-    -- msg         = "s = " ++ showpp s
+    -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
+
 
 groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
 groupKs ks kqs = M.toList $ groupBase m0 kqs

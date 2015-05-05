@@ -17,7 +17,7 @@ import           Control.Monad.State
 -- | Dummy just for debugging --------------------------------
 --------------------------------------------------------------
 import qualified Text.PrettyPrint.HughesPJ as Debug
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.Config hiding (eliminate)
 solve :: Config -> FInfo a -> IO (FixResult a)
 --------------------------------------------------------------
 solve cfg fi = do

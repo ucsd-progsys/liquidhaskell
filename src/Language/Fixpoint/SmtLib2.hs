@@ -63,6 +63,7 @@ import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.IO        as LTIO
+import           Data.IORef
 import           System.Directory
 import           System.Exit
 import           System.FilePath
@@ -267,6 +268,7 @@ smtPreamble _  _
 smtPush, smtPop   :: Context -> IO ()
 smtPush me        = interact' me Push
 smtPop me         = interact' me Pop
+
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
 smtDecl me x t = interact' me (Declare x ins out)
