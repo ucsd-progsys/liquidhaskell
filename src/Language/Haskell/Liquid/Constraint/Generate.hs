@@ -121,18 +121,18 @@ initEnv info
        let dcs   = filter isConLikeId (snd <$> freeSyms sp)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
-       (hs,f0)  <- refreshHoles $ grty info -- asserted refinements     (for defined vars)
-       f0''     <- refreshArgs' =<< grtyTop info     -- default TOP reftype      (for exported vars without spec)
+       (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
+       f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
-       f1       <- refreshArgs' $ defaults           -- default TOP reftype      (for all vars)
+       f1       <- refreshArgs' $ defaults                   -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty              -- default TOP reftype      (for data cons)
-       f2       <- refreshArgs' $ assm info          -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ vals asmSigs sp    -- assumed refinedments     (with `assume`)
-       f4       <- refreshArgs' $ makedcs $ vals ctors   sp    -- constructor refinements  (for measures)
+       f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
+       f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
+       f4       <- refreshArgs' $ makedcs $ vals ctors sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [traceShow "F0" (f0 ++ f0'), traceShow "F1" (f1 ++ f1'), f2, f3, traceShow "F4" f4]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
