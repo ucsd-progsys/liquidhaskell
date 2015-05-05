@@ -1,41 +1,34 @@
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll, solve) where
+       (eliminateAll) where
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
 import           Language.Fixpoint.Visitor (kvars, mapKVars)
-import           Language.Fixpoint.Names   (nonSymbol, existSymbol)
+import           Language.Fixpoint.Names   (existSymbol)
 import           Language.Fixpoint.Misc    (errorstar)
 
 import qualified Data.HashMap.Strict           as M
 import           Data.List (partition, (\\))
 import           Data.Foldable (foldlM)
-import           Control.Monad.State
+import           Control.Monad.State (get, put, runState, evalState, State)
 
 
 --------------------------------------------------------------
--- | Dummy just for debugging --------------------------------
+eliminateAll :: FInfo a -> FInfo a
+eliminateAll fi = evalState (foldlM eliminate fi (D.depNonCuts ds)) 0
+  where
+    ds = D.deps fi
 --------------------------------------------------------------
-import qualified Text.PrettyPrint.HughesPJ as Debug
-import           Language.Fixpoint.Config hiding (eliminate)
-solve :: Config -> FInfo a -> IO (FixResult a)
---------------------------------------------------------------
-solve cfg fi = do
-  let d = D.deps fi
-  let blah = toFixpoint (eliminateAll fi d)
-  putStr (Debug.render blah)
-  return Safe
 
 
 class Elimable a where
   elimKVar :: KVar -> Pred -> a -> a
 
 instance Elimable (SubC a) where
-  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x)
-                       --, srhs = elimKVar kv pr (srhs x)
-                       }
-    where
-      go k = if kv == k then Just pr else Nothing
+  -- we don't bother editing srhs since if kv is on the rhs then the entire constraint should get eliminated
+  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x) }
+    -- where
+    --   go k = if kv == k then Just pr else Nothing
 
 instance Elimable SortedReft where
   elimKVar kv pr x = x { sr_reft = elimKVar kv pr (sr_reft x) }
@@ -51,19 +44,14 @@ instance Elimable (FInfo a) where
                        }
 
 instance Elimable BindEnv where
-  elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, (elimKVar kv pr sr)))
+  elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, elimKVar kv pr sr))
 
-
--- NOTE: assumes that eliminateAll is called only once for a given constraints file.
---       if not, starting the fresh-variable counter again at 0 is bad
-eliminateAll :: FInfo a -> D.Deps -> FInfo a
-eliminateAll fInfo ds = evalState (foldlM eliminate fInfo (D.depNonCuts ds)) 0
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
 eliminate fInfo kv = do
   n <- get
-  let relevantSubCs  = M.filter (      (elem kv) . D.rhsKVars) (cm fInfo)
-  let remainingSubCs = M.filter (not . (elem kv) . D.rhsKVars) (cm fInfo)
+  let relevantSubCs  = M.filter (   elem kv . D.rhsKVars) (cm fInfo)
+  let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fInfo)
   let (kvWfC, remainingWs) = findWfC kv (ws fInfo)
   let (bindingsList, (n', orPred)) = runState (mapM (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs)) (n, POr [])
   let bindings = concat bindingsList
