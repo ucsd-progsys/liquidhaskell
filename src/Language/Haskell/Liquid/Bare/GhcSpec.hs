@@ -28,8 +28,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names (takeWhileSym)
-import Language.Fixpoint.Types (Expr(..), SEnv, SortedReft, Symbol, TCEmb, fromListSEnv, insertSEnv, mkSubst, subst, substa, symbol)
+import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
+import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (getSourcePosE, getSourcePos, sourcePosSrcSpan)
@@ -70,7 +70,16 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
     throwLeft = either Ex.throw return
     initEnv   = BE name mempty mempty mempty env lmap' mempty mempty
-    lmap'     = case lmap of {Left e -> Ex.throw e; Right x -> x}
+    lmap'     = case lmap of {Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+
+listLMap = toLogicMap [(nilName, [], hNil),
+                       (consName, [x, xs], hCons (EVar <$> [x,xs]))
+                      ]
+  where
+    x  = symbol "x"
+    xs = symbol "xs"
+    hNil    = EApp (dummyLoc $ symbol nilDataCon ) []
+    hCons   = EApp (dummyLoc $ symbol consDataCon) 
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts' }

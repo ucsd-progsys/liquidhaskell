@@ -58,6 +58,7 @@ module Language.Haskell.Liquid.RefType (
 
 
   , strengthenRefTypeGen
+  , strengthenDataConType
 
   ) where
 
@@ -98,6 +99,17 @@ import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringT
 import Language.Fixpoint.Names (listConName, tupConName)
 import Data.List (sort, foldl')
 
+
+strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres}) 
+    where 
+      trep = toRTypeRep t 
+      tres = ty_res trep `strengthen` U (exprReft expr) mempty mempty
+      xs   = ty_binds trep 
+      as   = ty_vars  trep
+      x'   = symbol x 
+      expr | null xs && null as = EVar x'
+           | null xs            = EApp (dummyLoc x') []
+           | otherwise          = EApp (dummyLoc x') (EVar <$> xs)
 
 pdVar v        = Pr [uPVar v]
 
