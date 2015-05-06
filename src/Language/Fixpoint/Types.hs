@@ -79,7 +79,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, sid, sgrd, senv, slhs, subC, lhsCs, rhsCs, wfC
+  , SubC, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , Tag
 
   -- * Accessing Constraints
@@ -139,7 +139,7 @@ module Language.Fixpoint.Types (
   , mapPredReft
 
   -- * Substitutions
-  , Subst
+  , Subst (..)
   , Subable (..)
   , mkSubst
   , isEmptySubst

@@ -84,7 +84,8 @@ solveNative' cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  (res, s) <- S.solve cfg fi
+  let fi'   = if eliminate cfg then eliminateAll fi else fi
+  (res, s) <- S.solve cfg fi'
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'

@@ -27,8 +27,6 @@ class Elimable a where
 instance Elimable (SubC a) where
   -- we don't bother editing srhs since if kv is on the rhs then the entire constraint should get eliminated
   elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x) }
-    -- where
-    --   go k = if kv == k then Just pr else Nothing
 
 instance Elimable SortedReft where
   elimKVar kv pr x = x { sr_reft = elimKVar kv pr (sr_reft x) }
@@ -78,15 +76,15 @@ findWfC kv ws = (w', ws')
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
 extractPred :: WfC a -> BindEnv -> SubC a -> State (Integer, Pred) [(Symbol, Sort)]
-extractPred wfc be subC = do (n, p@(POr preds)) <- get
-                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : [(blah (kVarVV, slhs subC))])
+extractPred wfc be subC = do (n, (POr preds)) <- get
+                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : [(blah (kVarVV, slhs subC))] ++ suPreds')
                              put (n', POr $ pr' : preds)
                              return bs
   where
     wfcIBinds  = elemsIBindEnv $ wenv wfc
     subcIBinds = elemsIBindEnv $ senv subC
     unmatchedIBinds | wfcIBinds `subset` subcIBinds = subcIBinds \\ wfcIBinds
-                    | otherwise = errorstar $ "kVar is not well formed (missing bindings)"
+                    | otherwise = errorstar $ "kVar is not well formed (missing bindings)" ++ "kVar: " ++ (showFix wfc) ++ "constraint: " ++ (showFix subC)
     unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
     unmatchedBindings = envCs be unmatchedIBindEnv
 
@@ -95,6 +93,14 @@ extractPred wfc be subC = do (n, p@(POr preds)) <- get
 
     (vars, pr) = baz unmatchedBindings
 
+    reft = sr_reft $ srhs subC
+    suPreds = substPreds $ reftPred reft
+    sub = ((reftBind reft), (eVar kVarVV))
+    suPreds' = [subst1 p sub | p <- suPreds]
+
+-- on rhs, k0[v:=z] -> [v = z]
+substPreds :: Pred -> [Pred]
+substPreds (PKVar _ (Su subs)) = map (\(sym, expr) -> PAtom Eq (eVar sym) expr) subs
 
 renameVar :: (Symbol, Sort) -> State (Integer, Pred) (Symbol, Sort)
 renameVar (sym, srt) = do (n, pr) <- get
