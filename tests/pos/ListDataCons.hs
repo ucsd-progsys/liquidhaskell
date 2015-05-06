@@ -11,7 +11,7 @@ lnil = N
 hnil :: [a] 
 hnil = [] 
 
-{- hsig :: x:a -> {v:[a] | v == [x]} @-} 
+{-@ hsig :: x:a -> {v:[a] | v == [x]} @-} 
 hsig :: a -> [a] 
 hsig x = [x] 
 
