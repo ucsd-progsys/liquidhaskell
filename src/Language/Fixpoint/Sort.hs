@@ -328,10 +328,15 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 unifyVar :: TVSubst -> Int -> Sort -> CheckM TVSubst
+unifyVar θ i t@(FVar j)
+  = case lookupVar i θ of
+      Just t'       -> if t == t' then return θ else return $ updateVar j t' θ
+      Nothing       -> return $ updateVar i t θ
+
 unifyVar θ i t
   = case lookupVar i θ of
-      Just t' -> if t == t' then return θ else throwError (errUnify t t')
-      Nothing -> return $ updateVar i t θ
+      Just t'       -> if t == t' then return θ else throwError (errUnify t t')
+      Nothing       -> return $ updateVar i t θ
 
 -------------------------------------------------------------------------
 -- | Applying a Type Substitution ---------------------------------------

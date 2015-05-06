@@ -200,7 +200,8 @@ symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  nilP 
+  =  try (brackets exprP      >>= return . eSngList)
+ <|> (brackets whiteSpace >> return eNil) 
  <|> (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
@@ -208,12 +209,6 @@ expr0P
  <|> try (parens  exprP)
  <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
-
-
-nilP = do 
-  reserved "["
-  reserved "]"
-  return $ EVar nilName
 
 charsExpr cs
   | isLower (T.head t) = expr cs
@@ -292,6 +287,8 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
 
 eMinus     = EBin Minus (expr (0 :: Integer))
 eCons x xs = EApp (dummyLoc consName) [x,xs]
+eNil       = EVar nilName
+eSngList x = eCons x eNil
 
 exprCastP
   = do e  <- exprP
