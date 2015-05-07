@@ -15,7 +15,7 @@
 
 {-@ LIQUID "--no-termination" @-}
 
-module WBL where 
+module WBL where
 
 type Priority = Int
 
@@ -31,29 +31,29 @@ data Heap a   = Empty | Node { pri   :: a
 
 {-@ data Heap a <q :: a -> a -> Prop> =
       Empty | Node { pri   :: a
-                   , rnk   :: Nat 
+                   , rnk   :: Nat
                    , left  :: {v: Heap<q> (a<q pri>) | ValidRank v}
                    , right :: {v: Heap<q> (a<q pri>) | ValidRank v}
                    }
  @-}
 
 {-@ predicate ValidRank V = okRank V && realRank V = rank V  @-}
-{-@ type PHeap a = {v:OHeap a | ValidRank v}                 @-} 
+{-@ type PHeap a = {v:OHeap a | ValidRank v}                 @-}
 {-@ type OHeap a = Heap <{\root v -> root <= v}> a           @-}
 
 {-@ measure okRank        :: Heap a -> Prop
     okRank (Empty)        = true
-    okRank (Node p k l r) = (realRank l >= realRank r && k = 1 + realRank l + realRank r  )
+    okRank (Node p k l r) = ((realRank l >= realRank r) && k == (1 + (realRank l) + (realRank r)))
   @-}
 
-{-@ measure realRank :: Heap a -> Int 
+{-@ measure realRank :: Heap a -> Int
     realRank (Empty)        = 0
     realRank (Node p k l r) = (1 + realRank l + realRank r)
   @-}
 
 {-@ measure rank @-}
 {-@ rank :: h:PHeap a -> {v:Nat | v = realRank h} @-}
-rank Empty          = 0 
+rank Empty          = 0
 rank (Node _ r _ _) = r
 
 
@@ -146,7 +146,7 @@ findMin Empty          = undefined
 findMin (Node p _ _ _) = p
 
 -- and write a safer version of findMinM
-{-@ findMinM :: PHeap a -> Maybe a @-} 
+{-@ findMinM :: PHeap a -> Maybe a @-}
 findMinM Empty          = Nothing
 findMinM (Node p _ _ _) = Just p
 
@@ -163,9 +163,9 @@ deleteMin (Node _ _ l r) = merge l r
 -- heap constructed by inserting following priorities into an empty
 -- heap: 3, 0, 1, 2.
 {-@ heap :: PHeap Int @-}
-heap = insert (2 :: Int) 
-      (insert 1 
-      (insert 0 
+heap = insert (2 :: Int)
+      (insert 1
+      (insert 0
       (insert 3 Empty)))
 
 -- Example usage of findMin

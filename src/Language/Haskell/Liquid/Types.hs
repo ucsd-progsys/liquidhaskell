@@ -1784,7 +1784,7 @@ newtype KVProf = KVP (M.HashMap KVKind Int)
 emptyKVProf :: KVProf
 emptyKVProf = KVP M.empty
 
-updKVProf :: KVKind -> [Symbol] -> KVProf -> KVProf
+updKVProf :: KVKind -> [KVar] -> KVProf -> KVProf
 updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + length kvs) m
   where
     kn                  = M.lookupDefault 0 k m

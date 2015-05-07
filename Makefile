@@ -58,7 +58,8 @@ test-py:
 test:
 	$(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
 	$(CABAL) build
-	$(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --liquid-opts='$(LIQUIDOPTS)' --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	$(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+	# $(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --liquid-opts='$(LIQUIDOPTS)' --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 
 retest:

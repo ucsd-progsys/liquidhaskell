@@ -6,8 +6,14 @@
 module AVL (Tree, empty, singleton, insert) where
 
 -- Basic functions
-data Tree a = Nil | Tree { key :: a, l::Tree a, r::Tree a} deriving Show
-{-@ data Tree [ht] a = Nil | Tree { key :: a, l::Tree {v:a | v < key }, r::Tree {v:a | key < v} } @-}
+data Tree a = Nil | Tree { key :: a, l::Tree a, r :: Tree a} deriving Show
+
+{-@ data Tree [ht] a = Nil
+                     | Tree { key :: a
+                            , l   :: Tree {v:a | v < key }
+                            , r   :: Tree {v:a | key < v }
+                            }
+  @-}
 
 {-@ measure ht @-}
 ht              :: Tree a -> Int
@@ -25,7 +31,7 @@ bFac (Tree _ l r) = ht l - ht r
 htDiff :: Tree a -> Tree a -> Int
 htDiff l r = ht l - ht r
 
--- | Empty 
+-- | Empty
 {-@ empty :: {v: AVLTree a | ht v == 0} @-}
 empty = Nil
 
@@ -33,7 +39,7 @@ empty = Nil
 {-@ singleton :: a -> {v: AVLTree a | ht v == 1 }@-}
 singleton a = Tree a Nil Nil
 
--- | Insert 
+-- | Insert
 
 {-@ predicate PostInsert S T = ((bFac T == 0) => (EqHt T S || ht T == 1)) && (EqHt T S || HtDiff T S 1) @-}
 
@@ -41,7 +47,7 @@ singleton a = Tree a Nil Nil
 insert :: (Ord a) => a -> Tree a -> Tree a
 insert a Nil = singleton a
 insert a t@(Tree v _ _) = case compare a v of
-    LT -> insL a t 
+    LT -> insL a t
     GT -> insR a t
     EQ -> t
 
@@ -54,7 +60,7 @@ insL a (Tree v l r)
     l'                       = insert a l
     siblDiff                 = htDiff l' r
     bl'                      = bFac l'
-   
+
 {-@ insR :: x:a -> s:{AVLTree a | key s < x && ht s > 0} -> {t: AVLTree a | PostInsert s t } @-}
 insR a (Tree v l r)
   | siblDiff == 2 && br' == 1  = rebalanceRL v l r'
@@ -76,7 +82,7 @@ rebalanceLR v (Tree lv ll (Tree lrv lrl lrr)) r = Tree lrv (Tree lv ll lrl) (Tre
 rebalanceRR v l (Tree rv rl rr)                 = Tree rv (Tree v l rl) rr
 
 {-@ rebalanceRL :: x:a -> l: AVLL a x -> r:{AVLR a x | LeftHeavy r && HtDiff r l 2} -> {t: AVLTree a | EqHt t r } @-}
-rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr) 
+rebalanceRL v l (Tree rv (Tree rlv rll rlr) rr) = Tree rlv (Tree v l rll) (Tree rv rlr rr)
 
 -- Test
 main = do
@@ -95,8 +101,8 @@ main = do
 {-@ predicate RightHeavy T = bFac T == -1     @-}
 
 {-@ measure balanced @-}
-balanced              :: Tree a -> Bool 
-balanced (Nil)        = True 
+balanced              :: Tree a -> Bool
+balanced (Nil)        = True
 balanced (Tree v l r) = ht l - ht r <= 1 && ht l - ht r >= -1 && balanced l && balanced r
 
 {-@ type AVLTree a   = {v: Tree a | balanced v} @-}

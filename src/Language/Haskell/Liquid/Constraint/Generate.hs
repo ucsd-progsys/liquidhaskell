@@ -859,7 +859,7 @@ isKut          :: KVKind -> Bool
 isKut RecBindE = True
 isKut _        = False
 
-specTypeKVars :: SpecType -> [F.Symbol]
+specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft ((++) . (kvars . ur_reft)) []
 
 trueTy  :: Type -> CG SpecType
