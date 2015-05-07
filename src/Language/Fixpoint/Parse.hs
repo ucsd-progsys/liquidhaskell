@@ -586,11 +586,13 @@ iQualP
 
 solution1P
   = do reserved "solution:"
-       k  <- kvarP
+       k  <- kvP
        reserved ":="
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
-
+    where
+      kvP = try kvarP <|> (KV <$> symbolP)
+      
 solutionP :: Parser (M.HashMap KVar Pred)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
