@@ -4,20 +4,20 @@ qualif Zog(v:a) : (10 <= v)
 
 bind 0 x : {v : int | v = 9}
 bind 1 y : {v : int | v = 20}
-bind 2 a : {v : int | k0    }
+bind 2 a : {v : int | $k0    }
       
 constraint:
   env [0]
   grd true
   lhs {v : int | v = x}
-  rhs {v : int | k0   }
+  rhs {v : int | $k0   }
   id 1 
 
 constraint:
   env [1]
   grd true 
   lhs {v : int | v = y}
-  rhs {v : int | k0   }
+  rhs {v : int | $k0   }
   id 2 
 
 constraint:
@@ -29,4 +29,4 @@ constraint:
 
 wf:
   env [ ]
-  reft {v : int | k0}
+  reft {v : int | $k0}

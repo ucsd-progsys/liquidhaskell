@@ -10,23 +10,23 @@ constraint:
   env [0]
   grd true
   lhs {v : int | (x = 9)}
-  rhs {v : int | k0[v:=x]}
+  rhs {v : int | $k0[v:=x]}
   id 1 
 
 constraint:
   env [1]
   grd true 
   lhs {v : int | y = 20}
-  rhs {v : int | k0[v:=y]}
+  rhs {v : int | $k0[v:=y]}
   id 2 
 
 constraint:
   env [2]
   grd true 
-  lhs {v : int | k0[v:=z]}
+  lhs {v : int | $k0[v:=z]}
   rhs {v : int | 10 <= z}
   id 3 
 
 wf:
   env [ ]
-  reft {v: int | k0}
+  reft {v: int | $k0}
