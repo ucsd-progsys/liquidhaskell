@@ -272,7 +272,7 @@ predSymbols = go
 ---------------------------------------------------------------
 type KVar    = Symbol
 
-newtype Kuts = KS (S.HashSet KVar) deriving (Show)
+newtype Kuts = KS { ksVars :: S.HashSet KVar } deriving (Show)
 
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
@@ -894,6 +894,7 @@ newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
+
 data BindEnv       = BE { beSize  :: Int
                         , beBinds :: BindMap (Symbol, SortedReft)
                         }
@@ -1438,6 +1439,31 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , quals :: ![Qualifier]
                   }
                deriving (Show)
+
+instance Monoid Kuts where
+  mempty        = KS S.empty
+  mappend k1 k2 = KS $ S.union (ksVars k1) (ksVars k2)
+
+instance Monoid (SEnv a) where
+  mempty        = SE M.empty
+  mappend s1 s2 = SE $ M.union (seBinds s1) (seBinds s2)
+
+instance Monoid BindEnv where
+  mempty = BE 0 M.empty
+  mappend (BE 0 _) b = b
+  mappend b (BE 0 _) = b
+  mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
+
+instance Monoid (FInfo a) where
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty
+  mappend i1 i2 = FI { cm    = mappend (cm i1)    (cm i2)
+                     , ws    = mappend (ws i1)    (ws i2)
+                     , bs    = mappend (bs i1)    (bs i2)
+                     , gs    = mappend (gs i1)    (gs i2)
+                     , lits  = mappend (lits i1)  (lits i2)
+                     , kuts  = mappend (kuts i1)  (kuts i2)
+                     , quals = mappend (quals i1) (quals i2)
+                     }
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where

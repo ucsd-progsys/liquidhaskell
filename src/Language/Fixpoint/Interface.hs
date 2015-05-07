@@ -17,14 +17,14 @@ module Language.Fixpoint.Interface (
   , resultExit
 
     -- * Parse Qualifiers from File
-  , parseQualifiers
+  , parseFInfo
 ) where
 
 import           Data.Functor
 -- import           Data.Hashable
 import qualified Data.HashMap.Strict              as M
 import           Data.List
--- import           Data.Monoid
+import           Data.Monoid (mconcat, mempty)
 -- import           System.Directory                 (getTemporaryDirectory)
 import           System.Exit
 -- import           System.FilePath                  ((</>))
@@ -154,15 +154,16 @@ resultExit _           = ExitFailure 2
 ---------------------------------------------------------------------------
 -- | Parse External Qualifiers --------------------------------------------
 ---------------------------------------------------------------------------
-parseQualifiers :: [FilePath] -> IO [Qualifier]
+parseFInfo :: [FilePath] -> IO (FInfo a) -- [Qualifier]
 ---------------------------------------------------------------------------
-parseQualifiers = concatMapM parseQF
+parseFInfo fs = mconcat <$> mapM parseFI fs
 
-parseQF :: FilePath -> IO [Qualifier]
-parseQF f = do
+parseFI :: FilePath -> IO (FInfo a) --[Qualifier]
+parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
-  return $ quals fi
+  return $ mempty { quals = quals  fi
+                  , gs    = gs     fi }
 
 -- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
 -- OLD CUT USE NEW SMTLIB INTERFACE -- | One Shot validity query ----------------------------------------------
