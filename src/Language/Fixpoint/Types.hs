@@ -30,7 +30,7 @@ module Language.Fixpoint.Types (
 
   -- * Symbols
   , Symbol
-  , KVar
+  , KVar (..)
   , anfPrefix, tempPrefix, vv, vv_, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -220,7 +220,7 @@ data Def a
   | Wfc (WfC a)
   | Con Symbol Sort
   | Qul Qualifier
-  | Kut Symbol
+  | Kut KVar
   | IBind Int Symbol SortedReft
   deriving (Generic)
   --  Sol of solbind
@@ -236,15 +236,10 @@ traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
 
 type TCEmb a    = M.HashMap a FTycon
 
--- instance (Eq a, Hashable a) => Monoid (TCEmb a) where
---   mappend m1 m2 = M.fromList (M.toList m1 ++ M.toList m2)
---   mempty        = M.empty
-
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
     go (EVar x)        = [x]
-    -- go (EDat x _)      = [x]
     go (ELit x _)      = [val x]
     go (EApp f es)     = val f : concatMap go es
     go (ENeg e)        = go e
@@ -263,17 +258,19 @@ predSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PBexp e)          = exprSymbols e
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar k (Su su')) = k : concatMap syms su'
+    go (PKVar _ (Su su')) = {- CUTSOLVER k : -} concatMap syms su'
     go (PAll xts p)       = (fst <$> xts) ++ go p
     go _                  = []
 
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
-newtype KVar = KV Symbol deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+newtype KVar = KV {kv :: Symbol } deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
 instance Show KVar where
   show (KV x) = "$" ++ show x
+
+instance Hashable KVar
 
 newtype Kuts = KS { ksVars :: S.HashSet KVar } deriving (Show)
 
@@ -286,7 +283,7 @@ instance Fixpoint Kuts where
 ksEmpty :: Kuts
 ksEmpty             = KS S.empty
 
-ksUnion :: [Symbol] -> Kuts -> Kuts
+ksUnion :: [KVar] -> Kuts -> Kuts
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 
 ---------------------------------------------------------------
@@ -482,6 +479,9 @@ instance Fixpoint SymConst where
 
 instance Fixpoint Symbol where
   toFix = text . encode . T.unpack . symbolText
+
+instance Fixpoint KVar where
+  toFix (KV k) = text "$" <> toFix k
 
 instance Fixpoint Text where
   toFix = text . T.unpack
@@ -934,7 +934,7 @@ data FixResult a = Crash [a] String
                  | UnknownError !String
                    deriving (Show, Generic)
 
-type FixSolution = M.HashMap Symbol Pred
+type FixSolution = M.HashMap KVar Pred
 
 instance Eq a => Eq (FixResult a) where
   Crash xs _ == Crash ys _        = xs == ys

@@ -31,7 +31,7 @@ import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
-import           Text.Printf (printf)
+-- import           Text.Printf (printf)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -171,7 +171,7 @@ candidates xts t'
   = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
 
 -----------------------------------------------------------------------
-wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
+wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.KVar)
 -----------------------------------------------------------------------
 wfKvar w@(F.WfC {F.wrft = sr})
   | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr

@@ -81,9 +81,11 @@ instance PPrint Sort where
 instance PPrint Symbol where
   pprint = text . symbolString
 
-instance PPrint SymConst where
-  pprint (SL x)          = doubleQuotes $ text $ T.unpack x
+instance PPrint KVar where
+  pprint (KV x) = text "$" <> pprint x
 
+instance PPrint SymConst where
+  pprint (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
 parensIf True  = parens

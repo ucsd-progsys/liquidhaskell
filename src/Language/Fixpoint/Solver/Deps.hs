@@ -23,10 +23,8 @@ import qualified Data.Graph                as G
 
 import Control.Monad.State
 
-type KVar = F.Symbol
-
-data Deps  = Deps { depCuts    :: ![KVar]
-                  , depNonCuts :: ![KVar]
+data Deps  = Deps { depCuts    :: ![F.KVar]
+                  , depNonCuts :: ![F.KVar]
                   }
              deriving (Eq, Ord, Show)
 
@@ -36,7 +34,7 @@ data Deps  = Deps { depCuts    :: ![KVar]
 --------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (F.FixResult a)
 --------------------------------------------------------------
-solve cfg fi = do
+solve _ fi = do
   let d = deps fi
   print "(begin cuts debug)"
   print "Cuts:"
@@ -60,10 +58,10 @@ deps finfo = sccsToDeps sccs (F.kuts finfo)
     graph = [(k,k,ks) | (k, ks) <- groupList edges]
     sccs  = G.stronglyConnCompR graph
 
-sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> F.Kuts -> Deps
+sccsToDeps :: [G.SCC (F.KVar, F.KVar,[F.KVar])] -> F.Kuts -> Deps
 sccsToDeps xs ks = execState (mapM_ (bar ks) xs) (Deps [] [])
 
-bar :: F.Kuts -> G.SCC (KVar,KVar,[KVar]) -> State Deps ()
+bar :: F.Kuts -> G.SCC (F.KVar, F.KVar,[F.KVar]) -> State Deps ()
 bar _  (G.AcyclicSCC (v,_,_)) = do ds <- get
                                    put ds {depNonCuts = v : depNonCuts ds}
 bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
@@ -71,28 +69,27 @@ bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
                                    put ds {depCuts = v : depCuts ds}
                                    mapM_ (bar ks) (G.stronglyConnCompR vs')
 
-chooseCut :: [(KVar,KVar,[KVar])] -> F.Kuts -> (KVar, [(KVar,KVar,[KVar])])
+chooseCut :: [(F.KVar, F.KVar, [F.KVar])] -> F.Kuts -> (F.KVar, [(F.KVar, F.KVar,[F.KVar])])
 chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
   where
     vs' = [x | (x,_,_) <- vs]
     is  = S.intersection (S.fromList vs') ks
-    v   = if (S.null is) then (head vs')
-                         else (head $ S.toList is)
+    v   = head $ if S.null is then vs' else S.toList is
 
-subcEdges :: F.BindEnv -> F.SubC a -> [(KVar, KVar)]
+subcEdges :: F.BindEnv -> F.SubC a -> [(F.KVar, F.KVar)]
 subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
                                   , k2 <- rhsKVars c    ]
-              ++ [(k2, nonSymbol) | k2 <- rhsKVars c]
+              ++ [(k2, F.KV nonSymbol) | k2 <- rhsKVars c]
 -- this nonSymbol hack is one way to prevent nodes with potential
 -- outdegree 0 from getting pruned by stronglyConnCompR
 
-lhsKVars :: F.BindEnv -> F.SubC a -> [KVar]
+lhsKVars :: F.BindEnv -> F.SubC a -> [F.KVar]
 lhsKVars bs c = envKVs ++ lhsKVs
   where
     envKVs    = V.envKVars bs           c
     lhsKVs    = V.kvars       $ F.lhsCs c
 
-rhsKVars :: F.SubC a -> [KVar]
+rhsKVars :: F.SubC a -> [F.KVar]
 rhsKVars = V.kvars . F.rhsCs
 
 

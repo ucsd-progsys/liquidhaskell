@@ -60,10 +60,10 @@ module Language.Fixpoint.Parse (
   ) where
 
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
-import           Control.Monad
+-- import           Control.Monad
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
-import           Data.Text                   (Text)
+-- import           Data.Text                   (Text)
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
@@ -329,7 +329,7 @@ keyWordSyms = ["if", "then", "else", "mod"]
 pred0P :: Parser Pred
 pred0P =  trueP
       <|> falseP
-      <|> try kvarP
+      <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
@@ -344,10 +344,11 @@ trueP, falseP :: Parser Pred
 trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
-kvarP :: Parser Pred
-kvarP = PKVar <$> kP <*> substP
-  where
-    kP = condIdP symChars (('$' ==) . head)
+kvarPredP :: Parser Pred
+kvarPredP = PKVar <$> kvarP <*> substP
+
+kvarP :: Parser KVar
+kvarP = KV <$> (char '$' *> symbolP)
 
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
@@ -503,7 +504,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP)
-    <|> Kut   <$> (reserved "cut"        >> symbolP)
+    <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
@@ -526,7 +527,7 @@ subCP = do reserved "env"
            reserved "rhs"
            rhs <- sortedReftP
            reserved "id"
-           i   <- (integer <* spaces)
+           i   <- integer <* spaces
            tag <- tagP
            return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
 
@@ -585,12 +586,12 @@ iQualP
 
 solution1P
   = do reserved "solution:"
-       k  <- symbolP
+       k  <- kvarP
        reserved ":="
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
 
-solutionP :: Parser (M.HashMap Symbol Pred)
+solutionP :: Parser (M.HashMap KVar Pred)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
