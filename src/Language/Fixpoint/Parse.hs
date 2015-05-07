@@ -347,7 +347,7 @@ falseP = reserved "false" >> return PFalse
 kvarP :: Parser Pred
 kvarP = PKVar <$> kP <*> substP
   where
-    kP = condIdP symChars (('k' ==) . head)
+    kP = condIdP symChars (('$' ==) . head)
 
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)

@@ -270,7 +270,10 @@ predSymbols = go
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
-type KVar    = Symbol
+newtype KVar = KV Symbol deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+
+instance Show KVar where
+  show (KV x) = "$" ++ show x
 
 newtype Kuts = KS { ksVars :: S.HashSet KVar } deriving (Show)
 
