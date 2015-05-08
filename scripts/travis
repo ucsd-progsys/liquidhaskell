@@ -10,7 +10,10 @@ function loud {
   $@
 }
 
-# Source: https://github.com/travis-ci/travis-build/blob/fc4ae8a2ffa1f2b3a2f62533bbc4f8a9be19a8ae/lib/travis/build/script/templates/header.sh
+# Source: https://github.com/travis-ci/travis-build/blob/fc4ae8a2ffa1f2b3a2f62533bbc4f8a9be19a8ae/lib/travis/build/script/templates/header.sh#L104-L123
+RED="\033[31;1m"
+GREEN="\033[32;1m"
+RESET="\033[0m"
 function travis_retry {
   local result=0
   local count=1
@@ -27,7 +30,7 @@ function travis_retry {
     sleep 1
   done
 
-  [ $count -eq 3 ] && {
+  [ $count -eq 4 ] && {
     echo "\n${RED}The command \"$@\" failed 3 times.${RESET}\n" >&2
   }
 
@@ -45,7 +48,9 @@ function prevent_timeout {
 
   wait $cmd_pid
   exit_code=$?
+
   kill $poke_pid
+  (wait $poke_pid 2>/dev/null) || true
 
   return $exit_code
 }
@@ -59,18 +64,17 @@ function poke_stdout {
 }
 
 function pastebin {
-  curl -s -F 'sprunge=<-' http://sprunge.us
+  curl -s -F 'clbin=<-' https://clbin.com
 }
 
 ## Testing Stages
 
-function install_ocaml {
-  loud travis_retry sudo apt-get update
-  loud travis_retry sudo apt-get install ocaml camlidl
-}
+function clean_cache {
+  local smt="$1"
 
-function setup_cabal {
-  loud travis_retry cabal update
+  loud ghc-pkg unregister liquidhaskell --force || true
+  loud ghc-pkg unregister liquid-fixpoint --force || true
+  loud rm "$HOME/.cabal/bin/$smt" || true
 }
 
 function clone_fixpoint {
@@ -78,15 +82,27 @@ function clone_fixpoint {
 }
 
 function install_smt {
- local smt="$1"
- mkdir -p "$HOME/.cabal/bin"
- loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
- loud chmod a+x "$HOME/.cabal/bin/$smt"
+  local smt="$1"
+
+  mkdir -p "$HOME/.cabal/bin"
+  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
+  loud chmod a+x "$HOME/.cabal/bin/$smt"
 }
 
 function install_cabal_deps {
-  loud travis_retry cabal install --only-dependencies --enable-tests -fbuild-external . /tmp/fixpoint
+  if ! _install_cabal_deps; then
+    echo " ==> Cabal install failed. Clearing dependency cache and retrying."
+    loud rm -rf "$HOME/.cabal"
+    loud rm -rf "$HOME/.ghc"
+    _install_cabal_deps
+  fi
+
   loud travis_retry cabal install -fbuild-external /tmp/fixpoint
+}
+
+function _install_cabal_deps {
+  loud travis_retry cabal update || return 1
+  loud travis_retry cabal install --reorder-goals --only-dependencies --upgrade-dependencies --enable-tests -fbuild-external . /tmp/fixpoint || return 1
 }
 
 function do_build {
@@ -113,16 +129,14 @@ function dump_fail_logs {
 function test_source_pkg {
   loud cabal sdist
 
-  local src_tgz="$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
+  local src_tgz="dist/$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
 
-  pushd dist
   if [ -f "$src_tgz" ]; then
     loud prevent_timeout cabal install -j4 "$src_tgz"
   else
     echo "expected '$src_tgz' not found"
     return 1
   fi
-  popd dist
 }
 
 ## Run Test Stage

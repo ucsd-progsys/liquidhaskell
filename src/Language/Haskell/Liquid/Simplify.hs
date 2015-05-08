@@ -1,32 +1,43 @@
 module Language.Haskell.Liquid.Simplify (simplifyBounds) where
 
 import Language.Haskell.Liquid.Types
-
 import Language.Fixpoint.Types
-
-import Control.Applicative                 ((<$>))
-
-simplifyLen = 5
+import Language.Fixpoint.Visitor
+-- import Control.Applicative                 ((<$>))
+import Data.Monoid
 
 simplifyBounds :: SpecType -> SpecType
-simplifyBounds = fmap go 
+simplifyBounds = fmap go
   where
-  	go x = x{ur_reft = go' $ ur_reft x}
+    go x       = x { ur_reft = go' $ ur_reft x }
+    -- OLD go' (Reft (v, rs)) = Reft(v, filter (not . isBoundLike) rs)
+    go' (Reft (v, Refa p)) = Reft(v, Refa $ dropBoundLike p)
 
-  	go' (Reft (v, rs)) = Reft(v, filter (not . isBoundLike) rs)
+dropBoundLike :: Pred -> Pred
+dropBoundLike p
+  | isKvar p          = p
+  | isBoundLikePred p = mempty
+  | otherwise         = p
+  where
+    isKvar            = not . null . kvars
 
-  	isBoundLike (RConc pred) = isBoundLikePred pred
-  	isBoundLike (RKvar _ _)  = False
+isBoundLikePred :: Pred -> Bool
+isBoundLikePred (PAnd ps) = simplifyLen <= length [p | p <- ps, isImp p ]
+isBoundLikePred _         = False
 
-  	isBoundLikePred (PAnd ps)
-  	  = moreThan simplifyLen (isImp <$> ps)
-  	isBoundLikePred _ = False
+isImp :: Pred -> Bool
+isImp (PImp _ _) = True
+isImp _          = False
 
-  	isImp (PImp _ _) = True
-  	isImp _          = False
+-- OLD isBoundLike (RConc pred)  = isBoundLikePred pred
+-- OLD isBoundLike (RKvar _ _)   = False
 
-  	moreThan 0 _          = True
-  	moreThan _ []         = False
-  	moreThan i (True:xs)  = moreThan (i-1) xs
-  	moreThan i (False:xs) = moreThan i xs
+
+-- OLD moreThan 0 _            = True
+-- OLD moreThan _ []           = False
+-- OLD moreThan i (True  : xs) = moreThan (i-1) xs
+-- OLD moreThan i (False : xs) = moreThan i xs
+
+simplifyLen :: Int
+simplifyLen = 5
 

@@ -150,10 +150,10 @@ checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' 
     go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
     go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
-    env''   = mapSEnv sr_sort $ foldl (\e (x,s) -> insertSEnv x s e) env xss
+    env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xss
     xss     = mapSnd rSort <$> (uncurry zip $ (\(x,y,_,_) -> (x,y)) $ bkArrowDeep t)
     rSort   = rTypeSortedReft emb
-    cmpZero = PAtom Le zero
+    cmpZero = PAtom Le $ expr (0 :: Int) -- zero
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> SpecType -> Maybe Error
 checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)
@@ -256,7 +256,7 @@ checkFunRefs t = go t
       | isTauto r
         = go t1 <|> go t2
       | otherwise
-        = Just $ text "Function types cannot have refinements"
+        = Just $ text "Function types cannot have refinements:" <+> (pprint r)
 
 checkAbstractRefs t = go t
   where
@@ -352,12 +352,14 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb _ sort (Def _ c bs body) = checkMBody' emb sort γ' body
-  where
-    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
-    xts  = zip bs $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
+checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
+  where 
+    γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
+    ats  = (mapSnd (rTypeSortedReft emb) <$> as)
+    xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (head $ snd4 $ bkArrowDeep sort)
+    su   = checkMBodyUnify (ty_res trep) (last txs) 
+    txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 
 checkMBodyUnify                 = go

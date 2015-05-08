@@ -813,6 +813,7 @@ verification attempts.
 Editor Integration
 ==================
 
+
 + [Emacs/Flycheck](https://github.com/ucsd-progsys/liquid-types.el)
 + [Vim/Syntastic](https://github.com/ucsd-progsys/liquid-types.vim)
 
