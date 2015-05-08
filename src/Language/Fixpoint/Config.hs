@@ -7,6 +7,7 @@
 
 module Language.Fixpoint.Config (
     Config  (..)
+  , getOpts
   , Command (..)
   , SMTSolver (..)
   , GenQualifierSort (..)
@@ -15,6 +16,8 @@ module Language.Fixpoint.Config (
   , withUEqAllSorts
 ) where
 
+import           System.Console.CmdArgs
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Data.Generics                  (Data)
 import           Data.Typeable                  (Typeable)
 import           Language.Fixpoint.Files
@@ -34,18 +37,20 @@ withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
 data Config
   = Config {
-      inFile      :: FilePath         -- target fq-file
-    , outFile     :: FilePath         -- output file
-    , solver      :: SMTSolver        -- which SMT solver to use
-    , genSorts    :: GenQualifierSort -- generalize qualifier sorts
-    , ueqAllSorts :: UeqAllSorts      -- use UEq on all sorts
-    , native      :: Bool             -- use haskell solver
-    , real        :: Bool             -- interpret div and mul in SMT
+      inFile      :: FilePath         -- ^ target fq-file
+    , outFile     :: FilePath         -- ^ output file
+    , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
+    , solver      :: SMTSolver        -- ^ which SMT solver to use
+    , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
+    , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
+    , native      :: Bool             -- ^ use haskell solver
+    , real        :: Bool             -- ^ interpret div and mul in SMT
+    , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def
-
+  def = Config "" def def def def def def def def
+  
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
@@ -110,3 +115,34 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
+
+
+config = Config {
+    inFile      = def   &= typ "TARGET"       &= args    &= typFile
+  , outFile     = "out" &= help "Output file"
+  , srcFile     = def   &= help "Source File from which FQ is generated"
+  , solver      = def   &= help "Name of SMT Solver"
+  , genSorts    = def   &= help "Generalize qualifier sorts"
+  , ueqAllSorts = def   &= help "use UEq on all sorts"
+  , native      = False &= help "(alpha) Haskell Solver"
+  , real        = False &= help "(alpha) Theory of real numbers"
+  , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
+  }
+  &= verbosity
+  &= program "fixpoint"
+  &= help    "Predicate Abstraction Based Horn-Clause Solver"
+  &= summary "fixpoint Copyright 2009-13 Regents of the University of California."
+  &= details [ "Predicate Abstraction Based Horn-Clause Solver"
+             , ""
+             , "To check a file foo.fq type:"
+             , "  fixpoint foo.fq"
+             ]
+
+getOpts :: IO Config
+getOpts = do md <- cmdArgs config
+             putStrLn $ banner md
+             return md
+
+banner args =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n"
+            ++ "All Rights Reserved.\n"
+

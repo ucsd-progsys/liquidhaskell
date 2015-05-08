@@ -19,12 +19,11 @@ module Language.Fixpoint.Files (
   , isExtFile
 
   -- * Hardwired paths
-  , getFixpointPath, getZ3LibPath
+  , getFixpointPath
+  , getZ3LibPath
 
   -- * Various generic utility functions for finding and removing files
-  -- , getHsTargets
   , getFileInDirs
-  -- , findFileInDirs
   , copyFiles
 
 ) where

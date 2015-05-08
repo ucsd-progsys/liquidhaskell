@@ -59,11 +59,11 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
-import           Control.Applicative         ((<$>), (<*), (<*>))
-import           Control.Monad
+import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
+-- import           Control.Monad
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
-import           Data.Text                   (Text)
+-- import           Data.Text                   (Text)
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
@@ -93,7 +93,7 @@ type Parser = Parsec String Integer
 languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
-           , Token.commentLine     = "--"
+           , Token.commentLine     = "//"
            , Token.identStart      = satisfy (\_ -> False)
            , Token.identLetter     = satisfy (\_ -> False)
            , Token.reservedNames   = [ "SAT"
@@ -185,6 +185,9 @@ upperIdP = condIdP symChars (not . isLower . head)
 lowerIdP :: Parser Symbol
 lowerIdP = condIdP symChars (isLower . head)
 
+symCharsP :: Parser Symbol
+symCharsP = condIdP symChars (`notElem` keyWordSyms)
+
 locLowerIdP = locParserP lowerIdP
 locUpperIdP = locParserP upperIdP
 
@@ -236,9 +239,9 @@ exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where
-    exprFunSpacesP = liftM2 EApp funSymbolP (sepBy1 expr0P blanks)
-    exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
-    exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
+    exprFunSpacesP = EApp <$> funSymbolP <*> sepBy1 expr0P blanks
+    exprFunCommasP = EApp <$> funSymbolP <*> parens        (sepBy exprP comma)
+    exprFunSemisP  = EApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
 
@@ -298,13 +301,19 @@ exprCastP
 
 dcolon = string "::" <* spaces
 
+varSortP  = FVar  <$> parens intP
+funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
+
+sortsP = brackets $ sepBy sortP semi
+
 sortP
-  =   try (string "Integer" >>  return FInt)
-  <|> try (string "Int"     >>  return FInt)
-  <|> try (string "int"     >>  return FInt)
-  <|> try (FObj . symbol <$> lowerIdP)
+  =   try (parens $ sortP)
+  <|> try (string "@"    >> varSortP)
+  <|> try (string "func" >> funcSortP)
+  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
-  <|> (fApp <$> (Left <$> fTyConP) <*> many sortP)
+  <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
+  <|> (FObj . symbol <$> lowerIdP)
 
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
@@ -314,7 +323,6 @@ bvSizeP ss s = do
   return s
 
 
-symCharsP   = condIdP symChars (`notElem` keyWordSyms)
 
 keyWordSyms = ["if", "then", "else", "mod"]
 
@@ -322,22 +330,30 @@ keyWordSyms = ["if", "then", "else", "mod"]
 -------------------------- Predicates -------------------------------
 ---------------------------------------------------------------------
 
-trueP  = reserved "true"  >> return PTrue
-falseP = reserved "false" >> return PFalse
 
 pred0P :: Parser Pred
 pred0P =  trueP
       <|> falseP
+      <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
+      <|> try (PBexp <$> (reserved "?" *> exprP))
       <|> try (PBexp <$> funAppP)
       <|> try (reservedOp "&&" >> PAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
-      <|> kvarP
 
-kvarP :: Parser Pred
-kvarP = PKVar <$> symbolP <*> substP
+-- qmP    = reserved "?" <|> reserved "Bexp"
+
+trueP, falseP :: Parser Pred
+trueP  = reserved "true"  >> return PTrue
+falseP = reserved "false" >> return PFalse
+
+kvarPredP :: Parser Pred
+kvarPredP = PKVar <$> kvarP <*> substP
+
+kvarP :: Parser KVar
+kvarP = KV <$> (char '$' *> symbolP)
 
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
@@ -350,7 +366,6 @@ predP  = buildExpressionParser lops pred0P
 
 predsP = brackets $ sepBy predP semi
 
-qmP    = reserved "?" <|> reserved "Bexp"
 
 lops = [ [Prefix (reservedOp "~"    >> return PNot)]
        , [Prefix (reservedOp "not " >> return PNot)]
@@ -406,13 +421,17 @@ condQmP f bodyP
 ----------------------------------------------------------------------------------
 
 fTyConP
-  =   (reserved "int"  >> return intFTyCon)
-  <|> (reserved "bool" >> return boolFTyCon)
-  <|> (reserved "real" >> return realFTyCon)
-  <|> (symbolFTycon   <$> locUpperIdP)
+  =   (reserved "int"     >> return intFTyCon)
+  <|> (reserved "Integer" >> return intFTyCon)
+  <|> (reserved "Int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "real"    >> return realFTyCon)
+  <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (symbolFTycon      <$> locUpperIdP)
 
 refaP :: Parser Refa
-refaP = Refa <$> predP
+refaP =  try (refa <$> brackets (sepBy predP semi))
+     <|> (Refa <$> predP)
 
 refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
@@ -423,7 +442,8 @@ refBindP bp rp kindP
       ra <- rp <* spaces
       return $ t (Reft (x, ra))
 
-bindP      = symbol    <$> (lowerIdP <* colon)
+-- bindP      = symbol    <$> (lowerIdP <* colon)
+bindP      = symbolP <* colon
 optBindP x = try bindP <|> return x
 
 refP       = refBindP bindP refaP
@@ -489,7 +509,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP)
-    <|> Kut   <$> (reserved "cut"        >> symbolP)
+    <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
 sortedReftP :: Parser SortedReft
@@ -512,7 +532,7 @@ subCP = do reserved "env"
            reserved "rhs"
            rhs <- sortedReftP
            reserved "id"
-           i   <- (integer <* spaces)
+           i   <- integer <* spaces
            tag <- tagP
            return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
 
@@ -571,12 +591,14 @@ iQualP
 
 solution1P
   = do reserved "solution:"
-       k  <- symbolP
+       k  <- kvP
        reserved ":="
        ps <- brackets $ sepBy predSolP semi
        return (k, simplify $ PAnd ps)
-
-solutionP :: Parser (M.HashMap Symbol Pred)
+    where
+      kvP = try kvarP <|> (KV <$> symbolP)
+      
+solutionP :: Parser (M.HashMap KVar Pred)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 

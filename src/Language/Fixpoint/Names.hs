@@ -18,7 +18,7 @@ module Language.Fixpoint.Names (
   -- * Symbols
     Symbol
   , Symbolic (..)
-  , anfPrefix, tempPrefix, vv, intKvar, isPrefixOfSym, isSuffixOfSym, stripParensSym
+  , anfPrefix, tempPrefix, vv, isPrefixOfSym, isSuffixOfSym, stripParensSym
   , consSym, unconsSym, dropSym, singletonSym, headSym, takeWhileSym, lengthSym
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -29,7 +29,7 @@ module Language.Fixpoint.Names (
   , takeModuleNames
 
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol
+  , dummySymbol, intSymbol, tempSymbol, existSymbol
   , qualifySymbol
   , suffixSymbol
 
@@ -203,21 +203,22 @@ isNontrivialVV      = not . (vv Nothing ==)
 
 
 dummySymbol         = dummyName
+
+intSymbol :: (Show a) => Symbol -> a -> Symbol 
 intSymbol x i       = x `mappend` symbol (show i)
 
-tempSymbol          :: Symbol -> Integer -> Symbol
-tempSymbol prefix n = intSymbol (tempPrefix `mappend` prefix) n
+tempSymbol, existSymbol :: Symbol -> Integer -> Symbol
+tempSymbol  prefix n = intSymbol (tempPrefix  `mappend` prefix) n
+existSymbol prefix n = intSymbol (existPrefix `mappend` prefix) n
 
-tempPrefix, anfPrefix :: Symbol
+tempPrefix, anfPrefix, existPrefix :: Symbol
 tempPrefix          = "lq_tmp_"
 anfPrefix           = "lq_anf_"
+existPrefix         = "lq_ext_"
 
 nonSymbol :: Symbol
 nonSymbol           = ""
 isNonSymbol         = (== nonSymbol)
-
-intKvar             :: Integer -> Symbol
-intKvar             = intSymbol "k_"
 
 -- | Values that can be viewed as Symbols
 

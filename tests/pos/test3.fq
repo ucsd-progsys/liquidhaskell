@@ -1,0 +1,24 @@
+
+qualif Zog(v:a, z:b) : (v = z)
+
+bind 0 x : {v : int | true}
+bind 1 q : {v : int | true}
+bind 2 y : {v : int | v = 10}
+
+constraint:
+  env [1]
+  grd true
+  lhs {v : int | v = q}
+  rhs {v : int | $k0[x:=q] }
+  id 1 
+
+constraint:
+  env [2]
+  grd true
+  lhs {v : int | $k0[x:=y]}
+  rhs {v : int | v = 10}
+  id 2
+
+wf:
+  env [0]
+  reft {v : int | $k0}

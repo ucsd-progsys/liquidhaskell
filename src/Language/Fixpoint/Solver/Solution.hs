@@ -31,6 +31,7 @@ import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
+-- import           Text.Printf (printf)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -57,11 +58,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
 instance PPrint EQual where
   pprint = pprint . eqPred
 
-{-@ data EQual = EQ { eqQual :: F.Qualifier
-                    , eqPred :: F.Pred
-                    , eqArgs :: {v: [F.Expr] | len v = len (q_params eqQual)}
-                    }
-  @-}
+{-@ EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
 eQual :: F.Qualifier -> [F.Symbol] -> EQual
 eQual q xs = EQL q p es
@@ -76,11 +73,12 @@ eQual q xs = EQL q p es
 ------------------------------------------------------------------------
 update :: Solution -> [F.KVar] -> [(F.KVar, EQual)] -> (Bool, Solution)
 -------------------------------------------------------------------------
-update s ks kqs = {- traceShow msg -} (or bs, s')
+update s ks kqs = {- tracepp msg -} (or bs, s')
   where
     kqss        = groupKs ks kqs
     (bs, s')    = folds update1 s kqss
-    msg         = "s = " ++ showpp s
+    -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
+
 
 groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
 groupKs ks kqs = M.toList $ groupBase m0 kqs
@@ -99,8 +97,9 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
 --------------------------------------------------------------------
-init _ fi = L.foldl' (refine fi qs) s0 ws
+init _ fi = {- tracepp "init solution" -} s
   where
+    s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
     qs    = F.quals fi
     ws    = F.ws    fi
@@ -150,7 +149,12 @@ instKQ env v t q
        return     $ eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       xts        = F.toListSEnv (F.sr_sort <$> env)
+       xts        = instCands env
+
+instCands :: F.SEnv F.SortedReft -> [(F.Symbol, F.Sort)]
+instCands = filter isOk . F.toListSEnv . fmap F.sr_sort
+  where
+    isOk  = isNothing . F.functionSort . snd
 
 match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
 match xts xs (t : ts)
@@ -167,7 +171,7 @@ candidates xts t'
   = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
 
 -----------------------------------------------------------------------
-wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.Symbol)
+wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.KVar)
 -----------------------------------------------------------------------
 wfKvar w@(F.WfC {F.wrft = sr})
   | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr

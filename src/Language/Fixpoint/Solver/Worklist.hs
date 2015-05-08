@@ -55,7 +55,7 @@ push :: F.SubC a -> Worklist a -> Worklist a
 push c w = w {wCs = sAdds (wCs w) js}
   where
     i    = sid' c
-    js   = wDeps w i
+    js   = {- tracepp ("PUSH: id = " ++ show i) $ -} wDeps w i
 
 sid'    :: F.SubC a -> Integer
 sid' c  = fromMaybe err $ F.sid c
@@ -109,10 +109,12 @@ succs cm rdBy i = sortNub $ concatMap kvReads iKs
 
 kvReadBy :: F.FInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- lhsKVars bs ci]
+                             , k       <- {- tracepp ("lhsKVS: " ++ show i) $ -}
+                                          lhsKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi
+
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------

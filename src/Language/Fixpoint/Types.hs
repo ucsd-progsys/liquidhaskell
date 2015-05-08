@@ -16,7 +16,6 @@
 --   solving is done by the `fixpoint.native` which
 --   is written in Ocaml.
 
-
 module Language.Fixpoint.Types (
 
   -- * Top level serialization
@@ -31,7 +30,7 @@ module Language.Fixpoint.Types (
 
   -- * Symbols
   , Symbol
-  , KVar
+  , KVar (..)
   , anfPrefix, tempPrefix, vv, vv_, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
@@ -51,6 +50,7 @@ module Language.Fixpoint.Types (
   , realFTyCon
   , strFTyCon
   , propFTyCon
+  , listFTyCon
   , appFTyCon
   , fTyconSymbol
   , symbolFTycon
@@ -77,18 +77,21 @@ module Language.Fixpoint.Types (
   , Expression (..)
   , Predicate (..)
 
-  -- * Constraints and Solutions
-  , SubC
+  -- * Constraints
   , WfC (..)
-  , sid, sgrd, senv, slhs, subC, lhsCs, rhsCs, wfC
-  , envCs
+  , SubC, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , Tag
-  , FixResult (..)
-  , FixSolution
+
+  -- * Accessing Constraints
+  , envCs
   , addIds, sinfo
   , trueSubCKvar
   , removeLhsKvars
 
+  -- * Solutions
+  , Result
+  , FixResult (..)
+  , FixSolution
 
   -- * Environments
   , SEnv, SESearch(..)
@@ -126,7 +129,7 @@ module Language.Fixpoint.Types (
   , propReft                -- singleton: Prop(v) <=> p
   , predReft                -- any pred : p
   , reftPred, reftBind
-  , isFunctionSortedReft
+  , isFunctionSortedReft, functionSort
   , isNonTrivial
   , isSingletonReft
   , isEVar
@@ -134,9 +137,9 @@ module Language.Fixpoint.Types (
   , flattenRefas, squishRefas, conjuncts
   , shiftVV
   , mapPredReft
- 
+
   -- * Substitutions
-  , Subst
+  , Subst (..)
   , Subable (..)
   , mkSubst
   , isEmptySubst
@@ -187,7 +190,7 @@ import qualified Data.Text                 as T
 import           Data.Traversable
 import           Control.DeepSeq
 import           Control.Exception         (assert)
-import           Data.Maybe                (mapMaybe, listToMaybe, fromMaybe)
+import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
 import           Language.Fixpoint.Misc
@@ -217,7 +220,7 @@ data Def a
   | Wfc (WfC a)
   | Con Symbol Sort
   | Qul Qualifier
-  | Kut Symbol
+  | Kut KVar
   | IBind Int Symbol SortedReft
   deriving (Generic)
   --  Sol of solbind
@@ -233,15 +236,10 @@ traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
 
 type TCEmb a    = M.HashMap a FTycon
 
--- instance (Eq a, Hashable a) => Monoid (TCEmb a) where
---   mappend m1 m2 = M.fromList (M.toList m1 ++ M.toList m2)
---   mempty        = M.empty
-
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
     go (EVar x)        = [x]
-    -- go (EDat x _)      = [x]
     go (ELit x _)      = [val x]
     go (EApp f es)     = val f : concatMap go es
     go (ENeg e)        = go e
@@ -260,16 +258,24 @@ predSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PBexp e)          = exprSymbols e
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar k (Su su')) = k : concatMap syms su'
+    go (PKVar _ (Su su')) = {- CUTSOLVER k : -} concatMap syms su'
     go (PAll xts p)       = (fst <$> xts) ++ go p
     go _                  = []
 
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
-type KVar    = Symbol
+newtype KVar = KV {kv :: Symbol } deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
-newtype Kuts = KS (S.HashSet KVar) deriving (Show)
+intKvar :: Integer -> KVar
+intKvar = KV . intSymbol "k_"
+
+instance Show KVar where
+  show (KV x) = "$" ++ show x
+
+instance Hashable KVar
+
+newtype Kuts = KS { ksVars :: S.HashSet KVar } deriving (Show)
 
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
@@ -280,7 +286,7 @@ instance Fixpoint Kuts where
 ksEmpty :: Kuts
 ksEmpty             = KS S.empty
 
-ksUnion :: [Symbol] -> Kuts -> Kuts
+ksUnion :: [KVar] -> Kuts -> Kuts
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 
 ---------------------------------------------------------------
@@ -307,7 +313,7 @@ toFixGs :: SEnv SortedReft -> Doc
 toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
 
 toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> toFix so
+  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
@@ -315,12 +321,13 @@ toFixConstant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, appFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, appFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
+listFTyCon = TC $ dummyLoc listConName
 appFTyCon  = TC $ dummyLoc "FAppTy"
 
 isListTC, isFAppTyTC :: FTycon -> Bool
@@ -372,6 +379,8 @@ data Sort = FInt
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
           | FApp FTycon [Sort]   -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+{-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
 instance Hashable Sort
 
@@ -474,6 +483,9 @@ instance Fixpoint SymConst where
 instance Fixpoint Symbol where
   toFix = text . encode . T.unpack . symbolText
 
+instance Fixpoint KVar where
+  toFix (KV k) = text "$" <> toFix k
+
 instance Fixpoint Text where
   toFix = text . T.unpack
 
@@ -520,10 +532,9 @@ data Pred = PTrue
           | PImp   !Pred !Pred
           | PIff   !Pred !Pred
           | PBexp  !Expr
-          | PAtom  !Brel !Expr !Expr
+          | PAtom  !Brel  !Expr !Expr
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Pred
-          | PExist ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -554,7 +565,6 @@ instance Fixpoint Pred where
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
   toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
-  toFix (PExist xts p)   = text "exist"  <+> toFix xts <+> text "." <+> toFix p
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -738,8 +748,16 @@ data SortedReft = RR { sr_sort :: !Sort, sr_reft :: !Reft }
                   deriving (Eq, Show, Data, Typeable, Generic)
 
 isFunctionSortedReft :: SortedReft -> Bool
-isFunctionSortedReft (RR (FFunc _ _) _) = True
-isFunctionSortedReft _                  = False
+isFunctionSortedReft = isJust . functionSort . sr_sort
+
+functionSort :: Sort -> Maybe (Int, [Sort], Sort)
+functionSort (FFunc n ts) = Just (n, its, t)
+  where
+    (its, t)              = safeUnsnoc "functionSort" ts
+functionSort _            = Nothing
+
+
+
 
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not .isTauto
@@ -882,6 +900,7 @@ newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
+
 data BindEnv       = BE { beSize  :: Int
                         , beBinds :: BindMap (Symbol, SortedReft)
                         }
@@ -904,13 +923,21 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Generic)
 
+
+---------------------------------------------------------------------------
+-- | The output of the Solver
+---------------------------------------------------------------------------
+type Result a = (FixResult (SubC a), M.HashMap KVar Pred)
+---------------------------------------------------------------------------
+
+
 data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
                  | UnknownError !String
                    deriving (Show, Generic)
 
-type FixSolution = M.HashMap Symbol Pred
+type FixSolution = M.HashMap KVar Pred
 
 instance Eq a => Eq (FixResult a) where
   Crash xs _ == Crash ys _        = xs == ys
@@ -1418,6 +1445,31 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , quals :: ![Qualifier]
                   }
                deriving (Show)
+
+instance Monoid Kuts where
+  mempty        = KS S.empty
+  mappend k1 k2 = KS $ S.union (ksVars k1) (ksVars k2)
+
+instance Monoid (SEnv a) where
+  mempty        = SE M.empty
+  mappend s1 s2 = SE $ M.union (seBinds s1) (seBinds s2)
+
+instance Monoid BindEnv where
+  mempty = BE 0 M.empty
+  mappend (BE 0 _) b = b
+  mappend b (BE 0 _) = b
+  mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
+
+instance Monoid (FInfo a) where
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty
+  mappend i1 i2 = FI { cm    = mappend (cm i1)    (cm i2)
+                     , ws    = mappend (ws i1)    (ws i2)
+                     , bs    = mappend (bs i1)    (bs i2)
+                     , gs    = mappend (gs i1)    (gs i2)
+                     , lits  = mappend (lits i1)  (lits i2)
+                     , kuts  = mappend (kuts i1)  (kuts i2)
+                     , quals = mappend (quals i1) (quals i2)
+                     }
 
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where

@@ -4,6 +4,7 @@
 
 module Language.Fixpoint.PrettyPrint where
 
+import           Debug.Trace               (trace)
 import           Control.Applicative       ((<$>))
 import qualified Data.Text                 as T
 import           Language.Fixpoint.Misc
@@ -23,6 +24,9 @@ class PPrint a where
 showpp :: (PPrint a) => a -> String
 showpp = render . pprint
 
+tracepp :: (PPrint a) => String -> a -> a
+tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
+
 instance PPrint a => PPrint (Maybe a) where
   pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
 
@@ -30,7 +34,10 @@ instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
 
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
-  pprint = pprint . M.toList
+  pprint         = vcat . punctuate (text "\n") . map pp1 . M.toList
+    where
+      pp1 (x, y) = pprint x <+> text ":=" <+> pprint y
+
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
   pprint (x, y, z)  = parens $ pprint x <> text "," <> pprint y <> text "," <> pprint z
@@ -74,9 +81,11 @@ instance PPrint Sort where
 instance PPrint Symbol where
   pprint = text . symbolString
 
-instance PPrint SymConst where
-  pprint (SL x)          = doubleQuotes $ text $ T.unpack x
+instance PPrint KVar where
+  pprint (KV x) = text "$" <> pprint x
 
+instance PPrint SymConst where
+  pprint (SL x) = doubleQuotes $ text $ T.unpack x
 
 -- | Wrap the enclosed 'Doc' in parentheses only if the condition holds.
 parensIf True  = parens

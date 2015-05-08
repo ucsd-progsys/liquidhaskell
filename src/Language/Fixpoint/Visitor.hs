@@ -86,7 +86,6 @@ instance Visitable Pred where
 
 instance Visitable Refa where
   visit v c (Refa p) =  Refa <$> visit v c p
-  visit _ _ r        = return r
 
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
@@ -129,7 +128,6 @@ visitPred v = vP
     step c (PBexp  e)      = PBexp    <$> vE c e
     step c (PAtom r e1 e2) = PAtom r  <$> vE c e1 <*> vE c e2
     step c (PAll xts p)    = PAll xts <$> vP c p
-    step c (PExist x p)    = PExist x <$> vP c p
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
     step _ p@PTrue         = return p
     step _ p@PFalse        = return p

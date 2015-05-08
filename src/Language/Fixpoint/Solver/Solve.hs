@@ -11,27 +11,22 @@ import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Solver.Validate
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import qualified Data.List as L
 import           Debug.Trace (trace)
+import           Text.Printf (printf)
 ---------------------------------------------------------------------------
--- | The output of the Solver
+solve :: Config -> F.FInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-type Result a = (F.FixResult (F.SubC a), M.HashMap F.KVar F.Pred)
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
-solve :: Config -> F.FInfo a -> IO (Result a)
----------------------------------------------------------------------------
-solve cfg fi = runSolverM cfg be $ solve_ cfg fi'
+solve cfg fi  = runSolverM cfg fi' $ solve_ cfg fi'
   where
-    fi'      = rename fi
-    be       = F.bs fi'
+    Right fi' = validate cfg fi
 
 ---------------------------------------------------------------------------
-solve_ :: Config -> F.FInfo a -> SolveM (Result a)
+solve_ :: Config -> F.FInfo a -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 solve_ cfg fi = refine s0 wkl >>= result fi
   where
@@ -46,7 +41,12 @@ refine s w
                                  (b, s') <- refineC i s c
                                  let w'' = if b then W.push c w' else w'
                                  refine s' w''
+                                 --  $ trace (refineMsg i c b w'') w''
   | otherwise               = return s
+
+-- DEBUG
+-- refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"
+--                     i (show $ F.sid c) (show b) (showpp w)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -57,10 +57,10 @@ refineC i s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
                    kqs   <- filterValid lhs rhs
-                   return $ S.update s ks kqs
+                   return $ S.update s ks {-  $ tracepp (msg ks rhs kqs) -} kqs
   where
-    (ks, rhs) =  rhsCands s c
-    msg z s'  = "At " ++ show i ++ "\nKQSS = " ++ showpp z ++ "\ns' = " ++ showpp s'
+    (ks, rhs) = rhsCands s c
+    -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" i (showpp ks) (length xs) (length ys)
 
 lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
@@ -85,7 +85,7 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: F.FInfo a -> S.Solution -> SolveM (Result a)
+result :: F.FInfo a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result fi s = (, sol) <$> result_ fi s
   where
@@ -112,25 +112,3 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 rhsPred :: S.Solution -> F.SubC a -> F.Pred
 rhsPred s c = S.apply s $ F.rhsCs c
 
-
----------------------------------------------------------------------------
--- | Alpha Rename bindings to ensure each var appears in unique binder
----------------------------------------------------------------------------
-rename :: F.FInfo a -> F.FInfo a
----------------------------------------------------------------------------
-
--- TODO: Fix `rename` to enforce uniqueness, AND add bindings for VVs
-rename fi = fi {F.bs = be'} -- error "TODO"
-  where
-    vts   = map subcVV $ M.elems $ F.cm fi
-    be'   = L.foldl' addVV be vts
-    be    = F.bs fi
-
-addVV :: F.BindEnv -> (F.Symbol, F.SortedReft) -> F.BindEnv
-addVV b (x, t) = snd $ F.insertBindEnv x t b
-
-subcVV :: F.SubC a -> (F.Symbol, F.SortedReft)
-subcVV c = (x, sr)
-  where
-    sr   = F.slhs c
-    x    = F.reftBind $ F.sr_reft sr
