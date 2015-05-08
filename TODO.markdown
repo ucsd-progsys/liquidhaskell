@@ -1,7 +1,6 @@
 TODO
 ====
 
-
 promotion of haskell functions to measures
 ------------------------------------------
 

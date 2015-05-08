@@ -1,6 +1,5 @@
 module spec GHC.Real where
 
-
 GHC.Real.fromIntegral    :: (GHC.Real.Integral a, GHC.Num.Num b) => x:a -> {v:b|v=x}
 
 class (GHC.Num.Num a) => GHC.Real.Fractional a where

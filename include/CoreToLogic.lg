@@ -7,5 +7,7 @@ define Data.Set.Base.member x xs      = (Set_mem x xs)
 define Data.Set.Base.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Base.elems xs         = (listElts xs)
 
+define GHC.Types.True                 = (true) 
+
 define Data.Map.Base.insert k v m     = (Map_store m k v)
 define Data.Map.Base.select k v       = (Map_select m k)

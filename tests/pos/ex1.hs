@@ -19,10 +19,11 @@ data Vec a = Nil | Cons a (Vec a)
   @-}
 
 {-@ invariant {v:Vec a | (llen v) >= 0} @-}
+
 -- | As a warmup, lets check that a /real/ length function indeed computes
 -- the length of the list.
 
-{-@ sizeOf :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+{-@ sizeOf :: xs:Vec a -> {v: Int | v = llen xs} @-}
 sizeOf             :: Vec a -> Int
 sizeOf Nil         = 0
 sizeOf (Cons _ xs) = 1 + sizeOf xs
@@ -53,7 +54,7 @@ efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 -- operate on the `Vec`s.
 
 -- | First: Computing the length using `efoldr`
-{-@ size :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+{-@ size :: xs:Vec a -> {v: Int | v = llen xs} @-}
 size :: Vec a -> Int
 size = efoldr (\_ _ n -> n + 1) 0
 
@@ -62,8 +63,7 @@ size = efoldr (\_ _ n -> n + 1) 0
 suc :: Int -> Int
 suc x = x + 1
 
-
-
 -- | Second: Appending two lists using `efoldr`
-{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-}
+{-@ app  :: xs: Vec Int -> ys: Vec Int -> {v: Vec Int | llen v = llen xs + llen ys } @-}
+app :: Vec Int -> Vec Int -> Vec Int
 app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs
