@@ -1,12 +1,11 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-} 
+{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Haskell.Liquid.GhcInterface (
-  
+
   -- * extract all information needed for verification
     getGhcInfo
 
@@ -25,7 +24,7 @@ import CoreSyn
 import Var
 import CoreMonad    (liftIO)
 import DataCon
-import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc) 
+import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
@@ -38,10 +37,10 @@ import Data.Monoid hiding ((<>))
 import Data.List (find, nub)
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
-  
+
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Directory (removeFile, createDirectory, doesFileExist)
-import Language.Fixpoint.Types hiding (Expr) 
+import Language.Fixpoint.Types hiding (Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
@@ -65,11 +64,11 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 --------------------------------------------------------------------
 getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
 --------------------------------------------------------------------
-getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target) 
+getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
                           `Ex.catch` (\(e :: SourceError) -> handle e)
                           `Ex.catch` (\(e :: Error)       -> handle e)
                           `Ex.catch` (\(e :: [Error])     -> handle e)
-  where 
+  where
     handle            = return . Left . result
 
 
@@ -98,19 +97,19 @@ getGhcInfo' cfg0 target
                             | tc <- mgi_tcs modguts
                             , dc <- tyConDataCons tc
                             ]
-      let impVs           = importVars  coreBinds 
-      let defVs           = definedVars coreBinds 
+      let impVs           = importVars  coreBinds
+      let defVs           = definedVars coreBinds
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
       let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
-      logicmap           <- liftIO makeLogicMap 
+      logicmap           <- liftIO makeLogicMap
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec 
+      return              $ GI hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec
 
 
-makeLogicMap 
+makeLogicMap
   = do lg    <- getCoreToLogicPath
        lspec <- readFile lg
        return $ parseSymbolToLogic lg lspec
@@ -123,7 +122,7 @@ derivedVs :: CoreProgram -> DFunId -> [Id]
 derivedVs cbs fd = concatMap bindersOf cbf ++ deps
   where cbf            = filter f cbs
 
-        f (NonRec x _) = eqFd x 
+        f (NonRec x _) = eqFd x
         f (Rec xes   ) = any eqFd (fst <$> xes)
         eqFd x         = varName x == varName fd
         deps :: [Id]
@@ -170,10 +169,10 @@ compileCFiles cfg
 
 mgi_namestring = moduleNameString . moduleName . mgi_module
 
-importVars            = freeVars S.empty 
+importVars            = freeVars S.empty
 
-definedVars           = concatMap defs 
-  where 
+definedVars           = concatMap defs
+  where
     defs (NonRec x _) = [x]
     defs (Rec xes)    = map fst xes
 
@@ -189,17 +188,17 @@ getGhcModGuts1 fn = do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
-       let deriv = getDerivedDictionaries mod_guts 
+       let deriv = getDerivedDictionaries mod_guts
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
 getDerivedDictionaries cm = is_dfun <$> (instEnvElts $ mg_inst_env cm)
 
 cleanFiles :: FilePath -> IO ()
-cleanFiles fn 
+cleanFiles fn
   = do forM_ bins (tryIgnore "delete binaries" . removeFileIfExists)
-       tryIgnore "create temp directory" $ createDirectory dir 
-    where 
+       tryIgnore "create temp directory" $ createDirectory dir
+    where
        bins = replaceExtension fn <$> ["hi", "o"]
        dir  = tempDirectory fn
 
@@ -212,7 +211,7 @@ removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 
 desugarModuleWithLoc :: TypecheckedModule -> Ghc DesugaredModule
 desugarModuleWithLoc tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm 
+  let ms = pm_mod_summary $ tm_parsed_module tcm
   -- let ms = modSummary tcm
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
@@ -224,18 +223,18 @@ desugarModuleWithLoc tcm = do
 -- | Extracting Qualifiers -----------------------------------------------------
 --------------------------------------------------------------------------------
 
-moduleHquals mg paths target imps incs 
-  = do hqs   <- specIncludes Hquals paths incs 
+moduleHquals mg paths target imps incs
+  = do hqs   <- specIncludes Hquals paths incs
        hqs'  <- moduleImports [Hquals] paths (mgi_namestring mg : imps)
        hqs'' <- liftIO   $ filterM doesFileExist [extFileName Hquals target]
        let rv = sortNub  $ hqs'' ++ hqs ++ (snd <$> hqs')
-       liftIO $ whenLoud $ putStrLn $ "Reading Qualifiers From: " ++ show rv 
+       liftIO $ whenLoud $ putStrLn $ "Reading Qualifiers From: " ++ show rv
        return rv
 
 --------------------------------------------------------------------------------
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
- 
+
 moduleSpec cfg cbs vars defVars target mg tgtSpec logicmap impSpecs
   = do addImports  impSpecs
        addContext  $ IIModule $ moduleName $ mgi_module mg
@@ -261,14 +260,14 @@ realSpecName    = "Real"
 notRealSpecName = "NotReal"
 
 getSpecs rflag tflag target paths names exts
-  = do fs'     <- sortNub <$> moduleImports exts paths names 
+  = do fs'     <- sortNub <$> moduleImports exts paths names
        patSpec <- getPatSpec paths tflag
        rlSpec  <- getRealSpec paths rflag
        let fs  = patSpec ++ rlSpec ++ fs'
        liftIO  $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
        transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
 
-getPatSpec paths totalitycheck 
+getPatSpec paths totalitycheck
   | totalitycheck
   = (map (patErrorName, )) . maybeToList <$> moduleFile paths patErrorName Spec
   | otherwise
@@ -321,18 +320,18 @@ moduleFile paths name ext
   = liftIO $ getFileInDirs (extModuleName name ext) paths
 
 specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
-specIncludes ext paths reqs 
+specIncludes ext paths reqs
   = do let libFile  = extFileNameR ext $ symbolString preludeName
-       let incFiles = catMaybes $ reqFile ext <$> reqs 
+       let incFiles = catMaybes $ reqFile ext <$> reqs
        liftIO $ forM (libFile : incFiles) $ \f -> do
          mfile <- getFileInDirs f paths
          case mfile of
            Just file -> return file
            Nothing -> errorstar $ "cannot find " ++ f ++ " in " ++ show paths
 
-reqFile ext s 
-  | isExtFile ext s 
-  = Just s 
+reqFile ext s
+  | isExtFile ext s
+  = Just s
   | otherwise
   = Nothing
 
@@ -352,7 +351,7 @@ instance PPrint GhcSpec where
               $$ (text "******* Measure Specifications **************")
               $$ (pprintLongList $ meas spec)
 
-instance PPrint GhcInfo where 
+instance PPrint GhcInfo where
   pprint info =   (text "*************** Imports *********************")
               $+$ (intersperse comma $ text <$> imports info)
               $+$ (text "*************** Includes ********************")
@@ -367,29 +366,28 @@ instance PPrint GhcInfo where
               $+$ (pprint $ cbs info)
 
 instance Show GhcInfo where
-  show = showpp 
+  show = showpp
 
 instance PPrint [CoreBind] where
   pprint = pprDoc . tidyCBs
 
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
-  pprint (Only vs) = text "Only Variables: " <+> pprint vs 
+  pprint (Only vs) = text "Only Variables: " <+> pprint vs
 
 ------------------------------------------------------------------------
 -- Dealing With Errors -------------------------------------------------
 ------------------------------------------------------------------------
 
 -- | Throw a panic exception
-exitWithPanic  :: String -> a 
-exitWithPanic  = Ex.throw . errOther . text 
+exitWithPanic  :: String -> a
+exitWithPanic  = Ex.throw . errOther . text
 
 -- | Convert a GHC error into one of ours
-instance Result SourceError where 
-  result = (`Crash` "Invalid Source") 
-         . concatMap errMsgErrors 
-         . bagToList 
+instance Result SourceError where
+  result = (`Crash` "Invalid Source")
+         . concatMap errMsgErrors
+         . bagToList
          . srcErrorMessages
-     
-errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)] 
 
+errMsgErrors e = [ ErrGhc (errMsgSpan e) (pprint e)]

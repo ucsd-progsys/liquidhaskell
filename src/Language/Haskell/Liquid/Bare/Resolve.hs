@@ -42,7 +42,7 @@ instance Resolvable Pred where
   resolve l (PBexp b)       = PBexp   <$> resolve l b
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
-  resolve l (PExist vs p)   = PExist  <$> mapM (secondM (resolve l)) vs <*> resolve l p
+  -- resolve l (PExist vs p)   = PExist  <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve _ p               = return p
 
 instance Resolvable Expr where

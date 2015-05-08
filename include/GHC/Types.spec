@@ -1,6 +1,6 @@
 module spec GHC.Types where
 
--- TODO: Drop prefix below
+// TODO: Drop prefix below
 GHC.Types.EQ :: {v:GHC.Types.Ordering | v = (cmp v) }
 GHC.Types.LT :: {v:GHC.Types.Ordering | v = (cmp v) }
 GHC.Types.GT :: {v:GHC.Types.Ordering | v = (cmp v) }
