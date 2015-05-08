@@ -74,7 +74,7 @@ import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
-import Language.Haskell.Liquid.RefSplit 
+import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
@@ -117,7 +117,7 @@ initEnv :: GhcInfo -> CG CGEnv
 ------------------------------------------------------------------------------------
 initEnv info
   = do let tce   = tcEmbeds sp
-       let fVars = impVars info 
+       let fVars = impVars info
        let dcs   = filter isConLikeId (snd <$> freeSyms sp)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
@@ -557,11 +557,7 @@ bsplitC γ t1 t2
   = do checkStratum γ t1 t2
        pflag <- pruneRefs <$> get
        γ' <- γ ++= ("bsplitC", v, t1)
-<<<<<<< HEAD
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  [F.RConc $ constraintToLogic γ' (lcs γ')])}
-=======
        let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  F.Refa $ constraintToLogic γ' (lcs γ'))}
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
        let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
        return $ bsplitC' γ' t1' t2 pflag
   where
@@ -570,14 +566,9 @@ bsplitC γ t1 t2
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
-<<<<<<< HEAD
-  where [s1, s2]   = getStrata <$> [t1, t2]
-        wrn        =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
-=======
   where
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
@@ -671,30 +662,20 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-<<<<<<< HEAD
-addCGEnv tx γ (msg, x, RAllE y tyy tyx)
-  = do y' <- fresh
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
-
-addCGEnv tx γ (_, x, t')
-=======
-
 addCGEnv tx γ (msg, x, REx y tyy tyx)
-  = do y' <- fresh 
+  = do y' <- fresh
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
 addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
-  where 
+  where
     xs    = grapBindsWithType tyy γ
     t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
 
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
-addCGEnv tx γ (_, x, t') 
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
+addCGEnv tx γ (_, x, t')
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'
        let γ' = γ { renv = insertREnv x t (renv γ) }
@@ -715,12 +696,8 @@ rTypeSortedReft' pflag γ
   = pruneUnsortedReft (fe_env $ fenv γ) . f
   | otherwise
   = f
-<<<<<<< HEAD
   where
     f = rTypeSortedReft (emb γ)
-=======
-  where f = rTypeSortedReft (emb γ)
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 
@@ -1150,15 +1127,7 @@ makeTermEnvs γ xtes xes ts ts' = withTRec γ . zip xs <$> rts
     mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
     collectArgs  = collectArguments . length . ty_binds . toRTypeRep
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x
-<<<<<<< HEAD
 
-
-
-=======
-
-
-
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
 consCB tflag _ γ (Rec xes) | tflag
   = do texprs <- termExprs <$> get
        modify $ \i -> i { recCount = recCount i + length xes }
@@ -1764,16 +1733,6 @@ instance NFData CGInfo where
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
-<<<<<<< HEAD
-  where r'            = fromMaybe mempty $ forallExprReft γ r
-        r             = F.sr_reft $ rTypeSortedReft (emb γ) t
-
-forallExprReft γ r
-  = do e  <- F.isSingletonReft r
-       r' <- forallExprReft_ γ e
-       return r'
-
-=======
   where
     r'                = fromMaybe mempty $ forallExprReft γ r
     r                 = F.sr_reft $ rTypeSortedReft (emb γ) t
@@ -1786,7 +1745,6 @@ forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
 --        return r'
 
 forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
 forallExprReft_ γ (F.EApp f es)
   = case forallExprReftLookup γ (val f) of
       Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
