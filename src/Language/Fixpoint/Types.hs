@@ -267,6 +267,9 @@ predSymbols = go
 ---------------------------------------------------------------
 newtype KVar = KV {kv :: Symbol } deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
+intKvar :: Integer -> KVar
+intKvar = KV . intSymbol "k_"
+
 instance Show KVar where
   show (KV x) = "$" ++ show x
 
