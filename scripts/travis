@@ -97,7 +97,7 @@ function install_cabal_deps {
     _install_cabal_deps
   fi
 
-  loud travis_retry cabal install -fbuild-external /tmp/fixpoint
+  loud travis_retry cabal install -v2 -fbuild-external /tmp/fixpoint
 }
 
 function _install_cabal_deps {
