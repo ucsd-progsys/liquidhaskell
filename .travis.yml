@@ -2,6 +2,10 @@ language: haskell
 
 ghc: 7.8
 
+branches:
+  only:
+    - master
+
 addons:
   apt:
     packages:
