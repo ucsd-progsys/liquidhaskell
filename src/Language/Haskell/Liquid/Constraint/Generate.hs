@@ -315,19 +315,11 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
 
 bsplitW' γ t pflag
-<<<<<<< HEAD
-  | F.isNonTrivialSortedReft r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
-  | otherwise                   = []
-  where
-    r'                          = rTypeSortedReft' pflag γ t
-    ci                          = Ci (loc γ) Nothing
-=======
   | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
   | otherwise         = []
   where
     r'                = rTypeSortedReft' pflag γ t
     ci                = Ci (loc γ) Nothing
->>>>>>> c6bd97a3a1e4836aa7a974f9dfeda1f32cd25e9a
 
 ------------------------------------------------------------
 splitS  :: SubC -> CG [([Stratum], [Stratum])]
