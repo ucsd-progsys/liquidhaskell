@@ -74,7 +74,7 @@ instance Transformable Pred where
   tx s m (PBexp e)       = PBexp (tx s m e)
   tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
   tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
-  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
+ --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p
 
 txQuant xss s m p

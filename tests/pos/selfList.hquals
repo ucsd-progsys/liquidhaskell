@@ -1,1 +1,1 @@
-qualif SelfSet(VV : a, ~A0: [a]): (? Set_mem([VV; listElts([~A0])]))
+qualif SelfSet(v : a, xs : [a]): (Set_mem v (listElts xs))

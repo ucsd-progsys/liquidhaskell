@@ -79,7 +79,7 @@ import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, 
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
-import Language.Haskell.Liquid.RefSplit 
+import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Types
@@ -122,19 +122,22 @@ initEnv :: GhcInfo -> CG CGEnv
 ------------------------------------------------------------------------------------
 initEnv info
   = do let tce   = tcEmbeds sp
-       let fVars = impVars info ++ filter isConLikeId (snd <$> freeSyms sp)
+       let fVars = impVars info
+       let dcs   = filter isConLikeId (snd <$> freeSyms sp)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       (hs,f0)  <- refreshHoles $ grty info -- asserted refinements     (for defined vars)
-       f0''     <- refreshArgs' =<< grtyTop info     -- default TOP reftype      (for exported vars without spec)
+       dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
+       (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
+       f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
-       f1       <- refreshArgs' $ defaults           -- default TOP reftype      (for all vars)
-       f2       <- refreshArgs' $ assm info          -- assumed refinements      (for imported vars)
-       f3       <- refreshArgs' $ vals asmSigs sp    -- assumed refinedments     (with `assume`)
-       f4       <- refreshArgs' $ vals ctors   sp    -- constructor refinements  (for measures)
+       f1       <- refreshArgs' $ defaults                   -- default TOP reftype      (for all vars)
+       f1'      <- refreshArgs' $ makedcs dcsty              -- default TOP reftype      (for data cons)
+       f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
+       f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
+       f4       <- refreshArgs' $ makedcs $ vals ctors sp    -- constructor refinements  (for measures)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
@@ -143,6 +146,7 @@ initEnv info
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
+    makedcs      = map strengthenDataConType
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)
@@ -663,21 +667,20 @@ extendEnvWithVV γ t
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-
 addCGEnv tx γ (msg, x, REx y tyy tyx)
-  = do y' <- fresh 
+  = do y' <- fresh
        γ' <- addCGEnv tx γ (msg, y', tyy)
        addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
 
 addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
-  where 
+  where
     xs    = grapBindsWithType tyy γ
     t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
 
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
-addCGEnv tx γ (_, x, t') 
+addCGEnv tx γ (_, x, t')
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'
        let γ' = γ { renv = insertREnv x t (renv γ) }
@@ -698,7 +701,8 @@ rTypeSortedReft' pflag γ
   = pruneUnsortedReft (fe_env $ fenv γ) . f
   | otherwise
   = f
-  where f = rTypeSortedReft (emb γ)
+  where
+    f = rTypeSortedReft (emb γ)
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 
@@ -864,7 +868,7 @@ isKut          :: KVKind -> Bool
 isKut RecBindE = True
 isKut _        = False
 
-specTypeKVars :: SpecType -> [F.Symbol]
+specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft ((++) . (kvars . ur_reft)) []
 
 trueTy  :: Type -> CG SpecType
@@ -1128,8 +1132,6 @@ makeTermEnvs γ xtes xes ts ts' = withTRec γ . zip xs <$> rts
     mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
     collectArgs  = collectArguments . length . ty_binds . toRTypeRep
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x
-
-
 
 consCB tflag _ γ (Rec xes) | tflag
   = do texprs <- termExprs <$> get

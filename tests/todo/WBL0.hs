@@ -41,15 +41,15 @@ data Heap a   = Empty | Node { pri   :: a
 {-@ type PHeap a = {v:OHeap a | ValidRank v}                 @-}
 {-@ type OHeap a = Heap <{\root v -> root <= v}> a           @-}
 
-{-@ measure okRank        :: Heap a -> Prop
-    okRank (Empty)        = true
-    okRank (Node p k l r) = ((realRank l >= realRank r) && k == (1 + (realRank l) + (realRank r)))
-  @-}
+{-@ measure okRank @-}
+okRank :: Heap a -> Bool
+okRank (Empty)        = True
+okRank (Node p k l r) = realRank l >= realRank r && k == 1 + realRank l + realRank r
 
-{-@ measure realRank :: Heap a -> Int
-    realRank (Empty)        = 0
-    realRank (Node p k l r) = (1 + realRank l + realRank r)
-  @-}
+{-@ measure realRank @-}
+realRank :: Heap a -> Int
+realRank (Empty)        = 0
+realRank (Node p k l r) = 1 + realRank l + realRank r
 
 {-@ measure rank @-}
 {-@ rank :: h:PHeap a -> {v:Nat | v = realRank h} @-}

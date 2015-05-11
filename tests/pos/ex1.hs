@@ -63,8 +63,6 @@ size = efoldr (\_ _ n -> n + 1) 0
 suc :: Int -> Int
 suc x = x + 1
 
-
-
 -- | Second: Appending two lists using `efoldr`
 {-@ app  :: xs: Vec Int -> ys: Vec Int -> {v: Vec Int | llen v = llen xs + llen ys } @-}
 app :: Vec Int -> Vec Int -> Vec Int
