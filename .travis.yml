@@ -1,0 +1,35 @@
+language: c
+env:
+  - SMT="z3"   GHC="7.8.4"  CABAL="1.18"
+  - SMT="z3"   GHC="7.10.1" CABAL="1.22"
+  - SMT="cvc4" GHC="7.8.4"  CABAL="1.18"
+  - SMT="cvc4" GHC="7.10.1" CABAL="1.22"
+
+branches:
+  only:
+    - master
+
+cache:
+  apt: true
+  directories:
+  - $HOME/.cabal
+  - $HOME/.ghc
+
+before_install:
+ - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
+ - travis_retry sudo apt-get update
+ - travis_retry sudo apt-get install cabal-install-$CABAL ghc-$GHC
+ - export PATH=/opt/ghc/$GHC/bin:/opt/cabal/$CABAL/bin:$PATH
+ - scripts/travis clean_cache "$SMT"
+
+install:
+ - scripts/travis install_cabal_deps
+ - scripts/travis install_smt "$SMT"
+
+script:
+ - scripts/travis do_build && scripts/travis do_test "$SMT" && scripts/travis test_source_pkg
+ - scripts/travis clean_cache "$SMT"
+
+after_failure:
+ - scripts/travis dump_fail_logs
+

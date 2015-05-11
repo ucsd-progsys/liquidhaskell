@@ -46,8 +46,11 @@ import           Language.Fixpoint.Misc
 getFixpointPath = fromMaybe msg . msum <$>
                   sequence [ findExecutable "fixpoint.native"
                            , findExecutable "fixpoint.native.exe"
+                             -- fallback for developing in-tree...
+                           , findFile ["external/fixpoint"] "fixpoint.native"
                            ]
-  where msg     = errorstar "Cannot find fixpoint binary [fixpoint.native]"
+  where
+    msg = errorstar "Cannot find fixpoint binary [fixpoint.native]"
 
 getZ3LibPath    = dropFileName <$> getFixpointPath
 
