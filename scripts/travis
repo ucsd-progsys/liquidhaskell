@@ -97,7 +97,8 @@ function install_cabal_deps {
     _install_cabal_deps
   fi
 
-  loud travis_retry cabal install -fbuild-external /tmp/fixpoint
+  # this is dumb, but the -j1 makes cabal print the build log to stdout instead of a file
+  loud travis_retry cabal install -j1 -fbuild-external /tmp/fixpoint
 }
 
 function _install_cabal_deps {

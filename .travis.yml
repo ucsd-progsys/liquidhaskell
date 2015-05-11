@@ -3,6 +3,10 @@ ghc:
  - '7.8.4'
  - '7.10.1'
 
+branches:
+  only:
+    - master
+
 addons:
   apt:
     packages:

@@ -36,6 +36,7 @@ main = run =<< tests
     run   = defaultMainWithIngredients [
                 testRunner
               , includingOptions [ Option (Proxy :: Proxy NumThreads)
+                                 , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
 
@@ -51,6 +52,18 @@ instance IsOption SmtSolver where
     option (fmap (read . map toUpper) str)
       (  long (untag (optionName :: Tagged SmtSolver String))
       <> help (untag (optionHelp :: Tagged SmtSolver String))
+      )
+
+newtype LiquidOpts = LO String deriving (Show, Read, Eq, Ord, Typeable)
+instance IsOption LiquidOpts where
+  defaultValue = LO ""
+  parseValue = Just . LO
+  optionName = return "liquid-opts"
+  optionHelp = return "Extra options to pass to LiquidHaskell"
+  optionCLParser =
+    option (fmap LO str)
+      (  long (untag (optionName :: Tagged LiquidOpts String))
+      <> help (untag (optionHelp :: Tagged LiquidOpts String))
       )
 
 unitTests
@@ -88,7 +101,7 @@ isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest code dir file
-  = askOption $ \(smt :: SmtSolver) -> testCase file $ do
+  = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $ do
       if test `elem` knownToFail smt
       then do
         printf "%s is known to fail with %s: SKIPPING" test (show smt)
@@ -97,7 +110,7 @@ mkTest code dir file
         createDirectoryIfMissing True $ takeDirectory log
         liquid <- canonicalizePath "dist/build/liquid/liquid"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd liquid dir file smt
+          let cmd     = testCmd liquid dir file smt opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
@@ -112,10 +125,10 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/p
 knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> String
+testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
-testCmd liquid dir file smt
-  = printf "cd %s && %s --verbose --smtsolver %s %s" dir liquid (show smt) file
+testCmd liquid dir file smt (LO opts)
+  = printf "cd %s && %s --verbose --smtsolver %s %s %s" dir liquid (show smt) file opts
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
