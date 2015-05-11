@@ -62,18 +62,7 @@ dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
   where
     dcm                  = M.fromList $ dataConSpec dcs
-    upd dcm (x, t)       = M.insert x (maybe t (meetPad t) (M.lookup x dcm)) dcm
-
-meetPad t1 t2 = -- traceShow ("meetPad: " ++ msg) $
-  case (bkUniv t1, bkUniv t2) of
-    ((_, π1s, ls1, _), (α2s, [], ls2, t2')) -> meet t1 (mkUnivs α2s π1s (ls1 ++ ls2) t2')
-    ((α1s, [], ls1, t1'), (_, π2s, ls2, _)) -> meet (mkUnivs α1s π2s (ls1 ++ ls2) t1') t2
-    _                             -> errorstar $ "meetPad: " ++ msg
-  where msg = "\nt1 = " ++ showpp t1 ++ "\nt2 = " ++ showpp t2
-
-
-
-
+    upd dcm (x, t)       = M.insert x (maybe t (meet t) (M.lookup x dcm)) dcm
 
 ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
