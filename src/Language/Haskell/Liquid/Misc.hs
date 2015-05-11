@@ -71,7 +71,7 @@ ghc = "ghc-7.8"
 ghc = "ghc-7.10"
 #endif
 
-getIncludeDir      = dropFileName <$> getDataFileName ("include" </> ghc </> "Prelude.spec")
+getIncludeDir      = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
 getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
 getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 
