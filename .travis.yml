@@ -1,19 +1,8 @@
-language: haskell
-ghc:
- - '7.8.4'
- - '7.10.1'
+language: c
 
 branches:
   only:
     - master
-
-addons:
-  apt:
-    packages:
-    - ocaml
-    - camlidl
-
-sudo: false
 
 cache:
   apt: true
@@ -22,22 +11,40 @@ cache:
   - $HOME/.ghc
 
 env:
- - SMT=z3 TESTS=Unit/pos
- - SMT=z3 TESTS=Unit/neg
- - SMT=z3 TESTS=Unit/crash
- - SMT=z3 TESTS=Benchmarks/text
- - SMT=z3 TESTS=Benchmarks/bytestring
- - SMT=z3 TESTS=Benchmarks/esop
- - SMT=z3 TESTS=Benchmarks/vect-algs
- - SMT=cvc4 TESTS=Unit/pos
- - SMT=cvc4 TESTS=Unit/neg
- - SMT=cvc4 TESTS=Unit/crash
- - SMT=z3 TESTS=Unit/icfp_pos
- - SMT=z3 TESTS=Unit/icfp_neg
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/pos
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/neg
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/crash
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/text
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/bytestring
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/esop
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/vect-algs
+ - GHC="7.8.4"  CABAL="1.18" SMT=cvc4 TESTS=Unit/pos
+ - GHC="7.8.4"  CABAL="1.18" SMT=cvc4 TESTS=Unit/neg
+ - GHC="7.8.4"  CABAL="1.18" SMT=cvc4 TESTS=Unit/crash
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/icfp_pos
+ - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/icfp_neg
+
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Unit/pos
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Unit/neg
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Unit/crash
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Benchmarks/text
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Benchmarks/bytestring
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Benchmarks/esop
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Benchmarks/vect-algs
+ - GHC="7.10.1" CABAL="1.22" SMT=cvc4 TESTS=Unit/pos
+ - GHC="7.10.1" CABAL="1.22" SMT=cvc4 TESTS=Unit/neg
+ - GHC="7.10.1" CABAL="1.22" SMT=cvc4 TESTS=Unit/crash
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Unit/icfp_pos
+ - GHC="7.10.1" CABAL="1.22" SMT=z3   TESTS=Unit/icfp_neg
+
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
 before_install:
+ - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
+ - travis_retry sudo apt-get update
+ - travis_retry sudo apt-get install cabal-install-$CABAL ghc-$GHC ocaml camlidl
+ - export PATH=/opt/ghc/$GHC/bin:/opt/cabal/$CABAL/bin:$PATH
  - scripts/travis clean_cache "$SMT"
  - scripts/travis clone_fixpoint
 
