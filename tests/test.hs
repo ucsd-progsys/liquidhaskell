@@ -73,7 +73,7 @@ mkTest code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- canonicalizePath ".cabal-sandbox/bin/fixpoint"
+        bin <- canonicalizePath "dist/build/fixpoint/fixpoint"
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}

@@ -40,7 +40,7 @@ buildFixpoint _ _ pkg lbi = when build $ do
   setEnv "Z3MEM" (show z3mem)
   executeShellCommand "./configure"
   executeShellCommand "./build.sh"
-  executeShellCommand "chmod a+x external/fixpoint/fixpoint.native "
+  executeShellCommand "chmod a+x external/fixpoint/fixpoint.native"
   where
   allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
   binDir      = bindir allDirs ++ "/"
