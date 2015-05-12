@@ -23,12 +23,9 @@ import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
 
-#if __GLASGOW_HASKELL__ >= 710
-testRunner = consoleTestReporter
-#else
 import Test.Tasty.Ingredients.Rerun
+
 testRunner = rerunningTests [ listingTests, consoleTestReporter ]
-#endif
 
 main :: IO ()
 main = run =<< tests
