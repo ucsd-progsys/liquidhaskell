@@ -58,10 +58,10 @@ instance (PPrint e, PPrint t) => (Show (Bound t e)) where
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-	pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
-	                                text "forall" <+> pprint vs <+> text "." <+>
-	                                pprint (fst <$> ps) <+> text "=" <+>
-	                                pprint_bsyms (fst <$> xs) <+> pprint e
+        pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
+                                        text "forall" <+> pprint vs <+> text "." <+>
+                                        pprint (fst <$> ps) <+> text "=" <+>
+                                        pprint_bsyms (fst <$> xs) <+> pprint e
 
 pprint_bsyms [] = text ""
 pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
@@ -102,9 +102,9 @@ makeBoundType penv (q:qs) xts = go xts
     go ((x, t):xtss) = (val x, mkt t x):(go xtss)
 
     mkt t x = ofRSort t `strengthen` ofUReft (U (Reft (val x, mempty))
-    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
+                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tp t x  = ofRSort t `strengthen` ofUReft (U (Reft (val x, refa rs))
-    	                                        (Pr $ M.lookupDefault [] (val x) ps) mempty)
+                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
     (ps, rs) = partitionPs penv qs
