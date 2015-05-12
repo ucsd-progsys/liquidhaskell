@@ -44,7 +44,7 @@ before_install:
  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
  - travis_retry sudo apt-get update
  - travis_retry sudo apt-get install cabal-install-$CABAL ghc-$GHC ocaml camlidl
- - export PATH=/opt/ghc/$GHC/bin:/opt/cabal/$CABAL/bin:$PATH
+ - export PATH="$HOME/.cabal/bin:/opt/ghc/$GHC/bin:/opt/cabal/$CABAL/bin:$PATH"
  - scripts/travis clean_cache "$SMT"
  - scripts/travis clone_fixpoint
 
