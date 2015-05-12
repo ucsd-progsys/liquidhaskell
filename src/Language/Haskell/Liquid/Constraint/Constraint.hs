@@ -13,8 +13,8 @@ import Language.Haskell.Liquid.Constraint.Types
 import Language.Fixpoint.Types
 
 instance Monoid LConstraint where
-	mempty  = LC []
-	mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
+        mempty  = LC []
+        mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
 
 typeToConstraint t = LC [t]
 
@@ -36,9 +36,9 @@ constraintToLogicOne γ env
 
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where
-  	(rs , su) = foldl go ([], []) xts
-  	([r], _ ) = go ([], su) (x', (x, t))
-  	go (acc, su) (x', (x, t)) = let (Reft(v, Refa p)) = toReft (fromMaybe mempty (stripRTypeBase t))
+        (rs , su) = foldl go ([], []) xts
+        ([r], _ ) = go ([], su) (x', (x, t))
+        go (acc, su) (x', (x, t)) = let (Reft(v, Refa p)) = toReft (fromMaybe mempty (stripRTypeBase t))
                                         su'               = (x', EVar x):(v, EVar x) : su
                                     in
                                      (subst (mkSubst su') p : acc, su')
