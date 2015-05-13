@@ -74,8 +74,10 @@ progDenote :: Stack -> Prog -> Maybe Stack
                -> Maybe Stack @-}
 progDenote s [] = Just s
 progDenote s (x:xs)
-  = if (iisJust ms) then (progDenote (ifromJust ms) xs) else Nothing
+  = if (iisJust ms) then Just [2] else Nothing
   where ms = Just (instrDenote s x )
+--   = if (iisJust ms) then (progDenote (ifromJust ms) xs) else Nothing
+--   where ms = Just (instrDenote s x )
 
 {-@ measure iisJust @-}
 iisJust (Just x) = True
