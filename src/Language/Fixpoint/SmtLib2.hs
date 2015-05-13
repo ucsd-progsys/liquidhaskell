@@ -65,7 +65,7 @@ import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.IO        as LTIO
 import           Data.IORef
 import           System.Directory
-import           System.Exit
+import           System.Exit              hiding (die)
 import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush,
                                            openFile)
