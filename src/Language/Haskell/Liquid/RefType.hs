@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.RefType (
   , applySolution
 
   -- * Functions for decreasing arguments
-  , isDecreasing, makeDecrType
+  , isDecreasing, makeDecrType, makeNumEnv
   , makeLexRefa
 
   -- * Functions for manipulating `Predicate`s
@@ -569,8 +569,8 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
     rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
 isNumeric tce c
-  =  fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == intFTyCon
+  =  (fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
+       (M.lookup (rtc_tc c) tce) == intFTyCon)
 
 addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
@@ -1024,29 +1024,43 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 --------------------------- Termination Predicates --------------------------------------
 -----------------------------------------------------------------------------------------
 
-isDecreasing (RApp c _ _ _)
+makeNumEnv = concatMap go 
+  where
+    go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
+    go _ = []
+
+isDecreasing _ (RApp c _ _ _)
   = isJust (sizeFunction (rtc_info c))
-isDecreasing _
+isDecreasing cenv (RVar v _)
+  = v `elem` cenv 
+isDecreasing _ _ 
   = False
 
 makeDecrType = mkDType [] []
 
-mkDType xvs acc [(v, (x, t@(RApp c _ _ _)))]
+mkDType xvs acc [(v, (x, t))]
   = (x, ) $ t `strengthen` tr
   where
-    tr     = uTop $ Reft (vv, Refa $ pOr (r:acc))
-    r      = cmpLexRef xvs (v', vv, f)
-    v'     = symbol v
-    Just f = sizeFunction $ rtc_info c
-    vv     = "vvRec"
+    tr = uTop $ Reft (vv, Refa $ pOr (r:acc))
+    r  = cmpLexRef xvs (v', vv, f)
+    v' = symbol v
+    f  = mkDecrFun t 
+    vv = "vvRec"
 
-mkDType xvs acc ((v, (x, (RApp c _ _ _))):vxts)
+mkDType xvs acc ((v, (x, t)):vxts)
   = mkDType ((v', x, f):xvs) (r:acc) vxts
-  where r      = cmpLexRef xvs  (v', x, f)
-        v'     = symbol v
-        Just f = sizeFunction $ rtc_info c
+  where 
+    r  = cmpLexRef xvs  (v', x, f)
+    v' = symbol v
+    f  = mkDecrFun t
+
+
 mkDType _ _ _
   = errorstar "RefType.mkDType called on invalid input"
+
+mkDecrFun (RApp c _ _ _) | Just f <- sizeFunction $ rtc_info c = f 
+mkDecrFun (RVar _ _)     = EVar 
+mkDecrFun _              = errorstar "RefType.mkDecrFun called on invalid input"
 
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)

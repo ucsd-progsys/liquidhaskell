@@ -935,10 +935,12 @@ makeDecrIndexTy x t
          Nothing -> return $ Left msg -- addWarning msg >> return []
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
-       ts         = ty_args $ toRTypeRep $ unOCons t
-       checkHint' = checkHint x ts isDecreasing
-       dindex     = L.findIndex isDecreasing ts
+       ts         = ty_args trep
+       checkHint' = checkHint x ts (isDecreasing cenv)
+       dindex     = L.findIndex (isDecreasing cenv) ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter")
+       cenv       = makeNumEnv ts 
+       trep       = toRTypeRep $ unOCons t
 
 
 recType ((_, []), (_, [], t))
