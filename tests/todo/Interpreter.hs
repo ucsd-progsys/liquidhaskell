@@ -21,15 +21,13 @@ expDenote (EConst n)       = n
 expDenote (EBinOp b e1 e2) = binOpDenote (expDenote e1) (expDenote e2) b
 
 {-@ measure instrDenote @-}
-{- instrDenote :: s:Stack -> i:{v:Instr a | isbinOp v => len s >= 2 } 
-                -> {zz: Stack | zz = instrDenote s i }
+{-@ instrDenote :: s:Stack -> i:{v:Instr a | isbinOp v => len s >= 2 } 
+                -> {zz: Maybe {v:Stack | len v = if (isbinOp i) then ((len s) - 1) else ((len s) + 1)} | zz = instrDenote s i }
   @-}
-
-  -- {v:Stack | len v = if (isbinOp i) then ((len s) - 1) else ((len s) + 1)}
-instrDenote :: Stack -> Instr a ->  Stack
-instrDenote s  (IConst n) =  (n:s)
--- instrDenote xs (IBinOp b) = Just ((binOpDenote (list_fst xs) (list_snd xs) b):(tail2 xs))
--- instrDenote _  _          = Nothing
+instrDenote :: Stack -> Instr a ->  Maybe Stack
+instrDenote s  (IConst n) = Just (n:s)
+instrDenote xs (IBinOp b) = Just ((binOpDenote (list_fst xs) (list_snd xs) b):(tail2 xs))
+instrDenote _  _          = Nothing
 
 
 iConst n = IConst n
@@ -74,10 +72,10 @@ progDenote :: Stack -> Prog -> Maybe Stack
                -> Maybe Stack @-}
 progDenote s [] = Just s
 progDenote s (x:xs)
-  = if (iisJust ms) then Just [2] else Nothing
-  where ms = Just (instrDenote s x )
---   = if (iisJust ms) then (progDenote (ifromJust ms) xs) else Nothing
---   where ms = Just (instrDenote s x )
+--   = if (iisJust ms) then Just [2] else Nothing
+--   where ms = (instrDenote s x )
+  = if (iisJust ms) then (progDenote (ifromJust ms) xs) else Nothing
+  where ms = instrDenote s x
 
 {-@ measure iisJust @-}
 iisJust (Just x) = True
@@ -88,7 +86,7 @@ iisJust _ = False
 ifromJust :: Maybe a -> a
 ifromJust (Just x) = x 
 
-{- compile :: e:Exp -> {v:Prog | (progDenote [] v) == Just ([(expDenote e)])} @-}
+{- compile :: e:Exp Int -> {v:Prog | (progDenote [] v) == Just ((expDenote e):[])} @-}
 compile :: Exp Int -> Prog
 compile (EConst n)       = [IConst n]
 compile (EBinOp b e1 e2) = compile e2 ++ compile e1 ++ [IBinOp b] 
