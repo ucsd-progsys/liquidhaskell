@@ -267,6 +267,7 @@ eVarWithMap x lmap
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
        return $ instantiate $ eAppWithMap lmap f' [] (EVar $ symbol x)
   where
+    -- See tests/pos/PolyLogic.hs why instantiation is required.
     instantiate (EVar y) | isForAllTy (varType x) = EApp (dummyLoc y) []
     instantiate e = e 
 
