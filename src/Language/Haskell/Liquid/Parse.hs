@@ -11,7 +11,7 @@ module Language.Haskell.Liquid.Parse
   )
   where
 
-import Debug.Trace (traceM, trace)
+import Debug.Trace (traceM)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Error (newErrorMessage, Message (..))
@@ -751,12 +751,17 @@ tyBodyP ty
           outTy _              = Nothing
 
 upperIdP' :: Parser Symbol
-upperIdP' = condIdP symChars (\s -> (not (and (map (\c -> badc c) s)) && (isUpper (head s))))
+upperIdP' = try $ symbol <$> condIdP alphanums (isUpper . head)
   where
-    -- idP p  = many1 (satisfy (not . p))
-    badc c = (c == ':') || (c == ',') || bad (trace ("Character being checked: " ++ show c) c)
-    bad c  = isSpace c || c `elem` "(,)"
-    -- pwr s  = symbol $ "(" `mappend` s `mappend` ")"
+    alphanums = ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "'"
+
+  -- condIdP symChars (\s -> (not (and (map (\c -> badc c) s)) && (isUpper (head s))))
+  -- where
+  --   idP p =
+  --   -- idP p  = many1 (satisfy (not . p))
+  --   badc c = (c == ':') || (c == ',') || bad c
+  --   bad c  = isSpace (trace ("isSpace called on: " ++ show c) c) || c `elem` "(,)"
+  --   -- pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
