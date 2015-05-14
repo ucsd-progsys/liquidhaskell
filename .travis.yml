@@ -5,6 +5,7 @@ ghc: 7.8
 branches:
   only:
     - master
+    - multiparams
 
 addons:
   apt:
