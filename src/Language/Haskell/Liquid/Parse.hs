@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.Parse
   )
   where
 
-import Debug.Trace (traceM)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Error (newErrorMessage, Message (..))
@@ -755,14 +754,6 @@ upperIdP' = try $ symbol <$> condIdP alphanums (isUpper . head)
   where
     alphanums = ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "'"
 
-  -- condIdP symChars (\s -> (not (and (map (\c -> badc c) s)) && (isUpper (head s))))
-  -- where
-  --   idP p =
-  --   -- idP p  = many1 (satisfy (not . p))
-  --   badc c = (c == ':') || (c == ',') || bad c
-  --   bad c  = isSpace (trace ("isSpace called on: " ++ show c) c) || c `elem` "(,)"
-  --   -- pwr s  = symbol $ "(" `mappend` s `mappend` ")"
-
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
@@ -849,25 +840,19 @@ dataDeclP = try dataDeclFullP <|> dataDeclSizeP
 
 dataDeclSizeP
   = do pos <- getPosition
-       traceM $ "dataDeclSizeP pos: " ++ show pos
        x   <- upperIdP'
-       traceM $ "dataDeclFullP x: " ++ show x
        spaces
        fsize <- dataSizeP
        return $ D (Loc pos pos x) [] [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
-       traceM $ "dataDeclFullP pos: " ++ show pos
        x   <- upperIdP'
-       traceM $ "dataDeclFullP x: " ++ show x
        spaces
        fsize <- dataSizeP
        spaces
        ts  <- sepBy tyVarIdP spaces
-       traceM $ "dataDeclFullP ts: " ++ show ts
        ps  <- predVarDefsP
-       traceM $ "dataDeclFullP ps: " ++ show ps
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
