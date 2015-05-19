@@ -32,8 +32,8 @@ import            Data.Algorithm.Diff
 import            Data.Monoid                   (mempty)
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
 import            Data.Hashable
-import qualified  Data.IntervalMap.FingerTree as IM 
-import            CoreSyn                       hiding (sourceName)        
+import qualified  Data.IntervalMap.FingerTree as IM
+import            CoreSyn                       hiding (sourceName)
 import            Name
 import            SrcLoc hiding (Located)
 import            Var
@@ -182,9 +182,9 @@ coreDeps bs = mkGraph $ calls ++ calls'
 
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
-txClosure d sigs xs = -- tracePpr "INCCHECK: tx changed vars" $
-                      go S.empty -- $
-                      -- tracePpr "INCCHECK: seed changed vars" $
+txClosure d sigs xs = -- tracePpr "INCCHECK: tx changed vars"
+                      go S.empty --
+                      -- tracePpr "INCCHECK: seed changed vars"
                       xs
   where
     next           = S.unions . fmap deps . S.toList
@@ -460,4 +460,3 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
-
