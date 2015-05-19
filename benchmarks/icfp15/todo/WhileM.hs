@@ -19,4 +19,8 @@ whileM  :: forall < p   :: World -> Prop
 @-}
 whileM :: RIO Bool -> RIO () -> RIO ()
 whileM (RIO cond) (RIO e) 
-    = undefined -- moved to todo because it breaks travis, but why?
+    = RIO $ \s1 -> case cond s1 of {(y, s2) -> 
+       if y 
+        then case e s2 of {(y2, s3) -> runState (whileM (RIO cond) (RIO e)) s3}
+        else ((), s2)
+      }
