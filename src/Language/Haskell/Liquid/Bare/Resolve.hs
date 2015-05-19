@@ -62,7 +62,7 @@ instance Resolvable LocSymbol where
     | otherwise
     = do env <- gets (typeAliases . rtEnv)
          case M.lookup s env of
-           Nothing | isCon s -> do v <- lookupGhcVar ls -- $ Loc l s
+           Nothing | isCon s -> do v <- lookupGhcVar ls
                                    let qs = symbol v
                                    addSym (qs, v)
                                    return $ Loc l l' qs
