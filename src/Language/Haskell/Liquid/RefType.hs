@@ -287,6 +287,10 @@ eqRSort m (RAllT a t) (RAllT a' t')
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert a' a m) t t'
+eqRSort m (RAllT _ t) t'
+  = eqRSort m t t'
+eqRSort m t (RAllT _ t')
+  = eqRSort m t t'
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _)
   = eqRSort m t1 t1' && eqRSort m t2 t2'
 eqRSort m (RAppTy t1 t2 _) (RAppTy t1' t2' _)
