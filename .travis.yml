@@ -3,6 +3,7 @@ language: c
 branches:
   only:
     - master
+    - multiparams
 
 cache:
   apt: true

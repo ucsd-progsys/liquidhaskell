@@ -150,8 +150,13 @@ checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' 
     go      = foldl (\err e -> err <|> fmap (e,) (checkSorted env' e)) Nothing
     go'     = foldl (\err e -> err <|> fmap (e,) (checkSorted env' (cmpZero e))) Nothing
     env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
-    env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xss
-    xss     = mapSnd rSort <$> (uncurry zip $ (\(x,y,_,_) -> (x,y)) $ bkArrowDeep t)
+    env''   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
+    xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
+    trep    = toRTypeRep t
+
+    mkClass (_, (RApp c ts _ _)) | isClass c = classBinds (rRCls c ts)
+    mkClass (x, t)                           = [(x, rSort t)]
+
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le $ expr (0 :: Int) -- zero
 
