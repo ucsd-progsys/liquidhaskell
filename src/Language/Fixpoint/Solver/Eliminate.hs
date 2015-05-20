@@ -15,9 +15,9 @@ import           Control.Monad.State (get, put, runState, evalState, State)
 
 --------------------------------------------------------------
 eliminateAll :: FInfo a -> FInfo a
-eliminateAll fi = evalState (foldlM eliminate fi (D.depNonCuts ds)) 0
+eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
   where
-    ds = D.deps fi
+    nonCuts = D.depNonCuts $ D.deps fi
 --------------------------------------------------------------
 
 
@@ -77,28 +77,22 @@ findWfC kv ws = (w', ws')
 
 extractPred :: WfC a -> BindEnv -> SubC a -> State (Integer, Pred) [(Symbol, Sort)]
 extractPred wfc be subC = do (n, (POr preds)) <- get
-                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : [(blah (kVarVV, slhs subC))] ++ suPreds')
+                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : suPreds)
                              put (n', POr $ pr' : preds)
                              return bs
   where
     wfcIBinds  = elemsIBindEnv $ wenv wfc
     subcIBinds = elemsIBindEnv $ senv subC
-    unmatchedIBinds | wfcIBinds `subset` subcIBinds = subcIBinds \\ wfcIBinds
-                    | otherwise = errorstar $ "kVar is not well formed (missing bindings)" ++ "kVar: " ++ (showFix wfc) ++ "constraint: " ++ (showFix subC)
+    unmatchedIBinds = subcIBinds \\ wfcIBinds
     unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
     unmatchedBindings = envCs be unmatchedIBindEnv
 
-    kvSreft = wrft wfc
-    kVarVV = reftBind $ sr_reft kvSreft
+    lhs = slhs subC
+    (vars, pr) = baz $ (reftBind $ sr_reft $ lhs, lhs) : unmatchedBindings
 
-    (vars, pr) = baz unmatchedBindings
+    suPreds = substPreds $ reftPred $ sr_reft $ srhs subC
 
-    reft = sr_reft $ srhs subC
-    suPreds = substPreds $ reftPred reft
-    sub = ((reftBind reft), (eVar kVarVV))
-    suPreds' = [subst1 p sub | p <- suPreds]
-
--- on rhs, k0[v:=z] -> [v = z]
+-- on rhs, k0[v:=z][x:=y] -> [v = z, x = y]
 substPreds :: Pred -> [Pred]
 substPreds (PKVar _ (Su subs)) = map (\(sym, expr) -> PAtom Eq (eVar sym) expr) subs
 
@@ -108,16 +102,13 @@ renameVar (sym, srt) = do (n, pr) <- get
                           put ((n+1), subst1 pr (sym, eVar sym'))
                           return (sym', srt)
 
-subset :: (Eq a) => [a] -> [a] -> Bool
-subset xs ys = (xs \\ ys) == []
-
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
 baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
 baz bindings = (bs, PAnd $ map blah bindings)
   where
     bs = map (\(sym, sreft) -> (sym, sr_sort sreft)) bindings
 
--- [ x:{v:int|v=10} ] -> (x=10)
+-- x:{v:int|v=10} -> (x=10)
 blah :: (Symbol, SortedReft) -> Pred
 blah (sym, sr) = subst1 (reftPred reft) sub
   where
