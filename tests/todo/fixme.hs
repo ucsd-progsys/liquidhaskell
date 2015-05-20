@@ -5,7 +5,11 @@ import qualified Data.Set as S
 {-@ measure keys @-}
 keys :: (Ord k) => [(k, v)] -> S.Set k
 keys []       = S.empty
-keys (kv:kvs) = (S.singleton (fst kv)) `S.union` (keys kvs)
+keys (kv:kvs) = (S.singleton (myfst kv)) `S.union` (keys kvs)
+
+{-@ measure myfst @-}
+myfst :: (a, b) -> a
+myfst (x, _) = x
 
 -- this is fine
 
