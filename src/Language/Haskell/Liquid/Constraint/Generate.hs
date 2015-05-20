@@ -531,7 +531,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -733,7 +733,7 @@ rTypeSortedReft' pflag γ
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
          where err = errorstar $ "EnvLookup: unknown "
                                ++ showpp x
-                               ++ " in renv "
+                               ++ " in renv\n"
                                ++ showpp (renv γ)
 
 normalize idx
