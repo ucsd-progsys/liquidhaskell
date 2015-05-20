@@ -458,6 +458,9 @@ tyConTyVarsDef c = TC.tyConTyVars c
 -- GHC Compatibility Layer
 ----------------------------------------------------------------------
 
+gHC_VERSION :: String
+gHC_VERSION = show __GLASGOW_HASKELL__
+
 desugarModule :: TypecheckedModule -> Ghc DesugaredModule
 
 symbolFastString :: Symbol -> FastString
