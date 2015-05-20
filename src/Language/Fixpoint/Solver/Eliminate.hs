@@ -53,13 +53,12 @@ eliminate fi kv = do
   let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fi)
   let (kvWfC, remainingWs) = findWfC kv (ws fi)
   foo <- mapM (extractPred kvWfC (bs fi)) (M.elems relevantSubCs)
-  let bindings = concat $ map snd foo
   let orPred = POr $ map fst foo
-
-  let be = bs fi
-  let (ids, be') = insertsBindEnv [(sym, trueSortedReft srt) | (sym, srt) <- bindings] be
+  let symSrtList = concatMap snd foo
+  let symSReftList = [(sym, trueSortedReft srt) | (sym, srt) <- symSrtList]
+  let (ids, be) = insertsBindEnv symSReftList $ bs fi
   let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  return $ elimKVar kv orPred (fi { cm = newSubCs , ws = remainingWs , bs = be' })
+  return $ elimKVar kv orPred (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
 insertsBindEnv = runState . mapM go
@@ -94,7 +93,7 @@ extractPred wfc be subC = do foo <- mapM renameVar vars
 
 -- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: Pred -> [Pred]
-substPreds (PKVar _ (Su subs)) = map (\(sym, expr) -> PAtom Eq (eVar sym) expr) subs
+substPreds (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- subs]
 
 renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
 renameVar (sym, srt) = do n <- get
