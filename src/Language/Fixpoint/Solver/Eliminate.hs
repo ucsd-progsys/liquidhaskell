@@ -47,17 +47,16 @@ instance Elimable BindEnv where
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
 eliminate fInfo kv = do
-  n <- get
   let relevantSubCs  = M.filter (   elem kv . D.rhsKVars) (cm fInfo)
   let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fInfo)
   let (kvWfC, remainingWs) = findWfC kv (ws fInfo)
-  let (bindingsList, (n', orPred)) = runState (mapM (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs)) (n, POr [])
-  let bindings = concat bindingsList
+  foo <- mapM (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs)
+  let bindings = concat $ map snd foo
+  let orPred = POr $ map fst foo
 
   let be = bs fInfo
   let (ids, be') = insertsBindEnv [(sym, trueSortedReft srt) | (sym, srt) <- bindings] be
   let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  put n'
   return $ elimKVar kv orPred (fInfo { cm = newSubCs , ws = remainingWs , bs = be' })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
@@ -75,11 +74,11 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> BindEnv -> SubC a -> State (Integer, Pred) [(Symbol, Sort)]
-extractPred wfc be subC = do (n, (POr preds)) <- get
-                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : suPreds)
-                             put (n', POr $ pr' : preds)
-                             return bs
+extractPred :: WfC a -> BindEnv -> SubC a -> State Integer (Pred, [(Symbol, Sort)])
+extractPred wfc be subC = do foo <- mapM renameVar vars
+                             let bs = [(sym, srt) | (sym, srt, _) <- foo]
+                             let sub = mkSubst $ [s | (_, _, s) <- foo]
+                             return (subst sub $ PAnd $ pr : suPreds, bs)
   where
     wfcIBinds  = elemsIBindEnv $ wenv wfc
     subcIBinds = elemsIBindEnv $ senv subC
@@ -96,11 +95,11 @@ extractPred wfc be subC = do (n, (POr preds)) <- get
 substPreds :: Pred -> [Pred]
 substPreds (PKVar _ (Su subs)) = map (\(sym, expr) -> PAtom Eq (eVar sym) expr) subs
 
-renameVar :: (Symbol, Sort) -> State (Integer, Pred) (Symbol, Sort)
-renameVar (sym, srt) = do (n, pr) <- get
+renameVar :: (Symbol, Sort) -> State Integer (Symbol, Sort, (Symbol, Expr))
+renameVar (sym, srt) = do n <- get
                           let sym' = existSymbol sym n
-                          put ((n+1), subst1 pr (sym, eVar sym'))
-                          return (sym', srt)
+                          put (n+1)
+                          return (sym', srt, (sym, eVar sym'))
 
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
 baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
