@@ -1094,3 +1094,22 @@ where
 
 
 
+GHC 7.10
+========
+
+- singleton type classes represented by newtype
+  - tried to work around by translating
+
+      foo `cast` (co :: a -> b ~ Foo)
+
+    with
+
+      D:Foo foo
+
+    but it still breaks when we don't have an LH class decl
+  - without LH class decl we never see D:Foo, so it doesn't go in CGEnv
+  - SOLUTION: put ALL visible dict constructors in CGEnv
+- srcloc annotations
+  - -g adds SourceNotes, but the html output is borked
+  - in particular, infix operators aren't annotated correctly (at all?)
+  - are we missing some SrcLocs??
