@@ -72,6 +72,8 @@ Extra-Source-Files: configure
                   , external/fixpoint/fixpoint.native-i686-w64-mingw32
                   , external/fixpoint/fixpoint.native-x86_64-darwin
                   , external/fixpoint/fixpoint.native-x86_64-linux
+                  , tests/neg/*.fq
+                  , tests/pos/*.fq
 
 Flag z3mem
   Description: Link to Z3
