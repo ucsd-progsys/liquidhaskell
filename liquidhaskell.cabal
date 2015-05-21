@@ -34,6 +34,10 @@ data-files: include/*.hquals
           , include/System/*.spec
           , syntax/liquid.css
 
+extra-source-files: tests/pos/*.hs
+                  , tests/neg/*.hs
+                  , tests/crash/*.hs
+
 Source-Repository head
   Type:        git
   Location:    https://github.com/ucsd-progsys/liquidhaskell/
