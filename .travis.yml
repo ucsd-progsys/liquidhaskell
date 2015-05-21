@@ -9,11 +9,11 @@ branches:
   only:
     - master
 
-cache:
-  apt: true
-  directories:
-  - $HOME/.cabal
-  - $HOME/.ghc
+#cache:
+#  apt: true
+#  directories:
+#  - $HOME/.cabal
+#  - $HOME/.ghc
 
 before_install:
  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
