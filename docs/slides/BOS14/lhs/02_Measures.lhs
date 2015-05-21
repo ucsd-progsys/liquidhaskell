@@ -27,9 +27,8 @@ How to specify properties of **structures**?
 <div class="hidden">
 
 \begin{code}
-
-{-# LIQUID "--no-termination" #-}
-{-# LIQUID "--full" #-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--full"           @-}
 
 module Measures where
 import Prelude hiding ((!!), length)
@@ -54,7 +53,7 @@ Measuring Data Types
 ====================
 
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 Given a type for lists:
@@ -82,12 +81,12 @@ We can define the **length** as:
 
 \begin{code}
 {-@ data L [size] a = N | C {hd :: a, tl :: L a } @-}
-{-@ invariant {v: L a | 0 <= size v}              @-} 
+{-@ invariant {v: L a | 0 <= size v}              @-}
 \end{code}
 
 </div>
 
-Example: Length of a List 
+Example: Length of a List
 -------------------------
 
 \begin{spec}
@@ -103,7 +102,7 @@ We **strengthen** data constructor types
 <br>
 
 \begin{spec} <div/>
-data L a where 
+data L a where
   N :: {v: L a | size v = 0}
   C :: a -> t:_ -> {v:_| size v = 1 + size t}
 \end{spec}
@@ -112,7 +111,7 @@ Measures Are Uninterpreted
 --------------------------
 
 \begin{spec} <br>
-data L a where 
+data L a where
   N :: {v: L a | size v = 0}
   C :: a -> t:_ -> {v:_| size v = 1 + size t}
 \end{spec}
@@ -162,7 +161,7 @@ z = C x y     -- z :: {v | size v = 1 + size y}
 
 <div class="fragment">
 \begin{spec}**Unfold**<br>
-case z of 
+case z of
   N     -> e1 -- z :: {v | size v = 0}
   C x y -> e2 -- z :: {v | size v = 1 + size y}
 \end{spec}
@@ -187,10 +186,10 @@ Multiple Measures
 Can support *many* measures for a type
 
 
-Ex: List Emptiness 
+Ex: List Emptiness
 ------------------
 
-Measure describing whether a `List` is empty 
+Measure describing whether a `List` is empty
 
 \begin{code}
 {-@ measure isNull :: (L a) -> Prop
@@ -204,7 +203,7 @@ Measure describing whether a `List` is empty
 LiquidHaskell **strengthens** data constructors
 
 \begin{spec}
-data L a where 
+data L a where
   N :: {v : L a | isNull v}
   C :: a -> L a -> {v:(L a) | not (isNull v)}
 \end{spec}
@@ -214,15 +213,15 @@ data L a where
 Conjoining Refinements
 ----------------------
 
-Data constructor refinements are **conjoined** 
+Data constructor refinements are **conjoined**
 
-\begin{spec} 
-data L a where 
-  N :: {v:L a |  size v = 0 
+\begin{spec}
+data L a where
+  N :: {v:L a |  size v = 0
               && isNull v }
-  C :: a 
-    -> xs:L a 
-    -> {v:L a |  size v = 1 + size xs 
+  C :: a
+    -> xs:L a
+    -> {v:L a |  size v = 1 + size xs
               && not (isNull v)      }
 \end{spec}
 
@@ -253,7 +252,7 @@ Multiple Measures: Sets and Duplicates
 Measures vs. Index Types
 ========================
 
-Decouple Property & Type 
+Decouple Property & Type
 ------------------------
 
 Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
@@ -264,9 +263,9 @@ Unlike [indexed types](http://dl.acm.org/citation.cfm?id=270793) ...
 
 + Measures **decouple** properties from structures
 
-+ Support **multiple** properties over structures 
++ Support **multiple** properties over structures
 
-+ Enable  **reuse** of structures in different contexts                 
++ Enable  **reuse** of structures in different contexts
 
 </div>
 
