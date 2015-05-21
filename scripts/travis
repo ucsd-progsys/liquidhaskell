@@ -95,7 +95,7 @@ function install_cabal_deps {
 
 function _install_cabal_deps {
   loud travis_retry cabal update || return 1
-  loud travis_retry cabal install --reorder-goals --only-dependencies --upgrade-dependencies --enable-tests || return 1
+  loud travis_retry cabal install --only-dependencies --enable-tests || return 1
 }
 
 function do_build {
