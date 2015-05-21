@@ -32,4 +32,3 @@ script:
 
 after_failure:
  - scripts/travis dump_fail_logs
-
