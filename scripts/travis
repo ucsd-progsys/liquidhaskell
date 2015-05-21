@@ -104,10 +104,7 @@ function do_build {
 }
 
 function do_test {
-  local tests="$1"
-  local smt="$2"
-
-  loud prevent_timeout ./dist/build/test/test --smtsolver "$smt" -j2 +RTS -N2 -RTS
+  loud prevent_timeout ./dist/build/test/test
 }
 
 function dump_fail_logs {
