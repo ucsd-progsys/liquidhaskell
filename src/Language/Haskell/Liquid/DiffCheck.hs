@@ -3,8 +3,9 @@
 --   modified since it was last checked, as determined by a diff against
 --   a saved version of the file.
 
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
 
 module Language.Haskell.Liquid.DiffCheck (
 
@@ -32,7 +33,7 @@ import            Data.Monoid                   (mempty)
 import            Data.Maybe                    (listToMaybe, mapMaybe, fromMaybe)
 import            Data.Hashable
 import qualified  Data.IntervalMap.FingerTree as IM
-import            CoreSyn
+import            CoreSyn                       hiding (sourceName)
 import            Name
 import            SrcLoc hiding (Located)
 import            Var
@@ -456,4 +457,3 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
-
