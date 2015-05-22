@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.3.1.0
+Version:             0.4.0.1
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -33,6 +33,10 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
           , syntax/liquid.css
+
+extra-source-files: tests/pos/*.hs
+                  , tests/neg/*.hs
+                  , tests/crash/*.hs
 
 Source-Repository head
   Type:        git
@@ -155,7 +159,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.2.3.0
+                , liquid-fixpoint >= 0.3
                 , aeson
                 , bytestring
                 , fingertree

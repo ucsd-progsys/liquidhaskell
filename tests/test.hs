@@ -15,6 +15,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
+import System.IO.Error
 -- import qualified System.Posix as Posix
 import System.Process
 import Test.Tasty
@@ -174,7 +175,7 @@ group n xs = testGroup n <$> sequence xs
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
 walkDirectory root
-  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< getDirectoryContents root
+  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
        (fs++) <$> concatMapM walkDirectory ds
   where
     candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]

@@ -182,10 +182,7 @@ coreDeps bs = mkGraph $ calls ++ calls'
 
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
-txClosure d sigs xs = -- tracePpr "INCCHECK: tx changed vars"
-                      go S.empty --
-                      -- tracePpr "INCCHECK: seed changed vars"
-                      xs
+txClosure d sigs xs = go S.empty xs
   where
     next           = S.unions . fmap deps . S.toList
     deps x         = M.lookupDefault S.empty x d
