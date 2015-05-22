@@ -1144,3 +1144,6 @@ GHC 7.10
 
       somewhere along our pipeline the ticks are either being dropped,
       or the SrcSpans don't quite match the way they used to...
+
+- termination metrics are required in a few places where they were not previously
+  - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed
