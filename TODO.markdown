@@ -1097,18 +1097,22 @@ where
 GHC 7.10
 ========
 
-- singleton type classes represented by newtype
+- **DONE** singleton type classes represented by newtype
   - tried to work around by translating
 
       foo `cast` (co :: a -> b ~ Foo)
 
-    with
+    to
 
       D:Foo foo
 
     but it still breaks when we don't have an LH class decl
   - without LH class decl we never see D:Foo, so it doesn't go in CGEnv
   - SOLUTION: put ALL visible dict constructors in CGEnv
+
+- `cast`s are used more often and we seem to lose information..
+  - seems particularly problematic with ST
+
 - srcloc annotations
   - -g adds SourceNotes, but the html output is borked
   - in particular, infix operators aren't annotated correctly (at all?)

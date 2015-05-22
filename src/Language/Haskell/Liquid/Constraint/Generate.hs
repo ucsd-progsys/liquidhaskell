@@ -1496,16 +1496,22 @@ consE _ e@(Coercion _)
    = trueTy $ exprType e
 
 consE _ e@(Type t)
-  = errorstar $ "consE cannot handle type" ++ showPpr (e, t)
+  = errorstar $ "consE cannot handle type " ++ showPpr (e, t)
 
 castTy _ τ (Var x)
   = do t <- trueTy τ
        return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
 
-castTy γ τ e
-  = do t <- trueTy (exprType e)
-       cconsE γ e t
-       trueTy τ
+castTy g t (Tick _ e)
+  = castTy g t e
+
+castTy _ _ e
+  = errorstar $ "castTy cannot handle expr " ++ showPpr e
+
+-- castTy γ τ e
+--   = do t <- trueTy (exprType e)
+--        cconsE γ e t
+--        trueTy τ
 
 singletonReft = uTop . F.symbolReft . F.symbol
 

@@ -22,6 +22,7 @@ import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
 import CoreSyn
 
+import Class
 import Var
 import CoreMonad    (liftIO)
 import DataCon
@@ -97,11 +98,11 @@ getGhcInfo' cfg0 target
                             | tc <- mgi_tcs modguts
                             , dc <- tyConDataCons tc
                             ]
-      let impVs           = importVars  coreBinds
+      let impVs           = importVars  coreBinds ++ classCons (mgi_cls_inst modguts)
       let defVs           = definedVars coreBinds
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
+      let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
@@ -113,6 +114,10 @@ makeLogicMap
   = do lg    <- getCoreToLogicPath
        lspec <- readFile lg
        return $ parseSymbolToLogic lg lspec
+
+classCons :: Maybe [ClsInst] -> [Id]
+classCons Nothing   = []
+classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
@@ -195,7 +200,7 @@ getGhcModGuts1 fn = do
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
-getDerivedDictionaries cm = is_dfun <$> (instEnvElts $ mg_inst_env cm)
+getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 
 cleanFiles :: FilePath -> IO ()
 cleanFiles fn
