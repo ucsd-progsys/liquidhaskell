@@ -59,7 +59,6 @@ instance Monad (ST s) where
   return x     = ST $ \s -> (x, s)
   (ST g) >>= f = ST (\x -> case g x of {(y, s) -> (runState (f y)) s})    
   (ST g) >>  f = ST (\x -> case g x of {(y, s) -> (runState f) s})    
-  fail         = error
  
 
 
