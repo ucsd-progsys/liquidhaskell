@@ -2,7 +2,7 @@
 
 module Language.Haskell.Liquid.Variance (
     Variance(..), VarianceInfo
-	) where
+        ) where
 
 import Data.Typeable
 import Data.Data

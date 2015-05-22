@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -14,17 +15,17 @@ import IdInfo
 import InstEnv
 import Bag (bagToList)
 import ErrUtils
-import GHC hiding (Target)
+import GHC hiding (Target, desugarModule)
 import DriverPhases (Phase(..))
 import DriverPipeline (compileFile)
 import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
 import CoreSyn
 
+import Class
 import Var
 import CoreMonad    (liftIO)
 import DataCon
-import Language.Haskell.Liquid.Desugar.HscMain (hscDesugarWithLoc)
 import qualified Control.Exception as Ex
 
 import GHC.Paths (libdir)
@@ -97,11 +98,11 @@ getGhcInfo' cfg0 target
                             | tc <- mgi_tcs modguts
                             , dc <- tyConDataCons tc
                             ]
-      let impVs           = importVars  coreBinds
+      let impVs           = importVars  coreBinds ++ classCons (mgi_cls_inst modguts)
       let defVs           = definedVars coreBinds
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      let derVs           = derivedVars coreBinds $ mgi_is_dfun modguts
+      let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
@@ -113,6 +114,10 @@ makeLogicMap
   = do lg    <- getCoreToLogicPath
        lspec <- readFile lg
        return $ parseSymbolToLogic lg lspec
+
+classCons :: Maybe [ClsInst] -> [Id]
+classCons Nothing   = []
+classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
 derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
@@ -153,6 +158,9 @@ updateDynFlags cfg
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
                       `gopt_set` Opt_PIC
+#if __GLASGOW_HASKELL__ >= 710
+                      `gopt_set` Opt_Debug
+#endif
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
@@ -187,12 +195,12 @@ getGhcModGuts1 fn = do
      Just modSummary -> do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
-       mod_guts <- coreModule <$> (desugarModuleWithLoc =<< typecheckModule (ignoreInline mod_p))
-       let deriv = getDerivedDictionaries mod_guts
+       mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
+       let deriv = getDerivedDictionaries mod_guts 
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
-getDerivedDictionaries cm = is_dfun <$> (instEnvElts $ mg_inst_env cm)
+getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 
 cleanFiles :: FilePath -> IO ()
 cleanFiles fn
@@ -209,15 +217,6 @@ removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
 -- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
 --------------------------------------------------------------------------------
 
-desugarModuleWithLoc :: TypecheckedModule -> Ghc DesugaredModule
-desugarModuleWithLoc tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm
-  -- let ms = modSummary tcm
-  let (tcg, _) = tm_internals_ tcm
-  hsc_env <- getSession
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
 -- | Extracting Qualifiers -----------------------------------------------------

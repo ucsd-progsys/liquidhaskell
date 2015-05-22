@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP  #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,16 +20,19 @@ import System.IO.Error
 import System.Process
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
+
+import Test.Tasty.Ingredients.Rerun
+
+testRunner = rerunningTests [ listingTests, consoleTestReporter ]
 
 main :: IO ()
 main = run =<< tests
   where
     run   = defaultMainWithIngredients [
-                rerunningTests   [ listingTests, consoleTestReporter ]
+                testRunner
               , includingOptions [ Option (Proxy :: Proxy NumThreads)
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]

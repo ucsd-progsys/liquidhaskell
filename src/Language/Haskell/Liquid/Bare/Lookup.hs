@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -18,7 +19,7 @@ import GHC (HscEnv)
 import HscMain
 import Name
 import PrelInfo                                 (wiredInThings)
-import PrelNames                                (fromIntegerName, smallIntegerName)
+import PrelNames                                (fromIntegerName, smallIntegerName, integerTyConName)
 import RdrName (setRdrNameSpace)
 import SrcLoc (SrcSpan, GenLocated(L))
 import TcRnDriver (tcRnLookupRdrName) 
@@ -91,6 +92,7 @@ wiredIn      = M.fromList $ special ++ wiredIns
   where
     wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
     special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
+               , ("GHC.Integer.Type.Integer", integerTyConName)
                , ("GHC.Num.fromInteger"     , fromIntegerName ) ]
 
 symbolLookupEnv env mod s
@@ -141,10 +143,15 @@ tryPropTyCon s e
   where
     sx                 = symbol s
 
-
-lookupGhcDataCon dc  = case isTupleDC $ val dc of
-                         Just n  -> return $ tupleCon BoxedTuple n
-                         Nothing -> lookupGhcDataCon' dc 
+lookupGhcDataCon dc
+ | Just n <- isTupleDC (val dc)
+ = return $ tupleCon BoxedTuple n
+ | val dc == "[]"
+ = return nilDataCon
+ | val dc == ":"
+ = return consDataCon
+ | otherwise
+ = lookupGhcDataCon' dc
 
 isTupleDC zs
   | "(," `isPrefixOfSym` zs

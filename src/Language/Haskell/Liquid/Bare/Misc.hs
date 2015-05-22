@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 module Language.Haskell.Liquid.Bare.Misc (
     makeSymbols
 

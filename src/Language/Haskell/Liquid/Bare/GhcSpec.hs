@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
