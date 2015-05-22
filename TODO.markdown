@@ -1138,3 +1138,9 @@ GHC 7.10
   - -g adds SourceNotes, but the html output is borked
   - in particular, infix operators aren't annotated correctly (at all?)
   - are we missing some SrcLocs??
+    - clearly not, if you look at the output of
+
+          ghc -g -ddump-ds -dppr-ticks <file.hs>
+
+      somewhere along our pipeline the ticks are either being dropped,
+      or the SrcSpans don't quite match the way they used to...
