@@ -14,14 +14,6 @@ instance measure len :: forall a. [a] -> GHC.Types.Int
 len []     = 0
 len (y:ys) = 1 + len ys
 
-class measure sumLens :: forall f a. f [a] -> GHC.Types.Int
-instance measure sumLens :: [[a]] -> GHC.Types.Int
-sumLens ([])   = 0
-sumLens (c:cs) = (len c) + (sumLens cs)
-
-invariant {v:[[a]] | (sumLens v) >= 0}
-
-
 measure null :: forall a. [a] -> Prop
 null []     = true
 null (x:xs) = false
