@@ -1093,9 +1093,30 @@ where
   - Filter (takes a predicate that should only read valid columns of the record)
 
 
+PROJECT: Proving Type-Class Laws
+--------------------------------
+Many type-classes come with a set of laws that instances are expected
+to abide by, e.g.
+
+```
+fmap id  ==  id
+
+fmap (f . g)  ==  fmap f . fmap g
+```
+
+```
+mappend mempty x = x
+
+mappend x mempty = x
+
+mappend x (mappend y z) = mappend (mappend x y) z
+```
+
+etc. Can we express these laws in LH and prove them automatically?
+
 
 GHC 7.10
-========
+--------
 
 - **DONE** singleton type classes represented by newtype
   - tried to work around by translating
