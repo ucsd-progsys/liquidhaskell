@@ -154,7 +154,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.2.3.0
+                , liquid-fixpoint >= 0.3
                 , aeson
                 , bytestring
                 , fingertree
