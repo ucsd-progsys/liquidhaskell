@@ -443,7 +443,8 @@ pack ws = go Empty (chunks defaultChunkSize ws)
                       (xs', xs'') -> xs' : chunks size xs''
 
 -- | /O(n)/ Converts a 'ByteString' to a '[Word8]'.
-{-@ unpack :: b:ByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
+-- TODO: disabled because type of `concat` changed between ghc 7.8 and 7.10
+{- unpack :: b:ByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
 unpack :: ByteString -> [Word8]
 --LIQUID INLINE unpack cs = L.concatMap S.unpack (toChunks cs)
 unpack cs = L.concat $ mapINLINE $ toChunks cs
