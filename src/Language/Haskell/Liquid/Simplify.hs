@@ -40,4 +40,3 @@ isImp _          = False
 
 simplifyLen :: Int
 simplifyLen = 5
-

@@ -7,6 +7,7 @@ import GHC.Num
 import GHC.Real
 import GHC.Word
 
+import Data.Foldable
 import Data.Maybe
 import GHC.Exts
 

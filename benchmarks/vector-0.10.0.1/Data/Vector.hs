@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances
            , MultiParamTypeClasses
            , TypeFamilies
@@ -13,7 +14,7 @@
 -- Maintainer  : Roman Leshchinskiy <rl@cse.unsw.edu.au>
 -- Stability   : experimental
 -- Portability : non-portable
--- 
+--
 -- A library for boxed vectors (that is, polymorphic arrays capable of
 -- holding any Haskell value). The vectors come in two flavours:
 --
@@ -79,7 +80,7 @@ module Data.Vector (
   accum, accumulate, accumulate_,
   unsafeAccum, unsafeAccumulate, unsafeAccumulate_,
 
-  -- ** Permutations 
+  -- ** Permutations
   reverse, backpermute, unsafeBackpermute,
 
   -- ** Safe destructive updates
@@ -314,7 +315,7 @@ instance Foldable.Foldable Vector where
 
   {-# INLINE foldl #-}
   foldl = foldl
-  
+
   {-# INLINE foldr1 #-}
   foldr1 = foldr1
 
@@ -697,7 +698,7 @@ force = G.force
 -- > <5,9,2,7> // [(2,1),(0,3),(2,8)] = <3,9,8,7>
 --
 (//) :: Vector a   -- ^ initial vector (of length @m@)
-                -> [(Int, a)] -- ^ list of index/value pairs (of length @n@) 
+                -> [(Int, a)] -- ^ list of index/value pairs (of length @n@)
                 -> Vector a
 {-# INLINE (//) #-}
 (//) = (G.//)
@@ -957,7 +958,7 @@ izipWith6 :: (Int -> a -> b -> c -> d -> e -> f -> g)
 {-# INLINE izipWith6 #-}
 izipWith6 = G.izipWith6
 
--- | Elementwise pairing of array elements. 
+-- | Elementwise pairing of array elements.
 zip :: Vector a -> Vector b -> Vector (a, b)
 {-# INLINE zip #-}
 zip = G.zip
@@ -1378,7 +1379,7 @@ postscanl' = G.postscanl'
 -- >         yi = f y(i-1) x(i-1)
 --
 -- Example: @scanl (+) 0 \<1,2,3,4\> = \<0,1,3,6,10\>@
--- 
+--
 scanl :: (a -> b -> a) -> a -> Vector b -> Vector a
 {-# INLINE scanl #-}
 scanl = G.scanl
@@ -1501,10 +1502,9 @@ freeze = G.freeze
 unsafeCopy :: PrimMonad m => MVector (PrimState m) a -> Vector a -> m ()
 {-# INLINE unsafeCopy #-}
 unsafeCopy = G.unsafeCopy
-           
+
 -- | /O(n)/ Copy an immutable vector into a mutable one. The two vectors must
 -- have the same length.
 copy :: PrimMonad m => MVector (PrimState m) a -> Vector a -> m ()
 {-# INLINE copy #-}
 copy = G.copy
-
