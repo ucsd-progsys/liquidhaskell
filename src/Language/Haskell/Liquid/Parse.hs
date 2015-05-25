@@ -750,18 +750,19 @@ tyBodyP ty
           outTy _              = Nothing
 
 upperIdP' :: Parser Symbol
-upperIdP' = try $ symbol <$> condIdP alphanums (isUpper . head)
+upperIdP' = try $ symbol <$> condIdP alphanums checks
   where
     alphanums = ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "'"
+    checks s  = '\'' `notElem` (init s) && isUpper (head s)
 
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
-        where
-          idP p  = many1 (satisfy (not . p))
-          badc c = (c == ':') || (c == ',') || bad c
-          bad c  = isSpace c || c `elem` "(,)"
-          pwr s  = symbol $ "(" `mappend` s `mappend` ")"
+  where
+    idP p  = many1 (satisfy (not . p))
+    badc c = (c == ':') || (c == ',') || bad c
+    bad c  = isSpace c || c `elem` "(,)"
+    pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 
 grabs p = try (liftM2 (:) p (grabs p))
        <|> return []

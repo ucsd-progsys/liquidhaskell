@@ -460,8 +460,12 @@ instance Hashable (PVar a) where
 ------ Strictness --------------------------------------------------
 --------------------------------------------------------------------
 
-instance NFData Var
-instance NFData SrcSpan
+instance NFData Var where
+  rnf x = seq x ()
+
+instance NFData SrcSpan where
+  rnf x = seq x ()
+
 --------------------------------------------------------------------
 ------------------ Predicates --------------------------------------
 --------------------------------------------------------------------
@@ -1034,7 +1038,7 @@ ppTy_ureft u@(U r p s) d
   | isTauto_ureft  u  = d
   | otherwise         = ppr_reft r (ppTy p d) s
 
-ppr_reft r d s       = braces (toFix v <+> colon <+> d <> ppr_str s <+> text "|" <+> pprint r')
+ppr_reft r d s       = braces (pprint v <+> colon <+> d <> ppr_str s <+> text "|" <+> pprint r')
   where
     r'@(Reft (v, _)) = toReft r
 
@@ -1566,10 +1570,11 @@ errOther = ErrOther noSrcSpan
 
 data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
-                   }
-                deriving (Eq, Ord)
+                   } 
+                deriving (Eq, Ord, Generic) 
 
-instance NFData Cinfo
+instance NFData Cinfo where
+  rnf x = seq x ()
 
 
 ------------------------------------------------------------------------

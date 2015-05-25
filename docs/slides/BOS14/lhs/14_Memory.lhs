@@ -53,7 +53,7 @@ Implementation errors could open up vulnerabilities
 
 <div class="hidden">
 \begin{spec}
-import Data.ByteString.Char8  (pack, unpack) 
+import Data.ByteString.Char8  (pack, unpack)
 import Data.ByteString.Unsafe (unsafeTake)
 \end{spec}
 </div>
@@ -61,7 +61,7 @@ import Data.ByteString.Unsafe (unsafeTake)
 \begin{spec}
 chop     :: String -> Int -> String
 chop s n = s'
-  where 
+  where
     b    = pack s         -- down to low-level
     b'   = unsafeTake n b -- grab n chars
     s'   = unpack b'      -- up to high-level
@@ -73,7 +73,7 @@ chop s n = s'
 <img src="../img/overflow.png" height=100px>
 
 
-Works if you use the **valid prefix** size 
+Works if you use the **valid prefix** size
 
 <br>
 
@@ -121,7 +121,7 @@ Types Against Overflows
  {#ptr}
 =======
 
-1. Low-level Pointer API 
+1. Low-level Pointer API
 ------------------------
 
 <br>
@@ -144,7 +144,7 @@ Errors at *each* level are prevented by types at *lower* levels
 1. Low-Level Pointer API
 ========================
 
-API: Types 
+API: Types
 ----------
 
 <br>
@@ -152,7 +152,7 @@ API: Types
 **Low-level Pointers**
 
 \begin{spec}
-data Ptr a         
+data Ptr a
 \end{spec}
 
 <br>
@@ -161,7 +161,7 @@ data Ptr a
 **Foreign Pointers**
 
 \begin{spec}
-data ForeignPtr a 
+data ForeignPtr a
 \end{spec}
 
 <br>
@@ -174,16 +174,16 @@ API: Operations (1/2)
 ---------------------
 
 <div class="fragment">
-**Read** 
+**Read**
 
 \begin{spec}
-peek     :: Ptr a -> IO a  
+peek     :: Ptr a -> IO a
 \end{spec}
 </div>
 
 <br>
 <div class="fragment">
-**Write** 
+**Write**
 
 \begin{spec}
 poke     :: Ptr a -> a -> IO ()
@@ -195,7 +195,7 @@ poke     :: Ptr a -> a -> IO ()
 <div class="fragment">
 **Arithmetic**
 \begin{spec}
-plusPtr  :: Ptr a -> Int -> Ptr b 
+plusPtr  :: Ptr a -> Int -> Ptr b
 \end{spec}
 </div>
 
@@ -216,8 +216,8 @@ malloc  :: Int -> ForeignPtr a
 **Unwrap and Use**
 
 \begin{spec}
-withForeignPtr :: ForeignPtr a     -- pointer 
-               -> (Ptr a -> IO b)  -- action 
+withForeignPtr :: ForeignPtr a     -- pointer
+               -> (Ptr a -> IO b)  -- action
                -> IO b             -- result
 \end{spec}
 </div>
@@ -232,10 +232,10 @@ Example
 \begin{code}
 zero4 = do fp <- malloc 4
            withForeignPtr fp $ \p -> do
-             poke (p `plusPtr` 0) zero 
-             poke (p `plusPtr` 1) zero 
-             poke (p `plusPtr` 2) zero 
-             poke (p `plusPtr` 3) zero 
+             poke (p `plusPtr` 0) zero
+             poke (p `plusPtr` 1) zero
+             poke (p `plusPtr` 2) zero
+             poke (p `plusPtr` 3) zero
            return fp
         where
            zero = 0 :: Word8
@@ -274,8 +274,8 @@ Refined API: Types
 **1. Refine pointers with allocated size**
 
 \begin{spec}
-measure plen  :: Ptr a -> Int 
-measure fplen :: ForeignPtr a -> Int 
+measure plen  :: Ptr a -> Int
+measure fplen :: ForeignPtr a -> Int
 \end{spec}
 
 <br>
@@ -284,8 +284,8 @@ measure fplen :: ForeignPtr a -> Int
 Abbreviations for pointers of size `N`
 
 \begin{spec}
-type PtrN a N        = {v:_ |  plen v  = N} 
-type ForeignPtrN a N = {v:_ |  fplen v = N} 
+type PtrN a N        = {v:_ |  plen v  = N}
+type ForeignPtrN a N = {v:_ |  fplen v = N}
 \end{spec}
 </div>
 
@@ -299,7 +299,7 @@ Refined API: Ops (1/3)
 \begin{spec}
 malloc  :: n:Nat -> ForeignPtrN a n
 \end{spec}
-</div> 
+</div>
 
 <br>
 
@@ -307,9 +307,9 @@ malloc  :: n:Nat -> ForeignPtrN a n
 **Unwrap and Use**
 
 \begin{spec}
-withForeignPtr :: fp:ForeignPtr a 
-               -> (PtrN a (fplen fp) -> IO b)  
-               -> IO b             
+withForeignPtr :: fp:ForeignPtr a
+               -> (PtrN a (fplen fp) -> IO b)
+               -> IO b
 \end{spec}
 </div>
 
@@ -343,19 +343,19 @@ Refined API: Ops (3/3)
 <br>
 
 <div class="fragment">
-**Read** 
+**Read**
 
 \begin{spec}
-peek :: {v:Ptr a | 0 < plen v} -> IO a  
+peek :: {v:Ptr a | 0 < plen v} -> IO a
 \end{spec}
 </div>
 
 <br>
 <div class="fragment">
-**Write** 
+**Write**
 
 \begin{spec}
-poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()  
+poke :: {v:Ptr a | 0 < plen v} -> a -> IO ()
 \end{spec}
 </div>
 
@@ -371,10 +371,10 @@ How to *prevent overflows* e.g. writing 5 or 50 zeros?
 \begin{code}
 exBad = do fp <- malloc 4
            withForeignPtr fp $ \p -> do
-             poke (p `plusPtr` 0) zero 
-             poke (p `plusPtr` 1) zero 
-             poke (p `plusPtr` 2) zero 
-             poke (p `plusPtr` 5) zero 
+             poke (p `plusPtr` 0) zero
+             poke (p `plusPtr` 1) zero
+             poke (p `plusPtr` 2) zero
+             poke (p `plusPtr` 5) zero
            return fp
         where
            zero = 0 :: Word8
@@ -420,7 +420,7 @@ data ByteString = PS {
 \end{code}
 
 
-Refined Type 
+Refined Type
 ------------
 
 <img src="../img/bytestring.png" height=150px>
@@ -433,7 +433,7 @@ Refined Type
     }                                       @-}
 \end{code}
 
-Refined Type 
+Refined Type
 ------------
 
 <img src="../img/bytestring.png" height=150px>
@@ -443,7 +443,7 @@ Refined Type
 **A Useful Abbreviation**
 
 \begin{spec}
-type ByteStringN N = {v:ByteString| bLen v = N} 
+type ByteStringN N = {v:ByteString| bLen v = N}
 \end{spec}
 
 
@@ -455,7 +455,7 @@ type ByteStringN N = {v:ByteString| bLen v = N}
 
 
 
-Legal Bytestrings 
+Legal Bytestrings
 -----------------
 
 
@@ -477,13 +477,13 @@ good2 = do fp <- malloc 5
 **Note:** *length* of `good2` is `3` which is *less than* allocated size `5`
 </div>
 
-Illegal Bytestrings 
+Illegal Bytestrings
 -----------------
 
 <br>
 
 \begin{code}
-bad1 = do fp <- malloc 3 
+bad1 = do fp <- malloc 3
           return (PS fp 0 10)
 
 bad2 = do fp <- malloc 3
@@ -524,7 +524,7 @@ create :: Int -> (Ptr Word8 -> IO ()) -> ByteString
 \begin{code}
 create n fill = unsafePerformIO $ do
   fp  <- malloc n
-  withForeignPtr fp fill 
+  withForeignPtr fp fill
   return (PS fp 0 n)
 \end{code}
 </div>
@@ -591,13 +591,13 @@ unsafeTake n (PS x s l) = PS x s n
 \end{code}
 </div>
 
-API: `unpack` 
+API: `unpack`
 -------------
 
 **Specification**
 
 \begin{spec}
-unpack 
+unpack
  :: b:ByteString -> StringN (bLen b)
 \end{spec}
 
@@ -607,7 +607,7 @@ unpack
 **Implementation**
 
 \begin{spec}
-unpack b = you . get . the . idea -- see source 
+unpack b = you . get . the . idea -- see source
 \end{spec}
 </div>
 
@@ -616,7 +616,7 @@ unpack b = you . get . the . idea -- see source
 {-@ qualif Unpack(v:a, acc:b, n:int) : len v = 1 + n + len acc @-}
 
 {-@ unpack :: b:ByteString -> StringN (bLen b) @-}
-unpack :: ByteString -> String 
+unpack :: ByteString -> String
 unpack (PS _  _ 0)  = []
 unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
    go (p `plusPtr` s) (l - 1)  []
@@ -631,7 +631,7 @@ unpack (PS ps s l)  = unsafePerformIO $ withForeignPtr ps $ \p ->
 ==================
 
 
-3. Application API 
+3. Application API
 -------------------
 
 
@@ -649,7 +649,7 @@ Strategy: Specify and Verify Types for
 
 Errors at *each* level are prevented by types at *lower* levels
 
-3. Application API 
+3. Application API
 ==================
 
 Revisit "HeartBleed"
@@ -670,15 +670,15 @@ Lets revisit our potentially "bleeding" `chop`
 {-@ chop :: s:String
          -> n:{Nat | n <= len s}
          -> StringN n
-  @-} 
+  @-}
 chop s n =  s'
-  where 
+  where
     b    = pack s          -- down to low-level
     b'   = unsafeTake n b  -- grab n chars
     s'   = unpack b'       -- up to high-level
 \end{code}
 
-<!-- BEGIN CUT 
+<!-- BEGIN CUT
 <br>
 
 Yikes! How shall we fix it?
@@ -694,9 +694,9 @@ A Well Typed `chop`
 \begin{spec}
 {-@ chop :: s:String
          -> n:{Nat | n <= len s}
-         -> {v:String | len v = n} @-} 
+         -> {v:String | len v = n} @-}
 chop s n = s'
-  where 
+  where
     b    = pack s          -- down to low-level
     b'   = unsafeTake n b  -- grab n chars
     s'   = unpack b'       -- up to high-level
@@ -754,7 +754,7 @@ Recap: Types vs Overflows
 Bonus Material
 ==============
 
-Nested ByteStrings 
+Nested ByteStrings
 ------------------
 
 For a more in depth example, let's take a look at `group`,
@@ -868,7 +868,7 @@ null :: ByteString -> Bool
 null (PS _ _ l) = liquidAssert (l >= 0) $ l <= 0
 
 {-@ unsafeDrop :: n:Nat
-               -> b:{v: ByteString | n <= (bLen v)} 
+               -> b:{v: ByteString | n <= (bLen v)}
                -> {v:ByteString | (bLen v) = (bLen b) - n} @-}
 unsafeDrop  :: Int -> ByteString -> ByteString
 unsafeDrop n (PS x s l) = liquidAssert (0 <= n && n <= l) $ PS x (s+n) (l-n)
@@ -879,28 +879,28 @@ cons c (PS x s l) = unsafeCreate (l+1) $ \p -> withForeignPtr x $ \f -> do
         poke p c
         memcpy (p `plusPtr` 1) (f `plusPtr` s) (fromIntegral l)
 
-{-@ empty :: {v:ByteString | (bLen v) = 0} @-} 
+{-@ empty :: {v:ByteString | (bLen v) = 0} @-}
 empty :: ByteString
 empty = PS nullForeignPtr 0 0
 
 {-@ assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n) @-}
 {-@ type ForeignPtrN a N = {v:ForeignPtr a | fplen v = N} @-}
 {-@ malloc :: n:Nat -> IO (ForeignPtrN a n) @-}
-malloc = mallocForeignPtrBytes 
+malloc = mallocForeignPtrBytes
 
 {-@ assume
     c_memcpy :: dst:(PtrV Word8)
-             -> src:(PtrV Word8) 
-             -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
+             -> src:(PtrV Word8)
+             -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))}
              -> IO (Ptr Word8)
   @-}
 foreign import ccall unsafe "string.h memcpy" c_memcpy
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 
 {-@ memcpy :: dst:(PtrV Word8)
-           -> src:(PtrV Word8) 
-           -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))} 
-           -> IO () 
+           -> src:(PtrV Word8)
+           -> size: {v:CSize | (v <= (plen src) && v <= (plen dst))}
+           -> IO ()
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = c_memcpy p q s >> return ()

@@ -2163,6 +2163,7 @@ foldlWithKey' f z = go z
 -- > elems (fromList [(5,"a"), (3,"b")]) == ["b","a"]
 -- > elems empty == []
 
+{-@ elems :: m:Map k a -> [a] / [mlen m] @-}
 elems :: Map k a -> [a]
 elems = foldr (:) []
 
@@ -2173,6 +2174,7 @@ elems = foldr (:) []
 -- > keys empty == []
 
 {- LIQUID: SUMMARY-VALUES: keys :: OMap k a -> [k]<{v: k | v >= fld}> @-}
+{-@ keys :: m:Map k a -> [k] / [mlen m] @-}
 keys  :: Map k a -> [k]
 keys = foldrWithKey (\k _ ks -> k : ks) []
 
@@ -2270,6 +2272,7 @@ toList = toAscList
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
 {- LIQUIDTODO: toAscList :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) > fst(fld) }> @-}
+{-@ toAscList :: m:Map k a -> [(k,a)] / [mlen m] @-}
 toAscList :: Map k a -> [(k,a)]
 toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 
@@ -2279,6 +2282,7 @@ toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 -- > toDescList (fromList [(5,"a"), (3,"b")]) == [(5,"a"), (3,"b")]
 
 {- LIQUIDTODO: toAscList :: OMap k a -> [(k, a)]<{v: (k, a) | fst(v) < fst(fld) }> @-}
+{-@ toDescList :: m:Map k a -> [(k,a)] / [mlen m] @-}
 toDescList :: Map k a -> [(k,a)]
 toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
@@ -2286,9 +2290,11 @@ toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 #if __GLASGOW_HASKELL__
 -- The foldrFB and foldlFB are fold{r,l}WithKey equivalents, used for list fusion.
 -- They are important to convert unfused methods back, see mapFB in prelude.
+{-@ foldrFB :: (k -> a -> b -> b) -> b -> m:Map k a -> b / [mlen m] @-}
 foldrFB :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrFB = foldrWithKey
 {-# INLINE[0] foldrFB #-}
+{-@ foldlFB :: (a -> k -> b -> a) -> a -> m:Map k b -> a / [mlen m] @-}
 foldlFB :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlFB = foldlWithKey
 {-# INLINE[0] foldlFB #-}
