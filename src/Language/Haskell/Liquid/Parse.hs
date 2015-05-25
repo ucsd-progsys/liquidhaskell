@@ -750,10 +750,9 @@ tyBodyP ty
           outTy _              = Nothing
 
 upperIdP' :: Parser Symbol
-upperIdP' = try $ symbol <$> condIdP alphanums checks
+upperIdP' = try $ symbol <$> condIdP alphanums (isUpper . head)
   where
     alphanums = ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "'"
-    checks s  = '\'' `notElem` (init s) && isUpper (head s)
 
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
