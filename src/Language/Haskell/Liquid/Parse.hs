@@ -1,5 +1,4 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
@@ -23,7 +22,7 @@ import qualified Data.HashSet        as S
 import Data.Monoid
 
 import Control.Applicative ((<$>), (<*), (<*>))
-import Data.Char (isLower, isSpace, isAlpha)
+import Data.Char (isLower, isSpace, isAlpha, isUpper)
 import Data.List (foldl', partition)
 
 import GHC (mkModuleName)
@@ -191,7 +190,7 @@ holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa 
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = try refaP
            <|> (reserved "_" >> return (Refa hole))
-           
+
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
 --
@@ -750,13 +749,18 @@ tyBodyP ty
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
+upperIdP' :: Parser Symbol
+upperIdP' = try $ symbol <$> condIdP alphanums (isUpper . head)
+  where
+    alphanums = ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ "'"
+
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
   where
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
-    bad c  = isSpace c || c `elem` ("(,)" :: String)
+    bad c  = isSpace c || c `elem` "(,)"
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 
 grabs p = try (liftM2 (:) p (grabs p))
@@ -822,7 +826,7 @@ dataConNameP
  <|> pwr <$> parens (idP bad)
   where
      idP p  = symbol <$> many1 (satisfy (not . p))
-     bad c  = isSpace c || c `elem` ("(,)" :: String)
+     bad c  = isSpace c || c `elem` "(,)"
      pwr s  = "(" <> s <> ")"
 
 dataSizeP
@@ -836,14 +840,14 @@ dataDeclP = try dataDeclFullP <|> dataDeclSizeP
 
 dataDeclSizeP
   = do pos <- getPosition
-       x   <- locUpperIdP
+       x   <- upperIdP'
        spaces
        fsize <- dataSizeP
-       return $ D x [] [] [] [] pos fsize
+       return $ D (Loc pos pos x) [] [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
-       x   <- locUpperIdP
+       x   <- upperIdP'
        spaces
        fsize <- dataSizeP
        spaces
@@ -852,7 +856,7 @@ dataDeclFullP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
-       return $ D x ts ps [] dcs pos fsize
+       return $ D (Loc pos pos x) ts ps [] dcs pos fsize
 
 
 ---------------------------------------------------------------------
