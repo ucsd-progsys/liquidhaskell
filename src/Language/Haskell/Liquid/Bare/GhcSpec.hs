@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
@@ -156,7 +157,10 @@ makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
 makeGhcSpec2 invs ialias measures su sp
   = return $ sp { invariants = subst su invs
                 , ialiases   = subst su ialias
-                , measures   = subst su <$> M.elems $ Ms.measMap measures }
+                , measures   = subst su
+                                 <$> M.elems (Ms.measMap measures)
+                                  ++ Ms.imeas measures
+                }
 
 makeGhcSpec3 datacons tycons embs syms sp
   = do tcEnv       <- gets tcEnv

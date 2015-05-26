@@ -211,6 +211,8 @@ reverse (Stream next s len0)
                   m = n - 0x10000
                   lo = fromIntegral $ (m `shiftR` 10) + 0xD800
                   hi = fromIntegral $ (m .&. 0x3FF) + 0xDC00
+                  -- TODO: figure out why this is deemed unsafe on ghc-7.10
+                  write _ _ _ _  = undefined
                   write t j l mar
                       | n < 0x10000 = do
                           A.unsafeWrite mar j (fromIntegral n)

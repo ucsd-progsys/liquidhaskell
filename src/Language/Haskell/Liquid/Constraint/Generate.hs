@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
@@ -23,10 +24,14 @@ module Language.Haskell.Liquid.Constraint.Generate (
   ) where
 
 import CoreUtils     (exprType)
-
+import MkCore
+import Coercion
+import DataCon
+import Pair
 import CoreSyn
 import SrcLoc
 import Type
+import TyCon
 import PrelNames
 import TypeRep
 import Class            (Class, className)
@@ -526,7 +531,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = errorstar $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -728,7 +733,7 @@ rTypeSortedReft' pflag γ
 γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
          where err = errorstar $ "EnvLookup: unknown "
                                ++ showpp x
-                               ++ " in renv "
+                               ++ " in renv\n"
                                ++ showpp (renv γ)
 
 normalize idx
@@ -1317,6 +1322,17 @@ cconsE γ (Lam x e) (RFun y ty t _)
 cconsE γ (Tick tt e) t
   = cconsE (γ `setLoc` tickSrcSpan tt) e t
 
+-- GHC 7.10 encodes type classes with a single method as newtypes and
+-- `cast`s between the method and class type instead of applying the
+-- class constructor. Just rewrite the core to what we're used to
+-- seeing..
+cconsE γ (Cast e co) t
+  | Pair _t1 t2 <- coercionKind co
+  , isClassPred t2
+  , (tc,ts) <- splitTyConApp t2
+  , [dc]   <- tyConDataCons tc
+  = cconsE γ (mkCoreConApps dc $ map Type ts ++ [e]) t
+
 cconsE γ e@(Cast e' _) t
   = do t' <- castTy γ (exprType e) e'
        addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e)
@@ -1462,6 +1478,17 @@ consE γ (Tick tt e)
        return t
     where l = tickSrcSpan tt
 
+-- GHC 7.10 encodes type classes with a single method as newtypes and
+-- `cast`s between the method and class type instead of applying the
+-- class constructor. Just rewrite the core to what we're used to
+-- seeing..
+consE γ (Cast e co)
+  | Pair _t1 t2 <- coercionKind co
+  , isClassPred t2
+  , (tc,ts) <- splitTyConApp t2
+  , [dc]   <- tyConDataCons tc
+  = consE γ (mkCoreConApps dc $ map Type ts ++ [e])
+
 consE γ e@(Cast e' _)
   = castTy γ (exprType e) e'
 
@@ -1469,16 +1496,22 @@ consE _ e@(Coercion _)
    = trueTy $ exprType e
 
 consE _ e@(Type t)
-  = errorstar $ "consE cannot handle type" ++ showPpr (e, t)
+  = errorstar $ "consE cannot handle type " ++ showPpr (e, t)
 
 castTy _ τ (Var x)
   = do t <- trueTy τ
        return $  t `strengthen` (uTop $ F.uexprReft $ F.expr x)
 
-castTy γ τ e
-  = do t <- trueTy (exprType e)
-       cconsE γ e t
-       trueTy τ
+castTy g t (Tick _ e)
+  = castTy g t e
+
+castTy _ _ e
+  = errorstar $ "castTy cannot handle expr " ++ showPpr e
+
+-- castTy γ τ e
+--   = do t <- trueTy (exprType e)
+--        cconsE γ e t
+--        trueTy τ
 
 singletonReft = uTop . F.symbolReft . F.symbol
 

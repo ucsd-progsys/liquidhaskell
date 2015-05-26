@@ -181,7 +181,8 @@ instance IArray (MArray s) where
 --LIQUID #endif
 
 -- | Create an uninitialized mutable array.
-{-@ new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
+{-@ assume new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
+-- TODO: losing information in cast
 new :: forall s. Int -> ST s (MArray s)
 new n
   | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
@@ -197,7 +198,8 @@ new n
 {-# INLINE new #-}
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
-{-@ unsafeFreeze :: ma:MArray s -> (ST s (ArrayN (malen ma))) @-}
+{-@ assume unsafeFreeze :: ma:MArray s -> (ST s (ArrayN (malen ma))) @-}
+-- TODO: losing information in cast
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
                           (# s#, Array (unsafeCoerce# maBA)
