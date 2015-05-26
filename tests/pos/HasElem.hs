@@ -20,7 +20,3 @@ prop1 = hasElem 1 (Cons 2 Nil)
 {-@ prop2 :: {v:Bool | Prop v <=> false} @-}
 prop2 :: Bool
 prop2 = hasElem 1 Nil
-
-
-nil = Nil
-cons = Cons 
