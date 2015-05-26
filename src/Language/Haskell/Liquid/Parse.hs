@@ -1,6 +1,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE TupleSections             #-}
@@ -17,13 +17,14 @@ import Text.Parsec
 import Text.Parsec.Error (newErrorMessage, Message (..))
 import Text.Parsec.Pos   (newPos)
 
-import qualified Text.Parsec.Token as Token
+import qualified Text.Parsec.Token   as Token
+import qualified Data.Text           as T
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import Data.Monoid
 
 import Control.Applicative ((<$>), (<*), (<*>))
-import Data.Char (isLower, isSpace, isAlpha)
+import Data.Char (isLower, isSpace, isAlpha, isUpper, isAlphaNum)
 import Data.List (foldl', partition)
 
 import GHC (mkModuleName)
@@ -191,7 +192,7 @@ holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa 
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = try refaP
            <|> (reserved "_" >> return (Refa hole))
-           
+
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
 --
@@ -750,6 +751,19 @@ tyBodyP ty
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
+locUpperIdP' = locParserP upperIdP'
+
+upperIdP' :: Parser Symbol
+upperIdP' = try $ symbol <$> condIdP' (isUpper . head)
+
+condIdP'  :: (String -> Bool) -> Parser Symbol
+condIdP' f
+  = do c  <- letter
+       let isAlphaNumOr' c = (isAlphaNum c) || ('\''== c)
+       cs <- many (satisfy isAlphaNumOr')
+       blanks
+       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
+
 binderP :: Parser Symbol
 binderP    =  try $ symbol <$> idP badc
           <|> pwr <$> parens (idP bad)
@@ -836,14 +850,14 @@ dataDeclP = try dataDeclFullP <|> dataDeclSizeP
 
 dataDeclSizeP
   = do pos <- getPosition
-       x   <- locUpperIdP
+       x   <- locUpperIdP'
        spaces
        fsize <- dataSizeP
        return $ D x [] [] [] [] pos fsize
 
 dataDeclFullP
   = do pos <- getPosition
-       x   <- locUpperIdP
+       x   <- locUpperIdP'
        spaces
        fsize <- dataSizeP
        spaces
