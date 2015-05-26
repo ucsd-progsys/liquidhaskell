@@ -51,7 +51,7 @@ instance Transformable RReft where
 instance Transformable Reft where
   tx s m (Reft (v, Refa p)) = if v == s
                               then errorstar "Transformable: this should not happen"
-			      else Reft(v, Refa $ tx s m p)
+                              else Reft(v, Refa $ tx s m p)
 
 -- OLD instance Transformable Refa where
 -- OLD   tx s m (RConc p)     = RConc $ tx s m p
@@ -100,7 +100,7 @@ instance Transformable (Measure t c) where
   tx s m x = x{eqns = tx s m <$> (eqns x)}
 
 instance Transformable (Def t c) where
-	tx s m x = x{body = tx s m (body x)} 
+        tx s m x = x{body = tx s m (body x)}
 
 instance Transformable Body where
   tx s m (E e)   = E $ tx s m e

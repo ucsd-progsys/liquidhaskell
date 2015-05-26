@@ -24,6 +24,7 @@ prop1 (WrapType _  _) = True
 nflibXs n x           = prop2 n (WrapType nxs x)
                         where nxs = replicate n x 
 
+prop2 :: Int -> WrapType [a] t -> Bool
 prop2 n (WrapType xs _) = liquidAssertB (n == length xs) 
 
 

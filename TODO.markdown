@@ -1093,4 +1093,57 @@ where
   - Filter (takes a predicate that should only read valid columns of the record)
 
 
+PROJECT: Proving Type-Class Laws
+--------------------------------
+Many type-classes come with a set of laws that instances are expected
+to abide by, e.g.
 
+```
+fmap id  ==  id
+
+fmap (f . g)  ==  fmap f . fmap g
+```
+
+```
+mappend mempty x = x
+
+mappend x mempty = x
+
+mappend x (mappend y z) = mappend (mappend x y) z
+```
+
+etc. Can we express these laws in LH and prove them automatically?
+
+
+GHC 7.10
+--------
+
+- **DONE** singleton type classes represented by newtype
+  - tried to work around by translating
+
+      foo `cast` (co :: a -> b ~ Foo)
+
+    to
+
+      D:Foo foo
+
+    but it still breaks when we don't have an LH class decl
+  - without LH class decl we never see D:Foo, so it doesn't go in CGEnv
+  - SOLUTION: put ALL visible dict constructors in CGEnv
+
+- `cast`s are used more often and we seem to lose information..
+  - seems particularly problematic with ST
+
+- srcloc annotations
+  - -g adds SourceNotes, but the html output is borked
+  - in particular, infix operators aren't annotated correctly (at all?)
+  - are we missing some SrcLocs??
+    - clearly not, if you look at the output of
+
+          ghc -g -ddump-ds -dppr-ticks <file.hs>
+
+      somewhere along our pipeline the ticks are either being dropped,
+      or the SrcSpans don't quite match the way they used to...
+
+- termination metrics are required in a few places where they were not previously
+  - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed

@@ -284,7 +284,7 @@ loopU f start (PS z s i) = unsafePerformIO $ withForeignPtr z $ \a -> do
 {-# INLINE [1] loopU #-}
 #endif
 
-{-# RULES
+{- RULES
 
 "FPS loop/loop fusion!" forall em1 em2 start1 start2 arr.
   loopU em2 start2 (loopArr (loopU em1 start1 arr)) =
@@ -311,7 +311,7 @@ loopL f = loop
 {-# INLINE [1] loopL #-}
 #endif
 
-{-# RULES
+{- RULES
 
 "FPS lazy loop/loop fusion!" forall em1 em2 start1 start2 arr.
   loopL em2 start2 (loopArr (loopL em1 start1 arr)) =
@@ -533,7 +533,7 @@ sequenceLoops loop1 loop2 src dest len0 = do
 
 #endif
 
-{-# RULES
+{- RULES
 
 "FPS loopArr/loopSndAcc" forall x.
   loopArr (loopSndAcc x) = loopArr x

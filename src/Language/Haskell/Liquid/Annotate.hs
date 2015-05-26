@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}

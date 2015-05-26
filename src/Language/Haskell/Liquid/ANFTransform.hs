@@ -22,7 +22,7 @@ import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
 import           TypeRep
-import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst)
+import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTopTvSubst, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 import           DataCon                          (dataConInstArgTys)
 import           FamInstEnv                       (emptyFamInstEnv)
@@ -70,10 +70,10 @@ normalizeTopBind expandFlag γ (Rec xes)
   = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) (DsST expandFlag [])
        return $ map normalizeTyVars (st_binds xes')
 
-normalizeTyVars (NonRec x e) = NonRec (setVarType x t') e
+normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
   where t'       = subst msg as as' bt
         msg      = "WARNING unable to renameVars on " ++ showPpr x
-        as'      = fst $ collectTyBinders e
+        as'      = fst $ splitForAllTys $ exprType e
         (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
   where nrec = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
@@ -85,6 +85,15 @@ subst msg as as' bt
   | otherwise
   = trace msg $ mkForAllTys as bt
   where su = mkTopTvSubst $ zip as (mkTyVarTys as')
+
+-- | eta-expand CoreBinds with quantified types
+normalizeForAllTys :: CoreExpr -> CoreExpr
+normalizeForAllTys e = case e of
+  Lam b _ | isTyVar b
+    -> e
+  _ -> mkLams tvs (mkTyApps e (map mkTyVarTy tvs))
+  where
+  (tvs, _) = splitForAllTys (exprType e)
 
 
 newtype DsM a = DsM {runDsM :: DsMonad.DsM a}

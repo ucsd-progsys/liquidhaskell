@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before

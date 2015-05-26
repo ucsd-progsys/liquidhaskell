@@ -2,6 +2,8 @@
 
 ## NEXT
 
+## 0.4.0.0
+
 - Bounds as an alternative for logical constraints see `benchmarks/icfp15/pos/Overview.lhs`
 
 ## 0.3.0.0
