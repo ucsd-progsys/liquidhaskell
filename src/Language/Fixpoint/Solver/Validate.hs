@@ -10,6 +10,7 @@ module Language.Fixpoint.Solver.Validate
        )
        where
 
+import           Language.Fixpoint.Visitor (foldSort)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Misc   as Misc
@@ -25,13 +26,13 @@ import           Text.Printf
 ---------------------------------------------------------------------------
 validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
 ---------------------------------------------------------------------------
-validate _ = Right . renameVV
+validate _ = Right . dropHigherOrderBinders . renameVV
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
 symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
----------------------------------------------------------------------------
+---------------------------------------------------------------------------
 symbolSorts fi = compact . (\z -> lits ++ consts ++ z) =<< bindSorts fi
   where
     lits       = F.lits fi
@@ -97,4 +98,21 @@ subcVV c = (x, sr)
     x    = F.reftBind $ F.sr_reft sr
 
 
+---------------------------------------------------------------------------
+-- | Drop Higher-Order Binders from Environment
+---------------------------------------------------------------------------
+dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
+---------------------------------------------------------------------------
+dropHigherOrderBinders fi = fi { F.bs = dropHOBinders (F.bs fi) }
 
+dropHOBinders :: F.BindEnv -> F.BindEnv
+dropHOBinders = filterBindEnv (isFirstOrder . Misc.thd3)
+
+filterBindEnv :: Int -> F.BindEnv -> F.BindEnv
+filterBindEnv f = F.bindEnvFromList . filter f . F.bindEnvToList
+
+
+isFirstOrder t      = foldSort f 0 t > 1
+  where
+    f n (FFunc _ _) = n + 1
+    f n _           = n
