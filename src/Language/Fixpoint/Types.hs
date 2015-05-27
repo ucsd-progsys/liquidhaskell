@@ -309,6 +309,15 @@ instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
   toFix   (x,y)  = toFix x <+> text ":" <+> toFix y
   simplify (x,y) = (simplify x, simplify y)
 
+instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a,b,c) where
+  toFix   (x,y,z)  = toFix x <+> text ":" <+> toFix y <+> text ":" <+> toFix  z
+  simplify (x,y,z) = (simplify x, simplify y,simplify z)
+
+instance Fixpoint Bool where
+  toFix True  = text "True"
+  toFix False = text "False"
+  simplify z  = z
+
 toFixGs :: SEnv SortedReft -> Doc
 toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
 

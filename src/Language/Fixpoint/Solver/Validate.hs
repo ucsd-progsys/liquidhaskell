@@ -20,7 +20,7 @@ import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
 -- import           Control.Monad (filterM)
 -- import           Control.Applicative ((<$>))
--- import           Debug.Trace (trace)
+import           Debug.Trace (trace)
 import           Text.Printf
 
 ---------------------------------------------------------------------------
@@ -77,6 +77,7 @@ type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
+
 ---------------------------------------------------------------------------
 -- | Alpha Rename bindings to ensure each var appears in unique binder
 ---------------------------------------------------------------------------
@@ -108,10 +109,12 @@ dropHigherOrderBinders fi = fi { F.bs = dropHOBinders (F.bs fi) }
 dropHOBinders :: F.BindEnv -> F.BindEnv
 dropHOBinders = filterBindEnv (isFirstOrder . F.sr_sort .  Misc.thd3)
 
--- filterBindEnv :: Int -> F.BindEnv -> F.BindEnv
-filterBindEnv f = F.bindEnvFromList . filter f . F.bindEnvToList
+filterBindEnv f be = F.bindEnvFromList
+                   --   $ F.traceFix "filterBE"
+                   $ filter f
+                   $ F.bindEnvToList be
 
-isFirstOrder t        = foldSort f 0 t > 1
+isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
   where
     f n (F.FFunc _ _) = n + 1
     f n _             = n
