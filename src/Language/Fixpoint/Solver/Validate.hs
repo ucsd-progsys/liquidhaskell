@@ -32,7 +32,7 @@ validate _ = Right . dropHigherOrderBinders . renameVV
 -- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
 symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
----------------------------------------------------------------------------
+---------------------------------------------------------------------------
 symbolSorts fi = compact . (\z -> lits ++ consts ++ z) =<< bindSorts fi
   where
     lits       = F.lits fi
