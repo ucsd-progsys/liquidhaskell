@@ -19,6 +19,10 @@ module Language.Fixpoint.Sort  (
 
   -- * Apply Substitution
   , apply
+
+  -- * Exported Sorts
+  , boolSort
+  , strSort
   ) where
 
 
@@ -34,13 +38,15 @@ import           Text.Printf
 
 import           Debug.Trace               (trace)
 
+-------------------------------------------------------------------------
+-- | Checking Refinements -----------------------------------------------
+-------------------------------------------------------------------------
+
 -- | Types used throughout checker
 
 type CheckM a = Either String a
 type Env      = Symbol -> SESearch Sort
 
-fProp :: Sort
-fProp = FApp boolFTyCon []
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -244,7 +250,7 @@ checkPred _ p              = throwError $ errUnexpectedPred p
 
 checkPredBExp :: Env -> Expr -> CheckM ()
 checkPredBExp f e          = do t <- checkExpr f e
-                                unless (t == fProp) (throwError $ errBExp e t)
+                                unless (t == boolSort) (throwError $ errBExp e t)
                                 return ()
 
 
@@ -266,9 +272,11 @@ checkRelTy f _ _ FReal (FObj l)    = checkFractional f l `catchError` (\_ -> thr
 checkRelTy f _ _ (FObj l) FReal    = checkFractional f l `catchError` (\_ -> throwError $ errNonFractional l)
 
 checkRelTy _ e Eq t1 t2
-  | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
+  | t1 == boolSort ||
+    t2 == boolSort                 = throwError $ errRel e t1 t2
 checkRelTy _ e Ne t1 t2
-  | t1 == fProp || t2 == fProp     = throwError $ errRel e t1 t2
+  | t1 == boolSort ||
+    t2 == boolSort                 = throwError $ errRel e t1 t2
 checkRelTy _ e Eq t1 t2            = unifys [t1] [t2] >> return ()
 checkRelTy _ e Ne t1 t2            = unifys [t1] [t2] >> return ()
 

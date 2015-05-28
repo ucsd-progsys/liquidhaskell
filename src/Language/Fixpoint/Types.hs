@@ -45,21 +45,17 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon
-  , boolFTyCon
-  , realFTyCon
-  , strFTyCon
-  , propFTyCon
-  , listFTyCon
-  , appFTyCon
-  , fTyconSymbol
-  , symbolFTycon
-
-  , strSort
+  -- , intFTyCon
+  -- , boolFTyCon
+  -- , strFTyCon
+  -- , realFTyCon
+  -- , propFTyCon
+  , intSort, realSort, boolSort, strSort
+  , listFTyCon, appFTyCon
+  , isListTC, isFAppTyTC
+  , fTyconSymbol, symbolFTycon
   , fApp
   , fObj
-  , isListTC
-  , isFAppTyTC
 
   -- * Expressions and Predicates
   , SymConst (..)
@@ -632,7 +628,7 @@ raConjuncts  = conjuncts . raPred
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 firstMaybe f = listToMaybe . mapMaybe f
 
---   where 
+--   where
 --     go (PAtom r e1 e2) | e1 == EVar v && isEq r = Just e2
 --                        | e2 == EVar v && isEq r = Just e1
 --     go _                                        = Nothing
@@ -1585,14 +1581,14 @@ instance Falseable Refa where
   isFalse (Refa p) = isFalse p
 
 instance Falseable Reft where
-  isFalse (Reft(_, (Refa p))) = isFalse p
+  isFalse (Reft (_, ra)) = isFalse $ raPred ra
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
 symConstLits    :: FInfo a -> [(Symbol, Sort)]
-symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
+symConstLits fi = traceFix "symConstLits" [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
@@ -1612,9 +1608,6 @@ decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
 
 litPrefix    :: Text
 litPrefix    = "lit" `T.snoc` symSepName
-
-strSort      :: Sort
-strSort      = FInt 
 
 class SymConsts a where
   symConsts :: a -> [SymConst]
@@ -1758,3 +1751,16 @@ instance Hashable a => Hashable (Located a) where
 instance (NFData a) => NFData (Located a) where
   -- FIXME: no instance NFData SrcSpan
   rnf (Loc _ _  x) = rnf x
+
+-------------------------------------------------------------------------
+-- | Exported Basic Sorts -----------------------------------------------
+-------------------------------------------------------------------------
+
+boolSort, intSort, realSort, strSort :: Sort
+boolSort = fTyconSort boolFTyCon
+strSort  = fTyconSort strFTyCon
+intSort  = fTyconSort intFTyCon
+realSort = fTyconSort realFTyCon
+
+fTyConSort :: FTycon -> Sort
+fTyConSort c = fApp (Left c) []

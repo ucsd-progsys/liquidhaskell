@@ -311,8 +311,23 @@ sortP
   <|> try (string "func" >> funcSortP)
   <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
+  <|> try baseSortP
   <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
+
+
+fTyConP = symbolFTycon <$> locUpperIdP
+
+baseSortP
+  =   (reserved "int"     >> return intSort)
+  <|> (reserved "Integer" >> return intSort)
+  <|> (reserved "Int"     >> return intSort)
+  <|> (reserved "int"     >> return intSort)
+  <|> (reserved "real"    >> return realSort)
+  <|> (reserved "bool"    >> return boolSort)
+
+
+
 
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
@@ -418,15 +433,6 @@ condQmP f bodyP
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
-
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
 
 refaP :: Parser Refa
 refaP =  try (refa <$> brackets (sepBy predP semi))
