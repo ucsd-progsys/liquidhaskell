@@ -95,23 +95,21 @@ function install_cabal_deps {
 
 function _install_cabal_deps {
   loud travis_retry cabal update || return 1
-  loud travis_retry cabal install --reorder-goals --only-dependencies --upgrade-dependencies --enable-tests || return 1
+  loud travis_retry cabal install --only-dependencies --enable-tests || return 1
 }
 
 function do_build {
   loud cabal configure -fbuild-external --enable-tests -v2
   loud prevent_timeout cabal build -j2
+  loud cabal haddock
 }
 
 function do_test {
-  local tests="$1"
-  local smt="$2"
-
-  loud prevent_timeout ./dist/build/test/test --smtsolver "$smt" -j2 +RTS -N2 -RTS
+  loud prevent_timeout ./dist/build/test/test
 }
 
 function dump_fail_logs {
-  find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+  find . -type f -wholename '*/.liquid/*' -name '*.log' -print0 | while IFS= read -r -d $'\0' file; do
     echo "${file}:"
     echo "    $(pastebin < "${file}")"
   done
