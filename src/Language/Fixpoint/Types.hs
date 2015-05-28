@@ -1589,7 +1589,7 @@ instance Falseable Reft where
 ---------------------------------------------------------------
 
 symConstLits    :: FInfo a -> [(Symbol, Sort)]
-symConstLits fi = traceFix "symConstLits" [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
+symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
