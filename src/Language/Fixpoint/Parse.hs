@@ -197,7 +197,7 @@ symbolP = symbol <$> symCharsP
 
 constantP :: Parser Constant
 constantP =  try (R <$> double)
-         <|> I <$>integer
+         <|> I <$> integer
 
 symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
@@ -311,23 +311,36 @@ sortP
   <|> try (string "func" >> funcSortP)
   <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
-  <|> try baseSortP
-  <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
+  -- <|> try baseSortP
+  <|> try (fApp' <$> locLowerIdP)
+  <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
 
-
+fTyConP :: Parser FTycon
 fTyConP = symbolFTycon <$> locUpperIdP
 
-baseSortP
-  =   (reserved "int"     >> return intSort)
-  <|> (reserved "Integer" >> return intSort)
-  <|> (reserved "Int"     >> return intSort)
-  <|> (reserved "int"     >> return intSort)
-  <|> (reserved "real"    >> return realSort)
-  <|> (reserved "bool"    >> return boolSort)
+fApp' :: LocSymbol -> Sort
+fApp' ls
+  | s == "int"     = intSort
+  | s == "Integer" = intSort
+  | s == "Int"     = intSort
+  | s == "int"     = intSort
+  | s == "real"    = realSort
+  | s == "bool"    = boolSort
+  | otherwise      = fTyconSort . symbolFTycon $ ls
+  where
+    s              = symbolString $ val ls
 
 
 
+-- baseSortP
+--   =   (reserved "int"     >> return intSort)
+--   <|> (reserved "Integer" >> return intSort)
+--   <|> (reserved "Int"     >> return intSort)
+--   <|> (reserved "int"     >> return intSort)
+--   <|> (reserved "real"    >> return realSort)
+--   <|> (reserved "bool"    >> return boolSort)
+--   <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
 
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)

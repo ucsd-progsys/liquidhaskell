@@ -54,7 +54,7 @@ module Language.Fixpoint.Types (
   , intSort, realSort, propSort, boolSort, strSort
   , listFTyCon, appFTyCon
   , isListTC, isFAppTyTC
-  , fTyconSymbol, symbolFTycon
+  , fTyconSymbol, symbolFTycon, fTyconSort
   , fApp
   , fObj
 
