@@ -45,12 +45,13 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  -- , intFTyCon
+  , intFTyCon -- TODO: hide this
   -- , boolFTyCon
   -- , strFTyCon
   -- , realFTyCon
   -- , propFTyCon
-  , intSort, realSort, boolSort, strSort
+
+  , intSort, realSort, propSort, boolSort, strSort
   , listFTyCon, appFTyCon
   , isListTC, isFAppTyTC
   , fTyconSymbol, symbolFTycon
@@ -1756,11 +1757,12 @@ instance (NFData a) => NFData (Located a) where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, realSort, strSort :: Sort
+boolSort, intSort, propSort, realSort, strSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
+propSort = fTyconSort propFTyCon
 
 fTyConSort :: FTycon -> Sort
 fTyConSort c = fApp (Left c) []
