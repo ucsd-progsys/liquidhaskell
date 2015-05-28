@@ -96,7 +96,6 @@ module Language.Fixpoint.Types (
   -- * Environments
   , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
-  -- , mapSEnv
   , mapSEnvWithKey
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
@@ -114,6 +113,7 @@ module Language.Fixpoint.Types (
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
+  , raConjuncts
 
   -- * Constructing Refinements
   , refa
@@ -168,7 +168,7 @@ module Language.Fixpoint.Types (
   -- * Located Values
   , Located (..)
   , LocSymbol, LocText
-  , dummyLoc, dummyPos, dummyName, isDummy
+  , locAt, dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
 import           Debug.Trace               (trace)
@@ -624,7 +624,10 @@ isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
 
 isSingletonReft :: Reft -> Maybe Expr
-isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts $ raPred ra
+isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ raConjuncts ra
+
+raConjuncts  :: Refa -> [Pred]
+raConjuncts  = conjuncts . raPred
 
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 firstMaybe f = listToMaybe . mapMaybe f
@@ -1696,8 +1699,16 @@ instance (IsString a) => IsString (Located a) where
 type LocSymbol = Located Symbol
 type LocText   = Located Text
 
+
+locAt :: String -> a -> Located a
+locAt s  = Loc l l
+  where
+    l    = dummyPos s
+
 dummyLoc :: a -> Located a
-dummyLoc = Loc l l where l = dummyPos "Fixpoint.Types.dummyLoc"
+dummyLoc = Loc l l
+  where
+    l    = dummyPos "Fixpoint.Types.dummyLoc"
 
 dummyPos   :: String -> SourcePos
 dummyPos s = newPos s 0 0

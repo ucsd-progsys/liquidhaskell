@@ -38,6 +38,7 @@ module Language.Fixpoint.Parse (
   , predP       -- Refinement Predicates
   , funAppP     -- Function Applications
   , qualifierP  -- Qualifiers
+  , refaP       -- Refa 
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
@@ -430,6 +431,8 @@ fTyConP
 refaP :: Parser Refa
 refaP =  try (refa <$> brackets (sepBy predP semi))
      <|> (Refa <$> predP)
+
+
 
 refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP

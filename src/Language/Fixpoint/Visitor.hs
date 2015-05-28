@@ -156,6 +156,7 @@ kvars                = fold kvVis () []
     kv _ (PKVar k _) = [k]
     kv _ _           = []
 
+
 envKVars :: BindEnv -> SubC a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
   where

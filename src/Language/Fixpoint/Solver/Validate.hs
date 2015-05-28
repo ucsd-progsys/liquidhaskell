@@ -106,13 +106,14 @@ dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 dropHigherOrderBinders fi = fi { F.bs = dropHOBinders (F.bs fi) }
 
 dropHOBinders :: F.BindEnv -> F.BindEnv
-dropHOBinders = filterBindEnv (isFirstOrder . Misc.thd3)
+dropHOBinders = filterBindEnv (isFirstOrder . F.sr_sort .  Misc.thd3)
 
-filterBindEnv :: Int -> F.BindEnv -> F.BindEnv
 filterBindEnv f = F.bindEnvFromList . filter f . F.bindEnvToList
 
-
-isFirstOrder t      = foldSort f 0 t > 1
+isFirstOrder :: F.Sort -> Bool
+isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
   where
-    f n (FFunc _ _) = n + 1
-    f n _           = n
+    f n (F.FFunc _ _) = n + 1
+    f n _             = n
+
+

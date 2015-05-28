@@ -13,7 +13,7 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
-  , withUEqAllSorts
+  -- , withUEqAllSorts
 ) where
 
 import           System.Console.CmdArgs
@@ -35,6 +35,8 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
+
+
 data Config
   = Config {
       inFile      :: FilePath         -- ^ target fq-file
@@ -50,7 +52,7 @@ data Config
 
 instance Default Config where
   def = Config "" def def def def def def def def
-  
+
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
@@ -88,7 +90,6 @@ instance Command UeqAllSorts where
   command (UAS True)  = " -ueq-all-sorts "
   command (UAS False) = ""
 
-withUEqAllSorts c b = c { ueqAllSorts = UAS b }
 
 ---------------------------------------------------------------------------------------
 
