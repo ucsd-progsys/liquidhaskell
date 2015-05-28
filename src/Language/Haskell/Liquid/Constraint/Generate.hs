@@ -540,10 +540,10 @@ splitC (SubR γ o r)
   where
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
-    r1  = F.RR s $ F.toReft r
-    r2  = F.RR s $ F.Reft (vv, F.Refa $ F.PBexp $ F.EVar vv)
+    r1  = F.RR F.boolSort $ F.toReft r
+    r2  = F.RR F.boolSort $ F.Reft (vv, F.Refa $ F.PBexp $ F.EVar vv)
     vv  = "vvRec"
-    s   = F.FApp F.boolFTyCon []
+    -- s   = boolSort -- F.FApp F.boolFTyCon []
     ci  = Ci src err
     err = Just $ ErrAssType src o (text $ show o ++ "type error") r
     tag = getTag γ

@@ -325,10 +325,9 @@ substParg (x, y) = fmap fp
 
 pappArity  = 7
 
-pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [bSort]
+pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
   where ptycon = fApp (Left predFTyCon) $ FVar <$> [0..n-1]
         args   = FVar <$> [n..(2*n-1)]
-        bSort  = FApp boolFTyCon []
 
 wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 

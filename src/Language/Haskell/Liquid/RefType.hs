@@ -572,9 +572,13 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
     βs   = tyConTyVarsDef c
     rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
+
+-- RJ: The code of `isNumeric` is incomprehensible.
+-- Please fix it to use intSort instead of intFTyCon
 isNumeric tce c
-  =  (fromMaybe (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == intFTyCon)
+  =  fromMaybe
+       (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
+       (M.lookup (rtc_tc c) tce) == intFTyCon
 
 addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
