@@ -1,6 +1,17 @@
 TODO
 ====
 
+Automatically refine *inductors*
+--------------------------------
+Proposed by Valentine: in dependent languages (Coq) inductors (like our `loop` for natural numbers)
+automatically get types abstracted over properties. 
+Trasversal should create such functions. Maybe we can automatically refine them.
+
+Check refinements using `Eq` and `Ord` info
+-------------------------------------------
+Currenly we arbitrary allow `=` and comparison operators in refinements to arbitraty types. 
+This can lead to non-well formed refinements.
+
 promotion of haskell functions to measures
 ------------------------------------------
 
