@@ -375,10 +375,10 @@ checkMBodyUnify                 = go
 
 checkMBody' emb sort γ body = case body of
     E e   -> checkSortFull γ (rTypeSort emb sort') e
-    P p   -> checkSortFull γ psort  p
-    R s p -> checkSortFull (insertSEnv s sty γ) psort p
+    P p   -> checkSortFull γ propSort  p
+    R s p -> checkSortFull (insertSEnv s sty γ) propSort p
   where
-    psort = FApp propFTyCon []
+    -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
                                  , ty_binds = tail $ ty_binds trep'

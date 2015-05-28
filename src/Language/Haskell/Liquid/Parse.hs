@@ -368,10 +368,6 @@ symsP
 dummyRSort
   = RVar "dummy" mempty
 
-refaP :: Parser Refa
-refaP  =  try (refa <$> (brackets $ sepBy predP semi))
-       <|> Refa <$> predP
-
 predicatesP
    =  try (angles $ sepBy1 predicate1P comma)
   <|> return []
