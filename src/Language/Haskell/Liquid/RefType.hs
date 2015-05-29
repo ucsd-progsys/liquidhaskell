@@ -578,7 +578,7 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
 isNumeric tce c
   =  fromMaybe
        (symbolFTycon . dummyLoc $ tyConName (rtc_tc c))
-       (M.lookup (rtc_tc c) tce) == intFTyCon
+       (M.lookup (rtc_tc c) tce) == F.intFTyCon
 
 addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
