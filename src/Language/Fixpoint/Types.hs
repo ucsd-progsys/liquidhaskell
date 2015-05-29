@@ -45,10 +45,9 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon -- TODO: hide this
-  -- , boolFTyCon
+  , sortFTycon
+  , intFTyCon, boolFTyCon, realFTyCon  -- TODO: hide these
   -- , strFTyCon
-  -- , realFTyCon
   -- , propFTyCon
 
   , intSort, realSort, propSort, boolSort, strSort
@@ -362,6 +361,11 @@ fTyconSort = (`FApp` [])
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
 
+sortFTycon :: Sort -> Maybe FTycon
+sortFTycon FInt       = Just intFTyCon
+sortFTycon FReal      = Just realFTyCon
+sortFTycon (FApp c _) = Just c
+sortFTycon _          = Nothing
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------

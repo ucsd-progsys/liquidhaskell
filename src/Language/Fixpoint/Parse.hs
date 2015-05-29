@@ -83,7 +83,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names     (vv, nilName, consName)
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
-import           Data.Maybe                  (fromJust, maybe)
+import           Data.Maybe                  (fromJust, fromMaybe, maybe)
 
 import           Data.Monoid                 (mempty,mconcat)
 
@@ -312,24 +312,38 @@ sortP
   <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
   -- <|> try baseSortP
-  <|> try (fApp' <$> locLowerIdP)
+  -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
   <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
 
 fTyConP :: Parser FTycon
-fTyConP = symbolFTycon <$> locUpperIdP
+fTyConP
+  =   (reserved "int"     >> return intFTyCon)
+  <|> (reserved "Integer" >> return intFTyCon)
+  <|> (reserved "Int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "real"    >> return realFTyCon)
+  <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (symbolFTycon      <$> locUpperIdP)
 
-fApp' :: LocSymbol -> Sort
-fApp' ls
-  | s == "int"     = intSort
-  | s == "Integer" = intSort
-  | s == "Int"     = intSort
-  | s == "int"     = intSort
-  | s == "real"    = realSort
-  | s == "bool"    = boolSort
-  | otherwise      = fTyconSort . symbolFTycon $ ls
-  where
-    s              = symbolString $ val ls
+
+-- symbolFTycon' :: LocSymbol -> FTycon
+-- symbolFTycon' z = fromMaybe zc $ stc z
+--   where
+--     stc         = sortFTycon . symbolSort
+--     zc          = symbolFTycon z
+
+-- symbolSort :: LocSymbol -> Sort
+-- symbolSort ls
+--   | s == "int"     = intSort
+--   | s == "Integer" = intSort
+--   | s == "Int"     = intSort
+--   | s == "int"     = intSort
+--   | s == "real"    = realSort
+--   | s == "bool"    = boolSort
+--   | otherwise      = fTyconSort . symbolFTycon $ ls
+--   where
+--     s              = symbolString $ val ls
 
 
 
