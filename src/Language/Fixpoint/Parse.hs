@@ -37,8 +37,8 @@ module Language.Fixpoint.Parse (
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , funAppP     -- Function Applications
-  , qualifierP  -- Qualifiers
-  , refaP       -- Refa 
+  -- , qualifierP  -- Qualifiers
+  , refaP       -- Refa
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
@@ -204,7 +204,7 @@ symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  (brackets whiteSpace >> return eNil) 
+  =  (brackets whiteSpace >> return eNil)
  <|> (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
@@ -631,7 +631,7 @@ solution1P
        return (k, simplify $ PAnd ps)
     where
       kvP = try kvarP <|> (KV <$> symbolP)
-      
+
 solutionP :: Parser (M.HashMap KVar Pred)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
