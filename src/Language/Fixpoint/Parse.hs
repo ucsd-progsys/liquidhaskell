@@ -25,23 +25,26 @@ module Language.Fixpoint.Parse (
   , blanks
 
   -- * Parsing basic entities
-  , fTyConP     -- Type constructors
+
+  --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
   , bindP       -- Binder (lowerIdP <* colon)
+  , mkQual      -- constructing qualifiers
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , funAppP     -- Function Applications
-  -- , qualifierP  -- Qualifiers
+  , qualifierP  -- Qualifiers
   , refaP       -- Refa
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
+  , bvSortP     -- Bit-Vector Sort
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
@@ -487,14 +490,15 @@ refDefP x  = refBindP (optBindP x)
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
 
-qualifierP = do pos    <- getPosition
-                n      <- upperIdP
-                params <- parens $ sepBy1 sortBindP comma
-                _      <- colon
-                body   <- predP
-                return  $ mkQual n params body pos
+qualifierP tP = do
+  pos    <- getPosition
+  n      <- upperIdP
+  params <- parens $ sepBy1 (sortBindP tP) comma
+  _      <- colon
+  body   <- predP
+  return  $ mkQual n params body pos
 
-sortBindP = (,) <$> symbolP <* colon <*> sortP
+sortBindP tP = (,) <$> symbolP <* colon <*> tP
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
@@ -542,7 +546,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Cst   <$> (reserved "constraint" >> colon >> subCP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
-    <|> Qul   <$> (reserved "qualif"     >> qualifierP)
+    <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
