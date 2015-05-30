@@ -589,7 +589,7 @@ specP
     <|> (reservedToken "predicate" >> liftM PAlias paliasP   )
     <|> (reservedToken "expression">> liftM EAlias ealiasP   )
     <|> (reservedToken "embed"     >> liftM Embed  embedP    )
-    <|> (reservedToken "qualif"    >> liftM Qualif qualifierP)
+    <|> (reservedToken "qualif"    >> liftM Qualif (qualifierP sortP))
     <|> (reservedToken "Decrease"  >> liftM Decr   decreaseP )
     <|> (reservedToken "LAZYVAR"   >> liftM LVars  lazyVarP  )
     <|> (reservedToken "Strict"    >> liftM Lazy   lazyVarP  )
@@ -863,6 +863,45 @@ dataDeclFullP
        dcs <- sepBy dataConP (reserved "|")
        whiteSpace
        return $ D x ts ps [] dcs pos fsize
+
+---------------------------------------------------------------------
+-- | Parsing Qualifiers ---------------------------------------------
+---------------------------------------------------------------------
+
+-- qualifierP = do
+--   pos    <- getPosition
+--   n      <- upperIdP
+--   params <- parens $ sepBy1 sortBindP comma
+--   _      <- colon
+--   body   <- predP
+--   return  $ mkQual n params body pos
+--
+-- sortBindP = (,) <$> symbolP <* colon <*> sortP
+
+sortP
+  =   try (parens $ sortP)
+  -- <|> try (string "@"    >> varSortP)
+  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
+  -- <|> try bvSortP
+  -- <|> try baseSortP
+  -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
+  <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
+  <|> (FObj . symbol <$> lowerIdP)
+
+-- varSortP  = FVar  <$> parens intP
+-- funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
+
+fTyConP :: Parser FTycon
+fTyConP
+  =   (reserved "int"     >> return intFTyCon)
+  <|> (reserved "Integer" >> return intFTyCon)
+  <|> (reserved "Int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "real"    >> return realFTyCon)
+  <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (symbolFTycon      <$> locUpperIdP)
+
+
 
 
 ---------------------------------------------------------------------
