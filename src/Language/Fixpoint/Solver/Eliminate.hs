@@ -89,16 +89,19 @@ extractPred wfc be subC = do foo <- mapM renameVar vars
     lhs = slhs subC
     (vars, prList) = baz $ (reftBind $ sr_reft lhs, lhs) : unmatchedBindings
 
-    suPreds = substPreds $ reftPred $ sr_reft $ srhs subC
+    suPreds = substPreds (domain be wfc) $ reftPred $ sr_reft $ srhs subC
     finalPred = PAnd $ prList ++ suPreds
 
 -- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
-substPreds :: Pred -> [Pred]
-substPreds (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- subs]
+substPreds :: [Symbol] -> Pred -> [Pred]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- subs , sym `elem` dom]
+
+domain :: BindEnv -> WfC a -> [Symbol]
+domain be wfc = (reftBind $ sr_reft $ wrft wfc) : (map fst $ envCs be $ wenv wfc)
 
 renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
 renameVar (sym, srt) = do n <- get
-                          let sym' = existSymbol sym n --TODO interacts badly with VV#n
+                          let sym' = existSymbol sym n
                           put (n+1)
                           return ((sym', srt), (sym, eVar sym'))
 
