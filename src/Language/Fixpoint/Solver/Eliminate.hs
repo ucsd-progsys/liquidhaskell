@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards    #-}
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll) where
 

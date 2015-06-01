@@ -20,7 +20,7 @@ import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
 -- import           Control.Monad (filterM)
 -- import           Control.Applicative ((<$>))
-import           Debug.Trace (trace)
+--import           Debug.Trace (trace)
 import           Text.Printf
 
 ---------------------------------------------------------------------------
@@ -104,15 +104,24 @@ subcVV c = (x, sr)
 ---------------------------------------------------------------------------
 dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
-dropHigherOrderBinders fi = fi { F.bs = dropHOBinders (F.bs fi) }
+dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' }
+  where 
+    (bs', discards) = dropHOBinders (F.bs fi)
+    cm' = M.map (foo discards) (F.cm fi)
+    ws' = map (bar discards) (F.ws fi)
 
-dropHOBinders :: F.BindEnv -> F.BindEnv
+foo :: [F.BindId] -> F.SubC a -> F.SubC a
+foo discards sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) discards }
+bar :: [F.BindId] -> F.WfC a -> F.WfC a
+bar discards wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) discards }
+
+dropHOBinders :: F.BindEnv -> (F.BindEnv, [F.BindId])
 dropHOBinders = filterBindEnv (isFirstOrder . F.sr_sort .  Misc.thd3)
 
-filterBindEnv f be = F.bindEnvFromList
-                   --   $ F.traceFix "filterBE"
-                   $ filter f
-                   $ F.bindEnvToList be
+filterBindEnv f be = (F.bindEnvFromList keep, discard')
+  where
+    (keep, discard) = L.partition f $ F.bindEnvToList be
+    discard' = map Misc.fst3 discard
 
 isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
   where
