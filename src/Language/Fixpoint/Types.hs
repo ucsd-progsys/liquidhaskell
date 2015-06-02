@@ -218,7 +218,7 @@ data Def a
   | Qul Qualifier
   | Kut KVar
   | IBind Int Symbol SortedReft
-  deriving (Generic)
+  deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
 
@@ -1237,7 +1237,6 @@ flattenRefas ::  [Refa] -> [Refa]
 flattenRefas         = concatMap flatRa
   where
     flatRa (Refa p)  = Refa <$> flatP p
-    flatRa ra        = [ra]
     flatP  (PAnd ps) = concatMap flatP ps
     flatP  p         = [p]
 
