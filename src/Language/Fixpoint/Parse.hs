@@ -209,7 +209,6 @@ expr0P :: Parser Expr
 expr0P
   =  (brackets whiteSpace >> return eNil)
  <|> (fastIfP EIte exprP)
- -- <|> (qmIfP   EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
@@ -459,14 +458,6 @@ condIteP f bodyP
        reserved "then"
        b1 <- bodyP
        reserved "else"
-       b2 <- bodyP
-       return $ f p b1 b2
-
-condQmP f bodyP
-  = do p  <- predP
-       reserved "?"
-       b1 <- bodyP
-       colon
        b2 <- bodyP
        return $ f p b1 b2
 
