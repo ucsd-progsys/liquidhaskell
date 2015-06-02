@@ -7,7 +7,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE DeriveFunctor             #-}
@@ -100,9 +99,7 @@ consAct info
   = do γ     <- initEnv info
        sflag <- scheck <$> get
        tflag <- trustghc <$> get
-       let trustBinding x = if tflag
-                             then (x `elem` (derVars info) || isInternal x)
-                             else False
+       let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ (cbs info)
        hcs <- hsCs  <$> get
        hws <- hsWfs <$> get
@@ -114,7 +111,7 @@ consAct info
        let hcs' = if sflag then subsS smap hcs else hcs
        fcs <- concat <$> mapM splitC (subsS smap hcs')
        fws <- concat <$> mapM splitW hws
-       let annot' = if sflag then (\t -> subsS smap t) <$> annot else annot
+       let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
 
 ------------------------------------------------------------------------------------
@@ -676,7 +673,7 @@ addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
   where
     xs    = grapBindsWithType tyy γ
-    t     = foldl (\t1 t2 -> t1 `F.meet` t2) ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
+    t     = foldl F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
 
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
@@ -686,7 +683,7 @@ addCGEnv tx γ (_, x, t')
        let γ' = γ { renv = insertREnv x t (renv γ) }
        pflag <- pruneRefs <$> get
        is    <- if isBase t
-                  then liftM2 (++) (liftM single $ addBind x $ rTypeSortedReft' pflag γ' t) (addClassBind t)
+                  then (:) <$> addBind x (rTypeSortedReft' pflag γ' t) <*> addClassBind t
                   else return [] -- addClassBind t
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
