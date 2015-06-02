@@ -65,7 +65,7 @@ import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.IO        as LTIO
 import           Data.IORef
 import           System.Directory
-import           System.Exit
+import           System.Exit              hiding (die)
 import           System.FilePath
 import           System.IO                (Handle, IOMode (..), hClose, hFlush,
                                            openFile)
@@ -410,9 +410,11 @@ class SMTLIB2 a where
   smt2 :: a -> LT.Text
 
 instance SMTLIB2 Sort where
-  smt2 FInt        = "Int"
-  smt2 (FApp t []) | t == intFTyCon = "Int"
-  smt2 (FApp t []) | t == boolFTyCon = "Bool"
+  smt2 FInt         = "Int"
+  smt2 t
+    | t == boolSort = "Bool"
+  -- smt2 (FApp t []) | t == intFTyCon = "Int"
+  -- smt2 (FApp t []) | t == boolFTyCon = "Bool"
   smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
   -- smt2 (FObj s)    = smt2 s
   smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s

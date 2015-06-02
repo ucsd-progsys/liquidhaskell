@@ -23,3 +23,6 @@
 /external/ocamlgraph/src/dot_parser.output
 /external/ocamlgraph/src/gml.ml
 /external/ocamlgraph/src/version.ml
+/tests/neg/.liquid/
+/tests/pos/.liquid/
+/external/ocamlgraph/config.log

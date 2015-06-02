@@ -18,6 +18,7 @@ import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
+import System.IO.Error
 -- import qualified System.Posix as Posix
 import System.Process
 
@@ -73,7 +74,7 @@ mkTest code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- canonicalizePath ".cabal-sandbox/bin/fixpoint"
+        bin <- canonicalizePath "dist/build/fixpoint/fixpoint"
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
@@ -242,7 +243,7 @@ group n xs = testGroup n <$> sequence xs
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
 walkDirectory root
-  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< getDirectoryContents root
+  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
        (fs++) <$> concatMapM walkDirectory ds
   where
     candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]

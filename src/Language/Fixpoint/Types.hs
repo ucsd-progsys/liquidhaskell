@@ -45,21 +45,17 @@ module Language.Fixpoint.Types (
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
-  , intFTyCon
-  , boolFTyCon
-  , realFTyCon
-  , strFTyCon
-  , propFTyCon
-  , listFTyCon
-  , appFTyCon
-  , fTyconSymbol
-  , symbolFTycon
+  , sortFTycon
+  , intFTyCon, boolFTyCon, realFTyCon  -- TODO: hide these
+  -- , strFTyCon
+  -- , propFTyCon
 
-  , strSort
+  , intSort, realSort, propSort, boolSort, strSort
+  , listFTyCon, appFTyCon
+  , isListTC, isFAppTyTC
+  , fTyconSymbol, symbolFTycon, fTyconSort
   , fApp
   , fObj
-  , isListTC
-  , isFAppTyTC
 
   -- * Expressions and Predicates
   , SymConst (..)
@@ -96,7 +92,6 @@ module Language.Fixpoint.Types (
   -- * Environments
   , SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
-  -- , mapSEnv
   , mapSEnvWithKey
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
@@ -114,6 +109,7 @@ module Language.Fixpoint.Types (
 
   -- * Refinements
   , Refa (..), SortedReft (..), Reft(..), Reftable(..)
+  , raConjuncts
 
   -- * Constructing Refinements
   , refa
@@ -168,7 +164,7 @@ module Language.Fixpoint.Types (
   -- * Located Values
   , Located (..)
   , LocSymbol, LocText
-  , dummyLoc, dummyPos, dummyName, isDummy
+  , locAt, dummyLoc, dummyPos, dummyName, isDummy
   ) where
 
 import           Debug.Trace               (trace)
@@ -374,6 +370,11 @@ fTyconSort = (`FApp` [])
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
 
+sortFTycon :: Sort -> Maybe FTycon
+sortFTycon FInt       = Just intFTyCon
+sortFTycon FReal      = Just realFTyCon
+sortFTycon (FApp c _) = Just c
+sortFTycon _          = Nothing
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -633,12 +634,15 @@ isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
 
 isSingletonReft :: Reft -> Maybe Expr
-isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts $ raPred ra
+isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ raConjuncts ra
+
+raConjuncts  :: Refa -> [Pred]
+raConjuncts  = conjuncts . raPred
 
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 firstMaybe f = listToMaybe . mapMaybe f
 
---   where 
+--   where
 --     go (PAtom r e1 e2) | e1 == EVar v && isEq r = Just e2
 --                        | e2 == EVar v && isEq r = Just e1
 --     go _                                        = Nothing
@@ -1591,7 +1595,7 @@ instance Falseable Refa where
   isFalse (Refa p) = isFalse p
 
 instance Falseable Reft where
-  isFalse (Reft(_, (Refa p))) = isFalse p
+  isFalse (Reft (_, ra)) = isFalse $ raPred ra
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
@@ -1618,9 +1622,6 @@ decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
 
 litPrefix    :: Text
 litPrefix    = "lit" `T.snoc` symSepName
-
-strSort      :: Sort
-strSort      = FInt 
 
 class SymConsts a where
   symConsts :: a -> [SymConst]
@@ -1705,8 +1706,16 @@ instance (IsString a) => IsString (Located a) where
 type LocSymbol = Located Symbol
 type LocText   = Located Text
 
+
+locAt :: String -> a -> Located a
+locAt s  = Loc l l
+  where
+    l    = dummyPos s
+
 dummyLoc :: a -> Located a
-dummyLoc = Loc l l where l = dummyPos "Fixpoint.Types.dummyLoc"
+dummyLoc = Loc l l
+  where
+    l    = dummyPos "Fixpoint.Types.dummyLoc"
 
 dummyPos   :: String -> SourcePos
 dummyPos s = newPos s 0 0
@@ -1756,3 +1765,17 @@ instance Hashable a => Hashable (Located a) where
 instance (NFData a) => NFData (Located a) where
   -- FIXME: no instance NFData SrcSpan
   rnf (Loc _ _  x) = rnf x
+
+-------------------------------------------------------------------------
+-- | Exported Basic Sorts -----------------------------------------------
+-------------------------------------------------------------------------
+
+boolSort, intSort, propSort, realSort, strSort :: Sort
+boolSort = fTyconSort boolFTyCon
+strSort  = fTyconSort strFTyCon
+intSort  = fTyconSort intFTyCon
+realSort = fTyconSort realFTyCon
+propSort = fTyconSort propFTyCon
+
+fTyConSort :: FTycon -> Sort
+fTyConSort c = fApp (Left c) []

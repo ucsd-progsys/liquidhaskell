@@ -25,22 +25,26 @@ module Language.Fixpoint.Parse (
   , blanks
 
   -- * Parsing basic entities
-  , fTyConP     -- Type constructors
+
+  --   fTyConP  -- Type constructors
   , lowerIdP    -- Lower-case identifiers
   , upperIdP    -- Upper-case identifiers
   , symbolP     -- Arbitrary Symbols
   , constantP   -- (Integer) Constants
   , integer     -- Integer
   , bindP       -- Binder (lowerIdP <* colon)
+  , mkQual      -- constructing qualifiers
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
   , predP       -- Refinement Predicates
   , funAppP     -- Function Applications
   , qualifierP  -- Qualifiers
+  , refaP       -- Refa
   , refP        -- (Sorted) Refinements
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
+  , bvSortP     -- Bit-Vector Sort
 
   -- * Some Combinators
   , condIdP     -- condIdP  :: [Char] -> (Text -> Bool) -> Parser Text
@@ -79,10 +83,10 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names     (vv)
+import           Language.Fixpoint.Names     (vv, nilName, consName)
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
-import           Data.Maybe                  (fromJust, maybe)
+import           Data.Maybe                  (fromJust, fromMaybe, maybe)
 
 import           Data.Monoid                 (mempty,mconcat)
 
@@ -117,7 +121,7 @@ languageDef =
                                      , "|"
                                      , "if", "then", "else"
                                      ]
-           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\"
+           , Token.reservedOpNames = [ "+", "-", "*", "/", "\\", ":"
                                      , "<", ">", "<=", ">=", "=", "!=" , "/="
                                      , "mod", "and", "or"
                                   --, "is"
@@ -196,14 +200,15 @@ symbolP = symbol <$> symCharsP
 
 constantP :: Parser Constant
 constantP =  try (R <$> double)
-         <|> I <$>integer
+         <|> I <$> integer
 
 symconstP :: Parser SymConst
 symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  (fastIfP EIte exprP)
+  =  (brackets whiteSpace >> return eNil)
+ <|> (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
@@ -283,10 +288,12 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
+       , [ Infix  (reservedOp ":"    >> return (eCons     )) AssocLeft]
        ]
 
-eMinus = EBin Minus (expr (0 :: Integer))
-
+eMinus     = EBin Minus (expr (0 :: Integer))
+eCons x xs = EApp (dummyLoc consName) [x,xs]
+eNil       = EVar nilName
 
 exprCastP
   = do e  <- exprP
@@ -307,8 +314,50 @@ sortP
   <|> try (string "func" >> funcSortP)
   <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
-  <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
+  -- <|> try baseSortP
+  -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
+  <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
+
+fTyConP :: Parser FTycon
+fTyConP
+  =   (reserved "int"     >> return intFTyCon)
+  <|> (reserved "Integer" >> return intFTyCon)
+  <|> (reserved "Int"     >> return intFTyCon)
+  <|> (reserved "int"     >> return intFTyCon)
+  <|> (reserved "real"    >> return realFTyCon)
+  <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (symbolFTycon      <$> locUpperIdP)
+
+
+-- symbolFTycon' :: LocSymbol -> FTycon
+-- symbolFTycon' z = fromMaybe zc $ stc z
+--   where
+--     stc         = sortFTycon . symbolSort
+--     zc          = symbolFTycon z
+
+-- symbolSort :: LocSymbol -> Sort
+-- symbolSort ls
+--   | s == "int"     = intSort
+--   | s == "Integer" = intSort
+--   | s == "Int"     = intSort
+--   | s == "int"     = intSort
+--   | s == "real"    = realSort
+--   | s == "bool"    = boolSort
+--   | otherwise      = fTyconSort . symbolFTycon $ ls
+--   where
+--     s              = symbolString $ val ls
+
+
+
+-- baseSortP
+--   =   (reserved "int"     >> return intSort)
+--   <|> (reserved "Integer" >> return intSort)
+--   <|> (reserved "Int"     >> return intSort)
+--   <|> (reserved "int"     >> return intSort)
+--   <|> (reserved "real"    >> return realSort)
+--   <|> (reserved "bool"    >> return boolSort)
+--   <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
 
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
@@ -415,18 +464,11 @@ condQmP f bodyP
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
-fTyConP
-  =   (reserved "int"     >> return intFTyCon)
-  <|> (reserved "Integer" >> return intFTyCon)
-  <|> (reserved "Int"     >> return intFTyCon)
-  <|> (reserved "int"     >> return intFTyCon)
-  <|> (reserved "real"    >> return realFTyCon)
-  <|> (reserved "bool"    >> return boolFTyCon)
-  <|> (symbolFTycon      <$> locUpperIdP)
-
 refaP :: Parser Refa
 refaP =  try (refa <$> brackets (sepBy predP semi))
      <|> (Refa <$> predP)
+
+
 
 refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
@@ -448,14 +490,15 @@ refDefP x  = refBindP (optBindP x)
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
 
-qualifierP = do pos    <- getPosition
-                n      <- upperIdP
-                params <- parens $ sepBy1 sortBindP comma
-                _      <- colon
-                body   <- predP
-                return  $ mkQual n params body pos
+qualifierP tP = do
+  pos    <- getPosition
+  n      <- upperIdP
+  params <- parens $ sepBy1 (sortBindP tP) comma
+  _      <- colon
+  body   <- predP
+  return  $ mkQual n params body pos
 
-sortBindP = (,) <$> symbolP <* colon <*> sortP
+sortBindP tP = (,) <$> symbolP <* colon <*> tP
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
@@ -503,7 +546,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Cst   <$> (reserved "constraint" >> colon >> subCP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
-    <|> Qul   <$> (reserved "qualif"     >> qualifierP)
+    <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
 
@@ -592,7 +635,7 @@ solution1P
        return (k, simplify $ PAnd ps)
     where
       kvP = try kvarP <|> (KV <$> symbolP)
-      
+
 solutionP :: Parser (M.HashMap KVar Pred)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace

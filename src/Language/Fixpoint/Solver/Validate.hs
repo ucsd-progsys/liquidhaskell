@@ -105,7 +105,7 @@ subcVV c = (x, sr)
 dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
 dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' }
-  where 
+  where
     (bs', discards) = dropHOBinders (F.bs fi)
     cm' = M.map (foo discards) (F.cm fi)
     ws' = map (bar discards) (F.ws fi)
@@ -123,6 +123,7 @@ filterBindEnv f be = (F.bindEnvFromList keep, discard')
     (keep, discard) = L.partition f $ F.bindEnvToList be
     discard' = map Misc.fst3 discard
 
+isFirstOrder :: F.Sort -> Bool
 isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
   where
     f n (F.FFunc _ _) = n + 1
