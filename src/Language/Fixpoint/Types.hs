@@ -524,10 +524,10 @@ instance Fixpoint Expr where
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = toFix f <> parens (toFix es)
-  toFix (ENeg e)       = parens $ text "-" <+> parens (toFix e)
-  toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
-  toFix (EIte p e1 e2) = parens $ toFix p <+> text "?" <+> toFix e1 <+> text ":" <+> toFix e2
-  toFix (ECst e so)    = parens $ toFix e <+> text " : " <+> toFix so
+  toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
+  toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
+  toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
+  toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
   toFix (EBot)         = text "_|_"
 
 ----------------------------------------------------------
