@@ -314,6 +314,7 @@ instance Fixpoint Bool where
   toFix False = text "False"
   simplify z  = z
 
+
 toFixGs :: SEnv SortedReft -> Doc
 toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
 
