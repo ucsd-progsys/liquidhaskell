@@ -49,7 +49,7 @@ import           Text.PrettyPrint.HughesPJ
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: Config -> FInfo a -> IO (Result a)
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | native cfg = S.solve  cfg
   | otherwise  = solveExt cfg
@@ -73,7 +73,7 @@ solveNative cfg
        str     <- readFile file
        let fi   = rr' file str :: FInfo ()
        let res  = eliminateAll fi
-       putStrLn $ "Result: \n" ++ (render $ toFixpoint res)
+       putStrLn $ "Result: \n" ++ render (toFixpoint cfg res)
        error "TODO: solveNative"
 
 ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ solveNative' cfg = exit (ExitFailure 2) $ do
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
 ---------------------------------------------------------------------------
-solveExt :: Config -> FInfo a -> IO (Result a)
+solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
@@ -106,7 +106,7 @@ execFq cfg fn fi
        solveFile $ cfg `withTarget` fq
     where
        fq   = extFileName Fq fn
-       d    = {-# SCC "FixPointify" #-} toFixpoint fi
+       d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
        qstr = render ((vcat $ toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode

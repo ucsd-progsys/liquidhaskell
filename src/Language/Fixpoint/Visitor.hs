@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor

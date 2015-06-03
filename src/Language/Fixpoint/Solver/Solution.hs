@@ -176,7 +176,7 @@ wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.KVar)
 wfKvar w@(F.WfC {F.wrft = sr})
   | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr
   , F.isEmptySubst su = (v, F.sr_sort sr, k)
-  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show w
+  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show (F.wid w)
 
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool

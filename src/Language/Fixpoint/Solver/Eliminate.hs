@@ -1,4 +1,6 @@
+{-# LANGUAGE PatternGuards    #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll) where
 
@@ -16,9 +18,9 @@ import           Control.Monad.State (get, put, runState, evalState, State)
 
 --------------------------------------------------------------
 eliminateAll :: FInfo a -> FInfo a
-eliminateAll fi = evalState (foldlM eliminate fi (D.depNonCuts ds)) 0
+eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
   where
-    ds = D.deps fi
+    nonCuts = D.depNonCuts $ D.deps fi
 --------------------------------------------------------------
 
 
@@ -26,7 +28,9 @@ class Elimable a where
   elimKVar :: KVar -> Pred -> a -> a
 
 instance Elimable (SubC a) where
-  -- we don't bother editing srhs since if kv is on the rhs then the entire constraint should get eliminated
+  -- we don't bother editing srhs since if kv is on the rhs 
+  -- then the entire constraint should get eliminated
+  -- TODO what if it's just part of rhs e.g. && [k0; v ~~ 10]
   elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x) }
 
 instance Elimable SortedReft where
@@ -47,22 +51,20 @@ instance Elimable BindEnv where
 
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
-eliminate fInfo kv = do
-  n <- get
-  let relevantSubCs  = M.filter (   elem kv . D.rhsKVars) (cm fInfo)
-  let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fInfo)
-  let (kvWfC, remainingWs) = findWfC kv (ws fInfo)
-  let (bindingsList, (n', orPred)) = runState (mapM (extractPred kvWfC (bs fInfo)) (M.elems relevantSubCs)) (n, POr [])
-  let bindings = concat bindingsList
-
-  let be = bs fInfo
-  let (ids, be') = insertsBindEnv [(sym, trueSortedReft srt) | (sym, srt) <- bindings] be
+eliminate fi kv = do
+  let relevantSubCs  = M.filter (   elem kv . D.rhsKVars) (cm fi)
+  let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fi)
+  let (kvWfC, remainingWs) = findWfC kv (ws fi)
+  foo <- mapM (extractPred kvWfC (bs fi)) (M.elems relevantSubCs)
+  let orPred = POr $ map fst foo
+  let symSrtList = concatMap snd foo
+  let symSReftList = [(sym, trueSortedReft srt) | (sym, srt) <- symSrtList]
+  let (ids, be) = insertsBindEnv symSReftList $ bs fi
   let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  put n'
-  return $ elimKVar kv orPred (fInfo { cm = newSubCs , ws = remainingWs , bs = be' })
+  return $ elimKVar kv orPred (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
-insertsBindEnv bs = runState (mapM go bs)
+insertsBindEnv = runState . mapM go
   where
     go (sym, srft) = do be <- get
                         let (id, be') = insertBindEnv sym srft be
@@ -76,51 +78,41 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ (show kv) ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> BindEnv -> SubC a -> State (Integer, Pred) [(Symbol, Sort)]
-extractPred wfc be subC = do (n, (POr preds)) <- get
-                             let (bs, (n', pr')) = runState (mapM renameVar vars) (n, PAnd $ pr : [(blah (kVarVV, slhs subC))] ++ suPreds')
-                             put (n', POr $ pr' : preds)
-                             return bs
+extractPred :: WfC a -> BindEnv -> SubC a -> State Integer (Pred, [(Symbol, Sort)])
+extractPred wfc be subC = do foo <- mapM renameVar vars
+                             let (bs, subs) = unzip foo
+                             return (subst (mkSubst subs) finalPred, bs)
   where
     wfcIBinds  = elemsIBindEnv $ wenv wfc
     subcIBinds = elemsIBindEnv $ senv subC
-    unmatchedIBinds | wfcIBinds `subset` subcIBinds = subcIBinds \\ wfcIBinds
-                    | otherwise = errorstar $ "kVar is not well formed (missing bindings)" ++ "kVar: " ++ (showFix wfc) ++ "constraint: " ++ (showFix subC)
+    unmatchedIBinds = subcIBinds \\ wfcIBinds
     unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
     unmatchedBindings = envCs be unmatchedIBindEnv
+    lhs = slhs subC
+    (vars, prList) = baz $ (reftBind $ sr_reft lhs, lhs) : unmatchedBindings
 
-    kvSreft = wrft wfc
-    kVarVV = reftBind $ sr_reft kvSreft
+    suPreds = substPreds (domain be wfc) $ reftPred $ sr_reft $ srhs subC
+    finalPred = PAnd $ prList ++ suPreds
 
-    (vars, pr) = baz unmatchedBindings
+-- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
+substPreds :: [Symbol] -> Pred -> [Pred]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- subs , sym `elem` dom]
 
-    reft = sr_reft $ srhs subC
-    suPreds = substPreds $ reftPred reft
-    sub = ((reftBind reft), (eVar kVarVV))
-    suPreds' = [subst1 p sub | p <- suPreds]
+domain :: BindEnv -> WfC a -> [Symbol]
+domain be wfc = (reftBind $ sr_reft $ wrft wfc) : (map fst $ envCs be $ wenv wfc)
 
--- on rhs, k0[v:=z] -> [v = z]
-substPreds :: Pred -> [Pred]
-substPreds (PKVar _ (Su subs)) = map (\(sym, expr) -> PAtom Eq (eVar sym) expr) subs
-
-renameVar :: (Symbol, Sort) -> State (Integer, Pred) (Symbol, Sort)
-renameVar (sym, srt) = do (n, pr) <- get
+renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
+renameVar (sym, srt) = do n <- get
                           let sym' = existSymbol sym n
-                          put ((n+1), subst1 pr (sym, eVar sym'))
-                          return (sym', srt)
+                          put (n+1)
+                          return ((sym', srt), (sym, eVar sym'))
 
-subset :: (Eq a) => [a] -> [a] -> Bool
-subset xs ys = (xs \\ ys) == []
+-- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], [(x=10), (y=20)]
+baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],[Pred])
+baz = unzip . map blah
 
--- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], (x=10) /\ (y=20)
-baz :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],Pred)
-baz bindings = (bs, PAnd $ map blah bindings)
-  where
-    bs = map (\(sym, sreft) -> (sym, sr_sort sreft)) bindings
-
--- [ x:{v:int|v=10} ] -> (x=10)
-blah :: (Symbol, SortedReft) -> Pred
-blah (sym, sr) = subst1 (reftPred reft) sub
+blah :: (Symbol, SortedReft) -> ((Symbol,Sort), Pred)
+blah (sym, sr) = ((sym, sr_sort sr), subst1 (reftPred reft) sub)
   where
     reft = sr_reft sr
     sub = ((reftBind reft), (eVar sym))

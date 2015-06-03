@@ -189,6 +189,7 @@ import           Control.Exception         (assert)
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
+import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
@@ -218,7 +219,7 @@ data Def a
   | Qul Qualifier
   | Kut KVar
   | IBind Int Symbol SortedReft
-  deriving (Generic)
+  deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
 
@@ -304,6 +305,16 @@ instance Fixpoint a => Fixpoint [a] where
 instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
   toFix   (x,y)  = toFix x <+> text ":" <+> toFix y
   simplify (x,y) = (simplify x, simplify y)
+
+instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a,b,c) where
+  toFix   (x,y,z)  = toFix x <+> text ":" <+> toFix y <+> text ":" <+> toFix  z
+  simplify (x,y,z) = (simplify x, simplify y,simplify z)
+
+instance Fixpoint Bool where
+  toFix True  = text "True"
+  toFix False = text "False"
+  simplify z  = z
+
 
 toFixGs :: SEnv SortedReft -> Doc
 toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
@@ -514,10 +525,10 @@ instance Fixpoint Expr where
   toFix (EVar s)       = toFix s
   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = toFix f <> parens (toFix es)
-  toFix (ENeg e)       = parens $ text "-" <+> parens (toFix e)
-  toFix (EBin o e1 e2) = parens $ toFix e1 <+> toFix o <+> toFix e2
-  toFix (EIte p e1 e2) = parens $ toFix p <+> text "?" <+> toFix e1 <+> text ":" <+> toFix e2
-  toFix (ECst e so)    = parens $ toFix e <+> text " : " <+> toFix so
+  toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
+  toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
+  toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
+  toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
   toFix (EBot)         = text "_|_"
 
 ----------------------------------------------------------
@@ -981,21 +992,21 @@ resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
 resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : (((text "WARNING:" <+>) . toFix) <$> xs)
 
-
+colorResult :: FixResult a -> Moods
 colorResult (Safe)      = Happy
 colorResult (Unsafe _)  = Angry
 colorResult (_)         = Sad
 
-instance Show (WfC a) where
+instance Fixpoint a => Show (WfC a) where
   show = showFix
 
-instance Show (SubC a) where
+instance Fixpoint a => Show (SubC a) where
   show = showFix
 
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids
 
-instance Fixpoint (SubC a) where
+instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
@@ -1003,13 +1014,19 @@ instance Fixpoint (SubC a) where
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
               $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
 
-instance Fixpoint (WfC a) where
+
+instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   -- text "env"  <+> toFix (wenv w)
                   toFix (wenv w)
               $+$ text "reft" <+> toFix (wrft w)
               $+$ pprId (wid w)
+              $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
+
+toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
+              $+$ text "\n"
 
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
@@ -1227,7 +1244,6 @@ flattenRefas ::  [Refa] -> [Refa]
 flattenRefas         = concatMap flatRa
   where
     flatRa (Refa p)  = Refa <$> flatP p
-    flatRa ra        = [ra]
     flatP  (PAnd ps) = concatMap flatP ps
     flatP  p         = [p]
 
@@ -1429,6 +1445,9 @@ data Qualifier = Q { q_name   :: Symbol           -- ^ Name
 instance Fixpoint Qualifier where
   toFix = pprQual
 
+instance Fixpoint () where
+  toFix _ = text "()"
+
 instance NFData Qualifier where
   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
@@ -1447,6 +1466,7 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , lits  :: ![(Symbol, Sort)]
                   , kuts  :: Kuts
                   , quals :: ![Qualifier]
+                  , bindInfo :: M.HashMap BindId a
                   }
                deriving (Show)
 
@@ -1465,24 +1485,28 @@ instance Monoid BindEnv where
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (FInfo a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty
-  mappend i1 i2 = FI { cm    = mappend (cm i1)    (cm i2)
-                     , ws    = mappend (ws i1)    (ws i2)
-                     , bs    = mappend (bs i1)    (bs i2)
-                     , gs    = mappend (gs i1)    (gs i2)
-                     , lits  = mappend (lits i1)  (lits i2)
-                     , kuts  = mappend (kuts i1)  (kuts i2)
-                     , quals = mappend (quals i1) (quals i2)
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
+  mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
+                     , ws       = mappend (ws i1)       (ws i2)
+                     , bs       = mappend (bs i1)       (bs i2)
+                     , gs       = mappend (gs i1)       (gs i2)
+                     , lits     = mappend (lits i1)     (lits i2)
+                     , kuts     = mappend (kuts i1)     (kuts i2)
+                     , quals    = mappend (quals i1)    (quals i2)
+                     , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      }
 
-toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
+toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
+toFixpoint cfg x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x' $+$ binfoDoc x'
   where
-    conDoc    = vcat     . map toFixConstant . lits
-    csDoc     = vcat     . map toFix . M.elems . cm
-    wsDoc     = vcat     . map toFix . ws
-    kutsDoc   = toFix    . kuts
-    bindsDoc  = toFix    . bs
-    gsDoc     = toFixGs  . gs
+    conDoc        = vcat     . map toFixConstant . lits
+    csDoc         = vcat     . map toFix . M.elems . cm
+    wsDoc         = vcat     . map toFix . ws
+    kutsDoc       = toFix    . kuts
+    bindsDoc      = toFix    . bs
+    gsDoc         = toFixGs  . gs
+    binfoDoc      = vcat     . map metaDoc . M.toList . bindInfo
+    metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
 
 -------------------------------------------------------------------------
 -- | A Class Predicates for Valid Refinements Types ---------------------

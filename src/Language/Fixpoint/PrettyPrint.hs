@@ -183,7 +183,6 @@ pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
 instance PPrint Refa where
   pprintPrec z (Refa p)     = pprintPrec z p
-  pprintPrec _ k            = toFix k
 
 instance PPrint Reft where
   pprint r@(Reft (_,ra))

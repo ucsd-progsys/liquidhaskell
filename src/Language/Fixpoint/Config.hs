@@ -48,10 +48,11 @@ data Config
     , native      :: Bool             -- ^ use haskell solver
     , real        :: Bool             -- ^ interpret div and mul in SMT
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
+    , metadata    :: Bool             -- ^ print meta-data associated with constraints
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def
+  def = Config "" def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -117,17 +118,18 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
 
-
+config :: Config
 config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
   , outFile     = "out" &= help "Output file"
   , srcFile     = def   &= help "Source File from which FQ is generated"
   , solver      = def   &= help "Name of SMT Solver"
   , genSorts    = def   &= help "Generalize qualifier sorts"
-  , ueqAllSorts = def   &= help "use UEq on all sorts"
+  , ueqAllSorts = def   &= help "Use UEq on all sorts"
   , native      = False &= help "(alpha) Haskell Solver"
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
+  , metadata    = False &= help "Print meta-data associated with constraints"
   }
   &= verbosity
   &= program "fixpoint"
@@ -141,9 +143,10 @@ config = Config {
 
 getOpts :: IO Config
 getOpts = do md <- cmdArgs config
-             putStrLn $ banner md
+             putStrLn banner
              return md
 
-banner args =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n"
-            ++ "All Rights Reserved.\n"
+banner :: String
+banner =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n"
+       ++ "All Rights Reserved.\n"
 

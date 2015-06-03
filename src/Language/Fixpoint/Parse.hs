@@ -207,8 +207,7 @@ symconstP = SL . T.pack <$> stringLiteral
 
 expr0P :: Parser Expr
 expr0P
-  =  (brackets whiteSpace >> return eNil)
- <|> (fastIfP EIte exprP)
+  =  (fastIfP EIte exprP)
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
@@ -230,6 +229,15 @@ fastIfP f bodyP
        reserved "else"
        b2 <- bodyP
        return $ f p b1 b2
+
+qmIfP f bodyP
+  = parens $ do
+      p  <- predP
+      reserved "?"
+      b1 <- bodyP
+      colon
+      b2 <- bodyP
+      return $ f p b1 b2
 
 
 expr1P :: Parser Expr
@@ -254,31 +262,7 @@ litP = do reserved "lit"
           t <- sortP
           return $ ECon $ L (T.pack l) t
 
--- ORIG exprP :: Parser Expr
--- ORIG exprP =  expr2P <|> lexprP
---
--- ORIG lexprP :: Parser Expr
--- ORIG lexprP
--- ORIG   =  try (parens exprP)
--- ORIG  <|> try (parens exprCastP)
--- ORIG  <|> try (parens $ condP EIte exprP)
--- ORIG  <|> try exprFunP
--- ORIG  <|> try (liftM (EVar . stringSymbol) upperIdP)
--- ORIG  <|> liftM expr symbolP
--- ORIG  <|> liftM ECon constantP
--- ORIG  <|> liftM ESym symconstP
--- ORIG  <|> (reserved "_|_" >> return EBot)
--- ORIG
--- ORIG exprFunP           =  (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
--- ORIG   where
--- ORIG     exprFunSpacesP = parens $ liftM2 EApp funSymbolP (sepBy exprP spaces)
--- ORIG     exprFunCommasP = liftM2 EApp funSymbolP (parens        $ sepBy exprP comma)
--- ORIG     exprFunSemisP  = liftM2 EApp funSymbolP (parenBrackets $ sepBy exprP semi)
--- ORIG     funSymbolP     = locParserP symbolP -- liftM stringSymbol lowerIdP
-
 parenBrackets  = parens . brackets
-
--- ORIG expr2P = buildExpressionParser bops lexprP
 
 bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
        , [ Infix  (reservedOp "*"   >> return (EBin Times)) AssocLeft
@@ -288,12 +272,11 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
          , Infix  (reservedOp "+"   >> return (EBin Plus )) AssocLeft
          ]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
-       , [ Infix  (reservedOp ":"    >> return (eCons     )) AssocLeft]
        ]
 
 eMinus     = EBin Minus (expr (0 :: Integer))
-eCons x xs = EApp (dummyLoc consName) [x,xs]
-eNil       = EVar nilName
+-- eCons x xs = EApp (dummyLoc consName) [x, xs]
+-- eNil       = EVar nilName
 
 exprCastP
   = do e  <- exprP
@@ -314,8 +297,6 @@ sortP
   <|> try (string "func" >> funcSortP)
   <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
   <|> try bvSortP
-  -- <|> try baseSortP
-  -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
   <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
 
@@ -329,44 +310,12 @@ fTyConP
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
-
--- symbolFTycon' :: LocSymbol -> FTycon
--- symbolFTycon' z = fromMaybe zc $ stc z
---   where
---     stc         = sortFTycon . symbolSort
---     zc          = symbolFTycon z
-
--- symbolSort :: LocSymbol -> Sort
--- symbolSort ls
---   | s == "int"     = intSort
---   | s == "Integer" = intSort
---   | s == "Int"     = intSort
---   | s == "int"     = intSort
---   | s == "real"    = realSort
---   | s == "bool"    = boolSort
---   | otherwise      = fTyconSort . symbolFTycon $ ls
---   where
---     s              = symbolString $ val ls
-
-
-
--- baseSortP
---   =   (reserved "int"     >> return intSort)
---   <|> (reserved "Integer" >> return intSort)
---   <|> (reserved "Int"     >> return intSort)
---   <|> (reserved "int"     >> return intSort)
---   <|> (reserved "real"    >> return realSort)
---   <|> (reserved "bool"    >> return boolSort)
---   <|> try (fApp <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
-
 bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 
 bvSizeP ss s = do
   parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
   return s
-
-
 
 keyWordSyms = ["if", "then", "else", "mod"]
 
@@ -397,7 +346,7 @@ kvarPredP :: Parser Pred
 kvarPredP = PKVar <$> kvarP <*> substP
 
 kvarP :: Parser KVar
-kvarP = KV <$> (char '$' *> symbolP)
+kvarP = KV <$> (char '$' *> symbolP <* spaces)
 
 substP :: Parser Subst
 substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
@@ -435,30 +384,6 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp "<=" >> return (PAtom Le))
      <|> (reservedOp ">"  >> return (PAtom Gt))
      <|> (reservedOp ">=" >> return (PAtom Ge))
-
-condP f bodyP
-   =   try (condIteP f bodyP)
-   <|> (condQmP f bodyP)
-
-condI = condIteP EIte
-
-
-condIteP f bodyP
-  = do reserved "if"
-       p <- predP
-       reserved "then"
-       b1 <- bodyP
-       reserved "else"
-       b2 <- bodyP
-       return $ f p b1 b2
-
-condQmP f bodyP
-  = do p  <- predP
-       reserved "?"
-       b1 <- bodyP
-       colon
-       b2 <- bodyP
-       return $ f p b1 b2
 
 ----------------------------------------------------------------------------------
 ------------------------------------ BareTypes -----------------------------------
@@ -594,7 +519,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = FI cm ws bs gs lts kts qs
+defsFInfo defs = FI cm ws bs gs lts kts qs mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
