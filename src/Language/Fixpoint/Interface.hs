@@ -44,6 +44,7 @@ import           Language.Fixpoint.PrettyPrint (showpp)
 -- import           System.Console.CmdArgs.Default
 import           System.Console.CmdArgs.Verbosity
 import           Text.PrettyPrint.HughesPJ
+import           Control.Monad (when)
 
 
 ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ solveNative' cfg = exit (ExitFailure 2) $ do
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
   let fi'   = if eliminate cfg then eliminateAll fi else fi
+  when (eliminate cfg) $ whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   (res, s) <- S.solve cfg fi'
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
