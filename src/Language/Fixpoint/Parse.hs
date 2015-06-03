@@ -519,7 +519,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = FI cm ws bs gs lts kts qs
+defsFInfo defs = FI cm ws bs gs lts kts qs mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]

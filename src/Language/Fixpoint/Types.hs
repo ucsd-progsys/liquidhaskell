@@ -1456,6 +1456,7 @@ data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
                   , lits  :: ![(Symbol, Sort)]
                   , kuts  :: Kuts
                   , quals :: ![Qualifier]
+                  , bindInfo :: M.HashMap BindId a
                   }
                deriving (Show)
 
@@ -1474,16 +1475,18 @@ instance Monoid BindEnv where
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (FInfo a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty
-  mappend i1 i2 = FI { cm    = mappend (cm i1)    (cm i2)
-                     , ws    = mappend (ws i1)    (ws i2)
-                     , bs    = mappend (bs i1)    (bs i2)
-                     , gs    = mappend (gs i1)    (gs i2)
-                     , lits  = mappend (lits i1)  (lits i2)
-                     , kuts  = mappend (kuts i1)  (kuts i2)
-                     , quals = mappend (quals i1) (quals i2)
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
+  mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
+                     , ws       = mappend (ws i1)       (ws i2)
+                     , bs       = mappend (bs i1)       (bs i2)
+                     , gs       = mappend (gs i1)       (gs i2)
+                     , lits     = mappend (lits i1)     (lits i2)
+                     , kuts     = mappend (kuts i1)     (kuts i2)
+                     , quals    = mappend (quals i1)    (quals i2)
+                     , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      }
 
+toFixpoint :: FInfo a -> Doc
 toFixpoint x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x'
   where
     conDoc    = vcat     . map toFixConstant . lits
