@@ -4,6 +4,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE DeriveGeneric             #-}
 
 module Language.Fixpoint.Parse (
 
@@ -72,6 +73,7 @@ import           Text.Parsec.Expr
 import           Text.Parsec.Language
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
+import           GHC.Generics                (Generic)
 
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
@@ -456,6 +458,20 @@ mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------
 ---------------------------------------------------------------------
+
+-- Entities in Query File
+data Def a
+  = Srt Sort
+  | Axm Pred
+  | Cst (SubC a)
+  | Wfc (WfC a)
+  | Con Symbol Sort
+  | Qul Qualifier
+  | Kut KVar
+  | IBind Int Symbol SortedReft
+  deriving (Show, Generic)
+  --  Sol of solbind
+  --  Dep of FixConstraint.dep
 
 fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> many defP

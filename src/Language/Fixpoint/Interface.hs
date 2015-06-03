@@ -61,27 +61,15 @@ solve cfg
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative' cfg
-  | otherwise  = solveFile    cfg
+  | native cfg = solveNative cfg
+  | otherwise  = solveFile   cfg
 
-
----------------------------------------------------------------------------
--- | Fake Dependencies Harness Solver
----------------------------------------------------------------------------
-solveNative :: Config -> IO ExitCode
-solveNative cfg
-  = do let file = inFile cfg
-       str     <- readFile file
-       let fi   = rr' file str :: FInfo ()
-       let res  = eliminateAll fi
-       putStrLn $ "Result: \n" ++ render (toFixpoint cfg res)
-       error "TODO: solveNative"
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative' :: Config -> IO ExitCode
-solveNative' cfg = exit (ExitFailure 2) $ do
+solveNative :: Config -> IO ExitCode
+solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
