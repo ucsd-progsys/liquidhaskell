@@ -42,7 +42,7 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Control.Monad.State
 
-import Control.Applicative      ((<$>))
+import Control.Applicative      ((<$>), (<*>))
 
 import Data.Monoid              (mconcat, mempty, mappend)
 import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
@@ -126,7 +126,7 @@ initEnv info
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
-       f1       <- refreshArgs' $ defaults                   -- default TOP reftype      (for all vars)
+       f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty              -- default TOP reftype      (for data cons)
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
@@ -159,7 +159,7 @@ refreshArgs' = mapM (mapSndM refreshArgs)
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where
-    pt                  = (fmap (\(U _ _ l) -> U mempty mempty l)) <$> L.lookup x senv
+    pt                  = fmap (\(U _ _ l) -> U mempty mempty l) <$> L.lookup x senv
 
 
 -- | TODO: All this *should* happen inside @Bare@ but appears
@@ -201,21 +201,20 @@ measEnv sp xts cbs lts asms hs
     where
       tce = tcEmbeds sp
 
-assm = assm_grty impVars
-grty = assm_grty defVars
+assm = assmGrty impVars
+grty = assmGrty defVars
 
-assm_grty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
+assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
   where
-    xs           = S.fromList $ f info
-    sigs         = tySigs     $ spec info
+    xs          = S.fromList $ f info
+    sigs        = tySigs     $ spec info
 
-grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ varSpecType v) | v <- defVars info, isTop v]
+grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ defVars info
     isTop v      = isExportedId v && not (v `S.member` sigVs)
     isExportedId = flip elemNameSet (exports $ spec info) . getName
-    sigVs        = S.fromList $ [v | (v,_) <- (tySigs $ spec info)
-                                           ++ (asmSigs $ spec info)]
+    sigVs        = S.fromList [v | (v,_) <- tySigs (spec info) ++ asmSigs (spec info)]
 
 
 ------------------------------------------------------------------------
@@ -225,7 +224,7 @@ grtyTop info     = forM topVs $ \v -> (v,) <$> (trueTy $ varType v) -- val $ var
 
 
 getTag :: CGEnv -> F.Tag
-getTag γ = maybe Tg.defaultTag (`Tg.getTag` (tgEnv γ)) (tgKey γ)
+getTag γ = maybe Tg.defaultTag (`Tg.getTag` tgEnv γ) (tgKey γ)
 
 setLoc :: CGEnv -> SrcSpan -> CGEnv
 γ `setLoc` src
@@ -286,8 +285,8 @@ splitW (WfC γ t@(RVar _ _))
 splitW (WfC γ t@(RApp _ ts rs _))
   =  do ws    <- bsplitW γ t
         γ'    <- γ `extendEnvWithVV` t
-        ws'   <- concat <$> mapM splitW (map (WfC γ') ts)
-        ws''  <- concat <$> mapM (rsplitW γ) rs
+        ws'   <- concat <$> mapM (splitW . WfC γ') ts
+        ws''  <- concat <$> mapM (rsplitW γ)       rs
         return $ ws ++ ws' ++ ws''
 
 splitW (WfC γ (RAllE x tx t))
@@ -314,7 +313,7 @@ rsplitW _ (RHProp _ _)
   = errorstar "TODO: EFFECTS"
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
-bsplitW γ t = pruneRefs <$> get >>= return . bsplitW' γ t
+bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
 
 bsplitW' γ t pflag
   | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
@@ -387,7 +386,7 @@ splitS (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
 
 
-splitS (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+splitS (SubC γ t1@(RApp {}) t2@(RApp {}))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitS t1' t2'
        γ'    <- γ `extendEnvWithVV` t1'
@@ -638,6 +637,7 @@ initCGI cfg info = CGInfo {
   , logErrors  = []
   , kvProf     = emptyKVProf
   , recCount   = 0
+  , bindSpans  = M.empty
   }
   where
     tce        = tcEmbeds spc
@@ -680,11 +680,12 @@ addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
 addCGEnv tx γ (_, x, t')
   = do idx   <- fresh
        let t  = tx $ normalize {-x-} idx t'
+       let l  = loc γ
        let γ' = γ { renv = insertREnv x t (renv γ) }
        pflag <- pruneRefs <$> get
        is    <- if isBase t
-                  then (:) <$> addBind x (rTypeSortedReft' pflag γ' t) <*> addClassBind t
-                  else return [] -- addClassBind t
+                  then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
+                  else return []
        return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -745,15 +746,15 @@ normalizeVV _ t
   = t
 
 
-addBind :: F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
-addBind x r
+addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
+addBind l x r
   = do st          <- get
        let (i, bs') = F.insertBindEnv x r (binds st)
-       put          $ st { binds = bs' }
+       put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
        return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
-addClassBind :: SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
-addClassBind = mapM (uncurry addBind) . classBinds
+addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
+addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
 -- RJ: What is this `isBind` business?
 pushConsBind act
