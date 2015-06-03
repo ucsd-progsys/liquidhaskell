@@ -36,7 +36,6 @@ import           Language.Fixpoint.Types
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
-import           Debug.Trace               (trace)
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------

@@ -44,6 +44,7 @@ import           Language.Fixpoint.PrettyPrint (showpp)
 -- import           System.Console.CmdArgs.Default
 import           System.Console.CmdArgs.Verbosity
 import           Text.PrettyPrint.HughesPJ
+import           Control.Monad (when)
 
 
 ---------------------------------------------------------------------------
@@ -60,31 +61,20 @@ solve cfg
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative' cfg
-  | otherwise  = solveFile    cfg
+  | native cfg = solveNative cfg
+  | otherwise  = solveFile   cfg
 
-
----------------------------------------------------------------------------
--- | Fake Dependencies Harness Solver
----------------------------------------------------------------------------
-solveNative :: Config -> IO ExitCode
-solveNative cfg
-  = do let file = inFile cfg
-       str     <- readFile file
-       let fi   = rr' file str :: FInfo ()
-       let res  = eliminateAll fi
-       putStrLn $ "Result: \n" ++ render (toFixpoint cfg res)
-       error "TODO: solveNative"
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative' :: Config -> IO ExitCode
-solveNative' cfg = exit (ExitFailure 2) $ do
+solveNative :: Config -> IO ExitCode
+solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
   let fi'   = if eliminate cfg then eliminateAll fi else fi
+  when (eliminate cfg) $ whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   (res, s) <- S.solve cfg fi'
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s

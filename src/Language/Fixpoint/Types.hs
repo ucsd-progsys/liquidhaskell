@@ -158,9 +158,6 @@ module Language.Fixpoint.Types (
   -- * Qualifiers
   , Qualifier (..)
 
-  -- * FQ Definitions
-  , Def (..)
-
   -- * Located Values
   , Located (..)
   , LocSymbol, LocText
@@ -205,25 +202,6 @@ class Fixpoint a where
 
   simplify :: a -> a
   simplify =  id
-
-------------------------------------------------------------------------
--- | Entities in Query File --------------------------------------------
-------------------------------------------------------------------------
-
-data Def a
-  = Srt Sort
-  | Axm Pred
-  | Cst (SubC a)
-  | Wfc (WfC a)
-  | Con Symbol Sort
-  | Qul Qualifier
-  | Kut KVar
-  | IBind Int Symbol SortedReft
-  deriving (Show, Generic)
-  --  Sol of solbind
-  --  Dep of FixConstraint.dep
-
-------------------------------------------------------------------------
 
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
