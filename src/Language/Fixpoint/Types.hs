@@ -1026,7 +1026,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
 
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
-              $+$ text "\n"
+             --  $+$ text "\n"
 
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
@@ -1497,7 +1497,14 @@ instance Monoid (FInfo a) where
                      }
 
 toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
-toFixpoint cfg x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x' $+$ binfoDoc x'
+toFixpoint cfg x' =   kutsDoc  x'
+                  $+$ gsDoc    x'
+                  $+$ conDoc   x'
+                  $+$ bindsDoc x'
+                  $+$ csDoc    x'
+                  $+$ wsDoc    x'
+                  $+$ binfoDoc x'
+                  $+$ text "\n"
   where
     conDoc        = vcat     . map toFixConstant . lits
     csDoc         = vcat     . map toFix . M.elems . cm
