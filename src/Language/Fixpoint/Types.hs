@@ -1026,6 +1026,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
 
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
+              $+$ text "\n"
 
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
@@ -1505,7 +1506,7 @@ toFixpoint cfg x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ cs
     bindsDoc      = toFix    . bs
     gsDoc         = toFixGs  . gs
     binfoDoc      = vcat     . map metaDoc . M.toList . bindInfo
-    metaDoc (i,d) = toFixMeta (toFix i) (toFix d)
+    metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
 
 -------------------------------------------------------------------------
 -- | A Class Predicates for Valid Refinements Types ---------------------
