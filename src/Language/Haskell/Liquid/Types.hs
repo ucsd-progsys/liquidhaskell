@@ -10,7 +10,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE OverlappingInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 
@@ -817,6 +816,8 @@ instance Eq RTyCon where
 instance Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
 
+instance Fixpoint Cinfo where
+  toFix = text . showPpr . ci_loc -- Ppr
 
 instance PPrint RTyCon where
   pprint = text . showPpr . rtc_tc
@@ -1570,8 +1571,8 @@ errOther = ErrOther noSrcSpan
 
 data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
-                   } 
-                deriving (Eq, Ord, Generic) 
+                   }
+                deriving (Eq, Ord, Generic)
 
 instance NFData Cinfo where
   rnf x = seq x ()
