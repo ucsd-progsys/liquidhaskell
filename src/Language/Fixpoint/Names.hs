@@ -59,7 +59,6 @@ import           Data.Hashable
 import qualified Data.HashSet                as S
 import           Data.Interned
 import           Data.Interned.Internal.Text
-import           Data.Interned.Text
 import           Data.Monoid
 import           Data.String
 import           Data.Text                   (Text)

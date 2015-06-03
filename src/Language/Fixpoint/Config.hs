@@ -17,12 +17,7 @@ module Language.Fixpoint.Config (
 ) where
 
 import           System.Console.CmdArgs
-import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           Data.Generics                  (Data)
-import           Data.Typeable                  (Typeable)
 import           Language.Fixpoint.Files
-import           System.Console.CmdArgs.Default
-import           System.FilePath
 
 
 class Command a  where

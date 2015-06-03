@@ -64,16 +64,12 @@ module Language.Fixpoint.Parse (
   ) where
 
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
--- import           Control.Monad
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
--- import           Data.Text                   (Text)
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
 import           Text.Parsec.Language
-import           Text.Parsec.Pos
-import           Text.Parsec.String          hiding (Parser, parseFromFile)
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
 
@@ -83,7 +79,6 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
 import           Language.Fixpoint.SmtLib2
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names     (vv, nilName, consName)
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust, fromMaybe, maybe)

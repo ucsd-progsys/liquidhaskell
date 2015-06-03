@@ -34,9 +34,7 @@ import           Data.Functor           ((<$>))
 import           Data.List              hiding (find)
 import           Data.Maybe             (fromMaybe)
 import           System.Directory
-import           System.Environment
 import           System.FilePath
--- import           System.FilePath.Find
 import           Language.Fixpoint.Misc
 
 ------------------------------------------------------------
