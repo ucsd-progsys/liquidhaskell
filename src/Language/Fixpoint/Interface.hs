@@ -158,35 +158,3 @@ parseFI f = do
   return $ mempty { quals = quals  fi
                   , gs    = gs     fi }
 
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE -- | One Shot validity query ----------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE checkValid :: (Hashable a) => a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a)
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE checkValid n xts p
--- OLD CUT USE NEW SMTLIB INTERFACE   = do file   <- (</> show (hash n)) <$> getTemporaryDirectory
--- OLD CUT USE NEW SMTLIB INTERFACE        (r, _) <- solve def file [] $ validFInfo n xts p
--- OLD CUT USE NEW SMTLIB INTERFACE        return (sinfo <$> r)
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE validFInfo         :: a -> [(Symbol, Sort)] -> Pred -> FInfo a
--- OLD CUT USE NEW SMTLIB INTERFACE validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []
--- OLD CUT USE NEW SMTLIB INTERFACE   where
--- OLD CUT USE NEW SMTLIB INTERFACE     constrm        = M.singleton 0 $ validSubc l ibenv p
--- OLD CUT USE NEW SMTLIB INTERFACE     binds          = [(x, trueSortedReft t) | (x, t) <- xts]
--- OLD CUT USE NEW SMTLIB INTERFACE     ibenv          = insertsIBindEnv bids emptyIBindEnv
--- OLD CUT USE NEW SMTLIB INTERFACE     (bids, benv)   = foldlMap (\e (x,t) -> insertBindEnv x t e) emptyBindEnv binds
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE validSubc         :: a -> IBindEnv -> Pred -> SubC a
--- OLD CUT USE NEW SMTLIB INTERFACE validSubc l env p = safeHead "Interface.validSubC" $ subC env PTrue lhs rhs i t l
--- OLD CUT USE NEW SMTLIB INTERFACE   where
--- OLD CUT USE NEW SMTLIB INTERFACE     lhs           = mempty
--- OLD CUT USE NEW SMTLIB INTERFACE     rhs           = RR mempty (predReft p)
--- OLD CUT USE NEW SMTLIB INTERFACE     i             = Just 0
--- OLD CUT USE NEW SMTLIB INTERFACE     t             = []
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE result         :: a -> Bool -> FixResult a
--- OLD CUT USE NEW SMTLIB INTERFACE result _ True  = Safe
--- OLD CUT USE NEW SMTLIB INTERFACE result x False = Unsafe [x]
--- OLD CUT USE NEW SMTLIB INTERFACE 

@@ -75,7 +75,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , Tag
 
   -- * Accessing Constraints
@@ -916,6 +916,8 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Generic)
 
+subcId :: SubC a -> Integer
+subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver

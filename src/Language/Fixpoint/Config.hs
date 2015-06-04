@@ -123,7 +123,7 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , metadata    = False &= help "Print meta-data associated with constraints"
-  , statistics  = False &= help "Compute constraint statistics"
+  , statistics  = True  &= help "Compute constraint statistics"
   }
   &= verbosity
   &= program "fixpoint"

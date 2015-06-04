@@ -190,7 +190,7 @@ Library
                , hashable
                , unordered-containers
                , text-format
-
+                 
 test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0

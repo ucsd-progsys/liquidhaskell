@@ -60,14 +60,14 @@ deps finfo = sccsToDeps sccs (F.kuts finfo)
 
 sccsToDeps :: [G.SCC (F.KVar, F.KVar, [F.KVar])] -> F.Kuts -> Deps
 sccsToDeps xs ks = execState (mapM_ (bar ks) xs) (Deps [] [])
-
-bar :: F.Kuts -> G.SCC (F.KVar, F.KVar,[F.KVar]) -> State Deps ()
-bar _  (G.AcyclicSCC (v,_,_)) = do ds <- get
-                                   put ds {depNonCuts = v : depNonCuts ds}
-bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
-                                   ds <- get
-                                   put ds {depCuts = v : depCuts ds}
-                                   mapM_ (bar ks) (G.stronglyConnCompR vs')
+  where
+    bar :: F.Kuts -> G.SCC (F.KVar, F.KVar,[F.KVar]) -> State Deps ()
+    bar _  (G.AcyclicSCC (v,_,_)) = do ds <- get
+                                       put ds {depNonCuts = v : depNonCuts ds}
+    bar ks (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
+                                       ds <- get
+                                       put ds {depCuts = v : depCuts ds}
+                                       mapM_ (bar ks) (G.stronglyConnCompR vs')
 
 chooseCut :: [(F.KVar, F.KVar, [F.KVar])] -> F.Kuts -> (F.KVar, [(F.KVar, F.KVar,[F.KVar])])
 chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
