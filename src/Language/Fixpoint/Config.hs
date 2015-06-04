@@ -41,7 +41,7 @@ data Config
     , real        :: Bool             -- ^ interpret div and mul in SMT
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
-    , statistics  :: Bool             -- ^ compute constraint statistics
+    , stats       :: Bool             -- ^ compute constraint statistics
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -123,7 +123,7 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , metadata    = False &= help "Print meta-data associated with constraints"
-  , statistics  = True  &= help "Compute constraint statistics"
+  , stats       = True  &= help "Compute constraint statistics"
   }
   &= verbosity
   &= program "fixpoint"
