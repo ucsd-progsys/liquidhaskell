@@ -37,6 +37,7 @@ import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
@@ -51,9 +52,11 @@ import           Control.Monad (when)
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg
-  | native cfg = S.solve  cfg
-  | otherwise  = solveExt cfg
+solve cfg x = do
+  when (statistics cfg) $ statistics cfg x
+  case () of
+    _ | native cfg -> S.solve  cfg
+    _ | otherwise  -> solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------

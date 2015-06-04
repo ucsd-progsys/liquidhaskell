@@ -58,7 +58,7 @@ deps finfo = sccsToDeps sccs (F.kuts finfo)
     graph = [(k,k,ks) | (k, ks) <- groupList edges]
     sccs  = G.stronglyConnCompR graph
 
-sccsToDeps :: [G.SCC (F.KVar, F.KVar,[F.KVar])] -> F.Kuts -> Deps
+sccsToDeps :: [G.SCC (F.KVar, F.KVar, [F.KVar])] -> F.Kuts -> Deps
 sccsToDeps xs ks = execState (mapM_ (bar ks) xs) (Deps [] [])
 
 bar :: F.Kuts -> G.SCC (F.KVar, F.KVar,[F.KVar]) -> State Deps ()
