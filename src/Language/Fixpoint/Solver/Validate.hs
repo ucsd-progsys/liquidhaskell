@@ -100,15 +100,16 @@ subcVV c = (x, sr)
 
 
 ---------------------------------------------------------------------------
--- | Drop Higher-Order Binders from Environment
+-- | Drop Higher-Order Binders and Constants from Environment
 ---------------------------------------------------------------------------
 dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
-dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' }
+dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
   where
     (bs', discards) = dropHOBinders (F.bs fi)
     cm' = M.map (foo discards) (F.cm fi)
     ws' = map (bar discards) (F.ws fi)
+    gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
 
 foo :: [F.BindId] -> F.SubC a -> F.SubC a
 foo discards sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) discards }
