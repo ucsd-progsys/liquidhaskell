@@ -272,7 +272,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     -- get some semblance of a hostname
     host <- takeWhile (/='.') <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
-    time <- readProcess "date" ["+\"%Y-%m-%dT%H-%M-%S\""] []
+    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let path = dir </> "summary.csv"
     renameDirectory "tests/logs/cur" dir
