@@ -53,10 +53,10 @@ import           Control.Monad (when)
 ---------------------------------------------------------------------------
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg x = do
-  when (statistics cfg) $ statistics cfg x
+  when (stats cfg) $ statistics cfg x
   case () of
-    _ | native cfg -> S.solve  cfg
-    _ | otherwise  -> solveExt cfg
+    _ | native cfg -> S.solve  cfg x
+    _              -> solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -93,6 +93,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
   where
     fn          = srcFile cfg
 
+execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
   = do writeFile fq qstr
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
@@ -100,7 +101,7 @@ execFq cfg fn fi
     where
        fq   = extFileName Fq fn
        d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       qstr = render ((vcat $ toFix <$> quals fi) $$ text "\n")
+       qstr = render (vcat (toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg
@@ -115,6 +116,7 @@ fixCommand cfg fp z3 verbosity
   where
      rf  = if real cfg then realFlags else ""
 
+realFlags :: String
 realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
