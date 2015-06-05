@@ -17,8 +17,6 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.Tagged
-import Data.Time.Clock
-import Data.Time.Format
 import Data.Typeable
 import Options.Applicative
 import System.Directory
@@ -245,7 +243,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup _ children = children
+    runGroup group children = map (\(n,t,s) -> (group</>n,t,s)) <$> children
 
     computeFailures :: StatusMap -> IO Int
     computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
@@ -269,10 +267,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
   return $ \_elapsedTime -> do
     -- get some semblance of a hostname
     host <- takeWhile (/='.') <$> readProcess "hostname" [] []
-    time <- getCurrentTime
-    let fmt = "%Y-%m-%dT%H-%M-%S"
-    let timestr = formatTime defaultTimeLocale fmt time
-    let path = "tests" </> "logs" </> host ++ "-" ++ timestr <.> "csv"
+    -- don't use the `time` package, major api differences between ghc 708 and 710
+    time <- readProcess "date" ["+\"%Y-%m-%dT%H-%M-%S\""] []
+    let path = "tests" </> "logs" </> host ++ "-" ++ time <.> "csv"
     writeFile path $ unlines
                    $ "test, time(s), result"
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary

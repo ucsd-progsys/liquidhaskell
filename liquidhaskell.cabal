@@ -271,5 +271,4 @@ test-suite test
                      tasty >= 0.10,
                      tasty-hunit >= 0.9,
                      tasty-rerun >= 1.1,
-                     time >= 1.5,
                      transformers
