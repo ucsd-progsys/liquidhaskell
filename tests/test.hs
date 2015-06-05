@@ -10,7 +10,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Data.Char
-import Data.Foldable
+import Data.Foldable (foldMap)
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe)
