@@ -125,7 +125,7 @@ mkTest code dir file
           assertEqual "Wrong exit code" code c
   where
     test = dir </> file
-    log = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
+    log = "tests/logs/cur" </> test <.> "log"
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
                    , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
@@ -215,6 +215,8 @@ combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
       f2 <- run2 opts tree
       return $ \smap -> f1 smap >> f2 smap
 
+type Summary = [(String, Double, Bool)]
+
 -- this is largely based on ocharles' test runner at
 -- https://github.com/ocharles/tasty-ant-xml/blob/master/Test/Tasty/Runners/AntXML.hs#L65
 loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
@@ -243,7 +245,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
         Const summary <$ State.modify (+ 1)
 
-    runGroup group children = map (\(n,t,s) -> (group</>n,t,s)) <$> children
+    runGroup group children = Traversal $ Functor.Compose $ do
+      Const soFar <- Functor.getCompose $ getTraversal children
+      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
 
     computeFailures :: StatusMap -> IO Int
     computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
@@ -269,7 +273,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     host <- takeWhile (/='.') <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- readProcess "date" ["+\"%Y-%m-%dT%H-%M-%S\""] []
-    let path = "tests" </> "logs" </> host ++ "-" ++ time <.> "csv"
+    let dir = "tests" </> "logs" </> host ++ "-" ++ time
+    let path = dir </> "summary.csv"
+    renameDirectory "tests/logs/cur" dir
     writeFile path $ unlines
                    $ "test, time(s), result"
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
