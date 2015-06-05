@@ -52,6 +52,9 @@ instance PPrint SourcePos where
 instance PPrint Bool where
   pprint = text . show
 
+instance PPrint Float where
+  pprint = text . show
+
 instance PPrint () where
   pprint = text . show
 
