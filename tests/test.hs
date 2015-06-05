@@ -10,6 +10,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Data.Char
+import Data.Foldable
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import Data.Maybe (fromMaybe)
@@ -267,9 +268,9 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- get some semblance of a hostname
-    host <- takeWhile (/='.') <$> readCreateProcess (shell "hostname") ""
+    host <- takeWhile (/='.') <$> readProcess "hostname" [] []
     time <- getCurrentTime
-    let fmt = iso8601DateFormat (Just "%H-%M-%S")
+    let fmt = "%Y-%m-%dT%H-%M-%S"
     let timestr = formatTime defaultTimeLocale fmt time
     let path = "tests" </> "logs" </> host ++ "-" ++ timestr <.> "csv"
     writeFile path $ unlines
