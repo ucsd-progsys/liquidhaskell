@@ -188,13 +188,13 @@ negativeP
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
 pairs !xs = case L.splitAt 2 xs of
-              ([],b)        -> []
-              ((x:y:[]),zs) -> (x,y) : pairs zs
+              ([],b)      -> []
+              ([x,y], zs) -> (x,y) : pairs zs
 
 smtWriteRaw      :: Context -> LT.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
-  maybe (return ()) (\h -> hPutStrLnNow h s) (cLog me)
+  maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (cIn me)
@@ -435,7 +435,9 @@ instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s
 
 instance SMTLIB2 Constant where
-  smt2 (I n) = format "{}" (Only n)
+  smt2 (I n)   = format "{}" (Only n)
+  smt2 (R d)   = format "{}" (Only d)
+  -- smt2 (L t _) = t
 
 instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
