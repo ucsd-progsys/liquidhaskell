@@ -265,7 +265,12 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap 
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
-       return $ eAppWithMap lmap f' [] (EVar $ symbol x)
+       return $ instantiate $ eAppWithMap lmap f' [] (EVar $ symbol x)
+  where
+    -- See tests/pos/PolyLogic.hs why instantiation is required.
+    instantiate (EVar y) | isForAllTy (varType x) = EApp (dummyLoc y) []
+    instantiate e = e 
+
 
 brels :: M.HashMap Symbol Brel
 brels = M.fromList [ (symbol ("==" :: String), Eq)
