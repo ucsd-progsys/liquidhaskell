@@ -33,6 +33,7 @@ import           System.IO                        (IOMode (..), hPutStr,
 import           Text.Printf
 
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Files
@@ -44,7 +45,6 @@ import           Language.Fixpoint.PrettyPrint (showpp)
 -- import           System.Console.CmdArgs.Default
 import           System.Console.CmdArgs.Verbosity
 import           Text.PrettyPrint.HughesPJ
-import           Control.Monad (when)
 
 
 ---------------------------------------------------------------------------
@@ -73,13 +73,21 @@ solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  let fi'   = if eliminate cfg then eliminateAll fi else fi
-  when (eliminate cfg) $ whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  fi'      <- if eliminate cfg then renameAndEliminate cfg fi else return fi
   (res, s) <- S.solve cfg fi'
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'
   return    $ resultExit res'
+
+renameAndEliminate :: Config -> FInfo () -> IO (FInfo ())
+renameAndEliminate cfg fi = do
+  whenLoud $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  let fi' = renameAll fi
+  whenLoud $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  let fi'' = eliminateAll fi'
+  whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi'')
+  return fi''
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver

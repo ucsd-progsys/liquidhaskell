@@ -102,8 +102,8 @@ module Language.Fixpoint.Types (
   , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
-  , BindEnv
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv
+  , BindEnv, beBinds
+  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
   , unionIBindEnv
 
@@ -841,6 +841,9 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+
+adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
+adjustBindEnv f id (BE n m) = BE n $ M.adjust f id m
 
 instance Functor SEnv where
   fmap = mapSEnv
