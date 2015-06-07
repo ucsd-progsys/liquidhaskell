@@ -22,10 +22,11 @@ module Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
-import           Language.Fixpoint.SmtLib2
+import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (catMaybes)
+import qualified Data.HashMap.Strict  as M
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
 
@@ -99,5 +100,12 @@ filterValid_ p qs me = catMaybes <$> do
 declare :: F.FInfo a -> SolveM ()
 ---------------------------------------------------------------------------
 declare fi = withContext $ \me -> do
-  xts <- either E.die return $ symbolSorts fi
+  xts <- either E.die return $ declSymbols fi
   forM_ xts $ uncurry $ smtDecl me
+
+declSymbols :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
+declSymbols = fmap dropThy . symbolSorts
+  where
+    dropThy = filter (not . isThy . fst)
+    isThy   = (`M.member` theorySymbols)
+

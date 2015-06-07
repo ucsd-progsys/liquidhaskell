@@ -14,4 +14,20 @@ Goal, be able to acyclic kvars without QUALIFIERS e.g.
 6. run on all benchmarks :)
 
 
+stats
+-----
+
+A. Decompose constraints into independent pieces.
+   How big is each component?
+
+   - compute kv-read-write graph
+   - label edge by constraint
+   - compute CONNECTED COMPONENT
+   - partition
+ 
+B. How many *different* binders is each kvar bound to in constraints?
+
+
+### Component Size
+stats.
 

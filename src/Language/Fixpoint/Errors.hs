@@ -37,11 +37,9 @@ import           Data.Typeable
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Types
-import           System.FilePath
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-import           Control.Exception (catch)
 
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------

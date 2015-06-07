@@ -4,6 +4,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE DeriveGeneric             #-}
 
 module Language.Fixpoint.Parse (
 
@@ -64,26 +65,23 @@ module Language.Fixpoint.Parse (
   ) where
 
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
--- import           Control.Monad
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
--- import           Data.Text                   (Text)
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
 import           Text.Parsec.Language
-import           Text.Parsec.Pos
-import           Text.Parsec.String          hiding (Parser, parseFromFile)
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
+import           GHC.Generics                (Generic)
 
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
-import           Language.Fixpoint.SmtLib2
+import           Language.Fixpoint.Smt.Types
+
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names     (vv, nilName, consName)
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust, fromMaybe, maybe)
@@ -461,6 +459,20 @@ mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------
 ---------------------------------------------------------------------
+
+-- Entities in Query File
+data Def a
+  = Srt Sort
+  | Axm Pred
+  | Cst (SubC a)
+  | Wfc (WfC a)
+  | Con Symbol Sort
+  | Qul Qualifier
+  | Kut KVar
+  | IBind Int Symbol SortedReft
+  deriving (Show, Generic)
+  --  Sol of solbind
+  --  Dep of FixConstraint.dep
 
 fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> many defP

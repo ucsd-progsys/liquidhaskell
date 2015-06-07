@@ -155,14 +155,19 @@ Library
                    Language.Fixpoint.Interface, 
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
-                   Language.Fixpoint.SmtLib2,
+                   Language.Fixpoint.Smt.Types,
+                   Language.Fixpoint.Smt.Theories,
+                   Language.Fixpoint.Smt.Serialize,
+                   Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
                    Language.Fixpoint.Solver.Deps,
+                   Language.Fixpoint.Solver.Uniqify,
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Validate,
+                   Language.Fixpoint.Statistics,
                    Language.Fixpoint.Solver.Solve
                      
   Build-Depends: base >= 4.7 && < 5
@@ -190,7 +195,7 @@ Library
                , hashable
                , unordered-containers
                , text-format
-
+                 
 test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0

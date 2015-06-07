@@ -75,7 +75,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , Tag
 
   -- * Accessing Constraints
@@ -102,8 +102,8 @@ module Language.Fixpoint.Types (
   , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
-  , BindEnv
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv
+  , BindEnv, beBinds
+  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
   , unionIBindEnv
 
@@ -158,9 +158,6 @@ module Language.Fixpoint.Types (
   -- * Qualifiers
   , Qualifier (..)
 
-  -- * FQ Definitions
-  , Def (..)
-
   -- * Located Values
   , Located (..)
   , LocSymbol, LocText
@@ -205,25 +202,6 @@ class Fixpoint a where
 
   simplify :: a -> a
   simplify =  id
-
-------------------------------------------------------------------------
--- | Entities in Query File --------------------------------------------
-------------------------------------------------------------------------
-
-data Def a
-  = Srt Sort
-  | Axm Pred
-  | Cst (SubC a)
-  | Wfc (WfC a)
-  | Con Symbol Sort
-  | Qul Qualifier
-  | Kut KVar
-  | IBind Int Symbol SortedReft
-  deriving (Show, Generic)
-  --  Sol of solbind
-  --  Dep of FixConstraint.dep
-
-------------------------------------------------------------------------
 
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
@@ -864,6 +842,9 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
+adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
+adjustBindEnv f id (BE n m) = BE n $ M.adjust f id m
+
 instance Functor SEnv where
   fmap = mapSEnv
 
@@ -938,6 +919,8 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Generic)
 
+subcId :: SubC a -> Integer
+subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver
@@ -1026,7 +1009,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
 
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
-              $+$ text "\n"
+             --  $+$ text "\n"
 
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
@@ -1497,7 +1480,14 @@ instance Monoid (FInfo a) where
                      }
 
 toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
-toFixpoint cfg x' = kutsDoc x' $+$ gsDoc x' $+$ conDoc x' $+$ bindsDoc x' $+$ csDoc x' $+$ wsDoc x' $+$ binfoDoc x'
+toFixpoint cfg x' =   kutsDoc  x'
+                  $+$ gsDoc    x'
+                  $+$ conDoc   x'
+                  $+$ bindsDoc x'
+                  $+$ csDoc    x'
+                  $+$ wsDoc    x'
+                  $+$ binfoDoc x'
+                  $+$ text "\n"
   where
     conDoc        = vcat     . map toFixConstant . lits
     csDoc         = vcat     . map toFix . M.elems . cm

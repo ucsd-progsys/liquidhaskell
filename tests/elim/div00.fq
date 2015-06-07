@@ -1,0 +1,26 @@
+
+// -n -e should be able to solve this WITHOUT the qualifier
+// qualif Zog(v:int) : (v /= 0)
+
+bind 0 n : {v: int | true }
+bind 1 m : {v: int | true }
+bind 2 z : {v: int | $k0[n := m] }
+
+constraint:
+  env [ ]
+  grd true
+  lhs {v : int | v = 12 }
+  rhs {v : int | $k0    }
+  id 1 
+
+constraint:
+  env [ 2 ]
+  grd true 
+  lhs {v : int | v  = z}
+  rhs {v : int | v /= 0}
+  id 2 
+
+wf:
+  env [ 0 ]
+  reft {v: int | $k0 }
+

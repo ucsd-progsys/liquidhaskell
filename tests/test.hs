@@ -3,71 +3,45 @@
 
 module Main where
 
--- import Language.Fixpoint.Config
--- import Language.Fixpoint.Names
--- import Language.Fixpoint.Parse
--- import Language.Fixpoint.PrettyPrint
--- import Language.Fixpoint.Types
-
 import Control.Applicative
--- import Data.Char
--- import Data.Tagged
--- import Data.Typeable
--- import Options.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
 import System.IO
 import System.IO.Error
--- import qualified System.Posix as Posix
 import System.Process
-
--- import Control.Monad
--- import Data.Proxy
--- import Data.Text (Text, cons, inits, pack)
--- import Test.QuickCheck
 import Test.Tasty
 import Test.Tasty.HUnit
--- import Test.Tasty.Ingredients.Rerun
--- import Test.Tasty.Options
--- import Test.Tasty.QuickCheck
--- import Test.Tasty.Runners
 import Text.Printf
 
 main :: IO ()
-main = defaultMain =<< tests
-  where
-    tests = group "Tests" [unitTests] -- [ quickCheckTests ]
-    -- run   = defaultMainWithIngredients [
-    --             rerunningTests   [ listingTests, consoleTestReporter ]
-    --           , includingOptions [ Option (Proxy :: Proxy QuickCheckTests)
-    --                              ]
-    --           ]
-
+main = defaultMain =<< group "Tests" [unitTests]
 
 unitTests
   = group "Unit" [
-      testGroup "pos" <$> dirTests "tests/pos" []  ExitSuccess
-    , testGroup "neg" <$> dirTests "tests/neg" []  (ExitFailure 1)
+      testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"  []  ExitSuccess
+    , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"  []  (ExitFailure 1)
+    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  []  ExitSuccess
+    , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim" []  ExitSuccess
+    , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"  []  (ExitFailure 1)
    ]
 
 ---------------------------------------------------------------------------
-dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
-dirTests root ignored code
+dirTests testCmd root ignored code
   = do files    <- walkDirectory root
        let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
-       return    $ mkTest code root <$> tests --  hs f code | f <- hs]
+       return    $ mkTest testCmd code root <$> tests
 
 isTest   :: FilePath -> Bool
 isTest f = takeExtension f `elem` [".fq"]
 
 ---------------------------------------------------------------------------
-mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
+mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
-mkTest code dir file
-  = -- askOption $ \(smt :: SMTSolver) ->
-    testCase file $
+mkTest testCmd code dir file
+  = testCase file $
       if test `elem` knownToFail
       then do
         printf "%s is known to fail: SKIPPING" test
@@ -85,11 +59,14 @@ mkTest code dir file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
 knownToFail = []
+---------------------------------------------------------------------------
+type TestCmd = FilePath -> FilePath -> FilePath -> String
 
----------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> String
----------------------------------------------------------------------------
-testCmd bin dir file = printf "cd %s && %s -n %s" dir bin file
+nativeCmd :: TestCmd
+nativeCmd bin dir file = printf "cd %s && %s -n %s" dir bin file
+
+elimCmd :: TestCmd
+elimCmd bin dir file = printf "cd %s && %s -n -e %s" dir bin file
 
 
 

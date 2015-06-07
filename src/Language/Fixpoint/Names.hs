@@ -29,7 +29,7 @@ module Language.Fixpoint.Names (
   , takeModuleNames
 
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol, existSymbol
+  , dummySymbol, intSymbol, tempSymbol, existSymbol, renameSymbol
   , qualifySymbol
   , suffixSymbol
 
@@ -59,7 +59,6 @@ import           Data.Hashable
 import qualified Data.HashSet                as S
 import           Data.Interned
 import           Data.Interned.Internal.Text
-import           Data.Interned.Text
 import           Data.Monoid
 import           Data.String
 import           Data.Text                   (Text)
@@ -211,10 +210,14 @@ tempSymbol, existSymbol :: Symbol -> Integer -> Symbol
 tempSymbol  prefix n = intSymbol (tempPrefix  `mappend` prefix) n
 existSymbol prefix n = intSymbol (existPrefix `mappend` prefix) n
 
+renameSymbol :: Symbol -> Int -> Symbol
+renameSymbol prefix n = intSymbol (renamePrefix `mappend` prefix) n
+
 tempPrefix, anfPrefix, existPrefix :: Symbol
 tempPrefix          = "lq_tmp_"
 anfPrefix           = "lq_anf_"
 existPrefix         = "lq_ext_"
+renamePrefix         = "lq_rnm_"
 
 nonSymbol :: Symbol
 nonSymbol           = ""

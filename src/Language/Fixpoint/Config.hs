@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
-
 
 module Language.Fixpoint.Config (
     Config  (..)
@@ -13,16 +11,10 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
-  -- , withUEqAllSorts
 ) where
 
 import           System.Console.CmdArgs
-import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           Data.Generics                  (Data)
-import           Data.Typeable                  (Typeable)
 import           Language.Fixpoint.Files
-import           System.Console.CmdArgs.Default
-import           System.FilePath
 
 
 class Command a  where
@@ -49,10 +41,11 @@ data Config
     , real        :: Bool             -- ^ interpret div and mul in SMT
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
+    , stats       :: Bool             -- ^ compute constraint statistics
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def
+  def = Config "" def def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -130,11 +123,12 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , metadata    = False &= help "Print meta-data associated with constraints"
+  , stats       = True  &= help "Compute constraint statistics"
   }
   &= verbosity
   &= program "fixpoint"
   &= help    "Predicate Abstraction Based Horn-Clause Solver"
-  &= summary "fixpoint Copyright 2009-13 Regents of the University of California."
+  &= summary "fixpoint Copyright 2009-15 Regents of the University of California."
   &= details [ "Predicate Abstraction Based Horn-Clause Solver"
              , ""
              , "To check a file foo.fq type:"

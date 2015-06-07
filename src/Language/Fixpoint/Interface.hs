@@ -20,23 +20,25 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
+import           Control.Monad (when)
 import           Data.Functor
--- import           Data.Hashable
 import qualified Data.HashMap.Strict              as M
 import           Data.List
 import           Data.Monoid (mconcat, mempty)
+-- import           Data.Hashable
 -- import           System.Directory                 (getTemporaryDirectory)
-import           System.Exit
 -- import           System.FilePath                  ((</>))
-import           System.IO                        (IOMode (..), hPutStr,
-                                                   withFile)
+import           System.Exit
+import           System.IO                        (IOMode (..), hPutStr, withFile)
 import           Text.Printf
 
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
@@ -50,9 +52,11 @@ import           Text.PrettyPrint.HughesPJ
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg
-  | native cfg = S.solve  cfg
-  | otherwise  = solveExt cfg
+solve cfg x = do
+  when (stats cfg) $ statistics cfg x
+  case () of
+    _ | native cfg -> S.solve  cfg x
+    _              -> solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -60,36 +64,33 @@ solve cfg
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative' cfg
-  | otherwise  = solveFile    cfg
+  | native cfg = solveNative cfg
+  | otherwise  = solveFile   cfg
 
-
----------------------------------------------------------------------------
--- | Fake Dependencies Harness Solver
----------------------------------------------------------------------------
-solveNative :: Config -> IO ExitCode
-solveNative cfg
-  = do let file = inFile cfg
-       str     <- readFile file
-       let fi   = rr' file str :: FInfo ()
-       let res  = eliminateAll fi
-       putStrLn $ "Result: \n" ++ render (toFixpoint cfg res)
-       error "TODO: solveNative"
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative' :: Config -> IO ExitCode
-solveNative' cfg = exit (ExitFailure 2) $ do
+solveNative :: Config -> IO ExitCode
+solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  let fi'   = if eliminate cfg then eliminateAll fi else fi
+  fi'      <- if eliminate cfg then renameAndEliminate cfg fi else return fi
   (res, s) <- S.solve cfg fi'
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'
   return    $ resultExit res'
+
+renameAndEliminate :: Config -> FInfo () -> IO (FInfo ())
+renameAndEliminate cfg fi = do
+  whenLoud $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  let fi' = renameAll fi
+  whenLoud $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  let fi'' = eliminateAll fi'
+  whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi'')
+  return fi''
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
@@ -100,6 +101,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
   where
     fn          = srcFile cfg
 
+execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
   = do writeFile fq qstr
        withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
@@ -107,7 +109,7 @@ execFq cfg fn fi
     where
        fq   = extFileName Fq fn
        d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       qstr = render ((vcat $ toFix <$> quals fi) $$ text "\n")
+       qstr = render (vcat (toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg
@@ -122,6 +124,7 @@ fixCommand cfg fp z3 verbosity
   where
      rf  = if real cfg then realFlags else ""
 
+realFlags :: String
 realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
@@ -165,35 +168,3 @@ parseFI f = do
   return $ mempty { quals = quals  fi
                   , gs    = gs     fi }
 
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE -- | One Shot validity query ----------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE checkValid :: (Hashable a) => a -> [(Symbol, Sort)] -> Pred -> IO (FixResult a)
--- OLD CUT USE NEW SMTLIB INTERFACE ---------------------------------------------------------------------------
--- OLD CUT USE NEW SMTLIB INTERFACE checkValid n xts p
--- OLD CUT USE NEW SMTLIB INTERFACE   = do file   <- (</> show (hash n)) <$> getTemporaryDirectory
--- OLD CUT USE NEW SMTLIB INTERFACE        (r, _) <- solve def file [] $ validFInfo n xts p
--- OLD CUT USE NEW SMTLIB INTERFACE        return (sinfo <$> r)
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE validFInfo         :: a -> [(Symbol, Sort)] -> Pred -> FInfo a
--- OLD CUT USE NEW SMTLIB INTERFACE validFInfo l xts p = FI constrm [] benv emptySEnv [] ksEmpty []
--- OLD CUT USE NEW SMTLIB INTERFACE   where
--- OLD CUT USE NEW SMTLIB INTERFACE     constrm        = M.singleton 0 $ validSubc l ibenv p
--- OLD CUT USE NEW SMTLIB INTERFACE     binds          = [(x, trueSortedReft t) | (x, t) <- xts]
--- OLD CUT USE NEW SMTLIB INTERFACE     ibenv          = insertsIBindEnv bids emptyIBindEnv
--- OLD CUT USE NEW SMTLIB INTERFACE     (bids, benv)   = foldlMap (\e (x,t) -> insertBindEnv x t e) emptyBindEnv binds
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE validSubc         :: a -> IBindEnv -> Pred -> SubC a
--- OLD CUT USE NEW SMTLIB INTERFACE validSubc l env p = safeHead "Interface.validSubC" $ subC env PTrue lhs rhs i t l
--- OLD CUT USE NEW SMTLIB INTERFACE   where
--- OLD CUT USE NEW SMTLIB INTERFACE     lhs           = mempty
--- OLD CUT USE NEW SMTLIB INTERFACE     rhs           = RR mempty (predReft p)
--- OLD CUT USE NEW SMTLIB INTERFACE     i             = Just 0
--- OLD CUT USE NEW SMTLIB INTERFACE     t             = []
--- OLD CUT USE NEW SMTLIB INTERFACE 
--- OLD CUT USE NEW SMTLIB INTERFACE result         :: a -> Bool -> FixResult a
--- OLD CUT USE NEW SMTLIB INTERFACE result _ True  = Safe
--- OLD CUT USE NEW SMTLIB INTERFACE result x False = Unsafe [x]
--- OLD CUT USE NEW SMTLIB INTERFACE 
