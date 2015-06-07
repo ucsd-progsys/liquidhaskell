@@ -12,29 +12,9 @@ module Language.Fixpoint.Smt.Serialize where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Smt.Theories
-import qualified Data.HashMap.Strict      as M
-import qualified Data.List                as L
 import qualified Data.Text                as T
 import           Data.Text.Format
-import           Data.Monoid
-import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
-import           Control.Monad
 import qualified Data.Text.Lazy           as LT
-
-
---import           Language.Fixpoint.Errors
---import           Language.Fixpoint.Files
---import           Data.Char
---import qualified Data.Text.IO             as TIO
---import qualified Data.Text.Lazy.IO        as LTIO
---import           System.Directory
---import           System.Exit              hiding (die)
---import           System.FilePath
---import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
---import           System.Process
---import qualified Data.Attoparsec.Text     as A
-
-
 
 instance SMTLIB2 Sort where
   smt2 FInt         = "Int"
@@ -55,10 +35,10 @@ instance SMTLIB2 Symbol where
 -- FIXME: this is probably too slow
 encode :: T.Text -> T.Text
 encode t = {-# SCC "encode" #-}
-  foldr (\(x,y) t -> T.replace x y t) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                                        ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                                        ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                        ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
+  foldr (\(x,y) -> T.replace x y) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                                    ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                                    ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                                    ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
   smt2 (SL s) = LT.fromStrict s

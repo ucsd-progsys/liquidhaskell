@@ -43,7 +43,8 @@ module Language.Fixpoint.Smt.Interface (
     , smtDistinct
 
     -- * Theory Symbols
-    -- , smt_set_funs
+    , theorySymbols
+      -- smt_set_funs
 
     ) where
 

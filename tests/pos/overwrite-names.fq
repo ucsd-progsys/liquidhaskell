@@ -1,0 +1,9 @@
+constant Set_mem : (func(1, [@(0); FAppTy Set_Set  @(0); bool]))
+
+constraint:
+  env []
+  grd true
+  lhs {VV#F1 : int | [(VV#F1 > 10)]}
+  rhs {VV#F1 : int | [(VV#F1 > 10)]}
+  id 1 tag [1]
+ 
