@@ -79,7 +79,8 @@ import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      hiding (dcolon)
-import           Language.Fixpoint.SmtLib2
+-- import           Language.Fixpoint.SmtLib2
+
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
