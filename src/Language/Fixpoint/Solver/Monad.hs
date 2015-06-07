@@ -22,7 +22,7 @@ module Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
--- import           Language.Fixpoint.SmtLib2
+import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (catMaybes)

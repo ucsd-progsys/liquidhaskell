@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE OverloadedStrings    #-}
+
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
 --   typeclass. We split it into a separate module as it depends on
@@ -6,6 +10,31 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Smt.Types
+import           Language.Fixpoint.Smt.Theories
+import qualified Data.HashMap.Strict      as M
+import qualified Data.List                as L
+import qualified Data.Text                as T
+import           Data.Text.Format
+import           Data.Monoid
+import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
+import           Control.Monad
+import qualified Data.Text.Lazy           as LT
+
+
+--import           Language.Fixpoint.Errors
+--import           Language.Fixpoint.Files
+--import           Data.Char
+--import qualified Data.Text.IO             as TIO
+--import qualified Data.Text.Lazy.IO        as LTIO
+--import           System.Directory
+--import           System.Exit              hiding (die)
+--import           System.FilePath
+--import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
+--import           System.Process
+--import qualified Data.Attoparsec.Text     as A
+
+
 
 instance SMTLIB2 Sort where
   smt2 FInt         = "Int"
@@ -109,6 +138,22 @@ instance SMTLIB2 Command where
   smt2 (CheckSat)          = "(check-sat)"
   smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
 
-
+smt2s :: SMTLIB2 a => [a] -> LT.Text
 smt2s = LT.intercalate " " . fmap smt2
+
+
+{-
+(declare-fun x () Int)
+(declare-fun y () Int)
+(assert (<= 0 x))
+(assert (< x y))
+(push 1)
+(assert (not (<= 0 y)))
+(check-sat)
+(pop 1)
+(push 1)
+(assert (<= 0 y))
+(check-sat)
+(pop 1)
+-}
 

@@ -7,17 +7,18 @@ module Language.Fixpoint.Smt.Theories where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
+import qualified Data.HashMap.Strict      as M
+import qualified Data.List                as L
+import qualified Data.Text                as T
+import           Data.Text.Format
+import           Data.Monoid
+
 
 --import           Language.Fixpoint.Errors
 --import           Language.Fixpoint.Files
 --import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
 --import           Control.Monad
 --import           Data.Char
-import qualified Data.HashMap.Strict      as M
-import qualified Data.List                as L
---import           Data.Monoid
-import qualified Data.Text                as T
-import           Data.Text.Format
 --import qualified Data.Text.IO             as TIO
 --import qualified Data.Text.Lazy           as LT
 --import qualified Data.Text.Lazy.IO        as LTIO
