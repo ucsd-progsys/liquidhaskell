@@ -20,16 +20,16 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
+import           Control.Monad (when)
 import           Data.Functor
--- import           Data.Hashable
 import qualified Data.HashMap.Strict              as M
 import           Data.List
 import           Data.Monoid (mconcat, mempty)
+-- import           Data.Hashable
 -- import           System.Directory                 (getTemporaryDirectory)
-import           System.Exit
 -- import           System.FilePath                  ((</>))
-import           System.IO                        (IOMode (..), hPutStr,
-                                                   withFile)
+import           System.Exit
+import           System.IO                        (IOMode (..), hPutStr, withFile)
 import           Text.Printf
 
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
