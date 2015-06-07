@@ -14,7 +14,7 @@
 --   http://www.smt-lib.org/
 --   http://www.grammatech.com/resource/smt/SMTLIBTutorial.pdf
 
-module Language.Fixpoint.SmtLib2 (
+module Language.Fixpoint.Smt.Interface (
 
     -- * Commands
       Command  (..)
@@ -51,6 +51,7 @@ import           Language.Fixpoint.Config (SMTSolver (..))
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Smt.Types
 
 import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
 import           Control.Monad
