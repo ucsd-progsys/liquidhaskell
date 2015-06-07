@@ -48,7 +48,7 @@ instance SMTLIB2 Sort where
   smt2 _           = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 s | Just t <- M.lookup s smt_set_funs
+  smt2 s | Just t <- smt2Theory s --  M.lookup s smt_set_funs
          = LT.fromStrict t
   smt2 s = LT.fromStrict . encode . symbolText $ s
 
