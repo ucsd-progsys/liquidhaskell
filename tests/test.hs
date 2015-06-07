@@ -14,26 +14,6 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Printf
 
-
--- import Language.Fixpoint.Config
--- import Language.Fixpoint.Names
--- import Language.Fixpoint.Parse
--- import Language.Fixpoint.PrettyPrint
--- import Language.Fixpoint.Types
--- import Data.Char
--- import Data.Tagged
--- import Data.Typeable
--- import Options.Applicative
--- import qualified System.Posix as Posix
--- import Control.Monad
--- import Data.Proxy
--- import Data.Text (Text, cons, inits, pack)
--- import Test.QuickCheck
--- import Test.Tasty.Ingredients.Rerun
--- import Test.Tasty.Options
--- import Test.Tasty.QuickCheck
--- import Test.Tasty.Runners
-
 main :: IO ()
 main = defaultMain =<< group "Tests" [unitTests]
 
@@ -79,7 +59,6 @@ mkTest testCmd code dir file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
 knownToFail = []
-
 ---------------------------------------------------------------------------
 type TestCmd = FilePath -> FilePath -> FilePath -> String
 
