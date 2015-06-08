@@ -122,7 +122,7 @@ function do_test {
 }
 
 function dump_fail_logs {
-  find . -type f -wholename '*/.liquid/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+  find . -type f -wholename 'tests/logs/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
     echo "${file}:"
     echo "    $(pastebin < "${file}")"
   done
