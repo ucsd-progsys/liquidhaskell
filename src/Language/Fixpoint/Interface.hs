@@ -54,9 +54,9 @@ import           Text.PrettyPrint.HughesPJ
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg x = do
   when (stats cfg) $ statistics cfg x
-  case () of
-    _ | native cfg -> S.solve  cfg x
-    _              -> solveExt cfg x
+  if native cfg 
+    then solveNativeWithFInfo cfg x
+    else solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -76,17 +76,23 @@ solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  whenLoud $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  (res, _) <- solveNativeWithFInfo cfg fi 
+  return    $ resultExit res
+
+
+solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveNativeWithFInfo cfg fi = do 
+  whenLoud  $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   let fi'   = renameAll fi
-  whenLoud $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   fi''     <- elim cfg fi'
   (res, s) <- S.solve cfg fi''
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'
-  return    $ resultExit res'
+  return (res, s) 
 
-elim :: Config -> FInfo () -> IO (FInfo ())
+elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
                        whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
