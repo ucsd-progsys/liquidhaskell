@@ -2,11 +2,19 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import Control.Applicative
-import Control.Monad
+import qualified Control.Concurrent.STM as STM
+import qualified Control.Monad.State as State
+import Control.Monad.Trans.Class (lift)
 import Data.Char
+import Data.Foldable (foldMap)
+import qualified Data.Functor.Compose as Functor
+import qualified Data.IntMap as IntMap
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.Tagged
 import Data.Typeable
@@ -16,17 +24,19 @@ import System.Exit
 import System.FilePath
 import System.IO
 import System.IO.Error
--- import qualified System.Posix as Posix
 import System.Process
 import Test.Tasty
 import Test.Tasty.HUnit
+import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Text.Printf
 
-import Test.Tasty.Ingredients.Rerun
+testRunner = rerunningTests
+               [ listingTests
+               , combineReporters consoleTestReporter loggingTestReporter
+               ]
 
-testRunner = rerunningTests [ listingTests, consoleTestReporter ]
 
 main :: IO ()
 main = run =<< tests
@@ -115,7 +125,7 @@ mkTest code dir file
           assertEqual "Wrong exit code" code c
   where
     test = dir </> file
-    log = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
+    log = "tests/logs/cur" </> test <.> "log"
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
                    , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
@@ -194,3 +204,79 @@ partitionM f = go [] []
 concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
 concatMapM f []     = pure []
 concatMapM f (x:xs) = (++) <$> f x <*> concatMapM f xs
+
+-- | Combine two @TestReporter@s into one.
+--
+-- Runs the reporters in sequence, so it's best to start with the one
+-- that will produce incremental output, e.g. 'consoleTestReporter'.
+combineReporters (TestReporter opts1 run1) (TestReporter opts2 run2)
+  = TestReporter (opts1 ++ opts2) $ \opts tree -> do
+      f1 <- run1 opts tree
+      f2 <- run2 opts tree
+      return $ \smap -> f1 smap >> f2 smap
+
+type Summary = [(String, Double, Bool)]
+
+-- this is largely based on ocharles' test runner at
+-- https://github.com/ocharles/tasty-ant-xml/blob/master/Test/Tasty/Runners/AntXML.hs#L65
+loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
+  let
+    runTest _ testName _ = Traversal $ Functor.Compose $ do
+        i <- State.get
+
+        summary <- lift $ STM.atomically $ do
+          status <- STM.readTVar $
+            fromMaybe (error "Attempted to lookup test by index outside bounds") $
+              IntMap.lookup i smap
+
+          let mkSuccess time = [(testName, time, True)]
+              mkFailure time = [(testName, time, False)]
+
+          case status of
+            -- If the test is done, generate a summary for it
+            Done result
+              | resultSuccessful result
+                  -> pure (mkSuccess (resultTime result))
+              | otherwise
+                  -> pure (mkFailure (resultTime result))
+            -- Otherwise the test has either not been started or is currently
+            -- executing
+            _ -> STM.retry
+
+        Const summary <$ State.modify (+ 1)
+
+    runGroup group children = Traversal $ Functor.Compose $ do
+      Const soFar <- Functor.getCompose $ getTraversal children
+      pure $ Const $ map (\(n,t,s) -> (group</>n,t,s)) soFar
+
+    computeFailures :: StatusMap -> IO Int
+    computeFailures = fmap getSum . getApp . foldMap (\var -> Ap $
+      (\r -> Sum $ if resultSuccessful r then 0 else 1) <$> getResultFromTVar var)
+
+    getResultFromTVar :: STM.TVar Status -> IO Result
+    getResultFromTVar var =
+      STM.atomically $ do
+        status <- STM.readTVar var
+        case status of
+          Done r -> return r
+          _ -> STM.retry
+
+  (Const summary, _tests) <-
+     flip State.runStateT 0 $ Functor.getCompose $ getTraversal $
+      foldTestTree
+        trivialFold { foldSingle = runTest, foldGroup = runGroup }
+        opts
+        tree
+
+  return $ \_elapsedTime -> do
+    -- get some semblance of a hostname
+    host <- takeWhile (/='.') <$> readProcess "hostname" [] []
+    -- don't use the `time` package, major api differences between ghc 708 and 710
+    time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
+    let dir = "tests" </> "logs" </> host ++ "-" ++ time
+    let path = dir </> "summary.csv"
+    renameDirectory "tests/logs/cur" dir
+    writeFile path $ unlines
+                   $ "test, time(s), result"
+                   : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
+    (==0) <$> computeFailures smap
