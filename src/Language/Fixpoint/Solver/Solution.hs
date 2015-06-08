@@ -58,7 +58,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
 instance PPrint EQual where
   pprint = pprint . eqPred
 
-{-@ EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
+{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
 eQual :: F.Qualifier -> [F.Symbol] -> EQual
 eQual q xs = EQL q p es
