@@ -817,7 +817,7 @@ instance Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c -- <+> text "\n<<" <+> hsep (map toFix ts) <+> text ">>\n"
 
 instance Fixpoint Cinfo where
-  toFix = text . showPpr . ci_loc -- Ppr
+  toFix = text . showPpr . ci_loc
 
 instance PPrint RTyCon where
   pprint = text . showPpr . rtc_tc
