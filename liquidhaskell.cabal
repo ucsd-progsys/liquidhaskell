@@ -152,7 +152,7 @@ Library
                 , mtl
                 , parsec
                 , pretty
-                , process
+                , process >= 1.2
                 , syb
                 , text
                 , intern
@@ -259,12 +259,16 @@ test-suite test
   ghc-options:       -O2 -threaded
   main-is:           test.hs
   build-depends:     base,
+                     liquidhaskell,
+                     containers,
                      directory,
                      filepath,
+                     mtl,
                      process,
-                     tagged,
-                     liquidhaskell,
                      optparse-applicative == 0.11.*,
+                     stm,
+                     tagged,
                      tasty >= 0.10,
                      tasty-hunit >= 0.9,
-                     tasty-rerun >= 1.1
+                     tasty-rerun >= 1.1,
+                     transformers
