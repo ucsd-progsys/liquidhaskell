@@ -76,21 +76,22 @@ solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  fi'      <- if eliminate cfg then renameAndEliminate cfg fi else return fi
-  (res, s) <- S.solve cfg fi'
+  whenLoud $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  let fi'   = renameAll fi
+  whenLoud $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  fi''     <- elim cfg fi'
+  (res, s) <- S.solve cfg fi''
   let res'  = sid <$> res
   putStrLn  $ "Solution:\n" ++ showpp s
   putStrLn  $ "Result: "    ++ show res'
   return    $ resultExit res'
 
-renameAndEliminate :: Config -> FInfo () -> IO (FInfo ())
-renameAndEliminate cfg fi = do
-  whenLoud $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
-  let fi' = renameAll fi
-  whenLoud $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
-  let fi'' = eliminateAll fi'
-  whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi'')
-  return fi''
+elim :: Config -> FInfo () -> IO (FInfo ())
+elim cfg fi
+  | eliminate cfg = do let fi' = eliminateAll fi
+                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       return fi'
+  | otherwise     = return fi
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
@@ -167,4 +168,3 @@ parseFI f = do
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
                   , gs    = gs     fi }
-

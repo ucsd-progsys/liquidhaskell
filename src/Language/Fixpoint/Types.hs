@@ -516,7 +516,7 @@ instance Fixpoint Expr where
 
 data Pred = PTrue
           | PFalse
-          | PAnd   ![Pred]
+          | PAnd   !(ListNE Pred) -- [Pred]
           | POr    ![Pred]
           | PNot   !Pred
           | PImp   !Pred !Pred
@@ -528,11 +528,7 @@ data Pred = PTrue
           | PTop
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-{-@ type ListNE a = {v:[a] | 0 < len v} @-}
-
 {-@ PAnd :: ListNE Pred -> Pred @-}
-
-
 
 instance Hashable Brel
 instance Hashable Bop
