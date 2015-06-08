@@ -933,14 +933,15 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
-       hint   <- checkHint' (L.lookup x $ spDecr)
-       case dindex of
+       autosz <- return True {- NIKI: TODO get this from a flag -}
+       hint   <- checkHint' autosz (L.lookup x $ spDecr)
+       case dindex autosz of
          Nothing -> return $ Left msg -- addWarning msg >> return []
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
        ts         = ty_args trep
-       checkHint' = checkHint x ts (isDecreasing cenv)
-       dindex     = L.findIndex (isDecreasing cenv) ts
+       checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
+       dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter")
        cenv       = makeNumEnv ts 
        trep       = toRTypeRep $ unOCons t

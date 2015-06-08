@@ -54,4 +54,10 @@ expSize :: Exp -> Int
 expSize (EConst _) = 0
 expSize (EBinOp _ e1 e2) = 1 + (expSize e1) + (expSize e2)
 
-{-@ Decrease progDenote 2 @-}
+{-@ data List [listSize] @-}
+{-@ invariant {v:List a | listSize v >= 0} @-}
+
+{-@ measure listSize @-}
+listSize :: List a -> Int
+listSize Nil = 0
+listSize (Cons _ xs) = 1 + listSize xs
