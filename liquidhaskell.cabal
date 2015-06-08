@@ -206,6 +206,7 @@ Library
                     Language.Haskell.Liquid.Fresh,
                     Language.Haskell.Liquid.Visitors,
                     Language.Haskell.Liquid.WiredIn,
+                    Language.Haskell.Liquid.Names,
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...

@@ -94,6 +94,7 @@ import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 import Language.Haskell.Liquid.Variance
 
 import Language.Haskell.Liquid.Misc
+import Language.Haskell.Liquid.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Fixpoint.Names (listConName, tupConName)
@@ -1037,11 +1038,13 @@ makeNumEnv = concatMap go
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
-isDecreasing _ (RApp c _ _ _)
-  = isJust (sizeFunction (rtc_info c))
-isDecreasing cenv (RVar v _)
+isDecreasing autosize  _ (RApp c _ _ _)
+  =  isJust (sizeFunction (rtc_info c)) -- user specified size or 
+  || TC.isAlgTyCon tc && TC.tyConArity tc > 0
+  where tc = rtc_tc c  
+isDecreasing _ cenv (RVar v _)
   = v `elem` cenv 
-isDecreasing _ _ 
+isDecreasing _ _ _ 
   = False
 
 makeDecrType = mkDType [] []
@@ -1066,9 +1069,16 @@ mkDType xvs acc ((v, (x, t)):vxts)
 mkDType _ _ _
   = errorstar "RefType.mkDType called on invalid input"
 
-mkDecrFun (RApp c _ _ _) | Just f <- sizeFunction $ rtc_info c = f 
-mkDecrFun (RVar _ _)     = EVar 
-mkDecrFun _              = errorstar "RefType.mkDecrFun called on invalid input"
+mkDecrFun (RApp c _ _ _) 
+  | Just f <- sizeFunction $ rtc_info c  
+  = f
+  | TC.isAlgTyCon tc && TC.tyConArity tc > 0 
+  = \v -> F.EApp lenLocSymbol [F.EVar v]
+  where tc = rtc_tc c 
+mkDecrFun (RVar _ _)     
+  = EVar 
+mkDecrFun _              
+  = errorstar "RefType.mkDecrFun called on invalid input"
 
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
