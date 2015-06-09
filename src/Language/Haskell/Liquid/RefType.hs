@@ -48,6 +48,8 @@ module Language.Haskell.Liquid.RefType (
   , dataConSymbol, dataConMsReft, dataConReft
   , classBinds
 
+  , isSizeable
+
   -- * Manipulating Refinements in RTypes
   , rTypeSortedReft
   , rTypeSort
@@ -1040,7 +1042,7 @@ makeNumEnv = concatMap go
 
 isDecreasing autosize  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or 
-  || TC.isAlgTyCon tc && TC.tyConArity tc > 0
+  || isSizeable tc 
   where tc = rtc_tc c  
 isDecreasing _ cenv (RVar v _)
   = v `elem` cenv 
@@ -1069,12 +1071,14 @@ mkDType xvs acc ((v, (x, t)):vxts)
 mkDType _ _ _
   = errorstar "RefType.mkDType called on invalid input"
 
+isSizeable :: TyCon -> Bool
+isSizeable tc = TC.isAlgTyCon tc -- && TC.tyConArity tc > 0 
+
 mkDecrFun (RApp c _ _ _) 
   | Just f <- sizeFunction $ rtc_info c  
   = f
-  | TC.isAlgTyCon tc && TC.tyConArity tc > 0 
+  | isSizeable $ rtc_tc c 
   = \v -> F.EApp lenLocSymbol [F.EVar v]
-  where tc = rtc_tc c 
 mkDecrFun (RVar _ _)     
   = EVar 
 mkDecrFun _              
