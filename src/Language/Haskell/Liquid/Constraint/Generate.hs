@@ -172,8 +172,8 @@ makeSizedDataCons dcts x' n = traceShow "HERE " (toRSort $ ty_res trep, (x, from
       x = dataConWorkId x'
       Just t = L.lookup x dcts 
       trep = toRTypeRep t 
-      tres = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa $ F.PAnd
-                              [F.PAtom F.Eq (lenOf F.vv_) computelen])) mempty mempty
+      tres = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa 
+                              $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
       xs   = ty_binds trep 
       as   = ty_vars  trep
       recarguments = filter (\(t,x) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
@@ -186,7 +186,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
     merge [] ys = ys
     merge xs [] = xs
     merge (xt@(x, tx):xs) (yt@(y, ty):ys) 
-      | x == y    = (x, tx `mappend` ty):merge xs ys 
+      | x == y    = (x, tx `F.meet` (traceShow ("On the meet of " ++ show (tx, ty)) ty)):merge xs ys 
       | x <  y    = xt:merge xs (yt:ys)
       | otherwise = yt:merge (xt:xs) ys
 
