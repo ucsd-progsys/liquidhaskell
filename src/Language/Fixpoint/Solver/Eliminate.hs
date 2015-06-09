@@ -25,29 +25,24 @@ eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
 
 
 class Elimable a where
-  elimKVar :: KVar -> Pred -> a -> a
+  elimKVar :: (KVar -> Maybe Pred) -> a -> a
 
 instance Elimable (SubC a) where
   -- we don't bother editing srhs since if kv is on the rhs 
   -- then the entire constraint should get eliminated
   -- TODO what if it's just part of rhs e.g. && [k0; v ~~ 10]
-  elimKVar kv pr x = x { slhs = elimKVar kv pr (slhs x) }
+  elimKVar f x = x { slhs = elimKVar f (slhs x) }
 
 instance Elimable SortedReft where
-  elimKVar kv pr x = x { sr_reft = elimKVar kv pr (sr_reft x) }
-
-instance Elimable Reft where
-  elimKVar kv pr = mapKVars go
-    where
-      go k = if kv == k then Just pr else Nothing
+  elimKVar f x = x { sr_reft = mapKVars f (sr_reft x) }
 
 instance Elimable (FInfo a) where
-  elimKVar kv pr x = x { cm = M.map (elimKVar kv pr) (cm x)
-                       , bs = elimKVar kv pr (bs x)
-                       }
+  elimKVar f x = x { cm = M.map (elimKVar f) (cm x)
+                   , bs = elimKVar f (bs x)
+                   }
 
 instance Elimable BindEnv where
-  elimKVar kv pr = mapBindEnv (\(sym, sr) -> (sym, elimKVar kv pr sr))
+  elimKVar f = mapBindEnv (\(sym, sr) -> (sym, elimKVar f sr))
 
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
@@ -61,7 +56,8 @@ eliminate fi kv = do
   let symSReftList = [(sym, trueSortedReft srt) | (sym, srt) <- symSrtList]
   let (ids, be) = insertsBindEnv symSReftList $ bs fi
   let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  return $ elimKVar kv orPred (fi { cm = newSubCs , ws = remainingWs , bs = be })
+  let go k = if kv == k then Just orPred else Nothing
+  return $ elimKVar go (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
 insertsBindEnv = runState . mapM go
