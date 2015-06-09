@@ -234,9 +234,10 @@ fixCabalDirs cfg
 
 fixCabalDirs' :: Config -> Info -> Config
 fixCabalDirs' cfg i = cfg { idirs      = sourceDirs i ++ idirs cfg}
-                          { ghcOptions = gOpts i      ++ ghcOptions cfg }
+                          { ghcOptions = dbOpts ++ pkOpts ++ ghcOptions cfg }
   where
-    gOpts i         = ["-package-db " ++ db | db <- packageDbs i]
+    dbOpts          = ["-package-db " ++ db | db <- packageDbs  i]
+    pkOpts          = ["-package "    ++ n  | n  <- packageDeps i]
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
