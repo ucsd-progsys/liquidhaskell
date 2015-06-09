@@ -4,8 +4,11 @@
 
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--diff"           @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--cabaldir"       @-}
 
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
 module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
@@ -13,6 +16,8 @@ module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
 import Control.Applicative ((<$>))
 import Data.List
 import Data.Maybe
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Distribution.Compiler
 import Distribution.Package
 import Distribution.PackageDescription
@@ -27,6 +32,9 @@ import System.Exit
 import System.FilePath
 import System.Directory
 import System.Info
+import Language.Haskell.Liquid.Errors
+
+-- exitWithPanic = undefined
 
 -----------------------------------------------------------------------------------------------
 cabalInfo :: FilePath -> IO (Maybe Info)
@@ -34,13 +42,14 @@ cabalInfo :: FilePath -> IO (Maybe Info)
 cabalInfo f = do
   cf <- findCabalFile f
   case cf of
-    Just f  -> processCabalFile f
+    Just f  -> Just  <$> processCabalFile f
     Nothing -> return Nothing
 
-processCabalFile :: FilePath -> IO (Maybe Info)
-processCabalFile f = extract . cabalConfiguration f <$> readPackageDescription silent f
-  where
-    extract        = either (const Nothing) Just
+processCabalFile :: FilePath -> IO Info
+processCabalFile f =
+  cabalConfiguration f <$> readPackageDescription silent f
+    >>= addPackageDbs
+
 
 -----------------------------------------------------------------------------------------------
 findCabalFile :: FilePath -> IO (Maybe FilePath)
@@ -76,6 +85,43 @@ data Info = Info { cabalFile    :: FilePath
                  , packageDbs   :: [String]
                  } deriving (Show)
 
+
+addPackageDbs :: Info -> IO Info
+addPackageDbs i = maybe i addDB <$> getSandboxDB i
+  where
+    addDB db    = i { packageDbs = T.unpack db : packageDbs i}
+
+getSandboxDB :: Info -> IO (Maybe T.Text)
+getSandboxDB i = do
+  tM <- maybeReadFile $ sandBoxFile i
+  case tM of
+   Just t  -> return $ Just $ parsePackageDb t
+   Nothing -> return Nothing
+   -- fmap <$> maybeReadFile (sandBoxFile i)
+
+parsePackageDb :: T.Text -> T.Text
+parsePackageDb t = case dbs of
+                    [db] -> T.strip db
+                    _    -> exitWithPanic $ "Malformed package-db in sandbox: " ++ show dbs
+                   where
+                     dbs = mapMaybe (T.stripPrefix pfx) $ T.lines t
+                     pfx = "package-db:"
+    -- /Users/rjhala/research/liquid/liquidhaskell/.cabal-sandbox/x86_64-osx-ghc-7.8.3-packages.conf.d
+
+maybeReadFile :: FilePath -> IO (Maybe T.Text)
+maybeReadFile f = do
+  b <- doesFileExist f
+  if b then Just <$> TIO.readFile f
+       else return Nothing
+
+
+
+sandBoxFile :: Info -> FilePath
+sandBoxFile i = dir </> "cabal.sandbox.config"
+  where
+    dir       = takeDirectory $ cabalFile i
+
+
 dumpPackageDescription :: PackageDescription -> FilePath -> Info
 dumpPackageDescription pkgDesc file = Info {
     cabalFile    = file
@@ -83,7 +129,7 @@ dumpPackageDescription pkgDesc file = Info {
   , sourceDirs   = nub (normalise <$> getSourceDirectories buildInfo dir)
   , exts         = nub (concatMap usedExtensions buildInfo)
   , otherOptions = nub (filter isAllowedOption (concatMap (hcOptions GHC) buildInfo))
-  , packageDbs   = error "TODO"
+  , packageDbs   = []
   }
   where
     buildInfo    = allBuildInfo pkgDesc
@@ -136,7 +182,7 @@ isAllowedOption opt = elem opt allowedOptions || any (`isPrefixOf` opt) allowedO
 buildCompiler :: CompilerId
 buildCompiler = CompilerId buildCompilerFlavor compilerVersion
 
-cabalConfiguration :: FilePath -> GenericPackageDescription -> Either String Info
+cabalConfiguration :: FilePath -> GenericPackageDescription -> Info
 cabalConfiguration cabalFile desc =
   case finalizePackageDescription []
                                   (const True)
@@ -144,6 +190,6 @@ cabalConfiguration cabalFile desc =
                                   buildCompiler
                                   []
                                   desc of
-       Left e -> Left $ "Issue with package configuration\n" ++ show e
-       Right (pkgDesc,_) -> Right $ dumpPackageDescription pkgDesc cabalFile
+       Right (pkgDesc,_) -> dumpPackageDescription pkgDesc cabalFile
+       Left e -> exitWithPanic $ "Issue with package configuration\n" ++ show e
 
