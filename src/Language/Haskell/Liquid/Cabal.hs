@@ -34,22 +34,25 @@ import System.Directory
 import System.Info
 import Language.Haskell.Liquid.Errors
 
--- exitWithPanic = undefined
+-- To use in ghci:
+--   exitWithPanic = undefined
 
 -----------------------------------------------------------------------------------------------
 cabalInfo :: FilePath -> IO (Maybe Info)
 -----------------------------------------------------------------------------------------------
 cabalInfo f = do
+  f  <- canonicalizePath f
   cf <- findCabalFile f
   case cf of
     Just f  -> Just  <$> processCabalFile f
     Nothing -> return Nothing
 
 processCabalFile :: FilePath -> IO Info
-processCabalFile f =
-  cabalConfiguration f <$> readPackageDescription silent f
-    >>= addPackageDbs
-
+processCabalFile f = do
+  i <-  cabalConfiguration f <$> readPackageDescription silent f
+  i <- addPackageDbs i
+  putStrLn $ "Cabal Info: " ++ show i
+  return i
 
 -----------------------------------------------------------------------------------------------
 findCabalFile :: FilePath -> IO (Maybe FilePath)
