@@ -221,14 +221,17 @@ fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 fixCabalDirs :: Config -> IO Config
 fixCabalDirs cfg
   | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
-                      i <- fromMaybe err <$> cabalInfo tgt
-                      return $ cfg {idirs = sourceDirs i ++ idirs cfg}
+                      fromMaybe err . fixCabalDirs' cfg <$> cabalInfo tgt
   | otherwise    = return cfg
   where
     err          = exitWithPanic $ "Cannot find .cabal file for " ++ tgt
     tgt          = case files cfg of
                      f:_ -> f
                      _   -> exitWithPanic "--cabaldir option requires at least one target"
+
+fixCabalDirs' :: Config -> Info -> Config
+fixCabalDirs' cfg i = cfg {idirs = sourceDirs i ++ idirs cfg}
+ghcOptions = ghcOptions cfg ++ undefinedHEREHEREHERE
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
