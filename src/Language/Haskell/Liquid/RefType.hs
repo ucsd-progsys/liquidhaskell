@@ -1042,7 +1042,7 @@ makeNumEnv = concatMap go
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
-isDecreasing autosize  _ (RApp c _ _ _)
+isDecreasing _  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or 
   || isSizeable tc 
   where tc = rtc_tc c  

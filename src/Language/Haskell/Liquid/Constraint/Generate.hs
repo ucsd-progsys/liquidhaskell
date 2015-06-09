@@ -150,14 +150,14 @@ initEnv info
     makedcs      = map strengthenDataConType
     mapSndM f (x,y) = (x,) <$> f y
 
-
+-- BEGIN: TO CLEAN
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where 
     (invs, tys) = unzip $ concatMap go tycons 
     tycons = L.nub $ catMaybes $ map idTyCon dcs 
     go tycon 
-      | smember tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
+      | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
     go _ = [] 
     idTyCon x = traceShow ("idTyCon of " ++ show x) 
       (dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing})  
@@ -165,11 +165,9 @@ makeAutoDecrDataCons dcts specenv dcs
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs 
     invariant = U (F.Reft (F.vv_, F.Refa $ F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
-    smember ty s = traceShow ("Is member?" ++ show ty ++ show s) (S.member ty s) 
-
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
-makeSizedDataCons dcts x' n = traceShow "HERE " (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres})) 
+makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres})) 
     where 
       x = dataConWorkId x'
       Just t = L.lookup x dcts 
@@ -180,7 +178,7 @@ makeSizedDataCons dcts x' n = traceShow "HERE " (toRSort $ ty_res trep, (x, from
       as   = ty_vars  trep
       recarguments = filter (\(t,x) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf . snd <$> recarguments)
-
+-- END: TO CLEAN
 
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
@@ -188,7 +186,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
     merge [] ys = ys
     merge xs [] = xs
     merge (xt@(x, tx):xs) (yt@(y, ty):ys) 
-      | x == y    = (x, tx `F.meet` (traceShow ("On the meet of " ++ show (tx, ty)) ty)):merge xs ys 
+      | x == y    = (x, tx `F.meet` ty):merge xs ys 
       | x <  y    = xt:merge xs (yt:ys)
       | otherwise = yt:merge (xt:xs) ys
 
