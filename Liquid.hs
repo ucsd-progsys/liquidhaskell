@@ -1,5 +1,8 @@
 {-# LANGUAGE TupleSections  #-}
 
+{-@ LIQUID "--cabaldir" @-}
+{-@ LIQUID "--diff"     @-}
+
 import           Data.Maybe
 import           Data.Monoid      (mconcat, mempty)
 import           System.Exit
@@ -25,9 +28,14 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
+import           System.Environment (getArgs)
+
+
 
 main :: IO b
-main = do cfg0     <- getOpts
+main = do args     <- getArgs
+          appendFile "/Users/rjhala/tmp/liquid.log" $ show args ++ "\n"
+          cfg0     <- getOpts
           res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
           -- putStrLn  $ "ExitCode: " ++ show ecode
