@@ -186,7 +186,9 @@ instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, Ref
     | otherwise    = RProp s1 $ t1  `strengthenRefType` 
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
-  mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
+--   mappend (RPropP s1 t1) (RProp s2 t2) = errorstar "Reftable.mappend on invalid inputs"
+  mappend t1 t2 = errorstar ("Reftable.mappend on invalid inputs" ++ show (t1, t2))
+--   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
 instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c) 
     => Reftable (RTProp c tv r) where
