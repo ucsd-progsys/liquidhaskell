@@ -4,7 +4,8 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
-{-@ LIQUID "--cabaldir"                @-}
+
+{-@ LIQUID "--cabaldir" @-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
