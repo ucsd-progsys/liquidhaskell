@@ -68,22 +68,22 @@ findInDir p dir = do
 
 -----------------------------------------------------------------------------------------------
 
-data Info = Info { -- cabalDir     :: FilePath
-                   cabalFile    :: FilePath
+data Info = Info { cabalFile    :: FilePath
                  , buildDirs    :: [FilePath]
                  , sourceDirs   :: [FilePath]
                  , exts         :: [Extension]
                  , otherOptions :: [String]
+                 , packageDbs   :: [String]
                  } deriving (Show)
 
 dumpPackageDescription :: PackageDescription -> FilePath -> Info
 dumpPackageDescription pkgDesc file = Info {
-    -- cabalDir     = dir
     cabalFile    = file
   , buildDirs    = nub (normalise <$> getBuildDirectories pkgDesc dir)
   , sourceDirs   = nub (normalise <$> getSourceDirectories buildInfo dir)
   , exts         = nub (concatMap usedExtensions buildInfo)
   , otherOptions = nub (filter isAllowedOption (concatMap (hcOptions GHC) buildInfo))
+  , packageDbs   = error "TODO"
   }
   where
     buildInfo    = allBuildInfo pkgDesc
