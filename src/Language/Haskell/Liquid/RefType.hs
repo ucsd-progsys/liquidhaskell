@@ -1074,7 +1074,7 @@ mkDType _ _ _
   = errorstar "RefType.mkDType called on invalid input"
 
 isSizeable :: TyCon -> Bool
-isSizeable tc = TC.isAlgTyCon tc -- && TC.tyConArity tc > 0 
+isSizeable tc = TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc 
 
 mkDecrFun (RApp c _ _ _) 
   | Just f <- sizeFunction $ rtc_info c  

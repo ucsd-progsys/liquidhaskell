@@ -54,6 +54,7 @@ import Language.Haskell.Liquid.Bare.RTEnv
 import Language.Haskell.Liquid.Bare.Spec
 import Language.Haskell.Liquid.Bare.SymSort
 import Language.Haskell.Liquid.Bare.RefToLogic
+import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
 
 ------------------------------------------------------------------
 ---------- Top Level Output --------------------------------------
@@ -130,7 +131,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeSpecDictionaries embs vars specs
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty cfg mempty [] mempty mempty
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty
 
 
 makeGhcSpec0 cfg defVars exports name sp
@@ -178,6 +179,7 @@ makeGhcSpec4 defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
+       asize'  <- S.fromList <$> makeASize specs name  
        hmeas   <- mkThing makeHIMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
        let sigs = strengthenHaskellMeasures hmeas ++ tySigs sp
@@ -189,6 +191,7 @@ makeGhcSpec4 defVars specs name su sp
                      , decr       = decr'
                      , texprs     = texprs'
                      , lvars      = lvars'
+                     , autosize   = asize'
                      , lazy       = lazies
                      , tySigs     = tx  <$> sigs
                      , asmSigs    = tx  <$> (asmSigs sp)
@@ -197,6 +200,7 @@ makeGhcSpec4 defVars specs name su sp
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
 
+makeASize specs name = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs

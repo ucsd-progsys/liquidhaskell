@@ -133,7 +133,7 @@ initEnv info
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ makedcs $ vals ctors sp    -- constructor refinements  (for measures)
-       (invs, f41)      <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty dcs 
+       (invs, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty (autosize sp) dcs 
        let f4    = mergeDataConTypes f40 f41
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
@@ -151,19 +151,21 @@ initEnv info
     mapSndM f (x,y) = (x,) <$> f y
 
 
-makeAutoDecrDataCons dcts dcs
+makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where 
     (invs, tys) = unzip $ concatMap go tycons 
     tycons = L.nub $ catMaybes $ map idTyCon dcs 
     go tycon 
-      | isSizeable tycon =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
+      | smember tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
     go _ = [] 
     idTyCon x = traceShow ("idTyCon of " ++ show x) 
       (dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing})  
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs 
     invariant = U (F.Reft (F.vv_, F.Refa $ F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+
+    smember ty s = traceShow ("Is member?" ++ show ty ++ show s) (S.member ty s) 
 
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
