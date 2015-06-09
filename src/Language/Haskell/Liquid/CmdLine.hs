@@ -258,17 +258,18 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 ---------------------------------------------------------------------------------------
 withCabal :: Config -> IO Config
 ---------------------------------------------------------------------------------------
-withCabal cfg
-  | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
-                      io <- cabalInfo tgt
-                      case io of
-                        Just i  -> return $ fixCabalDirs' cfg i
-                        Nothing -> exitWithPanic $ "Cannot find .cabal file for " ++ tgt
-  | otherwise    = return cfg
+withCabal cfg = do
+  putStrLn $ "addCabalDirs: " ++ tgt
+  io <- cabalInfo tgt
+  case io of
+    Just i  -> return $ fixCabalDirs' cfg i
+    Nothing -> do putStrLn "Cannot find .cabal information, proceeding without."
+                  return cfg
   where
-    tgt          = case files cfg of
-                     f:_ -> f
-                     _   -> exitWithPanic "--cabaldir option requires at least one target"
+    tgt = case files cfg of
+            f:_ -> f
+            _   -> exitWithPanic "Please provide a target file to verify."
+
 
 fixCabalDirs' :: Config -> Info -> Config
 fixCabalDirs' cfg i = cfg { idirs      = nub $ sourceDirs i ++ idirs cfg}
