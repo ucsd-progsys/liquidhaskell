@@ -83,6 +83,7 @@ data Info = Info { cabalFile    :: FilePath
                  , exts         :: [Extension]
                  , otherOptions :: [String]
                  , packageDbs   :: [String]
+                 , packageDeps  :: [Dependency]
                  } deriving (Show)
 
 
@@ -130,10 +131,12 @@ dumpPackageDescription pkgDesc file = Info {
   , exts         = nub (concatMap usedExtensions buildInfo)
   , otherOptions = nub (filter isAllowedOption (concatMap (hcOptions GHC) buildInfo))
   , packageDbs   = []
+  , packageDeps  = nub (filter (\(Dependency name _) -> name /= thisPackage) (buildDepends pkgDesc))
   }
   where
     buildInfo    = allBuildInfo pkgDesc
     dir          = dropFileName file
+    thisPackage  = (pkgName . package) pkgDesc
 
 getSourceDirectories :: [BuildInfo] -> FilePath -> [String]
 getSourceDirectories buildInfo cabalDir = map (cabalDir </>) (concatMap hsSourceDirs buildInfo)
