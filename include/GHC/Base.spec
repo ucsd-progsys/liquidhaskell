@@ -9,7 +9,7 @@ embed Prop               as bool
 
 measure Prop   :: GHC.Types.Bool -> Prop
 
-class measure autolen :: forall f a. f a -> GHC.Types.Int
+class measure autolen :: forall a. a -> GHC.Types.Int
 class measure len :: forall f a. f a -> GHC.Types.Int
 instance measure len :: forall a. [a] -> GHC.Types.Int
 len []     = 0
