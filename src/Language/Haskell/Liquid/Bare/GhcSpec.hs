@@ -179,7 +179,7 @@ makeGhcSpec4 defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
-       asize'  <- S.fromList <$> makeASize specs name  
+       asize'  <- S.fromList <$> makeASize  
        hmeas   <- mkThing makeHIMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
        let sigs = strengthenHaskellMeasures hmeas ++ tySigs sp
@@ -199,8 +199,7 @@ makeGhcSpec4 defVars specs name su sp
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
-
-makeASize specs name = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+       makeASize  = mapM lookupGhcTyCon [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
 
 makeGhcSpecCHOP1 specs
   = do (tcs, dcs)      <- mconcat <$> mapM makeConTypes specs
