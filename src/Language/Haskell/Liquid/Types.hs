@@ -15,6 +15,8 @@
 
 -- | This module should contain all the global type definitions and basic instances.
 
+{-@ LIQUID "--cabaldir" @-}
+
 module Language.Haskell.Liquid.Types (
 
   -- * Options
@@ -192,6 +194,8 @@ module Language.Haskell.Liquid.Types (
   -- * Ureftable Instances
   , UReftable(..)
 
+  -- * String Literals
+  , liquidBegin, liquidEnd
   )
   where
 
@@ -1840,4 +1844,11 @@ instance PPrint DataCon where
 
 instance Show DataCon where
   show = showpp
+
+
+liquidBegin :: String
+liquidBegin = ['{', '-', '@']
+
+liquidEnd :: String
+liquidEnd = ['@', '-', '}']
 

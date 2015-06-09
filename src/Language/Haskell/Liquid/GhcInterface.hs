@@ -51,16 +51,14 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
-
 import Language.Haskell.Liquid.Visitors
-
-import Language.Haskell.Liquid.CmdLine (withPragmas)
+import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
+import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
-import qualified Language.Haskell.Liquid.Measure as Ms
 
 
 --------------------------------------------------------------------
@@ -80,6 +78,7 @@ getGhcInfo' cfg0 target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
+      -- cfg                <- liftIO $ withCabal cfg
       let paths           = idirs cfg
       updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)

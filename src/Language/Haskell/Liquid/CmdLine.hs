@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -fno-cse #-}
 
 {-@ LIQUID "--cabaldir" @-}
+{-@ LIQUID "--diff"     @-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
@@ -20,6 +21,7 @@ module Language.Haskell.Liquid.CmdLine (
 
    -- * Update Configuration With Pragma
    , withPragmas
+   , withCabal
 
    -- * Exit Function
    , exitWithResult
@@ -197,8 +199,8 @@ findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show sm
 fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
-  cfg <- fixCabalDirs cfg
   cfg <- canonicalizePaths pwd cfg
+  cfg <- withCabal cfg
   return $ fixDiffCheck cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
@@ -219,26 +221,6 @@ canonicalize tgt isdir f
 
 fixDiffCheck :: Config -> Config
 fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
-
-fixCabalDirs :: Config -> IO Config
-fixCabalDirs cfg
-  | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
-                      io <- cabalInfo tgt
-                      case io of
-                        Just i  -> return $ fixCabalDirs' cfg i
-                        Nothing -> exitWithPanic $ "Cannot find .cabal file for " ++ tgt
-  | otherwise    = return cfg
-  where
-    tgt          = case files cfg of
-                     f:_ -> f
-                     _   -> exitWithPanic "--cabaldir option requires at least one target"
-
-fixCabalDirs' :: Config -> Info -> Config
-fixCabalDirs' cfg i = cfg { idirs      = sourceDirs i ++ idirs cfg}
-                          { ghcOptions = dbOpts ++ pkOpts ++ ghcOptions cfg }
-  where
-    dbOpts          = ["-package-db " ++ db | db <- packageDbs  i]
-    pkOpts          = ["-package "    ++ n  | n  <- packageDeps i]
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
@@ -272,6 +254,31 @@ withPragma c s = (c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
 parsePragma s = withArgs [val s] $ cmdArgsRun config
+
+---------------------------------------------------------------------------------------
+withCabal :: Config -> IO Config
+---------------------------------------------------------------------------------------
+withCabal cfg
+  | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
+                      io <- cabalInfo tgt
+                      case io of
+                        Just i  -> return $ fixCabalDirs' cfg i
+                        Nothing -> exitWithPanic $ "Cannot find .cabal file for " ++ tgt
+  | otherwise    = return cfg
+  where
+    tgt          = case files cfg of
+                     f:_ -> f
+                     _   -> exitWithPanic "--cabaldir option requires at least one target"
+
+fixCabalDirs' :: Config -> Info -> Config
+fixCabalDirs' cfg i = cfg { idirs      = nub $ sourceDirs i ++ idirs cfg}
+                          { ghcOptions = nub $ dbOpts ++ pkOpts ++ ghcOptions cfg }
+  where
+    dbOpts          = ["-package-db " ++ db | db <- packageDbs  i]
+    pkOpts          = ["-package "    ++ n  | n  <- packageDeps i]
+
+
+
 
 ---------------------------------------------------------------------------------------
 -- | Monoid instances for updating options

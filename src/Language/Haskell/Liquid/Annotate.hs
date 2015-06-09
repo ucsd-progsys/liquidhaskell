@@ -283,15 +283,6 @@ trimLiquidAnnot ('{':'-':'@':ss)
 trimLiquidAnnot _
   = Nothing
 
-liquidBegin :: String
-liquidBegin = ['{', '-', '@']
-
-liquidEnd :: String
-liquidEnd = ['@', '-', '}']
-
-
-
-
 tokBody s
   | isData s  = tokenise s
   | isType s  = tokenise s
