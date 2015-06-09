@@ -86,6 +86,7 @@ Executable liquid
                , bytestring
                , fingertree
                , liquidhaskell
+               , Cabal >= 1.18
 
   Main-is: Liquid.hs
   ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
@@ -163,6 +164,7 @@ Library
                 , aeson
                 , bytestring
                 , fingertree
+                , Cabal >= 1.18
  
    hs-source-dirs:  src, include
  
@@ -189,6 +191,7 @@ Library
                     Language.Haskell.Liquid.Annotate, 
                     Language.Haskell.Liquid.CTags,
                     Language.Haskell.Liquid.CmdLine, 
+                    Language.Haskell.Liquid.Cabal, 
                     Language.Haskell.Liquid.GhcMisc, 
                     Language.Haskell.Liquid.GhcPlay, 
                     Language.Haskell.Liquid.Misc, 
@@ -271,4 +274,6 @@ test-suite test
                      tasty >= 0.10,
                      tasty-hunit >= 0.9,
                      tasty-rerun >= 1.1,
-                     transformers
+                     transformers,
+                     Cabal >= 1.18
+                 

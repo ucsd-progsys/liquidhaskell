@@ -137,6 +137,10 @@ config = cmdArgsMode $ Config {
     = def &= name "short-errors"
           &= help "Don't show long error messages, just line numbers."
 
+ , cabalDir
+    = def &= name "cabal-dir"
+          &= help "Find and use .cabal to add paths to sources for imported files"
+
  , ghcOptions
     = def &= name "ghc-option"
           &= typ "OPTION"
@@ -146,7 +150,6 @@ config = cmdArgsMode $ Config {
     = def &= name "c-files"
           &= typ "OPTION"
           &= help "Tell GHC to compile and link against these files"
-
 
  } &= verbosity
    &= program "liquid"
@@ -219,7 +222,6 @@ copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of Califo
 mkOpts :: Config -> IO Config
 mkOpts cfg
   = do let files' = sortNub $ files cfg
-       -- idirs' <- if null (idirs cfg) then single <$> getIncludeDir else return (idirs cfg)
        id0 <- getIncludeDir
        return  $ cfg { files = files' }
                      { idirs = (dropFileName <$> files') ++ [id0 </> gHC_VERSION, id0] ++ idirs cfg }
@@ -247,7 +249,7 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -268,6 +270,7 @@ instance Monoid Config where
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2
                          , shortNames     = shortNames c1        ||     shortNames     c2
                          , shortErrors    = shortErrors c1       ||     shortErrors    c2
+                         , cabalDir       = cabalDir    c1       ||     cabalDir       c2
                          , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2
                          , cFiles         = cFiles c1            ++     cFiles         c2
                          }
