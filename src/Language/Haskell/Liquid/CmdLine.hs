@@ -4,6 +4,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
+{-@ LIQUID "--cabaldir"                @-}
 
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
@@ -37,7 +38,7 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (nub)
+import Data.List                           (intercalate, nub)
 import Data.Monoid
 
 import           System.FilePath                     (dropFileName, isAbsolute,
@@ -221,17 +222,21 @@ fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 fixCabalDirs :: Config -> IO Config
 fixCabalDirs cfg
   | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
-                      fromMaybe err . fixCabalDirs' cfg <$> cabalInfo tgt
+                      io <- cabalInfo tgt
+                      case io of
+                        Just i  -> return $ fixCabalDirs' cfg i
+                        Nothing -> exitWithPanic $ "Cannot find .cabal file for " ++ tgt
   | otherwise    = return cfg
   where
-    err          = exitWithPanic $ "Cannot find .cabal file for " ++ tgt
     tgt          = case files cfg of
                      f:_ -> f
                      _   -> exitWithPanic "--cabaldir option requires at least one target"
 
 fixCabalDirs' :: Config -> Info -> Config
-fixCabalDirs' cfg i = cfg {idirs = sourceDirs i ++ idirs cfg}
-ghcOptions = ghcOptions cfg ++ undefinedHEREHEREHERE
+fixCabalDirs' cfg i = cfg { idirs      = sourceDirs i ++ idirs cfg}
+                          { ghcOptions = gOpts i      ++ ghcOptions cfg }
+  where
+    gOpts i         = ["-package-db " ++ db | db <- packageDbs i]
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
