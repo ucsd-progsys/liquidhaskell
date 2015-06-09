@@ -53,6 +53,8 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
+import Language.Haskell.Liquid.Errors
+import Language.Haskell.Liquid.Cabal
 
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
@@ -172,8 +174,7 @@ getOpts = do cfg0    <- envCfg
                Nothing -> do smts <- mapM find [Z3, Cvc4, Mathsat]
                              case catMaybes smts of
                                (s:_) -> return (cfg {smtsolver = Just s})
-                               _     -> do putStrLn "ERROR: LiquidHaskell requires z3, cvc4, or mathsat to be installed."
-                                           exitWith $ ExitFailure 2
+                               _     -> exitWithPanic "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
 cmdArgsRun' :: Mode (CmdArgs a) -> IO a
 cmdArgsRun' mode
@@ -194,18 +195,25 @@ find smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
 --   to worry about relative paths.
 canonicalizePaths :: Config -> FilePath -> IO Config
 canonicalizePaths cfg tgt
-  = do -- st  <- getFileStatus tgt
-       tgt   <- canonicalizePath tgt
+  = do tgt   <- canonicalizePath tgt
        isdir <- doesDirectoryExist tgt
-       let canonicalize f
-             | isAbsolute f = return f
-             | isdir        = canonicalizePath (tgt </> f)
-             --   | isDirectory st = canonicalizePath (tgt </> f)
-             | otherwise      = canonicalizePath (takeDirectory tgt </> f)
-       is <- mapM canonicalize $ idirs cfg
-       cs <- mapM canonicalize $ cFiles cfg
-       return $ cfg { idirs = is, cFiles = cs }
+       is    <- mapM (canonicalize tgt isdir) $ idirs cfg
+       cs    <- mapM (canonicalize tgt isdir) $ cFiles cfg
+       addCabalDirs tgt $ cfg { idirs = is, cFiles = cs }
 
+canonicalize :: FilePath -> Bool -> FilePath -> IO FilePath
+canonicalize tgt isdir f
+  | isAbsolute f = return f
+  | isdir        = canonicalizePath (tgt </> f)
+  | otherwise    = canonicalizePath (takeDirectory tgt </> f)
+
+addCabalDirs :: FilePath -> Config -> IO Config
+addCabalDirs tgt cfg
+  | cabalDir cfg = do i <- fromMaybe err <$> cabalInfo tgt
+                      return $ cfg {idirs = sourceDirs i ++ idirs cfg}
+  | otherwise    = return cfg
+  where
+    err          = exitWithPanic $ "Cannot find .cabal file for " ++ tgt
 
 fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 

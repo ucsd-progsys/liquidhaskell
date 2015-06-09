@@ -45,6 +45,7 @@ import Language.Fixpoint.Types hiding (Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
@@ -377,11 +378,6 @@ instance PPrint TargetVars where
 ------------------------------------------------------------------------
 -- Dealing With Errors -------------------------------------------------
 ------------------------------------------------------------------------
-
--- | Throw a panic exception
-exitWithPanic  :: String -> a
-exitWithPanic  = Ex.throw . errOther . text
-
 -- | Convert a GHC error into one of ours
 instance Result SourceError where
   result = (`Crash` "Invalid Source")

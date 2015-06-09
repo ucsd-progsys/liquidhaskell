@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Cabal (cabalInfo) where
+module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
 
 import Control.Applicative ((<$>))
 import Data.List
@@ -68,8 +68,8 @@ findInDir p dir = do
 
 -----------------------------------------------------------------------------------------------
 
-data Info = Info { cabalDir     :: FilePath
-                 , cabalFile    :: FilePath
+data Info = Info { -- cabalDir     :: FilePath
+                   cabalFile    :: FilePath
                  , buildDirs    :: [FilePath]
                  , sourceDirs   :: [FilePath]
                  , exts         :: [Extension]
@@ -78,8 +78,8 @@ data Info = Info { cabalDir     :: FilePath
 
 dumpPackageDescription :: PackageDescription -> FilePath -> Info
 dumpPackageDescription pkgDesc file = Info {
-    cabalDir     = dir
-  , cabalFile    = file
+    -- cabalDir     = dir
+    cabalFile    = file
   , buildDirs    = nub (normalise <$> getBuildDirectories pkgDesc dir)
   , sourceDirs   = nub (normalise <$> getSourceDirectories buildInfo dir)
   , exts         = nub (concatMap usedExtensions buildInfo)
