@@ -164,17 +164,19 @@ config = cmdArgsMode $ Config {
               ]
 
 getOpts :: IO Config
-getOpts = do cfg0    <- envCfg
-             cfg1    <- mkOpts =<< cmdArgsRun' config
-             pwd     <- getCurrentDirectory
-             cfg     <- canonicalizePaths (fixCfg $ mconcat [cfg0, cfg1]) pwd
-             whenNormal $ putStrLn copyright
-             case smtsolver cfg of
-               Just _  -> return cfg
-               Nothing -> do smts <- mapM find [Z3, Cvc4, Mathsat]
-                             case catMaybes smts of
-                               (s:_) -> return (cfg {smtsolver = Just s})
-                               _     -> exitWithPanic "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+getOpts = do
+  cfg0    <- envCfg
+  cfg1    <- mkOpts =<< cmdArgsRun' config
+  cfg     <- fixConfig $ mconcat [cfg0, cfg1]
+  whenNormal $ putStrLn copyright
+  case smtsolver cfg of
+    Just _  -> return cfg
+    Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
+                  case catMaybes smts of
+                    (s:_) -> return (cfg {smtsolver = Just s})
+                    _     -> exitWithPanic noSmtError
+  where
+    noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
 cmdArgsRun' :: Mode (CmdArgs a) -> IO a
 cmdArgsRun' mode
@@ -184,22 +186,28 @@ cmdArgsRun' mode
            putStrLn (help err) >> exitFailure
          Right args ->
            cmdArgsApply args
-  where
-    help err
-      = showText defaultWrap $ helpText [err] HelpFormatDefault mode
+    where
+      help err = showText defaultWrap $ helpText [err] HelpFormatDefault mode
 
-find :: SMTSolver -> IO (Maybe SMTSolver)
-find smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
+findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+
+fixConfig :: Config -> IO Config
+fixConfig cfg = do
+  pwd <- getCurrentDirectory
+  cfg <- fixCabalDirs cfg
+  cfg <- canonicalizePaths pwd cfg
+  return $ fixDiffCheck cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
-canonicalizePaths :: Config -> FilePath -> IO Config
-canonicalizePaths cfg tgt
-  = do tgt   <- canonicalizePath tgt
-       isdir <- doesDirectoryExist tgt
-       is    <- mapM (canonicalize tgt isdir) $ idirs cfg
-       cs    <- mapM (canonicalize tgt isdir) $ cFiles cfg
-       addCabalDirs tgt $ cfg { idirs = is, cFiles = cs }
+canonicalizePaths :: FilePath -> Config -> IO Config
+canonicalizePaths pwd cfg = do
+  tgt   <- canonicalizePath pwd
+  isdir <- doesDirectoryExist tgt
+  is    <- mapM (canonicalize tgt isdir) $ idirs cfg
+  cs    <- mapM (canonicalize tgt isdir) $ cFiles cfg
+  return $ cfg { idirs = is, cFiles = cs }
 
 canonicalize :: FilePath -> Bool -> FilePath -> IO FilePath
 canonicalize tgt isdir f
@@ -207,15 +215,20 @@ canonicalize tgt isdir f
   | isdir        = canonicalizePath (tgt </> f)
   | otherwise    = canonicalizePath (takeDirectory tgt </> f)
 
-addCabalDirs :: FilePath -> Config -> IO Config
-addCabalDirs tgt cfg
-  | cabalDir cfg = do i <- fromMaybe err <$> cabalInfo tgt
+fixDiffCheck :: Config -> Config
+fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
+
+fixCabalDirs :: Config -> IO Config
+fixCabalDirs cfg
+  | cabalDir cfg = do putStrLn $ "addCabalDirs: " ++ tgt
+                      i <- fromMaybe err <$> cabalInfo tgt
                       return $ cfg {idirs = sourceDirs i ++ idirs cfg}
   | otherwise    = return cfg
   where
     err          = exitWithPanic $ "Cannot find .cabal file for " ++ tgt
-
-fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
+    tgt          = case files cfg of
+                     f:_ -> f
+                     _   -> exitWithPanic "--cabaldir option requires at least one target"
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
@@ -242,8 +255,7 @@ mkOpts cfg
 ---------------------------------------------------------------------------------------
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 ---------------------------------------------------------------------------------------
-withPragmas cfg fp ps
-  = foldM withPragma cfg ps >>= flip canonicalizePaths fp
+withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = (c `mappend`) <$> parsePragma s
