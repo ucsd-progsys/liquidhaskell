@@ -5,7 +5,7 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.Errors (tidyError) where
+module Language.Haskell.Liquid.Errors (tidyError, exitWithPanic) where
 
 
 import           Control.Applicative                 ((<$>), (<*>))
@@ -28,22 +28,22 @@ import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
-
+import qualified Control.Exception as Ex
 
 type Ctx = M.HashMap Symbol SpecType
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError sol 
-  = fmap (tidySpecType Full) 
+tidyError sol
+  = fmap (tidySpecType Full)
   . tidyErrContext sol
   . applySolution sol
 
 tidyErrContext _ err@(ErrSubType {})
   = err { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
-      (θ, c') = tidyCtx xs $ ctx err 
+      (θ, c') = tidyCtx xs $ ctx err
       xs      = syms tA ++ syms tE
       tA      = tact err
       tE      = texp err
@@ -52,9 +52,9 @@ tidyErrContext _ err
   = err
 
 ---------------------------------------------------------------------------------
-tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx) 
+tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
 ---------------------------------------------------------------------------------
-tidyCtx xs m  = (θ, M.fromList yts) 
+tidyCtx xs m  = (θ, M.fromList yts)
   where
     yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
@@ -62,23 +62,23 @@ tidyCtx xs m  = (θ, M.fromList yts)
 
 
 stripReft     :: SpecType -> SpecType
-stripReft t   = maybe t' (strengthen t') ro 
+stripReft t   = maybe t' (strengthen t') ro
   where
-    (t', ro)  = stripRType t                
+    (t', ro)  = stripRType t
 
 stripRType    :: SpecType -> (SpecType, Maybe RReft)
 stripRType st = (t', ro)
   where
     t'        = fmap (const (uTop mempty)) t
-    ro        = stripRTypeBase  t 
-    t         = simplifyBounds st 
+    ro        = stripRTypeBase  t
+    t         = simplifyBounds st
 
 tidyREnv      :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
 tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
     deps y    = fromMaybe [] $ fmap (syms . rTypeReft) $ M.lookup y m
-    ok        = not . isFunTy 
+    ok        = not . isFunTy
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
 expandFix f xs            = S.toList $ go S.empty xs
@@ -99,10 +99,10 @@ tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
     ys        = [ x | (x,_) <- xts, isTmpSymbol x]
 
 niceTemps     :: [Symbol]
-niceTemps     = mkSymbol <$> xs ++ ys 
+niceTemps     = mkSymbol <$> xs ++ ys
   where
     mkSymbol  = symbol . ('?' :)
-    xs        = single   <$> ['a' .. 'z'] 
+    xs        = single   <$> ['a' .. 'z']
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 
 
@@ -110,12 +110,12 @@ niceTemps     = mkSymbol <$> xs ++ ys
 -- | Pretty Printing Error Messages ------------------------------------
 ------------------------------------------------------------------------
 
--- | Need to put @PPrint Error@ instance here (instead of in Types), 
+-- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
 instance PPrint Error where
   pprint       = pprintTidy Full
-  pprintTidy k = ppError k . fmap ppSpecTypeErr 
+  pprintTidy k = ppError k . fmap ppSpecTypeErr
 
 ppSpecTypeErr   :: SpecType -> Doc
 ppSpecTypeErr
@@ -124,7 +124,7 @@ ppSpecTypeErr
     noCasts (ECst x _) = x
     noCasts e          = e
 
--- full = isNontrivialVV $ rTypeValueVar t = 
+-- full = isNontrivialVV $ rTypeValueVar t =
 
 instance Show Error where
   show = showpp
@@ -163,9 +163,9 @@ ppError' Lossy dSp (ErrSubType _ _ _ _ _)
 ppError' Full  dSp (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ sepVcat blankLine
-              [ nests 2 [ text "Inferred type" 
+              [ nests 2 [ text "Inferred type"
                         , text "VV :" <+> pprint tA]
-              , nests 2 [ text "not a subtype of Required type" 
+              , nests 2 [ text "not a subtype of Required type"
                         , text "VV :" <+> pprint tE]
               , nests 2 [ text "In Context"
                         , pprint c                 ]]
@@ -173,9 +173,9 @@ ppError' Full  dSp (ErrSubType _ _ c tA tE)
 ppError' _  dSp (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
         $+$ sepVcat blankLine
-              [ nests 2 [ text "Inferred type" 
+              [ nests 2 [ text "Inferred type"
                         , text "VV :" <+> pprint tA]
-              , nests 2 [ text "Required type" 
+              , nests 2 [ text "Required type"
                         , text "VV :" <+> pprint tE]
               , nests 2 [ text "Context"
                         , pprint c                 ]]
@@ -258,7 +258,7 @@ ppError' _ dSp (ErrAliasApp _ n name dl dn)
   = dSp <+> text "Malformed Type Alias Application"
     $+$ text "Type alias:" <+> pprint name
     $+$ text "Defined at:" <+> pprint dl
-    $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n  
+    $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
 
 ppError' _ dSp (ErrSaved _ s)
   = dSp <+> s
@@ -297,4 +297,8 @@ instance FromJSON Error where
 
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
+
+-- | Throw a panic exception
+exitWithPanic  :: String -> a
+exitWithPanic  = Ex.throw . errOther . text
 
