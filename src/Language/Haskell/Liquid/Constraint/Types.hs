@@ -116,6 +116,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
                      , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
                      , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
+                     , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
                      , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
                      , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
                      , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
