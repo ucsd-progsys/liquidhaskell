@@ -78,7 +78,7 @@ getGhcInfo' cfg0 target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
-      -- cfg                <- liftIO $ withCabal cfg
+      cfg                <- liftIO $ withCabal cfg
       let paths           = idirs cfg
       updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)

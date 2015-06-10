@@ -820,4 +820,31 @@ Editor Integration
 + [Emacs/Flycheck](https://github.com/ucsd-progsys/liquid-types.el)
 + [Vim/Syntastic](https://github.com/ucsd-progsys/liquid-types.vim)
 
+Command Line Options
+====================
+
+To see all options, run `liquid --help`. Here are some common options:
+
+- `--cabaldir` will automatically find a .cabal file in the ancestor
+  path from which the target file belongs, and then add the relevant
+  source and dependencies to the paths searched for by LiquidHaskell.
+
+  This means we don't have to manually do `-i src` etc. when checking
+  large projects, which can be tedious e.g. within emacs.
+
+- `--diff` performs differential checking, i.e. only checks those binders
+  that have transitively affected by edits since the previous check.
+  Can speed things up greatly during editing.
+
+- `--short-names` prints out non-qualified names i.e. `Int` instead of
+  `GHC.Types.Int` for inferred type annotations and error messages.
+
+**Pragmas** are useful for embedding options directly within the source file,
+that is, somewhere in the file (perhaps at the top) put in:
+
+   {-@ LIQUID "--diff"        @-}
+   {-@ LIQUID "--short-names" @-}
+   {-@ LIQUID "--cabaldir"    @-}
+
+to have the relevant option be used for that file.
 

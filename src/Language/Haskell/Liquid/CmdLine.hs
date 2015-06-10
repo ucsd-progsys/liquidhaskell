@@ -200,7 +200,7 @@ fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
   cfg <- canonicalizePaths pwd cfg
-  cfg <- withCabal cfg
+  -- cfg <- withCabal cfg
   return $ fixDiffCheck cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
@@ -258,7 +258,11 @@ parsePragma s = withArgs [val s] $ cmdArgsRun config
 ---------------------------------------------------------------------------------------
 withCabal :: Config -> IO Config
 ---------------------------------------------------------------------------------------
-withCabal cfg = do
+withCabal cfg
+  | cabalDir cfg = withCabal' cfg
+  | otherwise    = return cfg
+
+withCabal' cfg = do
   putStrLn $ "addCabalDirs: " ++ tgt
   io <- cabalInfo tgt
   case io of
@@ -272,12 +276,11 @@ withCabal cfg = do
 
 
 fixCabalDirs' :: Config -> Info -> Config
-fixCabalDirs' cfg i = cfg { idirs      = nub $ sourceDirs i ++ idirs cfg}
-                          { ghcOptions = nub $ dbOpts ++ pkOpts ++ ghcOptions cfg }
-  where
-    dbOpts          = ["-package-db " ++ db | db <- packageDbs  i]
-    pkOpts          = ["-package "    ++ n  | n  <- packageDeps i]
-
+fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i }
+                          { ghcOptions = nub $ ghcOptions cfg ++ dbOpts ++ pkOpts }
+   where
+     dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
+     pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
 
 
 
