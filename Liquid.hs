@@ -34,7 +34,6 @@ import           System.Environment (getArgs)
 
 main :: IO b
 main = do args     <- getArgs
-          appendFile "/Users/rjhala/tmp/liquid.log" $ show args ++ "\n"
           cfg0     <- getOpts
           res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
