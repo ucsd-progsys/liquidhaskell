@@ -1042,48 +1042,48 @@ makeNumEnv = concatMap go
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
-isDecreasing _  _ (RApp c _ _ _)
+isDecreasing autoenv  _ (RApp c _ _ _)
   =  isJust (sizeFunction (rtc_info c)) -- user specified size or 
-  || isSizeable tc 
+  || isSizeable autoenv tc 
   where tc = rtc_tc c  
 isDecreasing _ cenv (RVar v _)
   = v `elem` cenv 
 isDecreasing _ _ _ 
   = False
 
-makeDecrType = mkDType [] []
+makeDecrType autoenv = mkDType autoenv [] []
 
-mkDType xvs acc [(v, (x, t))]
+mkDType autoenv xvs acc [(v, (x, t))]
   = (x, ) $ t `strengthen` tr
   where
     tr = uTop $ Reft (vv, Refa $ pOr (r:acc))
     r  = cmpLexRef xvs (v', vv, f)
     v' = symbol v
-    f  = mkDecrFun t 
+    f  = mkDecrFun autoenv  t 
     vv = "vvRec"
 
-mkDType xvs acc ((v, (x, t)):vxts)
-  = mkDType ((v', x, f):xvs) (r:acc) vxts
+mkDType autoenv xvs acc ((v, (x, t)):vxts)
+  = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
   where 
     r  = cmpLexRef xvs  (v', x, f)
     v' = symbol v
-    f  = mkDecrFun t
+    f  = mkDecrFun autoenv t
 
 
-mkDType _ _ _
+mkDType _ _ _ _
   = errorstar "RefType.mkDType called on invalid input"
 
-isSizeable :: TyCon -> Bool
-isSizeable tc = TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc 
+isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
+isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc 
 
-mkDecrFun (RApp c _ _ _) 
+mkDecrFun autoenv (RApp c _ _ _) 
   | Just f <- sizeFunction $ rtc_info c  
   = f
-  | isSizeable $ rtc_tc c 
+  | isSizeable autoenv $ rtc_tc c 
   = \v -> F.EApp lenLocSymbol [F.EVar v]
-mkDecrFun (RVar _ _)     
+mkDecrFun _ (RVar _ _)     
   = EVar 
-mkDecrFun _              
+mkDecrFun _ _              
   = errorstar "RefType.mkDecrFun called on invalid input"
 
 cmpLexRef vxs (v, x, g)

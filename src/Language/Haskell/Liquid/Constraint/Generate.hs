@@ -683,6 +683,7 @@ initCGI cfg info = CGInfo {
   , kvProf     = emptyKVProf
   , recCount   = 0
   , bindSpans  = M.empty
+  , autoSize   = autosize spc 
   }
   where
     tce        = tcEmbeds spc
@@ -978,7 +979,7 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
-       autosz <- return True {- NIKI: TODO get this from a flag -}
+       autosz <- autoSize <$> get 
        hint   <- checkHint' autosz (L.lookup x $ spDecr)
        case dindex autosz of
          Nothing -> return $ Left msg -- addWarning msg >> return []
@@ -992,11 +993,11 @@ makeDecrIndexTy x t
        trep       = toRTypeRep $ unOCons t
 
 
-recType ((_, []), (_, [], t))
+recType _ ((_, []), (_, [], t))
   = t
 
-recType ((vs, indexc), (_, index, t))
-  = makeRecType t v dxt index
+recType autoenv ((vs, indexc), (_, index, t))
+  = makeRecType autoenv t v dxt index
   where v    = (vs !!)  <$> indexc
         dxt  = (xts !!) <$> index
         xts  = zip (ty_binds trep) (ty_args trep)
@@ -1011,10 +1012,10 @@ checkIndex (x, vs, t, index)
        msg'  = ErrTermin [x] loc (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
        msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
-makeRecType t vs dxs is
+makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
-    (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
+    (xs', ts') = unzip $ replaceN (last is) (makeDecrType autoenv vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
@@ -1103,6 +1104,7 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 consCBSizedTys γ xes
   = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        sflag     <- scheck <$> get
+       autoenv   <- autoSize <$> get
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
@@ -1112,7 +1114,7 @@ consCBSizedTys γ xes
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
-       let rts   = (recType <$>) <$> xeets
+       let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
