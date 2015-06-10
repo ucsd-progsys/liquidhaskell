@@ -263,12 +263,11 @@ withCabal cfg
   | otherwise    = return cfg
 
 withCabal' cfg = do
-  putStrLn $ "addCabalDirs: " ++ tgt
+  whenLoud $ putStrLn $ "addCabalDirs: " ++ tgt
   io <- cabalInfo tgt
   case io of
     Just i  -> return $ fixCabalDirs' cfg i
-    Nothing -> do putStrLn "Cannot find .cabal information, proceeding without."
-                  return cfg
+    Nothing -> exitWithPanic "Cannot find .cabal information, proceeding without."
   where
     tgt = case files cfg of
             f:_ -> f
