@@ -33,8 +33,7 @@ import           System.Environment (getArgs)
 
 
 main :: IO b
-main = do args     <- getArgs
-          cfg0     <- getOpts
+main = do cfg0     <- getOpts
           res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
           -- putStrLn  $ "ExitCode: " ++ show ecode
