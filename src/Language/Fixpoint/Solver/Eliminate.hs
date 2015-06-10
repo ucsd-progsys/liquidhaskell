@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll) where
+       (eliminateAll, elimKVar, findWfC) where
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
@@ -28,10 +28,9 @@ class Elimable a where
   elimKVar :: (KVar -> Maybe Pred) -> a -> a
 
 instance Elimable (SubC a) where
-  -- we don't bother editing srhs since if kv is on the rhs 
-  -- then the entire constraint should get eliminated
-  -- TODO what if it's just part of rhs e.g. && [k0; v ~~ 10]
-  elimKVar f x = x { slhs = elimKVar f (slhs x) }
+  elimKVar f x = x { slhs = elimKVar f (slhs x) 
+                   , srhs = elimKVar f (srhs x)
+                   }
 
 instance Elimable SortedReft where
   elimKVar f x = x { sr_reft = mapKVars f (sr_reft x) }
