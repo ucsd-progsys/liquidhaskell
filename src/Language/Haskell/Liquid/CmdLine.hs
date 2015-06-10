@@ -267,7 +267,7 @@ withCabal' cfg = do
   io <- cabalInfo tgt
   case io of
     Just i  -> return $ fixCabalDirs' cfg i
-    Nothing -> exitWithPanic "Cannot find .cabal information, proceeding without."
+    Nothing -> exitWithPanic "Cannot find .cabal information!"
   where
     tgt = case files cfg of
             f:_ -> f
