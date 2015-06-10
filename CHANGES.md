@@ -2,6 +2,14 @@
 
 ## NEXT
 
+- Added '--cabaldir' option that will automatically find a .cabal file in the ancestor
+  path from which the target file belongs, and then add the relevant source and dependencies
+  to the paths searched for by LiquidHaskell.
+
+  This means we don't have to manually do `-i src` etc. when checking large projects,
+  which can be tedious e.g. within emacs.
+
+
 ## 0.4.0.0
 
 - Bounds as an alternative for logical constraints see `benchmarks/icfp15/pos/Overview.lhs`
