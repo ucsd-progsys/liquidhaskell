@@ -174,8 +174,6 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       trep   = toRTypeRep t 
       tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa 
                               $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
-      xs     = ty_binds trep 
-      as     = ty_vars  trep
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf . snd <$> recarguments)
