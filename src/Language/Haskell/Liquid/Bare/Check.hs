@@ -357,7 +357,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def n as c _ bs body) = checkMBody' emb sort γ' body
   where 
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
@@ -380,8 +380,4 @@ checkMBody' emb sort γ body = case body of
   where
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
-    sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
-                                 , ty_binds = tail $ ty_binds trep'
-                                 , ty_args  = tail $ ty_args trep'
-                                 , ty_refts = tail $ ty_refts trep'            }
-    trep' = toRTypeRep sort
+    sort' = ty_res $ toRTypeRep sort
