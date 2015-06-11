@@ -129,16 +129,15 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty              -- default TOP reftype      (for data cons)
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
-       f40      <- refreshArgs' $ makedcs $ vals ctors sp    -- constructor refinements  (for measures)
+       f40      <- refreshArgs' $ vals ctors sp    -- constructor refinements  (for measures)
        (invs, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty (autosize sp) dcs 
        let f4    = mergeDataConTypes f40 f41
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs invs 
@@ -147,7 +146,6 @@ initEnv info
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
-    makedcs      = map strengthenDataConType
     mapSndM f (x,y) = (x,) <$> f y
 
 makeAutoDecrDataCons dcts specenv dcs
@@ -176,7 +174,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
                               $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
-      computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf . snd <$> recarguments)
+      computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
@@ -1460,7 +1458,7 @@ consE γ e'@(App e a) | isDictionary a
               updateLocA πs (exprLoc e) te''
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
               pushConsBind      $ cconsE γ' a tx
-              addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+              addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
   where
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
@@ -1483,7 +1481,7 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
-       addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1583,12 +1581,12 @@ cconsFreshE kvkind γ e
        cconsE γ e t
        return t
 
-checkUnbound γ e x t
+checkUnbound γ e x t a
   | x `notElem` (F.syms t)
   = t
   | otherwise
   = errorstar $ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
-                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ)
+                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ) ++ "\nArg = \n" ++ show a 
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
