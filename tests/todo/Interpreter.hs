@@ -10,7 +10,9 @@ data Instr a = IConst Int | IBinOp (BinOp a)
 
 data List a = Nil | Cons a (List a)
 
-type Prog  = List (Instr Int)
+
+{-@ autosize Prog @-}
+data Prog a = Emp | PInst (Instr a) (Prog a)
 type Stack = List Int
 
 data SMaybe a = SNothing a | SJust a
@@ -34,23 +36,30 @@ foo = undefined
 
 {-@ measure instrDenote @-}
 instrDenote :: Stack -> Instr a -> SMaybe Stack
-{-@ instrDenote :: s:Stack -> i:{v:Instr a | isIBinOp v => lenL s >= 2} -> {v:SMaybe Stack | v = instrDenote s i} @-}
-instrDenote s (IConst n) = SNothing s
+{-@ instrDenote :: s:Stack -> i:{v:Instr a | isIBinOp v => lenL s >= 2} 
+                -> {v:SMaybe {st:Stack | if (isIBinOp i) then (lenL st = lenL s - 1) else (lenL st = lenL s + 1)} | v = instrDenote s i} @-}
+instrDenote s (IConst n) = SJust (Cons n s)
 instrDenote s (IBinOp b) = 
 	let x  = headL s in 
 	let s1 = tailL s in 
 	let y  = headL s1 in 
 	let s2 = tailL s1 in 
 	SJust (Cons (binOpDenote x y b) s2)
-instrDenote s        _         = SNothing s
 
 
+{-@ invariant {v:Prog a | binOps v >= 0} @-}
+{-@ measure binOps @-}
+binOps :: Prog a -> Int 
+binOps Emp = 0 
+binOps (PInst x xs) = if isIBinOp x then 1 + (binOps xs) else binOps xs 
 
 {- measure progDenote :: Stack -> Prog -> SMaybe Stack @-}
-progDenote :: Stack -> Prog -> SMaybe Stack
-progDenote s Nil = SJust s
-progDenote s (Cons x xs) | SJust s' <- instrDenote s x = progDenote s' xs
-                         | otherwise                   = SNothing s
+{-@ Decrease progDenote 2 @-}
+progDenote :: Stack -> Prog a -> SMaybe Stack
+{-@ progDenote :: s:Stack -> {v:Prog a | lenL s >= 2 * binOps v }  -> SMaybe Stack @-}
+progDenote s Emp = SJust s
+progDenote s (PInst x xs) | SJust s' <- instrDenote s x = progDenote s' xs
+                          | otherwise                   = SNothing s
 
 {-
 {- compile :: e:Exp -> {v:Prog | (progDenote Nil v) == Nothing } @-}
