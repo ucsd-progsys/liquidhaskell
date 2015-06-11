@@ -357,7 +357,7 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
   where
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
-checkMBody γ emb _ sort (Def n as c _ bs body) = checkMBody' emb sort γ' body
+checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
   where 
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
