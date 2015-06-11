@@ -294,6 +294,14 @@ checked to be decreasing. However, the explicit hint
 
 tells LiquidHaskell to instead use the *third* argument. 
 
+Apart from specifying a specific decreasing measure for an Algebraic Data Type, 
+the user can specify that the ADT follows the expected decreasing measure by 
+
+  {-@ autosize L @-}
+
+Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`. 
+
+
 To *disable* termination checking for `foo` that is, to *assume* that it 
 is terminating (possibly for some complicated reason currently beyond the 
 scope of LiquidHaskell) you can write
