@@ -15,10 +15,13 @@
 module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
 
 import Control.Applicative ((<$>))
+import Data.Bits                              ( shiftL, shiftR, xor )
+import Data.Char                              ( ord )
 import Data.List
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Word ( Word32 )
 import Distribution.Compiler
 import Distribution.Package
 import Distribution.PackageDescription
@@ -28,6 +31,7 @@ import Distribution.Simple.BuildPaths
 import Distribution.System
 import Distribution.Verbosity
 import Language.Haskell.Extension
+import Numeric ( showHex )
 import System.Console.CmdArgs
 import System.Environment
 import System.Exit
@@ -51,8 +55,11 @@ cabalInfo f = do
 
 processCabalFile :: FilePath -> IO Info
 processCabalFile f = do
-  i <- cabalConfiguration f <$> readPackageDescription silent f
-  i <- addPackageDbs i
+  let sandboxDir = sandboxBuildDir (takeDirectory f </> ".cabal-sandbox")
+  b <- doesDirectoryExist sandboxDir
+  let distDir = if b then sandboxDir else "dist"
+  i <- cabalConfiguration f distDir <$> readPackageDescription silent f
+  i <- addPackageDbs =<< canonicalizePaths i
   whenLoud $ putStrLn $ "Cabal Info: " ++ show i
   return i
 
@@ -82,6 +89,8 @@ findInDir p dir = do
 
 -----------------------------------------------------------------------------------------------
 
+
+-- INVARIANT: all FilePaths must be absolute
 data Info = Info { cabalFile    :: FilePath
                  , buildDirs    :: [FilePath]
                  , sourceDirs   :: [FilePath]
@@ -89,6 +98,7 @@ data Info = Info { cabalFile    :: FilePath
                  , otherOptions :: [String]
                  , packageDbs   :: [String]
                  , packageDeps  :: [String]
+                 , macroPath    :: FilePath
                  } deriving (Show)
 
 
@@ -128,17 +138,19 @@ sandBoxFile i = dir </> "cabal.sandbox.config"
     dir       = takeDirectory $ cabalFile i
 
 
-dumpPackageDescription :: PackageDescription -> FilePath -> Info
-dumpPackageDescription pkgDesc file = Info {
+dumpPackageDescription :: PackageDescription -> FilePath -> FilePath -> Info
+dumpPackageDescription pkgDesc file distDir = Info {
     cabalFile    = file
-  , buildDirs    = nub (normalise <$> getBuildDirectories pkgDesc dir)
+  , buildDirs    = nub (map normalise buildDirs)
   , sourceDirs   = nub (normalise <$> getSourceDirectories buildInfo dir)
   , exts         = nub (concatMap usedExtensions buildInfo)
   , otherOptions = nub (filter isAllowedOption (concatMap (hcOptions GHC) buildInfo))
   , packageDbs   = []
   , packageDeps  = nub [ unPackName n | Dependency n _ <- buildDepends pkgDesc, n /= thisPackage ]
+  , macroPath    = macroPath
   }
   where
+    (buildDirs, macroPath) = getBuildDirectories pkgDesc distDir
     buildInfo    = allBuildInfo pkgDesc
     dir          = dropFileName file
     thisPackage  = (pkgName . package) pkgDesc
@@ -176,17 +188,43 @@ allowedOptionPrefixes =
   ,"-opt"]
 
 
-getBuildDirectories :: PackageDescription -> FilePath -> [String]
-getBuildDirectories pkgDesc dir =
-  case library pkgDesc of
+getBuildDirectories :: PackageDescription -> FilePath -> ([String], FilePath)
+getBuildDirectories pkgDesc distDir =
+  (case library pkgDesc of
     Just _ -> buildDir : buildDirs
     Nothing -> buildDirs
+  ,autogenDir </> cppHeaderName)
   where
-    distDir        = dir </> defaultDistPref
     buildDir       = distDir </> "build"
     autogenDir     = buildDir </> "autogen"
     execBuildDir e = buildDir </> exeName e </> (exeName e ++ "-tmp")
     buildDirs      = autogenDir : map execBuildDir (executables pkgDesc)
+
+
+-- See https://github.com/haskell/cabal/blob/master/cabal-install/Distribution/Client/Sandbox.hs#L137-L158
+sandboxBuildDir :: FilePath -> FilePath
+sandboxBuildDir sandboxDir = "dist/dist-sandbox-" ++ showHex sandboxDirHash ""
+  where
+    sandboxDirHash = jenkins sandboxDir
+
+    -- See http://en.wikipedia.org/wiki/Jenkins_hash_function
+    jenkins :: String -> Word32
+    jenkins str = loop_finish $ foldl' loop 0 str
+      where
+        loop :: Word32 -> Char -> Word32
+        loop hash key_i' = hash'''
+          where
+            key_i   = toEnum . ord $ key_i'
+            hash'   = hash + key_i
+            hash''  = hash' + (shiftL hash' 10)
+            hash''' = hash'' `xor` (shiftR hash'' 6)
+
+        loop_finish :: Word32 -> Word32
+        loop_finish hash = hash'''
+          where
+            hash'   = hash + (shiftL hash 3)
+            hash''  = hash' `xor` (shiftR hash' 11)
+            hash''' = hash'' + (shiftL hash'' 15)
 
 isAllowedOption :: String -> Bool
 isAllowedOption opt = elem opt allowedOptions || any (`isPrefixOf` opt) allowedOptionPrefixes
@@ -194,8 +232,8 @@ isAllowedOption opt = elem opt allowedOptions || any (`isPrefixOf` opt) allowedO
 buildCompiler :: CompilerId
 buildCompiler = CompilerId buildCompilerFlavor compilerVersion
 
-cabalConfiguration :: FilePath -> GenericPackageDescription -> Info
-cabalConfiguration cabalFile desc =
+cabalConfiguration :: FilePath -> FilePath -> GenericPackageDescription -> Info
+cabalConfiguration cabalFile distDir desc =
   case finalizePackageDescription []
                                   (const True)
                                   buildPlatform
@@ -206,6 +244,11 @@ cabalConfiguration cabalFile desc =
 #endif
                                   []
                                   desc of
-       Right (pkgDesc,_) -> dumpPackageDescription pkgDesc cabalFile
+       Right (pkgDesc,_) -> dumpPackageDescription pkgDesc cabalFile distDir
        Left e -> exitWithPanic $ "Issue with package configuration\n" ++ show e
 
+canonicalizePaths :: Info -> IO Info
+canonicalizePaths i = do
+  buildDirs <- mapM canonicalizePath (buildDirs i)
+  macroPath <- canonicalizePath (macroPath i)
+  return (i { buildDirs = buildDirs, macroPath = macroPath })
