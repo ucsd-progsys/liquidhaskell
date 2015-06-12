@@ -17,8 +17,7 @@ import           Data.ByteString.Char8            (pack, unpack)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       (fromJust)
-import           Data.Maybe                       (catMaybes, fromMaybe)
+import           Data.Maybe                       (fromJust, catMaybes, fromMaybe)
 import qualified Data.Text                        as T
 
 import           Data.Data
@@ -301,6 +300,7 @@ chopAfter f xs
       Just n  -> take n xs
       Nothing -> xs
 
+chopPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
 chopPrefix p xs
   | p `L.isPrefixOf` xs
   = Just $ drop (length p) xs
@@ -422,3 +422,4 @@ mapEither f         = go [] []
                         Right r -> go ls  (r:rs) xs
 
 f <$$> x = traverse f x
+
