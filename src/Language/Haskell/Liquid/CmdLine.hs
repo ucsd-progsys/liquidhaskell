@@ -275,8 +275,9 @@ withCabal' cfg = do
 
 
 fixCabalDirs' :: Config -> Info -> Config
-fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i }
-                          { ghcOptions = nub $ ghcOptions cfg ++ dbOpts ++ pkOpts }
+fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buildDirs i }
+                          { ghcOptions = ghcOptions cfg ++ dbOpts ++ pkOpts
+                                      ++ ["-optP-include", "-optPdist/build/autogen/cabal_macros.h"]}
    where
      dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
      pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
