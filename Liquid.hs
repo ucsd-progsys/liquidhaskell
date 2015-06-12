@@ -1,5 +1,8 @@
 {-# LANGUAGE TupleSections  #-}
 
+{-@ LIQUID "--cabaldir" @-}
+{-@ LIQUID "--diff"     @-}
+
 import           Data.Maybe
 import           Data.Monoid      (mconcat, mempty)
 import           System.Exit
@@ -25,6 +28,9 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
+import           System.Environment (getArgs)
+
+
 
 main :: IO b
 main = do cfg0     <- getOpts
@@ -94,6 +100,7 @@ solveCs cfg target cgi info dc
                        , FC.real    = real   cfg
                        , FC.native  = native cfg
                        , FC.srcFile = target
+                       -- , FC.stats   = True
                        }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
 

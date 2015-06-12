@@ -919,9 +919,10 @@ betweenMany leftP rightP p
          Just _  -> liftM2 (:) (between leftP rightP p) (betweenMany leftP rightP p)
          Nothing -> return []
 
--- specWrap  = between     (string "{-@" >> spaces) (spaces >> string "@-}")
-specWraps = betweenMany (string "{-@" >> whiteSpace) (whiteSpace >> string "@-}")
+specWraps = betweenMany (liquidBeginP >> whiteSpace) (whiteSpace >> liquidEndP)
 
+liquidBeginP = string liquidBegin
+liquidEndP   = string liquidEnd
 ---------------------------------------------------------------
 -- | Bundling Parsers into a Typeclass ------------------------
 ---------------------------------------------------------------
