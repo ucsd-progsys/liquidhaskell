@@ -163,6 +163,7 @@ Library
                 , aeson
                 , bytestring
                 , fingertree
+                , Cabal >= 1.18
  
    hs-source-dirs:  src, include
  
@@ -189,6 +190,7 @@ Library
                     Language.Haskell.Liquid.Annotate, 
                     Language.Haskell.Liquid.CTags,
                     Language.Haskell.Liquid.CmdLine, 
+                    Language.Haskell.Liquid.Cabal, 
                     Language.Haskell.Liquid.GhcMisc, 
                     Language.Haskell.Liquid.GhcPlay, 
                     Language.Haskell.Liquid.Misc, 

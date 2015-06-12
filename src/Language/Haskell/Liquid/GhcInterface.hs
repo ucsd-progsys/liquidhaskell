@@ -45,21 +45,20 @@ import Language.Fixpoint.Types hiding (Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Errors
 import Language.Haskell.Liquid.ANFTransform
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
-
 import Language.Haskell.Liquid.Visitors
-
-import Language.Haskell.Liquid.CmdLine (withPragmas)
+import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
+import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files
 
-import qualified Language.Haskell.Liquid.Measure as Ms
 
 
 --------------------------------------------------------------------
@@ -79,6 +78,7 @@ getGhcInfo' cfg0 target
       addTarget         =<< guessTarget target Nothing
       (name,tgtSpec)     <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
+      cfg                <- liftIO $ withCabal cfg
       let paths           = idirs cfg
       updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
@@ -377,11 +377,6 @@ instance PPrint TargetVars where
 ------------------------------------------------------------------------
 -- Dealing With Errors -------------------------------------------------
 ------------------------------------------------------------------------
-
--- | Throw a panic exception
-exitWithPanic  :: String -> a
-exitWithPanic  = Ex.throw . errOther . text
-
 -- | Convert a GHC error into one of ours
 instance Result SourceError where
   result = (`Crash` "Invalid Source")

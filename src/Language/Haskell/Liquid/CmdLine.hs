@@ -5,6 +5,9 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
+{-@ LIQUID "--cabaldir" @-}
+{-@ LIQUID "--diff"     @-}
+
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
 --   something goes wrong. All forms of errors/exceptions should go through
@@ -18,6 +21,7 @@ module Language.Haskell.Liquid.CmdLine (
 
    -- * Update Configuration With Pragma
    , withPragmas
+   , withCabal
 
    -- * Exit Function
    , exitWithResult
@@ -37,7 +41,7 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (nub)
+import Data.List                           (intercalate, nub)
 import Data.Monoid
 
 import           System.FilePath                     (dropFileName, isAbsolute,
@@ -53,6 +57,8 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
+import Language.Haskell.Liquid.Errors
+import Language.Haskell.Liquid.Cabal
 
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
@@ -137,6 +143,10 @@ config = cmdArgsMode $ Config {
     = def &= name "short-errors"
           &= help "Don't show long error messages, just line numbers."
 
+ , cabalDir
+    = def &= name "cabal-dir"
+          &= help "Find and use .cabal to add paths to sources for imported files"
+
  , ghcOptions
     = def &= name "ghc-option"
           &= typ "OPTION"
@@ -146,7 +156,6 @@ config = cmdArgsMode $ Config {
     = def &= name "c-files"
           &= typ "OPTION"
           &= help "Tell GHC to compile and link against these files"
-
 
  } &= verbosity
    &= program "liquid"
@@ -159,18 +168,19 @@ config = cmdArgsMode $ Config {
               ]
 
 getOpts :: IO Config
-getOpts = do cfg0    <- envCfg
-             cfg1    <- mkOpts =<< cmdArgsRun' config
-             pwd     <- getCurrentDirectory
-             cfg     <- canonicalizePaths (fixCfg $ mconcat [cfg0, cfg1]) pwd
-             whenNormal $ putStrLn copyright
-             case smtsolver cfg of
-               Just _  -> return cfg
-               Nothing -> do smts <- mapM find [Z3, Cvc4, Mathsat]
-                             case catMaybes smts of
-                               (s:_) -> return (cfg {smtsolver = Just s})
-                               _     -> do putStrLn "ERROR: LiquidHaskell requires z3, cvc4, or mathsat to be installed."
-                                           exitWith $ ExitFailure 2
+getOpts = do
+  cfg0    <- envCfg
+  cfg1    <- mkOpts =<< cmdArgsRun' config
+  cfg     <- fixConfig $ mconcat [cfg0, cfg1]
+  whenNormal $ putStrLn copyright
+  case smtsolver cfg of
+    Just _  -> return cfg
+    Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
+                  case catMaybes smts of
+                    (s:_) -> return (cfg {smtsolver = Just s})
+                    _     -> exitWithPanic noSmtError
+  where
+    noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
 cmdArgsRun' :: Mode (CmdArgs a) -> IO a
 cmdArgsRun' mode
@@ -180,31 +190,37 @@ cmdArgsRun' mode
            putStrLn (help err) >> exitFailure
          Right args ->
            cmdArgsApply args
-  where
-    help err
-      = showText defaultWrap $ helpText [err] HelpFormatDefault mode
+    where
+      help err = showText defaultWrap $ helpText [err] HelpFormatDefault mode
 
-find :: SMTSolver -> IO (Maybe SMTSolver)
-find smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
+findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
+
+fixConfig :: Config -> IO Config
+fixConfig cfg = do
+  pwd <- getCurrentDirectory
+  cfg <- canonicalizePaths pwd cfg
+  -- cfg <- withCabal cfg
+  return $ fixDiffCheck cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
 --   to worry about relative paths.
-canonicalizePaths :: Config -> FilePath -> IO Config
-canonicalizePaths cfg tgt
-  = do -- st  <- getFileStatus tgt
-       tgt   <- canonicalizePath tgt
-       isdir <- doesDirectoryExist tgt
-       let canonicalize f
-             | isAbsolute f = return f
-             | isdir        = canonicalizePath (tgt </> f)
-             --   | isDirectory st = canonicalizePath (tgt </> f)
-             | otherwise      = canonicalizePath (takeDirectory tgt </> f)
-       is <- mapM canonicalize $ idirs cfg
-       cs <- mapM canonicalize $ cFiles cfg
-       return $ cfg { idirs = is, cFiles = cs }
+canonicalizePaths :: FilePath -> Config -> IO Config
+canonicalizePaths pwd cfg = do
+  tgt   <- canonicalizePath pwd
+  isdir <- doesDirectoryExist tgt
+  is    <- mapM (canonicalize tgt isdir) $ idirs cfg
+  cs    <- mapM (canonicalize tgt isdir) $ cFiles cfg
+  return $ cfg { idirs = is, cFiles = cs }
 
+canonicalize :: FilePath -> Bool -> FilePath -> IO FilePath
+canonicalize tgt isdir f
+  | isAbsolute f = return f
+  | isdir        = canonicalizePath (tgt </> f)
+  | otherwise    = canonicalizePath (takeDirectory tgt </> f)
 
-fixCfg cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
+fixDiffCheck :: Config -> Config
+fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
@@ -219,7 +235,6 @@ copyright = "LiquidHaskell Copyright 2009-15 Regents of the University of Califo
 mkOpts :: Config -> IO Config
 mkOpts cfg
   = do let files' = sortNub $ files cfg
-       -- idirs' <- if null (idirs cfg) then single <$> getIncludeDir else return (idirs cfg)
        id0 <- getIncludeDir
        return  $ cfg { files = files' }
                      { idirs = (dropFileName <$> files') ++ [id0 </> gHC_VERSION, id0] ++ idirs cfg }
@@ -232,8 +247,7 @@ mkOpts cfg
 ---------------------------------------------------------------------------------------
 withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 ---------------------------------------------------------------------------------------
-withPragmas cfg fp ps
-  = foldM withPragma cfg ps >>= flip canonicalizePaths fp
+withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = (c `mappend`) <$> parsePragma s
@@ -242,12 +256,40 @@ parsePragma   :: Located String -> IO Config
 parsePragma s = withArgs [val s] $ cmdArgsRun config
 
 ---------------------------------------------------------------------------------------
+withCabal :: Config -> IO Config
+---------------------------------------------------------------------------------------
+withCabal cfg
+  | cabalDir cfg = withCabal' cfg
+  | otherwise    = return cfg
+
+withCabal' cfg = do
+  whenLoud $ putStrLn $ "addCabalDirs: " ++ tgt
+  io <- cabalInfo tgt
+  case io of
+    Just i  -> return $ fixCabalDirs' cfg i
+    Nothing -> exitWithPanic "Cannot find .cabal information!"
+  where
+    tgt = case files cfg of
+            f:_ -> f
+            _   -> exitWithPanic "Please provide a target file to verify."
+
+
+fixCabalDirs' :: Config -> Info -> Config
+fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i }
+                          { ghcOptions = nub $ ghcOptions cfg ++ dbOpts ++ pkOpts }
+   where
+     dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
+     pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
+
+
+
+---------------------------------------------------------------------------------------
 -- | Monoid instances for updating options
 ---------------------------------------------------------------------------------------
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -268,6 +310,7 @@ instance Monoid Config where
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2
                          , shortNames     = shortNames c1        ||     shortNames     c2
                          , shortErrors    = shortErrors c1       ||     shortErrors    c2
+                         , cabalDir       = cabalDir    c1       ||     cabalDir       c2
                          , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2
                          , cFiles         = cFiles c1            ++     cFiles         c2
                          }
