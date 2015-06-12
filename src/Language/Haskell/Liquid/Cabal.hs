@@ -28,6 +28,7 @@ import Distribution.Simple.BuildPaths
 import Distribution.System
 import Distribution.Verbosity
 import Language.Haskell.Extension
+import System.Console.CmdArgs
 import System.Environment
 import System.Exit
 import System.FilePath
@@ -50,9 +51,9 @@ cabalInfo f = do
 
 processCabalFile :: FilePath -> IO Info
 processCabalFile f = do
-  i <-  cabalConfiguration f <$> readPackageDescription silent f
+  i <- cabalConfiguration f <$> readPackageDescription silent f
   i <- addPackageDbs i
-  putStrLn $ "Cabal Info: " ++ show i
+  whenLoud $ putStrLn $ "Cabal Info: " ++ show i
   return i
 
 -----------------------------------------------------------------------------------------------
