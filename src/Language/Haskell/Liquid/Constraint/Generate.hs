@@ -122,7 +122,7 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = filter isConLikeId ((snd <$> freeSyms sp) ++ fVars)
+       let dcs   = traceShow "DCS" $ filter isConLikeId ((snd <$> freeSyms sp) ++ fVars)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
@@ -692,10 +692,9 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info -- ++ (snd <$> freeSyms (spec info))
+    dcons        = filter isConLikeId $ impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = dataConSymbol . idDataCon
-    isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t
   | F.isNontrivialVV vv
