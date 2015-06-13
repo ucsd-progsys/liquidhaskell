@@ -5,6 +5,7 @@ module Language.Fixpoint.Solver.Uniqify
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names (renameSymbol)
 import           Language.Fixpoint.Misc  (errorstar)
+import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
 
 import qualified Data.HashMap.Strict     as M
 import           Data.List               ((\\), sort)
@@ -74,9 +75,9 @@ renameVars :: FInfo a -> IdMap -> FInfo a
 renameVars = M.foldlWithKey' renameVar
 
 renameVar :: FInfo a -> BindId -> ([BindId], [Integer]) -> FInfo a
-renameVar fi id stuff = fi'''
+renameVar fi id stuff = elimKVar (blarg fi id sym sym') fi''' --TODO: optimize? (elimKVar separately on every rename is expensive)
   where
-    (sym, sr) = lookupBindEnv id (bs fi)
+    (sym, _) = lookupBindEnv id (bs fi)
     sym' = renameSymbol sym id
     sub = (sym, eVar sym')
     go subst x = subst1 x subst
@@ -92,3 +93,10 @@ foo' :: (Symbol, Expr) -> FInfo a -> Integer -> FInfo a
 foo' sub fi id = fi { cm = M.adjust (go sub) id (cm fi) }
   where go sub c = c { slhs = subst1 (slhs c) sub ,
                        srhs = subst1 (srhs c) sub }
+
+blarg :: FInfo a -> BindId -> Symbol -> Symbol -> KVar -> Maybe Pred
+blarg fi id oldSym newSym k = if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
+  where
+    wfc = fst $ findWfC k (ws fi)
+    relevant = id `elem` (elemsIBindEnv $ wenv wfc)
+
