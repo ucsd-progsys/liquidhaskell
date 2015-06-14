@@ -122,7 +122,7 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = traceShow "DCS" $ filter isConLikeId ((snd <$> freeSyms sp) ++ fVars)
+       let dcs   = filter isConLikeId ((snd <$> freeSyms sp) ++ fVars)
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
