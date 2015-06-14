@@ -6,7 +6,7 @@ comments: true
 external-url:
 author: Niki Vazou 
 published: true
-categories: Bounded Refinement Types, Abstract Refinement Types, Function Composition
+categories: bounded-refinements, abstract-refinements, function-composition
 demo: BoundedRefinementTypes.hs
 ---
 
@@ -16,7 +16,7 @@ These abstraction significantly increases the expressiveness of the system, whil
 From back then we embarked into using Abstract Refinement Types to 
 specify _function composition_, i.e. give function composition a type that 
 precisely expresses compositionality of the refinements. 
-Turned out that _plain_ abstact refinements are not expressive enought to encode such a 
+Turned out that _plain_ abstract refinements are not expressive enough to encode such a 
 precise type. 
 What was missing was a mechanism to restrict or to _bound_ abstract refinements. 
 
@@ -159,7 +159,7 @@ Bound Abstract Refinements by the Chain Property
 ------------------------------------------------
 
 We made two attempts to type `compose`. 
-The first one "failed" as our type was unreaslistically specific. 
+The first one "failed" as our type was unrealistically specific. 
 The second failed as it was unsoundly general. 
 In our third and final attempt 
 we give `compose` a type that is abstracted over three abstract refinements `p`, `q` and `r`. 
@@ -176,14 +176,14 @@ chain p q r = \ x y z -> q x y ==> p y z ==> r x z
 
 Then we use the new liquidHaskell keyword `bound` to lift the 
 `chain` function into the a logical bound that
-can be used to constraint abstract refinements
+can be used to constrain abstract refinements
 
 \begin{code}
 {-@ bound chain @-}
 \end{code}
 
 The above bound annotation defines the bound `Chain` that is used as a 
-constraint that related the abstract refinements `p`, `q` and `r` 
+constraint that relates the abstract refinements `p`, `q` and `r` 
 in the type signature of `compose`
 
 \begin{code}
@@ -198,7 +198,7 @@ compose :: forall <p :: b -> c -> Prop,
 @-}    
 \end{code}
 
-This type of `compose` is both sound and general enought, 
+This type of `compose` is both sound and general enough, 
 as now we can easily prove that composing `incr` with `incr2` 
 results in a function that increases its argument by `3`.
 
