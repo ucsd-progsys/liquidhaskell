@@ -31,7 +31,7 @@ of Abstract Refinement Types.
 <div class="hidden">
 \begin{code}
 module BoundedRefinementTypes where
-import Prelude hiding ((.))
+import Prelude hiding ((.), maximum)
 import Language.Haskell.Liquid.Prelude
 
 incr     :: Int -> Int 
@@ -44,6 +44,54 @@ incr2'     :: Int -> Int
 compose2 :: (b -> c) -> (a -> b) -> a -> c
 \end{code}
 </div>
+
+Abstract Refinements
+--------------------
+We use Abstract Refinements to allow fot modular specifications. 
+Consider the function that returns the largest element of a list:
+
+\begin{code}
+maximum         :: [Int] -> Int 
+maximum [x]     = x
+maximum (x:xs)  = max x (maximum xs)
+  where max a b = if a < b then b else a 
+\end{code}
+How can one write a first-order refinement type specification for 
+`maximum` that will let us verify that:
+
+\begin{code}
+{-@ type Pos = {v:Int | 0 < v} @-}
+
+{-@ posMax :: [Pos] -> Pos @-}
+posMax = maximum
+\end{code}
+
+Any suitable specification would have to enumerate the 
+situations under which `maximum` may be invoked 
+breaking modularity.
+
+_Abstract Refinements_ overcome the above modularity
+problems.
+The main idea is that we can type `maximum` by observing
+that it returns _one of_ the elements in its input list.
+Thus, if every element of the list enjoys some refinement `p`
+then the output value is also guaranteed to satisfy `p`.
+
+Concretely, we can type the function as:
+
+\begin{code}
+{-@ maximum :: forall<p::Int->Prop>. [Int<p>] -> Int<p> @-}
+\end{code}
+
+where informally, `Int<p>` stands for `{v:Int | p v}`,
+and `p` is an _uninterpreted function_ in the refinement 
+logic.
+
+The signature states that for any refinement `p` on `Int`,
+the input is a list of elements satisfying `p` 
+and returns as output an integer satisfying `p`. 
+
+Can we use Abstract Refinements to specify a precise type for function composition?
 
 Function Composition
 --------------------
