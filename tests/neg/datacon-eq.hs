@@ -1,9 +1,5 @@
 module Blank (foo) where
 
-
--- This is unsoundly safe without the native flag. 
-{-@ LIQUID "--native" @-}
-
 -- This is a blank file.
 
 data G = A | B

@@ -122,31 +122,36 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = filter isConLikeId ((snd <$> freeSyms sp) ++ fVars)
+       let dcs   = filter isConLikeId ((snd <$> freeSyms sp)) 
+       let dcs'   = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
+       dcsty'   <- forM dcs'  $ \x -> liftM (x,) (trueTy $ varType x)
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
+       f1'      <- refreshArgs' $ makedcs dcsty          
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp    -- constructor refinements  (for measures)
-       (invs, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty (autosize sp) dcs 
-       let f4    = mergeDataConTypes f40 f41
+       (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs 
+       (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs' 
+       let f4    = mergeDataConTypes f40 (f41 ++ f42)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1, f2, f3, f4]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs invs 
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2) 
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
     mapSndM f (x,y) = (x,) <$> f y
+    makedcs      = map strengthenDataConType   
 
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
@@ -175,6 +180,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
+
 
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
@@ -692,9 +698,10 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isConLikeId $ impVars info ++ (snd <$> freeSyms (spec info))
+    dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = dataConSymbol . idDataCon
+    isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 extendEnvWithVV γ t
   | F.isNontrivialVV vv
