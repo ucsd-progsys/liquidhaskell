@@ -124,7 +124,7 @@ makeMeasureDefinition lmap cbs x
     binders (Rec xes)    = fst <$> xes
 
     coreToDef' x v def = case (runToLogic lmap mkError $ coreToDef x v def) of
-                           Left l  -> return  l
+                           Left l  -> return     l
                            Right e -> throwError e
 
     mkError :: String -> Error

@@ -380,8 +380,4 @@ checkMBody' emb sort γ body = case body of
   where
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
-    sort' = fromRTypeRep $ trep' { ty_vars  = [], ty_preds = [], ty_labels = []
-                                 , ty_binds = tail $ ty_binds trep'
-                                 , ty_args  = tail $ ty_args trep'
-                                 , ty_refts = tail $ ty_refts trep'            }
-    trep' = toRTypeRep sort
+    sort' = ty_res $ toRTypeRep sort
