@@ -36,6 +36,7 @@ import TypeRep
 import Class            (Class, className)
 import Var
 import Id
+import IdInfo 
 import Name
 import NameSet
 import Text.PrettyPrint.HughesPJ hiding (first)
@@ -65,6 +66,7 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
@@ -120,30 +122,75 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = filter isConLikeId (snd <$> freeSyms sp)
+       let dcs   = filter isConLikeId ((snd <$> freeSyms sp)) 
+       let dcs'   = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
+       dcsty'   <- forM dcs'  $ \x -> liftM (x,) (trueTy $ varType x)
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty              -- default TOP reftype      (for data cons)
+       f1'      <- refreshArgs' $ makedcs dcsty          
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
-       f4       <- refreshArgs' $ makedcs $ vals ctors sp    -- constructor refinements  (for measures)
+       f40      <- refreshArgs' $ vals ctors sp    -- constructor refinements  (for measures)
+       (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs 
+       (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs' 
+       let f4    = mergeDataConTypes f40 (f41 ++ f42)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2) 
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
-    makedcs      = map strengthenDataConType
+    mapSndM f (x,y) = (x,) <$> f y
+    makedcs      = map strengthenDataConType   
+
+makeAutoDecrDataCons dcts specenv dcs
+  = (simplify invs, tys)
+  where 
+    (invs, tys) = unzip $ concatMap go tycons 
+    tycons      = L.nub $ catMaybes $ map idTyCon dcs 
+
+    go tycon 
+      | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
+    go _ 
+      = [] 
+    idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}  
+
+    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs 
+    invariant = U (F.Reft (F.vv_, F.Refa $ F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+
+lenOf x = F.EApp lenLocSymbol [F.EVar x]
+
+makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres})) 
+    where 
+      x      = dataConWorkId x'
+      t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts 
+      trep   = toRTypeRep t 
+      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa 
+                              $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
+
+      recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
+      computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
+
+
+mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
+  where
+    f (x,_) (y,_) = compare x y 
+    merge [] ys = ys
+    merge xs [] = xs
+    merge (xt@(x, tx):xs) (yt@(y, ty):ys) 
+      | x == y    = (x, tx `F.meet` ty):merge xs ys 
+      | x <  y    = xt:merge xs (yt:ys)
+      | otherwise = yt:merge (xt:xs) ys
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)
@@ -179,14 +226,14 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
  ---------------------------------------------------------------------------------------
  ---------------------------------------------------------------------------------------
 
-measEnv sp xts cbs lts asms hs
+measEnv sp xts cbs lts asms hs autosizes
   = CGE { loc   = noSrcSpan
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
-        , invs  = mkRTyConInv    $ invariants sp
+        , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
         , ial   = mkRTyConIAl    $ ialiases   sp
         , grtys = fromListREnv xts
         , assms = fromListREnv asms
@@ -638,6 +685,7 @@ initCGI cfg info = CGInfo {
   , kvProf     = emptyKVProf
   , recCount   = 0
   , bindSpans  = M.empty
+  , autoSize   = autosize spc 
   }
   where
     tce        = tcEmbeds spc
@@ -650,7 +698,7 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info -- ++ (snd <$> freeSyms (spec info))
+    dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
@@ -933,24 +981,25 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
-       hint   <- checkHint' (L.lookup x $ spDecr)
-       case dindex of
+       autosz <- autoSize <$> get 
+       hint   <- checkHint' autosz (L.lookup x $ spDecr)
+       case dindex autosz of
          Nothing -> return $ Left msg -- addWarning msg >> return []
          Just i  -> return $ Right $ fromMaybe [i] hint
     where
        ts         = ty_args trep
-       checkHint' = checkHint x ts (isDecreasing cenv)
-       dindex     = L.findIndex (isDecreasing cenv) ts
+       checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
+       dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter")
        cenv       = makeNumEnv ts 
        trep       = toRTypeRep $ unOCons t
 
 
-recType ((_, []), (_, [], t))
+recType _ ((_, []), (_, [], t))
   = t
 
-recType ((vs, indexc), (_, index, t))
-  = makeRecType t v dxt index
+recType autoenv ((vs, indexc), (_, index, t))
+  = makeRecType autoenv t v dxt index
   where v    = (vs !!)  <$> indexc
         dxt  = (xts !!) <$> index
         xts  = zip (ty_binds trep) (ty_args trep)
@@ -965,10 +1014,10 @@ checkIndex (x, vs, t, index)
        msg'  = ErrTermin [x] loc (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
        msg   = ErrTermin [x] loc (text "No decreasing parameter")
 
-makeRecType t vs dxs is
+makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
-    (xs', ts') = unzip $ replaceN (last is) (makeDecrType vdxs) xts
+    (xs', ts') = unzip $ replaceN (last is) (makeDecrType autoenv vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
@@ -1057,6 +1106,7 @@ consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
 consCBSizedTys γ xes
   = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        sflag     <- scheck <$> get
+       autoenv   <- autoSize <$> get
        let cmakeFinType = if sflag then makeFinType else id
        let cmakeFinTy   = if sflag then makeFinTy   else snd
        let xets = mapThd3 (fmap cmakeFinType) <$> xets''
@@ -1066,7 +1116,7 @@ consCBSizedTys γ xes
        let ts = cmakeFinTy  <$> zip is ts'
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
-       let rts   = (recType <$>) <$> xeets
+       let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
        let γs    = [γ' `withTRec` (zip xs rts') | rts' <- rts]
@@ -1414,7 +1464,7 @@ consE γ e'@(App e a) | isDictionary a
               updateLocA πs (exprLoc e) te''
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
               pushConsBind      $ cconsE γ' a tx
-              addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+              addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
   where
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
@@ -1437,7 +1487,7 @@ consE γ e'@(App e a)
        updateLocA πs (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
-       addPost γ'        $ maybe (checkUnbound γ' e' x t) (F.subst1 t . (x,)) (argExpr γ a)
+       addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1537,12 +1587,12 @@ cconsFreshE kvkind γ e
        cconsE γ e t
        return t
 
-checkUnbound γ e x t
+checkUnbound γ e x t a
   | x `notElem` (F.syms t)
   = t
   | otherwise
   = errorstar $ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
-                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ)
+                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ) ++ "\nArg = \n" ++ show a 
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
