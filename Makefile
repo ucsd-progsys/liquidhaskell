@@ -21,19 +21,23 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 ##############################################################################
 
 fast:
-	$(CABAL) install -fdevel --ghc-options=$(FASTOPTS) 
+	$(CABAL) install -fdevel --ghc-options=$(FASTOPTS)
 
-first: 
+first:
 	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
 
 dist:
-	$(CABAL) install --ghc-options=$(DISTOPTS) 
+	$(CABAL) install --ghc-options=$(DISTOPTS)
 
 prof:
-	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS) 
+	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
+
+prof710:
+	$(CABAL) install --enable-profiling --ghc-options=$(PROFOPTS)
+
 
 igotgoto:
-	$(CABAL) build --ghc-options=$(OPTS) 
+	$(CABAL) build --ghc-options=$(OPTS)
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
 clean:
