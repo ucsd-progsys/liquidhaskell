@@ -490,6 +490,7 @@ data Pspec ty ctor
   | Lazy    LocSymbol
   | HMeas   LocSymbol
   | Inline  LocSymbol
+  | ASize   LocSymbol
   | HBound  LocSymbol
   | PBound  (Bound ty Pred)
   | Pragma  (Located String)
@@ -529,6 +530,7 @@ instance Show (Pspec a b) where
   show (Varia  _) = "Varia"
   show (PBound _) = "Bound"
   show (RInst  _) = "RInst"
+  show (ASize  _) = "ASize"
 
 
 mkSpec name xs         = (name,)
@@ -554,6 +556,7 @@ mkSpec name xs         = (name,)
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
+  , Measure.autosize   = S.fromList [s | ASize  s <- xs]
   , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.pragmas    = [s | Pragma s <- xs]
   , Measure.cmeasures  = [m | CMeas  m <- xs]
@@ -569,6 +572,7 @@ specP :: Parser (Pspec BareType LocSymbol)
 specP
   = try (reservedToken "assume"    >> liftM Assm   tyBindP   )
     <|> (reservedToken "assert"    >> liftM Asrt   tyBindP   )
+    <|> (reservedToken "autosize"  >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"     >> liftM LAsrt  tyBindP   )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP )
@@ -615,6 +619,9 @@ hboundP = locParserP binderP
 
 inlineP :: Parser LocSymbol
 inlineP = locParserP binderP
+
+asizeP :: Parser LocSymbol
+asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))

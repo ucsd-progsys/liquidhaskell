@@ -4,6 +4,8 @@ module Blank (foo) where
 
 data G = A | B
 
-{-@ foo :: {v:Int | true} -> {v:G | v = B} @-}
+{-@ foo :: Int -> {v:G | v = A} @-}
 foo  :: Int -> G
-foo _ = A
+foo _ = B
+
+
