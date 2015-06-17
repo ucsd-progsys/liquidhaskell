@@ -10,16 +10,17 @@ categories: bounded-refinements, abstract-refinements, function-composition
 demo: BoundedRefinementTypes.hs
 ---
 
-Some time ago, we saw how [Abstract Refinement Types](http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/06/03/abstracting-over-refinements.lhs) are used in liquidHaskell to abstract over specific properties or invariants. 
-These abstraction significantly increases the expressiveness of the system, while still allowing the SMT solver to carry out verification and inference automatically.
+Refinement Types decorate types with logical predicates, 
+and so allow us to specify sophisticated invariants for the underlying values. 
+Thought, classic first order refinements prevent modular specification.
 
-From back then we embarked into using Abstract Refinement Types to 
-specify _function composition_, i.e. give function composition a type that 
-precisely expresses compositionality of the refinements. 
-Turned out that _plain_ abstract refinements are not expressive enough to encode such a 
-precise type. 
-What was missing was a mechanism to restrict or to _bound_ abstract refinements. 
-
+As a step towards modular higher-order specifications, we introduced [Abstract Refinement Types](http://goto.ucsd.edu/~rjhala/liquid/haskell/blog/blog/2013/06/03/abstracting-over-refinements.lhs) 
+that are used in liquidHaskell to abstract over specific properties or invariants. 
+While useful, refinement abstraction was not enough to enable higher order abstractions requiring  dependencies between abstract refinements.
+As an example, to specify a precise type for _function composition_,
+one needs to express compositionality of the refinements.
+To express such fine grained dependencies, we enriched type signatures with 
+_bounded qualification_ over abstract refinements. 
 
 Today, we will see how bounds in refinements types can be used to 
 appropriately type function composition and generally how bounds can be used to
@@ -95,26 +96,48 @@ Can we use Abstract Refinements to specify a precise type for function compositi
 
 Function Composition
 --------------------
-Consider the function `compose` that composes its two functional arguments
-\begin{code}
-compose f g x = f (g x)   
-\end{code}
 
-Our goal is to specify a type for compose that precisely captures 
-the compositionality of the refinements.
-
-For example, given a function that increases its argument by `1`
+To start with, consider a function that increases its argument by `1`
 
 \begin{code}
 {-@ incr :: x:Int -> {v:Int | v = x + 1} @-}
 incr x = x + 1
 \end{code}
 
-We want to prove that composing `incr` with itself increases the argument by `2`.
+How do we use `incr` to create a function that increases its argument by `2`?
+
+We can write a function `incr2` that 
+first computes `z` by increasing the argument `x`,
+and then increases `z.
+
 \begin{code}
 {-@ incr2 :: x:Int -> {v:Int | v = x + 2} @-}
-incr2      = compose1 incr incr
+incr2 x = let z = incr x in incr z 
 \end{code}
+
+By the type of `incr`, 
+LiquidHaskell will infer that `z` is equal to `x + 1`, 
+`z :: {v:Int | v = x + 1} ` and that
+the result is equal to `z + 1`. 
+Thus, it will accept the post-condition encoded in type signature for `incr2`, 
+that is that `incr2` increases its argument by `2`. 
+
+Since we are in the Haskell world, we would like to write `incr2` 
+using the higher order function composition.
+We define the function `compose` that composes its two functional arguments
+\begin{code}
+compose f g x = f (g x)   
+\end{code}
+
+We use `compose` to composing `incr` with itself getting `incr2'`, a function that increases its argument by `2`.
+\begin{code}
+{-@ incr2' :: x:Int -> {v:Int | v = x + 2} @-}
+incr2'      = compose1 incr incr
+\end{code}
+
+Our goal is to specify a type for compose 
+that allows verification of the above type for `incr2'`, by 
+capturing the compositionality of the refinements.
 
 As a first attempt, we give compose a very specific type that states that
 if (1) the first  functional argument increases its argument by `1`, and 
@@ -127,7 +150,7 @@ then the result function increases its argument by `2`:
              ->  x:Int -> {z:Int | z = x + 2} @-}
 \end{code}
 
-That was easy, with the above type liquidHaskell does verify that `incr2` 
+That was easy, with the above type liquidHaskell does verify that `incr2'` 
 actually increases its argument by `2`. 
 But, there is a catch: 
 _The type of `compose1` it too specific_.
@@ -169,8 +192,8 @@ With this type for `compose2` liquidHaskell will prove that composing `incr` by 
 gives a function that increased its argument by `2`:
 
 \begin{code}
-{-@ incr2' :: x:Int -> {v:Int | v = x + 2} @-}
-incr2'      = compose2 incr incr
+{-@ incr2'' :: x:Int -> {v:Int | v = x + 2} @-}
+incr2''      = compose2 incr incr
 \end{code}
 
 To do so, liquidHaskell will employ the Abstract Refinement Types inference and guess 
@@ -181,7 +204,7 @@ while `r` relates two numbers with distance `2`:
 `r := \x v -> v = x + 2`. 
 Thus, at this specific call site the abstract type of `compose2` will be instantiated to 
 the concrete type we gave to `compose1`. 
-And, verification of `incr2` will succeed.
+And, verification of `incr2''` will succeed.
 
 
 What is the catch now? 
@@ -251,8 +274,8 @@ as now we can easily prove that composing `incr` with `incr2`
 results in a function that increases its argument by `3`.
 
 \begin{code}
-{-@ incr2'' :: x:Int -> {v:Int | v = x + 2} @-}
-incr2''      = compose incr incr
+{-@ incr2''' :: x:Int -> {v:Int | v = x + 2} @-}
+incr2'''      = compose incr incr
 
 {-@ incr3'' :: x:Int -> {v:Int | v = x + 3} @-}
 incr3''      = compose incr2'' incr
