@@ -3,10 +3,10 @@
 {-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
+-- import           Data.Monoid      (mconcat, mempty)
+-- import           Control.Applicative ((<$>))
 import           Data.Maybe
-import           Data.Monoid      (mconcat, mempty)
 import           System.Exit
-import           Control.Applicative ((<$>))
 import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
@@ -28,11 +28,9 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
-import           System.Environment (getArgs)
-
-
 
 main :: IO b
+
 main = do cfg0     <- getOpts
           res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
@@ -69,7 +67,7 @@ liquidOne target info =
      DC.saveResult target out'
      exitWithResult cfg target out'
 
--- checkedNames ::  Maybe DC.DiffCheck -> Maybe [Name.Name]
+checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
    where
      names (NonRec v _ ) = [showpp $ shvar v]
@@ -77,15 +75,16 @@ checkedNames dc          = concatMap names . DC.newBinds <$> dc
      shvar               = showpp . varName
 
 
--- prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe Diff)
-prune cfg cbs target info
-  | not (null vs) = return . Just $ DC.DC (DC.thin cbs vs) mempty sp
-  | diffcheck cfg = DC.slice target cbs sp
+prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
+prune cfg cbinds target info
+  | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
+  | diffcheck cfg = DC.slice target cbinds sp
   | otherwise     = return Nothing
   where
     vs            = tgtVars sp
     sp            = spec info
 
+solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg target cgi info dc
   = do finfo    <- cgInfoFInfo info cgi
        (r, sol) <- solve fx finfo
