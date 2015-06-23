@@ -127,12 +127,12 @@ expandSnd = concatMap (\(xs, y) -> (, y) <$> xs)
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
 
--- mlookup ::  (Show k, Hashable k) => M.HashMap k v -> k -> v
-mlookup m k
-  = case M.lookup k m of
-      Just v  -> v
-      Nothing -> errorstar $ "mlookup: unknown key " ++ show k
+mlookup ::  (Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+mlookup m k = case M.lookup k m of
+                Just v  -> v
+                Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
+safeLookup ::  (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
 safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 
 mfromJust ::  String -> Maybe a -> a
@@ -164,6 +164,9 @@ group         = groupBase M.empty
 groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
+
+groupFun :: (Eq k, Hashable k) => M.HashMap k Int -> k -> Int
+groupFun m k = safeLookup "groupFun" k m
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
@@ -422,4 +425,3 @@ mapEither f         = go [] []
                         Right r -> go ls  (r:rs) xs
 
 f <$$> x = traverse f x
-

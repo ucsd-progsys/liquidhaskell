@@ -10,17 +10,18 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.Arrow ((&&&))
 -- import           Control.Applicative                   ((<$>))
 import           GHC.Generics                          (Generic)
-import           Language.Fixpoint.Misc                (fst3, groupList)
+import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
 import           Language.Fixpoint.Solver.Deps
 import           Language.Fixpoint.Config       -- hiding (statistics)
 import           Language.Fixpoint.PrettyPrint
+import qualified Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Data.List (sort,group)
-import           Data.Maybe (mapMaybe)
+-- import           Data.Maybe (mapMaybe)
 import           Text.PrettyPrint.HughesPJ
 
 partition :: Config -> F.FInfo a -> IO [F.FInfo a]
@@ -35,13 +36,31 @@ partition _ fi = do whenLoud $ putStrLn $ render $ ppGraph es
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
-partitionByConstraints :: F.FInfo a -> SubComps -> [F.FInfo a]
-partitionByConstraints fi css = [sliceFInfo fi cs | cs <- css]
-
-sliceFInfo :: F.FInfo a -> [Integer] -> F.FInfo a
-sliceFInfo fi cs = error "TODO:sliceFInfo"
+partitionByConstraints :: F.FInfo a -> KVComps -> [F.FInfo a]
+partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
   where
-    kvs = sliceKVars fi cs 
+    js   = fst <$> jkvs                                -- groups
+    gc   = groupFun cM                                 -- (i, ci) |-> j
+    gk   = groupFun kM                                 -- k       |-> j
+
+    iwM  = groupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
+    icM  = groupMap (gc . fst)   (M.toList (F.cm fi))  -- j |-> [(i, ci)]
+
+    jkvs = zip [1..] kvss
+    kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
+    kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
+    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
+
+mkPartition fi icM iwM j
+  = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
+       , F.ws =              M.lookupDefault [] j iwM }
+
+wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
+                 [i] -> i
+                 _   -> errorstar $ "PARTITION: wfGroup" ++ show (F.wid w)
+
+wfKvars :: F.WfC a -> [F.KVar]
+wfKvars = V.kvars . F.sr_reft . F.wrft
 
 ppGraph :: [CEdge] -> Doc
 ppGraph es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
@@ -72,7 +91,7 @@ type SubComps = Comps Integer
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 
-
+{-
 decompose :: KVGraph -> SubComps
 decompose = subComps . partitionGraph
 
@@ -81,6 +100,10 @@ subComps = map $ mapMaybe cstr
   where
     cstr (Cstr i) = Just i
     cstr _        = Nothing
+-}
+
+decompose :: KVGraph -> KVComps
+decompose = partitionGraph
 
 partitionGraph :: KVGraph -> KVComps
 partitionGraph kg = tracepp "flattened" $ map (fst3 . f) <$> vss
