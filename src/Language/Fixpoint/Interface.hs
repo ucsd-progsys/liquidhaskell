@@ -23,7 +23,7 @@ module Language.Fixpoint.Interface (
 import           Control.Monad (when)
 -- import           Data.Functor
 import qualified Data.HashMap.Strict              as M
-import           Data.List
+import           Data.List hiding (partition)
 -- import           Data.Monoid (mconcat, mempty)
 -- import           Data.Hashable
 -- import           System.Directory                 (getTemporaryDirectory)
@@ -39,6 +39,7 @@ import           Language.Fixpoint.Config
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
+import           Language.Fixpoint.Partition      (partition)
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
@@ -53,6 +54,7 @@ import           Text.PrettyPrint.HughesPJ
 ---------------------------------------------------------------------------
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg x
+  | parts cfg  = partition cfg x
   | stats cfg  = statistics cfg x
   | native cfg = solveNativeWithFInfo cfg x
   | otherwise  = solveExt cfg x
@@ -65,6 +67,7 @@ solveFQ :: Config -> IO ExitCode
 solveFQ cfg
   | native cfg = solveNative cfg
   | otherwise  = solveFile   cfg
+
 
 
 ---------------------------------------------------------------------------
@@ -95,6 +98,7 @@ solveNativeWithFInfo cfg fi = do
   putStrLn  $ "Solution:\n" ++ showpp soln
   putStrLn  $ "Result: "    ++ show   stat'
   return    $ Result stat soln
+
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi

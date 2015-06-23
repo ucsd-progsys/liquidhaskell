@@ -78,6 +78,7 @@ data Ext = Cgi    -- ^ Constraint Generation Information
          | Json   -- ^ JSON file containing result (annots + errors)
          | Saved  -- ^ Previous source (for incremental checking)
          | Cache  -- ^ Previous output (for incremental checking)
+         | Dot    -- ^ Constraint Graph
          | Pred
          | PAss
          | Dat
@@ -108,6 +109,7 @@ extMap e = go e
     go Saved  = ".bak"
     go Cache  = ".err"
     go Smt2   = ".smt2"
+    go Dot    = ".dot"
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath

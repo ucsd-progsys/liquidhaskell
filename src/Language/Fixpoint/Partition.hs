@@ -4,15 +4,17 @@
 -- | This module implements functions that print out
 --   statistics about the constraints.
 
-module Language.Fixpoint.Partition (partition) where
+module Language.Fixpoint.Partition (partition, partition') where
 
-import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           Control.Arrow ((&&&))
+-- import           System.Console.CmdArgs.Verbosity (whenLoud)
 -- import           Control.Applicative                   ((<$>))
+import           Control.Arrow ((&&&))
+import           Control.Monad (forM_)
 import           GHC.Generics                          (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
 import           Language.Fixpoint.Solver.Deps
-import           Language.Fixpoint.Config       -- hiding (statistics)
+import           Language.Fixpoint.Files
+import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Types        as F
@@ -23,15 +25,50 @@ import           Data.Hashable
 import           Data.List (sort,group)
 -- import           Data.Maybe (mapMaybe)
 import           Text.PrettyPrint.HughesPJ
+import           System.FilePath -- (dropExtension)
 
-partition :: Config -> F.FInfo a -> IO [F.FInfo a]
-partition _ fi = do whenLoud $ putStrLn $ render $ ppGraph es
-                    return fis
+
+partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
+partition cfg fi
+  = do dumpPartitions cfg fis
+       dumpEdges      cfg es
+       -- whenLoud $ putStrLn $ render $ ppGraph es
+       return mempty
+    where
+       (es, fis) = partition' fi
+
+partition' :: F.FInfo a -> (KVGraph, [F.FInfo a])
+partition' fi  = (g, partitionByConstraints fi css)
   where
-    fis        = partitionByConstraints fi css
     es         = kvEdges   fi
     g          = kvGraph   es
     css        = decompose g
+
+-------------------------------------------------------------------------------------
+dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a ] -> IO ()
+-------------------------------------------------------------------------------------
+dumpPartitions cfg fis =
+  forM_ (zip [1..] fis) $ \(j, fi) ->
+    writeFile (partFile cfg j) (render $ F.toFixpoint cfg fi)
+
+partFile :: Config -> Int -> FilePath
+partFile cfg j = f `withExt` Fq
+  where
+    f  = dropExtension (inFile cfg) </> ej
+    ej = "." ++ show j
+
+-------------------------------------------------------------------------------------
+dumpEdges :: Config -> KVGraph -> IO ()
+-------------------------------------------------------------------------------------
+dumpEdges cfg = writeFile f . render . ppGraph
+  where
+    f         = withExt (inFile cfg) Dot
+
+ppGraph :: KVGraph -> Doc
+ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
+
+ppEdges :: [CEdge] -> Doc
+ppEdges es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
@@ -62,9 +99,6 @@ wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
 wfKvars :: F.WfC a -> [F.KVar]
 wfKvars = V.kvars . F.sr_reft . F.wrft
 
-ppGraph :: [CEdge] -> Doc
-ppGraph es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
-
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
@@ -85,13 +119,14 @@ type KVGraph  = [(CVertex, CVertex, [CVertex])]
 
 type Comps a  = [[a]]
 type KVComps  = Comps CVertex
-type SubComps = Comps Integer
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 
 {-
+
+type SubComps = Comps Integer
 decompose :: KVGraph -> SubComps
 decompose = subComps . partitionGraph
 
@@ -126,48 +161,3 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- lhsKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- rhsKVars c ]
   where
     i          = F.subcId c
-
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
-
-data Stats = Stats { cSizes  :: [Float]
-                   , cFreq   :: [(Float, Int)]
-                   , cTotal  :: Float
-                   , cMean   :: Float
-                   , cMax    :: Float
-                   , cSpeed  :: Float
-                   } deriving (Show)
-
-instance PPrint Stats where
-  pprint s = vcat [ text "STAT: max/total = " <+> pprint (cMax   s) <+> text "/" <+> pprint (cTotal s)
-                  , text "STAT: freqs     = " <+> pprint (cFreq  s)
-                  , text "STAT: average   = " <+> pprint (cMean  s)
-                  , text "STAT: speed     = " <+> pprint (cSpeed s)
-                  ]
-
-mkStats :: [Float] -> Stats
-mkStats ns  = Stats {
-    cSizes  = ns
-  , cFreq   = frequency ns
-  , cTotal  = total
-  , cMean   = avg
-  , cMax    = maxx
-  , cSpeed  = total / maxx
-  }
-  where
-    maxx    = maximum ns
-    total   = sum  ns
-    avg     = mean ns
-
-frequency :: (Ord a) => [a] -> [(a, Int)]
-frequency = map (head &&& length) . group . sort
-
-stdDev :: [Float] -> Float
-stdDev xs   = sqrt (sum [(x - μ)^2 | x <- xs] / n)
-  where
-    μ       = mean   xs
-    n       = fromIntegral $ length xs
-
-mean :: [Float] -> Float
-mean ns  = sum ns / fromIntegral (length ns)
