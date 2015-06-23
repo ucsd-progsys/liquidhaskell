@@ -36,7 +36,7 @@ import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config
-import           Language.Fixpoint.Files
+import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Parse          (rr, rr')
@@ -52,11 +52,10 @@ import           Text.PrettyPrint.HughesPJ
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg x = do
-  when (stats cfg) $ statistics cfg x
-  if native cfg 
-    then solveNativeWithFInfo cfg x
-    else solveExt cfg x
+solve cfg x
+  | stats cfg  = statistics cfg x
+  | native cfg = solveNativeWithFInfo cfg x
+  | otherwise  = solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -76,12 +75,12 @@ solveNative cfg = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  (res, _) <- solveNativeWithFInfo cfg fi 
-  return    $ resultExit res
+  res      <- solveNativeWithFInfo cfg fi
+  return    $ resultExit (resStatus res)
 
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo cfg fi = do 
+solveNativeWithFInfo cfg fi = do
   whenLoud  $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   let fi'   = renameAll fi
@@ -89,12 +88,13 @@ solveNativeWithFInfo cfg fi = do
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
   donePhase Loud "Eliminate"
-  (res, s) <- S.solve cfg fi''
+  whenLoud  $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
-  let res'  = sid <$> res
-  putStrLn  $ "Solution:\n" ++ showpp s
-  putStrLn  $ "Result: "    ++ show res'
-  return (res, s) 
+  let stat' = sid <$> stat
+  putStrLn  $ "Solution:\n" ++ showpp soln
+  putStrLn  $ "Result: "    ++ show   stat'
+  return    $ Result stat soln
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
@@ -139,15 +139,15 @@ realFlags :: String
 realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
-exitFq :: FilePath -> M.HashMap Integer a -> ExitCode -> IO (FixResult a, M.HashMap KVar Pred)
+
+exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
 exitFq _ _ (ExitFailure n) | n /= 1
-  = return (Crash [] "Unknown Error", M.empty)
+  = return $ Result (Crash [] "Unknown Error") M.empty
 exitFq fn z _
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = parseFixpointOutput str
-       return  (plugC z x, y)
-    where
-       plugC = fmap . mlookup
+       let x'     = fmap (mlookup z) x
+       return     $ Result x' y
 
 parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
 parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)

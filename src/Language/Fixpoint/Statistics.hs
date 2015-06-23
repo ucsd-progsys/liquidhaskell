@@ -1,100 +1,33 @@
-
-{-# LANGUAGE DeriveGeneric #-}
-
 -- | This module implements functions that print out
 --   statistics about the constraints.
 
 module Language.Fixpoint.Statistics (statistics) where
 
 import           Control.Arrow ((&&&))
-import           Control.Applicative                   ((<$>))
-import           GHC.Generics                          (Generic)
-import           Language.Fixpoint.Misc                (applyNonNull, fst3, groupList)
-import           Language.Fixpoint.Solver.Deps
-import           Language.Fixpoint.Config       -- hiding (statistics)
+-- import           Control.Applicative                   ((<$>))
+-- import           GHC.Generics                          (Generic)
+import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
+import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Partition           (partition)
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
-import qualified Data.Graph                     as G
-import qualified Data.Tree                      as T
-import           Data.Hashable
 import           Data.List (sort,group)
-import           Data.Maybe (mapMaybe)
 import           Text.PrettyPrint.HughesPJ
 
-statistics :: Config -> F.FInfo a -> IO ()
-statistics _ fi = do putStrLn $ render   $ ppGraph es
-                     putStrLn $ render   $ pprint info
-                     error "DONE: statistics"
-                     -- putStrLn $ "COMPS: " ++ show css
-                     -- exitWith ExitSuccess
+statistics :: Config -> F.FInfo a -> IO (F.Result a)
+statistics cfg fi = do
+  fis <- partition cfg fi
+  putStrLn $ render $ pprint $ partitionStats fis
+  donePhase Loud "Statistics"
+  return mempty
+
+partitionStats :: [F.FInfo a] -> Maybe Stats
+partitionStats fis = info
   where
-    es          = kvEdges   fi
-    g           = kvGraph   es
-    css         = decompose g
-    sizes       = fromIntegral . length <$> css
-    info        = applyNonNull Nothing (Just . mkStats) sizes
-
-ppGraph :: [CEdge] -> Doc
-ppGraph es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
-
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
-
-data CVertex = KVar F.KVar
-             | Cstr Integer
-               deriving (Eq, Ord, Show, Generic)
-
-instance PPrint CVertex where
-  pprint (KVar k) = pprint k
-  pprint (Cstr i) = text "id:" <+> pprint i
-
-
-instance Hashable CVertex
-
-type CEdge    = (CVertex, CVertex)
-type KVGraph  = [(CVertex, CVertex, [CVertex])]
-
-type Comps a  = [[a]]
-type KVComps  = Comps CVertex
-type SubComps = Comps Integer
-
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
-
-
-decompose :: KVGraph -> SubComps
-decompose = subComps . partition
-
-subComps :: KVComps -> SubComps
-subComps = map $ mapMaybe cstr
-  where
-    cstr (Cstr i) = Just i
-    cstr _        = Nothing
-
-partition :: KVGraph -> KVComps
-partition kg = tracepp "flattened" $ map (fst3 . f) <$> vss
-  where
-    (g,f,_)  = G.graphFromEdges kg
-    vss      = T.flatten <$> G.components g
-
-kvGraph :: [CEdge] -> KVGraph
-kvGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
-
-kvEdges :: F.FInfo a -> [CEdge]
-kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
-  where
-    bs     = F.bs fi
-    cs     = M.elems (F.cm fi)
-    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c]
-
-subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
-subcEdges bs c =  [(KVar k, Cstr i ) | k  <- lhsKVars bs c]
-               ++ [(Cstr i, KVar k') | k' <- rhsKVars c ]
-  where
-    i          = F.subcId c
+    css            = [M.keys $ F.cm fi | fi <- fis]
+    sizes          = fromIntegral . length <$> css
+    info           = applyNonNull Nothing (Just . mkStats) sizes
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
@@ -121,11 +54,11 @@ mkStats ns  = Stats {
   , cFreq   = frequency ns
   , cTotal  = total
   , cMean   = avg
-  , cMax    = max
-  , cSpeed  = total / max
+  , cMax    = maxx
+  , cSpeed  = total / maxx
   }
   where
-    max     = maximum ns
+    maxx    = maximum ns
     total   = sum  ns
     avg     = mean ns
 
@@ -140,5 +73,3 @@ stdDev xs   = sqrt (sum [(x - μ)^2 | x <- xs] / n)
 
 mean :: [Float] -> Float
 mean ns  = sum ns / fromIntegral (length ns)
-
-

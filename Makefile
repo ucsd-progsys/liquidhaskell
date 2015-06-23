@@ -11,10 +11,10 @@ DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comona
 TASTY=./dist/build/test/test
 
 all:
-	$(CABAL) install --ghc-options=$(OPTS) 
+	$(CABAL) install --ghc-options=$(OPTS)
 
 force:
-	$(CABAL) install --force-reinstalls --ghc-options=$(OPTS) 
+	$(CABAL) install --force-reinstalls --ghc-options=$(OPTS)
 
 rebuild: ocaml
 	make
@@ -37,10 +37,10 @@ binaries:
 	vagrant halt
 
 igoto:
-	$(CABAL) configure --ghc-options=$(OPTS) 
+	$(CABAL) configure --ghc-options=$(OPTS)
 
 goto:
-	$(CABAL) build --ghc-options=$(OPTS) 
+	$(CABAL) build --ghc-options=$(OPTS)
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
 prof:
@@ -65,7 +65,7 @@ lint:
 tags:
 	hasktags -c src/
 	hasktags -e src/
-
+	hasktags -x -c src/
 
 test:
 	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
@@ -76,5 +76,3 @@ test710:
 	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
 	cabal build
 	$(TASTY)
-
-

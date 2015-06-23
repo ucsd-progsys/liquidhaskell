@@ -85,7 +85,7 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Solutions
-  , Result
+  , Result (..)
   , FixResult (..)
   , FixSolution
 
@@ -921,9 +921,20 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-type Result a = (FixResult (SubC a), M.HashMap KVar Pred)
+data Result a = Result { resStatus   :: FixResult (SubC a)
+                       , resSolution :: M.HashMap KVar Pred }
+                deriving (Show)
 ---------------------------------------------------------------------------
 
+instance Monoid (Result a) where
+  mempty        = Result mempty mempty
+  mappend r1 r2 = Result stat soln
+    where
+      stat      = mappend (resStatus r1)   (resStatus r2)
+      soln      = mappend (resSolution r1) (resSolution r2)
+
+-- instance Functor Result where
+--   fmap f (Result x y) = Result (fmap (fmap f) x) y
 
 data FixResult a = Crash [a] String
                  | Safe
