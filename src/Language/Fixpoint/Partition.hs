@@ -36,7 +36,12 @@ partition _ fi = do whenLoud $ putStrLn $ render $ ppGraph es
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
 partitionByConstraints :: F.FInfo a -> SubComps -> [F.FInfo a]
-partitionByConstraints = error "TODO:partitionByConstraints"
+partitionByConstraints fi css = [sliceFInfo fi cs | cs <- css]
+
+sliceFInfo :: F.FInfo a -> [Integer] -> F.FInfo a
+sliceFInfo fi cs = error "TODO:sliceFInfo"
+  where
+    kvs = sliceKVars fi cs 
 
 ppGraph :: [CEdge] -> Doc
 ppGraph es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
