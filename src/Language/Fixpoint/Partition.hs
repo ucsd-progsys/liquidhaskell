@@ -8,7 +8,7 @@ module Language.Fixpoint.Partition (partition, partition') where
 
 -- import           System.Console.CmdArgs.Verbosity (whenLoud)
 -- import           Control.Applicative                   ((<$>))
-import           Control.Arrow ((&&&))
+-- import           Control.Arrow ((&&&))
 import           Control.Monad (forM_)
 import           GHC.Generics                          (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
@@ -22,7 +22,7 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable
-import           Data.List (sort,group)
+-- import           Data.List (sort,group)
 -- import           Data.Maybe (mapMaybe)
 import           Text.PrettyPrint.HughesPJ
 import           System.FilePath -- (dropExtension)

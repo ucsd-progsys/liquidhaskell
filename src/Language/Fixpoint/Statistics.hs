@@ -9,15 +9,15 @@ import           Control.Arrow ((&&&))
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Partition           (partition)
+import           Language.Fixpoint.Partition           (partition')
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import           Data.List (sort,group)
 import           Text.PrettyPrint.HughesPJ
 
 statistics :: Config -> F.FInfo a -> IO (F.Result a)
-statistics cfg fi = do
-  fis <- partition cfg fi
+statistics _ fi = do
+  let (_, fis) = partition' fi
   putStrLn $ render $ pprint $ partitionStats fis
   donePhase Loud "Statistics"
   return mempty
