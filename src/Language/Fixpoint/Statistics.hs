@@ -4,7 +4,6 @@
 -- | This module implements functions that print out
 --   statistics about the constraints.
 
-
 module Language.Fixpoint.Statistics (statistics) where
 
 import           Control.Arrow ((&&&))

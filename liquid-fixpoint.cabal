@@ -9,8 +9,8 @@ author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:          jhala@cs.ucsd.edu
 category:            Language
 build-type:          Custom 
-cabal-version:       >=1.8
-
+cabal-version:       >=1.10
+                                            
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types. 
@@ -93,6 +93,7 @@ Source-Repository head
 -- fixpoint.native as an executable, and properly symlink it when
 -- asked.
 Executable fixpoint.native
+  default-language: Haskell98
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array

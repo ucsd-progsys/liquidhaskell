@@ -5,11 +5,15 @@
 // But you may use this one
 qualif Pog(v:a): (0 <= v)
 
+
+
 bind 0 x: {v: int | v = 10}
 bind 1 a: {v: int | $k1    }
 bind 2 y: {v: int | v = 20}
 bind 3 b: {v: int | $k1    }
 bind 4 c: {v: int | $k0    }
+
+cut $k1
 
 constraint:
   env [ ]

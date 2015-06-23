@@ -72,3 +72,9 @@ test:
 	cabal build
 	cabal exec $(TASTY)
 
+test710:
+	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
+	cabal build
+	$(TASTY)
+
+
