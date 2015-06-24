@@ -6,11 +6,8 @@
 
 module Language.Fixpoint.Partition (partition, partition') where
 
--- import           System.Console.CmdArgs.Verbosity (whenLoud)
--- import           Control.Applicative                   ((<$>))
--- import           Control.Arrow ((&&&))
 import           Control.Monad (forM_)
-import           GHC.Generics                          (Generic)
+import           GHC.Generics                   (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
 import           Language.Fixpoint.Solver.Deps
 import           Language.Fixpoint.Files
@@ -22,11 +19,15 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable
+import           Text.PrettyPrint.HughesPJ
+import           Debug.Trace
+
+-- import           System.Console.CmdArgs.Verbosity (whenLoud)
+-- import           Control.Applicative                   ((<$>))
+-- import           Control.Arrow ((&&&))
 -- import           Data.List (sort,group)
 -- import           Data.Maybe (mapMaybe)
-import           Text.PrettyPrint.HughesPJ
-import           System.FilePath -- (dropExtension)
-
+-- import           System.FilePath -- (dropExtension)
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
@@ -52,28 +53,26 @@ dumpPartitions cfg fis =
     writeFile (partFile cfg j) (render $ F.toFixpoint cfg fi)
 
 partFile :: Config -> Int -> FilePath
-partFile cfg j = f `withExt` Fq
+partFile cfg j = {- trace ("partFile: " ++ fjq) -} fjq
   where
-    f  = dropExtension (inFile cfg) </> ej
-    ej = "." ++ show j
+    fjq = extFileName (Part j) (inFile cfg)
 
 -------------------------------------------------------------------------------------
 dumpEdges :: Config -> KVGraph -> IO ()
 -------------------------------------------------------------------------------------
 dumpEdges cfg = writeFile f . render . ppGraph
   where
-    f         = withExt (inFile cfg) Dot
+    f         = extFileName Dot (inFile cfg)
 
 ppGraph :: KVGraph -> Doc
 ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 
 ppEdges :: [CEdge] -> Doc
-ppEdges es = text "GRAPH:" <+> vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
+ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 
 -------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
 partitionByConstraints :: F.FInfo a -> KVComps -> [F.FInfo a]
+-------------------------------------------------------------------------------------
 partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
   where
     js   = fst <$> jkvs                                -- groups
@@ -111,7 +110,6 @@ instance PPrint CVertex where
   pprint (KVar k) = pprint k
   pprint (Cstr i) = text "id:" <+> pprint i
 
-
 instance Hashable CVertex
 
 type CEdge    = (CVertex, CVertex)
@@ -122,26 +120,9 @@ type KVComps  = Comps CVertex
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
-
-{-
-
-type SubComps = Comps Integer
-decompose :: KVGraph -> SubComps
-decompose = subComps . partitionGraph
-
-subComps :: KVComps -> SubComps
-subComps = map $ mapMaybe cstr
-  where
-    cstr (Cstr i) = Just i
-    cstr _        = Nothing
--}
-
 decompose :: KVGraph -> KVComps
-decompose = partitionGraph
-
-partitionGraph :: KVGraph -> KVComps
-partitionGraph kg = tracepp "flattened" $ map (fst3 . f) <$> vss
+-------------------------------------------------------------------------------------
+decompose kg = {- tracepp "flattened" $ -} map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
     vss      = T.flatten <$> G.components g

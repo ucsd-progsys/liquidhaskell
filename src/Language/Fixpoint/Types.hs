@@ -1487,15 +1487,19 @@ instance Monoid (FInfo a) where
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      }
 
+($++$) :: Doc -> Doc -> Doc
+x $++$ y = x $+$ text "\n" $+$ y
+
 toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
-toFixpoint cfg x' =   kutsDoc  x'
-                  $+$ gsDoc    x'
-                  $+$ conDoc   x'
-                  $+$ bindsDoc x'
-                  $+$ csDoc    x'
-                  $+$ wsDoc    x'
-                  $+$ binfoDoc x'
-                  $+$ text "\n"
+toFixpoint cfg x' =    qualsDoc x'
+                  $++$ kutsDoc  x'
+                  $++$ gsDoc    x'
+                  $++$ conDoc   x'
+                  $++$ bindsDoc x'
+                  $++$ csDoc    x'
+                  $++$ wsDoc    x'
+                  $++$ binfoDoc x'
+                  $++$ text "\n"
   where
     conDoc        = vcat     . map toFixConstant . lits
     csDoc         = vcat     . map toFix . M.elems . cm
@@ -1503,6 +1507,7 @@ toFixpoint cfg x' =   kutsDoc  x'
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
     gsDoc         = toFixGs  . gs
+    qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc

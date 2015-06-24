@@ -35,7 +35,7 @@ import           Text.Printf
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
@@ -44,20 +44,8 @@ import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
--- import           System.Console.CmdArgs.Default
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
-
-
----------------------------------------------------------------------------
--- | Solve FInfo system of horn-clause constraints ------------------------
----------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg x
-  | parts cfg  = partition cfg x
-  | stats cfg  = statistics cfg x
-  | native cfg = solveNativeWithFInfo cfg x
-  | otherwise  = solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -65,22 +53,34 @@ solve cfg x
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative cfg
+  | native cfg = solveNative cfg (solve cfg)
   | otherwise  = solveFile   cfg
 
+---------------------------------------------------------------------------
+-- | Solve FInfo system of horn-clause constraints ------------------------
+---------------------------------------------------------------------------
+  -- | parts cfg  = partition cfg x
+  -- | stats cfg  = statistics cfg x
+  -- | native cfg = solveNativeWithFInfo cfg x
+  -- | otherwise  = solveExt cfg x
 
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve cfg
+  | parts cfg  = partition cfg
+  | stats cfg  = statistics cfg
+  | native cfg = solveNativeWithFInfo cfg
+  | otherwise  = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative :: Config -> IO ExitCode
-solveNative cfg = exit (ExitFailure 2) $ do
+solveNative :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
+solveNative cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  res      <- solveNativeWithFInfo cfg fi
+  res      <- s fi
   return    $ resultExit (resStatus res)
-
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do

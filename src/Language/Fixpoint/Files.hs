@@ -58,27 +58,28 @@ checkM f msg p
        if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
 
 
------------------------------------------------------------------------------------
+ -----------------------------------------------------------------------------------
 
-data Ext = Cgi    -- ^ Constraint Generation Information
-         | Fq     -- ^ Input to constraint solving (fixpoint)
-         | Out    -- ^ Output from constraint solving (fixpoint)
-         | Html   -- ^ HTML file with inferred type annotations
-         | Annot  -- ^ Text file with inferred types
-         | Vim    -- ^ Vim annotation file
-         | Hs     -- ^ Haskell source
-         | LHs    -- ^ Literate Haskell source
-         | Js     -- ^ JavaScript source
-         | Ts     -- ^ Typescript source
-         | Spec   -- ^ Spec file (e.g. include/Prelude.spec)
-         | Hquals -- ^ Qualifiers file (e.g. include/Prelude.hquals)
-         | Result -- ^ Final result: SAFE/UNSAFE
-         | Cst    -- ^ HTML file with templates?
-         | Mkdn   -- ^ Markdown file (temporarily generated from .Lhs + annots)
-         | Json   -- ^ JSON file containing result (annots + errors)
-         | Saved  -- ^ Previous source (for incremental checking)
-         | Cache  -- ^ Previous output (for incremental checking)
-         | Dot    -- ^ Constraint Graph
+data Ext = Cgi      -- ^ Constraint Generation Information
+         | Fq       -- ^ Input to constraint solving (fixpoint)
+         | Out      -- ^ Output from constraint solving (fixpoint)
+         | Html     -- ^ HTML file with inferred type annotations
+         | Annot    -- ^ Text file with inferred types
+         | Vim      -- ^ Vim annotation file
+         | Hs       -- ^ Haskell source
+         | LHs      -- ^ Literate Haskell source
+         | Js       -- ^ JavaScript source
+         | Ts       -- ^ Typescript source
+         | Spec     -- ^ Spec file (e.g. include/Prelude.spec)
+         | Hquals   -- ^ Qualifiers file (e.g. include/Prelude.hquals)
+         | Result   -- ^ Final result: SAFE/UNSAFE
+         | Cst      -- ^ HTML file with templates?
+         | Mkdn     -- ^ Markdown file (temporarily generated from .Lhs + annots)
+         | Json     -- ^ JSON file containing result (annots + errors)
+         | Saved    -- ^ Previous source (for incremental checking)
+         | Cache    -- ^ Previous output (for incremental checking)
+         | Dot      -- ^ Constraint Graph
+         | Part Int -- ^ Partition
          | Pred
          | PAss
          | Dat
@@ -87,29 +88,30 @@ data Ext = Cgi    -- ^ Constraint Generation Information
 
 extMap e = go e
   where
-    go Cgi    = ".cgi"
-    go Pred   = ".pred"
-    go PAss   = ".pass"
-    go Dat    = ".dat"
-    go Out    = ".fqout"
-    go Fq     = ".fq"
-    go Html   = ".html"
-    go Cst    = ".cst"
-    go Annot  = ".annot"
-    go Vim    = ".vim.annot"
-    go Hs     = ".hs"
-    go LHs    = ".lhs"
-    go Js     = ".js"
-    go Ts     = ".ts"
-    go Mkdn   = ".markdown"
-    go Json   = ".json"
-    go Spec   = ".spec"
-    go Hquals = ".hquals"
-    go Result = ".out"
-    go Saved  = ".bak"
-    go Cache  = ".err"
-    go Smt2   = ".smt2"
-    go Dot    = ".dot"
+    go Cgi      = ".cgi"
+    go Pred     = ".pred"
+    go PAss     = ".pass"
+    go Dat      = ".dat"
+    go Out      = ".fqout"
+    go Fq       = ".fq"
+    go Html     = ".html"
+    go Cst      = ".cst"
+    go Annot    = ".annot"
+    go Vim      = ".vim.annot"
+    go Hs       = ".hs"
+    go LHs      = ".lhs"
+    go Js       = ".js"
+    go Ts       = ".ts"
+    go Mkdn     = ".markdown"
+    go Json     = ".json"
+    go Spec     = ".spec"
+    go Hquals   = ".hquals"
+    go Result   = ".out"
+    go Saved    = ".bak"
+    go Cache    = ".err"
+    go Smt2     = ".smt2"
+    go Dot      = ".dot"
+    go (Part n) = "." ++ show n
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath
