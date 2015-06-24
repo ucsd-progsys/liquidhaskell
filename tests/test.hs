@@ -20,6 +20,7 @@ import Data.Tagged
 import Data.Typeable
 import Options.Applicative
 import System.Directory
+import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
@@ -116,7 +117,8 @@ mkTest code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        liquid <- canonicalizePath "dist/build/liquid/liquid"
+        testPath <- getExecutablePath
+        let liquid = (takeDirectory $ takeDirectory testPath) </> "liquid" </> "liquid"
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd liquid dir file smt opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}

@@ -864,7 +864,7 @@ dataDeclFullP
        spaces
        fsize <- dataSizeP
        spaces
-       ts  <- sepBy tyVarIdP spaces
+       ts  <- sepBy tyVarIdP blanks
        ps  <- predVarDefsP
        whiteSpace >> reservedOp "=" >> whiteSpace
        dcs <- sepBy dataConP (reserved "|")
