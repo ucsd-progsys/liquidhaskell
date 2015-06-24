@@ -65,6 +65,11 @@ test:
 	$(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 	# $(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --liquid-opts='$(LIQUIDOPTS)' --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
+test710:
+	$(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
+	$(CABAL) build
+	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
+
 
 retest:
 	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
