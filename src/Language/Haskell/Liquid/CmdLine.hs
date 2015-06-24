@@ -51,7 +51,7 @@ import Language.Fixpoint.Config            hiding (Config, real, native, getOpts
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types             hiding (Result)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
@@ -340,7 +340,6 @@ exitWithResult cfg target out
        return $ out { o_result = r }
     where
        r         = o_result out `addErrors` o_errors out
-
 
 
 writeCheckVars Nothing     = return ()
