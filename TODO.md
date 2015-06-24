@@ -1,33 +1,24 @@
-TODO
-====
+# TODO
 
-cutsolver
----------
+## cutsolver
 
 Goal, be able to acyclic kvars without QUALIFIERS e.g.
 
-1. write test for loop-free constraint
-2. implement solver
-3. write test for loop-y constraints
-4. find "cut" kvars
-5. implement solver
-6. run on all benchmarks :)
++ implement solver
++ run on all benchmarks :)
 
+## stats
 
-stats
------
++ How many *different* binders is each kvar bound to in constraints?
 
-A. Decompose constraints into independent pieces.
-   How big is each component?
+## non-trivial-sorts
 
-   - compute kv-read-write graph
-   - label edge by constraint
-   - compute CONNECTED COMPONENT
-   - partition
- 
-B. How many *different* binders is each kvar bound to in constraints?
++ partition sorts into non-trivial refinements
 
++ replace all "$k" for trivial sorts
 
-### Component Size
-stats.
-
+     type Trivial = TrivialSort | NonTrivialSort  
+     type TrivialMap = Map Sort Trivial  
+     mkTrivialMap :: FInfo a -> TrivialMap
+     simplifyTrivial :: FInfo a -> TrivialMap -> FInfo a
+     simplify :: FInfo a -> FInfo a
