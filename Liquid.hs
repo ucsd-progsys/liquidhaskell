@@ -18,7 +18,7 @@ import qualified Language.Fixpoint.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Interface
-import           Language.Fixpoint.Types (sinfo)
+import           Language.Fixpoint.Types (sinfo, Result (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Errors
 import           Language.Haskell.Liquid.CmdLine
@@ -29,8 +29,9 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
 
-main :: IO b
 
+
+main :: IO b
 main = do cfg0     <- getOpts
           res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
           let ecode = resultExit $  {- traceShow "RESULT" $ -} o_result res
@@ -74,7 +75,6 @@ checkedNames dc          = concatMap names . DC.newBinds <$> dc
      names (Rec xs)      = map (shvar . fst) xs
      shvar               = showpp . varName
 
-
 prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
 prune cfg cbinds target info
   | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
@@ -87,7 +87,7 @@ prune cfg cbinds target info
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg target cgi info dc
   = do finfo    <- cgInfoFInfo info cgi
-       (r, sol) <- solve fx finfo
+       Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
