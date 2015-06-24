@@ -8,16 +8,16 @@ license-file:        LICENSE
 author:              Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:          jhala@cs.ucsd.edu
 category:            Language
-build-type:          Custom 
-cabal-version:       >=1.8
+build-type:          Custom
+cabal-version:       >=1.10
 
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
-                 for Liquid Types. 
+                 for Liquid Types.
                  .
-                 The solver itself is written in Ocaml. 
+                 The solver itself is written in Ocaml.
                  .
-                 The package includes: 
+                 The package includes:
                  .
                  1. Types for Expressions, Predicates, Constraints, Solutions
                  .
@@ -31,7 +31,7 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  Requirements
                  .
-                 In addition to the .cabal dependencies you require 
+                 In addition to the .cabal dependencies you require
                  .
                  - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
                    If on Windows, please make sure to place the binary and any associated DLLs
@@ -93,6 +93,7 @@ Source-Repository head
 -- fixpoint.native as an executable, and properly symlink it when
 -- asked.
 Executable fixpoint.native
+  default-language: Haskell98
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -115,7 +116,7 @@ Executable fixpoint.native
                , unordered-containers
                , text-format
                , liquid-fixpoint
-               
+
 
 Executable fixpoint
   Main-is:       Fixpoint.hs
@@ -152,7 +153,7 @@ Library
                    Language.Fixpoint.Bitvector,
                    Language.Fixpoint.Visitor,
                    Language.Fixpoint.Sort,
-                   Language.Fixpoint.Interface, 
+                   Language.Fixpoint.Interface,
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.Smt.Types,
@@ -167,9 +168,10 @@ Library
                    Language.Fixpoint.Solver.Uniqify,
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Validate,
+                   Language.Fixpoint.Partition,
                    Language.Fixpoint.Statistics,
                    Language.Fixpoint.Solver.Solve
-                     
+
   Build-Depends: base >= 4.7 && < 5
                , array
                , attoparsec
@@ -195,7 +197,7 @@ Library
                , hashable
                , unordered-containers
                , text-format
-                 
+
 test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0

@@ -21,10 +21,10 @@ module Language.Fixpoint.Interface (
 ) where
 
 import           Control.Monad (when)
-import           Data.Functor
+-- import           Data.Functor
 import qualified Data.HashMap.Strict              as M
-import           Data.List
-import           Data.Monoid (mconcat, mempty)
+import           Data.List hiding (partition)
+-- import           Data.Monoid (mconcat, mempty)
 -- import           Data.Hashable
 -- import           System.Directory                 (getTemporaryDirectory)
 -- import           System.FilePath                  ((</>))
@@ -35,28 +35,17 @@ import           Text.Printf
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
-import           Language.Fixpoint.Config
-import           Language.Fixpoint.Files
+import           Language.Fixpoint.Config          hiding (solver)
+import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
+import           Language.Fixpoint.Partition      (partition)
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
--- import           System.Console.CmdArgs.Default
-import           System.Console.CmdArgs.Verbosity
+import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
-
-
----------------------------------------------------------------------------
--- | Solve FInfo system of horn-clause constraints ------------------------
----------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg x = do
-  when (stats cfg) $ statistics cfg x
-  if native cfg 
-    then solveNativeWithFInfo cfg x
-    else solveExt cfg x
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -64,33 +53,52 @@ solve cfg x = do
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative cfg
+  | native cfg = solveNative cfg (solve cfg)
   | otherwise  = solveFile   cfg
 
+---------------------------------------------------------------------------
+-- | Solve FInfo system of horn-clause constraints ------------------------
+---------------------------------------------------------------------------
+  -- | parts cfg  = partition cfg x
+  -- | stats cfg  = statistics cfg x
+  -- | native cfg = solveNativeWithFInfo cfg x
+  -- | otherwise  = solveExt cfg x
+
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve cfg
+  | parts cfg  = partition cfg
+  | stats cfg  = statistics cfg
+  | native cfg = solveNativeWithFInfo cfg
+  | otherwise  = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative :: Config -> IO ExitCode
-solveNative cfg = exit (ExitFailure 2) $ do
+solveNative :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
+solveNative cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  (res, _) <- solveNativeWithFInfo cfg fi 
-  return    $ resultExit res
-
+  res      <- s fi
+  return    $ resultExit (resStatus res)
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo cfg fi = do 
+solveNativeWithFInfo cfg fi = do
   whenLoud  $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  donePhase Loud "Read Constraints"
   let fi'   = renameAll fi
   whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
-  (res, s) <- S.solve cfg fi''
-  let res'  = sid <$> res
-  putStrLn  $ "Solution:\n" ++ showpp s
-  putStrLn  $ "Result: "    ++ show res'
-  return (res, s) 
+  donePhase Loud "Eliminate"
+  whenLoud  $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  Result stat soln <- S.solve cfg fi''
+  donePhase Loud "Solve"
+  let stat' = sid <$> stat
+  putStrLn  $ "Solution:\n" ++ showpp soln
+  putStrLn  $ "Result: "    ++ show   stat'
+  return    $ Result stat soln
+
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
@@ -123,30 +131,32 @@ solveFile cfg
   = do fp  <- getFixpointPath
        z3  <- getZ3LibPath
        v   <- (\b -> if b then "-v 1" else "") <$> isLoud
-       {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand cfg fp z3 v
-
-fixCommand cfg fp z3 verbosity
-  = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s"
-           z3 fp verbosity rf (command cfg)
-  where
-     rf  = if real cfg then realFlags else ""
+       {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand fp z3 v
+    where
+      fixCommand fp z3 verbosity
+        = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s"
+          z3 fp verbosity rf (command cfg)
+        where
+          rf  = if real cfg then realFlags else ""
 
 realFlags :: String
 realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
+
+exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
 exitFq _ _ (ExitFailure n) | n /= 1
-  = return (Crash [] "Unknown Error", M.empty)
-exitFq fn cm _
+  = return $ Result (Crash [] "Unknown Error") M.empty
+exitFq fn z _
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
-       let (x, y) = parseFixpointOutput str -- {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
-       return  $ (plugC cm x, y)
-    where
-       plugC = fmap . mlookup
+       let (x, y) = parseFixpointOutput str
+       let x'     = fmap (mlookup z) x
+       return     $ Result x' y
 
 parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
 parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
 
+sanitizeFixpointOutput :: String -> String
 sanitizeFixpointOutput
   = unlines
   . filter (not . ("//"     `isPrefixOf`))

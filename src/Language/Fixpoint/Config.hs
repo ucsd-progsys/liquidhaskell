@@ -42,17 +42,18 @@ data Config
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
+    , parts       :: Bool             -- ^ partition FInfo into separate fq files
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def
+  def = Config "" def def def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
             ++ command (solver c)
             ++ " -out "
-            ++ (outFile c) ++ " " ++ (inFile c)
+            ++ outFile c ++ " " ++ inFile c
 
 ---------------------------------------------------------------------------------------
 -- newtype OFilePath = O FilePath
@@ -123,7 +124,8 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , metadata    = False &= help "Print meta-data associated with constraints"
-  , stats       = True  &= help "Compute constraint statistics"
+  , stats       = False &= help "Compute constraint statistics"
+  , parts       = False &= help "Partition constraints into indepdendent .fq files"
   }
   &= verbosity
   &= program "fixpoint"
@@ -143,4 +145,3 @@ getOpts = do md <- cmdArgs config
 banner :: String
 banner =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
-

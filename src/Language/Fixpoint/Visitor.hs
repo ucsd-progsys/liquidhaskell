@@ -23,10 +23,10 @@ module Language.Fixpoint.Visitor (
   , foldSort, mapSort
   ) where
 
-import           Control.Applicative       (Applicative, (<$>), (<*>))
+-- import           Control.Applicative       (Applicative, (<$>), (<*>))
 import           Control.Monad.Trans.State (State, modify, runState)
-import           Data.Monoid
-import           Data.Traversable          (Traversable, traverse)
+-- import           Data.Monoid
+-- import           Data.Traversable          (Traversable, traverse)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
 import qualified Data.List    as L
@@ -49,8 +49,8 @@ data Visitor acc ctx = Visitor {
 defaultVisitor :: Monoid acc => Visitor acc ctx
 ---------------------------------------------------------------------------------
 defaultVisitor = Visitor {
-    ctxExpr    = \c _ -> c
-  , ctxPred    = \c _ -> c
+    ctxExpr    = const -- \c _ -> c
+  , ctxPred    = const -- \c _ -> c
   , txExpr     = \_ x -> x
   , txPred     = \_ x -> x
   , accExpr    = \_ _ -> mempty
@@ -63,8 +63,9 @@ fold         :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> a
 fold v c a t = snd $ execVisitM v c a visit t
 
 trans        :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> t
-trans v c a z = fst $ execVisitM v c mempty visit z
+trans v c _ z = fst $ execVisitM v c mempty visit z
 
+execVisitM :: Visitor a ctx -> ctx -> a -> (Visitor a ctx -> ctx -> t -> State a t) -> t -> (t, a)
 execVisitM v c a f x = runState (f v c x) a
 
 type VisitM acc = State acc

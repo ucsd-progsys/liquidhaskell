@@ -82,3 +82,25 @@ There is a new SMTLIB2 interface directly from Haskell:
 + Language.Fixpoint.SmtLib2
 
 See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
+
+Options
+-------
+
+`--native` runs the **highly experimental** native solver.
+
+`--parts` Partitions an `FInfo` into a `[FInfo]` and emits a bunch of files. So:
+
+    $ fixpoint -n -p path/to/foo.fq
+    
+will now emit files:
+    
+    path/to/.liquid/foo.1.fq
+    path/to/.liquid/foo.2.fq
+    . . .
+    path/to/.liquid/foo.k.fq
+
+and also a dot file with the constraint dependency graph:
+                    
+    path/to/.liquid/foo.fq.dot
+
+                        

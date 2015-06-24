@@ -17,8 +17,7 @@ import           Data.ByteString.Char8            (pack, unpack)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       (fromJust)
-import           Data.Maybe                       (catMaybes, fromMaybe)
+import           Data.Maybe                       (fromJust, catMaybes, fromMaybe)
 import qualified Data.Text                        as T
 
 import           Data.Data
@@ -128,12 +127,12 @@ expandSnd = concatMap (\(xs, y) -> (, y) <$> xs)
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
 
--- mlookup ::  (Show k, Hashable k) => M.HashMap k v -> k -> v
-mlookup m k
-  = case M.lookup k m of
-      Just v  -> v
-      Nothing -> errorstar $ "mlookup: unknown key " ++ show k
+mlookup ::  (Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+mlookup m k = case M.lookup k m of
+                Just v  -> v
+                Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
+safeLookup ::  (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
 safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 
 mfromJust ::  String -> Maybe a -> a
@@ -165,6 +164,9 @@ group         = groupBase M.empty
 groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
+
+groupFun :: (Eq k, Hashable k) => M.HashMap k Int -> k -> Int
+groupFun m k = safeLookup "groupFun" k m
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
@@ -301,6 +303,7 @@ chopAfter f xs
       Just n  -> take n xs
       Nothing -> xs
 
+chopPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
 chopPrefix p xs
   | p `L.isPrefixOf` xs
   = Just $ drop (length p) xs

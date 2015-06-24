@@ -85,7 +85,7 @@ module Language.Fixpoint.Types (
   , removeLhsKvars
 
   -- * Solutions
-  , Result
+  , Result (..)
   , FixResult (..)
   , FixSolution
 
@@ -921,9 +921,20 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-type Result a = (FixResult (SubC a), M.HashMap KVar Pred)
+data Result a = Result { resStatus   :: FixResult (SubC a)
+                       , resSolution :: M.HashMap KVar Pred }
+                deriving (Show)
 ---------------------------------------------------------------------------
 
+instance Monoid (Result a) where
+  mempty        = Result mempty mempty
+  mappend r1 r2 = Result stat soln
+    where
+      stat      = mappend (resStatus r1)   (resStatus r2)
+      soln      = mappend (resSolution r1) (resSolution r2)
+
+-- instance Functor Result where
+--   fmap f (Result x y) = Result (fmap (fmap f) x) y
 
 data FixResult a = Crash [a] String
                  | Safe
@@ -1004,6 +1015,7 @@ instance Fixpoint a => Fixpoint (WfC a) where
               $+$ pprId (wid w)
               $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
 
+toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
              --  $+$ text "\n"
 
@@ -1475,15 +1487,19 @@ instance Monoid (FInfo a) where
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      }
 
+($++$) :: Doc -> Doc -> Doc
+x $++$ y = x $+$ text "\n" $+$ y
+
 toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
-toFixpoint cfg x' =   kutsDoc  x'
-                  $+$ gsDoc    x'
-                  $+$ conDoc   x'
-                  $+$ bindsDoc x'
-                  $+$ csDoc    x'
-                  $+$ wsDoc    x'
-                  $+$ binfoDoc x'
-                  $+$ text "\n"
+toFixpoint cfg x' =    qualsDoc x'
+                  $++$ kutsDoc  x'
+                  $++$ gsDoc    x'
+                  $++$ conDoc   x'
+                  $++$ bindsDoc x'
+                  $++$ csDoc    x'
+                  $++$ wsDoc    x'
+                  $++$ binfoDoc x'
+                  $++$ text "\n"
   where
     conDoc        = vcat     . map toFixConstant . lits
     csDoc         = vcat     . map toFix . M.elems . cm
@@ -1491,8 +1507,12 @@ toFixpoint cfg x' =   kutsDoc  x'
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
     gsDoc         = toFixGs  . gs
-    binfoDoc      = vcat     . map metaDoc . M.toList . bindInfo
+    qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
+    mdata         = metadata cfg
+    binfoDoc
+      | mdata     = vcat     . map metaDoc . M.toList . bindInfo
+      | otherwise = \_ -> text "\n"
 
 -------------------------------------------------------------------------
 -- | A Class Predicates for Valid Refinements Types ---------------------
