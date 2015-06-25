@@ -23,10 +23,10 @@ module Language.Fixpoint.Visitor (
   , foldSort, mapSort
   ) where
 
--- import           Control.Applicative       (Applicative, (<$>), (<*>))
+import           Control.Applicative       (Applicative, (<$>), (<*>))
+import           Data.Monoid
+import           Data.Traversable          (Traversable, traverse)
 import           Control.Monad.Trans.State (State, modify, runState)
--- import           Data.Monoid
--- import           Data.Traversable          (Traversable, traverse)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
 import qualified Data.List    as L
