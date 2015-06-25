@@ -43,11 +43,11 @@ data Config
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
-    , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
+    -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def def def
+  def = Config "" def def def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -118,7 +118,7 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , nontriv     = False &= help "Simplify constraints to eliminate trivial sorts"
+  -- , nontriv     = False &= help "Simplify constraints to eliminate trivial sorts"
   }
   &= verbosity
   &= program "fixpoint"
