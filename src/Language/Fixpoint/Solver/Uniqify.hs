@@ -1,12 +1,10 @@
 
-module Language.Fixpoint.Solver.Uniqify
-       (renameAll) where
+module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names (renameSymbol)
 import           Language.Fixpoint.Misc  (errorstar)
 import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
-
 import qualified Data.HashMap.Strict     as M
 import           Data.List               ((\\), sort)
 import           Data.Maybe              (catMaybes)
@@ -20,8 +18,7 @@ renameAll fi = fi'
     fi' = renameVars fi idMap
 --------------------------------------------------------------
 
-
-type IdMap = M.HashMap BindId ([BindId], [Integer])
+type IdMap   = M.HashMap BindId ([BindId], [Integer])
 type NameMap = M.HashMap Symbol BindId
 
 mkIdMap :: FInfo a -> IdMap
@@ -70,7 +67,6 @@ insertInverse :: BindEnv -> NameMap -> BindId -> NameMap
 insertInverse benv m id = M.insert sym id m
   where (sym, _) = lookupBindEnv id benv
 
-
 renameVars :: FInfo a -> IdMap -> FInfo a
 renameVars = M.foldlWithKey' renameVar
 
@@ -99,4 +95,3 @@ blarg fi id oldSym newSym k = if relevant then Just $ PKVar k $ mkSubst [(newSym
   where
     wfc = fst $ findWfC k (ws fi)
     relevant = id `elem` (elemsIBindEnv $ wenv wfc)
-

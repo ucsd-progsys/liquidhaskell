@@ -1,5 +1,5 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
---   1. Each binder must be unique
+--   1. Each binder must be associated with a UNIQUE sort
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate and Transform FInfo to enforce invariants
