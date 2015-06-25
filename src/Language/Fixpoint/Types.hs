@@ -749,7 +749,7 @@ functionSort _            = Nothing
 
 
 isNonTrivial :: Reftable r => r -> Bool
-isNonTrivial = not .isTauto
+isNonTrivial = not . isTauto
 
 -- sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
@@ -1225,6 +1225,7 @@ vv_ = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
+trueReft, falseReft :: Reft
 trueReft  = Reft (vv_, trueRefa)
 falseReft = Reft (vv_, Refa PFalse)
 
@@ -1243,6 +1244,7 @@ squishRefas ras =  [squish (raPred <$> ras)]
   where
     squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
 
+conjuncts :: Pred -> [Pred]
 conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
@@ -1567,13 +1569,6 @@ instance Reftable () where
   toReft _  = mempty
   ofReft _  = mempty
   params _  = []
-
--- NUKE isTautoReft :: Reft -> Bool
--- NUKE isTautoReft (Reft (_, ra)) = isTautoRa ra
--- NUKE
--- NUKE isTautoRa :: Refa -> Bool
--- NUKE isTautoRa = isTautoPred . raPred
-
 
 instance Reftable Reft where
   isTauto  = all isTautoPred . conjuncts . reftPred

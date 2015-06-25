@@ -122,7 +122,7 @@ type KVComps  = Comps CVertex
 -------------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
 -------------------------------------------------------------------------------------
-decompose kg = {- tracepp "flattened" $ -} map (fst3 . f) <$> vss
+decompose kg = map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
     vss      = T.flatten <$> G.components g
