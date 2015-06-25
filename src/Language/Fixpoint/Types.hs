@@ -392,14 +392,20 @@ toFixSort FNum            = text "num"
 toFixSort (FFunc n ts)    = text "func" <> parens (toFix n <> text ", " <> toFix ts)
 toFixSort (FApp c [t])
   | isListTC c            = brackets $ toFixSort t
-toFixSort (FApp c [FApp c' [],t])
-  | isFAppTyTC c &&
-    isListTC c'           = brackets $ toFixSort t
-toFixSort (FApp c ts)     = toFix c <+> intersperse space (fp <$> ts)
+toFixSort (FApp c (FApp c' [] : ts))
+  | isFAppTyTC c          = toFixFApp c' ts
+-- toFixSort (FApp c [FApp c' [],t])
+--  | isFAppTyTC c &&
+--    isListTC c'           = brackets $ toFixSort t
+toFixSort (FApp c ts)     = toFixFApp c ts
+
+toFixFApp :: FTycon -> [Sort] -> Doc
+toFixFApp c [t]
+  | isListTC c            = brackets $ toFixSort t
+toFixFApp c ts            = toFix c <+> intersperse space (fp <$> ts)
     where
       fp s@(FApp _ (_:_)) = parens $ toFixSort s
       fp s                = toFixSort s
-
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s

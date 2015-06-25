@@ -18,6 +18,7 @@ import qualified Data.Graph              as G
 import           Data.Maybe
 import           Text.Printf
 import           Debug.Trace
+import           Language.Fixpoint.PrettyPrint
 
 -------------------------------------------------------------------------
 nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
@@ -39,11 +40,11 @@ data Polarity     = Lhs | Rhs
 type TrivInfo     = (NonTrivSorts, KVarMap)
 --------------------------------------------------------------------
 
-
 --------------------------------------------------------------------
 mkNonTrivSorts :: FInfo a -> NonTrivSorts
 --------------------------------------------------------------------
-mkNonTrivSorts = nonTrivSorts . trivInfo
+mkNonTrivSorts = tracepp "mkNonTrivSorts: "
+               . nonTrivSorts . trivInfo
 
 --------------------------------------------------------------------
 nonTrivSorts :: TrivInfo -> NonTrivSorts
