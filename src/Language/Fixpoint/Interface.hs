@@ -38,6 +38,7 @@ import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Solver.TrivialSort     (nontrivsorts)
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Partition      (partition)
 import           Language.Fixpoint.Parse          (rr, rr')
@@ -59,17 +60,14 @@ solveFQ cfg
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-  -- | parts cfg  = partition cfg x
-  -- | stats cfg  = statistics cfg x
-  -- | native cfg = solveNativeWithFInfo cfg x
-  -- | otherwise  = solveExt cfg x
 
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg  = partition cfg
-  | stats cfg  = statistics cfg
-  | native cfg = solveNativeWithFInfo cfg
-  | otherwise  = solveExt cfg
+  | nontriv cfg = nontrivsorts cfg
+  | parts cfg   = partition    cfg
+  | stats cfg   = statistics   cfg
+  | native cfg  = solveNativeWithFInfo cfg
+  | otherwise   = solveExt   cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver

@@ -1,13 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Language.Fixpoint.Solver.TrivialSort (simplify) where
+module Language.Fixpoint.Solver.TrivialSort (nontrivsorts) where
 
 import           GHC.Generics        (Generic)
 import           Control.Arrow       (second)
 import           Control.Applicative ((<$>))
 import           Language.Fixpoint.Visitor
 import           Language.Fixpoint.Config
-import           Language.Fixpoint.Types hiding (simplify, isNonTrivial)
+import           Language.Fixpoint.Types hiding (simplify)
+import           Language.Fixpoint.Files
 import           Language.Fixpoint.Misc
 import qualified Data.HashSet            as S
 import           Data.Hashable
@@ -15,11 +16,19 @@ import qualified Data.HashMap.Strict     as M
 import           Data.List (foldl')
 import qualified Data.Graph              as G
 import           Data.Maybe
+import           Text.Printf
+import           Debug.Trace
 
 -------------------------------------------------------------------------
-simplify :: Config -> FInfo a -> FInfo a
+nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 -------------------------------------------------------------------------
-simplify _ fi = simplifyFInfo (mkNonTrivSorts fi) fi
+nontrivsorts cfg fi = do
+  let fi' = simplify' cfg fi
+  writeFInfo cfg fi' $ extFileName Out (inFile cfg)
+  return mempty
+
+simplify' :: Config -> FInfo a -> FInfo a
+simplify' _ fi = simplifyFInfo (mkNonTrivSorts fi) fi
 
 --------------------------------------------------------------------
 -- | The main data types
@@ -42,9 +51,9 @@ nonTrivSorts :: TrivInfo -> NonTrivSorts
 nonTrivSorts ti = S.fromList [s | S s <- ntvs]
   where
     ntvs        = [fst3 (f v) | v <- G.reachable g root]
-    (g,f,fv)    = G.graphFromEdges $ ntGraph ti
+    (g, f, fv)  = G.graphFromEdges $ ntGraph ti
     root        = fromMaybe err    $ fv NTV
-    err         = errorstar "nonTrivSorts -- cannot find root!"
+    err         = errorstar "nonTrivSorts: cannot find root!"
 
 ntGraph :: TrivInfo -> NTG
 ntGraph ti = [(v,v,vs) | (v, vs) <- groupList $ ntEdges ti]
@@ -63,13 +72,6 @@ data NTV = NTV
          deriving (Eq, Ord, Show, Generic)
 
 instance Hashable NTV
-
-
-
-
-
-
-
 
 --------------------------------------------------------------------
 trivInfo :: FInfo a -> TrivInfo
@@ -136,10 +138,10 @@ singP _ _                     = False
 simplifyFInfo :: NonTrivSorts -> FInfo a -> FInfo a
 -------------------------------------------------------------------------
 simplifyFInfo tm fi = fi {
-     cm   = simplifySubC    tm <$> cm fi
-   , ws   = simplifyWfCs    tm  $  ws fi
-   , bs   = simplifyBindEnv tm  $  bs fi
-   , gs   = simplifyFEnv    tm  $  gs fi
+     cm   = simplifySubCs   tm $ cm fi
+   , ws   = simplifyWfCs    tm $ ws fi
+   , bs   = simplifyBindEnv tm $ bs fi
+   , gs   = simplifyFEnv    tm $ gs fi
 }
 
 simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
@@ -151,14 +153,24 @@ simplifyFEnv = fmap . simplifySortedReft
 simplifyWfCs :: NonTrivSorts -> [WfC a] -> [WfC a]
 simplifyWfCs tm = filter (isNonTrivialSort tm . sr_sort . wrft)
 
-simplifySubC :: NonTrivSorts -> SubC a -> SubC a
-simplifySubC tm c = c { slhs = slhs' , srhs = srhs' }
+simplifySubCs ti cm = trace msg cm'
   where
-    slhs'         = simplifySortedReft tm (slhs c)
-    srhs'         = simplifySortedReft tm (srhs c)
+    cm' = tx cm
+    tx  = M.fromList . mapMaybe (simplifySubC ti) . M.toList
+    msg = printf "simplifySUBC: before = %d, after = %d \n" n n'
+    n   = M.size cm
+    n'  = M.size cm'
+
+simplifySubC :: NonTrivSorts -> (b, SubC a) -> Maybe (b, SubC a)
+simplifySubC tm (i, c)
+ | isNonTrivial srhs' = Just (i, c { slhs = slhs' , srhs = srhs' })
+ | otherwise          = Nothing
+  where
+    slhs'             = simplifySortedReft tm (slhs c)
+    srhs'             = simplifySortedReft tm (srhs c)
 
 simplifySortedReft :: NonTrivSorts -> SortedReft -> SortedReft
-simplifySortedReft tm sr -- (RR s r)
+simplifySortedReft tm sr
   | nonTrivial = sr
   | otherwise  = sr { sr_reft = mempty }
   where

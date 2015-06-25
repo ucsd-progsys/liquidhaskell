@@ -50,7 +50,7 @@ dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a ] -> IO ()
 -------------------------------------------------------------------------------------
 dumpPartitions cfg fis =
   forM_ (zip [1..] fis) $ \(j, fi) ->
-    writeFile (partFile cfg j) (render $ F.toFixpoint cfg fi)
+    F.writeFInfo cfg fi (partFile cfg j)
 
 partFile :: Config -> Int -> FilePath
 partFile cfg j = {- trace ("partFile: " ++ fjq) -} fjq
@@ -122,7 +122,7 @@ type KVComps  = Comps CVertex
 -------------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
 -------------------------------------------------------------------------------------
-decompose kg = map (fst3 . f) <$> vss
+decompose kg =  map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
     vss      = T.flatten <$> G.components g

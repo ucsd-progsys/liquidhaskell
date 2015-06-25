@@ -21,6 +21,7 @@ module Language.Fixpoint.Types (
   -- * Top level serialization
     Fixpoint (..)
   , toFixpoint
+  , writeFInfo
   , FInfo (..)
 
   -- * Rendering
@@ -335,10 +336,12 @@ symbolFTycon c
 --            -- ALTERNATIVEL = FObj . stringSymbol
 
 fApp                  :: Either FTycon Sort -> [Sort] -> Sort
-fApp (Left c) ts
+fApp (Left c) [t1, t2]
+  | isFAppTyTC c      = FApp appFTyCon [t1, t2]
+fApp (Left c) []
   | c == intFTyCon    = FInt
   | c == realFTyCon   = FReal
-  | otherwise         = fAppSorts (fTyconSort c) ts
+fApp (Left c) ts      = fAppSorts (fTyconSort c) ts
 fApp (Right t) ts     = fAppSorts t ts
 
 fAppSorts :: Sort -> [Sort] -> Sort
@@ -1515,6 +1518,9 @@ toFixpoint cfg x' =    qualsDoc x'
     binfoDoc
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
+
+writeFInfo :: (Fixpoint a) => Config -> FInfo a -> FilePath -> IO ()
+writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
 
 -------------------------------------------------------------------------
 -- | A Class Predicates for Valid Refinements Types ---------------------
