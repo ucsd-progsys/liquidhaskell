@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor
@@ -23,10 +24,13 @@ module Language.Fixpoint.Visitor (
   , foldSort, mapSort
   ) where
 
--- import           Control.Applicative       (Applicative, (<$>), (<*>))
+#if __GLASGOW_HASKELL__ < 710
+import           Control.Applicative       (Applicative, (<$>), (<*>))
+import           Data.Monoid
+import           Data.Traversable          (Traversable, traverse)
+#endif
+
 import           Control.Monad.Trans.State (State, modify, runState)
--- import           Data.Monoid
--- import           Data.Traversable          (Traversable, traverse)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
 import qualified Data.List    as L

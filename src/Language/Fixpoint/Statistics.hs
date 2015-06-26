@@ -1,11 +1,17 @@
 -- | This module implements functions that print out
 --   statistics about the constraints.
+{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Statistics (statistics) where
 
 import           Control.Arrow ((&&&))
--- import           Control.Applicative                   ((<$>))
--- import           GHC.Generics                          (Generic)
+
+#if __GLASGOW_HASKELL__ < 710
+import           Data.Monoid (mempty)
+import           Control.Applicative                   ((<$>))
+import           GHC.Generics                          (Generic)
+#endif
+
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
