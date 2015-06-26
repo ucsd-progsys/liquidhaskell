@@ -1757,22 +1757,23 @@ varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
-  | Just tys <- trec γ
-  , Just tr  <- M.lookup x' tys
-  = tr `strengthen` xr
+  | Just tys <- trec γ, Just tr  <- M.lookup x' tys
+  = tr `strengthenS` xr
   | otherwise
   = t' `strengthenS` xr
   where
     xr = singletonReft x
     x' = F.symbol x
 
+-- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
+--   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
+--   the `otherwise` case? The fq file holds no answers, both are sat.
 strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
-
 topMeet r r' = F.top r `F.meet` r'
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
