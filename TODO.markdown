@@ -1,6 +1,17 @@
 TODO
 ====
 
+Check covariants
+----------------
+
+See https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/todo/kmpMonad.hs#L55
+It is safe is 100 is changed to 0. WHY?
+
+LAZYVAR
+-------
+Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
+
+
 Automatically refine *inductors*
 --------------------------------
 Proposed by Valentine: in dependent languages (Coq) inductors (like our `loop` for natural numbers)
