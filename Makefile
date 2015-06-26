@@ -27,8 +27,10 @@ first:
 	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
 
 dist:
-	$(CABAL) install --ghc-options=$(DISTOPTS)
-
+	# $(CABAL) install --ghc-options=$(DISTOPTS)
+	$(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
+	$(CABAL) build
+	
 prof:
 	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
 
@@ -66,8 +68,8 @@ test:
 	# $(CABAL) exec $(TASTY) -- --smtsolver $(SMTSOLVER) --liquid-opts='$(LIQUIDOPTS)' --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 test710:
-	# $(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
-	# $(CABAL) build
+	$(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
+	$(CABAL) build
 	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -p 'Unit/' -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 
@@ -81,18 +83,14 @@ all-test:
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
-all-test-710:
-	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
-	cabal build
-	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
-
-
 all-retest:
 	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 all-retest-710:
+	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
+	cabal build
 	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
 
