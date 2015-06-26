@@ -1765,6 +1765,7 @@ varRefType' γ x t'
     xr = singletonReft x
     x' = F.symbol x
 
+
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
