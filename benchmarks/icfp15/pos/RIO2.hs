@@ -10,6 +10,17 @@ data RIO a  = RIO {runState :: World -> (a, World)}
 
 data World  = W
 
+-- | RJ: Putting these in to get GHC 7.10 to not fuss
+instance Functor RIO where
+  fmap = undefined
+
+-- | RJ: Putting these in to get GHC 7.10 to not fuss
+instance Applicative RIO where
+  pure  = undefined
+  (<*>) = undefined 
+
+
+
 instance Monad RIO where
 {-@ instance Monad RIO where
  >>= :: forall < p  :: World -> Prop 

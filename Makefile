@@ -81,10 +81,21 @@ all-test:
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
 
+all-test-710:
+	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
+	cabal build
+	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+
 all-retest:
 	cabal configure -fdevel --enable-tests --disable-library-profiling -O2
 	cabal build
 	cabal exec $(TASTY) -- --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+all-retest-710:
+	$(TASTY) --smtsolver $(SMTSOLVER) --hide-successes --rerun-filter "exceptions,failures,new" --rerun-update -j$(THREADS) +RTS -N$(THREADS) -RTS
+
+
 
 lint:
 	hlint --colour --report .

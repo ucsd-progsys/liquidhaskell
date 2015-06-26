@@ -6,18 +6,18 @@ import GHC.CString  -- This import interprets Strings as constants!
 
 import Data.Maybe (catMaybes)
 
-import Prelude hiding (product)
+import Prelude hiding (product, elem)
 
 import Control.Applicative ((<$>))
 
 
-type Tag = String 
+type Tag = String
 
-data Value = I Int | S Name  
+data Value = I Int | S Name
             deriving (Show, Eq)
 
-data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames 
-          | Paronnaud    | Almadovar | Haneke 
+data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
+          | Paronnaud    | Almadovar | Haneke
             deriving (Show, Eq)
 
 {-@ type Movies      = [MovieScheme] @-}
@@ -32,28 +32,28 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
 {-@ type DirStarScheme = {v:Dict <{\t val -> DirStarRange t val}> Tag Value | ValidDirStarScheme v} @-}
 
 
-{-@ predicate ValidMovieScheme V = 
-	  ((listElts (ddom V) ~~ Set_cup (Set_sng "year") 
-	  	                    (Set_cup (Set_sng "star") 
-	  	                    (Set_cup (Set_sng "director") 
+{-@ predicate ValidMovieScheme V =
+	  ((listElts (ddom V) ~~ Set_cup (Set_sng "year")
+	  	                    (Set_cup (Set_sng "star")
+	  	                    (Set_cup (Set_sng "director")
 	  	                             (Set_sng "title"))))) @-}
 
-{-@ predicate MovieRange  T V =    (T ~~ "year"     => ValidYear     V) 
-                                && (T ~~ "star"     => ValidStar     V) 
-                                && (T ~~ "director" => ValidDirector V) 
+{-@ predicate MovieRange  T V =    (T ~~ "year"     => ValidYear     V)
+                                && (T ~~ "star"     => ValidStar     V)
+                                && (T ~~ "director" => ValidDirector V)
                                 && (T ~~ "title"    => ValidTitle    V) @-}
 
-{-@ predicate ValidDirectorScheme V = (listElts (ddom V) ~~ (Set_sng "director")) @-} 
+{-@ predicate ValidDirectorScheme V = (listElts (ddom V) ~~ (Set_sng "director")) @-}
 {-@ predicate DirectorRange  T V = (T ~~ "director" => ValidDirector V) @-}
 
-{-@ predicate ValidStarScheme V = (listElts (ddom V) ~~ (Set_sng "star")) @-} 
+{-@ predicate ValidStarScheme V = (listElts (ddom V) ~~ (Set_sng "star")) @-}
 {-@ predicate StarRange  T V    = (T ~~ "star" => ValidStar V) @-}
 
-{-@ predicate ValidTitleScheme V = (listElts (ddom V) ~~ (Set_sng "title")) @-} 
+{-@ predicate ValidTitleScheme V = (listElts (ddom V) ~~ (Set_sng "title")) @-}
 {-@ predicate TitleDomain T   = (T ~~ "title") @-}
 {-@ predicate TitleRange  T V = (T ~~ "title" => ValidTitle V) @-}
 
-{-@ predicate ValidDirStarScheme V = (listElts (ddom V) ~~ Set_cup (Set_sng "director") (Set_sng "star")) @-} 
+{-@ predicate ValidDirStarScheme V = (listElts (ddom V) ~~ Set_cup (Set_sng "director") (Set_sng "star")) @-}
 {-@ predicate DirStarDomain T   = (T ~~ "director" || T ~~ "star") @-}
 {-@ predicate DirStarRange  T V = (T ~~ "director" => ValidDirector V) && (T ~~ "star" => ValidStar V)  @-}
 
@@ -66,38 +66,38 @@ data Name = ChickenPlums | TalkToHer | Persepolis | FunnyGames
 
 
 
-type Movies    = Table Tag Value 
-type Titles    = Table Tag Value 
+type Movies    = Table Tag Value
+type Titles    = Table Tag Value
 type Directors = Table Tag Value
 type Stars     = Table Tag Value
 type DirStars  = Table Tag Value
 
 type MovieScheme = Dict Tag Value
 
-movies :: Movies 
+movies :: Movies
 {-@ movies :: Movies @-}
 movies = fromList [movie1, movie2, movie3, movie4]
 
 movie1, movie2, movie3, movie4 :: MovieScheme
 {-@ movie1, movie2, movie3, movie4 :: MovieScheme @-}
-movie1 = mkMovie (S TalkToHer)    (S Almadovar) (I 8) (I 2002) 
+movie1 = mkMovie (S TalkToHer)    (S Almadovar) (I 8) (I 2002)
 movie2 = mkMovie (S ChickenPlums) (S Paronnaud) (I 7) (I 2011)
 movie3 = mkMovie (S Persepolis)   (S Paronnaud) (I 8) (I 2007)
-movie4 = mkMovie (S FunnyGames)   (S Haneke)    (I 7) (I 2007) 
+movie4 = mkMovie (S FunnyGames)   (S Haneke)    (I 7) (I 2007)
 
 mkMovie :: Value -> Value -> Value -> Value -> MovieScheme
-{-@ mkMovie :: {t:Value | ValidTitle t} 
+{-@ mkMovie :: {t:Value | ValidTitle t}
             -> {d:Value | ValidDirector d}
             -> {s:Value | ValidStar s}
             -> {y:Value | ValidYear y}
             -> MovieScheme
-  @-}          
+  @-}
 mkMovie t d s y = ("title" := t) += ("star" := s) += ("director" := d) += ("year" := y) += empty
 
 seen :: Titles
 {-@ seen :: Titles @-}
 seen = [t1, t2]
-  where 
+  where
   	t1 = ("title" := S ChickenPlums) += empty
   	t2 = ("title" := S FunnyGames)   += empty
 
@@ -126,15 +126,15 @@ good_stars :: Stars
 -- This _IS_ unsafe!
 good_directors     = directors `diff` not_good_directors
 
-not_good_directors :: DirStars 
+not_good_directors :: DirStars
 {-@ not_good_directors :: DirStars @-}
--- not_good_directors = project ["director", "star"] movies  `diff` product directors good_stars 
+-- not_good_directors = project ["director", "star"] movies  `diff` product directors good_stars
 
- 
--- This _IS_ unsafe! 
+
+-- This _IS_ unsafe!
 not_good_directors = project ["director", "star"] movies  `diff` product directors movies
 
-good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)  
+good_stars         = mk_star_table (I 8) `union` mk_star_table (I 9) `union` mk_star_table (I 10)
 
 mk_star_table :: Value -> Stars
 {-@ mk_star_table :: {s:Value | ValidStar s} -> Stars @-}
@@ -146,7 +146,7 @@ mk_star_table s    = [("star" := s) += empty]
 -------------------------------------------------------------------------------
 
 
-{-@ measure toInt :: Value -> Int 
+{-@ measure toInt :: Value -> Int
     toInt(I n) = n
   @-}
 
