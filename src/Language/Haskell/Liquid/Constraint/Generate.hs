@@ -1757,20 +1757,23 @@ varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
-  | Just tys <- trec γ, Just tr <- M.lookup x' tys
-  = tr `strengthenS` xr
+  | Just tys <- trec γ
+  , Just tr  <- M.lookup x' tys
+  = tr `strengthen` xr
   | otherwise
   = t' `strengthenS` xr
   where
     xr = singletonReft x
     x' = F.symbol x
 
-strengthenS :: RType c tv r -> r -> RType c tv r
-strengthenS (RApp c ts rs _) r'  = RApp c ts rs r'
-strengthenS (RVar a _) r'        = RVar a       r'
-strengthenS (RFun b t1 t2 _) r'  = RFun b t1 t2 r'
-strengthenS (RAppTy t1 t2 _) r'  = RAppTy t1 t2 r'
+strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
+strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
+strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
+strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
+
+topMeet r r' = F.top r `F.meet` r'
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
