@@ -35,8 +35,8 @@ compose2 :: (b -> c) -> (a -> b) -> a -> c
 \end{code}
 </div>
 
-The Problem: Reusable Specifications
-------------------------------------
+Reusable Specifications
+-----------------------
 
 Let us suppose, for just a moment, that we live in a dystopian future
 where parametric polymorphism and typeclasses have been eliminated
@@ -58,8 +58,8 @@ Now, suppose we have refinements:
 {-@ type Neg  = {v:Int | 0 < v} @-}
 \end{code}
 
-Here's the problem: how can *specify* the behavior of `maximum`
-in a way that lets us simultaneouly verify that:
+**Here's the problem:** how can *specify* the behavior of `maximum`
+in a way that lets us verify that:
 
 \begin{code}
 {-@ posMax :: [Int] -> Pos @-}
@@ -69,111 +69,133 @@ posMax xs = maximum [x | x <- xs, x > 0]
 negMax xs = maximum [x | x <- xs, x < 0]
 \end{code}
 
-HEREHEREHEREHERE
+In the first case, the output of `maximum` must be
+a `Pos` because *every* input was a `Pos`. Thus, we
+might try to type:
 
-Any suitable specification would have to enumerate the
-situations under which `maximum` may be invoked breaking
-modularity.
+\begin{spec}
+maximum :: [Pos] -> Pos
+\end{spec}
 
-[Abstract Refinements][AbstractRefinements] overcome the
-above modularity problems.
-The main idea is that we can type `maximum` by observing
-that it returns _one of_ the elements in its input list.
-Thus, if every element of the list enjoys some refinement `p`
-then the output value is also guaranteed to satisfy `p`.
+But this specification will not let us verify `negMax`.
+Thus, we have a problem: how can we write a precise
+specification for `maximum` that we can *reuse* at
+different call-sites. Further, how can we do so
+enumerating *a priori* the possible contexts (e.g.
+`Pos` and `Neg` lists) in which the function may
+be used?
 
-Concretely, we can type the function as:
+Abstracting Refinements
+-----------------------
+
+The first idea is one we've [seen before][AbstractRefinements].
+Notice that `maximum` returns _one of_ the elements in its input
+list. Thus, if *every* element of the list satisfies some
+refinement `p` then the output value is also guaranteed to
+satisfy `p`. We formalize this notion by *abstracting refinements*
+over type specifications. That is, we can type `maximum` as:
 
 \begin{code}
-{-@ maximum :: forall<p::Int->Prop>. [Int<p>] -> Int<p> @-}
+{-@ maximum :: forall <p:: Int -> Prop>. [Int<p>] -> Int<p> @-}
 \end{code}
 
-where informally, `Int<p>` stands for `{v:Int | p v}`,
-and `p` is an _uninterpreted function_ in the refinement
-logic.
+Informally, `Int<p>` stands for `{v:Int | p v}`, that is, `Int`s that
+satisfy the property `p`. The signature states that for any property
+`p` (of `Int`s), if the input is a list of elements satisfying `p` then
+the output is an `Int` satisfying `p`. We can coax SMT solvers into
+proving the above type by encoding `p v` as an [uninterpreted function](https://en.wikipedia.org/wiki/Uninterpreted_function)
+in the refinement logic.
 
-The signature states that for any refinement `p` on `Int`,
-the input is a list of elements satisfying `p` and returns
-as output an integer satisfying `p`.
+Thus, refinement abstraction is analagous to type abstraction: it lets us
+parameterize signatures over *all* refinements (analogously, types) that
+may be _passed in_ at the call-site.
 
+Capturing Dependencies between Relations
+----------------------------------------
 
-Can we use Abstract Refinements to specify a precise type for function composition?
-
-Function Composition
---------------------
-
-To start with, consider a function that increases its argument by `1`
+Unfortunately, in the dependent setting, this is not enough.
+Consider `incr` which bumps up its input by 1:
 
 \begin{code}
 {-@ incr :: x:Int -> {v:Int | v = x + 1} @-}
 incr x = x + 1
 \end{code}
 
-How do we use `incr` to create a function that increases its argument by `2`?
-
-We can write a function `incr2` that
-first computes `z` by increasing the argument `x`,
-and then increases `z.
+We can use `incr` to write and check:
 
 \begin{code}
 {-@ incr2 :: x:Int -> {v:Int | v = x + 2} @-}
-incr2 x = let z = incr x in incr z
+incr2 x = let y = incr x
+              z = incr y
+          in
+              z
 \end{code}
 
-By the type of `incr`,
-LiquidHaskell will infer that `z` is equal to `x + 1`,
-`z :: {v:Int | v = x + 1} ` and that
-the result is equal to `z + 1`.
-Thus, it will accept the post-condition encoded in type signature for `incr2`,
-that is that `incr2` increases its argument by `2`.
+LH uses the specification of `incr` to infer that
 
-Since we are in the Haskell world, we would like to write `incr2`
-using the higher order function composition.
-We define the function `compose` that composes its two functional arguments
++ `y :: {v:Int | v = x + 1}`
++ `z :: {v:Int | v = y + 1}`
+
+and hence, that the result `z` equals `x + 2`.
+
+Now, you're probably wondering to yourself: isn't
+this what _function composition_ is for? Indeed!
+Lets define:
+
 \begin{code}
-compose f g x = f (g x)
+{-@ compose' :: (b -> c) -> (a -> b) -> a -> c @-}
+compose' f g x = f (g x)
 \end{code}
 
-We use `compose` to composing `incr` with itself getting `incr2'`, a function that increases its argument by `2`.
+Now, we might try:
+
 \begin{code}
 {-@ incr2' :: x:Int -> {v:Int | v = x + 2} @-}
-incr2'      = compose1 incr incr
+incr2' = compose' incr incr
 \end{code}
 
-Our goal is to specify a type for compose
-that allows verification of the above type for `incr2'`, by
-capturing the compositionality of the refinements.
+**Problem 1: Cannot Relate Abstracted Types**
 
-As a first attempt, we give compose a very specific type that states that
-if (1) the first  functional argument increases its argument by `1`, and
-   (2) the second functional argument increases its argument by `1`,
-then the result function increases its argument by `2`:
+LH _rejects_ the above. This might seem counterintuitive but
+in fact, its the right thing to do given the specification of
+`compose'` -- at this call-site, each of `a`, `b` and `c` are
+instantiated with `Int` as we have no way of *relating* the
+invariants associated with those types, e.g. that `b` is one
+greater than `a` and `c` is one greater than `b`.
+
+**Problem 2: Cannot Reuse Concrete Types**
+
+At the other extreme, we might try to give compose a concrete
+signature:
 
 \begin{code}
-{-@ compose1 :: (y:Int -> {z:Int | z = y + 1})
-             -> (x:Int -> {z:Int | z = x + 1})
-             ->  x:Int -> {z:Int | z = x + 2} @-}
+{-@ compose'' :: (y:Int -> {z:Int | z = y + 1})
+              -> (x:Int -> {z:Int | z = x + 1})
+              ->  x:Int -> {z:Int | z = x + 2} @-}
+compose'' f g x = f (g x)
 \end{code}
 
-That was easy, with the above type liquidHaskell does verify that `incr2'`
-actually increases its argument by `2`.
-But, there is a catch:
-_The type of `compose1` it too specific_.
-
-If we use `compose1` with any other functional argument,
-for example `incr2` that increases its argument by `2`,
-liquidHaskell will reasonably mark the call site as unsafe:
+This time, LH does verify
 
 \begin{code}
-{-@ incr3 :: x:Int -> {v:Int | v = x + 3} @-}
-incr3      = compose1 incr incr2
+{-@ incr2'' :: x:Int -> {v:Int | v = x + 2} @-}
+incr2'' = compose'' incr incr
 \end{code}
 
+but this is a pyrhhic victory as we can only `compose` the
+toy `incr` function (with itself!) and any attempt to use
+it elsewhere will throw a type error.
 
-In any real world application, this super specific type of `compose1` is not acceptable.
+Goal: Relate Refinements But Keep them Abstract
+-----------------------------------------------
 
-An Abstract Type for Compose
-----------------------------
+The above toy example illustrates the _real_ problem: how
+can we **relate** the invariants of the type parameters for
+`compose` while simultaneously keeping them **abstract** ?
+
+**Can Abstract Refinements Help?**
+
+HEREHEREHERE
 
 Onto abstracting the type of compose we follow the route of [Abstract Refinements][AbstractRefinements].
 We make a second attempt to type function composition and give
@@ -184,13 +206,12 @@ if (1) the first functional argument `f` returns a value that satisfies a relati
 then the result function returns a value that satisfies a relation `r` with respect to its argument `x`:
 
 \begin{code}
-{-@ compose2 :: forall <p :: b -> c -> Prop,
-                        q :: a -> b -> Prop,
-                        r :: a -> c -> Prop>.
-                f:(y:b -> c<p y>)
-             -> g:(x:a -> b<q x>)
-             ->  x:a -> c<r x>
-@-}
+{-@ compose''' :: forall <p :: b -> c -> Prop,
+                          q :: a -> b -> Prop,
+                          r :: a -> c -> Prop>.
+                   (y:b -> c<p y>)
+                -> (x:a -> b<q x>)
+                -> x:a -> c<r x>                   @-}
 \end{code}
 
 With this type for `compose2` liquidHaskell will prove that composing `incr` by itself
