@@ -1035,7 +1035,7 @@ instance (PPrint r, Reftable r) => Reftable (UReft r) where
   toReft (U r ps _)  = toReft r `meet` toReft ps
   params (U r _ _)   = params r
   bot (U r _ s)      = U (bot r) (Pr []) (bot s)
-  top (U r p s)      = U (top r) (top p) (top s)
+  top (U r p s)      = U (top r) (top p) s
 
   ofReft r = U (ofReft r) mempty mempty
 
