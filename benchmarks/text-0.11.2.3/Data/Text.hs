@@ -493,10 +493,10 @@ head t = S.head (stream t)
 uncons :: Text -> Maybe (Char, Text)
 uncons t@(Text arr off len)
     | len <= 0  = Nothing
-    | otherwise = let Iter c d = i
+    | otherwise = let Iter c d = iter t 0 -- i
                   in Just (c, textP arr (off+d) (len-d))
-    {-@ LAZYVAR i @-}
-    where i = iter t 0
+    {- LAZYVAR i @-}
+    -- where i = iter t 0
 {-# INLINE [1] uncons #-}
 
 -- | Lifted from Control.Arrow and specialized.

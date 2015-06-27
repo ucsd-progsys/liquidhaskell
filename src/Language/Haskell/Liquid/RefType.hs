@@ -56,7 +56,7 @@ module Language.Haskell.Liquid.RefType (
   , shiftVV
 
   , mkDataConIdsTy
-  , mkTyConInfo 
+  , mkTyConInfo
 
 
   , strengthenRefTypeGen
@@ -103,13 +103,13 @@ import Language.Fixpoint.Names (listConName, tupConName)
 import Data.List (sort, foldl')
 
 
-strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres}) 
-    where 
-      trep = toRTypeRep t 
+strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
+    where
+      trep = toRTypeRep t
       tres = ty_res trep `strengthen` U (exprReft expr) mempty mempty
-      xs   = ty_binds trep 
+      xs   = ty_binds trep
       as   = ty_vars  trep
-      x'   = symbol x 
+      x'   = symbol x
       expr | null xs && null as = EVar x'
            | null xs            = EApp (dummyLoc x') []
            | otherwise          = EApp (dummyLoc x') (EVar <$> xs)
@@ -154,7 +154,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , RefTypable c tv ()
          , RefTypable c tv r
          , PPrint (RType c tv r)
-         , FreeVar c tv 
+         , FreeVar c tv
          )
         => Monoid (RType c tv r)  where
   mempty  = errorstar "mempty: RType"
@@ -170,27 +170,27 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
   mempty      = errorstar "mempty: RType 2"
   mappend _ _ = errorstar "mappend: RType 2"
 
-instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ())) 
+instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ()))
          => Monoid (RTProp b c r) where
   mempty         = errorstar "mempty: RTProp"
 
   mappend (RPropP s1 r1) (RPropP s2 r2)
     | isTauto r1 = RPropP s2 r2
     | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP s1 $ r1 `meet` 
+    | otherwise  = RPropP s1 $ r1 `meet`
                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
-  
-  mappend (RProp s1 t1) (RProp s2 t2) 
+
+  mappend (RProp s1 t1) (RProp s2 t2)
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
-    | otherwise    = RProp s1 $ t1  `strengthenRefType` 
+    | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
 --   mappend (RPropP s1 t1) (RProp s2 t2) = errorstar "Reftable.mappend on invalid inputs"
   mappend t1 t2 = errorstar ("Reftable.mappend on invalid inputs" ++ show (t1, t2))
 --   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
-instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c) 
+instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c)
     => Reftable (RTProp c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp  _ t) = isTrivial t
@@ -391,31 +391,31 @@ nlzP _ t
  = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
 
-strengthenRefTypeGen, strengthenRefType :: 
+strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
-         , RefTypable c tv r 
+         , RefTypable c tv r
          , PPrint (RType c tv r)
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          ) => RType c tv r -> RType c tv r -> RType c tv r
-strengthenRefType_ :: 
+strengthenRefType_ ::
          ( RefTypable c tv ()
-         , RefTypable c tv r 
+         , RefTypable c tv r
          , PPrint (RType c tv r)
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
-         ) => (RType c tv r -> RType c tv r -> RType c tv r) 
+         ) => (RType c tv r -> RType c tv r -> RType c tv r)
            ->  RType c tv r -> RType c tv r -> RType c tv r
-           
+
 strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
-    f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]" 
+    f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                          (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
- 
+
 
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
@@ -423,8 +423,8 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
 --                 (render t1) (render (toRSort t1)) (render t2) (render (toRSort t2))
 
 -- OLD: without unifying type variables, but checking α-equivalence
-strengthenRefType t1 t2 
-  | eqt t1 t2 
+strengthenRefType t1 t2
+  | eqt t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = errorstar msg
@@ -468,15 +468,15 @@ strengthenRefType_ f (RAllE x tx t1) t2
 strengthenRefType_ f t1 (RAllE x tx t2)
   = RAllE x tx $ strengthenRefType_ f t1 t2
 
-strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2) 
+strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
   = RAppTy t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
-strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2) 
+strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
   = RFun x2 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
-          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2' 
+          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
@@ -486,9 +486,10 @@ strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
 
 strengthenRefType_ _ (RVar v1 r1)  (RVar v2 r2) | v1 == v2
   = RVar v1 (r1 `meet` r2)
-strengthenRefType_ f t1 t2  
+strengthenRefType_ f t1 t2
   = f t1 t2
 
+meets :: (F.Reftable r) => [r] -> [r] -> [r]
 meets [] rs                 = rs
 meets rs []                 = rs
 meets rs rs'
@@ -1037,18 +1038,18 @@ rTyVarSymbol (RTV α) = typeUniqueSymbol $ TyVarTy α
 --------------------------- Termination Predicates --------------------------------------
 -----------------------------------------------------------------------------------------
 
-makeNumEnv = concatMap go 
+makeNumEnv = concatMap go
   where
     go (RApp c ts _ _) | isNumCls c || isFracCls c = [ a | (RVar a _) <- ts]
     go _ = []
 
 isDecreasing autoenv  _ (RApp c _ _ _)
-  =  isJust (sizeFunction (rtc_info c)) -- user specified size or 
-  || isSizeable autoenv tc 
-  where tc = rtc_tc c  
+  =  isJust (sizeFunction (rtc_info c)) -- user specified size or
+  || isSizeable autoenv tc
+  where tc = rtc_tc c
 isDecreasing _ cenv (RVar v _)
-  = v `elem` cenv 
-isDecreasing _ _ _ 
+  = v `elem` cenv
+isDecreasing _ _ _
   = False
 
 makeDecrType autoenv = mkDType autoenv [] []
@@ -1059,12 +1060,12 @@ mkDType autoenv xvs acc [(v, (x, t))]
     tr = uTop $ Reft (vv, Refa $ pOr (r:acc))
     r  = cmpLexRef xvs (v', vv, f)
     v' = symbol v
-    f  = mkDecrFun autoenv  t 
+    f  = mkDecrFun autoenv  t
     vv = "vvRec"
 
 mkDType autoenv xvs acc ((v, (x, t)):vxts)
   = mkDType autoenv ((v', x, f):xvs) (r:acc) vxts
-  where 
+  where
     r  = cmpLexRef xvs  (v', x, f)
     v' = symbol v
     f  = mkDecrFun autoenv t
@@ -1074,16 +1075,16 @@ mkDType _ _ _ _
   = errorstar "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
-isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc 
+isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
 
-mkDecrFun autoenv (RApp c _ _ _) 
-  | Just f <- sizeFunction $ rtc_info c  
+mkDecrFun autoenv (RApp c _ _ _)
+  | Just f <- sizeFunction $ rtc_info c
   = f
-  | isSizeable autoenv $ rtc_tc c 
+  | isSizeable autoenv $ rtc_tc c
   = \v -> F.EApp lenLocSymbol [F.EVar v]
-mkDecrFun _ (RVar _ _)     
-  = EVar 
-mkDecrFun _ _              
+mkDecrFun _ (RVar _ _)
+  = EVar
+mkDecrFun _ _
   = errorstar "RefType.mkDecrFun called on invalid input"
 
 cmpLexRef vxs (v, x, g)
