@@ -40,7 +40,7 @@ import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
-import System.Directory (removeFile, createDirectory, doesFileExist)
+import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
 import Language.Fixpoint.Types hiding (Result, Expr)
 import Language.Fixpoint.Misc
 
@@ -205,7 +205,7 @@ getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 cleanFiles :: FilePath -> IO ()
 cleanFiles fn
   = do forM_ bins (tryIgnore "delete binaries" . removeFileIfExists)
-       tryIgnore "create temp directory" $ createDirectory dir
+       tryIgnore "create temp directory" $ createDirectoryIfMissing False dir
     where
        bins = replaceExtension fn <$> ["hi", "o"]
        dir  = tempDirectory fn
