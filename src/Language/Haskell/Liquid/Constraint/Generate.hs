@@ -86,6 +86,8 @@ import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
+-- import Debug.Trace (trace)
+
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -439,9 +441,10 @@ splitS (SubC γ t1@(RApp {}) t2@(RApp {}))
        γ'    <- γ `extendEnvWithVV` t1'
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
+       let isapplied = tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsSWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsSWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       csvar  <-  splitsSWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar' <- rsplitsSWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
@@ -449,7 +452,7 @@ splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitS t1 t2
 
 splitS (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = errorstar $ "(Another Broken Test1!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitS (SubR _ _ _)
   = return []
@@ -457,7 +460,10 @@ splitS (SubR _ _ _)
 splitsSWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsSWithVariance γ t1s t2s variants
+rsplitsSWithVariance False _ _ _ _ 
+  = return [] 
+
+rsplitsSWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
 
 bsplitS t1 t2
@@ -564,9 +570,10 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        γ'    <- γ `extendEnvWithVV` t1'
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
+       let isapplied = tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       csvar  <-  splitsCWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
@@ -596,7 +603,10 @@ splitC (SubR γ o r)
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsCWithVariance γ t1s t2s variants
+rsplitsCWithVariance False _ _ _ _ 
+  = return [] 
+
+rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
 
@@ -825,8 +835,9 @@ addC !c@(SubC γ t1 t2) _msg
     headDefault _ (x:_) = x
 
 
-addC !c _msg
-  = modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c@(SubR γ t1 t2) _msg
+  = -- trace ("addCR at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
+    modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
