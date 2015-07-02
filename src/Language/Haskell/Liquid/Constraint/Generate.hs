@@ -835,9 +835,8 @@ addC !c@(SubC γ t1 t2) _msg
     headDefault _ (x:_) = x
 
 
-addC !c@(SubR γ t1 t2) _msg
-  = -- trace ("addCR at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-    modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC !c _msg
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
 
 addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
