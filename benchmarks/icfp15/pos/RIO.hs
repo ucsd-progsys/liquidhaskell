@@ -1,5 +1,7 @@
 module RIO where
 
+import Control.Applicative
+
 {-@ data RIO a <p :: World -> Prop, q :: World -> a -> World -> Prop> 
   = RIO (rs :: (x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}>))
   @-}
