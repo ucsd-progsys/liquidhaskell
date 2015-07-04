@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--short-names"    @-}
-{-@ LIQUID "--diff"           @-}
+{- LIQUID "--diff"           @-}
 
 module KMP (search) where
 
@@ -52,7 +52,7 @@ bob n = do
   t <- newIO (n + 1) (\_ -> 0)
   setIO t 0 100
   r <- getIO t 0
-  liquidAssert (r == 100) $ return ()
+  liquidAssert (r == 0) $ return ()
 
 
 kmpTable p@(IOA m _) = do
