@@ -8,8 +8,13 @@ import           Language.Fixpoint.Misc  (errorstar)
 import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
 
 import qualified Data.HashMap.Strict     as M
+import qualified Data.HashSet            as S
 import           Data.List               ((\\), sort)
 import           Data.Maybe              (catMaybes)
+import           Data.Foldable           (foldlM)
+import           Control.Monad.State     (get, put, evalState, State)
+
+
 
 
 --------------------------------------------------------------
@@ -17,7 +22,7 @@ renameAll :: FInfo a -> FInfo a
 renameAll fi = fi'
   where
     idMap = mkIdMap fi
-    fi' = renameVars fi idMap
+    fi' = renameVars fi (M.toList idMap)
 --------------------------------------------------------------
 
 
@@ -71,11 +76,21 @@ insertInverse benv m id = M.insert sym id m
   where (sym, _) = lookupBindEnv id benv
 
 
-renameVars :: FInfo a -> IdMap -> FInfo a
-renameVars = M.foldlWithKey' renameVar
+renameVars :: FInfo a -> [(BindId, ([BindId], [Integer]))] -> FInfo a
+renameVars fi xs = evalState (foldlM potentiallyRenameVar fi xs) S.empty
 
-renameVar :: FInfo a -> BindId -> ([BindId], [Integer]) -> FInfo a
-renameVar fi id stuff = elimKVar (blarg fi id sym sym') fi''' --TODO: optimize? (elimKVar separately on every rename is expensive)
+--lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
+
+potentiallyRenameVar :: FInfo a -> (BindId, ([BindId], [Integer])) -> State (S.HashSet Symbol) (FInfo a)
+potentiallyRenameVar fi x@(id, stuff) =
+  do s <- get
+     let (sym, _) = lookupBindEnv id (bs fi)
+     let seen = sym `S.member` s
+     put (if seen then s else (S.insert sym s))
+     return (if seen then (renameVar fi x) else fi)
+
+renameVar :: FInfo a -> (BindId, ([BindId], [Integer])) -> FInfo a
+renameVar fi (id, stuff) = elimKVar (blarg fi id sym sym') fi''' --TODO: optimize? (elimKVar separately on every rename is expensive)
   where
     (sym, _) = lookupBindEnv id (bs fi)
     sym' = renameSymbol sym id
