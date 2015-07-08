@@ -84,9 +84,9 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
-import           Data.Maybe                  (fromJust, fromMaybe, maybe)
+import           Data.Maybe                  (fromJust)
 
-import           Data.Monoid                 (mempty,mconcat)
+import           Data.Monoid                 (mempty)
 
 type Parser = Parsec String Integer
 

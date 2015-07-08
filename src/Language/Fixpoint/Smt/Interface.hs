@@ -54,14 +54,13 @@ import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Smt.Theories
-import           Language.Fixpoint.Smt.Serialize
+import           Language.Fixpoint.Smt.Serialize()
 
 
 
 import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
 import           Control.Monad
 import           Data.Char
-import qualified Data.HashMap.Strict      as M
 import qualified Data.List                as L
 import           Data.Monoid
 import qualified Data.Text                as T
@@ -72,8 +71,7 @@ import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Exit              hiding (die)
 import           System.FilePath
-import           System.IO                (Handle, IOMode (..), hClose, hFlush,
-                                           openFile)
+import           System.IO                (IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 

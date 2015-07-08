@@ -27,29 +27,12 @@ module Language.Fixpoint.Smt.Types (
 
     ) where
 
-import           Language.Fixpoint.Config (SMTSolver (..))
-import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
 
-import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
-import           Control.Monad
-import           Data.Char
-import qualified Data.HashMap.Strict      as M
-import qualified Data.List                as L
-import           Data.Monoid
 import qualified Data.Text                as T
-import           Data.Text.Format
-import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.IO        as LTIO
-import           System.Directory
-import           System.Exit              hiding (die)
-import           System.FilePath
-import           System.IO                (Handle, IOMode (..), hClose, hFlush,
-                                           openFile)
+import           System.IO                (Handle)
 import           System.Process
-import qualified Data.Attoparsec.Text     as A
 
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------

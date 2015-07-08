@@ -21,16 +21,12 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-import           Control.Monad (when)
 import qualified Data.HashMap.Strict              as M
 import           Data.List hiding (partition)
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Functor
 import           Data.Monoid (mconcat, mempty)
-import           Data.Hashable
-import           System.Directory                 (getTemporaryDirectory)
-import           System.FilePath                  ((</>))
 #endif
 
 

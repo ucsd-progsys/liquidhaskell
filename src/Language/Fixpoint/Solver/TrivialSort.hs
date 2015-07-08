@@ -4,7 +4,6 @@ module Language.Fixpoint.Solver.TrivialSort (nontrivsorts) where
 
 import           GHC.Generics        (Generic)
 import           Control.Arrow       (second)
-import           Control.Applicative ((<$>))
 import           Language.Fixpoint.Visitor
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types hiding (simplify)
