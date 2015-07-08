@@ -147,12 +147,12 @@ visitPred v = vP
 -- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
 -- predKVars            :: Pred -> [Symbol]
 
-mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
+mapKVars :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
 mapKVars f             = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
-      | Just p' <- f k = subst su p'
+      | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]

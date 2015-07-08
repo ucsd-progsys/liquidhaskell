@@ -25,7 +25,7 @@ eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
 
 
 class Elimable a where
-  elimKVar :: (KVar -> Maybe Pred) -> a -> a
+  elimKVar :: ((KVar, Subst) -> Maybe Pred) -> a -> a
 
 instance Elimable (SubC a) where
   elimKVar f x = x { slhs = elimKVar f (slhs x) 
@@ -55,7 +55,7 @@ eliminate fi kv = do
   let symSReftList = [(sym, trueSortedReft srt) | (sym, srt) <- symSrtList]
   let (ids, be) = insertsBindEnv symSReftList $ bs fi
   let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  let go k = if kv == k then Just orPred else Nothing
+  let go (k, _) = if kv == k then Just orPred else Nothing
   return $ elimKVar go (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)

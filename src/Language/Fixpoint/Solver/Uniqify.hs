@@ -82,7 +82,7 @@ renameVars fi xs = evalState (foldlM potentiallyRenameVar fi xs) S.empty
 --lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 
 potentiallyRenameVar :: FInfo a -> (BindId, ([BindId], [Integer])) -> State (S.HashSet Symbol) (FInfo a)
-potentiallyRenameVar fi x@(id, stuff) =
+potentiallyRenameVar fi x@(id, _) =
   do s <- get
      let (sym, _) = lookupBindEnv id (bs fi)
      let seen = sym `S.member` s
@@ -109,9 +109,9 @@ foo' sub fi id = fi { cm = M.adjust (go sub) id (cm fi) }
   where go sub c = c { slhs = subst1 (slhs c) sub ,
                        srhs = subst1 (srhs c) sub }
 
-blarg :: FInfo a -> BindId -> Symbol -> Symbol -> KVar -> Maybe Pred
-blarg fi id oldSym newSym k = if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
+blarg :: FInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
+blarg fi id oldSym newSym (k, Su su) = if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)
-    relevant = id `elem` (elemsIBindEnv $ wenv wfc)
+    relevant = (id `elem` (elemsIBindEnv $ wenv wfc)) && (oldSym `elem` (map fst su))
 
