@@ -1,4 +1,4 @@
-
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 -- | This module implements functions that print out
@@ -22,12 +22,15 @@ import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Debug.Trace
 
--- import           System.Console.CmdArgs.Verbosity (whenLoud)
--- import           Control.Applicative                   ((<$>))
--- import           Control.Arrow ((&&&))
--- import           Data.List (sort,group)
--- import           Data.Maybe (mapMaybe)
--- import           System.FilePath -- (dropExtension)
+#if __GLASGOW_HASKELL__ < 710
+import           Data.Monoid (mempty)
+import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           Control.Applicative              ((<$>))
+import           Control.Arrow ((&&&))
+import           Data.List (sort,group)
+import           Data.Maybe (mapMaybe)
+import           System.FilePath -- (dropExtension)
+#endif
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi

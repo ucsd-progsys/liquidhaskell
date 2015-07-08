@@ -1,6 +1,7 @@
 -- | This module implements the top-level API for interfacing with Fixpoint
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
+{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Interface (
 
@@ -21,13 +22,18 @@ module Language.Fixpoint.Interface (
 ) where
 
 import           Control.Monad (when)
--- import           Data.Functor
 import qualified Data.HashMap.Strict              as M
 import           Data.List hiding (partition)
--- import           Data.Monoid (mconcat, mempty)
--- import           Data.Hashable
--- import           System.Directory                 (getTemporaryDirectory)
--- import           System.FilePath                  ((</>))
+
+#if __GLASGOW_HASKELL__ < 710
+import           Data.Functor
+import           Data.Monoid (mconcat, mempty)
+import           Data.Hashable
+import           System.Directory                 (getTemporaryDirectory)
+import           System.FilePath                  ((</>))
+#endif
+
+
 import           System.Exit
 import           System.IO                        (IOMode (..), hPutStr, withFile)
 import           Text.Printf

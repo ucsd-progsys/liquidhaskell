@@ -219,12 +219,19 @@ smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 smtPreamble Z3 me
   = do smtWrite me "(get-info :version)"
-       r <- (!!1) . T.splitOn "\"" <$> smtReadRaw me
-       case T.words r of
-         "4.3.2" : _  -> return $ z3_432_options ++ z3Preamble
-         _            -> return $ z3_options     ++ z3Preamble
+       v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
+       if T.splitOn "." v `versionGreater` ["4", "3", "2"]
+         then return $ z3_432_options ++ z3Preamble
+         else return $ z3_options     ++ z3Preamble
 smtPreamble _  _
   = return smtlibPreamble
+
+versionGreater (x:xs) (y:ys)
+  | x >  y = True
+  | x == y = versionGreater xs ys
+  | x <  y = False
+versionGreater xs [] = True
+versionGreater [] ys = False
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------

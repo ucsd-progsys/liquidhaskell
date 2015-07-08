@@ -49,7 +49,6 @@ Extra-Source-Files: configure
                   , external/fixpoint/*.mly
                   , external/misc/*.ml
                   , external/misc/*.mli
-                  , external/ocamlgraph/.depend
                   , external/ocamlgraph/Makefile.in
                   , external/ocamlgraph/META.in
                   , external/ocamlgraph/configure

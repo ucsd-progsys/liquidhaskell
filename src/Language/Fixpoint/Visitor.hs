@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor
@@ -23,9 +24,12 @@ module Language.Fixpoint.Visitor (
   , foldSort, mapSort
   ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative       (Applicative, (<$>), (<*>))
 import           Data.Monoid
 import           Data.Traversable          (Traversable, traverse)
+#endif
+
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
@@ -143,12 +147,12 @@ visitPred v = vP
 -- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
 -- predKVars            :: Pred -> [Symbol]
 
-mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
+mapKVars :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
 mapKVars f             = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
-      | Just p' <- f k = subst su p'
+      | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]
