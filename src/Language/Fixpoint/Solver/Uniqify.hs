@@ -26,7 +26,7 @@ renameAll fi = fi'
 --------------------------------------------------------------
 
 
-type IdMap = M.HashMap BindId ([BindId], [Integer])
+type IdMap = M.HashMap BindId (S.HashSet BindId, S.HashSet Integer)
 type NameMap = M.HashMap Symbol BindId
 
 mkIdMap :: FInfo a -> IdMap
@@ -35,7 +35,7 @@ mkIdMap fi = M.foldlWithKey' (updateIdMap benv) (emptyIdMap benv) (cm fi)
 
 emptyIdMap :: BindEnv -> IdMap
 emptyIdMap benv = foldl go M.empty (M.keys $ beBinds benv)
-  where go m b = M.insert b ([],[]) m
+  where go m b = M.insert b (S.empty, S.empty) m
 
 updateIdMap :: BindEnv -> IdMap -> Integer -> SubC a -> IdMap
 updateIdMap benv m subcId s = foldl (bar' subcId) m' refList
@@ -55,11 +55,11 @@ bongo benv nameMap idMap id = foldl (bar id) idMap refList
     refList = baz nameMap symList
 
 bar :: BindId -> IdMap -> BindId -> IdMap
-bar idOfReft m referencedId = M.insert referencedId (idOfReft : bs, is) m
+bar idOfReft m referencedId = M.insert referencedId (S.insert idOfReft bs, is) m
   where (bs, is) = M.lookupDefault (errorstar "wat") referencedId m
 
 bar' :: Integer -> IdMap -> BindId -> IdMap
-bar' idOfSubc m referencedId = M.insert referencedId (bs, idOfSubc : is) m
+bar' idOfSubc m referencedId = M.insert referencedId (bs, S.insert idOfSubc is) m
   where (bs, is) = M.lookupDefault (errorstar "wat") referencedId m
 
 baz :: NameMap -> [Symbol] -> [BindId]
@@ -76,12 +76,12 @@ insertInverse benv m id = M.insert sym id m
   where (sym, _) = lookupBindEnv id benv
 
 
-renameVars :: FInfo a -> [(BindId, ([BindId], [Integer]))] -> FInfo a
+renameVars :: FInfo a -> [(BindId, (S.HashSet BindId, S.HashSet Integer))] -> FInfo a
 renameVars fi xs = evalState (foldlM potentiallyRenameVar fi xs) S.empty
 
 --lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 
-potentiallyRenameVar :: FInfo a -> (BindId, ([BindId], [Integer])) -> State (S.HashSet Symbol) (FInfo a)
+potentiallyRenameVar :: FInfo a -> (BindId, (S.HashSet BindId, S.HashSet Integer)) -> State (S.HashSet Symbol) (FInfo a)
 potentiallyRenameVar fi x@(id, _) =
   do s <- get
      let (sym, _) = lookupBindEnv id (bs fi)
@@ -89,7 +89,7 @@ potentiallyRenameVar fi x@(id, _) =
      put (if seen then s else (S.insert sym s))
      return (if seen then (renameVar fi x) else fi)
 
-renameVar :: FInfo a -> (BindId, ([BindId], [Integer])) -> FInfo a
+renameVar :: FInfo a -> (BindId, (S.HashSet BindId, S.HashSet Integer)) -> FInfo a
 renameVar fi (id, stuff) = elimKVar (blarg fi id sym sym') fi''' --TODO: optimize? (elimKVar separately on every rename is expensive)
   where
     (sym, _) = lookupBindEnv id (bs fi)
@@ -97,8 +97,8 @@ renameVar fi (id, stuff) = elimKVar (blarg fi id sym sym') fi''' --TODO: optimiz
     sub = (sym, eVar sym')
     go subst x = subst1 x subst
     fi' = fi { bs = adjustBindEnv (go sub) id (bs fi) }
-    fi'' = foldl (foo sub) fi' (fst stuff)
-    fi''' = foldl (foo' sub) fi'' (snd stuff)
+    fi'' = S.foldl' (foo sub) fi' (fst stuff)
+    fi''' = S.foldl' (foo' sub) fi'' (snd stuff)
 
 foo :: (Symbol, Expr) -> FInfo a -> BindId -> FInfo a
 foo sub fi id = fi { bs = adjustBindEnv (go sub) id (bs fi) }
