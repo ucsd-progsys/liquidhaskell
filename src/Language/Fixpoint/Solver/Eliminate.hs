@@ -6,7 +6,7 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Solver.Deps as D
-import           Language.Fixpoint.Visitor (kvars, mapKVars)
+import           Language.Fixpoint.Visitor (kvars, mapKVars')
 import           Language.Fixpoint.Names   (existSymbol)
 import           Language.Fixpoint.Misc    (errorstar)
 
@@ -33,7 +33,7 @@ instance Elimable (SubC a) where
                    }
 
 instance Elimable SortedReft where
-  elimKVar f x = x { sr_reft = mapKVars f (sr_reft x) }
+  elimKVar f x = x { sr_reft = mapKVars' f (sr_reft x) }
 
 instance Elimable (FInfo a) where
   elimKVar f x = x { cm = M.map (elimKVar f) (cm x)

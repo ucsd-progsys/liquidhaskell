@@ -18,7 +18,7 @@ module Language.Fixpoint.Visitor (
   -- * Clients
   , kvars
   , envKVars
-  , mapKVars
+  , mapKVars, mapKVars'
 
   -- * Sorts
   , foldSort, mapSort
@@ -147,8 +147,13 @@ visitPred v = vP
 -- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
 -- predKVars            :: Pred -> [Symbol]
 
-mapKVars :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
-mapKVars f             = trans kvVis () []
+mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
+mapKVars f = mapKVars' f'
+  where
+    f' (kv, _) = f kv
+
+mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
+mapKVars' f             = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
