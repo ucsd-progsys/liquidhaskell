@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE PatternGuards             #-}
 
 module Language.Fixpoint.Parse (
 

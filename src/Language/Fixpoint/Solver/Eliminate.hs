@@ -5,14 +5,14 @@ module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, elimKVar, findWfC) where
 
 import           Language.Fixpoint.Types
-import qualified Language.Fixpoint.Solver.Deps as D
-import           Language.Fixpoint.Visitor (kvars, mapKVars')
-import           Language.Fixpoint.Names   (existSymbol)
-import           Language.Fixpoint.Misc    (errorstar)
+import           Language.Fixpoint.Solver.Deps (depNonCuts, deps, rhsKVars)
+import           Language.Fixpoint.Visitor     (kvars, mapKVars')
+import           Language.Fixpoint.Names       (existSymbol)
+import           Language.Fixpoint.Misc        (errorstar)
 
-import qualified Data.HashMap.Strict           as M
-import           Data.List (partition, (\\))
-import           Data.Foldable (foldlM)
+import qualified Data.HashMap.Strict as M
+import           Data.List           (partition, (\\))
+import           Data.Foldable       (foldlM)
 import           Control.Monad.State (get, put, runState, evalState, State)
 
 
@@ -20,7 +20,7 @@ import           Control.Monad.State (get, put, runState, evalState, State)
 eliminateAll :: FInfo a -> FInfo a
 eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
   where
-    nonCuts = D.depNonCuts $ D.deps fi
+    nonCuts = depNonCuts $ deps fi
 --------------------------------------------------------------
 
 
@@ -46,8 +46,8 @@ instance Elimable BindEnv where
 
 eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
 eliminate fi kv = do
-  let relevantSubCs  = M.filter (   elem kv . D.rhsKVars) (cm fi)
-  let remainingSubCs = M.filter (notElem kv . D.rhsKVars) (cm fi)
+  let relevantSubCs  = M.filter (   elem kv . rhsKVars) (cm fi)
+  let remainingSubCs = M.filter (notElem kv . rhsKVars) (cm fi)
   let (kvWfC, remainingWs) = findWfC kv (ws fi)
   foo <- mapM (extractPred kvWfC (bs fi)) (M.elems relevantSubCs)
   let orPred = POr $ map fst foo
