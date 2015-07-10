@@ -1,5 +1,6 @@
 module spec GHC.Base where
 
+import GHC.CString
 import GHC.Prim
 import GHC.Classes
 import GHC.Types
