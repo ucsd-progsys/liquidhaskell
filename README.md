@@ -20,7 +20,7 @@ directory of the distribution:
 
 1. Install a suitable smt solver binary, e.g.
 
-    + [Z3](http://z3.codeplex.com/)
+    + [Z3](https://github.com/Z3Prover/z3)
     + [CVC4](http://cvc4.cs.nyu.edu/) 
     + [MathSat](http://mathsat.fbk.eu/download.html)
 
