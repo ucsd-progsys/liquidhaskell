@@ -4,4 +4,4 @@ import GHC.Prim
 
 GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#
-  -> {v:String | len v == strLen x}
+  -> {v:[Char] | v ~~ x && len v == strLen x}
