@@ -125,19 +125,16 @@ normalizeName :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
 -- normalizeNameDebug γ e 
 --   = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
 
-normalizeName _ e@(Lit (LitInteger _ _))
+normalizeName _ e@(Lit _)
   = normalizeLiteral e
 
-normalizeName _ e@(Tick _ (Lit (LitInteger _ _)))
+normalizeName _ e@(Tick _ (Lit _))
   = normalizeLiteral e
 
 normalizeName γ (Var x)
   = return $ Var (lookupWithDefaultVarEnv γ x x)
 
 normalizeName _ e@(Type _)
-  = return e
-
-normalizeName _ e@(Lit _)
   = return e
 
 normalizeName _ e@(Coercion _)
