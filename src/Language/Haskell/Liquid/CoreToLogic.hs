@@ -388,6 +388,7 @@ isUndefined (_, _, e) = isUndefinedExpr e
   where 
    -- auto generated undefined case: (\_ -> (patError @type "error message")) void
    isUndefinedExpr (C.App (C.Var x) _) | (show x) `elem` perrors = True
+   isUndefinedExpr (C.Let _ e) = isUndefinedExpr e
    -- otherwise 
    isUndefinedExpr _ = False 
 
