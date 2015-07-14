@@ -27,9 +27,6 @@ expDenote :: Exp a -> Int
 expDenote (EConst n)       = n
 expDenote (EBinOp b e1 e2) = binOpDenote (expDenote e1) (expDenote e2) b
 
-
-{- HERE HERE -}
-
 {-@foo :: s:Stack -> {v:SMaybe Stack| v = SNothing s || v = SJust s } @-}
 foo :: Stack -> SMaybe Stack
 foo = undefined 
@@ -53,13 +50,19 @@ binOps :: Prog a -> Int
 binOps Emp = 0 
 binOps (PInst x xs) = if isIBinOp x then 1 + (binOps xs) else binOps xs 
 
+
+
 {- measure progDenote :: Stack -> Prog -> SMaybe Stack @-}
+{-@ measure progDenote @-}
 {-@ Decrease progDenote 2 @-}
 progDenote :: Stack -> Prog a -> SMaybe Stack
-{-@ progDenote :: s:Stack -> {v:Prog a | lenL s >= 2 * binOps v }  -> SMaybe Stack @-}
+{-@ progDenote :: s:Stack -> p:{v:Prog a | lenL s >= 2 * binOps v }  -> {v: SMaybe Stack | v = progDenote s p} @-}
 progDenote s Emp = SJust s
+progDenote s (PInst x xs) = SNothing s 
+{-
 progDenote s (PInst x xs) | SJust s' <- instrDenote s x = progDenote s' xs
                           | otherwise                   = SNothing s
+-}
 
 {-
 {- compile :: e:Exp -> {v:Prog | (progDenote Nil v) == Nothing } @-}
