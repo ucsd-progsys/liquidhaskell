@@ -39,3 +39,4 @@ css/
 
 *.smt2
 .liquid
+.dir-locals.el

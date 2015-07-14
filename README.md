@@ -20,7 +20,7 @@ directory of the distribution:
 
 1. Install a suitable smt solver binary, e.g.
 
-    + [Z3](http://z3.codeplex.com/)
+    + [Z3](https://github.com/Z3Prover/z3)
     + [CVC4](http://cvc4.cs.nyu.edu/) 
     + [MathSat](http://mathsat.fbk.eu/download.html)
 
@@ -373,16 +373,17 @@ tests/pos/mutrec.hs for the full example).
 Lazy Variables
 --------------
 
-A variable cab be specified as `LAZYVAR`
+A variable can be specified as `LAZYVAR`
 
     {-@ LAZYVAR z @-}
 
 With this annotation the definition of `z` will be checked at the points where
 it is used. For example, with the above annotation the following code is SAFE:
 
-    foo = if x > 0 then z else x
-      where z = 42 `safeDiv` x
-            x = choose 0
+    foo   = if x > 0 then z else x
+      where 
+        z = 42 `safeDiv` x
+        x = choose 0
 
 By default, all the variables starting with `fail` are marked as LAZY, to defer
 failing checks at the point where these variables are used.

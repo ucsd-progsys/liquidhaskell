@@ -1,4 +1,9 @@
+{-# LANGUAGE CPP #-}
 module RIO2 where
+
+#if __GLASGOW_HASKELL__ < 710
+import Control.Applicative
+#endif
 
 {-@ data RIO a <p :: World -> Prop, q :: World -> a -> World -> Prop> 
   = RIO (rs :: (x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}>))
@@ -9,6 +14,17 @@ data RIO a  = RIO {runState :: World -> (a, World)}
                 RIO <p, q> a -> x:World<p> -> (a, World)<\w -> {v:World<q x w> | true}> @-}
 
 data World  = W
+
+-- | RJ: Putting these in to get GHC 7.10 to not fuss
+instance Functor RIO where
+  fmap = undefined
+
+-- | RJ: Putting these in to get GHC 7.10 to not fuss
+instance Applicative RIO where
+  pure  = undefined
+  (<*>) = undefined 
+
+
 
 instance Monad RIO where
 {-@ instance Monad RIO where

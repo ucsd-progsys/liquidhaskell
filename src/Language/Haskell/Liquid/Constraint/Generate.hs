@@ -36,7 +36,7 @@ import TypeRep
 import Class            (Class, className)
 import Var
 import Id
-import IdInfo 
+import IdInfo
 import Name
 import NameSet
 import Text.PrettyPrint.HughesPJ hiding (first)
@@ -86,6 +86,8 @@ import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
+-- import Debug.Trace (trace)
+
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
 -----------------------------------------------------------------------
@@ -122,7 +124,7 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = filter isConLikeId ((snd <$> freeSyms sp)) 
+       let dcs   = filter isConLikeId ((snd <$> freeSyms sp))
        let dcs'   = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
@@ -131,12 +133,12 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
        f1       <- refreshArgs'   defaults                   -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makedcs dcsty          
+       f1'      <- refreshArgs' $ makedcs dcsty
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
        f40      <- refreshArgs' $ vals ctors sp    -- constructor refinements  (for measures)
-       (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs 
-       (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs' 
+       (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
+       (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
        let f4    = mergeDataConTypes f40 (f41 ++ f42)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
@@ -144,38 +146,38 @@ initEnv info
        let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2) 
+       let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
        foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
     vals f       = map (mapSnd val) . f
     mapSndM f (x,y) = (x,) <$> f y
-    makedcs      = map strengthenDataConType   
+    makedcs      = map strengthenDataConType
 
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
-  where 
-    (invs, tys) = unzip $ concatMap go tycons 
-    tycons      = L.nub $ catMaybes $ map idTyCon dcs 
+  where
+    (invs, tys) = unzip $ concatMap go tycons
+    tycons      = L.nub $ catMaybes $ map idTyCon dcs
 
-    go tycon 
-      | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..] 
-    go _ 
-      = [] 
-    idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}  
+    go tycon
+      | S.member tycon specenv =  zipWith (makeSizedDataCons dcts) (tyConDataCons tycon) [0..]
+    go _
+      = []
+    idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
-    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs 
+    simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
     invariant = U (F.Reft (F.vv_, F.Refa $ F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
-makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres})) 
-    where 
+makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
+    where
       x      = dataConWorkId x'
-      t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts 
-      trep   = toRTypeRep t 
-      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa 
+      t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts
+      trep   = toRTypeRep t
+      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa
                               $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
@@ -184,11 +186,11 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
 
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
-    f (x,_) (y,_) = compare x y 
+    f (x,_) (y,_) = compare x y
     merge [] ys = ys
     merge xs [] = xs
-    merge (xt@(x, tx):xs) (yt@(y, ty):ys) 
-      | x == y    = (x, tx `F.meet` ty):merge xs ys 
+    merge (xt@(x, tx):xs) (yt@(y, ty):ys)
+      | x == y    = (x, tx `F.meet` ty):merge xs ys
       | x <  y    = xt:merge xs (yt:ys)
       | otherwise = yt:merge (xt:xs) ys
 
@@ -439,9 +441,10 @@ splitS (SubC γ t1@(RApp {}) t2@(RApp {}))
        γ'    <- γ `extendEnvWithVV` t1'
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
+       let isapplied = tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsSWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsSWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       csvar  <-  splitsSWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar' <- rsplitsSWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
@@ -449,7 +452,7 @@ splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitS t1 t2
 
 splitS (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = errorstar $ "(Another Broken Test1!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitS (SubR _ _ _)
   = return []
@@ -457,7 +460,10 @@ splitS (SubR _ _ _)
 splitsSWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsSWithVariance γ t1s t2s variants
+rsplitsSWithVariance False _ _ _ _ 
+  = return [] 
+
+rsplitsSWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
 
 bsplitS t1 t2
@@ -564,9 +570,10 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        γ'    <- γ `extendEnvWithVV` t1'
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
+       let isapplied = tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsCWithVariance γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsCWithVariance γ' r1s r2s $ variancePsArgs tyInfo
+       csvar  <-  splitsCWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
+       csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
@@ -596,7 +603,10 @@ splitC (SubR γ o r)
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsCWithVariance γ t1s t2s variants
+rsplitsCWithVariance False _ _ _ _ 
+  = return [] 
+
+rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
 
@@ -685,7 +695,7 @@ initCGI cfg info = CGInfo {
   , kvProf     = emptyKVProf
   , recCount   = 0
   , bindSpans  = M.empty
-  , autoSize   = autosize spc 
+  , autoSize   = autosize spc
   }
   where
     tce        = tcEmbeds spc
@@ -981,7 +991,7 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy x t
   = do spDecr <- specDecr <$> get
-       autosz <- autoSize <$> get 
+       autosz <- autoSize <$> get
        hint   <- checkHint' autosz (L.lookup x $ spDecr)
        case dindex autosz of
          Nothing -> return $ Left msg -- addWarning msg >> return []
@@ -991,7 +1001,7 @@ makeDecrIndexTy x t
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
        msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter")
-       cenv       = makeNumEnv ts 
+       cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
 
@@ -1443,8 +1453,8 @@ consE γ (Var x)
        addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
 
-consE γ (Lit c)
-  = refreshVV $ uRType $ literalFRefType (emb γ) c
+consE _ (Lit c)
+  = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
@@ -1592,7 +1602,7 @@ checkUnbound γ e x t a
   = t
   | otherwise
   = errorstar $ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
-                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ) ++ "\nArg = \n" ++ show a 
+                 ++ "\nIn\t"  ++ showPpr e ++ " at " ++ showPpr (loc γ) ++ "\nArg = \n" ++ show a
 
 dropExists γ (REx x tx t) = liftM (, t) $ (γ, "dropExists") += (x, tx)
 dropExists γ t            = return (γ, t)
@@ -1676,7 +1686,7 @@ caseEnv γ x acs a _
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
 
-altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
+altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
@@ -1752,17 +1762,30 @@ argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
+varRefType :: CGEnv -> Var -> CG SpecType
+varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
 
-varRefType γ x = liftM (varRefType' γ x) (γ ??= F.symbol x)
-
+varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
-  | Just tys <- trec γ, Just tr <- M.lookup x' tys
-  = tr `strengthen` xr
+  | Just tys <- trec γ, Just tr  <- M.lookup x' tys
+  = tr `strengthenS` xr
   | otherwise
-  = t
-  where t  = t' `strengthen` xr
-        xr = singletonReft x -- uTop $ F.symbolReft $ F.symbol x
-        x' = F.symbol x
+  = t' `strengthenS` xr
+  where
+    xr = singletonReft x
+    x' = F.symbol x
+
+
+-- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
+--   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
+--   the `otherwise` case? The fq file holds no answers, both are sat.
+strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
+strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
+strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
+strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
+strengthenS t _                  = t
+topMeet r r' = F.top r `F.meet` r'
 
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
