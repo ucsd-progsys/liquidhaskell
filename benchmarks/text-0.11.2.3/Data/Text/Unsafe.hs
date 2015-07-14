@@ -95,13 +95,16 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 iter :: Text -> Int -> Iter
 iter (Text arr off _len) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
-    | otherwise                = Iter (chr2 m n) 2
+    | otherwise                = let k = j + 1
+                                     n = A.unsafeIndex arr k
+                                 in
+                                 Iter (chr2 m n) 2
   where m = A.unsafeIndexF arr off _len j
-        {-@ LAZYVAR n @-}
-        n = A.unsafeIndex arr k
         j = off + i
-        {-@ LAZYVAR k @-}
-        k = j + 1
+        {- LAZYVAR n @-}
+        -- n = A.unsafeIndex arr k
+        {- LAZYVAR k @-}
+        -- k = j + 1
 {-# INLINE iter #-}
 
 -- | /O(1)/ Iterate one step through a UTF-16 array, returning the
@@ -136,13 +139,16 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 reverseIter :: Text -> Int -> (Char,Int)
 reverseIter (Text arr off _len) i
     | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, neg 1)
-    | otherwise                = (chr2 n m,    neg 2)
+    | otherwise                = let k = j - 1
+                                     n = A.unsafeIndex arr k
+                                 in
+                                  (chr2 n m,    neg 2)
   where m = A.unsafeIndexB arr off _len j
-        {-@ LAZYVAR n @-}
-        n = A.unsafeIndex arr k
+        {- LAZYVAR n @-}
+        -- n = A.unsafeIndex arr k
         j = off + i
-        {-@ LAZYVAR k @-}
-        k = j - 1
+        {- LAZYVAR k @-}
+        -- k = j - 1
 {-# INLINE reverseIter #-}
 
 {-@ neg :: n:Int -> {v:Int | v = (0-n)} @-}
