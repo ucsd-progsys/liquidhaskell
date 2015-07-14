@@ -1453,8 +1453,8 @@ consE γ (Var x)
        addLocA (Just x) (loc γ) (varAnn γ x t)
        return t
 
-consE γ (Lit c)
-  = refreshVV $ uRType $ literalFRefType (emb γ) c
+consE _ (Lit c)
+  = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
@@ -1686,7 +1686,7 @@ caseEnv γ x acs a _
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
 
-altReft γ _ (LitAlt l)   = literalFReft (emb γ) l
+altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
 altReft _ _ _            = error "Constraint : altReft"
