@@ -170,6 +170,7 @@ Library
                    Language.Fixpoint.Partition,
                    Language.Fixpoint.Statistics,
                    Language.Fixpoint.Solver.Solve
+                   Language.Fixpoint.Parallel
 
   Build-Depends: base >= 4.7 && < 5
                , array

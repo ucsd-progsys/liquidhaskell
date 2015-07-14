@@ -45,13 +45,14 @@ import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition)
+import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
+import           Language.Fixpoint.Parallel
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -72,10 +73,11 @@ solveFQ cfg
 
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg  = partition cfg
-  | stats cfg  = statistics cfg
-  | native cfg = solveNativeWithFInfo cfg
-  | otherwise  = solveExt cfg
+  | parts cfg           = partition cfg
+  | stats cfg           = statistics cfg
+  | native cfg          = solveNativeWithFInfo cfg
+  | threadCount cfg > 1 = solvePar cfg
+  | otherwise           = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
@@ -121,6 +123,16 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
     fn          = srcFile cfg
+
+-- | Partitions an FInfo into 1 or more independent parts, then
+--   calls solveExt on each in parallel
+solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solvePar cfg fi = do
+   let (_, finfos) = partition' fi
+   results <- inParallelUsing cfg finfos (solveExt cfg)
+   case results of
+      Just r -> return r
+      Nothing -> return mempty
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi

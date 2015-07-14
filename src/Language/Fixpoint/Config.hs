@@ -11,6 +11,7 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
+  , ParallelMode (..)
 ) where
 
 import           System.Console.CmdArgs
@@ -43,10 +44,11 @@ data Config
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
+    , cores    :: ParallelMode     -- ^ solve concurrently or serially
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def def
+  def = Config "" def def def def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -112,6 +114,20 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
 
+---------------------------------------------------------------------------------------
+
+data ParallelMode =
+   Cores Word
+   deriving (Eq, Data, Typeable, Show)
+
+instance Default ParallelMode where
+   def = Cores 0
+
+instance Command ParallelMode where
+   command (Cores n) = "--cores " ++ show n
+
+---------------------------------------------------------------------------------------
+
 config :: Config
 config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
@@ -126,6 +142,7 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
+  , cores    = def   &= help "(numeric) Number of threads to use"
   }
   &= verbosity
   &= program "fixpoint"
