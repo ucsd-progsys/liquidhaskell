@@ -44,7 +44,7 @@ data Config
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
-    , cores    :: ParallelMode     -- ^ solve concurrently or serially
+    , cores       :: ParallelMode     -- ^ solve concurrently or serially
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -124,7 +124,7 @@ instance Default ParallelMode where
    def = Cores 0
 
 instance Command ParallelMode where
-   command (Cores n) = "--cores " ++ show n
+   command (Cores n) = "-cores " ++ show n
 
 ---------------------------------------------------------------------------------------
 
@@ -142,7 +142,7 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores    = def   &= help "(numeric) Number of threads to use"
+  , cores       = def   &= help "(numeric) Number of threads to use"
   }
   &= verbosity
   &= program "fixpoint"

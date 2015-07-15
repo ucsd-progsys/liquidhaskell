@@ -81,6 +81,7 @@ inParallelUsing c finfos a = do
    case workers of
       Nothing -> return Nothing
       (Just workers') -> do
+         --putStrLn $ "Solving " ++ (show $ length finfos) ++ " FInfos..."
          writeList2Chan (toWorker workers') (map Execute finfos)
          result <- waitForAll (length finfos) [] (fromWorker workers')
          finalizeWorkers (threadCount c) workers'
