@@ -1,3 +1,15 @@
+{-|
+Module      : Language.Fixpoint.Parallel
+Description : Parallel constraint solving
+Copyright   : (c) Ranjit Jhala 2013-2014
+License     : BSD3
+Maintainer  : jhala@cs.ucsd.edu
+
+The purpose of this module is to faciliate solving constraints in parallel. This
+module exports @inParallelUsing@ which will solve a list of constraints in
+parallel using the provided solving function
+-}
+
 module Language.Fixpoint.Parallel (
 
     -- * parallel solver function
@@ -12,14 +24,17 @@ import Control.Concurrent
 import Language.Fixpoint.Types
 import Language.Fixpoint.Config
 
+-- | A message to a worker thread
 data ToWorker a =
    Execute (FInfo a) -- ^ A FInfo to solve
    | Die -- ^ An order to the worker to shut down
 
+-- | A response from a worker thread
 data FromWorker a =
    Returned (Result a) -- ^ The Result of solving an FInfo
    | Dead -- ^ Confirmation that a thread has shut down
 
+-- | Conains the nessesary channels to communicate with the worker threads
 data Workers a =
    Workers
    {toWorker :: Chan (ToWorker a),
@@ -62,7 +77,7 @@ finalizeWorkers :: Word -- ^ The number of running threads
                    -> IO () -- ^ If any solutions were pending, they are
                    -- discarded
 finalizeWorkers c w = do
-   toWorker w `writeList2Chan` replicate (fromIntegral c) Die
+   writeList2Chan (toWorker w) (replicate (fromIntegral c) Die)
    goFW c
    where
       goFW 0 = return ()
