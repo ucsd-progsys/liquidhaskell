@@ -61,7 +61,9 @@ finalizeWorkers :: Word -- ^ The number of running threads
                    -> Workers a
                    -> IO () -- ^ If any solutions were pending, they are
                    -- discarded
-finalizeWorkers c w = goFW c
+finalizeWorkers c w = do
+   toWorker w `writeList2Chan` replicate (fromIntegral c) Die
+   goFW c
    where
       goFW 0 = return ()
       goFW c' = do
@@ -81,7 +83,6 @@ inParallelUsing c finfos a = do
    case workers of
       Nothing -> return Nothing
       (Just workers') -> do
-         --putStrLn $ "Solving " ++ (show $ length finfos) ++ " FInfos..."
          writeList2Chan (toWorker workers') (map Execute finfos)
          result <- waitForAll (length finfos) [] (fromWorker workers')
          finalizeWorkers (threadCount c) workers'
