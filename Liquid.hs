@@ -103,6 +103,7 @@ solveCs cfg target cgi info dc
                        , FC.real    = real   cfg
                        , FC.native  = native cfg
                        , FC.srcFile = target
+                       , FC.cores   = fromInteger $ cores  cfg 
                        -- , FC.stats   = True
                        }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
