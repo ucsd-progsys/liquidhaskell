@@ -47,7 +47,7 @@ import Data.Monoid
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native, getOpts)
+import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -122,7 +122,10 @@ config = cmdArgsMode $ Config {
           &= name "no-true-types"
 
  , totality
-    = def &= help "Check totality"
+    = def &= help "Check tota`lity"
+
+ , cores
+    = 1 &= help "User m cores to solve logical constraints"
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
@@ -290,7 +293,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 
 
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def def
+  mempty        = Config def def def def def def def def def def def def def def def def 1 2 def def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -307,6 +310,7 @@ instance Monoid Config where
                          , notruetypes    = notruetypes    c1    ||     notruetypes    c2
                          , totality       = totality       c1    ||     totality       c2
                          , noPrune        = noPrune        c1    ||     noPrune        c2
+                         , cores          = cores          c1   `max`     cores          c2
                          , maxParams      = maxParams      c1   `max`   maxParams      c2
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2
                          , shortNames     = shortNames c1        ||     shortNames     c2

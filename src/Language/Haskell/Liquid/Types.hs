@@ -269,6 +269,7 @@ data Config = Config {
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
+  , cores          :: Integer    -- ^ number of cores used to solve constraints
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc4, mathsat in order]
   , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
