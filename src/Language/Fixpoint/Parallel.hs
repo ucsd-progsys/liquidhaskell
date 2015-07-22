@@ -15,14 +15,13 @@ module Language.Fixpoint.Parallel (
     -- * parallel solver function
     inParallelUsing
 
-    -- * Determine the number of threads specified by the config
-  , threadCount
-
 ) where
 
 import Control.Concurrent
 import Language.Fixpoint.Types
 import Language.Fixpoint.Config
+
+import Debug.Trace
 
 -- | A message to a worker thread
 data ToWorker a =
@@ -39,13 +38,6 @@ data Workers a =
    Workers
    {toWorker :: Chan (ToWorker a),
     fromWorker :: Chan (FromWorker a)}
-
--- | Get the number of threads specified by the config
-threadCount :: Config
-               -> Word -- ^ The number of threads, with 0 indicating serial
-threadCount c =
-   case cores c of
-      Cores n -> n
 
 -- | Start the worker threads, get the channels used to communicate with them
 initWorkers :: Word -- ^ The number of threads to spawn
@@ -94,13 +86,18 @@ inParallelUsing :: Config
                    -> IO (Maybe (Result a)) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
-   workers <- initWorkers (threadCount c) a
+   workers <- initWorkers (cores c) a
    case workers of
       Nothing -> return Nothing
       (Just workers') -> do
+         traceIO $ "Solving "
+            ++ show (length finfos)
+            ++ " in parallel with "
+            ++ show (cores c)
+            ++ " threads..."
          writeList2Chan (toWorker workers') (map Execute finfos)
          result <- waitForAll (length finfos) [] (fromWorker workers')
-         finalizeWorkers (threadCount c) workers'
+         finalizeWorkers (cores c) workers'
          return $ Just $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o

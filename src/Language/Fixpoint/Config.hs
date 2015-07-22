@@ -11,7 +11,6 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
-  , ParallelMode (..)
 ) where
 
 import           System.Console.CmdArgs
@@ -44,7 +43,7 @@ data Config
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
-    , cores       :: ParallelMode     -- ^ solve concurrently or serially
+    , cores       :: Word     -- ^ solve concurrently or serially
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
@@ -113,18 +112,6 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
-
----------------------------------------------------------------------------------------
-
-data ParallelMode =
-   Cores Word
-   deriving (Eq, Data, Typeable, Show)
-
-instance Default ParallelMode where
-   def = Cores 0
-
-instance Command ParallelMode where
-   command (Cores n) = "-cores " ++ show n
 
 ---------------------------------------------------------------------------------------
 

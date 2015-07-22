@@ -54,6 +54,9 @@ import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Parallel
 
+
+import Debug.Trace
+
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -73,11 +76,11 @@ solveFQ cfg
 
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg           = partition cfg
-  | stats cfg           = statistics cfg
-  | native cfg          = solveNativeWithFInfo cfg
-  | threadCount cfg > 1 = solvePar cfg
-  | otherwise           = solveExt cfg
+  | parts cfg     = partition cfg
+  | stats cfg     = statistics cfg
+  | native cfg    = solveNativeWithFInfo cfg
+  | cores cfg > 1 = solvePar cfg
+  | otherwise     = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
@@ -129,6 +132,8 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar cfg fi = do
    let (_, finfos) = partition' fi
+   traceIO $ "length of FInfos: " ++ show (length finfos)
+   traceIO $ "number of cores: " ++ show (cores cfg)
    results <- inParallelUsing cfg finfos (solveExt cfg)
    case results of
       Just r -> return r
