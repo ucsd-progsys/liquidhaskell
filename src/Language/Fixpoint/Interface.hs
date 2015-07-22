@@ -70,7 +70,7 @@ solveFQ cfg
   -- | native cfg = solveNativeWithFInfo cfg x
   -- | otherwise  = solveExt cfg x
 
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve  :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | parts cfg  = partition cfg
   | stats cfg  = statistics cfg
@@ -120,7 +120,7 @@ solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
-    fn          = srcFile cfg
+    fn          = fileName fi -- srcFile cfg
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
