@@ -11,6 +11,7 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
+  , toCores
 ) where
 
 import           System.Console.CmdArgs
@@ -27,13 +28,25 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
+data Cores = C Int
+          deriving (Eq, Data, Show, Typeable) 
 
+instance Num Cores where
+  (C n1) + (C n2) = C (n1 + n2)
+  (C n1) * (C n2) = C (n1 * n2)
+  abs (C n)       = C $ abs n 
+  signum (C n)    = C $ signum n 
+  fromInteger     = C . fromInteger   
+  negate (C n)    = C $ negate n
+
+toCores = C 
 
 data Config
   = Config {
       inFile      :: FilePath         -- ^ target fq-file
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
+    , cores       :: Cores            -- ^ number of cores used to solve constraints
     , solver      :: SMTSolver        -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
@@ -46,12 +59,13 @@ data Config
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def def
+  def = Config "" def def 1 def def def def def def def def def
 
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
             ++ command (solver c)
+            ++ command (cores c)
             ++ " -out "
             ++ outFile c ++ " " ++ inFile c
 
@@ -84,6 +98,9 @@ instance Default UeqAllSorts where
 instance Command UeqAllSorts where
   command (UAS True)  = " -ueq-all-sorts "
   command (UAS False) = ""
+
+instance Command Cores where
+  command (C n) = " --cores=" ++ show n  
 
 
 ---------------------------------------------------------------------------------------
