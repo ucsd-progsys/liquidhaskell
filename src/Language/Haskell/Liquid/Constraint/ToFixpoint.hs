@@ -18,14 +18,14 @@ import           Data.Monoid
 import Language.Haskell.Liquid.Qualifier
 import Language.Haskell.Liquid.RefType          ( rTypeSortedReft )
 
-cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
-cgInfoFInfo info cgi = do
-  let tgtFI = targetFInfo info cgi
+cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
+cgInfoFInfo info cgi fi = do
+  let tgtFI = targetFInfo info cgi fi 
   impFI    <- parseFInfo $ hqFiles info
   return    $ tgtFI <> impFI
 
-targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
-targetFInfo info cgi
+targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
+targetFInfo info cgi fn 
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
          , F.ws       = fixWfs cgi
          , F.bs       = binds cgi
@@ -34,6 +34,7 @@ targetFInfo info cgi
          , F.kuts     = kuts cgi
          , F.quals    = targetQuals info
          , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
+         , F.fileName = fn 
          }
    where
     spc    = spec info
