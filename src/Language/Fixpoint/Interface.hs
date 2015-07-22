@@ -90,8 +90,6 @@ solveNativeWithFInfo cfg fi = do
   whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
-  donePhase Loud "Eliminate"
-  whenLoud  $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
@@ -104,6 +102,7 @@ elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
                        whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
 
