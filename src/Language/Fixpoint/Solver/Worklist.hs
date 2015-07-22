@@ -25,6 +25,9 @@ import qualified Data.Set                  as S
 import qualified Data.List                 as L
 import           Data.Maybe (fromMaybe)
 
+import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
+import           Data.Tree (flatten)
+
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -87,12 +90,20 @@ data CDeps = CDs { cRoots :: ![CId]
                  }
 
 cDeps :: F.FInfo a -> CDeps
-cDeps fi = CDs rs next
+cDeps fi = CDs (map (fst3 . foo) rs) next
   where
     next = kvSucc fi
     is   = M.keys $ F.cm fi
-    is'  = concatMap next is
-    rs   = sortDiff is is'
+    protoGraph = [(i,i,next i) | i <- is]
+    (graph,foo,_) = graphFromEdges protoGraph
+    sccs = L.reverse $ map flatten $ scc graph
+    rs = filterRoots graph sccs
+
+filterRoots :: Graph -> [[Vertex]] -> [Vertex]
+filterRoots _ []         = []
+filterRoots g (scc:sccs) = scc ++ (filterRoots g rem)
+  where
+    rem = filter (not . path g (head scc) . head) sccs
 
 kvSucc :: F.FInfo a -> CSucc
 kvSucc fi = succs cm rdBy
@@ -125,4 +136,3 @@ sAdds = L.foldl' (flip S.insert)
 
 sPop :: S.Set a -> Maybe (a, S.Set a)
 sPop = S.minView
-
