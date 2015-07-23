@@ -74,13 +74,13 @@ solveFQ cfg
   -- | native cfg = solveNativeWithFInfo cfg x
   -- | otherwise  = solveExt cfg x
 
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve  :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg     = partition cfg
-  | stats cfg     = statistics cfg
-  | native cfg    = solveNativeWithFInfo cfg
-  | cores cfg > 1 = solvePar cfg
-  | otherwise     = solveExt cfg
+  | parts cfg                 = partition cfg
+  | stats cfg                 = statistics cfg
+  | native cfg                = solveNativeWithFInfo cfg
+  | fromCores (cores cfg) > 1 = solvePar cfg
+  | otherwise                 = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
@@ -125,7 +125,7 @@ solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
-    fn          = srcFile cfg
+    fn          = fileName fi -- srcFile cfg
 
 -- | Partitions an FInfo into 1 or more independent parts, then
 --   calls solveExt on each in parallel

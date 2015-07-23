@@ -40,7 +40,7 @@ data Workers a =
     fromWorker :: Chan (FromWorker a)}
 
 -- | Start the worker threads, get the channels used to communicate with them
-initWorkers :: Word -- ^ The number of threads to spawn
+initWorkers :: Int -- ^ The number of threads to spawn
                -> (FInfo a -> IO (Result a)) -- ^ The action that the workers
                -- should execute
                -> IO (Maybe (Workers a)) -- ^ If the number of threads was
@@ -64,7 +64,7 @@ initWorkers c a = do
             _ -> writeChan fw Dead
 
 -- | Kill all worker threads
-finalizeWorkers :: Word -- ^ The number of running threads
+finalizeWorkers :: Int -- ^ The number of running threads
                    -> Workers a
                    -> IO () -- ^ If any solutions were pending, they are
                    -- discarded
@@ -86,7 +86,7 @@ inParallelUsing :: Config
                    -> IO (Maybe (Result a)) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
-   workers <- initWorkers (cores c) a
+   workers <- initWorkers (fromCores $ cores c) a
    case workers of
       Nothing -> return Nothing
       (Just workers') -> do
@@ -97,7 +97,7 @@ inParallelUsing c finfos a = do
             ++ " threads..."
          writeList2Chan (toWorker workers') (map Execute finfos)
          result <- waitForAll (length finfos) [] (fromWorker workers')
-         finalizeWorkers (cores c) workers'
+         finalizeWorkers (fromCores $ cores c) workers'
          return $ Just $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o

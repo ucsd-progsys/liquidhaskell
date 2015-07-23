@@ -49,16 +49,16 @@ partition' fi  = (g, partitionByConstraints fi css)
     css        = decompose g
 
 -------------------------------------------------------------------------------------
-dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a ] -> IO ()
+dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
 -------------------------------------------------------------------------------------
 dumpPartitions cfg fis =
-  forM_ (zip [1..] fis) $ \(j, fi) ->
-    writeFile (partFile cfg j) (render $ F.toFixpoint cfg fi)
+  forM_ fis $ \fi ->
+    writeFile (F.fileName fi) (render $ F.toFixpoint cfg fi)
 
-partFile :: Config -> Int -> FilePath
-partFile cfg j = {- trace ("partFile: " ++ fjq) -} fjq
+partFile :: F.FInfo a -> Int -> FilePath
+partFile fi j = {- trace ("partFile: " ++ fjq) -} fjq
   where
-    fjq = extFileName (Part j) (inFile cfg)
+    fjq = extFileName (Part j) (F.fileName fi)
 
 -------------------------------------------------------------------------------------
 dumpEdges :: Config -> KVGraph -> IO ()
@@ -92,7 +92,8 @@ partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
 
 mkPartition fi icM iwM j
   = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
-       , F.ws =              M.lookupDefault [] j iwM }
+       , F.ws =              M.lookupDefault [] j iwM
+       , F.fileName = partFile fi j}
 
 wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
                  [i] -> i
