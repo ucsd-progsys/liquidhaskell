@@ -22,11 +22,16 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Config
 
 import Debug.Trace
+import Control.Exception
 
 -- | A message to a worker thread
 data ToWorker a =
    Execute (FInfo a) -- ^ A FInfo to solve
    | Die -- ^ An order to the worker to shut down
+
+instance Show (ToWorker a) where
+   show (Execute _) = "Execute"
+   show (Die) = "Die"
 
 -- | A response from a worker thread
 data FromWorker a =
@@ -56,12 +61,14 @@ initWorkers c a = do
    where
       action tw fw = do
          input <- readChan tw
+         traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
-               output <- a f
+               output <- onException (a f) (traceIO "exception!")
+               traceIO "Solve returned"
                writeChan fw (Returned output)
                action tw fw
-            _ -> writeChan fw Dead
+            _ -> traceIO "Died" >> writeChan fw Dead
 
 -- | Kill all worker threads
 finalizeWorkers :: Int -- ^ The number of running threads
@@ -96,6 +103,7 @@ inParallelUsing c finfos a = do
             ++ show (cores c)
             ++ " threads..."
          writeList2Chan (toWorker workers') (map Execute finfos)
+         traceIO "Sent FInfos to workers..."
          result <- waitForAll (length finfos) [] (fromWorker workers')
          finalizeWorkers (fromCores $ cores c) workers'
          return $ Just $ mconcat $ map (\(Returned r) -> r) result

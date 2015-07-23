@@ -69,7 +69,7 @@ instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
             ++ command (solver c)
-            ++ command (cores c)
+           -- ++ command (cores c)
             ++ " -out "
             ++ outFile c ++ " " ++ inFile c
 
