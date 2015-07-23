@@ -254,7 +254,7 @@ makeCorePair dflags gbl_id is_default_method dict_arity rhs
        = gbl_id `setIdUnfolding`  mkDFunUnfolding dfun_bndrs dfun_constr dfun_args
                 `setInlinePragma` dfunInlinePragma
     (dfun_bndrs, dfun_body) = collectBinders (simpleOptExpr rhs)
-    (dfun_con, dfun_args)   = collectArgs dfun_body
+    (dfun_con, dfun_args, _)   = collectArgsTicks (const True) dfun_body
     dfun_constr | Var id <- dfun_con
                 , DataConWorkId con <- idDetails id
                 = con
