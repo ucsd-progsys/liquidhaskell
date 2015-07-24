@@ -12,6 +12,7 @@ module Language.Fixpoint.Config (
   , UeqAllSorts (..)
   , withTarget
   , toCores
+  , fromCores
 ) where
 
 import           System.Console.CmdArgs
@@ -29,17 +30,20 @@ withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
 data Cores = C Int
-          deriving (Eq, Data, Show, Typeable) 
+          deriving (Eq, Data, Show, Typeable)
 
 instance Num Cores where
   (C n1) + (C n2) = C (n1 + n2)
   (C n1) * (C n2) = C (n1 * n2)
-  abs (C n)       = C $ abs n 
-  signum (C n)    = C $ signum n 
-  fromInteger     = C . fromInteger   
+  abs (C n)       = C $ abs n
+  signum (C n)    = C $ signum n
+  fromInteger     = C . fromInteger
   negate (C n)    = C $ negate n
 
-toCores = C 
+
+toCores = C
+
+fromCores (C c) = c
 
 data Config
   = Config {
@@ -65,7 +69,7 @@ instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
             ++ command (solver c)
-            ++ command (cores c)
+           -- ++ command (cores c)
             ++ " -out "
             ++ outFile c ++ " " ++ inFile c
 
@@ -100,7 +104,7 @@ instance Command UeqAllSorts where
   command (UAS False) = ""
 
 instance Command Cores where
-  command (C n) = " --cores=" ++ show n  
+  command (C n) = " --cores=" ++ show n
 
 
 ---------------------------------------------------------------------------------------
@@ -129,6 +133,8 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
 
+---------------------------------------------------------------------------------------
+
 config :: Config
 config = Config {
     inFile      = def   &= typ "TARGET"       &= args    &= typFile
@@ -143,6 +149,7 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
+  , cores       = 1   &= help "(numeric) Number of threads to use"
   }
   &= verbosity
   &= program "fixpoint"
