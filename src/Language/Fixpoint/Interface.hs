@@ -63,30 +63,29 @@ import Debug.Trace
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative cfg (solve cfg)
-  | otherwise  = solveFile   cfg
+  | native cfg    = solveWith cfg (solve    cfg)
+  | multicore cfg = solveWith cfg (solvePar cfg)
+  | otherwise     = solveFile cfg
+
+multicore :: Config -> Bool
+multicore cfg = cores cfg > 1
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-  -- | parts cfg  = partition cfg x
-  -- | stats cfg  = statistics cfg x
-  -- | native cfg = solveNativeWithFInfo cfg x
-  -- | otherwise  = solveExt cfg x
-
 solve  :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg                 = partition cfg
-  | stats cfg                 = statistics cfg
-  | native cfg                = solveNativeWithFInfo cfg
-  | fromCores (cores cfg) > 1 = solvePar cfg
-  | otherwise                 = solveExt cfg
+  | parts cfg     = partition cfg
+  | stats cfg     = statistics cfg
+  | native cfg    = solveNativeWithFInfo cfg
+  | multicore cfg = solvePar cfg
+  | otherwise     = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
-solveNative cfg s = exit (ExitFailure 2) $ do
+solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
+solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()

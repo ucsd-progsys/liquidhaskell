@@ -1,0 +1,43 @@
+
+constraint:
+  env [ ]
+  grd true
+  lhs {v : int | [v = 10]}
+  rhs {v : int | [v > 0]}
+  id 1 
+
+constraint:
+  env [ ]
+  grd true 
+  lhs {v : int | [v = 20]}
+  rhs {v : int | [v > 0]}
+  id 2 
+
+constraint:
+  env [ ]
+  grd true 
+  lhs {v : int | [v = 20]}
+  rhs {v : int | [v > 0]}
+  id 3 
+
+constraint:
+  env [ ]
+  grd true
+  lhs {v : int | [v = 10]}
+  rhs {v : int | [v > 0]}
+  id 4 
+
+constraint:
+  env [ ]
+  grd true 
+  lhs {v : int | [v = 20]}
+  rhs {v : int | [v > 0]}
+  id 5 
+
+constraint:
+  env [ ]
+  grd true 
+  lhs {v : int | [v = 20]}
+  rhs {v : int | [v > 0]}
+  id 6 
+
