@@ -87,7 +87,7 @@ partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
-    kM   = M.fromList $ tracepp "kM" [ (k, i) | (KVar k, i) <- kvI ]
+    kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition fi icM iwM j
