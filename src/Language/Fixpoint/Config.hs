@@ -119,6 +119,7 @@ instance Show SMTSolver where
   show Mathsat = "mathsat"
   show Z3mem   = "z3mem"
 
+smtSolver :: String -> SMTSolver
 smtSolver "z3"      = Z3
 smtSolver "cvc4"    = Cvc4
 smtSolver "mathsat" = Mathsat

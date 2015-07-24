@@ -93,7 +93,7 @@ inParallelUsing :: Config
                    -> IO (Maybe (Result a)) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
-   workers <- initWorkers (fromCores $ cores c) a
+   workers <- initWorkers (cores c) a
    case workers of
       Nothing -> return Nothing
       (Just workers') -> do
@@ -105,7 +105,7 @@ inParallelUsing c finfos a = do
          writeList2Chan (toWorker workers') (map Execute finfos)
          traceIO "Sent FInfos to workers..."
          result <- waitForAll (length finfos) [] (fromWorker workers')
-         finalizeWorkers (fromCores $ cores c) workers'
+         finalizeWorkers (cores c) workers'
          return $ Just $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o
