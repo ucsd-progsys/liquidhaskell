@@ -117,8 +117,7 @@ mkTest code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        testPath <- getExecutablePath
-        let liquid = (takeDirectory $ takeDirectory testPath) </> "liquid" </> "liquid"
+        liquid <- binPath "liquid"
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd liquid dir file smt opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
@@ -129,6 +128,10 @@ mkTest code dir file
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
 
+binPath pkgName = do 
+  testPath <- getExecutablePath
+  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
+ 
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
                    , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
                    , "tests/pos/Product.hs" ]
