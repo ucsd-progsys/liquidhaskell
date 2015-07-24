@@ -87,13 +87,14 @@ partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
-    kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
+    kM   = M.fromList $ tracepp "kM" [ (k, i) | (KVar k, i) <- kvI ]
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition fi icM iwM j
   = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
        , F.ws =              M.lookupDefault [] j iwM
-       , F.fileName = partFile fi j}
+       , F.fileName = partFile fi j
+       }
 
 wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
                  [i] -> i
@@ -139,7 +140,12 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
     bs     = F.bs fi
     cs     = M.elems (F.cm fi)
-    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c]
+    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c] ++
+             [(KVar k, KVar k) | k <- fiKVars fi]
+
+fiKVars :: F.FInfo a -> [F.KVar]
+fiKVars fi = sortNub $ concatMap (wfKvars) (F.ws fi)
+
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- lhsKVars bs c]

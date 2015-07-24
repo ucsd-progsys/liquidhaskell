@@ -165,8 +165,8 @@ groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
 
-groupFun :: (Eq k, Hashable k) => M.HashMap k Int -> k -> Int
-groupFun m k = safeLookup "groupFun" k m
+groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
+groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
