@@ -1,49 +1,21 @@
-module Language.Fixpoint.Solver.Deps
-       ( -- * Dummy Solver for Debugging Kuts
-         solve
+module Language.Fixpoint.Solver.Deps (
+    -- * KV-Dependencies
+    deps, Deps (..)
+) where
 
-         -- * KV-Dependencies
-       , deps
-       , Deps (..)
-
-         -- * Reads and Writes of Constraints
-       , lhsKVars
-       , rhsKVars
-       ) where
-
-import           Language.Fixpoint.Config
-import           Language.Fixpoint.Misc  (groupList)
-import           Language.Fixpoint.Names (nonSymbol)
-import qualified Language.Fixpoint.Types  as F
-
+import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Names   (nonSymbol)
+import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Visitor as V
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.Graph                as G
-
-import Control.Monad.State
+import           Control.Monad.State       (get, put, State, execState)
 
 data Deps  = Deps { depCuts    :: ![F.KVar]
                   , depNonCuts :: ![F.KVar]
                   }
              deriving (Eq, Ord, Show)
-
-
---------------------------------------------------------------
--- | Dummy just for debugging --------------------------------
---------------------------------------------------------------
-solve :: Config -> F.FInfo a -> IO (F.FixResult a)
---------------------------------------------------------------
-solve _ fi = do
-  let d = deps fi
-  print "(begin cuts debug)"
-  print "Cuts:"
-  print (depCuts d)
-  print "Non-cuts:"
-  print (depNonCuts d)
-  print "(end cuts debug)"
-  return F.Safe
-
 
 --------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------
@@ -77,20 +49,10 @@ chooseCut vs (F.KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
     v   = head $ if S.null is then vs' else S.toList is
 
 subcEdges :: F.BindEnv -> F.SubC a -> [(F.KVar, F.KVar)]
-subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
-                                  , k2 <- rhsKVars c    ]
-              ++ [(k2, F.KV nonSymbol) | k2 <- rhsKVars c]
+subcEdges bs c = [(k1, k2)        | k1 <- V.lhsKVars bs c
+                                  , k2 <- V.rhsKVars c    ]
+              ++ [(k2, F.KV nonSymbol) | k2 <- V.rhsKVars c]
 -- this nonSymbol hack is one way to prevent nodes with potential
 -- outdegree 0 from getting pruned by stronglyConnCompR
-
-lhsKVars :: F.BindEnv -> F.SubC a -> [F.KVar]
-lhsKVars bs c = envKVs ++ lhsKVs
-  where
-    envKVs    = V.envKVars bs           c
-    lhsKVs    = V.kvars       $ F.lhsCs c
-
-rhsKVars :: F.SubC a -> [F.KVar]
-rhsKVars = V.kvars . F.rhsCs
-
 
 ---------------------------------------------------------------

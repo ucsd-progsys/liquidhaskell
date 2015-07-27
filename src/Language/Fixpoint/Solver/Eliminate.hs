@@ -5,8 +5,8 @@ module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, elimKVar, findWfC) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Solver.Deps (depNonCuts, deps, rhsKVars)
-import           Language.Fixpoint.Visitor     (kvars, mapKVars')
+import           Language.Fixpoint.Solver.Deps (depNonCuts, deps)
+import           Language.Fixpoint.Visitor     (kvars, mapKVars', rhsKVars)
 import           Language.Fixpoint.Names       (existSymbol)
 import           Language.Fixpoint.Misc        (errorstar)
 

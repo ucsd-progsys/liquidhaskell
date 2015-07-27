@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Solver.Deps
+import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
