@@ -20,6 +20,7 @@ module Language.Fixpoint.Parallel (
 import Control.Concurrent
 import Language.Fixpoint.Types
 import Language.Fixpoint.Config
+import Language.Fixpoint.Errors
 
 import Debug.Trace
 import Control.Exception
@@ -35,7 +36,7 @@ instance Show (ToWorker a) where
 
 -- | A response from a worker thread
 data FromWorker a =
-   Returned (Maybe (Result a)) -- ^ The Result of solving an FInfo
+   Returned (Result a) -- ^ The Result of solving an FInfo
    | Dead -- ^ Confirmation that a thread has shut down
 
 -- | Conains the nessesary channels to communicate with the worker threads
@@ -43,6 +44,9 @@ data Workers a =
    Workers
    {to :: Chan (ToWorker a),
     from :: Chan (FromWorker a)}
+
+unknownError :: String -> Result a
+unknownError e = Result (UnknownError e) mempty
 
 -- | Start the worker threads, get the channels used to communicate with them
 initWorkers :: Int -- ^ The number of threads to spawn
@@ -66,13 +70,10 @@ initWorkers c a = do
          traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
-               let handler (SomeException e) = do
-                      traceIO (displayException e)
-                      return Nothing
+               let handler (SomeException e) =
+                      return $ unknownError $ displayException e
                output <- catch
-                         (do
-                            res <- a f
-                            return $ Just res)
+                         (a f)
                          handler
                traceIO "Solve returned"
                writeChan fw (Returned output)
@@ -99,12 +100,12 @@ finalizeWorkers c w = do
 inParallelUsing :: Config
                    -> [FInfo a] -- ^ To solve in parallel
                    -> (FInfo a -> IO (Result a)) -- ^ The solver function
-                   -> IO (Maybe (Result a)) -- ^ The combined results, or
+                   -> IO (Result a) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
    workers <- initWorkers (cores c) a
    case workers of
-      Nothing -> return Nothing
+      Nothing -> fail "Failed to create worker threads!"
       (Just workers') -> do
          traceIO $ "Solving "
             ++ show (length finfos)
@@ -115,10 +116,7 @@ inParallelUsing c finfos a = do
          traceIO "Sent FInfos to workers..."
          result <- waitForAll (length finfos) [] (from workers')
          finalizeWorkers (cores c) workers'
-         return $ do
-            let result' = map (\(Returned r) -> r) result
-            result'' <- sequence result'
-            return $ mconcat result''
+         return $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w

@@ -133,10 +133,7 @@ solvePar cfg fi = do
    let (_, finfos) = partition' fi
    traceIO $ "length of FInfos: " ++ show (length finfos)
    traceIO $ "number of cores: " ++ show (cores cfg)
-   results <- inParallelUsing cfg finfos (solveExt cfg)
-   case results of
-      Just r -> return r
-      Nothing -> return mempty
+   inParallelUsing cfg finfos (solveExt cfg)
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
