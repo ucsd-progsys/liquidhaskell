@@ -70,7 +70,8 @@ initWorkers c a = do
          traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
-               let handler (SomeException e) =
+               let handler (SomeException e) = do
+                      traceIO $ "Thread caught exception!" ++ (displayException e)
                       return $ unknownError $ displayException e
                output <- catch
                          (a f)
