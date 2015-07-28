@@ -35,14 +35,14 @@ instance Show (ToWorker a) where
 
 -- | A response from a worker thread
 data FromWorker a =
-   Returned (Result a) -- ^ The Result of solving an FInfo
+   Returned (Maybe (Result a)) -- ^ The Result of solving an FInfo
    | Dead -- ^ Confirmation that a thread has shut down
 
 -- | Conains the nessesary channels to communicate with the worker threads
 data Workers a =
    Workers
-   {toWorker :: Chan (ToWorker a),
-    fromWorker :: Chan (FromWorker a)}
+   {to :: Chan (ToWorker a),
+    from :: Chan (FromWorker a)}
 
 -- | Start the worker threads, get the channels used to communicate with them
 initWorkers :: Int -- ^ The number of threads to spawn
@@ -54,9 +54,11 @@ initWorkers 0 _ = return Nothing
 initWorkers c a = do
    tw <- newChan
    fw <- newChan
-   let workers = Workers {toWorker = tw, fromWorker = fw}
+   let workers = Workers {to = tw, from = fw}
    let actions = replicate (fromIntegral c) $ action tw fw
-   mapM_ forkIO actions
+   let forkFn (Left _) = traceIO "Premature thread death!"
+       forkFn (Right _) = traceIO "Expected thread death!"
+   mapM_ (`forkFinally` forkFn) actions
    return $ Just workers
    where
       action tw fw = do
@@ -64,7 +66,14 @@ initWorkers c a = do
          traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
-               output <- onException (a f) (traceIO "exception!")
+               let handler (SomeException e) = do
+                      traceIO (displayException e)
+                      return Nothing
+               output <- catch
+                         (do
+                            res <- a f
+                            return $ Just res)
+                         handler
                traceIO "Solve returned"
                writeChan fw (Returned output)
                action tw fw
@@ -76,12 +85,12 @@ finalizeWorkers :: Int -- ^ The number of running threads
                    -> IO () -- ^ If any solutions were pending, they are
                    -- discarded
 finalizeWorkers c w = do
-   writeList2Chan (toWorker w) (replicate (fromIntegral c) Die)
+   writeList2Chan (to w) (replicate (fromIntegral c) Die)
    goFW c
    where
       goFW 0 = return ()
       goFW c' = do
-         curr <- readChan $ fromWorker w
+         curr <- readChan $ from w
          case curr of
             Dead -> goFW (c' - 1)
             _ -> goFW c'
@@ -102,11 +111,14 @@ inParallelUsing c finfos a = do
             ++ " in parallel with "
             ++ show (cores c)
             ++ " threads..."
-         writeList2Chan (toWorker workers') (map Execute finfos)
+         writeList2Chan (to workers') (map Execute finfos)
          traceIO "Sent FInfos to workers..."
-         result <- waitForAll (length finfos) [] (fromWorker workers')
+         result <- waitForAll (length finfos) [] (from workers')
          finalizeWorkers (cores c) workers'
-         return $ Just $ mconcat $ map (\(Returned r) -> r) result
+         return $ do
+            let result' = map (\(Returned r) -> r) result
+            result'' <- sequence result'
+            return $ mconcat result''
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w
