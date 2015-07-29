@@ -173,7 +173,7 @@ mkGraph = fmap S.fromList . group
 
 
 -- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
-groupMap f xs = L.foldl' (\m x -> inserts (f x) x m) M.empty xs
+groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
