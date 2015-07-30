@@ -98,25 +98,25 @@ finalizeWorkers c w = do
             _ -> goFW c'
 
 -- | Solve a list of FInfos using the provided solver function in parallel
-inParallelUsing :: Config
+inParallelUsing :: Int
                    -> [FInfo a] -- ^ To solve in parallel
                    -> (FInfo a -> IO (Result a)) -- ^ The solver function
                    -> IO (Result a) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
-   workers <- initWorkers (cores c) a
+   workers <- initWorkers c a
    case workers of
       Nothing -> fail "Failed to create worker threads!"
       (Just workers') -> do
          traceIO $ "Solving "
             ++ show (length finfos)
             ++ " in parallel with "
-            ++ show (cores c)
+            ++ show c
             ++ " threads..."
          writeList2Chan (to workers') (map Execute finfos)
          traceIO "Sent FInfos to workers..."
          result <- waitForAll (length finfos) [] (from workers')
-         finalizeWorkers (cores c) workers'
+         finalizeWorkers c workers'
          return $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o

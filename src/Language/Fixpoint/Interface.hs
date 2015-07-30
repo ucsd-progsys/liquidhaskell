@@ -129,11 +129,14 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 -- | Partitions an FInfo into 1 or more independent parts, then
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solvePar cfg fi = do
-   let (_, finfos) = partition' fi
-   traceIO $ "length of FInfos: " ++ show (length finfos)
-   traceIO $ "number of cores: " ++ show (cores cfg)
-   inParallelUsing cfg finfos (solveExt cfg)
+solvePar c fi = do
+   let (_, fis) = partition' fi
+   traceIO $ "length of FInfos: " ++ show (length fis)
+   traceIO $ "number of cores: " ++ show (cores c)
+   case fis of
+      [] -> solveExt c fi
+      _ | length fis < cores c -> inParallelUsing (length fis) fis (solveExt c)
+        | otherwise -> inParallelUsing (cores c) fis (solveExt c)
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
