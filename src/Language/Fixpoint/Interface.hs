@@ -45,7 +45,7 @@ import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition, partition')
+import           Language.Fixpoint.Partition      (partition, partitionN)
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
@@ -130,11 +130,12 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
-   let (_, fis) = partition' fi
+   let fis = partitionN (cores c) fi
    traceIO $ "length of FInfos: " ++ show (length fis)
    traceIO $ "number of cores: " ++ show (cores c)
    case fis of
       [] -> solveExt c fi
+      [onePart] -> solveExt c onePart
       _ | length fis < cores c -> inParallelUsing (length fis) fis (solveExt c)
         | otherwise -> inParallelUsing (cores c) fis (solveExt c)
 

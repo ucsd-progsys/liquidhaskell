@@ -4,7 +4,7 @@
 -- | This module implements functions that print out
 --   statistics about the constraints.
 
-module Language.Fixpoint.Partition (partition, partition') where
+module Language.Fixpoint.Partition (partition, partition', partitionN) where
 
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
@@ -21,6 +21,7 @@ import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Debug.Trace
+import qualified Data.List                      as L
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Monoid (mempty)
@@ -47,6 +48,27 @@ partition' fi  = (g, partitionByConstraints fi css)
     es         = kvEdges   fi
     g          = kvGraph   es
     css        = decompose g
+
+partitionN :: Int -> F.FInfo a -> [F.FInfo a]
+partitionN n fi = toNParts sortedParts
+   where
+      toNParts p
+         | isDone p = p
+         | otherwise = toNParts $ insertInPlace firstTwo theRest
+            where firstTwo = fst $ unionFirstTwo p
+                  theRest = snd $ unionFirstTwo p
+      parts = snd $ partition' fi
+      isDone fi' = (length fi') <= n
+      sortedParts = L.sortBy sortPredicate parts
+      unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
+      sortPredicate lhs rhs
+         | (M.size $ F.cm lhs) < (M.size $ F.cm rhs) = LT
+         | (M.size $ F.cm lhs) > (M.size $ F.cm rhs) = GT
+         | otherwise = EQ
+      insertInPlace a [] = [a]
+      insertInPlace a (x:xs) = if sortPredicate a x == LT
+                               then x : insertInPlace a xs
+                               else x:a:xs
 
 -------------------------------------------------------------------------------------
 dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()

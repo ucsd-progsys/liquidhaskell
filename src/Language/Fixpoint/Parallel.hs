@@ -23,6 +23,8 @@ import Language.Fixpoint.Config
 import Language.Fixpoint.Errors
 
 import Debug.Trace
+import qualified Data.HashMap.Strict as M
+
 import Control.Exception
 
 -- | A message to a worker thread
@@ -70,6 +72,7 @@ initWorkers c a = do
          traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
+               traceIO $ "Size of SubC Map: " ++ (show $ M.size $ cm f)
                let handler (SomeException e) = do
                       traceIO $ "Thread caught exception!" ++ (displayException e)
                       return $ unknownError $ displayException e
