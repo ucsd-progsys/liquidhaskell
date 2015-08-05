@@ -21,7 +21,7 @@ import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Debug.Trace
-import qualified Data.List                      as L
+import           Data.List (sortBy)
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Monoid (mempty)
@@ -50,20 +50,18 @@ partition' fi  = (g, partitionByConstraints fi css)
     css        = decompose g
 
 partitionN :: Int -> F.FInfo a -> [F.FInfo a]
-partitionN n fi = toNParts sortedParts
+partitionN n fi = {-toNParts sortedParts-} [mconcat $ snd $ partition' fi]
    where
       toNParts p
          | isDone p = p
          | otherwise = toNParts $ insertInPlace firstTwo theRest
-            where firstTwo = fst $ unionFirstTwo p
-                  theRest = snd $ unionFirstTwo p
-      parts = snd $ partition' fi
-      isDone fi' = (length fi') <= n
-      sortedParts = L.sortBy sortPredicate parts
+            where (firstTwo, theRest) = unionFirstTwo p
+      isDone fi' = length fi' <= n
+      sortedParts = sortBy sortPredicate $ snd $ partition' fi
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       sortPredicate lhs rhs
-         | (M.size $ F.cm lhs) < (M.size $ F.cm rhs) = LT
-         | (M.size $ F.cm lhs) > (M.size $ F.cm rhs) = GT
+         | M.size (F.cm lhs) < M.size (F.cm rhs) = LT
+         | M.size (F.cm lhs) > M.size (F.cm rhs) = GT
          | otherwise = EQ
       insertInPlace a [] = [a]
       insertInPlace a (x:xs) = if sortPredicate a x == LT
