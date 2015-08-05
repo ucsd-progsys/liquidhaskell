@@ -40,6 +40,7 @@ instance Show (ToWorker a) where
 data FromWorker a =
    Returned (Result a) -- ^ The Result of solving an FInfo
    | Dead -- ^ Confirmation that a thread has shut down
+   | Threw String-- ^ Thread died because of an exception
 
 -- | Conains the nessesary channels to communicate with the worker threads
 data Workers a =
@@ -62,7 +63,7 @@ initWorkers c a = do
    fw <- newChan
    let workers = Workers {to = tw, from = fw}
    let actions = replicate (fromIntegral c) $ action tw fw
-   let forkFn (Left _) = traceIO "Premature thread death!"
+   let forkFn (Left e) = traceIO ("Premature thread death! " ++ displayException (e :: SomeException))
        forkFn (Right _) = traceIO "Expected thread death!"
    mapM_ (`forkFinally` forkFn) actions
    return $ Just workers
@@ -72,12 +73,13 @@ initWorkers c a = do
          traceIO $ "Entered action, read: " ++ show input
          case input of
             (Execute f) -> do
-               traceIO $ "Size of SubC Map: " ++ (show $ M.size $ cm f)
                let handler (SomeException e) = do
                       traceIO $ "Thread caught exception!" ++ (displayException e)
                       return $ unknownError $ displayException e
                output <- catch
-                         (a f)
+                         (do
+                             traceIO $ "Size of SubC Map: " ++ (show $ M.size $ cm f)
+                             a f)
                          handler
                traceIO "Solve returned"
                writeChan fw (Returned output)

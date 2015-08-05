@@ -1474,9 +1474,6 @@ instance Monoid BindEnv where
   mempty = BE 0 M.empty
   mappend (BE 0 _) b = b
   mappend b (BE 0 _) = b
-  mappend (BE s m) (BE t n)
-     | s < t = BE t n
-     | otherwise = BE s m
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (FInfo a) where
@@ -1805,3 +1802,12 @@ propSort = fTyconSort propFTyCon
 
 fTyConSort :: FTycon -> Sort
 fTyConSort c = fApp (Left c) []
+
+-------------------------------------------------------------------------
+-- | Constraint Partition Container -------------------------------------
+-------------------------------------------------------------------------
+
+
+data CPart a = CPart { pws :: [WfC a]
+                     , pcs :: [SubC a]
+                     }
