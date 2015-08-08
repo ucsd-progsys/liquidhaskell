@@ -1486,7 +1486,7 @@ instance Monoid (FInfo a) where
                      , kuts     = mappend (kuts i1)     (kuts i2)
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
-                     , fileName = mappend (fileName i1) (fileName i2)
+                     , fileName = fileName i1
                      }
 
 ($++$) :: Doc -> Doc -> Doc
@@ -1802,3 +1802,12 @@ propSort = fTyconSort propFTyCon
 
 fTyConSort :: FTycon -> Sort
 fTyConSort c = fApp (Left c) []
+
+-------------------------------------------------------------------------
+-- | Constraint Partition Container -------------------------------------
+-------------------------------------------------------------------------
+
+
+data CPart a = CPart { pws :: [WfC a]
+                     , pcs :: [SubC a]
+                     }

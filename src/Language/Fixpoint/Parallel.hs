@@ -23,6 +23,8 @@ import Language.Fixpoint.Config
 import Language.Fixpoint.Errors
 
 import Debug.Trace
+import qualified Data.HashMap.Strict as M
+
 import Control.Exception
 
 -- | A message to a worker thread
@@ -38,6 +40,7 @@ instance Show (ToWorker a) where
 data FromWorker a =
    Returned (Result a) -- ^ The Result of solving an FInfo
    | Dead -- ^ Confirmation that a thread has shut down
+   | Threw String-- ^ Thread died because of an exception
 
 -- | Conains the nessesary channels to communicate with the worker threads
 data Workers a =
@@ -60,7 +63,7 @@ initWorkers c a = do
    fw <- newChan
    let workers = Workers {to = tw, from = fw}
    let actions = replicate (fromIntegral c) $ action tw fw
-   let forkFn (Left _) = traceIO "Premature thread death!"
+   let forkFn (Left e) = traceIO ("Premature thread death! " ++ displayException (e :: SomeException))
        forkFn (Right _) = traceIO "Expected thread death!"
    mapM_ (`forkFinally` forkFn) actions
    return $ Just workers
@@ -74,7 +77,9 @@ initWorkers c a = do
                       traceIO $ "Thread caught exception!" ++ (displayException e)
                       return $ unknownError $ displayException e
                output <- catch
-                         (a f)
+                         (do
+                             traceIO $ "Size of SubC Map: " ++ (show $ M.size $ cm f)
+                             a f)
                          handler
                traceIO "Solve returned"
                writeChan fw (Returned output)
@@ -98,25 +103,25 @@ finalizeWorkers c w = do
             _ -> goFW c'
 
 -- | Solve a list of FInfos using the provided solver function in parallel
-inParallelUsing :: Config
+inParallelUsing :: Int
                    -> [FInfo a] -- ^ To solve in parallel
                    -> (FInfo a -> IO (Result a)) -- ^ The solver function
                    -> IO (Result a) -- ^ The combined results, or
                    -- Nothing on error
 inParallelUsing c finfos a = do
-   workers <- initWorkers (cores c) a
+   workers <- initWorkers c a
    case workers of
       Nothing -> fail "Failed to create worker threads!"
       (Just workers') -> do
          traceIO $ "Solving "
             ++ show (length finfos)
             ++ " in parallel with "
-            ++ show (cores c)
+            ++ show c
             ++ " threads..."
          writeList2Chan (to workers') (map Execute finfos)
          traceIO "Sent FInfos to workers..."
          result <- waitForAll (length finfos) [] (from workers')
-         finalizeWorkers (cores c) workers'
+         finalizeWorkers c workers'
          return $ mconcat $ map (\(Returned r) -> r) result
    where
       waitForAll 0 o _ = sequence o
