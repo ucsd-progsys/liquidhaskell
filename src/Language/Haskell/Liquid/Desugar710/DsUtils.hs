@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.Desugar710.DsUtils (
         mkCoPrimCaseMatchResult, mkCoAlgCaseMatchResult, mkCoSynCaseMatchResult,
         wrapBind, wrapBinds,
 
-        mkErrorAppDs, mkCoreAppDs, mkCoreAppsDs,
+        mkErrorAppDs, mkCoreAppDs, mkCoreAppsDs, mkCastDs,
 
         seqVar,
 
@@ -44,6 +44,7 @@ import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar710.Match ( matchSimply )
 
 import HsSyn
 import TcHsSyn
+import Coercion( Coercion, isReflCo )
 import TcType( tcSplitTyConApp )
 import CoreSyn
 import DsMonad
@@ -548,6 +549,18 @@ mkCoreAppDs fun arg = mkCoreApp fun arg  -- The rest is done in MkCore
 
 mkCoreAppsDs :: CoreExpr -> [CoreExpr] -> CoreExpr
 mkCoreAppsDs fun args = foldl mkCoreAppDs fun args
+
+mkCastDs :: CoreExpr -> Coercion -> CoreExpr
+-- We define a desugarer-specific verison of CoreUtils.mkCast,
+-- because in the immediate output of the desugarer, we can have
+-- apparently-mis-matched coercions:  E.g.
+--     let a = b
+--     in (x :: a) |> (co :: b ~ Int)
+-- Lint know about type-bindings for let and does not complain
+-- So here we do not make the assertion checks that we make in
+-- CoreUtils.mkCast; and we do less peephole optimisation too
+mkCastDs e co | isReflCo co = e
+              | otherwise   = Cast e co
 
 {-
 ************************************************************************
