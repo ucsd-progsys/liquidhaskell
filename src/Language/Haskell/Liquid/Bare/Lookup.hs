@@ -105,7 +105,7 @@ symbolLookupEnv env mod s
        res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
        return $ catMaybes [res, res']
   | otherwise
-  = do L _ rn         <- hscParseIdentifier env $ symbolString s
+  = do rn             <- hscParseIdentifier env $ symbolString s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
