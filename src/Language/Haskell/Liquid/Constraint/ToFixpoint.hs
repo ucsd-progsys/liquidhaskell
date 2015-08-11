@@ -34,6 +34,7 @@ targetFInfo info cgi
          , F.kuts     = kuts cgi
          , F.quals    = targetQuals info
          , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
+         -- , F.fileName = error "FIX THIS" :: FilePath
          }
    where
     spc    = spec info
@@ -47,6 +48,3 @@ targetQuals info = spcQs ++ genQs
     genQs     = specificationQualifiers n info
     n         = maxParams $ config spc
     spc       = spec info
-
-
-
