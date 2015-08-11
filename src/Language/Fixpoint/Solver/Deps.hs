@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Language.Fixpoint.Solver.Deps (
     -- * KV-Dependencies
     deps, Deps (..)
