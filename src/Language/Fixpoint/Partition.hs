@@ -44,13 +44,17 @@ partition cfg fi
 
 partition' :: Maybe Int -> F.FInfo a -> (KVGraph, [F.FInfo a])
 partition' mn fi  = case mn of
-   Nothing -> (g, fis)
-   (Just n) -> (g, partitionN n fi $ partitionByConstraints' fi css)
+   Nothing -> (g, fis mkPartition id)
+   (Just n) -> (g, partitionN n fi $ fis mkPartition' finfoToCpart)--partitionByConstraints mkPartition' fi css)
   where
     es                 = kvEdges   fi
     g                  = kvGraph   es
     css                = decompose g
-    fis                = applyNonNull [fi] (partitionByConstraints fi) css
+    fis partF ctor     = applyNonNull [ctor fi]
+                                      (partitionByConstraints
+                                       partF
+                                       fi) css
+
 
 
 partitionN :: Int -> F.FInfo a -> [F.CPart a] -> [F.FInfo a]
@@ -78,6 +82,12 @@ cpartToFinfo fi p = fi { F.cm = F.pcs p
                        , F.fileName = F.cFileName p
                        }
 
+finfoToCpart :: F.FInfo a -> F.CPart a
+finfoToCpart fi = F.CPart { F.pcs = F.cm fi
+                          , F.pws = F.ws fi
+                          , F.cFileName = F.fileName fi
+                          }
+
 -------------------------------------------------------------------------------------
 dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
 -------------------------------------------------------------------------------------
@@ -103,6 +113,33 @@ ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 ppEdges :: [CEdge] -> Doc
 ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 
+
+type PartitionCtor a b = F.FInfo a
+                         -> M.HashMap Int [(Integer, F.SubC a)]
+                         -> M.HashMap Int [F.WfC a]
+                         -> Int
+                         -> b
+
+partitionByConstraints :: PartitionCtor a b
+                          -> F.FInfo a
+                          -> KVComps
+                          -> ListNE b
+partitionByConstraints f fi kvss = f fi icM iwM <$> js
+  where
+    js   = fst <$> jkvs                                -- groups
+    gc   = groupFun cM                                 -- (i, ci) |-> j
+    gk   = groupFun kM                                 -- k       |-> j
+
+    iwM  = groupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
+    icM  = groupMap (gc . fst)   (M.toList (F.cm fi))  -- j |-> [(i, ci)]
+
+    jkvs = zip [1..] kvss
+    kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
+    kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
+    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
+
+
+{-
 -------------------------------------------------------------------------------------
 partitionByConstraints :: F.FInfo a -> KVComps -> ListNE (F.FInfo a)
 -------------------------------------------------------------------------------------
@@ -118,7 +155,7 @@ partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
     kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
-    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
+    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ] -}
 
 mkPartition fi icM iwM j
   = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
@@ -126,6 +163,7 @@ mkPartition fi icM iwM j
        , F.fileName = partFile fi j
        }
 
+{-
 partitionByConstraints' :: F.FInfo a -> KVComps -> [F.CPart a]
 partitionByConstraints' fi kvss = mkPartition' fi icM iwM <$> js
   where
@@ -139,7 +177,7 @@ partitionByConstraints' fi kvss = mkPartition' fi icM iwM <$> js
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
     kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
-    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
+    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ] -}
 
 mkPartition' fi icM iwM j
   = F.CPart { F.pcs = M.fromList $ M.lookupDefault [] j icM
