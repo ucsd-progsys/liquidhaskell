@@ -73,7 +73,11 @@ multicore cfg = cores cfg > 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve  :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+  --  parts cfg  = partition cfg x
+  --  stats cfg  = statistics cfg x
+  --  native cfg = solveNativeWithFInfo cfg x
+  --  otherwise  = solveExt cfg x
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | parts cfg     = partition cfg
   | stats cfg     = statistics cfg
