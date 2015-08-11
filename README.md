@@ -5,7 +5,6 @@ LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.
 Requirements
 ------------
 
-
 LiquidHaskell requires (in addition to the cabal dependencies)
 
 - SMTLIB2 compatible solver
@@ -36,21 +35,28 @@ directory of the distribution:
     git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
     git clone git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
+    ```
+
+3. (If using **stack**) To build and install
+
+    ```
+    stack install
+    ```
+
+   (If using **cabal**) then
+
+
+    ```
     cabal sandbox init
     cabal sandbox add-source ../liquid-fixpoint/
-    ```
-
-3. Install 
-
-    ```
     cabal install
     ```
 
-To **rebuild** after this step, run
+4. To **rebuild** after this step, run
 
-    `make` or `cabal install`
+    `make` or `cabal install` or `stack install`
 
-inside
+   inside
 
     /path/to/liquid/liquidhaskell/
 

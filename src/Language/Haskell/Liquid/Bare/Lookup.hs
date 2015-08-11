@@ -22,7 +22,6 @@ import PrelInfo                                 (wiredInThings)
 import PrelNames                                (fromIntegerName, smallIntegerName, integerTyConName)
 import RdrName (setRdrNameSpace)
 import SrcLoc (SrcSpan, GenLocated(L))
-import TcRnDriver (tcRnLookupRdrName) 
 import TcEnv
 import TyCon
 import TysWiredIn
@@ -39,7 +38,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
-import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
@@ -105,7 +104,7 @@ symbolLookupEnv env mod s
        res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
        return $ catMaybes [res, res']
   | otherwise
-  = do L _ rn         <- hscParseIdentifier env $ symbolString s
+  = do rn             <- hscParseIdentifier env $ symbolString s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
