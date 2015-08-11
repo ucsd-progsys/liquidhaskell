@@ -42,14 +42,15 @@ partition cfg fi
     where
        (es, fis) = partition' fi
 
-partition' :: F.FInfo a -> (KVGraph, [F.FInfo a])
-partition' fi  = (g, partitionByConstraints fi css)
+partition' :: F.FInfo a -> (KVGraph, ListNE (F.FInfo a))
+partition' fi  = (g, fis)
   where
     es         = kvEdges   fi
     g          = kvGraph   es
     css        = decompose g
+    fis        = applyNonNull [fi] (partitionByConstraints fi) css
 
-partitionN :: Int -> F.FInfo a -> [F.FInfo a]
+partitionN :: Int -> F.FInfo a -> ListNE (F.FInfo a)
 partitionN n fi = {-toNParts sortedParts-} [mconcat $ snd $ partition' fi]
    where
       toNParts p
@@ -94,7 +95,7 @@ ppEdges :: [CEdge] -> Doc
 ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 
 -------------------------------------------------------------------------------------
-partitionByConstraints :: F.FInfo a -> KVComps -> [F.FInfo a]
+partitionByConstraints :: F.FInfo a -> KVComps -> ListNE (F.FInfo a)
 -------------------------------------------------------------------------------------
 partitionByConstraints fi kvss = mkPartition fi icM iwM <$> js
   where
@@ -147,7 +148,7 @@ type KVComps  = Comps CVertex
 -------------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
 -------------------------------------------------------------------------------------
-decompose kg = {- tracepp "flattened" $ -} map (fst3 . f) <$> vss
+decompose kg = tracepp "flattened" $ map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
     vss      = T.flatten <$> G.components g
@@ -164,7 +165,7 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
              [(KVar k, KVar k) | k <- fiKVars fi]
 
 fiKVars :: F.FInfo a -> [F.KVar]
-fiKVars fi = sortNub $ concatMap (wfKvars) (F.ws fi)
+fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
 
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
