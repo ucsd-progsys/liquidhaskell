@@ -130,7 +130,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
-   let (_, fis) = partition' fi
+   let (_, fis) = partition' (Just $ cores c) fi
    traceIO $ "length of FInfos: " ++ show (length fis)
    traceIO $ "number of cores: " ++ show (cores c)
    case fis of

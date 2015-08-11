@@ -162,6 +162,9 @@ module Language.Fixpoint.Types (
   , Located (..)
   , LocSymbol, LocText
   , locAt, dummyLoc, dummyPos, dummyName, isDummy
+
+  -- * Partitions
+  , CPart (..)
   ) where
 
 import           Debug.Trace               (trace)
@@ -1809,5 +1812,13 @@ fTyConSort c = fApp (Left c) []
 
 
 data CPart a = CPart { pws :: [WfC a]
-                     , pcs :: [SubC a]
+                     , pcs :: M.HashMap Integer (SubC a)
+                     , cFileName :: FilePath
                      }
+
+instance Monoid (CPart a) where
+   mempty = CPart mempty mempty mempty
+   mappend l r = CPart { pws = pws l `mappend` pws r
+                       , pcs = pcs l `mappend` pcs r
+                       , cFileName = cFileName l
+                       }

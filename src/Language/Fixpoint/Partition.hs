@@ -40,34 +40,43 @@ partition cfg fi
        -- whenLoud $ putStrLn $ render $ ppGraph es
        return mempty
     where
-       (es, fis) = partition' fi
+       (es, fis) = partition' Nothing fi
 
-partition' :: F.FInfo a -> (KVGraph, ListNE (F.FInfo a))
-partition' fi  = (g, fis)
+partition' :: Maybe Int -> F.FInfo a -> (KVGraph, [F.FInfo a])
+partition' mn fi  = case mn of
+   Nothing -> (g, fis)
+   (Just n) -> (g, partitionN n fi $ partitionByConstraints' fi css)
   where
-    es         = kvEdges   fi
-    g          = kvGraph   es
-    css        = decompose g
-    fis        = applyNonNull [fi] (partitionByConstraints fi) css
+    es                 = kvEdges   fi
+    g                  = kvGraph   es
+    css                = decompose g
+    fis                = applyNonNull [fi] (partitionByConstraints fi) css
 
-partitionN :: Int -> F.FInfo a -> ListNE (F.FInfo a)
-partitionN n fi = {-toNParts sortedParts-} [mconcat $ snd $ partition' fi]
+
+partitionN :: Int -> F.FInfo a -> [F.CPart a] -> [F.FInfo a]
+partitionN n fi cp = map (cpartToFinfo fi) $ toNParts sortedParts
    where
       toNParts p
          | isDone p = p
          | otherwise = toNParts $ insertInPlace firstTwo theRest
             where (firstTwo, theRest) = unionFirstTwo p
       isDone fi' = length fi' <= n
-      sortedParts = sortBy sortPredicate $ snd $ partition' fi
+      sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       sortPredicate lhs rhs
-         | M.size (F.cm lhs) < M.size (F.cm rhs) = LT
-         | M.size (F.cm lhs) > M.size (F.cm rhs) = GT
+         | M.size (F.pcs lhs) < M.size (F.pcs rhs) = LT
+         | M.size (F.pcs lhs) > M.size (F.pcs rhs) = GT
          | otherwise = EQ
       insertInPlace a [] = [a]
       insertInPlace a (x:xs) = if sortPredicate a x == LT
                                then x : insertInPlace a xs
                                else x:a:xs
+
+cpartToFinfo :: F.FInfo a -> F.CPart a -> F.FInfo a
+cpartToFinfo fi p = fi { F.cm = F.pcs p
+                       , F.ws = F.pws p
+                       , F.fileName = F.cFileName p
+                       }
 
 -------------------------------------------------------------------------------------
 dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
@@ -116,6 +125,27 @@ mkPartition fi icM iwM j
        , F.ws =              M.lookupDefault [] j iwM
        , F.fileName = partFile fi j
        }
+
+partitionByConstraints' :: F.FInfo a -> KVComps -> [F.CPart a]
+partitionByConstraints' fi kvss = mkPartition' fi icM iwM <$> js
+  where
+    js   = fst <$> jkvs                                -- groups
+    gc   = groupFun cM                                 -- (i, ci) |-> j
+    gk   = groupFun kM                                 -- k       |-> j
+
+    iwM  = groupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
+    icM  = groupMap (gc . fst)   (M.toList (F.cm fi))  -- j |-> [(i, ci)]
+
+    jkvs = zip [1..] kvss
+    kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
+    kM   = M.fromList [ (k, i) | (KVar k, i) <- kvI ]
+    cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
+
+mkPartition' fi icM iwM j
+  = F.CPart { F.pcs = M.fromList $ M.lookupDefault [] j icM
+            , F.pws = M.lookupDefault [] j iwM
+            , F.cFileName = partFile fi j
+            }
 
 wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
                  [i] -> i
