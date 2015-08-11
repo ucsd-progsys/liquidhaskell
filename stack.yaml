@@ -1,0 +1,12 @@
+# GHC 7.10
+# resolver: nightly-2015-06-16
+
+# GHC 7.8
+# resolver: lts-2.14
+
+resolver: nightly-2015-06-16
+packages:
+- ../liquid-fixpoint
+- .
+extra-deps:
+- intern-0.9.1.4

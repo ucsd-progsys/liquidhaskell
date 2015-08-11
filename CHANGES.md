@@ -2,6 +2,10 @@
 
 ## NEXT
 
+- Added support for building with `stack`
+
+- Added support for GHC 7.10 (in addition to 7.8)
+
 - Added '--cabaldir' option that will automatically find a .cabal file in the ancestor
   path from which the target file belongs, and then add the relevant source and dependencies
   to the paths searched for by LiquidHaskell.

@@ -20,12 +20,12 @@ import Language.Haskell.Liquid.RefType          ( rTypeSortedReft )
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi fi = do
-  let tgtFI = targetFInfo info cgi fi 
+  let tgtFI = targetFInfo info cgi fi
   impFI    <- parseFInfo $ hqFiles info
   return    $ tgtFI <> impFI
 
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
-targetFInfo info cgi fn 
+targetFInfo info cgi fn
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
          , F.ws       = fixWfs cgi
          , F.bs       = binds cgi
@@ -34,7 +34,7 @@ targetFInfo info cgi fn
          , F.kuts     = kuts cgi
          , F.quals    = targetQuals info
          , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
-         , F.fileName = fn 
+         , F.fileName = fn
          }
    where
     spc    = spec info
@@ -48,6 +48,3 @@ targetQuals info = spcQs ++ genQs
     genQs     = specificationQualifiers n info
     n         = maxParams $ config spc
     spc       = spec info
-
-
-
