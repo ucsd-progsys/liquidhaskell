@@ -46,11 +46,12 @@ import TcEvidence
 import TcType
 import Type
 import Coercion hiding (substCo)
-import TysWiredIn ( eqBoxDataCon, coercibleDataCon, tupleCon )
+import TysWiredIn ( eqBoxDataCon, coercibleDataCon, mkListTy
+                  , mkBoxedTupleTy, stringTy, tupleCon )
 import Id
 import MkId(proxyHashId)
 import Class
-import DataCon  ( dataConWorkId )
+import DataCon  ( dataConWorkId, dataConTyCon )
 import Name
 import MkId     ( seqId )
 import IdInfo   ( IdDetails(..) )
@@ -908,6 +909,8 @@ dsEvTerm (EvLit l) =
     EvNum n -> mkIntegerExpr n
     EvStr s -> mkStringExprFS s
 
+dsEvTerm (EvCallStack cs) = dsEvCallStack cs
+
 dsEvTerm (EvTypeable ev) = dsEvTypeable ev
 
 dsEvTypeable :: EvTypeable -> DsM CoreExpr
@@ -1024,6 +1027,62 @@ IMPORTANT: we don't want to recalculate the TypeRep once per call with
 the proxy argument.  This is what went wrong in #3245 and #9203. So we
 help GHC by manually keeping the 'rep' *outside* the lambda.
 -}
+
+
+
+dsEvCallStack :: EvCallStack -> DsM CoreExpr
+-- See Note [Overview of implicit CallStacks] in TcEvidence.hs
+dsEvCallStack cs = do
+  df              <- getDynFlags
+  m               <- getModule
+  srcLocDataCon   <- dsLookupDataCon srcLocDataConName
+  let srcLocTyCon  = dataConTyCon srcLocDataCon
+  let srcLocTy     = mkTyConTy srcLocTyCon
+  let mkSrcLoc l =
+        liftM (mkCoreConApps srcLocDataCon)
+              (sequence [ mkStringExprFS (packageKeyFS $ modulePackageKey m)
+                        , mkStringExprFS (moduleNameFS $ moduleName m)
+                        , mkStringExprFS (srcSpanFile l)
+                        , return $ mkIntExprInt df (srcSpanStartLine l)
+                        , return $ mkIntExprInt df (srcSpanStartCol l)
+                        , return $ mkIntExprInt df (srcSpanEndLine l)
+                        , return $ mkIntExprInt df (srcSpanEndCol l)
+                        ])
+
+  let callSiteTy = mkBoxedTupleTy [stringTy, srcLocTy]
+
+  matchId         <- newSysLocalDs $ mkListTy callSiteTy
+
+  callStackDataCon <- dsLookupDataCon callStackDataConName
+  let callStackTyCon = dataConTyCon callStackDataCon
+  let callStackTy    = mkTyConTy callStackTyCon
+  let emptyCS        = mkCoreConApps callStackDataCon [mkNilExpr callSiteTy]
+  let pushCS name loc rest =
+        mkWildCase rest callStackTy callStackTy
+                   [( DataAlt callStackDataCon
+                    , [matchId]
+                    , mkCoreConApps callStackDataCon
+                       [mkConsExpr callSiteTy
+                                   (mkCoreTup [name, loc])
+                                   (Var matchId)]
+                    )]
+  let mkPush name loc tm = do
+        nameExpr <- mkStringExprFS name
+        locExpr <- mkSrcLoc loc
+        case tm of
+          EvCallStack EvCsEmpty -> return (pushCS nameExpr locExpr emptyCS)
+          _ -> do tmExpr  <- dsEvTerm tm
+                  -- at this point tmExpr :: IP sym CallStack
+                  -- but we need the actual CallStack to pass to pushCS,
+                  -- so we use unwrapIP to strip the dictionary wrapper
+                  -- See Note [Overview of implicit CallStacks]
+                  let ip_co = unwrapIP (exprType tmExpr)
+                  return (pushCS nameExpr locExpr (mkCastDs tmExpr ip_co))
+  case cs of
+    EvCsTop name loc tm -> mkPush name loc tm
+    EvCsPushCall name loc tm -> mkPush (occNameFS $ getOccName name) loc tm
+    EvCsEmpty -> panic "Cannot have an empty CallStack"
+
 
 ---------------------------------------
 dsTcCoercion :: TcCoercion -> (Coercion -> CoreExpr) -> DsM CoreExpr

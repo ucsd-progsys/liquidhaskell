@@ -470,6 +470,7 @@ lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 
+tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 
 desugarModule tcm = do
   let ms = pm_mod_summary $ tm_parsed_module tcm 
@@ -500,6 +501,8 @@ synTyConRhs_maybe t
   = Just rhs
 synTyConRhs_maybe _                     = Nothing
 
+tcRnLookupRdrName env rn = TcRnDriver.tcRnLookupRdrName env (unLoc rn)
+
 #else
 
 -- desugarModule = GHC.desugarModule
@@ -511,5 +514,7 @@ type Prec = TyPrec
 lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
 
 synTyConRhs_maybe = TC.synTyConRhs_maybe
+
+tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 #endif
