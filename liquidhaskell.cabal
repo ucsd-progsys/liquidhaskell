@@ -32,11 +32,16 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.hs
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
+          , include/708/Control/*.spec
+          , include/710/Data/*.spec
           , syntax/liquid.css
 
 extra-source-files: tests/pos/*.hs
                   , tests/neg/*.hs
                   , tests/crash/*.hs
+                  , tests/pos/*.hquals
+                  , tests/ffi-include/foo.c
+                  , tests/ffi-include/foo.h
 
 Source-Repository head
   Type:        git

@@ -110,6 +110,8 @@ function do_build {
   loud cabal configure --enable-tests -v2
   loud prevent_timeout cabal build -j2
   loud cabal haddock
+  loud cabal copy
+  loud cabal register
 }
 
 function do_test {
