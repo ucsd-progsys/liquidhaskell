@@ -93,7 +93,7 @@ domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
 
 renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
 renameVar (sym, srt) = state $ (addExpr . existSymbol sym) &&& (+1)
-  where addExpr s = ((s, srt) , (s, eVar s))
+  where addExpr s = ((s, srt) , (sym, eVar s))
 
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], [(x=10), (y=20)]
 substBinds :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],[Pred])
