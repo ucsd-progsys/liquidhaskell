@@ -29,7 +29,7 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
-    go r (RProp  _ t') = r -- is this correct?
+    go r (RProp  _ _ ) = r -- is this correct?
     go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
 
 addSymSort _ _ t 
