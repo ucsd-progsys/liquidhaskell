@@ -80,7 +80,7 @@ Flag z3mem
 
 Flag build-external
   Description: Build fixpoint.native binary from source (requires ocaml)
-  Default:     False
+  Default:     True
 
 Source-Repository head
   Type:        git
@@ -118,6 +118,7 @@ Executable fixpoint.native
 
 
 Executable fixpoint
+  default-language: Haskell98
   Main-is:       Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -143,6 +144,7 @@ Executable fixpoint
                , liquid-fixpoint
 
 Library
+  default-language: Haskell98
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
