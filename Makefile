@@ -1,45 +1,41 @@
 THREADS=1
 SMTSOLVER=z3
 
-FASTOPTS="-O0"
-DISTOPTS="-W -O2 -XStandaloneDeriving"
-PROFOPTS="-O2 -rtsopts -prof -auto-all -caf-all -XStandaloneDeriving -XDeriveDataTypeable"
-LIQUIDOPTS=""
+FASTOPTS=-O0
+DISTOPTS=-O2
+PROFOPTS=-O2 --enable-library-profiling --enable-executable-profiling
+LIQUIDOPTS=
 
 CABAL=cabal
-CABALI=$(CABAL) install --ghc-options=$(OPTS)
-CABALP=$(CABAL) install --ghc-options=$(OPTS) -p
+CABALI=$(CABAL) install
+CABALP=$(CABAL) install --enable-library-profiling
 
 # to deal with cabal sandboxes using dist/dist-sandbox-xxxxxx/build/test/test
 # TASTY=find dist -type f -name test | head -n1
 TASTY=./dist/build/test/test
 
-DEPS=unix-compat transformers mtl filemanip text parsec ghc-paths deepseq comonad contravariant semigroupoids semigroups bifunctors hscolour ansi-terminal hashable unordered-containers
+DEPS=--dependencies-only
 
 ##############################################################################
 ##############################################################################
 ##############################################################################
 
 fast:
-	$(CABAL) install -fdevel --ghc-options=$(FASTOPTS)
+	$(CABAL) install -fdevel $(FASTOPTS)
 
 first:
-	$(CABAL) install --ghc-options=$(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
+	$(CABAL) install $(FASTOPTS) --only-dependencies --enable-tests --enable-benchmarks
 
 dist:
-	# $(CABAL) install --ghc-options=$(DISTOPTS)
+	# $(CABAL) install $(DISTOPTS)
 	$(CABAL) configure -fdevel --enable-tests --disable-library-profiling -O2
 	$(CABAL) build
 	
 prof:
-	$(CABAL) install --enable-executable-profiling --enable-library-profiling --ghc-options=$(PROFOPTS)
-
-prof710:
-	$(CABAL) install --enable-profiling --ghc-options=$(PROFOPTS)
-
+	$(CABAL) install $(PROFOPTS)
 
 igotgoto:
-	$(CABAL) build --ghc-options=$(OPTS)
+	$(CABAL) build $(OPTS)
 	cp dist/build/liquid/liquid ~/.cabal/bin/
 
 clean:

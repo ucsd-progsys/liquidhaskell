@@ -118,15 +118,19 @@ mkTest code dir file
       else do
         createDirectoryIfMissing True $ takeDirectory log
         liquid <- binPath "liquid"
+        inc <- canonicalizePath "include"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd liquid dir file smt opts
+          let cmd     = testCmd liquid dir file inc smt opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
-          assertEqual "Wrong exit code" code c
+          if c == ExitFailure 137
+            then printf "WARNING: possible OOM while testing %s: IGNORING" test
+            else assertEqual "Wrong exit code" code c
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
+    inc = "include"
 
 binPath pkgName = do 
   testPath <- getExecutablePath
@@ -138,10 +142,10 @@ knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/p
 knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
+testCmd :: FilePath -> FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
-testCmd liquid dir file smt (LO opts)
-  = printf "cd %s && %s --verbose --smtsolver %s %s %s" dir liquid (show smt) file opts
+testCmd liquid dir file inc smt (LO opts)
+  = printf "cd %s && %s --verbose --smtsolver %s --idirs %s %s %s" dir liquid (show smt) inc file opts
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
