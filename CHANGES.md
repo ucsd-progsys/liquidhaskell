@@ -2,6 +2,10 @@
 
 ## NEXT
 
+## 0.5.0.1
+
+- Fixed a bug in the specification for `Data.Traversable.sequence`
+
 ## 0.5.0.0
 
 - Added support for building with `stack`
