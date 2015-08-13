@@ -123,7 +123,9 @@ mkTest code dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
-          assertEqual "Wrong exit code" code c
+          if c == ExitFailure 137
+            then printf "WARNING: possible OOM while testing %s: IGNORING" test
+            else assertEqual "Wrong exit code" code c
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
@@ -275,12 +277,12 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- get some semblance of a hostname
-    host <- takeWhile (/='.') <$> readProcess "hostname" [] []
+    host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let path = dir </> "summary.csv"
-    renameDirectory "tests/logs/cur" dir
+    system $ "cp -r tests/logs/cur " ++ dir
     writeFile path $ unlines
                    $ "test, time(s), result"
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
