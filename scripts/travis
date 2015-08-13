@@ -107,7 +107,7 @@ function _install_cabal_deps {
 }
 
 function do_build {
-  loud cabal configure --enable-tests -v2
+  loud cabal configure -fdevel --enable-tests -v2
   loud prevent_timeout cabal build -j2
   loud cabal haddock
   loud cabal copy
@@ -122,7 +122,7 @@ function do_test {
 }
 
 function dump_fail_logs {
-  find . -type f -wholename 'tests/logs/*' -name '*.log.fail' -print0 | while IFS= read -r -d $'\0' file; do
+  find . -type f -wholename 'tests/logs/cur/*' -name '*log.fail' -print0 | while IFS= read -r -d $'\0' file; do
     echo "${file}:"
     echo "    $(pastebin < "${file}")"
   done
