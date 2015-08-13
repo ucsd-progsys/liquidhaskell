@@ -277,7 +277,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
 
   return $ \_elapsedTime -> do
     -- get some semblance of a hostname
-    host <- takeWhile (/='.') <$> readProcess "hostname" [] []
+    host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
