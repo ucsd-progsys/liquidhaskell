@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.3.0.1
+version:             0.4.0.0
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
@@ -80,7 +80,7 @@ Flag z3mem
 
 Flag build-external
   Description: Build fixpoint.native binary from source (requires ocaml)
-  Default:     False
+  Default:     True
 
 Source-Repository head
   Type:        git
@@ -118,6 +118,7 @@ Executable fixpoint.native
 
 
 Executable fixpoint
+  default-language: Haskell98
   Main-is:       Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -143,6 +144,7 @@ Executable fixpoint
                , liquid-fixpoint
 
 Library
+  default-language: Haskell98
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,

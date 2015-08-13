@@ -65,10 +65,10 @@ solveFQ cfg
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-  -- | parts cfg  = partition cfg x
-  -- | stats cfg  = statistics cfg x
-  -- | native cfg = solveNativeWithFInfo cfg x
-  -- | otherwise  = solveExt cfg x
+  --  parts cfg  = partition cfg x
+  --  stats cfg  = statistics cfg x
+  --  native cfg = solveNativeWithFInfo cfg x
+  --  otherwise  = solveExt cfg x
 
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
