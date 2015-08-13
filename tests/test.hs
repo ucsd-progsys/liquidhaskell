@@ -282,7 +282,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let path = dir </> "summary.csv"
-    renameDirectory "tests/logs/cur" dir
+    system $ "cp -r tests/logs/cur " ++ dir
     writeFile path $ unlines
                    $ "test, time(s), result"
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
