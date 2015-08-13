@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.4.1.1
+Version:             0.5.0.1
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
 Synopsis:            Liquid Types for Haskell 
@@ -32,11 +32,16 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.hs
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
+          , include/708/Control/*.spec
+          , include/710/Data/*.spec
           , syntax/liquid.css
 
 extra-source-files: tests/pos/*.hs
                   , tests/neg/*.hs
                   , tests/crash/*.hs
+                  , tests/pos/*.hquals
+                  , tests/ffi-include/foo.c
+                  , tests/ffi-include/foo.h
 
 Source-Repository head
   Type:        git
@@ -54,7 +59,7 @@ Flag include
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
-               , ghc == 7.8.3 || == 7.8.4 || == 7.10.2
+               , ghc
                , ansi-terminal
                , template-haskell
                , time
@@ -129,7 +134,7 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base
-                , ghc>=7.8.3
+                , ghc == 7.8.3 || == 7.8.4 || == 7.10.2
                 , ansi-terminal
                 , template-haskell
                 , time
@@ -157,7 +162,7 @@ Library
                 , vector
                 , hashable
                 , unordered-containers
-                , liquid-fixpoint >= 0.3
+                , liquid-fixpoint >= 0.4
                 , aeson
                 , bytestring
                 , fingertree

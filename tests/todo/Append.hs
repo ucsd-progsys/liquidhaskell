@@ -1,6 +1,10 @@
 module Append where
 
 
+{-@ LIQUID "--no-termination" @-}
+
+{- Cons :: y:a -> ys: L a -> {v:L a | v = Cons y ys} @-}
+
 data L a = Nil | Cons a (L a)
 {-@ measure append @-}
 append :: L a -> L a -> L a
