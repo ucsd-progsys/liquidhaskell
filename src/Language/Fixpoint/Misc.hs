@@ -149,10 +149,10 @@ tryIgnore s a = Ex.catch a $ \e ->
                    return ()
 
 traceShow     ::  Show a => String -> a -> a
-traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x) $ x
+traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 warnShow      ::  Show a => String -> a -> a
-warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x) $ x
+warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x)  x
 
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m

@@ -32,7 +32,7 @@ install:
  - scripts/travis install_smt "$SMT"
 
 script:
- - scripts/travis do_build && scripts/travis do_test "$SMT" && scripts/travis test_source_pkg
+ - scripts/travis do_build && scripts/travis do_test "$SMT"
  - scripts/travis clean_cache "$SMT"
 
 after_failure:
