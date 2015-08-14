@@ -13,7 +13,7 @@ parallel using the provided solving function
 module Language.Fixpoint.Parallel (
 
     -- * parallel solver function
-    inParallelUsing
+    inParallelUsing'
 
 ) where
 
@@ -123,6 +123,26 @@ inParallelUsing c finfos a = do
          result <- waitForAll (length finfos) [] (from workers')
          finalizeWorkers c workers'
          return $ mconcat $ map (\(Returned r) -> r) result
+   where
+      waitForAll 0 o _ = sequence o
+      waitForAll n o w = waitForAll (n - 1) (readChan w : o) w
+
+-- | Solve a list of FInfos using the provided solver function in parallel
+inParallelUsing' :: [FInfo a] -- ^ To solve in parallel
+                    -> (FInfo a -> IO (Result a)) -- ^ The solver function
+                    -> IO (Result a) -- ^ The combined results, or
+                    -- Nothing on error
+inParallelUsing' finfos a = do
+   fw <- newChan
+   let action i = do
+          let handler (SomeException e) = do
+                 traceIO $ "Thread caught exception!" ++ (displayException e)
+                 return $ unknownError $ displayException e
+          o <- catch (traceIO ("Solving file: " ++ fileName i) >> a i) handler
+          fw `writeChan` o
+   mapM_ (forkIO . action) finfos
+   result <- waitForAll (length finfos) [] fw
+   return $ mconcat result
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w

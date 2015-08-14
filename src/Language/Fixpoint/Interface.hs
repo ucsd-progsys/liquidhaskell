@@ -93,7 +93,8 @@ solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  res      <- s fi
+  let fi'   = fi { fileName = file }
+  res      <- s fi'
   return    $ resultExit (resStatus res)
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
@@ -140,8 +141,8 @@ solvePar c fi = do
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
-      _ | length fis < cores c -> inParallelUsing (length fis) fis (solveExt c)
-        | otherwise -> inParallelUsing (cores c) fis (solveExt c)
+      _ | length fis < cores c -> inParallelUsing' fis (solveExt c)
+        | otherwise -> {-# SCC "inParallelUsing"  #-}inParallelUsing' fis (solveExt c)
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
