@@ -13,7 +13,8 @@ parallel using the provided solving function
 module Language.Fixpoint.Parallel (
 
     -- * parallel solver function
-    inParallelUsing'
+    inParallelUsing' ,
+    inParallelUsing
 
 ) where
 

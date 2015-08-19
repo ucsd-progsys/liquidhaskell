@@ -42,10 +42,10 @@ partition cfg fi
     where
        (es, fis) = partition' Nothing fi
 
-partition' :: Maybe Int -> F.FInfo a -> (KVGraph, [F.FInfo a])
+partition' :: Maybe (Int, Int) -> F.FInfo a -> (KVGraph, [F.FInfo a])
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
-   (Just n) -> (g, partitionN n fi $ fis mkPartition' finfoToCpart)--partitionByConstraints mkPartition' fi css)
+   (Just (prts, thresh)) -> (g, partitionN prts thresh fi $ fis mkPartition' finfoToCpart)--partitionByConstraints mkPartition' fi css)
   where
     es                 = kvEdges   fi
     g                  = kvGraph   es
@@ -57,24 +57,27 @@ partition' mn fi  = case mn of
 
 
 
-partitionN :: Int -> F.FInfo a -> [F.CPart a] -> [F.FInfo a]
-partitionN n fi cp = map (cpartToFinfo fi) $ toNParts sortedParts
+partitionN :: Int -> Int -> F.FInfo a -> [F.CPart a] -> [F.FInfo a]
+partitionN prts thresh fi cp
+   | M.size (F.cm fi) <= thresh = [fi]
+   | otherwise = map (cpartToFinfo fi) $ toNParts sortedParts
    where
       toNParts p
          | isDone p = p
-         | otherwise = toNParts $ insertInPlace firstTwo theRest
+         | otherwise = trace (showSizes p) toNParts $ insertInPlace firstTwo theRest
             where (firstTwo, theRest) = unionFirstTwo p
-      isDone fi' = length fi' <= n
+      isDone fi' = length fi' <= prts && (M.size (F.pcs $ head fi') >= thresh)
       sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       sortPredicate lhs rhs
-         | M.size (F.pcs lhs) < M.size (F.pcs rhs) = LT
-         | M.size (F.pcs lhs) > M.size (F.pcs rhs) = GT
+         | M.size (F.pcs lhs) < M.size (F.pcs rhs) = GT
+         | M.size (F.pcs lhs) > M.size (F.pcs rhs) = LT
          | otherwise = EQ
       insertInPlace a [] = [a]
       insertInPlace a (x:xs) = if sortPredicate a x == LT
                                then x : insertInPlace a xs
-                               else x:a:xs
+                               else a:x:xs
+      showSizes l = show $ map (\a -> M.size (F.pcs a)) l
 
 cpartToFinfo :: F.FInfo a -> F.CPart a -> F.FInfo a
 cpartToFinfo fi p = fi { F.cm = F.pcs p
