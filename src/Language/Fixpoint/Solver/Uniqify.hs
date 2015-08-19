@@ -15,38 +15,35 @@ import           Control.Monad.State     (get, put, evalState, State)
 
 --------------------------------------------------------------
 renameAll :: FInfo a -> FInfo a
-renameAll fi = fi'
-  where
-    idMap = mkIdMap fi
-    fi' = renameVars fi (M.toList idMap)
+renameAll fi = renameVars fi $ M.toList $ mkIdMap fi
 --------------------------------------------------------------
 
 
+-- stores for each BindId the sets of other BindIds and constraints that
+-- reference it, i.e. the ones that need to know when its name gets changed
 type IdMap = M.HashMap BindId (S.HashSet BindId, S.HashSet Integer)
 type NameMap = M.HashMap Symbol BindId
 
 mkIdMap :: FInfo a -> IdMap
-mkIdMap fi = M.foldlWithKey' (updateIdMap benv) (emptyIdMap benv) (cm fi)
-  where benv = bs fi
-
-emptyIdMap :: BindEnv -> IdMap
-emptyIdMap benv = foldl go M.empty (M.keys $ beBinds benv)
-  where go m b = M.insert b (S.empty, S.empty) m
+mkIdMap fi = M.foldlWithKey' (updateIdMap be) emptyIdMap (cm fi)
+  where 
+    be = bs fi
+    emptyIdMap = M.fromList [(k, (S.empty, S.empty)) | k <- M.keys $ beBinds be]
 
 updateIdMap :: BindEnv -> IdMap -> Integer -> SubC a -> IdMap
-updateIdMap benv m subcId s = foldl (bar' subcId) m' refList
+updateIdMap be m subcId s = foldl (bar' subcId) m' refList
   where
     ids = sort $ elemsIBindEnv $ senv s
-    nameMap = mkNameMap benv ids
-    m' = foldl (bongo benv nameMap) m ids
+    nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
+    m' = foldl (bongo be nameMap) m ids
 
     symList = (freeVars $ sr_reft $ slhs s) ++ (freeVars $ sr_reft $ srhs s)
     refList = baz nameMap symList
 
 bongo :: BindEnv -> NameMap -> IdMap -> BindId -> IdMap
-bongo benv nameMap idMap id = foldl (bar id) idMap refList
+bongo be nameMap idMap id = foldl (bar id) idMap refList
   where
-    (_, sr) = lookupBindEnv id benv
+    (_, sr) = lookupBindEnv id be
     symList = freeVars $ sr_reft sr
     refList = baz nameMap symList
 
@@ -64,18 +61,9 @@ baz m syms = catMaybes [M.lookup sym m | sym <- syms] --TODO why any Nothings?
 freeVars :: Reft -> [Symbol]
 freeVars reft@(Reft (v, _)) = syms reft \\ [v]
 
-mkNameMap :: BindEnv -> [BindId] -> NameMap
-mkNameMap benv ids = foldl (insertInverse benv) M.empty ids
-
-insertInverse :: BindEnv -> NameMap -> BindId -> NameMap
-insertInverse benv m id = M.insert sym id m
-  where (sym, _) = lookupBindEnv id benv
-
 
 renameVars :: FInfo a -> [(BindId, (S.HashSet BindId, S.HashSet Integer))] -> FInfo a
 renameVars fi xs = evalState (foldlM potentiallyRenameVar fi xs) S.empty
-
---lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
 
 potentiallyRenameVar :: FInfo a -> (BindId, (S.HashSet BindId, S.HashSet Integer)) -> State (S.HashSet Symbol) (FInfo a)
 potentiallyRenameVar fi x@(id, _) =
