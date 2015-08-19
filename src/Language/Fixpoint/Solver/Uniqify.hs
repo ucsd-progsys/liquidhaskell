@@ -25,23 +25,20 @@ type IdMap = M.HashMap BindId (S.HashSet BindId, S.HashSet Integer)
 type NameMap = M.HashMap Symbol BindId
 
 mkIdMap :: FInfo a -> IdMap
-mkIdMap fi = M.foldlWithKey' (updateIdMap be) emptyIdMap (cm fi)
-  where 
-    be = bs fi
-    emptyIdMap = M.fromList [(k, (S.empty, S.empty)) | k <- M.keys $ beBinds be]
+mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
 updateIdMap :: BindEnv -> IdMap -> Integer -> SubC a -> IdMap
 updateIdMap be m subcId s = foldl (bar' subcId) m' refList
   where
     ids = sort $ elemsIBindEnv $ senv s
     nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
-    m' = foldl (bongo be nameMap) m ids
+    m' = foldl (insertIdIdLink be nameMap) m ids
 
     symList = (freeVars $ sr_reft $ slhs s) ++ (freeVars $ sr_reft $ srhs s)
     refList = baz nameMap symList
 
-bongo :: BindEnv -> NameMap -> IdMap -> BindId -> IdMap
-bongo be nameMap idMap id = foldl (bar id) idMap refList
+insertIdIdLink :: BindEnv -> NameMap -> IdMap -> BindId -> IdMap
+insertIdIdLink be nameMap idMap id = foldl (bar id) idMap refList
   where
     (_, sr) = lookupBindEnv id be
     symList = freeVars $ sr_reft sr
@@ -49,11 +46,11 @@ bongo be nameMap idMap id = foldl (bar id) idMap refList
 
 bar :: BindId -> IdMap -> BindId -> IdMap
 bar idOfReft m referencedId = M.insert referencedId (S.insert idOfReft bs, is) m
-  where (bs, is) = M.lookupDefault (errorstar "wat") referencedId m
+  where (bs, is) = M.lookupDefault (S.empty, S.empty) referencedId m
 
 bar' :: Integer -> IdMap -> BindId -> IdMap
 bar' idOfSubc m referencedId = M.insert referencedId (bs, S.insert idOfSubc is) m
-  where (bs, is) = M.lookupDefault (errorstar "wat") referencedId m
+  where (bs, is) = M.lookupDefault (S.empty, S.empty) referencedId m
 
 baz :: NameMap -> [Symbol] -> [BindId]
 baz m syms = catMaybes [M.lookup sym m | sym <- syms] --TODO why any Nothings?
