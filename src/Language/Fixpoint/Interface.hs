@@ -135,14 +135,14 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
-   let (_, fis) = partition' (Just $ cores c) fi
+   let (_, fis) = partition' (Just (cores c, 20)) fi
    traceIO $ "length of FInfos: " ++ show (length fis)
    traceIO $ "number of cores: " ++ show (cores c)
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
-      _ | length fis < cores c -> inParallelUsing' fis (solveExt c)
-        | otherwise -> {-# SCC "inParallelUsing"  #-}inParallelUsing' fis (solveExt c)
+      _ -> inParallelUsing' fis (solveExt c)
+
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
