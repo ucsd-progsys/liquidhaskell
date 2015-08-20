@@ -329,7 +329,7 @@ instance Monoid Config where
                          , noPrune        = def
                          , cores          = defaultCores
                          , minPartSize    = defaultMinPartSize
-                         , maxParams      = defaultMaxparams
+                         , maxParams      = defaultMaxParams
                          , smtsolver      = def
                          , shortNames     = def
                          , shortErrors    = def
