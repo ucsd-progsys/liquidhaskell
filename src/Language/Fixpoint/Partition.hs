@@ -42,51 +42,71 @@ partition cfg fi
     where
        (es, fis) = partition' Nothing fi
 
-partition' :: Maybe (Int, Int) -> F.FInfo a -> (KVGraph, [F.FInfo a])
+-- | Partition an FInfo into multiple disjoint FInfos
+partition' :: Maybe (Int, Int) -- ^ Nothing to produce the maximum possible
+                               -- number of partitions. Just (p, t) to produce
+                               -- at most p partitions of at least t size
+           -> F.FInfo a -> (KVGraph, [F.FInfo a])
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
-   (Just (prts, thresh)) -> (g, partitionN prts thresh fi $ fis mkPartition' finfoToCpart)--partitionByConstraints mkPartition' fi css)
+   (Just (prts, thresh)) -> (g, partitionN prts
+                                           thresh
+                                           fi $ fis mkPartition'
+                                                    finfoToCpart)
   where
-    es                 = kvEdges   fi
-    g                  = kvGraph   es
-    css                = decompose g
-    fis partF ctor     = applyNonNull [ctor fi]
-                                      (partitionByConstraints
-                                       partF
-                                       fi) css
+    es             = kvEdges   fi
+    g              = kvGraph   es
+    css            = decompose g
+    fis partF ctor = applyNonNull [ctor fi]
+                                  (partitionByConstraints
+                                   partF
+                                   fi) css
 
 
-
-partitionN :: Int -> Int -> F.FInfo a -> [F.CPart a] -> [F.FInfo a]
+-- | Partition an FInfo into a specific number of partitions of roughly equal
+-- amounts of work
+partitionN :: Int -- ^ The minimum number of partitions
+              -> Int -- ^ The minimum amount of work per partition
+              -> F.FInfo a -- ^ The originial FInfo
+              -> [F.CPart a] -- ^ A list of the smallest possible CParts
+              -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
 partitionN prts thresh fi cp
-   | M.size (F.cm fi) <= thresh = [fi]
+   | cpartSize (finfoToCpart fi) <= thresh = [fi]
    | otherwise = map (cpartToFinfo fi) $ toNParts sortedParts
    where
       toNParts p
          | isDone p = p
-         | otherwise = trace (showSizes p) toNParts $ insertInPlace firstTwo theRest
-            where (firstTwo, theRest) = unionFirstTwo p
-      isDone fi' = length fi' <= prts && (M.size (F.pcs $ head fi') >= thresh)
+         | otherwise = trace (showSizes p) toNParts $ insertSorted firstTwo rest
+            where (firstTwo, rest) = unionFirstTwo p
+      isDone fi' = length fi' <= prts && (cpartSize (head fi') >= thresh)
       sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       sortPredicate lhs rhs
-         | M.size (F.pcs lhs) < M.size (F.pcs rhs) = GT
-         | M.size (F.pcs lhs) > M.size (F.pcs rhs) = LT
+         | cpartSize lhs < cpartSize rhs = GT
+         | cpartSize lhs > cpartSize rhs = LT
          | otherwise = EQ
-      insertInPlace a [] = [a]
-      insertInPlace a (x:xs) = if sortPredicate a x == LT
-                               then x : insertInPlace a xs
-                               else a:x:xs
-      showSizes l = show $ map (\a -> M.size (F.pcs a)) l
+      insertSorted a [] = [a]
+      insertSorted a (x:xs) = if sortPredicate a x == LT
+                              then x : insertSorted a xs
+                              else a:x:xs
+      showSizes l = show $ map cpartSize l
 
+-- | Return the "size" of a CPart. Used to determine if it's
+-- substantial enough to be worth parallelizing.
+cpartSize :: F.CPart a -> Int
+cpartSize = M.size . F.pcm -- TODO: There's likely a better
+                           -- metric of size than this
+
+-- | Convert a CPart to an FInfo
 cpartToFinfo :: F.FInfo a -> F.CPart a -> F.FInfo a
-cpartToFinfo fi p = fi { F.cm = F.pcs p
+cpartToFinfo fi p = fi { F.cm = F.pcm p
                        , F.ws = F.pws p
                        , F.fileName = F.cFileName p
                        }
 
+-- | Convert an FInfo to a CPart
 finfoToCpart :: F.FInfo a -> F.CPart a
-finfoToCpart fi = F.CPart { F.pcs = F.cm fi
+finfoToCpart fi = F.CPart { F.pcm = F.cm fi
                           , F.pws = F.ws fi
                           , F.cFileName = F.fileName fi
                           }
@@ -149,7 +169,7 @@ mkPartition fi icM iwM j
        }
 
 mkPartition' fi icM iwM j
-  = F.CPart { F.pcs = M.fromList $ M.lookupDefault [] j icM
+  = F.CPart { F.pcm = M.fromList $ M.lookupDefault [] j icM
             , F.pws = M.lookupDefault [] j iwM
             , F.cFileName = partFile fi j
             }

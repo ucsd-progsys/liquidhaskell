@@ -1812,13 +1812,13 @@ fTyConSort c = fApp (Left c) []
 
 
 data CPart a = CPart { pws :: [WfC a]
-                     , pcs :: M.HashMap Integer (SubC a)
+                     , pcm :: M.HashMap Integer (SubC a)
                      , cFileName :: FilePath
                      }
 
 instance Monoid (CPart a) where
    mempty = CPart mempty mempty mempty
    mappend l r = CPart { pws = pws l `mappend` pws r
-                       , pcs = pcs l `mappend` pcs r
+                       , pcm = pcm l `mappend` pcm r
                        , cFileName = cFileName l
                        }
