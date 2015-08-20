@@ -46,6 +46,7 @@ data Config
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
     , cores       :: Int              -- ^ number of cores used to solve constraints
+    , minPartSize :: Int              -- ^ Minimum size of a partition
     , solver      :: SMTSolver        -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
@@ -58,7 +59,21 @@ data Config
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def 1 def def def def def def def def def
+  def = Config { inFile      = ""
+               , outFile     = def
+               , srcFile     = def
+               , cores       = 1
+               , minPartSize = 500
+               , solver      = def
+               , genSorts    = def
+               , ueqAllSorts = def
+               , native      = def
+               , real        = def
+               , eliminate   = def
+               , metadata    = def
+               , stats       = def
+               , parts       = def
+               }
 
 instance Command Config where
   command c =  command (genSorts c)
@@ -145,7 +160,8 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores       = 1   &= help "(numeric) Number of threads to use"
+  , cores       = 1     &= help "(numeric) Number of threads to use"
+  , minPartSize = 500   &= help "(numeric) Minimum partition size when solving in parallel"
   }
   &= verbosity
   &= program "fixpoint"
