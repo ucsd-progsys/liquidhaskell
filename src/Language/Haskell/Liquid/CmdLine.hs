@@ -47,7 +47,7 @@ import Data.Monoid
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores)
+import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores, minPartSize)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
