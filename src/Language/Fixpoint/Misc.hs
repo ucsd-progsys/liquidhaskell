@@ -145,7 +145,7 @@ boxStrCat sep = ("[" ++) . (++ "]") . L.intercalate sep
 tryIgnore :: String -> IO () -> IO ()
 tryIgnore s a = Ex.catch a $ \e ->
                 do let err = show (e :: Ex.IOException)
-                   whenLoud $ putStrLn ("Warning: Couldn't do " ++ s ++ ": " ++ err)
+                   writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
 traceShow     ::  Show a => String -> a -> a
@@ -375,11 +375,11 @@ ifM bm xm ym
        if b then xm else ym
 
 executeShellCommand phase cmd
-  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd
+  = do writeLoud $ "EXEC: " ++ cmd
        Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
 
 executeShellCommandWithOptStars v phase cmd
-  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd
+  = do writeLoud $ "EXEC: " ++ cmd
        Ex.bracket_ (startPhaseWithOptStars v Loud phase) (donePhaseWithOptStars v Loud phase) $ system cmd
 
 checkExitCode _   (ExitSuccess)   = return ()
@@ -425,3 +425,7 @@ mapEither f         = go [] []
                         Right r -> go ls  (r:rs) xs
 
 f <$$> x = traverse f x
+
+-- | if loud, write a string to stdout
+writeLoud :: String -> IO ()
+writeLoud = whenLoud . putStrLn

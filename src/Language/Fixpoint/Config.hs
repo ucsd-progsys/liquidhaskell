@@ -27,18 +27,11 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
--- data Cores = C { fromCores :: Int} deriving (Eq, Data, Show, Typeable)
+defaultCores :: Int
+defaultCores = 1
 
--- instance Num Cores where
-  -- (C n1) + (C n2) = C (n1 + n2)
-  -- (C n1) * (C n2) = C (n1 * n2)
-  -- abs (C n)       = C $ abs n
-  -- signum (C n)    = C $ signum n
-  -- fromInteger     = C . fromInteger
-  -- negate (C n)    = C $ negate n
---
--- toCores           = C
--- -- fromCores (C c)   = c
+defaultMinPartSize :: Int
+defaultMinPartSize = 500
 
 data Config
   = Config {
@@ -62,8 +55,8 @@ instance Default Config where
   def = Config { inFile      = ""
                , outFile     = def
                , srcFile     = def
-               , cores       = 1
-               , minPartSize = 500
+               , cores       = defaultCores
+               , minPartSize = defaultMinPartSize
                , solver      = def
                , genSorts    = def
                , ueqAllSorts = def
@@ -160,8 +153,8 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores       = 1     &= help "(numeric) Number of threads to use"
-  , minPartSize = 500   &= help "(numeric) Minimum partition size when solving in parallel"
+  , cores       = defaultCores &= help "(numeric) Number of threads to use"
+  , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   }
   &= verbosity
   &= program "fixpoint"

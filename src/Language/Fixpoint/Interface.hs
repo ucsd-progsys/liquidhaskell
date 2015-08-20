@@ -99,14 +99,14 @@ solveWith cfg s = exit (ExitFailure 2) $ do
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
-  whenLoud  $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   let fi'   = renameAll fi
-  whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
   donePhase Loud "Eliminate"
-  whenLoud  $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
@@ -118,7 +118,7 @@ solveNativeWithFInfo cfg fi = do
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
-                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
                        return fi'
   | otherwise     = return fi
 
@@ -136,8 +136,9 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
    let (_, fis) = partition' (Just (cores c, minPartSize c)) fi
-   traceIO $ "length of FInfos: " ++ show (length fis)
-   traceIO $ "number of cores: " ++ show (cores c)
+   writeLoud $ "Number of partitions: " ++ show (length fis)
+   writeLoud $ "number of cores: " ++ show (cores c)
+   writeLoud $ "minimum part size: " ++ show (minPartSize c)
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
