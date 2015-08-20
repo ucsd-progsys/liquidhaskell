@@ -90,7 +90,7 @@ prune cfg cbinds target info
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg target cgi info dc
-  = do finfo    <- cgInfoFInfo info cgi target 
+  = do finfo    <- cgInfoFInfo info cgi target
        Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
@@ -99,11 +99,12 @@ solveCs cfg target cgi info dc
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_errors  = warns} { o_result = res }
     where
-       fx        = def { FC.solver  = fromJust (smtsolver cfg)
-                       , FC.real    = real   cfg
-                       , FC.native  = native cfg
-                       , FC.srcFile = target
-                       , FC.cores   = fromInteger $ cores  cfg 
+       fx        = def { FC.solver      = fromJust (smtsolver cfg)
+                       , FC.real        = real        cfg
+                       , FC.native      = native      cfg
+                       , FC.srcFile     = target
+                       , FC.cores       = cores       cfg
+                       , FC.minPartSize = minPartSize cfg
                        -- , FC.stats   = True
                        }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
