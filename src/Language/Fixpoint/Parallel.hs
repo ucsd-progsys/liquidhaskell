@@ -134,6 +134,7 @@ inParallelUsing' :: [FInfo a] -- ^ To solve in parallel
                     -> IO (Result a) -- ^ The combined results, or
                     -- Nothing on error
 inParallelUsing' finfos a = do
+   setNumCapabilities (length finfos)
    fw <- newChan
    let action i = do
           let handler (SomeException e) = do
