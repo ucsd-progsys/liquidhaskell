@@ -30,6 +30,8 @@ import           Data.Monoid
 import           Data.Traversable          (Traversable, traverse)
 #endif
 
+import           Debug.Trace
+
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
@@ -164,8 +166,12 @@ kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
   where
     kvVis            = defaultVisitor { accPred = kv }
-    kv _ (PKVar k _) = [k]
-    kv _ _           = []
+    kv a b@(PKVar k _) = trace ("Got the good branch: \n" ++
+                                "a = "++ show a ++
+                                " b = " ++ " " ++ show b) [k]
+    kv a b           = trace ("Got the bad branch: \n" ++
+                              "a = "++ show a ++
+                              " b = " ++ " " ++ show b) []
 
 
 envKVars :: BindEnv -> SubC a -> [KVar]

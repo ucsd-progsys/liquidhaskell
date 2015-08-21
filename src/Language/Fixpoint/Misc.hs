@@ -157,6 +157,11 @@ warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x)  x
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
+-- | Version of inserts that handles Maybe keys. If the key is
+-- Nothing, the value is not inserted
+maybeInserts Nothing _ m = m
+maybeInserts (Just k) v m = inserts k v m
+
 concatMaps    = fmap sortNub . L.foldl' (M.unionWith (++)) M.empty
 
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
@@ -174,6 +179,8 @@ mkGraph = fmap S.fromList . group
 
 -- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
 groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
+
+maybeGroupMap f = L.foldl' (\m x -> maybeInserts (f x) x m) M.empty
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort

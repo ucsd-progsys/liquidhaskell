@@ -37,7 +37,7 @@ partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
   = do dumpPartitions cfg fis
        dumpEdges      cfg es
-       -- whenLoud $ putStrLn $ render $ ppGraph es
+       -- writeLoud $ render $ ppGraph es
        return mempty
     where
        (es, fis) = partition' Nothing fi
@@ -76,7 +76,7 @@ partitionN prts thresh fi cp
    where
       toNParts p
          | isDone p = p
-         | otherwise = trace (showSizes p) toNParts $ insertSorted firstTwo rest
+         | otherwise = toNParts $ insertSorted firstTwo rest
             where (firstTwo, rest) = unionFirstTwo p
       isDone fi' = length fi' <= prts && (cpartSize (head fi') >= thresh)
       sortedParts = sortBy sortPredicate cp
@@ -89,7 +89,6 @@ partitionN prts thresh fi cp
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
                               else a:x:xs
-      showSizes l = show $ map cpartSize l
 
 -- | Return the "size" of a CPart. Used to determine if it's
 -- substantial enough to be worth parallelizing.
@@ -154,7 +153,7 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     gc   = groupFun cM                                 -- (i, ci) |-> j
     gk   = groupFun kM                                 -- k       |-> j
 
-    iwM  = groupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
+    iwM  = maybeGroupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
     icM  = groupMap (gc . fst)   (M.toList (F.cm fi))  -- j |-> [(i, ci)]
 
     jkvs = zip [1..] kvss
@@ -174,12 +173,28 @@ mkPartition' fi icM iwM j
             , F.cFileName = partFile fi j
             }
 
-wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
-                 [i] -> i
-                 _   -> errorstar $ "PARTITION: wfGroup" ++ show (F.wid w)
+wfGroup gk w = trace ("|snInput| = " ++ (show $ length snInput)
+                      ++ " |wfKvars w| = " ++ (show $ length $ wfKvars w)) $
+               case sortNub snInput of
+                 [i] -> Just i
+                 _   -> Nothing --errorstar $ "PARTITION: wfGroup " ++ show (F.wid w)
+   where snInput = [gk k | k <- wfKvars w ]
 
 wfKvars :: F.WfC a -> [F.KVar]
-wfKvars = V.kvars . F.sr_reft . F.wrft
+wfKvars i = kvarsRes
+   where
+      wrftRes :: F.SortedReft
+      wrftRes = trace ("SortedReft: " ++ (show $ F.wrft i)) F.wrft i
+      srReftRes :: F.Reft
+      srReftRes = trace ("Reft: " ++ (show $ F.sr_reft wrftRes)) F.sr_reft wrftRes
+      kvarsRes :: [F.KVar]
+      kvarsRes = trace ("|Kvars| = " ++ (show $ length $ V.kvars srReftRes)
+                        ++ " Kvars: " ++ (printKVars (V.kvars srReftRes))
+                        ++ "\n\n") V.kvars srReftRes
+      printKVars k = show (map show k)
+
+--wfKvars :: F.WfC a -> [F.KVar]
+--wfKvars = V.kvars . F.sr_reft . F.wrft
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
