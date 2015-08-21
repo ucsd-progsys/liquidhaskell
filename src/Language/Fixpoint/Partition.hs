@@ -173,28 +173,13 @@ mkPartition' fi icM iwM j
             , F.cFileName = partFile fi j
             }
 
-wfGroup gk w = trace ("|snInput| = " ++ (show $ length snInput)
-                      ++ " |wfKvars w| = " ++ (show $ length $ wfKvars w)) $
-               case sortNub snInput of
+wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
                  [i] -> Just i
-                 _   -> Nothing --errorstar $ "PARTITION: wfGroup " ++ show (F.wid w)
-   where snInput = [gk k | k <- wfKvars w ]
+                 _   -> Nothing
+
 
 wfKvars :: F.WfC a -> [F.KVar]
-wfKvars i = kvarsRes
-   where
-      wrftRes :: F.SortedReft
-      wrftRes = trace ("SortedReft: " ++ (show $ F.wrft i)) F.wrft i
-      srReftRes :: F.Reft
-      srReftRes = trace ("Reft: " ++ (show $ F.sr_reft wrftRes)) F.sr_reft wrftRes
-      kvarsRes :: [F.KVar]
-      kvarsRes = trace ("|Kvars| = " ++ (show $ length $ V.kvars srReftRes)
-                        ++ " Kvars: " ++ (printKVars (V.kvars srReftRes))
-                        ++ "\n\n") V.kvars srReftRes
-      printKVars k = show (map show k)
-
---wfKvars :: F.WfC a -> [F.KVar]
---wfKvars = V.kvars . F.sr_reft . F.wrft
+wfKvars = V.kvars . F.sr_reft . F.wrft
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
