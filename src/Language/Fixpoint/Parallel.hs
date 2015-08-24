@@ -44,8 +44,8 @@ inParallelUsing finfos a = do
    setNumCapabilities (length finfos)
    fw <- newChan
    let action i = do
-          let handler (SomeException e) =
-                 return $ unknownError $ displayException e
+          let handler e =
+                 return $ unknownError $ displayException (e :: SomeException)
           o <- catch (a i) handler
           fw `writeChan` o
    mapM_ (forkIO . action) finfos
