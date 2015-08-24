@@ -32,6 +32,7 @@ unknownError :: String -> Result a
 unknownError e = Result (UnknownError e) mempty
 
 #if __GLASGOW_HASKELL__ < 710
+displayException :: SomeException -> String
 displayException = show
 #endif
 
