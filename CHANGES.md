@@ -2,6 +2,12 @@
 
 ## NEXT
 
+## 0.5.0.1
+
+- Fixed a bug in the specification for `Data.Traversable.sequence`
+
+## 0.5.0.0
+
 - Added support for building with `stack`
 
 - Added support for GHC 7.10 (in addition to 7.8)
