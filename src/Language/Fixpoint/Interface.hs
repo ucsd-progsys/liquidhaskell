@@ -142,7 +142,7 @@ solvePar c fi = do
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
-      _ -> inParallelUsing' fis (solveExt c)
+      _ -> inParallelUsing fis (solveExt c)
 
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
