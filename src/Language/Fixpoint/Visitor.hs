@@ -96,6 +96,10 @@ instance Visitable Refa where
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
 
+instance Visitable SortedReft where
+  visit v c (RR t r) = RR t <$> visit v c r
+
+
 visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
 visitMany v c xs = visit v c <$$> xs
 
