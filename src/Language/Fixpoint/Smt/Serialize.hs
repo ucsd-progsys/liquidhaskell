@@ -42,7 +42,9 @@ encode t = {-# SCC "encode" #-}
                                     ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s) = LT.fromStrict s
+  -- smt2 (SL s) = LT.fromStrict s
+  smt2 = smt2 . symbol -- encodeSymConst
+
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
@@ -137,4 +139,3 @@ smt2s = LT.intercalate " " . fmap smt2
 (check-sat)
 (pop 1)
 -}
-
