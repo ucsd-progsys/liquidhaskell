@@ -8,7 +8,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps (depNonCuts, deps)
 import           Language.Fixpoint.Visitor     (kvars, mapKVars', rhsKVars)
 import           Language.Fixpoint.Names       (existSymbol)
-import           Language.Fixpoint.Misc        (errorstar)
+import           Language.Fixpoint.Misc        (errorstar, snd3, thd3)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (partition, (\\))
@@ -81,15 +81,28 @@ extractPred wfc be subC =  exprsToPreds . unzip <$> mapM renameVar vars
     lhs = slhs subC
     (vars, prList) = substBinds $ (reftBind $ sr_reft lhs, lhs) : unmatchedBindings
 
-    suPreds = substPreds (domain be wfc) $ reftPred $ sr_reft $ srhs subC
+    suPreds = substPreds (usableDomain be wfc) $ reftPred $ sr_reft $ srhs subC
     finalPred = PAnd $ prList ++ suPreds
 
 -- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: [Symbol] -> Pred -> [Pred]
 substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- subs , sym `elem` dom]
 
+-- TODO: filtering out functions like this is a temporary hack - we shouldn't
+-- have function substitutions to begin with
+usableDomain :: BindEnv -> WfC a -> [Symbol]
+usableDomain be wfc = filter nonFunction $ domain be wfc
+  where
+    nonFunction sym = sym `notElem` functionsInBindEnv be
+
 domain :: BindEnv -> WfC a -> [Symbol]
 domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
+
+functionsInBindEnv :: BindEnv -> [Symbol]
+functionsInBindEnv be = map snd3 fList
+  where
+    fList = filter (isFunctionSortedReft . thd3) $ bindEnvToList be
+
 
 renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
 renameVar (sym, srt) = state $ (addExpr . existSymbol sym) &&& (+1)
