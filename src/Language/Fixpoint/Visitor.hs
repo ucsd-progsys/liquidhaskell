@@ -97,6 +97,10 @@ instance Visitable Refa where
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
 
+instance Visitable SortedReft where
+  visit v c (RR t r) = RR t <$> visit v c r
+
+
 visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
 visitMany v c xs = visit v c <$$> xs
 
@@ -151,7 +155,7 @@ visitPred v = vP
 mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
 mapKVars f = mapKVars' f'
   where
-    f' (kv, _) = f kv
+    f' (kv', _) = f kv'
 
 mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
 mapKVars' f             = trans kvVis () []
@@ -164,9 +168,9 @@ mapKVars' f             = trans kvVis () []
 kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
   where
-    kvVis            = defaultVisitor { accPred = kv }
-    kv _ (PKVar k _) = [k]
-    kv _ _           = []
+    kvVis            = defaultVisitor { accPred = kv' }
+    kv' _ (PKVar k _) = [k]
+    kv' _ _           = []
 
 
 envKVars :: BindEnv -> SubC a -> [KVar]
