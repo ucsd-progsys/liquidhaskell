@@ -8,28 +8,10 @@ module Language.Fixpoint.Smt.Theories where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
--- import qualified Data.List                as L
 import qualified Data.Text                as T
 import           Data.Text.Format
--- import           Data.Monoid
-
-
---import           Language.Fixpoint.Errors
---import           Language.Fixpoint.Files
 import           Control.Applicative      ((<$>))
---import           Control.Monad
---import           Data.Char
---import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
---import qualified Data.Text.Lazy.IO        as LTIO
---import           System.Directory
---import           System.Exit              hiding (die)
---import           System.FilePath
---import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
---import           System.Process
---import qualified Data.Attoparsec.Text     as A
-
-
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
@@ -56,16 +38,17 @@ sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 
 
-setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
-setEmp = "Set_emp"
-setCap = "Set_cap"
-setSub = "Set_sub"
-setAdd = "Set_add"
-setMem = "Set_mem"
-setCom = "Set_com"
-setCup = "Set_cup"
-setDif = "Set_dif"
-setSng = "Set_sng"
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
+setEmpty = "Set_empty"
+setEmp   = "Set_emp"
+setCap   = "Set_cap"
+setSub   = "Set_sub"
+setAdd   = "Set_add"
+setMem   = "Set_mem"
+setCom   = "Set_com"
+setCup   = "Set_cup"
+setDif   = "Set_dif"
+setSng   = "Set_sng"
 
 z3Preamble :: [LT.Text]
 z3Preamble

@@ -36,10 +36,10 @@ instance SMTLIB2 Symbol where
 -- FIXME: this is probably too slow
 encode :: T.Text -> T.Text
 encode t = {-# SCC "encode" #-}
-  foldr (\(x,y) -> T.replace x y) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                                    ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                                    ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                    ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
+  foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                              ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                              ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
   -- smt2 (SL s) = LT.fromStrict s
@@ -85,10 +85,10 @@ instance SMTLIB2 Expr where
 smt2App :: LocSymbol -> [Expr] -> LT.Text
 smt2App f []            = smt2 f
 smt2App f [e]
+  | val f == setEmpty   = format "{}"             (Only emp)
   | val f == setEmp     = format "(= {} {})"      (emp, smt2 e)
   | val f == setSng     = format "({} {} {})"     (add, emp, smt2 e)
 smt2App f es            = format "({} {})"        (smt2 f, smt2s es)
-
 
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"

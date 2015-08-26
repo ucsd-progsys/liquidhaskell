@@ -26,9 +26,9 @@ import           Text.Printf
 ---------------------------------------------------------------------------
 validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
 ---------------------------------------------------------------------------
-validate _ = Right 
-           . dropFunctionRefinements 
-           . dropHigherOrderBinders 
+validate _ = Right
+           -- . dropFunctionRefinements
+           . dropHigherOrderBinders
            . renameVV
 
 ---------------------------------------------------------------------------
@@ -102,10 +102,10 @@ subcVV c = (x, sr)
     x    = F.reftBind $ F.sr_reft sr
 
 ---------------------------------------------------------------------------
--- | Drop Refinements from binders with function types 
+-- | Drop Refinements from binders with function types
 ---------------------------------------------------------------------------
-dropFunctionRefinements :: F.FInfo a -> F.FInfo a 
-dropFunctionRefinements = error "TODO: dropFunctionRefinements" 
+dropFunctionRefinements :: F.FInfo a -> F.FInfo a
+dropFunctionRefinements = error "TODO: dropFunctionRefinements"
 
 
 ---------------------------------------------------------------------------
@@ -116,9 +116,10 @@ dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
   where
     (bs', discards) = dropHOBinders (F.bs fi)
-    cm' = M.map (foo discards) (F.cm fi)
-    ws' = map (bar discards) (F.ws fi)
+    cm' = deleteSubCBinds discards <$> F.cm fi
+    ws' = deleteWfCBinds  discards <$> F.ws fi
     gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
+
 
 deleteSubCBinds :: [F.BindId] -> F.SubC a -> F.SubC a
 deleteSubCBinds bs sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) bs }
@@ -135,7 +136,7 @@ filterBindEnv f be = (F.bindEnvFromList keep, discard')
     discard' = map Misc.fst3 discard
 
 isFirstOrder :: F.Sort -> Bool
-isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
+isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} foldSort f 0 t <= 1
   where
     f n (F.FFunc _ _) = n + 1
     f n _             = n
