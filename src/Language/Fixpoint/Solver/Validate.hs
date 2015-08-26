@@ -18,9 +18,7 @@ import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
--- import           Control.Monad (filterM)
--- import           Control.Applicative ((<$>))
---import           Debug.Trace (trace)
+import           Control.Applicative ((<$>))
 import           Text.Printf
 
 ---------------------------------------------------------------------------
@@ -136,7 +134,7 @@ filterBindEnv f be = (F.bindEnvFromList keep, discard')
     discard' = map Misc.fst3 discard
 
 isFirstOrder :: F.Sort -> Bool
-isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} foldSort f 0 t <= 1
+isFirstOrder t        = foldSort f 0 t <= 1
   where
     f n (F.FFunc _ _) = n + 1
     f n _             = n
