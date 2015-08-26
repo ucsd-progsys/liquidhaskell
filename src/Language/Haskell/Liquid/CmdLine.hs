@@ -191,7 +191,7 @@ config = cmdArgsMode $ Config {
 
 getOpts :: IO Config
 getOpts = do
-  cfg0  <- envCfg
+  cfg0   <- envCfg
   cfg1   <- mkOpts =<< cmdArgsRun'
             config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
   cfg    <- fixConfig cfg1
@@ -308,69 +308,33 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
      dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
      pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
 
+defConfig = Config { files          = def
+                   , idirs          = def
+                   , fullcheck      = def
+                   , real           = def
+                   , diffcheck      = def
+                   , native         = def
+                   , binders        = def
+                   , noCheckUnknown = def
+                   , notermination  = def
+                   , nowarnings     = def
+                   , trustinternals = def
+                   , nocaseexpand   = def
+                   , strata         = def
+                   , notruetypes    = def
+                   , totality       = def
+                   , noPrune        = def
+                   , cores          = defaultCores
+                   , minPartSize    = defaultMinPartSize
+                   , maxParams      = defaultMaxParams
+                   , smtsolver      = def
+                   , shortNames     = def
+                   , shortErrors    = def
+                   , cabalDir       = def
+                   , ghcOptions     = def
+                   , cFiles         = def
+                   }
 
-
----------------------------------------------------------------------------------------
--- | Monoid instances for updating options
----------------------------------------------------------------------------------------
-
-defConfig = Config def def def def def def def def def def def def def def def def 2 def def def def def def
-
-{-
-instance Monoid Config where
-  mempty        = Config { files          = def
-                         , idirs          = def
-                         , fullcheck      = def
-                         , real           = def
-                         , diffcheck      = def
-                         , native         = def
-                         , binders        = def
-                         , noCheckUnknown = def
-                         , notermination  = def
-                         , nowarnings     = def
-                         , trustinternals = def
-                         , nocaseexpand   = def
-                         , strata         = def
-                         , notruetypes    = def
-                         , totality       = def
-                         , noPrune        = def
-                         , cores          = defaultCores
-                         , minPartSize    = defaultMinPartSize
-                         , maxParams      = defaultMaxParams
-                         , smtsolver      = def
-                         , shortNames     = def
-                         , shortErrors    = def
-                         , cabalDir       = def
-                         , ghcOptions     = def
-                         , cFiles         = def
-                         }
-  mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
-                         , idirs          = sortNub $ idirs c1   ++     idirs          c2
-                         , fullcheck      = fullcheck c1         ||     fullcheck      c2
-                         , real           = real      c1         ||     real           c2
-                         , diffcheck      = diffcheck c1         ||     diffcheck      c2
-                         , native         = native    c1         ||     native         c2
-                         , binders        = sortNub $ binders c1 ++     binders        c2
-                         , noCheckUnknown = noCheckUnknown c1    ||     noCheckUnknown c2
-                         , notermination  = notermination  c1    ||     notermination  c2
-                         , nowarnings     = nowarnings     c1    ||     nowarnings     c2
-                         , trustinternals = trustinternals c1    ||     trustinternals c2
-                         , nocaseexpand   = nocaseexpand   c1    ||     nocaseexpand   c2
-                         , strata         = strata         c1    ||     strata         c2
-                         , notruetypes    = notruetypes    c1    ||     notruetypes    c2
-                         , totality       = totality       c1    ||     totality       c2
-                         , noPrune        = noPrune        c1    ||     noPrune        c2
-                         , cores          = cores          c1   `max`   cores          c2
-                         , minPartSize    = minPartSize    c1   `max`   minPartSize    c2
-                         , maxParams      = maxParams      c1   `max`   maxParams      c2
-                         , smtsolver      = smtsolver c1      `mappend` smtsolver      c2
-                         , shortNames     = shortNames c1        ||     shortNames     c2
-                         , shortErrors    = shortErrors c1       ||     shortErrors    c2
-                         , cabalDir       = cabalDir    c1       ||     cabalDir       c2
-                         , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2
-                         , cFiles         = cFiles c1            ++     cFiles         c2
-                         }
--}
 instance Monoid SMTSolver where
   mempty        = def
   mappend s1 s2
