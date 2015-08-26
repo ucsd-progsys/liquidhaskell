@@ -47,7 +47,7 @@ import Data.Monoid
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native, getOpts)
+import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores, minPartSize)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -64,6 +64,21 @@ import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
 
 import Debug.Trace
+
+
+---------------------------------------------------------------------------------
+-- Config Magic Numbers----------------------------------------------------------
+---------------------------------------------------------------------------------
+
+defaultCores :: Int
+defaultCores = 1
+
+defaultMinPartSize :: Int
+defaultMinPartSize = 500
+
+defaultMaxParams :: Int
+defaultMaxParams = 2
+
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -123,7 +138,13 @@ config = cmdArgsMode $ Config {
           &= name "no-true-types"
 
  , totality
-    = def &= help "Check totality"
+    = def &= help "Check tota`lity"
+
+ , cores
+    = defaultCores &= help "Use m cores to solve logical constraints"
+
+ , minPartSize
+    = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
@@ -134,7 +155,7 @@ config = cmdArgsMode $ Config {
           &= help "Don't complain about specifications for unexported and unused values "
 
  , maxParams
-    = 2   &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
+    = defaultMaxParams &= help "Restrict qualifier mining to those taking at most `m' parameters (2 by default)"
 
  , shortNames
     = def &= name "short-names"
@@ -297,7 +318,32 @@ defConfig = Config def def def def def def def def def def def def def def def d
 
 {-
 instance Monoid Config where
-  mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def def
+  mempty        = Config { files          = def
+                         , idirs          = def
+                         , fullcheck      = def
+                         , real           = def
+                         , diffcheck      = def
+                         , native         = def
+                         , binders        = def
+                         , noCheckUnknown = def
+                         , notermination  = def
+                         , nowarnings     = def
+                         , trustinternals = def
+                         , nocaseexpand   = def
+                         , strata         = def
+                         , notruetypes    = def
+                         , totality       = def
+                         , noPrune        = def
+                         , cores          = defaultCores
+                         , minPartSize    = defaultMinPartSize
+                         , maxParams      = defaultMaxParams
+                         , smtsolver      = def
+                         , shortNames     = def
+                         , shortErrors    = def
+                         , cabalDir       = def
+                         , ghcOptions     = def
+                         , cFiles         = def
+                         }
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
                          , idirs          = sortNub $ idirs c1   ++     idirs          c2
                          , fullcheck      = fullcheck c1         ||     fullcheck      c2
@@ -314,6 +360,8 @@ instance Monoid Config where
                          , notruetypes    = notruetypes    c1    ||     notruetypes    c2
                          , totality       = totality       c1    ||     totality       c2
                          , noPrune        = noPrune        c1    ||     noPrune        c2
+                         , cores          = cores          c1   `max`   cores          c2
+                         , minPartSize    = minPartSize    c1   `max`   minPartSize    c2
                          , maxParams      = maxParams      c1   `max`   maxParams      c2
                          , smtsolver      = smtsolver c1      `mappend` smtsolver      c2
                          , shortNames     = shortNames c1        ||     shortNames     c2
