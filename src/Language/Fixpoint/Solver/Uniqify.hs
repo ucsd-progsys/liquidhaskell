@@ -5,6 +5,7 @@ module Language.Fixpoint.Solver.Uniqify (renameAll) where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names (renameSymbol)
 import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
+import           Language.Fixpoint.Misc  (fst3)
 import qualified Data.HashMap.Strict     as M
 import qualified Data.HashSet            as S
 import           Data.List               ((\\), sort)
@@ -16,7 +17,8 @@ import           Control.Monad.State     (evalState, State, state)
 
 --------------------------------------------------------------
 renameAll :: FInfo a -> FInfo a
-renameAll fi = renameVars fi $ M.toList $ invertMap $ mkIdMap fi
+renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
+  where ids = map fst3 $ bindEnvToList $ bs fi
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer
@@ -33,6 +35,9 @@ invertMap :: (Hashable k, Hashable v, Eq k, Eq v) =>
 invertMap m = M.fromListWith S.union entries
   where 
     entries = [(v, S.singleton k) | (k, vs) <- M.toList m, v <- S.toList vs]
+
+toListExtended :: [BindId] -> M.HashMap BindId (S.HashSet Ref) -> [(BindId, S.HashSet Ref)]
+toListExtended ids m = [(id, M.lookupDefault S.empty id m) | id <- ids]
 
 
 mkIdMap :: FInfo a -> IdMap
