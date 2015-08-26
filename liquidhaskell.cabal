@@ -2,7 +2,7 @@ Name:                liquidhaskell
 Version:             0.5.0.1
 Copyright:           2010-15 Ranjit Jhala, University of California, San Diego.
 build-type:          Simple
-Synopsis:            Liquid Types for Haskell 
+Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
 Homepage:            http://goto.ucsd.edu/liquidhaskell
 License:             BSD3
@@ -93,7 +93,7 @@ Executable liquid
                , liquidhaskell
 
   Main-is: Liquid.hs
-  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
+  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -threaded
   Default-Extensions: PatternGuards
 
 -- Executable liquid-count-binders
@@ -125,7 +125,7 @@ Executable liquid
 --                , bytestring
 --                , fingertree
 --                , liquidhaskell
---                
+--
 --   Main-is: CountBinders.hs
 --   --ghc-options: -O -W
 --   Extensions: PatternGuards
@@ -167,43 +167,43 @@ Library
                 , bytestring
                 , fingertree
                 , Cabal >= 1.18
- 
+
    hs-source-dirs:  src, include
- 
+
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
-                    Language.Haskell.Liquid.Foreign, 
-                    Language.Haskell.Liquid.List, 
-                    Language.Haskell.Liquid.PrettyPrint, 
+                    Language.Haskell.Liquid.Foreign,
+                    Language.Haskell.Liquid.List,
+                    Language.Haskell.Liquid.PrettyPrint,
                     Language.Haskell.Liquid.Bare,
-                    Language.Haskell.Liquid.Constraint.Constraint, 
-                    Language.Haskell.Liquid.Constraint.Types, 
-                    Language.Haskell.Liquid.Constraint.Generate, 
-                    Language.Haskell.Liquid.Constraint.ToFixpoint, 
-                    Language.Haskell.Liquid.Measure, 
-                    Language.Haskell.Liquid.Parse, 
-                    Language.Haskell.Liquid.GhcInterface, 
-                    Language.Haskell.Liquid.World, 
-                    Language.Haskell.Liquid.RefType, 
-                    Language.Haskell.Liquid.RefSplit, 
-                    Language.Haskell.Liquid.Errors, 
-                    Language.Haskell.Liquid.PredType, 
-                    Language.Haskell.Liquid.ACSS, 
-                    Language.Haskell.Liquid.DiffCheck, 
-                    Language.Haskell.Liquid.ANFTransform, 
-                    Language.Haskell.Liquid.Annotate, 
+                    Language.Haskell.Liquid.Constraint.Constraint,
+                    Language.Haskell.Liquid.Constraint.Types,
+                    Language.Haskell.Liquid.Constraint.Generate,
+                    Language.Haskell.Liquid.Constraint.ToFixpoint,
+                    Language.Haskell.Liquid.Measure,
+                    Language.Haskell.Liquid.Parse,
+                    Language.Haskell.Liquid.GhcInterface,
+                    Language.Haskell.Liquid.World,
+                    Language.Haskell.Liquid.RefType,
+                    Language.Haskell.Liquid.RefSplit,
+                    Language.Haskell.Liquid.Errors,
+                    Language.Haskell.Liquid.PredType,
+                    Language.Haskell.Liquid.ACSS,
+                    Language.Haskell.Liquid.DiffCheck,
+                    Language.Haskell.Liquid.ANFTransform,
+                    Language.Haskell.Liquid.Annotate,
                     Language.Haskell.Liquid.CTags,
-                    Language.Haskell.Liquid.CmdLine, 
-                    Language.Haskell.Liquid.Cabal, 
-                    Language.Haskell.Liquid.GhcMisc, 
-                    Language.Haskell.Liquid.GhcPlay, 
-                    Language.Haskell.Liquid.Misc, 
+                    Language.Haskell.Liquid.CmdLine,
+                    Language.Haskell.Liquid.Cabal,
+                    Language.Haskell.Liquid.GhcMisc,
+                    Language.Haskell.Liquid.GhcPlay,
+                    Language.Haskell.Liquid.Misc,
                     Language.Haskell.Liquid.CoreToLogic,
                     Language.Haskell.Liquid.Variance,
                     Language.Haskell.Liquid.Bounds,
                     Language.Haskell.Liquid.Dictionaries,
-                    Language.Haskell.Liquid.Qualifier, 
-                    Language.Haskell.Liquid.TransformRec, 
-                    Language.Haskell.Liquid.Tidy, 
+                    Language.Haskell.Liquid.Qualifier,
+                    Language.Haskell.Liquid.TransformRec,
+                    Language.Haskell.Liquid.Tidy,
                     Language.Haskell.Liquid.Types,
                     Language.Haskell.Liquid.Simplify,
                     Language.Haskell.Liquid.Literals,
@@ -269,7 +269,7 @@ Library
                     Language.Haskell.Liquid.Desugar710.Match,
                     Language.Haskell.Liquid.Desugar710.MatchCon,
                     Language.Haskell.Liquid.Desugar710.MatchLit
-   ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations
+   ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -threaded
    if flag(devel)
      ghc-options: -Werror
    if flag(include)
