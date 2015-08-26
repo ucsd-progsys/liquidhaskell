@@ -154,7 +154,7 @@ visitPred v = vP
 mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
 mapKVars f = mapKVars' f'
   where
-    f' (kv, _) = f kv
+    f' (kv', _) = f kv'
 
 mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
 mapKVars' f             = trans kvVis () []
@@ -167,9 +167,9 @@ mapKVars' f             = trans kvVis () []
 kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
   where
-    kvVis            = defaultVisitor { accPred = kv }
-    kv _ (PKVar k _) = [k]
-    kv _ _           = []
+    kvVis            = defaultVisitor { accPred = kv' }
+    kv' _ (PKVar k _) = [k]
+    kv' _ _           = []
 
 
 envKVars :: BindEnv -> SubC a -> [KVar]

@@ -93,6 +93,7 @@ Source-Repository head
 -- asked.
 Executable fixpoint.native
   default-language: Haskell98
+  ghc-options:      -threaded
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -120,6 +121,7 @@ Executable fixpoint.native
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
+  ghc-options:   -threaded
   Build-Depends: base >= 4.7 && < 5
                , array
                , syb
@@ -146,6 +148,7 @@ Executable fixpoint
 Library
   default-language: Haskell98
   hs-source-dirs:  src
+  ghc-options:     -threaded
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
                    Language.Fixpoint.Errors,
@@ -172,6 +175,7 @@ Library
                    Language.Fixpoint.Partition,
                    Language.Fixpoint.Statistics,
                    Language.Fixpoint.Solver.Solve
+                   Language.Fixpoint.Parallel
 
   Build-Depends: base >= 4.7 && < 5
                , array

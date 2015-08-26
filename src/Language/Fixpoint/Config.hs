@@ -27,13 +27,19 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
+defaultCores :: Int
+defaultCores = 1
 
+defaultMinPartSize :: Int
+defaultMinPartSize = 500
 
 data Config
   = Config {
       inFile      :: FilePath         -- ^ target fq-file
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
+    , cores       :: Int              -- ^ number of cores used to solve constraints
+    , minPartSize :: Int              -- ^ Minimum size of a partition
     , solver      :: SMTSolver        -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
@@ -46,12 +52,27 @@ data Config
     } deriving (Eq,Data,Typeable,Show)
 
 instance Default Config where
-  def = Config "" def def def def def def def def def def def
+  def = Config { inFile      = ""
+               , outFile     = def
+               , srcFile     = def
+               , cores       = defaultCores
+               , minPartSize = defaultMinPartSize
+               , solver      = def
+               , genSorts    = def
+               , ueqAllSorts = def
+               , native      = def
+               , real        = def
+               , eliminate   = def
+               , metadata    = def
+               , stats       = def
+               , parts       = def
+               }
 
 instance Command Config where
   command c =  command (genSorts c)
             ++ command (ueqAllSorts c)
             ++ command (solver c)
+           -- ++ command (cores c)
             ++ " -out "
             ++ outFile c ++ " " ++ inFile c
 
@@ -85,6 +106,9 @@ instance Command UeqAllSorts where
   command (UAS True)  = " -ueq-all-sorts "
   command (UAS False) = ""
 
+-- instance Command Cores where
+--   command (C n) = " --cores=" ++ show n
+
 
 ---------------------------------------------------------------------------------------
 
@@ -103,6 +127,7 @@ instance Show SMTSolver where
   show Mathsat = "mathsat"
   show Z3mem   = "z3mem"
 
+smtSolver :: String -> SMTSolver
 smtSolver "z3"      = Z3
 smtSolver "cvc4"    = Cvc4
 smtSolver "mathsat" = Mathsat
@@ -111,6 +136,8 @@ smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
+
+---------------------------------------------------------------------------------------
 
 config :: Config
 config = Config {
@@ -126,6 +153,8 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
+  , cores       = defaultCores &= help "(numeric) Number of threads to use"
+  , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   }
   &= verbosity
   &= program "fixpoint"

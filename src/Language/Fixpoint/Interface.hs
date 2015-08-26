@@ -45,13 +45,17 @@ import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition)
+import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
+import           Language.Fixpoint.Parallel
+
+
+import Debug.Trace
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -59,8 +63,12 @@ import           Text.PrettyPrint.HughesPJ
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
-  | native cfg = solveNative cfg (solve cfg)
-  | otherwise  = solveFile   cfg
+  | native cfg    = solveWith cfg (solve    cfg)
+  | multicore cfg = solveWith cfg (solvePar cfg)
+  | otherwise     = solveFile cfg
+
+multicore :: Config -> Bool
+multicore cfg = cores cfg > 1
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
@@ -69,35 +77,36 @@ solveFQ cfg
   --  stats cfg  = statistics cfg x
   --  native cfg = solveNativeWithFInfo cfg x
   --  otherwise  = solveExt cfg x
-
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
-  | parts cfg  = partition cfg
-  | stats cfg  = statistics cfg
-  | native cfg = solveNativeWithFInfo cfg
-  | otherwise  = solveExt cfg
+  | parts cfg     = partition cfg
+  | stats cfg     = statistics cfg
+  | native cfg    = solveNativeWithFInfo cfg
+  | multicore cfg = solvePar cfg
+  | otherwise     = solveExt cfg
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveNative :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
-solveNative cfg s = exit (ExitFailure 2) $ do
+solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
+solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
   let fi    = rr' file str :: FInfo ()
-  res      <- s fi
+  let fi'   = fi { fileName = file }
+  res      <- s fi'
   return    $ resultExit (resStatus res)
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
-  whenLoud  $ putStrLn $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   let fi'   = renameAll fi
-  whenLoud  $ putStrLn $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
   donePhase Loud "Eliminate"
-  whenLoud  $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
@@ -109,7 +118,7 @@ solveNativeWithFInfo cfg fi = do
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
-                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
                        return fi'
   | otherwise     = return fi
 
@@ -120,7 +129,21 @@ solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
-    fn          = srcFile cfg
+    fn          = fileName fi -- srcFile cfg
+
+-- | Partitions an FInfo into 1 or more independent parts, then
+--   calls solveExt on each in parallel
+solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solvePar c fi = do
+   let (_, fis) = partition' (Just (cores c, minPartSize c)) fi
+   writeLoud $ "Number of partitions: " ++ show (length fis)
+   writeLoud $ "number of cores: " ++ show (cores c)
+   writeLoud $ "minimum part size: " ++ show (minPartSize c)
+   case fis of
+      [] -> errorstar "partiton' returned empty list!"
+      [onePart] -> solveExt c onePart
+      _ -> inParallelUsing fis (solveExt c)
+
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi

@@ -145,7 +145,7 @@ boxStrCat sep = ("[" ++) . (++ "]") . L.intercalate sep
 tryIgnore :: String -> IO () -> IO ()
 tryIgnore s a = Ex.catch a $ \e ->
                 do let err = show (e :: Ex.IOException)
-                   whenLoud $ putStrLn ("Warning: Couldn't do " ++ s ++ ": " ++ err)
+                   writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
 traceShow     ::  Show a => String -> a -> a
@@ -157,6 +157,11 @@ warnShow s x  = trace ("\nWarning: [" ++ s ++ "] : " ++ show x)  x
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
+-- | Version of inserts that handles Maybe keys. If the key is
+-- Nothing, the value is not inserted
+maybeInserts Nothing _ m = m
+maybeInserts (Just k) v m = inserts k v m
+
 concatMaps    = fmap sortNub . L.foldl' (M.unionWith (++)) M.empty
 
 -- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
@@ -165,15 +170,17 @@ groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
 
-groupFun :: (Eq k, Hashable k) => M.HashMap k Int -> k -> Int
-groupFun m k = safeLookup "groupFun" k m
+groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
+groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
 
 
 -- groupMap      :: Hashable k => (a -> k) -> [a] -> M.HashMap k [a]
-groupMap f xs = L.foldl' (\m x -> inserts (f x) x m) M.empty xs
+groupMap f = L.foldl' (\m x -> inserts (f x) x m) M.empty
+
+maybeGroupMap f = L.foldl' (\m x -> maybeInserts (f x) x m) M.empty
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
@@ -375,11 +382,11 @@ ifM bm xm ym
        if b then xm else ym
 
 executeShellCommand phase cmd
-  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd
+  = do writeLoud $ "EXEC: " ++ cmd
        Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
 
 executeShellCommandWithOptStars v phase cmd
-  = do whenLoud $ putStrLn $ "EXEC: " ++ cmd
+  = do writeLoud $ "EXEC: " ++ cmd
        Ex.bracket_ (startPhaseWithOptStars v Loud phase) (donePhaseWithOptStars v Loud phase) $ system cmd
 
 checkExitCode _   (ExitSuccess)   = return ()
@@ -425,3 +432,7 @@ mapEither f         = go [] []
                         Right r -> go ls  (r:rs) xs
 
 f <$$> x = traverse f x
+
+-- | if loud, write a string to stdout
+writeLoud :: String -> IO ()
+writeLoud = whenLoud . putStrLn
