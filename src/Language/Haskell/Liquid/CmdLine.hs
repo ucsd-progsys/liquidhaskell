@@ -63,6 +63,7 @@ import Language.Haskell.Liquid.Cabal
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
 
+import Debug.Trace
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -169,9 +170,10 @@ config = cmdArgsMode $ Config {
 
 getOpts :: IO Config
 getOpts = do
-  cfg0    <- envCfg
-  cfg1    <- mkOpts =<< cmdArgsRun' config
-  cfg     <- fixConfig $ mconcat [cfg0, cfg1]
+  cfg0  <- envCfg
+  cfg1   <- mkOpts =<< cmdArgsRun'
+            config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
+  cfg    <- fixConfig cfg1
   whenNormal $ putStrLn copyright
   case smtsolver cfg of
     Just _  -> return cfg
@@ -224,7 +226,7 @@ fixDiffCheck cfg = cfg { diffcheck = diffcheck cfg && not (fullcheck cfg) }
 
 envCfg = do so <- lookupEnv "LIQUIDHASKELL_OPTS"
             case so of
-              Nothing -> return mempty
+              Nothing -> return defConfig
               Just s  -> parsePragma $ envLoc s
          where
             envLoc  = Loc l l
@@ -250,10 +252,13 @@ withPragmas :: Config -> FilePath -> [Located String] -> IO Config
 withPragmas cfg fp ps = foldM withPragma cfg ps >>= canonicalizePaths fp
 
 withPragma :: Config -> Located String -> IO Config
-withPragma c s = (c `mappend`) <$> parsePragma s
+withPragma c s = withArgs [val s] $ cmdArgsRun
+          config { modeValue = (modeValue config) { cmdArgsValue = c } }
+   --(c `mappend`) <$> parsePragma s
 
 parsePragma   :: Located String -> IO Config
-parsePragma s = withArgs [val s] $ cmdArgsRun config
+parsePragma = withPragma defConfig
+   --withArgs [val s] $ cmdArgsRun config
 
 ---------------------------------------------------------------------------------------
 withCabal :: Config -> IO Config
@@ -288,7 +293,9 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 -- | Monoid instances for updating options
 ---------------------------------------------------------------------------------------
 
+defConfig = Config def def def def def def def def def def def def def def def def 2 def def def def def def
 
+{-
 instance Monoid Config where
   mempty        = Config def def def def def def def def def def def def def def def def 2 def def def def def def
   mappend c1 c2 = Config { files          = sortNub $ files c1   ++     files          c2
@@ -315,7 +322,7 @@ instance Monoid Config where
                          , ghcOptions     = ghcOptions c1        ++     ghcOptions     c2
                          , cFiles         = cFiles c1            ++     cFiles         c2
                          }
-
+-}
 instance Monoid SMTSolver where
   mempty        = def
   mappend s1 s2
