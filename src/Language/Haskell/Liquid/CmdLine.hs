@@ -63,7 +63,6 @@ import Language.Haskell.Liquid.Cabal
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)
 
-import Debug.Trace
 
 
 ---------------------------------------------------------------------------------
