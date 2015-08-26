@@ -40,7 +40,8 @@ testRunner = rerunningTests
 
 
 main :: IO ()
-main = run =<< tests
+main = do unsetEnv "LIQUIDHASKELL_OPTS"
+          run =<< tests
   where
     run   = defaultMainWithIngredients [
                 testRunner
@@ -130,10 +131,10 @@ mkTest code dir file
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
 
-binPath pkgName = do 
+binPath pkgName = do
   testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
- 
+  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
+
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
                    , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
                    , "tests/pos/Product.hs" ]
