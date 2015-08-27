@@ -336,7 +336,7 @@ fApp :: Sort -> [Sort] -> Sort
 fApp = foldl' FApp
 
 fAppTC :: FTycon -> [Sort] -> Sort
-fAppTC = fApp . fTyconSort c
+fAppTC = fApp . fTyconSort
 
 fApp' :: Sort -> ListNE Sort
 fApp' = go []
