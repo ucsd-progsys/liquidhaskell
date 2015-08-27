@@ -13,6 +13,7 @@ Category:            Language
 Build-Type:          Simple
 Cabal-version:       >=1.18
 
+
 data-files: include/*.hquals
           , include/*.hs
           , include/*.spec
