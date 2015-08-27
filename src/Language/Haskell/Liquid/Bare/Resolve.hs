@@ -17,7 +17,19 @@ import qualified Data.Text           as T
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Names (prims)
-import Language.Fixpoint.Types (Expr(..), Pred(..), Qualifier(..), Refa(..), Reft(..), Sort(..), Symbol, fTyconSymbol, symbol, symbolFTycon, symbolText)
+import Language.Fixpoint.Types (Expr(..),
+                                Pred(..),
+                                Qualifier(..),
+                                Refa(..),
+                                Reft(..),
+                                Sort(..),
+                                Symbol,
+                                fTyconSymbol,
+                                symbol,
+                                symbolFTycon,
+                                symbolText,
+                                fAppTC,
+                                fApp)
 
 import Language.Haskell.Liquid.Misc (secondM, third3M)
 import Language.Haskell.Liquid.Types
@@ -68,7 +80,7 @@ instance Resolvable LocSymbol where
                                    return $ Loc l l' qs
            _                 -> return ls
 
-addSym x = modify $ \be -> be { varEnv = (varEnv be) `L.union` [x] }
+addSym x = modify $ \be -> be { varEnv = varEnv be `L.union` [x] }
 
 isCon c
   | Just (c,_) <- T.uncons $ symbolText c = isUpper c
@@ -85,12 +97,12 @@ instance Resolvable Sort where
   resolve _ s@(FObj _)   = return s --FObj . S <$> lookupName env m s
   resolve _ s@(FVar _)   = return s
   resolve l (FFunc i ss) = FFunc i <$> resolve l ss
-  resolve _ (FApp tc ss)
-    | tcs' `elem` prims  = FApp tc <$> ss'
-    | otherwise          = FApp <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs) <*> ss'
-      where
-        tcs@(Loc l l' tcs') = fTyconSymbol tc
-        ss'                 = resolve l ss
+  resolve _ (FTC c)
+    | tcs' `elem` prims  = FTC <$> return c
+    | otherwise          = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
+    where
+      tcs@(Loc l l' tcs') = fTyconSymbol c
+  resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
 
 instance Resolvable (UReft Reft) where
   resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s

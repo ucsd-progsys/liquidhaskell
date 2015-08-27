@@ -625,7 +625,8 @@ asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
 decreaseP = mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> (many integer))
-  where f = ((\n -> fromInteger n - 1) <$>)
+  where
+    f     = ((\n -> fromInteger n - 1) <$>)
 
 filePathP     :: Parser FilePath
 filePathP     = angles $ many1 pathCharP
@@ -633,7 +634,7 @@ filePathP     = angles $ many1 pathCharP
     pathCharP = choice $ char <$> pathChars
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
-datavarianceP = liftM2 (,) (locUpperIdP) (spaces >> many varianceP)
+datavarianceP = liftM2 (,) locUpperIdP (spaces >> many varianceP)
 
 varianceP = (reserved "bivariant"     >> return Bivariant)
         <|> (reserved "invariant"     >> return Invariant)
@@ -875,25 +876,17 @@ dataDeclFullP
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
 
--- qualifierP = do
---   pos    <- getPosition
---   n      <- upperIdP
---   params <- parens $ sepBy1 sortBindP comma
---   _      <- colon
---   body   <- predP
---   return  $ mkQual n params body pos
---
--- sortBindP = (,) <$> symbolP <* colon <*> sortP
-
+{-
 sortP
   =   try (parens $ sortP)
   -- <|> try (string "@"    >> varSortP)
-  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
+  <|> try (fAppTC listFTyCon . single <$> brackets sortP)
   -- <|> try bvSortP
   -- <|> try baseSortP
   -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
   <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
+-}
 
 -- varSortP  = FVar  <$> parens intP
 -- funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
