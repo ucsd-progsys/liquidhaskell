@@ -35,6 +35,7 @@ module Language.Fixpoint.Parse (
   , constantP   -- (Integer) Constants
   , integer     -- Integer
   , bindP       -- Binder (lowerIdP <* colon)
+  , sortP       -- Sort
   , mkQual      -- constructing qualifiers
 
   -- * Parsing recursive entities
