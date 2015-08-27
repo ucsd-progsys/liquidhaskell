@@ -215,7 +215,7 @@ test-suite test
                     filepath,
                     process,
                     -- tagged,
-                    liquid-fixpoint,
+                    -- liquid-fixpoint,
                     -- optparse-applicative == 0.11.*,
                     tasty >= 0.10,
                     -- tasty-quickcheck,
