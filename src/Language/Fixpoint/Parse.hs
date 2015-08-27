@@ -290,6 +290,7 @@ funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
 
 sortsP = brackets $ sepBy sortP semi
 
+{-
 sortP
   =   try (parens $ sortP)
   <|> try (string "@"    >> varSortP)
@@ -298,6 +299,24 @@ sortP
   <|> try bvSortP
   <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
+-}
+
+sortP    :: Parser Sort
+sortP    = sortP' (sepBy sortArgP blanks)
+
+sortArgP :: Parser Sort
+sortArgP = sortP' (return [])
+
+sortP' :: Parser [Sort] -> Parser Sort
+sortP' appArgsP
+   =  try (parens sortP)
+  <|> try (string "@"    >> varSortP)
+  <|> try (string "func" >> funcSortP)
+  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
+  <|> try bvSortP
+  <|> try (fApp  <$> (Left <$> fTyConP) <*> appArgsP)
+  <|> (FObj . symbol <$> lowerIdP)
+
 
 fTyConP :: Parser FTycon
 fTyConP

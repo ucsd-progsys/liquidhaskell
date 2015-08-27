@@ -395,24 +395,24 @@ toFixSort FNum            = text "num"
 toFixSort (FFunc n ts)    = text "func" <> parens (toFix n <> text ", " <> toFix ts)
 toFixSort (FApp c [t])
   | isListTC c            = brackets $ toFixSort t
-toFixSort (FApp c (FApp c' [] : ts))
-  | isFAppTyTC c          = toFixFApp c' ts
--- toFixSort (FApp c [FApp c' [],t])
---  | isFAppTyTC c &&
---    isListTC c'           = brackets $ toFixSort t
-toFixSort (FApp c ts)     = toFixFApp c ts
+toFixSort t@(FApp c _)
+  | isFAppTyTC c          = toFixFApp (sortApp t)
+toFixSort (FApp c [])
+  | not (isFAppTyTC c)    = toFixSort c
+toFixSort t               = errorstar $ "toFixSort: illegal sort :" ++ show t
 
-toFixFApp :: FTycon -> [Sort] -> Doc
-toFixFApp c [t]
-  | isListTC c            = brackets $ toFixSort t
-toFixFApp c ts            = toFix c <+> intersperse space (fp <$> ts)
-    where
-      fp s@(FApp _ (_:_)) = parens $ toFixSort s
-      fp s                = toFixSort s
+toFixApp t1 t2 =
+
+-- toFixFApp :: (FTycon, [Sort]) -> Doc
+-- toFixFApp c [t]
+--   | isListTC c            = brackets $ toFixSort t
+-- toFixFApp c ts            = toFix c <+> intersperse space (fp <$> ts)
+--   where
+--     fp s@(FApp _ (_:_)) = parens $ toFixSort s
+--     fp s                = toFixSort s
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
-
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
@@ -1662,10 +1662,10 @@ class SymConsts a where
 instance SymConsts (FInfo a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
-      csLits   = concatMap symConsts                     $ M.elems  $  cm    fi
-      bsLits   = concatMap symConsts $ map snd $ M.elems $ beBinds $  bs    fi
-      gsLits   = concatMap symConsts $           M.elems $ seBinds $  gs    fi
-      qsLits   = concatMap symConsts $                     q_body  <$> quals fi
+      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
+      bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
+      gsLits   = concatMap symConsts $         M.elems $ seBinds $  gs    fi
+      qsLits   = concatMap symConsts $                   q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (sgrd c) ++

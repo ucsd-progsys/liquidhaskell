@@ -17,16 +17,43 @@ import qualified Data.Text                as T
 import           Data.Text.Format
 import qualified Data.Text.Lazy           as LT
 
+{-
+    (* (L t1 t2 t3) is now encoded as
+        ---> (((L @ t1) @ t2) @ t3)
+        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
+        The following decodes the above as
+     *)
+    let rec app_args_of_t acc = function
+      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1
+      | App (c, [])                       -> (c, acc)
+      | t                                 -> (tc_app, t :: acc)
+
+      (*
+      | Ptr (Loc s)                       -> (tycon s, acc)
+      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
+      *)
+
+    let app_of_t = function
+      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
+      | App (c, ts)                       -> Some (c, ts)
+      | _                                 -> None
+
+-}
 instance SMTLIB2 Sort where
   smt2 FInt         = "Int"
   smt2 t
     | t == boolSort = "Bool"
   -- smt2 (FApp t []) | t == intFTyCon = "Int"
   -- smt2 (FApp t []) | t == boolFTyCon = "Bool"
-  smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
+  smt2 (FApp t [FApp ts _,_])
+    | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
   -- smt2 (FObj s)    = smt2 s
   smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
   smt2 _           = "Int"
+
+-- NUKE
+--   smt2 t = case app_of_t of
+--             Just (c, _) && fTyconSymbol c == "Set_Set" -> "Set"
 
 instance SMTLIB2 Symbol where
   smt2 s | Just t <- smt2Theory s --  M.lookup s smt_set_funs
