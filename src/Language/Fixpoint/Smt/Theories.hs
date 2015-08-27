@@ -4,12 +4,18 @@
 {-# LANGUAGE UndecidableInstances      #-}
 
 module Language.Fixpoint.Smt.Theories
-     ( -- * Convert theory sorts
-       smt2Sort
+     (
+       -- * Convert theory applications TODO: merge with smt2symbol
+       smt2App
+       -- * Convert theory sorts
+     , smt2Sort
        -- * Convert theory symbols
      , smt2Symbol
+       -- * Preamble to initialize SMT
+     , preamble
      ) where
 
+import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
@@ -123,6 +129,10 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
+-------------------------------------------------------------------------------
+-- | Exported API -------------------------------------------------------------
+-------------------------------------------------------------------------------
+
 smt2Symbol :: Symbol -> Maybe T.Text
 smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
 
@@ -130,3 +140,14 @@ smt2Sort :: Sort -> Maybe LT.Text
 smt2Sort (FApp (FTC c) t)
   | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
 smt2Sort _                      = Nothing
+
+smt2App :: LocSymbol -> [LT.Text] -> Maybe LT.Text
+smt2App f [d]
+  | val f == setEmpty = Just $ format "{}"             (Only emp)
+  | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
+  | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+smt2App _ _           = Nothing
+
+preamble :: SMTSolver ->[LT.Text]
+preamble Z3 = z3Preamble
+preamble _  = smtlibPreamble
