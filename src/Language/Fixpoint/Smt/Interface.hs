@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
@@ -43,7 +42,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDistinct
 
     -- * Theory Symbols
-    , theorySymbols
+    -- , theorySymbols
       -- smt_set_funs
 
     ) where
@@ -53,7 +52,7 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Smt.Theories
+import           Language.Fixpoint.Smt.Theories (preamble)
 import           Language.Fixpoint.Smt.Serialize()
 
 
@@ -130,7 +129,7 @@ sexpP = {-# SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
 
 errorP = A.skipSpace *> A.char '"' *> A.takeWhile1 (/='"') <* A.string "\")"
 
-valuesP = A.many1' pairP <* (A.char ')')
+valuesP = A.many1' pairP <* A.char ')'
 
 pairP = {-# SCC "pairP" #-}
   do A.skipSpace
@@ -219,10 +218,10 @@ smtPreamble Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        if T.splitOn "." v `versionGreater` ["4", "3", "2"]
-         then return $ z3_432_options ++ z3Preamble
-         else return $ z3_options     ++ z3Preamble
-smtPreamble _  _
-  = return smtlibPreamble
+         then return $ z3_432_options ++ preamble Z3
+         else return $ z3_options     ++ preamble Z3
+smtPreamble s  _
+  = return $ preamble s
 
 versionGreater (x:xs) (y:ys)
   | x >  y = True
@@ -284,4 +283,3 @@ z3_options
     , "(set-option :model true)"
     , "(set-option :model-partial false)"
     , "(set-option :mbqi false)" ]
-
