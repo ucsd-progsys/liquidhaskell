@@ -389,14 +389,14 @@ toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
 
 toFixFApp            :: ListNE Sort -> Doc
-toFixFApp [t]        = error "TODO"
+toFixFApp [t]        = toFixSort t
 toFixFApp [FTC c, t]
   | isListTC c       = brackets $ toFixSort t
-toFixFApp ts         = intersperse space (toFixArg <$> ts)
+toFixFApp ts         = parens $ intersperse space (toFixSort <$> ts)
 
-toFixArg             :: Sort -> Doc
-toFixArg t@(FApp {}) = parens $ toFixSort t
-toFixArg t           =          toFixSort t
+-- toFixArg             :: Sort -> Doc
+-- toFixArg t@(FApp {}) = parens $ toFixSort t
+-- toFixArg t           =          toFixSort t
 
 --    fp s@(FApp _) = parens $ toFixSort s
 --     fp s                = toFixSort s
