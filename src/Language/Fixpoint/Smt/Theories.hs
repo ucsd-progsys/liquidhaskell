@@ -3,7 +3,12 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
-module Language.Fixpoint.Smt.Theories where
+module Language.Fixpoint.Smt.Theories
+     ( -- * Convert theory sorts
+       smt2Sort
+       -- * Convert theory symbols
+     , smt2Symbol
+     ) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
@@ -118,5 +123,10 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
-smt2Theory :: Symbol -> Maybe T.Text
-smt2Theory x = tsRaw <$> M.lookup x theorySymbols
+smt2Symbol :: Symbol -> Maybe T.Text
+smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
+
+smt2Sort :: Sort -> Maybe LT.Text
+smt2Sort (FApp (FTC c) t)
+  | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
+smt2Sort _                      = Nothing

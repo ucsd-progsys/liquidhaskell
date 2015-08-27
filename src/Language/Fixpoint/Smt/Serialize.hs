@@ -40,20 +40,16 @@ import qualified Data.Text.Lazy           as LT
 
 -}
 instance SMTLIB2 Sort where
-  smt2 FInt         = "Int"
+  smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
+  smt2 FInt          = "Int"
   smt2 t
-    | t == boolSort = "Bool"
-  -- smt2 (FApp t []) | t == intFTyCon = "Int"
-  -- smt2 (FApp t []) | t == boolFTyCon = "Bool"
+    | t == boolSort  = "Bool"
+  smt2 t
+    | Just d <- smt2Sort t = d
   smt2 (FApp t [FApp ts _,_])
     | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
-  -- smt2 (FObj s)    = smt2 s
-  smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
   smt2 _           = "Int"
 
--- NUKE
---   smt2 t = case app_of_t of
---             Just (c, _) && fTyconSymbol c == "Set_Set" -> "Set"
 
 instance SMTLIB2 Symbol where
   smt2 s | Just t <- smt2Theory s --  M.lookup s smt_set_funs
