@@ -97,8 +97,8 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
-           , Token.identStart      = satisfy (\_ -> False)
-           , Token.identLetter     = satisfy (\_ -> False)
+           , Token.identStart      = satisfy (const False)
+           , Token.identLetter     = satisfy (const False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
                                      , "true"
@@ -172,6 +172,7 @@ locParserP p = do l1 <- getPosition
                   x  <- p
                   l2 <- getPosition
                   return $ Loc l1 l2 x
+
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
@@ -312,9 +313,9 @@ sortP' appArgsP
    =  try (parens sortP)
   <|> try (string "@"    >> varSortP)
   <|> try (string "func" >> funcSortP)
-  <|> try (fApp (Left listFTyCon) . single <$> brackets sortP)
+  <|> try (fAppTC listFTyCon . single <$> brackets sortP)
   <|> try bvSortP
-  <|> try (fApp  <$> (Left <$> fTyConP) <*> appArgsP)
+  <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> (FObj . symbol <$> lowerIdP)
 
 

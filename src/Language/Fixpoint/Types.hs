@@ -55,7 +55,7 @@ module Language.Fixpoint.Types (
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
-  , fApp
+  , fApp, fAppTC
   , fObj
 
   -- * Expressions and Predicates
@@ -335,6 +335,8 @@ symbolFTycon c
 fApp :: Sort -> [Sort] -> Sort
 fApp = foldl' FApp
 
+fAppTC :: FTycon -> [Sort] -> Sort
+fAppTC = fApp . fTyconSort c
 
 fApp' :: Sort -> ListNE Sort
 fApp' = go []
