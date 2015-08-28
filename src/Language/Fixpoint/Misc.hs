@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -28,6 +30,12 @@ import           System.Exit
 import           System.Process                   (system)
 
 import           Text.PrettyPrint.HughesPJ
+
+#ifdef MIN_VERSION_located_base
+import Prelude hiding (error, undefined)
+import GHC.Err.Located
+import GHC.Stack
+#endif
 
 
 -----------------------------------------------------------------------------------
@@ -89,6 +97,12 @@ wrap l r s = l ++ s ++ r
 
 repeats n  = concat . replicate n
 
+#ifdef MIN_VERSION_located_base
+errorstar :: (?callStack :: CallStack) => String -> a
+errortext :: (?callStack :: CallStack) => Doc -> a
+assertstar :: (?callStack :: CallStack) => String -> Bool -> a -> a
+#endif
+
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
   where
     stars = repeats 3 $ wrapStars "ERROR"
@@ -127,15 +141,22 @@ expandSnd = concatMap (\(xs, y) -> (, y) <$> xs)
 mapPair ::  (a -> b) -> (a, a) -> (b, b)
 mapPair f (x, y) = (f x, f y)
 
-mlookup ::  (Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+#ifdef MIN_VERSION_located_base
+mlookup    :: (?callStack :: CallStack, Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+safeLookup :: (?callStack :: CallStack, Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
+mfromJust  :: (?callStack :: CallStack) => String -> Maybe a -> a
+#else
+mlookup    :: (Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
+safeLookup :: (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
+mfromJust  :: String -> Maybe a -> a
+#endif
+
 mlookup m k = case M.lookup k m of
                 Just v  -> v
                 Nothing -> errorstar $ "mlookup: unknown key " ++ show k
 
-safeLookup ::  (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
 safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 
-mfromJust ::  String -> Maybe a -> a
 mfromJust _ (Just x) = x
 mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 
@@ -220,6 +241,14 @@ tr_reverse      = L.foldl' (flip (:)) []
 tr_foldr' ::  (a -> b -> b) -> b -> [a] -> b
 tr_foldr' f b   = L.foldl' (flip f) b . tr_reverse
 
+#ifdef MIN_VERSION_located_base
+safeZip :: (?callStack :: CallStack) => String -> [a] -> [b] -> [(a,b)]
+safeZipWith :: (?callStack :: CallStack) => String -> (a -> b -> c) -> [a] -> [b] -> [c]
+safeFromList :: (?callStack :: CallStack, Hashable k, Eq k, Show k, Show a) => String -> [(k, a)] -> M.HashMap k a
+safeUnion :: (?callStack :: CallStack, Hashable k, Eq k, Show k, Show a)
+          => String -> M.HashMap k a -> M.HashMap k a -> M.HashMap k a
+#endif
+
 safeZip msg xs ys
   | nxs == nys
   = zip xs ys
@@ -265,24 +294,33 @@ safeUnion msg m1 m2 =
 {-@ type ListNE a = {v:[a] | 0 < len v} @-}
 type ListNE a = [a]
 
-safeHead :: String -> ListNE a -> a
+#ifdef MIN_VERSION_located_base
+safeHead   :: (?callStack :: CallStack) => String -> ListNE a -> a
+safeLast   :: (?callStack :: CallStack) => String -> ListNE a -> a
+safeInit   :: (?callStack :: CallStack) => String -> ListNE a -> [a]
+safeUncons :: (?callStack :: CallStack) => String -> ListNE a -> (a, [a])
+safeUnsnoc :: (?callStack :: CallStack) => String -> ListNE a -> ([a], a)
+#else
+safeHead   :: String -> ListNE a -> a
+safeLast   :: String -> ListNE a -> a
+safeInit   :: String -> ListNE a -> [a]
+safeUncons :: String -> ListNE a -> (a, [a])
+safeUnsnoc :: String -> ListNE a -> ([a], a)
+#endif
+
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
 
-safeLast :: String -> ListNE a -> a
 safeLast _ xs@(_:_) = last xs
 safeLast msg _      = errorstar $ "safeLast with empty list " ++ msg
 
 
-safeInit :: String -> ListNE a -> [a]
 safeInit _ xs@(_:_) = init xs
 safeInit msg _      = errorstar $ "safeInit with empty list " ++ msg
 
-safeUncons :: String -> ListNE a -> (a, [a])
 safeUncons _ (x:xs) = (x, xs)
 safeUncons msg _    = errorstar $ "safeUncons with empty list " ++ msg
 
-safeUnsnoc :: String -> ListNE a -> ([a], a)
 safeUnsnoc msg = swap . mapSnd reverse . safeUncons msg . reverse
 
 

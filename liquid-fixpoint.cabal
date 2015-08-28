@@ -201,6 +201,8 @@ Library
                , hashable
                , unordered-containers
                , text-format
+  if impl(ghc >= 7.10.2)
+    Build-Depends: located-base
 
 test-suite test
   default-language: Haskell98
