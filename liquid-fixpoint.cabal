@@ -93,7 +93,6 @@ Source-Repository head
 -- asked.
 Executable fixpoint.native
   default-language: Haskell98
-  ghc-options:      -threaded
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -148,7 +147,6 @@ Executable fixpoint
 Library
   default-language: Haskell98
   hs-source-dirs:  src
-  ghc-options:     -threaded
   Exposed-Modules: Language.Fixpoint.Names,
                    Language.Fixpoint.Files,
                    Language.Fixpoint.Errors,
