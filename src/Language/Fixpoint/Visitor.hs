@@ -19,6 +19,7 @@ module Language.Fixpoint.Visitor (
   , kvars
   , envKVars
   , mapKVars, mapKVars'
+  , lhsKVars, rhsKVars
 
   -- * Sorts
   , foldSort, mapSort
@@ -179,6 +180,14 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
     kvs    = kvars . sr_reft
 
 
+lhsKVars :: BindEnv -> SubC a -> [KVar]
+lhsKVars binds c = envKVs ++ lhsKVs
+  where
+    envKVs       = envKVars binds         c
+    lhsKVs       = kvars          $ lhsCs c
+
+rhsKVars :: SubC a -> [KVar]
+rhsKVars = kvars . rhsCs
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
@@ -189,7 +198,7 @@ foldSort f = step
   where
     step b t          = go (f b t) t
     go b (FFunc _ ts) = L.foldl' step b ts
-    go b (FApp _ ts)  = L.foldl' step b ts
+    go b (FApp t1 t2) = L.foldl' step b [t1, t2]
     go b _            = b
 
 
@@ -200,5 +209,5 @@ mapSort f = step
   where
     step            = go . f
     go (FFunc n ts) = FFunc n $ step <$> ts
-    go (FApp c ts)  = FApp c  $ step <$> ts
+    go (FApp t1 t2) = FApp (step t1) (step t2)
     go t            = t

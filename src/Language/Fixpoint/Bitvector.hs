@@ -38,33 +38,32 @@ data BvOp   = BvAnd | BvOr
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 -- | Construct the bitvector `Sort` from its `BvSize`
-
 mkSort :: BvSize -> Sort
-mkSort _ = fApp (Left $ symbolFTycon $ dummyLoc bitVecName)
-                [FApp (symbolFTycon $ dummyLoc size32Name) [fObj $ dummyLoc $ symbol "obj"]]
+mkSort s = fApp (fTyconSort bvTyCon) [ fTyconSort (sizeTyCon s) ]
+
+bvTyCon :: FTycon
+bvTyCon = symbolFTycon $ dummyLoc bitVecName
+
+sizeTyCon    :: BvSize -> FTycon
+sizeTyCon    = symbolFTycon . dummyLoc . sizeName
+
+sizeName :: BvSize -> Symbol
+sizeName S32 = size32Name
+sizeName S64 = size64Name
 
 -- | Construct an `Expr` using a raw string, e.g. (Bv S32 "#x02000000")
 instance Expression Bv where
   expr (Bv sz v) = ECon $ L (T.pack v) (mkSort sz)
 
 -- | Apply some bitvector operator to a list of arguments
-
 eOp :: BvOp -> [Expr] -> Expr
-eOp o es = EApp (opName o) es
-
-
---------------------------------------------------------------------
+eOp = EApp . opName
 
 opName :: BvOp -> LocSymbol
 opName BvAnd = dummyLoc bvAndName
 opName BvOr  = dummyLoc bvOrName
 
-sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
-sizeTC       = symbolFTycon . dummyLoc . sizeName
-sizeName S32 = size32Name
-sizeName S64 = size64Name
 
-bvTyCon      = symbolFTycon $ dummyLoc bitVecName
-
+-- sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
 -- s32TyCon     = symbolFTycon $ dummyLoc size32Name
 -- s64TyCon     = symbolFTycon $ dummyLoc size64Name

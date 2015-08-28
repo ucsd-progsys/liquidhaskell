@@ -3,33 +3,27 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
-module Language.Fixpoint.Smt.Theories where
+module Language.Fixpoint.Smt.Theories
+     (
+       -- * Convert theory applications TODO: merge with smt2symbol
+       smt2App
+       -- * Convert theory sorts
+     , smt2Sort
+       -- * Convert theory symbols
+     , smt2Symbol
+       -- * Preamble to initialize SMT
+     , preamble
+     
+     ) where
 
+import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
--- import qualified Data.List                as L
 import qualified Data.Text                as T
 import           Data.Text.Format
--- import           Data.Monoid
-
-
---import           Language.Fixpoint.Errors
---import           Language.Fixpoint.Files
 import           Control.Applicative      ((<$>))
---import           Control.Monad
---import           Data.Char
---import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
---import qualified Data.Text.Lazy.IO        as LTIO
---import           System.Directory
---import           System.Exit              hiding (die)
---import           System.FilePath
---import           System.IO                (Handle, IOMode (..), hClose, hFlush, openFile)
---import           System.Process
---import qualified Data.Attoparsec.Text     as A
-
-
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
@@ -56,16 +50,17 @@ sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 
 
-setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
-setEmp = "Set_emp"
-setCap = "Set_cap"
-setSub = "Set_sub"
-setAdd = "Set_add"
-setMem = "Set_mem"
-setCom = "Set_com"
-setCup = "Set_cup"
-setDif = "Set_dif"
-setSng = "Set_sng"
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
+setEmpty = "Set_empty"
+setEmp   = "Set_emp"
+setCap   = "Set_cap"
+setSub   = "Set_sub"
+setAdd   = "Set_add"
+setMem   = "Set_mem"
+setCom   = "Set_com"
+setCup   = "Set_cup"
+setDif   = "Set_dif"
+setSng   = "Set_sng"
 
 z3Preamble :: [LT.Text]
 z3Preamble
@@ -135,5 +130,25 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
-smt2Theory :: Symbol -> Maybe T.Text
-smt2Theory x = tsRaw <$> M.lookup x theorySymbols
+-------------------------------------------------------------------------------
+-- | Exported API -------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+smt2Symbol :: Symbol -> Maybe T.Text
+smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
+
+smt2Sort :: Sort -> Maybe LT.Text
+smt2Sort (FApp (FTC c) t)
+  | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
+smt2Sort _                      = Nothing
+
+smt2App :: LocSymbol -> [LT.Text] -> Maybe LT.Text
+smt2App f [d]
+  | val f == setEmpty = Just $ format "{}"             (Only emp)
+  | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
+  | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+smt2App _ _           = Nothing
+
+preamble :: SMTSolver ->[LT.Text]
+preamble Z3 = z3Preamble
+preamble _  = smtlibPreamble

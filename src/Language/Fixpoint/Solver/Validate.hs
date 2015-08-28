@@ -1,5 +1,5 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
---   1. Each binder must be unique
+--   1. Each binder must be associated with a UNIQUE sort
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate and Transform FInfo to enforce invariants
@@ -18,15 +18,16 @@ import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
--- import           Control.Monad (filterM)
--- import           Control.Applicative ((<$>))
---import           Debug.Trace (trace)
+import           Control.Applicative ((<$>))
 import           Text.Printf
 
 ---------------------------------------------------------------------------
 validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
 ---------------------------------------------------------------------------
-validate _ = Right . dropHigherOrderBinders . renameVV
+validate _ = Right
+           -- . dropFunctionRefinements
+           . dropHigherOrderBinders
+           . renameVV
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
@@ -98,6 +99,12 @@ subcVV c = (x, sr)
     sr   = F.slhs c
     x    = F.reftBind $ F.sr_reft sr
 
+---------------------------------------------------------------------------
+-- | Drop Refinements from binders with function types
+---------------------------------------------------------------------------
+dropFunctionRefinements :: F.FInfo a -> F.FInfo a
+dropFunctionRefinements = error "TODO: dropFunctionRefinements"
+
 
 ---------------------------------------------------------------------------
 -- | Drop Higher-Order Binders and Constants from Environment
@@ -107,14 +114,16 @@ dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
   where
     (bs', discards) = dropHOBinders (F.bs fi)
-    cm' = M.map (foo discards) (F.cm fi)
-    ws' = map (bar discards) (F.ws fi)
+    cm' = deleteSubCBinds discards <$> F.cm fi
+    ws' = deleteWfCBinds  discards <$> F.ws fi
     gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
 
-foo :: [F.BindId] -> F.SubC a -> F.SubC a
-foo discards sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) discards }
-bar :: [F.BindId] -> F.WfC a -> F.WfC a
-bar discards wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) discards }
+
+deleteSubCBinds :: [F.BindId] -> F.SubC a -> F.SubC a
+deleteSubCBinds bs sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) bs }
+
+deleteWfCBinds :: [F.BindId] -> F.WfC a -> F.WfC a
+deleteWfCBinds bs wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) bs }
 
 dropHOBinders :: F.BindEnv -> (F.BindEnv, [F.BindId])
 dropHOBinders = filterBindEnv (isFirstOrder . F.sr_sort .  Misc.thd3)
@@ -125,7 +134,7 @@ filterBindEnv f be = (F.bindEnvFromList keep, discard')
     discard' = map Misc.fst3 discard
 
 isFirstOrder :: F.Sort -> Bool
-isFirstOrder t        = {- F.traceFix ("isFO: " ++ F.showFix t) -} (foldSort f 0 t <= 1)
+isFirstOrder t        = foldSort f 0 t <= 1
   where
     f n (F.FFunc _ _) = n + 1
     f n _             = n

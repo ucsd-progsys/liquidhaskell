@@ -12,6 +12,7 @@ import           Language.Fixpoint.Types
 import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 
 class PPrint a where
   pprint :: a -> Doc
@@ -32,6 +33,9 @@ instance PPrint a => PPrint (Maybe a) where
 
 instance PPrint a => PPrint [a] where
   pprint = brackets . intersperse comma . map pprint
+
+instance PPrint a => PPrint (S.HashSet a) where
+  pprint = pprint . S.toList
 
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprint         = vcat . punctuate (text "\n") . map pp1 . M.toList

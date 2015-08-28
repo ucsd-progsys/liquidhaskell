@@ -9,7 +9,6 @@ module Language.Fixpoint.Partition (partition, partition', partitionN) where
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
-import           Language.Fixpoint.Solver.Deps
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
@@ -27,10 +26,6 @@ import           Data.List (sortBy)
 import           Data.Monoid (mempty, mappend)
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.Applicative              ((<$>))
-import           Control.Arrow ((&&&))
-import           Data.List (sort,group)
-import           Data.Maybe (mapMaybe)
-import           System.FilePath -- (dropExtension)
 #endif
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
@@ -226,7 +221,7 @@ fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
 
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
-subcEdges bs c =  [(KVar k, Cstr i ) | k  <- lhsKVars bs c]
-               ++ [(Cstr i, KVar k') | k' <- rhsKVars c ]
+subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.lhsKVars bs c]
+               ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c

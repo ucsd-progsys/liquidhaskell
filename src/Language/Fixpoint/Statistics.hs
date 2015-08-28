@@ -9,7 +9,6 @@ import           Control.Arrow ((&&&))
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Monoid (mempty)
 import           Control.Applicative                   ((<$>))
-import           GHC.Generics                          (Generic)
 #endif
 
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)

@@ -1,0 +1,8 @@
+// constant Set_empty : (func(1, [int; Set_Set @(0)]))
+
+constraint:
+  env []
+  grd true
+  lhs {v : Set_Set a_aTp | [(? Set_emp([v]))]}
+  rhs {v : Set_Set a_aTp | [(v = Set_empty([0]))]}
+  id 3 tag [2]

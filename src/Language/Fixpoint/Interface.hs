@@ -21,16 +21,12 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-import           Control.Monad (when)
 import qualified Data.HashMap.Strict              as M
 import           Data.List hiding (partition)
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Functor
 import           Data.Monoid (mconcat, mempty)
-import           Data.Hashable
-import           System.Directory                 (getTemporaryDirectory)
-import           System.FilePath                  ((</>))
 #endif
 
 
@@ -44,6 +40,7 @@ import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
+-- import           Language.Fixpoint.Solver.TrivialSort     (nontrivsorts)
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
@@ -73,10 +70,6 @@ multicore cfg = cores cfg > 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-  --  parts cfg  = partition cfg x
-  --  stats cfg  = statistics cfg x
-  --  native cfg = solveNativeWithFInfo cfg x
-  --  otherwise  = solveExt cfg x
 solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | parts cfg     = partition cfg
@@ -105,8 +98,6 @@ solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Uniqify"
   fi''     <- elim cfg fi'
-  donePhase Loud "Eliminate"
-  writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
   Result stat soln <- S.solve cfg fi''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
@@ -114,11 +105,11 @@ solveNativeWithFInfo cfg fi = do
   putStrLn  $ "Result: "    ++ show   stat'
   return    $ Result stat soln
 
-
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
-                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
 

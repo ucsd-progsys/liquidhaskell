@@ -21,6 +21,7 @@ module Language.Fixpoint.Types (
   -- * Top level serialization
     Fixpoint (..)
   , toFixpoint
+  , writeFInfo
   , FInfo (..)
 
   -- * Rendering
@@ -51,10 +52,10 @@ module Language.Fixpoint.Types (
   -- , propFTyCon
 
   , intSort, realSort, propSort, boolSort, strSort
-  , listFTyCon, appFTyCon
-  , isListTC, isFAppTyTC
+  , listFTyCon
+  , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
-  , fApp
+  , fApp, fAppTC
   , fObj
 
   -- * Expressions and Predicates
@@ -309,19 +310,17 @@ toFixConstant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, appFTyCon, listFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
-appFTyCon  = TC $ dummyLoc "FAppTy"
 
-isListTC, isFAppTyTC :: FTycon -> Bool
+isListTC :: FTycon -> Bool
 isListTC (TC (Loc _ _ c)) = c == listConName
 isTupTC  (TC (Loc _ _ c)) = c == tupConName
-isFAppTyTC = (== appFTyCon)
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s) = s
@@ -333,31 +332,26 @@ symbolFTycon c
   | otherwise
   = TC c
 
--- stringSort   :: String -> Sort
--- stringSort s = FApp (stringFTycon s) []
---            -- ALTERNATIVEL = FObj . stringSymbol
+fApp :: Sort -> [Sort] -> Sort
+fApp = foldl' FApp
 
-fApp                  :: Either FTycon Sort -> [Sort] -> Sort
-fApp (Left c) ts
-  | c == intFTyCon    = FInt
-  | c == realFTyCon   = FReal
-  | otherwise         = fAppSorts (fTyconSort c) ts
-fApp (Right t) ts     = fAppSorts t ts
+fAppTC :: FTycon -> [Sort] -> Sort
+fAppTC = fApp . fTyconSort
 
-fAppSorts :: Sort -> [Sort] -> Sort
-fAppSorts = foldl' (\t1 t2 -> FApp appFTyCon [t1, t2])
-
-fTyconSort :: FTycon -> Sort
-fTyconSort = (`FApp` [])
+fApp' :: Sort -> ListNE Sort
+fApp' = go []
+  where
+    go acc (FApp t1 t2) = go (t2 : acc) t1
+    go acc t            = t : acc
 
 fObj :: LocSymbol -> Sort
 fObj = fTyconSort . TC
 
 sortFTycon :: Sort -> Maybe FTycon
-sortFTycon FInt       = Just intFTyCon
-sortFTycon FReal      = Just realFTyCon
-sortFTycon (FApp c _) = Just c
-sortFTycon _          = Nothing
+sortFTycon FInt    = Just intFTyCon
+sortFTycon FReal   = Just realFTyCon
+sortFTycon (FTC c) = Just c
+sortFTycon _       = Nothing
 
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
@@ -370,7 +364,8 @@ data Sort = FInt
           | FObj  Symbol         -- ^ uninterpreted type
           | FVar  !Int           -- ^ fixpoint type variable
           | FFunc !Int ![Sort]   -- ^ type-var arity, in-ts ++ [out-t]
-          | FApp FTycon [Sort]   -- ^ constructed type
+          | FTC   FTycon
+          | FApp  Sort Sort      -- ^ constructed type
               deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
@@ -383,34 +378,46 @@ instance Fixpoint Sort where
   toFix = toFixSort
 
 toFixSort :: Sort -> Doc
-toFixSort (FVar i)        = text "@"   <> parens (toFix i)
-toFixSort FInt            = text "int"
-toFixSort FReal           = text "real"
-toFixSort FFrac           = text "frac"
-toFixSort (FObj x)        = toFix x
-toFixSort FNum            = text "num"
-toFixSort (FFunc n ts)    = text "func" <> parens (toFix n <> text ", " <> toFix ts)
-toFixSort (FApp c [t])
-  | isListTC c            = brackets $ toFixSort t
-toFixSort (FApp c [FApp c' [],t])
-  | isFAppTyTC c &&
-    isListTC c'           = brackets $ toFixSort t
-toFixSort (FApp c ts)     = toFix c <+> intersperse space (fp <$> ts)
-    where
-      fp s@(FApp _ (_:_)) = parens $ toFixSort s
-      fp s                = toFixSort s
+toFixSort (FVar i)     = text "@"   <> parens (toFix i)
+toFixSort FInt         = text "int"
+toFixSort FReal        = text "real"
+toFixSort FFrac        = text "frac"
+toFixSort (FObj x)     = toFix x
+toFixSort FNum         = text "num"
+toFixSort (FFunc n ts) = text "func" <> parens (toFix n <> text ", " <> toFix ts)
+toFixSort (FTC c)      = toFix c
+toFixSort t@(FApp _ _) = toFixFApp (fApp' t)
 
+toFixFApp            :: ListNE Sort -> Doc
+toFixFApp [t]        = toFixSort t
+toFixFApp [FTC c, t]
+  | isListTC c       = brackets $ toFixSort t
+toFixFApp ts         = parens $ intersperse space (toFixSort <$> ts)
+
+-- toFixArg             :: Sort -> Doc
+-- toFixArg t@(FApp {}) = parens $ toFixSort t
+-- toFixArg t           =          toFixSort t
+
+--    fp s@(FApp _) = parens $ toFixSort s
+--     fp s                = toFixSort s
+
+-- toFixFApp :: FTycon -> [Sort] -> Doc
+-- toFixFApp c [t]
+--   | isListTC c            = brackets $ toFixSort t
+-- toFixFApp c ts            = toFix c <+> intersperse space (fp <$> ts)
+--   where
+--     fp s@(FApp _ (_:_)) = parens $ toFixSort s
+--     fp s                = toFixSort s
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s
-
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
 ------------------------------------------------------------------------
 sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ)
 sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
-sortSubst θ (FApp c ts)  = FApp c  (sortSubst θ <$> ts)
+sortSubst θ (FApp t1 t2) = FApp (sortSubst θ t1) (sortSubst θ t2)
 sortSubst _  t           = t
 
 
@@ -752,7 +759,7 @@ functionSort _            = Nothing
 
 
 isNonTrivial :: Reftable r => r -> Bool
-isNonTrivial = not .isTauto
+isNonTrivial = not . isTauto
 
 -- sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
@@ -1228,6 +1235,7 @@ vv_ = vv Nothing
 trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
+trueReft, falseReft :: Reft
 trueReft  = Reft (vv_, trueRefa)
 falseReft = Reft (vv_, Refa PFalse)
 
@@ -1246,6 +1254,7 @@ squishRefas ras =  [squish (raPred <$> ras)]
   where
     squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
 
+conjuncts :: Pred -> [Pred]
 conjuncts (PAnd ps) = concatMap conjuncts ps
 conjuncts p
   | isTautoPred p   = []
@@ -1261,7 +1270,7 @@ instance NFData FTycon where
 instance NFData Sort where
   rnf (FVar x)     = rnf x
   rnf (FFunc n ts) = rnf n `seq` (rnf <$> ts) `seq` ()
-  rnf (FApp c ts)  = rnf c `seq` (rnf <$> ts) `seq` ()
+  rnf (FApp t1 t2) = rnf t1 `seq` rnf t2 `seq` ()
   rnf (z)          = z `seq` ()
 
 instance NFData Sub where
@@ -1519,6 +1528,9 @@ toFixpoint cfg x' =    qualsDoc x'
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
+writeFInfo :: (Fixpoint a) => Config -> FInfo a -> FilePath -> IO ()
+writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
+
 -------------------------------------------------------------------------
 -- | A Class Predicates for Valid Refinements Types ---------------------
 -------------------------------------------------------------------------
@@ -1572,13 +1584,6 @@ instance Reftable () where
   toReft _  = mempty
   ofReft _  = mempty
   params _  = []
-
--- NUKE isTautoReft :: Reft -> Bool
--- NUKE isTautoReft (Reft (_, ra)) = isTautoRa ra
--- NUKE
--- NUKE isTautoRa :: Refa -> Bool
--- NUKE isTautoRa = isTautoPred . raPred
-
 
 instance Reftable Reft where
   isTauto  = all isTautoPred . conjuncts . reftPred
@@ -1655,10 +1660,10 @@ class SymConsts a where
 instance SymConsts (FInfo a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
-      csLits   = concatMap symConsts                     $ M.elems  $  cm    fi
-      bsLits   = concatMap symConsts $ map snd $ M.elems $ beBinds $  bs    fi
-      gsLits   = concatMap symConsts $           M.elems $ seBinds $  gs    fi
-      qsLits   = concatMap symConsts $                     q_body  <$> quals fi
+      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
+      bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
+      gsLits   = concatMap symConsts $         M.elems $ seBinds $  gs    fi
+      qsLits   = concatMap symConsts $                   q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (sgrd c) ++
@@ -1803,8 +1808,11 @@ intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 propSort = fTyconSort propFTyCon
 
-fTyConSort :: FTycon -> Sort
-fTyConSort c = fApp (Left c) []
+fTyconSort :: FTycon -> Sort
+fTyconSort c
+  | c == intFTyCon  = FInt
+  | c == realFTyCon = FReal
+  | otherwise       = FTC c
 
 -------------------------------------------------------------------------
 -- | Constraint Partition Container -------------------------------------

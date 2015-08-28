@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE PatternGuards        #-}
 
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
@@ -9,39 +10,62 @@
 
 module Language.Fixpoint.Smt.Serialize where
 
+import           Control.Applicative         ((<$>), (<*>))
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Smt.Theories
-import qualified Data.Text                as T
+import qualified Language.Fixpoint.Smt.Theories as Thy
+import qualified Data.Text                      as T
 import           Data.Text.Format
-import qualified Data.Text.Lazy           as LT
+import qualified Data.Text.Lazy                 as LT
+import           Data.Maybe (fromMaybe)
+{-
+    (* (L t1 t2 t3) is now encoded as
+        ---> (((L @ t1) @ t2) @ t3)
+        ---> App(@, [App(@, [App(@, [L[]; t1]); t2]); t3])
+        The following decodes the above as
+     *)
+    let rec app_args_of_t acc = function
+      | App (c, [t1; t2]) when c = tc_app -> app_args_of_t (t2 :: acc) t1
+      | App (c, [])                       -> (c, acc)
+      | t                                 -> (tc_app, t :: acc)
 
+      (*
+      | Ptr (Loc s)                       -> (tycon s, acc)
+      | t                                 -> assertf "app_args_of_t: unexpected t1 = %s" (to_string t)
+      *)
+
+    let app_of_t = function
+      | App (c, _) as t when c = tc_app   -> Some (app_args_of_t [] t)
+      | App (c, ts)                       -> Some (c, ts)
+      | _                                 -> None
+
+-}
 instance SMTLIB2 Sort where
-  smt2 FInt         = "Int"
+  smt2 s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
+  smt2 FInt                    = "Int"
   smt2 t
-    | t == boolSort = "Bool"
-  -- smt2 (FApp t []) | t == intFTyCon = "Int"
-  -- smt2 (FApp t []) | t == boolFTyCon = "Bool"
-  smt2 (FApp t [FApp ts _,_]) | t == appFTyCon  && fTyconSymbol ts == "Set_Set" = "Set"
-  -- smt2 (FObj s)    = smt2 s
-  smt2 s@(FFunc _ _) = error $ "smt2 FFunc: " ++ show s
-  smt2 _           = "Int"
+    | t == boolSort            = "Bool"
+  smt2 t
+    | Just d <- Thy.smt2Sort t = d
+  smt2 _                       = "Int"
 
 instance SMTLIB2 Symbol where
-  smt2 s | Just t <- smt2Theory s --  M.lookup s smt_set_funs
-         = LT.fromStrict t
-  smt2 s = LT.fromStrict . encode . symbolText $ s
+  smt2 s
+    | Just t <- Thy.smt2Symbol s = LT.fromStrict t
+  smt2 s                         = LT.fromStrict . encode . symbolText $ s
 
 -- FIXME: this is probably too slow
 encode :: T.Text -> T.Text
 encode t = {-# SCC "encode" #-}
-  foldr (\(x,y) -> T.replace x y) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                                    ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                                    ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                                    ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
+  foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                              ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                              ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
 
 instance SMTLIB2 SymConst where
-  smt2 (SL s) = LT.fromStrict s
+  -- smt2 (SL s) = LT.fromStrict s
+  smt2 = smt2 . symbol -- encodeSymConst
+
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
@@ -80,12 +104,13 @@ instance SMTLIB2 Expr where
   smt2 e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
 
 smt2App :: LocSymbol -> [Expr] -> LT.Text
-smt2App f []            = smt2 f
-smt2App f [e]
-  | val f == setEmp     = format "(= {} {})"      (emp, smt2 e)
-  | val f == setSng     = format "({} {} {})"     (add, emp, smt2 e)
-smt2App f es            = format "({} {})"        (smt2 f, smt2s es)
 
+smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+  where
+   ds        = smt2 <$> es
+
+smt2App' f [] = smt2 f
+smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
 
 instance SMTLIB2 Pred where
   smt2 (PTrue)          = "true"
@@ -118,9 +143,11 @@ instance SMTLIB2 Command where
   smt2 (CheckSat)          = "(check-sat)"
   smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
 
-smt2s :: SMTLIB2 a => [a] -> LT.Text
-smt2s = LT.intercalate " " . fmap smt2
+smt2s    :: SMTLIB2 a => [a] -> LT.Text
+smt2s    = smt2many . fmap smt2
 
+smt2many :: [LT.Text] -> LT.Text
+smt2many = LT.intercalate " "
 
 {-
 (declare-fun x () Int)
@@ -136,4 +163,3 @@ smt2s = LT.intercalate " " . fmap smt2
 (check-sat)
 (pop 1)
 -}
-

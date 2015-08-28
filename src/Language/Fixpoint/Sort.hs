@@ -30,7 +30,7 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
-import           Data.Maybe                (catMaybes, fromMaybe)
+import           Data.Maybe                (mapMaybe, catMaybes, fromMaybe)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.PrettyPrint.HughesPJ
@@ -83,7 +83,7 @@ checkSorted γ t
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, Refa p))) = RR s (Reft (v, tx p))
   where
-    tx   = refa . catMaybes . map (checkPred' f) . conjuncts
+    tx   = refa . mapMaybe (checkPred' f) . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
@@ -93,7 +93,7 @@ checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
     res        = case checkPred f p of
                    Left war -> {- trace (wmsg war p) -} Nothing
                    Right _  -> Just p
-  
+
 class Checkable a where
   check     :: SEnv Sort -> a -> CheckM ()
   checkSort :: SEnv Sort -> Sort -> a -> CheckM ()
@@ -137,8 +137,8 @@ checkExpr                  :: Env -> Expr -> CheckM Sort
 
 checkExpr _ EBot           = throwError "Type Error: Bot"
 checkExpr _ (ESym _)       = return strSort
-checkExpr _ (ECon (I _))   = return FInt 
-checkExpr _ (ECon (R _))   = return FReal 
+checkExpr _ (ECon (I _))   = return FInt
+checkExpr _ (ECon (R _))   = return FReal
 checkExpr _ (ECon (L _ s)) = return s
 checkExpr f (EVar x)       = checkSym f x
 checkExpr f (ENeg e)       = checkNeg f e
@@ -276,8 +276,8 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy _ e Eq t1 t2            = unifys [t1] [t2] >> return ()
-checkRelTy _ e Ne t1 t2            = unifys [t1] [t2] >> return ()
+checkRelTy _ e Eq t1 t2            = void $ unifys [t1] [t2]
+checkRelTy _ e Ne t1 t2            = void $ unifys [t1] [t2]
 
 checkRelTy _ e Ueq t1 t2           = return ()
 checkRelTy _ e Une t1 t2           = return ()
@@ -299,9 +299,10 @@ isAppTy _          = False
 -- isPoly :: Sort -> Bool
 -- isPoly = not . null . fVars
 
+fVars :: Sort -> [Int]
 fVars (FVar i)     = [i]
 fVars (FFunc _ ts) = concatMap fVars ts
-fVars (FApp _ ts)  = concatMap fVars ts
+fVars (FApp t1 t2) = fVars t1 ++ fVars t2
 fVars _            = []
 
 
@@ -327,8 +328,8 @@ unifyMany θ ts ts'
 unify1 :: TVSubst -> Sort -> Sort -> CheckM TVSubst
 unify1 θ (FVar i) t         = unifyVar θ i t
 unify1 θ t (FVar i)         = unifyVar θ i t
-unify1 θ (FApp c ts) (FApp c' ts')
-  | c == c'                 = unifyMany θ ts ts'
+unify1 θ (FApp t1 t2) (FApp t1' t2')
+                            = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
   | otherwise               = throwError $ errUnify t1 t2
@@ -359,7 +360,7 @@ apply θ          = sortMap f
 sortMap :: (Sort -> Sort) -> Sort -> Sort
 -------------------------------------------------------------------------
 sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
-sortMap f (FApp  c ts) = FApp  c (sortMap f <$> ts)
+sortMap f (FApp t1 t2) = FApp  (sortMap f t1) (sortMap f t2)
 sortMap f t            = f t
 
 ------------------------------------------------------------------------
@@ -422,4 +423,3 @@ errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showFix l)
 errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
-

@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE PatternGuards             #-}
 
 module Language.Fixpoint.Parse (
 
@@ -34,6 +35,7 @@ module Language.Fixpoint.Parse (
   , constantP   -- (Integer) Constants
   , integer     -- Integer
   , bindP       -- Binder (lowerIdP <* colon)
+  , sortP       -- Sort
   , mkQual      -- constructing qualifiers
 
   -- * Parsing recursive entities
@@ -84,9 +86,9 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
-import           Data.Maybe                  (fromJust, fromMaybe, maybe)
+import           Data.Maybe                  (fromJust)
 
-import           Data.Monoid                 (mempty,mconcat)
+import           Data.Monoid                 (mempty)
 
 type Parser = Parsec String Integer
 
@@ -96,8 +98,8 @@ languageDef =
   emptyDef { Token.commentStart    = "/* "
            , Token.commentEnd      = " */"
            , Token.commentLine     = "//"
-           , Token.identStart      = satisfy (\_ -> False)
-           , Token.identLetter     = satisfy (\_ -> False)
+           , Token.identStart      = satisfy (const False)
+           , Token.identLetter     = satisfy (const False)
            , Token.reservedNames   = [ "SAT"
                                      , "UNSAT"
                                      , "true"
@@ -171,6 +173,7 @@ locParserP p = do l1 <- getPosition
                   x  <- p
                   l2 <- getPosition
                   return $ Loc l1 l2 x
+
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
@@ -289,6 +292,7 @@ funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
 
 sortsP = brackets $ sepBy sortP semi
 
+{-
 sortP
   =   try (parens $ sortP)
   <|> try (string "@"    >> varSortP)
@@ -297,6 +301,24 @@ sortP
   <|> try bvSortP
   <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
   <|> (FObj . symbol <$> lowerIdP)
+-}
+
+sortP    :: Parser Sort
+sortP    = sortP' (sepBy sortArgP blanks)
+
+sortArgP :: Parser Sort
+sortArgP = sortP' (return [])
+
+sortP' :: Parser [Sort] -> Parser Sort
+sortP' appArgsP
+   =  try (parens sortP)
+  <|> try (string "@"    >> varSortP)
+  <|> try (string "func" >> funcSortP)
+  <|> try (fAppTC listFTyCon . single <$> brackets sortP)
+  <|> try bvSortP
+  <|> try (fAppTC <$> fTyConP <*> appArgsP)
+  <|> (FObj . symbol <$> lowerIdP)
+
 
 fTyConP :: Parser FTycon
 fTyConP

@@ -7,6 +7,7 @@ import Control.Applicative
 import System.Directory
 import System.Exit
 import System.FilePath
+import System.Environment
 import System.IO
 import System.IO.Error
 import System.Process
@@ -48,7 +49,7 @@ mkTest testCmd code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- canonicalizePath "dist/build/fixpoint/fixpoint"
+        bin <- binPath "fixpoint"
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
@@ -57,6 +58,10 @@ mkTest testCmd code dir file
   where
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
+
+binPath pkgName = do 
+  testPath <- getExecutablePath
+  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
 
 knownToFail = []
 ---------------------------------------------------------------------------
