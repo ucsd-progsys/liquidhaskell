@@ -974,9 +974,9 @@ typeSort tce τ@(ForAllTy _ _)
 typeSort tce t@(FunTy _ _)
   = typeSortFun tce t
 typeSort tce (TyConApp c τs)
-  = fApp (Left $ tyConFTyCon tce c) (typeSort tce <$> τs)
+  = fAppTC (tyConFTyCon tce c) (typeSort tce <$> τs)
 typeSort tce (AppTy t1 t2)
-  = fApp (Right $ typeSort tce t1) [typeSort tce t2]
+  = fApp (typeSort tce t1) [typeSort tce t2]
 typeSort _ τ
   = FObj $ typeUniqueSymbol τ
 

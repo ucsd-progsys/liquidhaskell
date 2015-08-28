@@ -117,9 +117,9 @@ mkTest code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        liquid <- binPath "liquid"
+        bin <- binPath "liquid"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd liquid dir file smt opts
+          let cmd     = testCmd bin dir file smt opts
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           renameFile log $ log <.> (if code == c then "pass" else "fail")
@@ -132,6 +132,7 @@ mkTest code dir file
 
 binPath pkgName = do 
   testPath <- getExecutablePath
+
   return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
  
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
@@ -142,8 +143,8 @@ knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 ---------------------------------------------------------------------------
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
-testCmd liquid dir file smt (LO opts)
-  = printf "cd %s && %s --verbose --smtsolver %s %s %s" dir liquid (show smt) file opts
+testCmd bin dir file smt (LO opts)
+  = printf "cd %s && %s --verbose --smtsolver %s %s %s" dir bin (show smt) file opts
 
 
 textIgnored = [ "Data/Text/Axioms.hs"
