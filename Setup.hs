@@ -20,13 +20,13 @@ main       = defaultMainWithHooks fixHooks
                              }
 
 copyFixpoint _ _ pkg lbi = do
-  copyFile fixpoint $ trace msg bin
+  copyFile fixpoint bin
   where
   allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
   bin         = bindir allDirs </> "fixpoint.native"
              ++ if system == "i686-w64-mingw32" then ".exe" else ""
   fixpoint    = "external" </> "fixpoint" </> "fixpoint.native"
-             ++ if build then "" else "-" ++ system
+             ++ (if build then "" else "-" ++ system)
   system      = case hostPlatform lbi of
                   Platform I386 Linux -> "i386-linux"
                   Platform X86_64 Linux -> "x86_64-linux"
@@ -35,7 +35,6 @@ copyFixpoint _ _ pkg lbi = do
                   _ -> error "We don't have a prebuilt fixpoint.native for your system, please install with -fbuild-external (requires ocaml)"
   flags       = configConfigurationsFlags $ configFlags lbi
   build       = fromMaybe False $ lookup (FlagName "build-external") flags
-  msg         = "fixpoint = " ++ show fixpoint ++ "build = " ++ show build
 
 buildFixpoint _ _ pkg lbi = when build $ do
   setEnv "Z3MEM" (show z3mem)
