@@ -10,12 +10,13 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.Process
+import Debug.Trace
 
 main       = defaultMainWithHooks fixHooks
   where
-  fixHooks = simpleUserHooks { postBuild = buildFixpoint
-                             , postCopy = copyFixpoint
-                             , postInst = copyFixpoint
+  fixHooks = simpleUserHooks { postBuild = buildFixpoint 
+                             , postCopy  = copyFixpoint
+                             , postInst  = copyFixpoint
                              }
 
 copyFixpoint _ _ pkg lbi = do
@@ -25,7 +26,7 @@ copyFixpoint _ _ pkg lbi = do
   bin         = bindir allDirs </> "fixpoint.native"
              ++ if system == "i686-w64-mingw32" then ".exe" else ""
   fixpoint    = "external" </> "fixpoint" </> "fixpoint.native"
-             ++ if build then "" else "-" ++ system
+             ++ (if build then "" else "-" ++ system)
   system      = case hostPlatform lbi of
                   Platform I386 Linux -> "i386-linux"
                   Platform X86_64 Linux -> "x86_64-linux"
@@ -34,7 +35,6 @@ copyFixpoint _ _ pkg lbi = do
                   _ -> error "We don't have a prebuilt fixpoint.native for your system, please install with -fbuild-external (requires ocaml)"
   flags       = configConfigurationsFlags $ configFlags lbi
   build       = fromMaybe True $ lookup (FlagName "build-external") flags
-
 
 buildFixpoint _ _ pkg lbi = when build $ do
   setEnv "Z3MEM" (show z3mem)
