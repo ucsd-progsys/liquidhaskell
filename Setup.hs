@@ -33,7 +33,7 @@ copyFixpoint _ _ pkg lbi = do
                   Platform _      Windows -> "i686-w64-mingw32"
                   _ -> error "We don't have a prebuilt fixpoint.native for your system, please install with -fbuild-external (requires ocaml)"
   flags       = configConfigurationsFlags $ configFlags lbi
-  build       = fromJust $ lookup (FlagName "build-external") flags
+  build       = fromMaybe True $ lookup (FlagName "build-external") flags
 
 
 buildFixpoint _ _ pkg lbi = when build $ do
@@ -45,8 +45,8 @@ buildFixpoint _ _ pkg lbi = when build $ do
   allDirs     = absoluteInstallDirs pkg lbi NoCopyDest
   binDir      = bindir allDirs ++ "/"
   flags       = configConfigurationsFlags $ configFlags lbi
-  z3mem       = fromJust $ lookup (FlagName "z3mem") flags
-  build       = fromJust $ lookup (FlagName "build-external") flags
+  z3mem       = fromMaybe False $ lookup (FlagName "z3mem") flags
+  build       = fromMaybe True $ lookup (FlagName "build-external") flags
 
 executeShellCommand cmd   = putStrLn ("EXEC: " ++ cmd) >> system cmd >>= check
   where
