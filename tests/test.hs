@@ -102,10 +102,10 @@ dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 dirTests root ignored code
   = do files    <- walkDirectory root
        let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
-       return    $ mkTest code root <$> tests --  hs f code | f <- hs]
+       return    $ mkTest code root <$> tests
 
 isTest   :: FilePath -> Bool
-isTest f = takeExtension f == ".hs" -- `elem` [".hs", ".lhs"]
+isTest f = takeExtension f == ".hs" 
 
 ---------------------------------------------------------------------------
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
@@ -193,10 +193,11 @@ group n xs = testGroup n <$> sequence xs
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
 walkDirectory root
-  = do (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
-       (fs++) <$> concatMapM walkDirectory ds
-  where
-    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+  = do -- RJ: delete root </> ".liquid"
+       (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
+       (fs ++) <$> concatMapM walkDirectory ds
+    where
+       candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
 
 partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
 partitionM f = go [] []
