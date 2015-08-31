@@ -47,7 +47,9 @@ import Data.Monoid
 import           System.FilePath                     (dropFileName, isAbsolute,
                                                       takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores, minPartSize)
+import Language.Fixpoint.Config            hiding (Config, real, native,
+                                                   getOpts, cores, minPartSize,
+                                                   maxPartSize)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -149,9 +151,9 @@ config = cmdArgsMode $ Config {
     = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
 
  , maxPartSize
-    = defaultMaxPartSize &= help "If solving on multiple cores, once there are as many partitions " ++
-      "as there are cores, don't merge partitions if they will exceed this size. Overrides the " ++
-      "minpartsize option."
+    = defaultMaxPartSize &= help ("If solving on multiple cores, once there are as many partitions " ++
+                                  "as there are cores, don't merge partitions if they will exceed this " ++
+                                  "size. Overrides the minpartsize option.")
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
