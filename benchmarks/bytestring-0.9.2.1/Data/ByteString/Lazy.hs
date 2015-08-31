@@ -246,9 +246,9 @@ import Foreign.ForeignPtr       (ForeignPtr)
     sumLens (x:xs) = len x + (sumLens xs)
   @-}
 {-@ invariant {v:[[a]] | sumLens v >= 0} @-}
-{-@ qualif SumLensEq(v:List List a, x:List List a): (sumLens v) = (sumLens x) @-}
-{-@ qualif SumLensEq(v:List List a, x:List a): (sumLens v) = (len x) @-}
-{-@ qualif SumLensLe(v:List List a, x:List List a): (sumLens v) <= (sumLens x) @-}
+{-@ qualif SumLensEq(v:List (List a), x:List (List a)): (sumLens v) = (sumLens x) @-}
+{-@ qualif SumLensEq(v:List (List a), x:List a): (sumLens v) = (len x) @-}
+{-@ qualif SumLensLe(v:List (List a), x:List (List a)): (sumLens v) <= (sumLens x) @-}
 
 -- ByteString qualifiers
 {-@ qualif LBLensAcc(v:ByteString,
@@ -264,7 +264,7 @@ import Foreign.ForeignPtr       (ForeignPtr)
         (bLengths v) = (bLength c) + (bLengths cs)
   @-}
 
-{-@ qualif BLengthsSum(v:List List a, bs:List S.ByteString):
+{-@ qualif BLengthsSum(v:List (List a), bs:List S.ByteString):
        (sumLens v) = (bLengths bs)
   @-}
 
@@ -350,7 +350,7 @@ import Foreign.ForeignPtr       (ForeignPtr)
 
 {-@ qualif LBSumLens(v:ByteString,
                      z:ByteString,
-                     cs:List List a):
+                     cs:List (List a)):
         (lbLength v) = (lbLength z) + (sumLens cs)
   @-}
 {-@ qualif LBCountAcc(v:int,
