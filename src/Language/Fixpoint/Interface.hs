@@ -126,10 +126,11 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
-   let (_, fis) = partition' (Just (cores c, minPartSize c)) fi
+   let (_, fis) = partition' (Just (mcInfo c)) fi
    writeLoud $ "Number of partitions: " ++ show (length fis)
    writeLoud $ "number of cores: " ++ show (cores c)
    writeLoud $ "minimum part size: " ++ show (minPartSize c)
+   writeLoud $ "maximum part size: " ++ show (maxPartSize c)
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart

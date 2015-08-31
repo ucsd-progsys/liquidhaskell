@@ -166,6 +166,8 @@ module Language.Fixpoint.Types (
 
   -- * Partitions
   , CPart (..)
+  , MCInfo (..)
+  , mcInfo
   ) where
 
 import           Debug.Trace               (trace)
@@ -1830,3 +1832,18 @@ instance Monoid (CPart a) where
                        , pcm = pcm l `mappend` pcm r
                        , cFileName = cFileName l
                        }
+
+-------------------------------------------------------------------------
+-- | Multicore info -----------------------------------------------------
+-------------------------------------------------------------------------
+
+data MCInfo = MCInfo { mcCores :: Int
+                     , mcMinPartSize :: Int
+                     , mcMaxPartSize :: Int
+                     } deriving (Show)
+
+mcInfo :: Config -> MCInfo
+mcInfo c = MCInfo { mcCores = cores c
+                  , mcMinPartSize = minPartSize c
+                  , mcMaxPartSize = maxPartSize c
+                  }
