@@ -44,8 +44,8 @@ import System.Console.CmdArgs.Text
 import Data.List                           (intercalate, nub)
 import Data.Monoid
 
-import           System.FilePath                     (dropFileName, isAbsolute,
-                                                      takeDirectory, (</>))
+import System.FilePath                     (dropFileName, isAbsolute,
+                                            takeDirectory, (</>))
 
 import Language.Fixpoint.Config            hiding (Config, real, native,
                                                    getOpts, cores, minPartSize,
