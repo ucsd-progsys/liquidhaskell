@@ -44,10 +44,12 @@ import System.Console.CmdArgs.Text
 import Data.List                           (intercalate, nub)
 import Data.Monoid
 
-import           System.FilePath                     (dropFileName, isAbsolute,
-                                                      takeDirectory, (</>))
+import System.FilePath                     (dropFileName, isAbsolute,
+                                            takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native, getOpts, cores, minPartSize)
+import Language.Fixpoint.Config            hiding (Config, real, native,
+                                                   getOpts, cores, minPartSize,
+                                                   maxPartSize)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -74,6 +76,9 @@ defaultCores = 1
 
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
+
+defaultMaxPartSize :: Int
+defaultMaxPartSize = 700
 
 defaultMaxParams :: Int
 defaultMaxParams = 2
@@ -144,6 +149,11 @@ config = cmdArgsMode $ Config {
 
  , minPartSize
     = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
+
+ , maxPartSize
+    = defaultMaxPartSize &= help ("If solving on multiple cores, once there are as many partitions " ++
+                                  "as there are cores, don't merge partitions if they will exceed this " ++
+                                  "size. Overrides the minpartsize option.")
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
@@ -307,6 +317,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
      dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
      pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
 
+defConfig :: Config
 defConfig = Config { files          = def
                    , idirs          = def
                    , fullcheck      = def
@@ -325,6 +336,7 @@ defConfig = Config { files          = def
                    , noPrune        = def
                    , cores          = defaultCores
                    , minPartSize    = defaultMinPartSize
+                   , maxPartSize    = defaultMaxPartSize
                    , maxParams      = defaultMaxParams
                    , smtsolver      = def
                    , shortNames     = def
