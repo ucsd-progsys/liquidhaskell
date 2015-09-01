@@ -33,6 +33,9 @@ defaultCores = 1
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
 
+defaultMaxPartSize :: Int
+defaultMaxPartSize = 700
+
 data Config
   = Config {
       inFile      :: FilePath         -- ^ target fq-file
@@ -40,6 +43,7 @@ data Config
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
     , cores       :: Int              -- ^ number of cores used to solve constraints
     , minPartSize :: Int              -- ^ Minimum size of a partition
+    , maxPartSize :: Int              -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver        -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
@@ -58,6 +62,7 @@ instance Default Config where
                , srcFile     = def
                , cores       = defaultCores
                , minPartSize = defaultMinPartSize
+               , maxPartSize = defaultMaxPartSize
                , solver      = def
                , genSorts    = def
                , ueqAllSorts = def
@@ -147,6 +152,7 @@ config = Config {
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
   , cores       = defaultCores &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
+  , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   }
   &= verbosity
   &= program "fixpoint"

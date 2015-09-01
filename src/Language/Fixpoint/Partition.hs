@@ -19,7 +19,6 @@ import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
-import           Debug.Trace
 import           Data.List (sortBy)
 
 #if __GLASGOW_HASKELL__ < 710
@@ -38,16 +37,13 @@ partition cfg fi
        (es, fis) = partition' Nothing fi
 
 -- | Partition an FInfo into multiple disjoint FInfos
-partition' :: Maybe (Int, Int) -- ^ Nothing to produce the maximum possible
-                               -- number of partitions. Just (p, t) to produce
-                               -- at most p partitions of at least t size
+partition' :: Maybe F.MCInfo -- ^ Nothing to produce the maximum possible
+                             -- number of partitions. Or a MultiCore Info
+                             -- to control the partitioning
            -> F.FInfo a -> (KVGraph, [F.FInfo a])
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
-   (Just (prts, thresh)) -> (g, partitionN prts
-                                           thresh
-                                           fi $ fis mkPartition'
-                                                    finfoToCpart)
+   (Just mi) -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
   where
     es             = kvEdges   fi
     g              = kvGraph   es
@@ -60,20 +56,23 @@ partition' mn fi  = case mn of
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
 -- amounts of work
-partitionN :: Int -- ^ The minimum number of partitions
-              -> Int -- ^ The minimum amount of work per partition
+partitionN :: F.MCInfo -- ^ describes thresholds and partiton amounts
               -> F.FInfo a -- ^ The originial FInfo
               -> [F.CPart a] -- ^ A list of the smallest possible CParts
               -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
-partitionN prts thresh fi cp
-   | cpartSize (finfoToCpart fi) <= thresh = [fi]
+partitionN mi fi cp
+   | cpartSize (finfoToCpart fi) <= minThresh = [fi]
    | otherwise = map (cpartToFinfo fi) $ toNParts sortedParts
    where
       toNParts p
          | isDone p = p
          | otherwise = toNParts $ insertSorted firstTwo rest
             where (firstTwo, rest) = unionFirstTwo p
-      isDone fi' = length fi' <= prts && (cpartSize (head fi') >= thresh)
+      isDone [] = True
+      isDone [_] = True
+      isDone fi'@(a:b:_) = length fi' <= prts
+                            && (cpartSize a >= minThresh
+                                || cpartSize a + cpartSize b >= maxThresh)
       sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
       sortPredicate lhs rhs
@@ -84,6 +83,10 @@ partitionN prts thresh fi cp
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
                               else a:x:xs
+      prts = F.mcCores mi
+      minThresh = F.mcMinPartSize mi
+      maxThresh = F.mcMaxPartSize mi
+
 
 -- | Return the "size" of a CPart. Used to determine if it's
 -- substantial enough to be worth parallelizing.
