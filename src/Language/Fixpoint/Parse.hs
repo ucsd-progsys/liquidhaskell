@@ -281,7 +281,7 @@ eMinus     = EBin Minus (expr (0 :: Integer))
 
 exprCastP
   = do e  <- exprP
-       try dcolon <|> colon
+       ((try dcolon) <|> colon)
        so <- sortP
        return $ ECst e so
 
@@ -304,22 +304,29 @@ sortP
 -}
 
 sortP    :: Parser Sort
-sortP    = sortP' (sepBy bsortP blanks)
+sortP    = sortP' (sepBy sortArgP blanks)
 
-bsortP :: Parser Sort
-bsortP = sortP' (return [])
+sortArgP :: Parser Sort
+sortArgP = sortP' (return [])
+
+sortFunP :: Parser Sort
+sortFunP
+   =  try (string "@" >> varSortP)
+  <|> (fTyconSort <$> fTyConP)
 
 sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP
    =  try (parens sortP)
-  <|> try (string "@"    >> varSortP)
+--  <|> try (string "@"    >> varSortP)
   <|> try (string "func" >> funcSortP)
   <|> try (fAppTC listFTyCon . single <$> brackets sortP)
   <|> try bvSortP
-  -- ORIG <|> try (fAppTC <$> fTyConP <*> appArgsP)
-  <|> try (fApp <$> bsortP <*> appArgsP)
+  <|> try (fAppTC <$> fTyConP <*> appArgsP)
+  <|> try (fApp   <$> tvarP   <*> appArgsP)
   <|> (FObj . symbol <$> lowerIdP)
 
+tvarP :: Parser Sort
+tvarP = string "@" >> varSortP
 
 fTyConP :: Parser FTycon
 fTyConP
