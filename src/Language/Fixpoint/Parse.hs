@@ -309,16 +309,24 @@ sortP    = sortP' (sepBy sortArgP blanks)
 sortArgP :: Parser Sort
 sortArgP = sortP' (return [])
 
+sortFunP :: Parser Sort
+sortFunP
+   =  try (string "@" >> varSortP)
+  <|> (fTyconSort <$> fTyConP)
+
 sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP
    =  try (parens sortP)
-  <|> try (string "@"    >> varSortP)
+--  <|> try (string "@"    >> varSortP)
   <|> try (string "func" >> funcSortP)
   <|> try (fAppTC listFTyCon . single <$> brackets sortP)
   <|> try bvSortP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
+  <|> try (fApp   <$> tvarP   <*> appArgsP)
   <|> (FObj . symbol <$> lowerIdP)
 
+tvarP :: Parser Sort
+tvarP = string "@" >> varSortP
 
 fTyConP :: Parser FTycon
 fTyConP
