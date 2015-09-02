@@ -5,35 +5,52 @@ import           Language.Haskell.Liquid.Types (Output(..))
 import qualified Language.Haskell.Liquid.ACSS as A
 import           Text.PrettyPrint.HughesPJ    hiding (Mode)
 import           Language.Fixpoint.Files
+import           System.Directory
+import           Data.Time.Clock (UTCTime)
+import qualified Control.Exception as Ex
+import           Data.Aeson
+import qualified Data.ByteString.Lazy   as B
 
-data Time = TimeTodo deriving (Eq, Ord, Show)
-
-y << x = x >> y
+-- data Time = TimeTodo deriving (Eq, Ord, Show)
 
 getType :: IO (Output Doc) -> FilePath -> Int -> Int -> IO String
-getType act srcF line col = do
-  ft  <- modificationTime srcF
-  jt  <- modificationTime jsonF
-  case action ft jt of
-    Reuse    -> getTypeInfo line col <$> getAnnMap jsonF
-    Rebuild  -> getTypeInfo line col <$> getAnnMap jsonF << act
+getType k srcF line col = do
+  act <- action srcF
+  case act of
+    Reuse    -> getTypeInfo line col <$>       getAnnMap srcF
+    Rebuild  -> getTypeInfo line col <$> (k >> getAnnMap srcF)
     NoSource -> return "Missing Source"
-  where
-    jsonF    = extFileName Json  srcF
 
-getAnnMap :: FilePath -> IO A.AnnMap
-getAnnMap jsonF = error "TODO:reuseInfo"
-
-modificationTime :: FilePath -> IO (Maybe Time)
-modificationTime = error "TODO:modificationTime"
+--------------------------------------------------------------------------------
+-- | How to Get Info
+--------------------------------------------------------------------------------
 
 data Action = Rebuild | Reuse | NoSource
 
-action :: Maybe Time -> Maybe Time -> Action
-action (Just srcT) (Just jsonT)
-  | srcT < jsonT  = Reuse
-action (Just _) _ = Rebuild
-action Nothing _  = NoSource
+action :: FilePath -> IO Action
+action srcF = timeAction <$> modificationTime srcF <*> modificationTime jsonF
+  where
+    jsonF   = extFileName Json srcF
 
-getTypeInfo :: Int -> Int -> A.AnnMap -> String
-getTypeInfo line col info = error "TODO:getTypeInfo"
+timeAction :: Maybe UTCTime -> Maybe UTCTime -> Action
+timeAction (Just srcT) (Just jsonT)
+  | srcT < jsonT  = Reuse
+timeAction (Just _) _ = Rebuild
+timeAction Nothing _  = NoSource
+
+modificationTime :: FilePath -> IO (Maybe UTCTime)
+modificationTime f = (Just <$> getModificationTime f) `Ex.catch` handler
+  where
+    handler :: IOError -> IO (Maybe UTCTime)
+    handler = const (return Nothing)
+
+--------------------------------------------------------------------------------
+
+getTypeInfo :: Int -> Int -> Maybe A.AnnMap -> String
+getTypeInfo _ _ Nothing     = "ERROR: corrupt annotation info"
+getTypeInfo l c (Just info) = error "TODO: getTypeInfo"
+
+getAnnMap :: FilePath -> IO (Maybe A.AnnMap)
+getAnnMap srcF = decode <$> B.readFile jsonF
+  where
+    jsonF      = extFileName Json srcF
