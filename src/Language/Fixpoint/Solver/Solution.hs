@@ -125,10 +125,10 @@ refineK env qs s (v, t, k) = M.insert k eqs' s
   where
     -- NEW eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
     -- NEW eqs' = filter (okInst env v t) eqs
-    
+     
     eqs' = case M.lookup k s of
-             Nothing  -> instK env v t qs
-             Just eqs -> [eq | eq <- eqs, okInst env v t eq]
+              Nothing  -> instK env v t qs
+              Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft

@@ -15,7 +15,7 @@ constraint:
   env [0]
   grd true 
   lhs {v : alpha | $k0}
-  lhs {v : alpha | 0 <= v}
+  rhs {v : alpha | 0 <= v}
   id 2 
 
 wf:
