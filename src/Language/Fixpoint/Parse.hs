@@ -323,10 +323,12 @@ sortP' appArgsP
   <|> try bvSortP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> try (fApp   <$> tvarP   <*> appArgsP)
-  <|> (FObj . symbol <$> lowerIdP)
 
 tvarP :: Parser Sort
-tvarP = string "@" >> varSortP
+tvarP
+   =  try (string "@" >> varSortP)
+  <|> (FObj . symbol <$> lowerIdP)
+
 
 fTyConP :: Parser FTycon
 fTyConP
@@ -466,7 +468,7 @@ mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
 gSorts :: [(a, Sort)] -> [(a, Sort)]
 gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
   where
-    su         = (`zip` [0..]) . sortNub . concatMap sortVars . map snd $ xts
+    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
 
 substVars :: [(Symbol, Int)] -> Sort -> Sort
 substVars su = mapSort tx
