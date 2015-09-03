@@ -16,24 +16,25 @@ import           GHC.Generics            (Generic)
 import           Control.Monad.State     (evalState, State, state)
 
 --------------------------------------------------------------
-renameAll :: FInfo a -> FInfo a
+renameAll    :: FInfo a -> FInfo a
 renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
-  where ids = map fst3 $ bindEnvToList $ bs fi
+  where
+    ids      = map fst3 $ bindEnvToList $ bs fi
 --------------------------------------------------------------
 
-data Ref = RB BindId | RI Integer
-  deriving (Eq, Generic)
+data Ref = RB BindId | RI Integer deriving (Eq, Generic)
+
 instance Hashable Ref
 
--- stores for each constraint and BindId the set of other BindIds that it 
+-- stores for each constraint and BindId the set of other BindIds that it
 -- references, i.e. those where it needs to know when their names gets changed
 type IdMap = M.HashMap Ref (S.HashSet BindId)
 type NameMap = M.HashMap Symbol BindId
 
-invertMap :: (Hashable k, Hashable v, Eq k, Eq v) => 
-  M.HashMap k (S.HashSet v) -> M.HashMap v (S.HashSet k)
+invertMap   :: (Hashable k, Hashable v, Eq k, Eq v)
+            => M.HashMap k (S.HashSet v) -> M.HashMap v (S.HashSet k)
 invertMap m = M.fromListWith S.union entries
-  where 
+  where
     entries = [(v, S.singleton k) | (k, vs) <- M.toList m, v <- S.toList vs]
 
 toListExtended :: [BindId] -> M.HashMap BindId (S.HashSet Ref) -> [(BindId, S.HashSet Ref)]
@@ -93,7 +94,7 @@ applySub sub fi (RI id) = fi { cm = M.adjust go id (cm fi) }
                    srhs = subst1 (srhs c) sub }
 
 updateKVars :: FInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
-updateKVars fi id oldSym newSym (k, Su su) = 
+updateKVars fi id oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)

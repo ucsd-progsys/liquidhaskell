@@ -25,7 +25,6 @@ import           Text.Printf
 validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
-           -- . dropFunctionRefinements
            . dropHigherOrderBinders
            . renameVV
 
@@ -34,11 +33,11 @@ validate _ = Right
 ---------------------------------------------------------------------------
 symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
-symbolSorts fi = normalize . compact . (defs ++) =<< bindSorts fi
+symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
     dm         = M.fromList defs
-    defs       = lits ++ consts
+    defs       = tracepp "defs" $ lits ++ consts
     lits       = F.lits fi
     consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
 
@@ -81,7 +80,8 @@ dupBindErrors = foldr1 E.catError . map dbe
 ---------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]
 ---------------------------------------------------------------------------
-symBinds  = M.toList
+symBinds  = tracepp "symBinds"
+          . M.toList
           . M.map Misc.groupList
           . Misc.group
           . binders
