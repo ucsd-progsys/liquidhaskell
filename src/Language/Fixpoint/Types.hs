@@ -1360,26 +1360,7 @@ instance Hashable FTycon where
 wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
 wfC  = WfC
 
--- subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
--- subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) i y z
---   = error "TODO:subC" -- NEW [subC' r2' | r2' <- [r2P], not $ isTauto r2']
---   where
---     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vv')) (RR t2 (shiftVV r2' vv')) i y z
---     r2P        = Reft (v2, ra2s) -- ORIG [ra | ra@(Refa _  ) <- ra2s])
---     -- ORIG r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
---     vv'        = mkVV i
-
-
--- ORIG subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
--- ORIG   = [subC' r2' | r2' <- [r2K, r2P], not $ isTauto r2']
--- ORIG   where
--- ORIG     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2' vvCon)) x y z
--- ORIG     r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
--- ORIG     r2P        = Reft (v2, [ra | ra@(RConc _  ) <- ra2s])
-
-
 subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
--- subC γ p (RR t1 r1) (RR t2 r2) i y z
 subC γ p sr1 sr2 i y z = [SubC γ p sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
