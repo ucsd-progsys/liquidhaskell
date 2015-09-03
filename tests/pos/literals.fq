@@ -1,0 +1,11 @@
+//adapted from LH test Strings.hs
+
+constant lit#bar : (Str)
+constant lit#foo : (Str)
+
+constraint:
+  env []
+  grd true
+  lhs {VV#F1 : int | []}
+  rhs {VV#F1 : int | [(lit#bar != lit#foo)]}
+  id 1 tag [6]

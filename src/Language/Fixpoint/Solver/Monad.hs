@@ -19,6 +19,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
+import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
@@ -100,9 +101,16 @@ filterValid_ p qs me = catMaybes <$> do
 ---------------------------------------------------------------------------
 declare :: F.FInfo a -> SolveM ()
 ---------------------------------------------------------------------------
-declare fi = withContext $ \me -> do
-  xts <- either E.die return $ declSymbols fi
-  forM_ xts $ uncurry $ smtDecl me
+declare fi  = withContext $ \me -> do
+  xts      <- either E.die return $ declSymbols fi
+  let ess   = declLiterals fi
+  forM_ xts $ uncurry $ smtDecl     me
+  forM_ ess $           smtDistinct me
+
+declLiterals :: F.FInfo a -> [[F.Expr]]
+declLiterals fi = [es | (_, es) <- tess ]
+  where
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.lits fi]
 
 declSymbols :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
