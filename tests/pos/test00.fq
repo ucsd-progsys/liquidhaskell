@@ -1,4 +1,3 @@
-
 qualif Zog(v:a) : (10 <= v)
 qualif Bog(v:a, x:a) : (x <= v)
 

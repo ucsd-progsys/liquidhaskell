@@ -23,7 +23,7 @@ where
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (maybeToList, isNothing) -- , fromMaybe)
+import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
@@ -97,7 +97,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
 --------------------------------------------------------------------
-init _ fi = {- tracepp "init solution" -} s
+init _ fi = tracepp "init solution" s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -123,6 +123,9 @@ refineK :: F.SEnv F.SortedReft
         -> Solution
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
+    -- NEW eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
+    -- NEW eqs' = filter (okInst env v t) eqs
+    
     eqs' = case M.lookup k s of
              Nothing  -> instK env v t qs
              Just eqs -> [eq | eq <- eqs, okInst env v t eq]
