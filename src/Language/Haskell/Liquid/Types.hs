@@ -271,6 +271,7 @@ data Config = Config {
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
   , cores          :: Int        -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
+  , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
   , smtsolver      :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc4, mathsat in order]
   , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
