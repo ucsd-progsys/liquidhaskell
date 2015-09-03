@@ -103,6 +103,7 @@ solveCs cfg target cgi info dc
                        , FC.srcFile     = target
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
+                       , FC.maxPartSize = maxPartSize cfg
                        -- , FC.stats   = True
                        }
        ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
