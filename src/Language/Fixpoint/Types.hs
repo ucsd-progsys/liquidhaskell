@@ -47,7 +47,7 @@ module Language.Fixpoint.Types (
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon  -- TODO: hide these
+  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
   -- , strFTyCon
   -- , propFTyCon
 
@@ -312,10 +312,11 @@ toFixConstant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, numFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
+numFTyCon  = TC $ dummyLoc "num"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
@@ -352,6 +353,7 @@ fObj = fTyconSort . TC
 sortFTycon :: Sort -> Maybe FTycon
 sortFTycon FInt    = Just intFTyCon
 sortFTycon FReal   = Just realFTyCon
+sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
@@ -1803,17 +1805,19 @@ instance (NFData a) => NFData (Located a) where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, propSort, realSort, strSort :: Sort
+numSort, boolSort, intSort, propSort, realSort, strSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 propSort = fTyconSort propFTyCon
+numSort  = fTyconSort numFTyCon
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c
   | c == intFTyCon  = FInt
   | c == realFTyCon = FReal
+  | c == numFTyCon  = FNum
   | otherwise       = FTC c
 
 -------------------------------------------------------------------------

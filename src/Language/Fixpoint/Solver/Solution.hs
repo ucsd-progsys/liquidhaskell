@@ -123,12 +123,12 @@ refineK :: F.SEnv F.SortedReft
         -> Solution
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
-    -- NEW eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
-    -- NEW eqs' = filter (okInst env v t) eqs
-     
-    eqs' = case M.lookup k s of
-              Nothing  -> instK env v t qs
-              Just eqs -> [eq | eq <- eqs, okInst env v t eq]
+    eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
+    eqs' = filter (okInst env v t) eqs
+
+    -- OLD eqs' = case M.lookup k s of
+              -- OLD Nothing  -> instK env v t qs
+              -- OLD Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
@@ -229,4 +229,3 @@ instance Solvable (F.Symbol, F.SortedReft) where
 
 instance Solvable a => Solvable [a] where
   apply s = F.pAnd . fmap (apply s)
-

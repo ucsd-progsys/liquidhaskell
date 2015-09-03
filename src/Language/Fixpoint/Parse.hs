@@ -338,6 +338,7 @@ fTyConP
   <|> (reserved "int"     >> return intFTyCon)
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (reserved "num"     >> return numFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
 bvSortP
