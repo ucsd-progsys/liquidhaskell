@@ -1,0 +1,12 @@
+// adapted from LH test Propability.hs
+
+bind 50 x : {v1 : real | [(v1 = 0.2)]}
+bind 56 y : {v2 : real | [(v2 = 0.8 + x)]}
+
+constraint:
+  env [50;
+       56]
+  grd true
+  lhs {VV#F3 : int | []}
+  rhs {VV#F3 : int | [(y = 1.0)]}
+  id 3 tag [1]

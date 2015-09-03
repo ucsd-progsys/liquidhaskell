@@ -43,6 +43,7 @@ import           Data.Maybe (fromMaybe)
 instance SMTLIB2 Sort where
   smt2 s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
   smt2 FInt                    = "Int"
+  smt2 FReal                   = "Real"
   smt2 t
     | t == boolSort            = "Bool"
   smt2 t
