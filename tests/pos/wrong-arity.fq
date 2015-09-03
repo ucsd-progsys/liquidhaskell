@@ -1,0 +1,17 @@
+// adapted from LH test vector2.hs
+
+constant foo : func(0, [int; int])
+
+// UNCOMMENT THIS FOR CRASH
+bind 1 foo : {v: func(0, [int; int]) | true }
+
+bind 2 foo : {v: func(0, [int; int]) | true }
+
+bind 3 z   : {v : int | [(v = foo([42]))]}
+
+constraint:
+  env [3]
+  grd true
+  lhs {VV : int | [(VV >= 0)]}
+  rhs {VV : int | [(VV >= 0)]}
+  id 107 tag [1]

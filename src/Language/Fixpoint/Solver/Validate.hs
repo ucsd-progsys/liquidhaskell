@@ -5,6 +5,9 @@ module Language.Fixpoint.Solver.Validate
        ( -- * Validate and Transform FInfo to enforce invariants
          validate
 
+         -- * Rename VV binders in each constraint to be unique
+       , renameVV
+
          -- * Sorts for each Symbol
        , symbolSorts
        )
@@ -21,25 +24,32 @@ import qualified Data.List as L
 import           Control.Applicative ((<$>))
 import           Text.Printf
 
+type ValidateM a = Either E.Error a
+
 ---------------------------------------------------------------------------
-validate :: Config -> F.FInfo a -> Either E.Error (F.FInfo a)
+validate :: Config -> F.FInfo a -> ValidateM (F.FInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
+           . dropShadowedBinders
            . dropHigherOrderBinders
-           . renameVV
+           -- . renameVV
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
-symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
+symbolSorts :: F.FInfo a -> ValidateM [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
 symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
     dm         = M.fromList defs
-    defs       = {- THIS KILLS ELIM: tracepp "defs" $ -} lits ++ consts
-    lits       = F.lits fi
-    consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
+    defs       = finfoDefs fi
+
+finfoDefs :: F.FInfo a -> [(F.Symbol, F.Sort)]
+finfoDefs fi = {- THIS KILLS ELIM: tracepp "defs" $ -} lits ++ consts
+  where
+    lits     = F.lits fi
+    consts   = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
 
 unShadow :: M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
 unShadow dm (x, t)
@@ -80,8 +90,8 @@ dupBindErrors = foldr1 E.catError . map dbe
 ---------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]
 ---------------------------------------------------------------------------
-symBinds  = tracepp "symBinds"
-          . M.toList
+symBinds  = {- THIS KILLS ELEM: tracepp "symBinds" . -}
+            M.toList
           . M.map Misc.groupList
           . Misc.group
           . binders
@@ -112,24 +122,81 @@ subcVV c = (x, sr)
     x    = F.reftBind $ F.sr_reft sr
 
 ---------------------------------------------------------------------------
--- | Drop Refinements from binders with function types
+-- | Drop `bind` that are shadowed by `constant` (if same type, else error)
 ---------------------------------------------------------------------------
-dropFunctionRefinements :: F.FInfo a -> F.FInfo a
-dropFunctionRefinements = error "TODO: dropFunctionRefinements"
+dropShadowedBinders :: F.FInfo a -> F.FInfo a
+---------------------------------------------------------------------------
+dropShadowedBinders fi = dropBinders f (const True) fi
+  where
+    f x _              = not $ M.member x defs
+    defs               = M.fromList $ finfoDefs fi
 
-
+{-
+CUT ME
+  CUT ME fi = fi { F.cm = cm', F.bs = bs' }
+  CUT ME where
+    CUT ME cm'          = unshadowSubC    sh <$> F.cm fi
+    CUT ME bs'          = unshadowBindEnv sh     bs
+    CUT ME sh           = findShadowedBinds defs bs
+    CUT ME bs           = F.bs fi
+    CUT ME defs         = M.fromList $ finfoDefs fi
+CUT ME
+CUT ME type SyEnv       = M.Map F.Symbol F.Sort
+CUT ME type ShadowBinds = M.Map F.BindId ()
+CUT ME
+CUT ME findShadowedBinds :: SyEnv -> F.BindEnv -> ShadowBinds
+CUT ME findShadowedBinds = error "TODO"
+CUT ME
+CUT ME unshadowBindEnv :: ShadowBinds -> F.BindEnv -> F.BindEnv
+CUT ME unshadowBindEnv = error "TODO"
+CUT ME
+CUT ME unshadowSubC :: ShadowBinds -> F.SubC a -> F.SubC a
+CUT ME unshadowSubC sh c = c { error "TODO"
+CUT ME
+CUT ME unshadowIBindEnv :: ShadowBinds -> F.IBindEnv -> F.IBindEnv
+CUT ME unshadowIBindEnv = error "TODO"
+CUT ME
+CUT ME -- 1. build constants (easy)
+CUT ME -- 2. find dodgy binds
+CUT ME -- 3. remove dodgy binds
+CUT ME
+CUT ME
+CUT ME -- dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
+  CUT ME -- where
+    CUT ME -- (bs', discards) = dropHOBinders (F.bs fi)
+    CUT ME -- cm' = deleteSubCBinds discards <$> F.cm fi
+    CUT ME -- ws' = deleteWfCBinds  discards <$> F.ws fi
+    CUT ME -- gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
+CUT ME
+-}
 ---------------------------------------------------------------------------
 -- | Drop Higher-Order Binders and Constants from Environment
 ---------------------------------------------------------------------------
 dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
-dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
-  where
-    (bs', discards) = dropHOBinders (F.bs fi)
-    cm' = deleteSubCBinds discards <$> F.cm fi
-    ws' = deleteWfCBinds  discards <$> F.ws fi
-    gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
+dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
 
+isFirstOrder :: F.Sort -> Bool
+isFirstOrder t        = foldSort f 0 t <= 1
+  where
+    f n (F.FFunc _ _) = n + 1
+    f n _             = n
+
+---------------------------------------------------------------------------
+-- | Generic API for Deleting Binders from FInfo
+---------------------------------------------------------------------------
+dropBinders :: KeepBindF -> KeepSortF -> F.FInfo a -> F.FInfo a
+---------------------------------------------------------------------------
+dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
+  where
+    discards        = tracepp "DISCARDING" diss
+    (bs', diss)     = filterBindEnv f $ F.bs fi
+    cm'             = deleteSubCBinds discards   <$> F.cm fi
+    ws'             = deleteWfCBinds  discards   <$> F.ws fi
+    gs'             = F.filterSEnv (g . F.sr_sort) (F.gs fi)
+
+type KeepBindF = F.Symbol -> F.Sort -> Bool
+type KeepSortF = F.Sort -> Bool
 
 deleteSubCBinds :: [F.BindId] -> F.SubC a -> F.SubC a
 deleteSubCBinds bs sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) bs }
@@ -137,16 +204,9 @@ deleteSubCBinds bs sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) bs }
 deleteWfCBinds :: [F.BindId] -> F.WfC a -> F.WfC a
 deleteWfCBinds bs wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) bs }
 
-dropHOBinders :: F.BindEnv -> (F.BindEnv, [F.BindId])
-dropHOBinders = filterBindEnv (isFirstOrder . F.sr_sort .  Misc.thd3)
-
-filterBindEnv f be = (F.bindEnvFromList keep, discard')
+filterBindEnv :: KeepBindF -> F.BindEnv -> (F.BindEnv, [F.BindId])
+filterBindEnv f be  = (F.bindEnvFromList keep, discard')
   where
-    (keep, discard) = L.partition f $ F.bindEnvToList be
-    discard' = map Misc.fst3 discard
-
-isFirstOrder :: F.Sort -> Bool
-isFirstOrder t        = foldSort f 0 t <= 1
-  where
-    f n (F.FFunc _ _) = n + 1
-    f n _             = n
+    (keep, discard) = L.partition f' $ F.bindEnvToList be
+    discard'        = Misc.fst3     <$> discard
+    f' (_, x, t)    = f x (F.sr_sort t)

@@ -1,11 +1,9 @@
 # TODO
 
-## cutsolver
 
-Goal, be able to acyclic kvars without QUALIFIERS e.g.
+Trace: [DISCARDING] : [208, 84, 85, 55, 60]
 
-+ implement solver
-+ run on all benchmarks :)
+Trace: [DISCARDING] : [80, 6, 86, 7, 9, 10, 74]
 
 ## stats
 

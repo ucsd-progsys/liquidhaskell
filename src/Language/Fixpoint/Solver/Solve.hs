@@ -23,9 +23,9 @@ import           Debug.Trace
 ---------------------------------------------------------------------------
 solve :: Config -> F.FInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg fi  = runSolverM cfg fi' $ solve_ cfg fi'
-  where
-    Right fi' = validate cfg fi
+solve cfg fi'  = runSolverM cfg fi' $ solve_ cfg fi'
+  -- where
+  --   Right fi' = validate cfg fi
 
 ---------------------------------------------------------------------------
 solve_ :: Config -> F.FInfo a -> SolveM (F.Result a)

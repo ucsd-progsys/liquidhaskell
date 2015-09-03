@@ -34,6 +34,7 @@ import           System.Exit
 import           System.IO                        (IOMode (..), hPutStr, withFile)
 import           Text.Printf
 
+import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve  as S
@@ -94,15 +95,17 @@ solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let fi'   = renameAll fi
-  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi')
+  let Right fi' = validate cfg fi
+  donePhase Loud "Validated Constraints"
+  let fi''   = renameAll fi'
+  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
   donePhase Loud "Uniqify"
-  fi''     <- elim cfg fi'
-  Result stat soln <- S.solve cfg fi''
+  let fi'''  = renameVV fi''
+  fi''''     <- elim cfg fi'''
+  Result stat soln <- S.solve cfg fi''''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
   putStrLn  $ "Solution:\n" ++ showpp soln
-  -- putStrLn  $ "Result: "    ++ show   stat'
   colorStrLn (colorResult stat') (show stat')
   return    $ Result stat soln
 
