@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE ImplicitParams            #-}
 
 module Language.Fixpoint.Misc where
 

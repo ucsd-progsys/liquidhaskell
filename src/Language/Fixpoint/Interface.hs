@@ -102,7 +102,8 @@ solveNativeWithFInfo cfg fi = do
   donePhase Loud "Solve"
   let stat' = sid <$> stat
   putStrLn  $ "Solution:\n" ++ showpp soln
-  putStrLn  $ "Result: "    ++ show   stat'
+  -- putStrLn  $ "Result: "    ++ show   stat'
+  colorStrLn (colorResult stat') (show stat')
   return    $ Result stat soln
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
