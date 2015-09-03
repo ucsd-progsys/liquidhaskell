@@ -34,10 +34,15 @@ validate _ = Right
 ---------------------------------------------------------------------------
 symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
-symbolSorts fi = compact . (\z -> lits ++ consts ++ z) =<< bindSorts fi
+symbolSorts fi = compact . (\z -> lits ++ consts ++ f z) =<< bindSorts fi
   where
     lits       = F.lits fi
     consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
+    f z        = [(x, defuncSort t) | (x, t) <- z]
+
+defuncSort :: F.Sort -> F.Sort
+defuncSort (F.FFunc {}) = F.funcSort
+defuncSort t            = t
 
 compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
 compact xts
@@ -56,6 +61,7 @@ bindSorts fi
   where
     (bad, ok)  = L.partition multiSorted . binds $ fi
     binds      = symBinds . F.bs
+
 
 multiSorted :: (x, [t]) -> Bool
 multiSorted = (1 <) . length . snd

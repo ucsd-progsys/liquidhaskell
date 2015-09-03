@@ -338,6 +338,7 @@ fTyConP
   <|> (reserved "int"     >> return intFTyCon)
   <|> (reserved "real"    >> return realFTyCon)
   <|> (reserved "bool"    >> return boolFTyCon)
+  <|> (reserved "num"     >> return numFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
 
 bvSortP
@@ -530,7 +531,8 @@ wfCP = do reserved "env"
           return $ wfC env r Nothing ()
 
 subCP :: Parser (SubC ())
-subCP = do reserved "env"
+subCP = do pos <- getPosition
+           reserved "env"
            env <- envP
            reserved "grd"
            grd <- predP
@@ -541,7 +543,16 @@ subCP = do reserved "env"
            reserved "id"
            i   <- integer <* spaces
            tag <- tagP
-           return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
+           pos' <- getPosition
+           -- ORIG return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
+           return $ subC' env grd lhs rhs i tag pos pos'
+
+subC' env grd lhs rhs i tag l l'
+  = case cs of
+      [c] -> c
+      _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
+    where
+       cs = subC env grd lhs rhs (Just i) tag ()
 
 -- idVV :: Integer -> SortedReft -> SortedReft
 -- idVV i sr = sr {sr_reft = ri }

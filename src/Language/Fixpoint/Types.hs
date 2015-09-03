@@ -47,11 +47,11 @@ module Language.Fixpoint.Types (
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , sortFTycon
-  , intFTyCon, boolFTyCon, realFTyCon  -- TODO: hide these
+  , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
   -- , strFTyCon
   -- , propFTyCon
 
-  , intSort, realSort, propSort, boolSort, strSort
+  , intSort, realSort, propSort, boolSort, strSort, funcSort
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
@@ -312,10 +312,12 @@ toFixConstant (c, so)
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-intFTyCon, boolFTyCon, realFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
+numFTyCon  = TC $ dummyLoc "num"
+funcFTyCon = TC $ dummyLoc "function"
 strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
@@ -352,6 +354,7 @@ fObj = fTyconSort . TC
 sortFTycon :: Sort -> Maybe FTycon
 sortFTycon FInt    = Just intFTyCon
 sortFTycon FReal   = Just realFTyCon
+sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
@@ -1358,26 +1361,7 @@ instance Hashable FTycon where
 wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
 wfC  = WfC
 
--- subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
--- subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) i y z
---   = error "TODO:subC" -- NEW [subC' r2' | r2' <- [r2P], not $ isTauto r2']
---   where
---     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vv')) (RR t2 (shiftVV r2' vv')) i y z
---     r2P        = Reft (v2, ra2s) -- ORIG [ra | ra@(Refa _  ) <- ra2s])
---     -- ORIG r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
---     vv'        = mkVV i
-
-
--- ORIG subC γ p (RR t1 r1) (RR t2 (Reft (v2, ra2s))) x y z
--- ORIG   = [subC' r2' | r2' <- [r2K, r2P], not $ isTauto r2']
--- ORIG   where
--- ORIG     subC' r2'  = SubC γ p (RR t1 (shiftVV r1 vvCon)) (RR t2 (shiftVV r2' vvCon)) x y z
--- ORIG     r2K        = Reft (v2, [ra | ra@(RKvar _ _) <- ra2s])
--- ORIG     r2P        = Reft (v2, [ra | ra@(RConc _  ) <- ra2s])
-
-
 subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
--- subC γ p (RR t1 r1) (RR t2 r2) i y z
 subC γ p sr1 sr2 i y z = [SubC γ p sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
@@ -1803,17 +1787,20 @@ instance (NFData a) => NFData (Located a) where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, propSort, realSort, strSort :: Sort
+numSort, boolSort, intSort, propSort, realSort, strSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 propSort = fTyconSort propFTyCon
+numSort  = fTyconSort numFTyCon
+funcSort = fTyconSort funcFTyCon
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c
   | c == intFTyCon  = FInt
   | c == realFTyCon = FReal
+  | c == numFTyCon  = FNum
   | otherwise       = FTC c
 
 -------------------------------------------------------------------------
