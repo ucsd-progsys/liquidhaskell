@@ -40,7 +40,6 @@ invertMap m = M.fromListWith S.union entries
 toListExtended :: [BindId] -> M.HashMap BindId (S.HashSet Ref) -> [(BindId, S.HashSet Ref)]
 toListExtended ids m = [(id, M.lookupDefault S.empty id m) | id <- ids]
 
-
 mkIdMap :: FInfo a -> IdMap
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
