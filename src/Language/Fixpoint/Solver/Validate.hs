@@ -34,11 +34,18 @@ validate _ = Right
 ---------------------------------------------------------------------------
 symbolSorts :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
-symbolSorts fi = compact . (\z -> lits ++ consts ++ f z) =<< bindSorts fi
+symbolSorts fi = normalize . compact . (defs ++) =<< bindSorts fi
   where
+    normalize  = fmap (map (unShadow dm))
+    dm         = M.fromList defs
+    defs       = lits ++ consts
     lits       = F.lits fi
     consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
-    f z        = [(x, defuncSort t) | (x, t) <- z]
+
+unShadow :: M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
+unShadow dm (x, t)
+  | M.member x dm  = (x, t)
+  | otherwise      = (x, defuncSort t)
 
 defuncSort :: F.Sort -> F.Sort
 defuncSort (F.FFunc {}) = F.funcSort
@@ -83,7 +90,6 @@ type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
 binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
-
 
 ---------------------------------------------------------------------------
 -- | Alpha Rename bindings to ensure each var appears in unique binder
