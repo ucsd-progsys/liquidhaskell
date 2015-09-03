@@ -37,7 +37,7 @@ symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
     dm         = M.fromList defs
-    defs       = tracepp "defs" $ lits ++ consts
+    defs       = {- THIS KILLS ELIM: tracepp "defs" $ -} lits ++ consts
     lits       = F.lits fi
     consts     = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
 
