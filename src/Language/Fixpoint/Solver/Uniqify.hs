@@ -84,7 +84,7 @@ insertIfNotConstant fi sym srt m | sym `elem` (fst <$> finfoDefs fi) = m
 
 handleSeenVar :: FInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (FInfo a, (M.HashMap Symbol Sort))
 handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
-                             | otherwise                  = (renameVar fi x, m)
+                             | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: FInfo a -> (BindId, S.HashSet Ref) -> FInfo a
 renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)

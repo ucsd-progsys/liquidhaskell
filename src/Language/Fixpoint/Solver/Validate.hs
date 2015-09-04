@@ -32,7 +32,7 @@ type ValidateM a = Either E.Error a
 validate :: Config -> F.FInfo a -> ValidateM (F.FInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
-           -- . dropShadowedBinders
+           . dropFuncSortedShadowedBinders
            . dropHigherOrderBinders
            -- . renameVV
 
@@ -126,9 +126,9 @@ subcVV c = (x, sr)
 ---------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
 ---------------------------------------------------------------------------
-dropShadowedBinders :: F.FInfo a -> F.FInfo a
+dropFuncSortedShadowedBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
-dropShadowedBinders fi = dropBinders f (const True) fi
+dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
     f x t              = (not $ M.member x defs) || isFirstOrder t
     defs               = M.fromList $ finfoDefs fi
