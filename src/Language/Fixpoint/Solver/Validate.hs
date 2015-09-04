@@ -30,7 +30,7 @@ type ValidateM a = Either E.Error a
 validate :: Config -> F.FInfo a -> ValidateM (F.FInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
-           . dropShadowedBinders
+           -- . dropShadowedBinders
            . dropHigherOrderBinders
            -- . renameVV
 

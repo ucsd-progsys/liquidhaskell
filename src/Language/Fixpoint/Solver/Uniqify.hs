@@ -73,7 +73,13 @@ renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) S.empty
 renameVarIfSeen :: FInfo a -> (BindId, S.HashSet Ref) -> State (S.HashSet Symbol) (FInfo a)
 renameVarIfSeen fi x@(id, _) = state (\s ->
   let sym = fst $ lookupBindEnv id (bs fi) in
-  if sym `S.member` s then (renameVar fi x, s) else (fi, S.insert sym s))
+  if sym `S.member` s then (renameVar fi x, s) else (fi, insertIfNotConstant fi sym s))
+
+--TODO: only valid if the binding has no kvars and is of the same sort
+-- as the constant. Should that be checked here, or in Validate?
+insertIfNotConstant :: FInfo a -> Symbol -> S.HashSet Symbol -> S.HashSet Symbol
+insertIfNotConstant fi sym s | sym `elem` (fst <$> lits fi) = s
+                             | otherwise                    = S.insert sym s
 
 renameVar :: FInfo a -> (BindId, S.HashSet Ref) -> FInfo a
 renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
