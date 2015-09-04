@@ -6,6 +6,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Names (renameSymbol)
 import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
 import           Language.Fixpoint.Misc  (fst3)
+import           Language.Fixpoint.Solver.Validate (finfoDefs)
 import qualified Data.HashMap.Strict     as M
 import qualified Data.HashSet            as S
 import           Data.List               ((\\), sort)
@@ -14,6 +15,7 @@ import           Data.Foldable           (foldlM)
 import           Data.Hashable
 import           GHC.Generics            (Generic)
 import           Control.Monad.State     (evalState, State, state)
+import           Control.Arrow           (second)
 
 --------------------------------------------------------------
 renameAll    :: FInfo a -> FInfo a
@@ -23,7 +25,6 @@ renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
-
 instance Hashable Ref
 
 -- stores for each constraint and BindId the set of other BindIds that it
@@ -68,18 +69,22 @@ freeVars reft@(Reft (v, _)) = syms reft \\ [v]
 
 
 renameVars :: FInfo a -> [(BindId, S.HashSet Ref)] -> FInfo a
-renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) S.empty
+renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
 
-renameVarIfSeen :: FInfo a -> (BindId, S.HashSet Ref) -> State (S.HashSet Symbol) (FInfo a)
-renameVarIfSeen fi x@(id, _) = state (\s ->
-  let sym = fst $ lookupBindEnv id (bs fi) in
-  if sym `S.member` s then (renameVar fi x, s) else (fi, insertIfNotConstant fi sym s))
+renameVarIfSeen :: FInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (FInfo a)
+renameVarIfSeen fi x@(id, _) = state (\m ->
+  let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
+  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, insertIfNotConstant fi sym srt m))
 
 --TODO: only valid if the binding has no kvars and is of the same sort
 -- as the constant. Should that be checked here, or in Validate?
-insertIfNotConstant :: FInfo a -> Symbol -> S.HashSet Symbol -> S.HashSet Symbol
-insertIfNotConstant fi sym s | sym `elem` (fst <$> lits fi) = s
-                             | otherwise                    = S.insert sym s
+insertIfNotConstant :: FInfo a -> Symbol -> Sort -> M.HashMap Symbol Sort -> M.HashMap Symbol Sort
+insertIfNotConstant fi sym srt m | sym `elem` (fst <$> finfoDefs fi) = m
+                                 | otherwise                         = M.insert sym srt m
+
+handleSeenVar :: FInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (FInfo a, (M.HashMap Symbol Sort))
+handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
+                             | otherwise                  = (renameVar fi x, m)
 
 renameVar :: FInfo a -> (BindId, S.HashSet Ref) -> FInfo a
 renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)

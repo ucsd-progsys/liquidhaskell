@@ -10,6 +10,8 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
+
+       , finfoDefs
        )
        where
 
@@ -122,13 +124,13 @@ subcVV c = (x, sr)
     x    = F.reftBind $ F.sr_reft sr
 
 ---------------------------------------------------------------------------
--- | Drop `bind` that are shadowed by `constant` (if same type, else error)
+-- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
 ---------------------------------------------------------------------------
 dropShadowedBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
 dropShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x _              = not $ M.member x defs
+    f x t              = (not $ M.member x defs) || isFirstOrder t
     defs               = M.fromList $ finfoDefs fi
 
 {-
