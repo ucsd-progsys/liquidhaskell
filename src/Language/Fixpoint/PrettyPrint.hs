@@ -28,6 +28,9 @@ showpp = render . pprint
 tracepp :: (PPrint a) => String -> a -> a
 tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
+instance PPrint Doc where
+  pprint = id
+
 instance PPrint a => PPrint (Maybe a) where
   pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
 

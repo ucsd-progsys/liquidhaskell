@@ -1,22 +1,29 @@
 # TODO
 
 
-Trace: [DISCARDING] : [208, 84, 85, 55, 60]
+## Good
 
-Trace: [DISCARDING] : [80, 6, 86, 7, 9, 10, 74]
+     k__230 := [((VV#229 >= 0), CmpZ(VV#229));((VV#229 < vlen([x#a2tP])), Auto(VV#229, x#a2tP));((0 <= VV#229), Auto0(VV#229))]
 
-## stats
+     k__257 := [((len([VV#256]) <= len([y#a2tQ])), CmpLen(VV#256, y#a2tQ));((len([VV#256]) >= 0), ListZ0(VV#256))]
 
-+ How many *different* binders is each kvar bound to in constraints?
+## Bad
 
-## non-trivial-sorts
+      $k__257 := true
 
-+ partition sorts into non-trivial refinements
+      $k__230 := VV#229 >= 0 && 0 <= VV#229
 
-+ replace all "$k" for trivial sorts
+## Bad Init
 
-     type Trivial = TrivialSort | NonTrivialSort  
-     type TrivialMap = Map Sort Trivial  
-     mkTrivialMap :: FInfo a -> TrivialMap
-     simplifyTrivial :: FInfo a -> TrivialMap -> FInfo a
-     simplify :: FInfo a -> FInfo a
+   constant vlen : (func(1, [(Data.Vector.Vector  @(0)); int]))
+
+   constant len : (func(2, [(@(0)  @(1)); int]))
+   bind 47 y#a2tQ : {VV#225 : [(Tuple  int  a_a2uw)] | [(len([VV#225]) >= 0)]}
+   VV#256 : [(Tuple  int  a_a2uw)]
+
+$k__257 := [VV#256 <= y#a2tQ, VV#256 == y#a2tQ, VV#256 >= y#a2tQ, VV#256 > y#a2tQ, VV#256 < y#a2tQ, VV#256 /= y#a2tQ, 0 == 1]
+
+$k__230 := [VV#229 <= VV#16, VV#229 == 1, VV#229 >= 0, 0 <= VV#229, VV#229 == 0, VV#229 <= 0, VV#229 == VV#16, VV#229 >= VV#16, VV#229 /= 0, VV#229 > VV#16, VV#229 < VV#16, VV#229 /= VV#16, VV#229 > 0, VV#229 < 0, 0 == 1]
+
+FApp (FVar 0)        (FVar 1)
+FApp (FTC (TC "[]")) (FApp (FApp (FTC (TC "Tuple")) FInt) (FObj "a"))

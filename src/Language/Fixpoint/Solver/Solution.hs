@@ -97,7 +97,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.FInfo a -> Solution
 --------------------------------------------------------------------
-init _ fi = {- tracepp "init solution" -} s
+init _ fi = tracepp "init solution" s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -184,9 +184,12 @@ wfKvar w@(F.WfC {F.wrft = sr})
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
 -----------------------------------------------------------------------
-okInst env v t eq = isNothing $ So.checkSortedReftFull env sr
+okInst env v t eq = isNothing tc
   where
-    sr            = F.RR t (F.Reft (v, F.Refa (eqPred eq)))
+    sr            = F.RR t (F.Reft (v, F.Refa p))
+    p             = eqPred eq
+    tc            = tracepp msg $ So.checkSortedReftFull env sr
+    msg           = "okInst [p := " ++ show p ++ " ]"
 
 ---------------------------------------------------------------------
 -- | Apply Solution -------------------------------------------------
