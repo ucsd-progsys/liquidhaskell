@@ -24,6 +24,7 @@ import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
@@ -113,8 +114,9 @@ refine :: F.FInfo a
 --------------------------------------------------------------------
 refine fi qs s w = refineK env qs s (wfKvar w)
   where
-    env          = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-
+    env          = wenv <> genv
+    wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
+    genv         = F.gs fi
 
 refineK :: F.SEnv F.SortedReft
         -> [F.Qualifier]

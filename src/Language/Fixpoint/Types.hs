@@ -782,9 +782,12 @@ refa = Refa . pAnd
 -- | Environments ---------------------------------------------
 ---------------------------------------------------------------
 
+-- unionSEnv :: SEnv a -> SEnv a -> SEnv a
+-- unionSEnv (SE e1) (SE e2) = SE (M.union e1 e2)
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
+
 fromListSEnv            ::  [(Symbol, a)] -> SEnv a
 fromListSEnv            = SE . M.fromList
 
