@@ -81,7 +81,7 @@ listLMap = toLogicMap [(nilName, [], hNil),
     x  = symbol "x"
     xs = symbol "xs"
     hNil    = EApp (dummyLoc $ symbol nilDataCon ) []
-    hCons   = EApp (dummyLoc $ symbol consDataCon) 
+    hCons   = EApp (dummyLoc $ symbol consDataCon)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSigs = asmSigs', dicts = dicts' }
@@ -92,13 +92,14 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
-ghcSpecEnv sp cbs    = fromListSEnv binds
+ghcSpecEnv :: GhcSpec -> [CoreBind] -> SEnv SortedReft 
+ghcSpecEnv sp cbs    = traceShow "GHCSPECENV" $ fromListSEnv binds
   where
     emb              = tcEmbeds sp
-    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
-                     ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
-                     ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
+    binds            =  traceShow "BINDS1" [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
+                     ++ traceShow "BINDS2" [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
+                     ++ traceShow "BINDS3" [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+                     ++ traceShow "BINDS4" [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -118,7 +119,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs (traceShow "DATACONS" datacons) cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
@@ -179,7 +180,7 @@ makeGhcSpec4 defVars specs name su sp
        texprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
        lazies  <- mkThing makeLazy
        lvars'  <- mkThing makeLVar
-       asize'  <- S.fromList <$> makeASize  
+       asize'  <- S.fromList <$> makeASize
        hmeas   <- mkThing makeHIMeas
        quals   <- mconcat <$> mapM makeQualifiers specs
        let sigs = strengthenHaskellMeasures hmeas ++ tySigs sp
@@ -194,8 +195,8 @@ makeGhcSpec4 defVars specs name su sp
                      , autosize   = asize'
                      , lazy       = lazies
                      , tySigs     = tx  <$> sigs
-                     , asmSigs    = tx  <$> (asmSigs sp)
-                     , measures   = mtx <$> (measures sp)
+                     , asmSigs    = tx  <$> asmSigs sp
+                     , measures   = mtx <$> measures sp
                      }
     where
        mkThing mk = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs, m == name ]
@@ -207,8 +208,8 @@ makeGhcSpecCHOP1 specs
        let tyi          = makeTyConInfo tycons
        embs            <- mconcat <$> mapM makeTyConEmbeds specs
        datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
-       let dcSelectors  = concat $ map makeMeasureSelectors datacons
-       return           $ (tycons, second val <$> datacons, dcSelectors, tyi, embs)
+       let dcSelectors  = concatMap makeMeasureSelectors datacons
+       return           (tycons, second val <$> datacons, dcSelectors, tyi, embs)
 
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
   = do sigs'   <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs

@@ -1,15 +1,21 @@
-{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Language.Haskell.Liquid.WiredIn where
+module Language.Haskell.Liquid.WiredIn
+       ( propType
+       , propTyCon
+       , hpropTyCon
+       , pdVarReft
+       , wiredTyCons, wiredDataCons
+       ) where
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Variance
 
-import Language.Fixpoint.Names                  (hpropConName, propConName)
+import Language.Fixpoint.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc                   (mapSnd)
+import Language.Fixpoint.Misc  (mapSnd)
 
 import BasicTypes
 import DataCon
@@ -35,8 +41,6 @@ hpropTyCon = symbolTyCon 'w' 24 hpropConName
 propType :: Reftable r => RRType r
 propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
 
-
-
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------
 --------------------------------------------------------------------
@@ -51,12 +55,12 @@ wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where
     (tcs, dcs)  = unzip l
-    l           = [listTyDataCons] ++ map tupleTyDataCons [2..maxArity]
+    l           = listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon, DataConP l0 [(RTV tyv)] [p] [] [] [] lt l0)
-                   , (consDataCon, DataConP l0 [(RTV tyv)] [p] [] [] cargs  lt l0)])
+listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
+                   , [(nilDataCon, DataConP l0 [RTV tyv] [p] [] [] [] lt l0)
+                   , (consDataCon, DataConP l0 [RTV tyv] [p] [] [] cargs  lt l0)])
     where
       l0         = dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -71,7 +75,7 @@ listTyDataCons   = ( [(c, TyConP [(RTV tyv)] [p] [] [Covariant] [Covariant] (Jus
       xt         = rVar tyv
       xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
-      fsize      = \x -> EApp (dummyLoc "len") [EVar x]
+      fsize z    = EApp (dummyLoc "len") [EVar z]
 
 tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
@@ -87,12 +91,12 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     flds          = mks "fld_Tuple"
     fld           = "fld_Tuple"
     x1:xs         = mks ("x_Tuple" ++ show n)
-    ps            = mkps pnames (ta:ts) ((fld, EVar fld):(zip flds (EVar <$>flds)))
+    ps            = mkps pnames (ta:ts) ((fld, EVar fld) : zip flds (EVar <$> flds))
     ups           = uPVar <$> ps
-    pxs           = mkps pnames (ta:ts) ((fld, EVar x1):(zip flds (EVar <$> xs)))
+    pxs           = mkps pnames (ta:ts) ((fld, EVar x1) : zip flds (EVar <$> xs))
     lt            = rApp c (rVar <$> tyvs) (RPropP [] . pdVarReft <$> ups) mempty
     xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
-    cargs         = reverse $ (x1, rVar tv) : (zip xs xts)
+    cargs         = reverse $ (x1, rVar tv) : zip xs xts
     pnames        = mks_ "p"
     mks  x        = (\i -> symbol (x++ show i)) <$> [1..n]
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
