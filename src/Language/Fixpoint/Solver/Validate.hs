@@ -13,9 +13,9 @@ module Language.Fixpoint.Solver.Validate
        )
        where
 
-import           Language.Fixpoint.Visitor (foldSort)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Sort (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
@@ -131,56 +131,12 @@ dropShadowedBinders fi = dropBinders f (const True) fi
     f x _              = not $ M.member x defs
     defs               = M.fromList $ finfoDefs fi
 
-{-
-CUT ME
-  CUT ME fi = fi { F.cm = cm', F.bs = bs' }
-  CUT ME where
-    CUT ME cm'          = unshadowSubC    sh <$> F.cm fi
-    CUT ME bs'          = unshadowBindEnv sh     bs
-    CUT ME sh           = findShadowedBinds defs bs
-    CUT ME bs           = F.bs fi
-    CUT ME defs         = M.fromList $ finfoDefs fi
-CUT ME
-CUT ME type SyEnv       = M.Map F.Symbol F.Sort
-CUT ME type ShadowBinds = M.Map F.BindId ()
-CUT ME
-CUT ME findShadowedBinds :: SyEnv -> F.BindEnv -> ShadowBinds
-CUT ME findShadowedBinds = error "TODO"
-CUT ME
-CUT ME unshadowBindEnv :: ShadowBinds -> F.BindEnv -> F.BindEnv
-CUT ME unshadowBindEnv = error "TODO"
-CUT ME
-CUT ME unshadowSubC :: ShadowBinds -> F.SubC a -> F.SubC a
-CUT ME unshadowSubC sh c = c { error "TODO"
-CUT ME
-CUT ME unshadowIBindEnv :: ShadowBinds -> F.IBindEnv -> F.IBindEnv
-CUT ME unshadowIBindEnv = error "TODO"
-CUT ME
-CUT ME -- 1. build constants (easy)
-CUT ME -- 2. find dodgy binds
-CUT ME -- 3. remove dodgy binds
-CUT ME
-CUT ME
-CUT ME -- dropHigherOrderBinders fi = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
-  CUT ME -- where
-    CUT ME -- (bs', discards) = dropHOBinders (F.bs fi)
-    CUT ME -- cm' = deleteSubCBinds discards <$> F.cm fi
-    CUT ME -- ws' = deleteWfCBinds  discards <$> F.ws fi
-    CUT ME -- gs' = F.filterSEnv (isFirstOrder . F.sr_sort) (F.gs fi)
-CUT ME
--}
 ---------------------------------------------------------------------------
 -- | Drop Higher-Order Binders and Constants from Environment
 ---------------------------------------------------------------------------
 dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
 ---------------------------------------------------------------------------
 dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
-
-isFirstOrder :: F.Sort -> Bool
-isFirstOrder t        = foldSort f 0 t <= 1
-  where
-    f n (F.FFunc _ _) = n + 1
-    f n _             = n
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo

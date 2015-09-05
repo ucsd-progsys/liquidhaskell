@@ -47,7 +47,7 @@ import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
-import           Language.Fixpoint.PrettyPrint (showpp)
+import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Parallel
@@ -105,9 +105,13 @@ solveNativeWithFInfo cfg fi = do
   Result stat soln <- S.solve cfg fi''''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
-  putStrLn  $ "Solution:\n" ++ showpp soln
+  putStrLn  $ "Solution:\n"  ++ showpp soln
+  -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result stat soln
+
+
+
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
 elim cfg fi

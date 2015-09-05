@@ -23,6 +23,9 @@ module Language.Fixpoint.Sort  (
   -- * Exported Sorts
   , boolSort
   , strSort
+
+  -- * Predicates on Sorts
+  , isFirstOrder
   ) where
 
 
@@ -31,10 +34,23 @@ import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, catMaybes, fromMaybe)
+
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Visitor (foldSort)
+
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+
+-------------------------------------------------------------------------
+-- | Predicates on Sorts ------------------------------------------------
+-------------------------------------------------------------------------
+
+isFirstOrder :: Sort -> Bool
+isFirstOrder t      = foldSort f 0 t <= 1
+  where
+    f n (FFunc _ _) = n + 1
+    f n _           = n
 
 
 -------------------------------------------------------------------------
