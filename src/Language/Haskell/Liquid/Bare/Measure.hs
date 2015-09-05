@@ -146,7 +146,7 @@ makeMeasureSelectors (dc, (Loc l l' (DataConP _ vs _ _ _ xts r _))) = catMaybes 
     n             = length xts
 
 makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
-  where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i)) 
+  where eqn   = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n]) (E (EVar $ mkx i))
         mkx j = symbol ("xx" ++ show j)
 
 
@@ -189,13 +189,14 @@ mkMeasureSort (Ms.MSpec c mm cm im)
       tx (M n s eqs) = M n <$> (ofMeaSort s) <*> (mapM txDef eqs)
 
       txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
-      txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds}) 
+      txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds})
                   (mapM (mapSndM ofMeaSort) (dparams def))
                   (mapM ofMeaSort $ dsort def)
                   (mapM (mapSndM $ mapM ofMeaSort) (binds def))
 
 
-varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v, isSimpleType $ varType v ]
+-- varMeasures :: [Var] -> [(Symbol, Located Int)]
+varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars, isDataConId v] -- TAKE EM ALL!, isSimpleType $ varType v ]
 
 isSimpleType t   = null tvs && isNothing (splitFunTy_maybe tb)
   where

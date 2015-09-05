@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Bare.GhcSpec (
   , makeGhcSpec
   ) where
 
+-- import Debug.Trace (trace)
 import CoreSyn hiding (Expr)
 import HscTypes
 import Id
@@ -92,14 +93,14 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
-ghcSpecEnv :: GhcSpec -> [CoreBind] -> SEnv SortedReft 
-ghcSpecEnv sp cbs    = traceShow "GHCSPECENV" $ fromListSEnv binds
+ghcSpecEnv :: GhcSpec -> [CoreBind] -> SEnv SortedReft
+ghcSpecEnv sp cbs    = fromListSEnv binds
   where
     emb              = tcEmbeds sp
-    binds            =  traceShow "BINDS1" [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
-                     ++ traceShow "BINDS2" [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
-                     ++ traceShow "BINDS3" [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
-                     ++ traceShow "BINDS4" [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
+    binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
+                     ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
+                     ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -119,7 +120,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (tycons, datacons, dcSs, tyi, embs)     <- makeGhcSpecCHOP1 specs
        modify                                   $ \be -> be { tcEnv = tyi }
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
-       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs (traceShow "DATACONS" datacons) cls embs
+       (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
