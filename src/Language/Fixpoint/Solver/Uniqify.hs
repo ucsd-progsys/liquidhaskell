@@ -74,7 +74,7 @@ renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
 renameVarIfSeen :: FInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (FInfo a)
 renameVarIfSeen fi x@(id, _) = state (\m ->
   let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
-  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m) --insertIfNotConstant fi sym srt m))
+  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m)) --insertIfNotConstant fi sym srt m))
 
 ----TODO: only valid if the binding has no kvars and is of the same sort
 ---- as the constant. Should that be checked here, or in Validate?
