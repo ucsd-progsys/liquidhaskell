@@ -98,25 +98,25 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
     act                  = consAct info
     cfg                  = config $ spec info
 
-
+consAct :: GhcInfo -> CG ()
 consAct info
   = do γ     <- initEnv info
-       sflag <- scheck <$> get
+       sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ (cbs info)
-       hcs <- hsCs  <$> get
-       hws <- hsWfs <$> get
-       scss <- sCs <$> get
+       hcs   <- hsCs  <$> get
+       hws   <- hsWfs <$> get
+       scss  <- sCs   <$> get
        annot <- annotMap <$> get
-       scs <- if sflag then concat <$> mapM splitS (hcs ++ scss)
-                       else return []
+       scs   <- if sflag then concat <$> mapM splitS (hcs ++ scss)
+                         else return []
        let smap = if sflag then solveStrata scs else []
        let hcs' = if sflag then subsS smap hcs else hcs
        fcs <- concat <$> mapM splitC (subsS smap hcs')
        fws <- concat <$> mapM splitW hws
        let annot' = if sflag then subsS smap <$> annot else annot
-       modify $ \st -> st { fixCs = fcs } { fixWfs = fws } {annotMap = annot'}
+       modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
@@ -125,7 +125,7 @@ initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
        let dcs   = filter isConLikeId ((snd <$> freeSyms sp))
-       let dcs'   = filter isConLikeId fVars
+       let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
        dcsty'   <- forM dcs'  $ \x -> liftM (x,) (trueTy $ varType x)
@@ -136,7 +136,7 @@ initEnv info
        f1'      <- refreshArgs' $ makedcs dcsty
        f2       <- refreshArgs' $ assm info                  -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals asmSigs sp            -- assumed refinedments     (with `assume`)
-       f40      <- refreshArgs' $ vals ctors sp    -- constructor refinements  (for measures)
+       f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
        let f4    = mergeDataConTypes f40 (f41 ++ f42)
@@ -460,8 +460,8 @@ splitS (SubR _ _ _)
 splitsSWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsSWithVariance False _ _ _ _ 
-  = return [] 
+rsplitsSWithVariance False _ _ _ _
+  = return []
 
 rsplitsSWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
@@ -494,14 +494,14 @@ splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ t1 (REx x tx t2))
-  = do y <- fresh 
+  = do y <- fresh
        γ' <- (γ, "addExBind 1") += (y, forallExprRefType γ tx)
        splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 -- existential at the left hand side is treated like forall
 splitC (SubC γ (REx x tx t1) t2)
   = do -- let tx' = traceShow ("splitC: " ++ showpp z) tx
-       y <- fresh 
+       y <- fresh
        γ' <- (γ, "addExBind 2") += (y, forallExprRefType γ tx)
        splitC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
 
@@ -510,12 +510,12 @@ splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
        splitC (SubC γ' t1 t2)
 
 splitC (SubC γ (RAllE x tx t1) t2)
-  = do y  <- fresh 
+  = do y  <- fresh
        γ' <- (γ, "addAABind 1") += (y, forallExprRefType γ tx)
        splitC (SubC γ' (t1 `F.subst1` (x, F.EVar y)) t2)
 
 splitC (SubC γ t1 (RAllE x tx t2))
-  = do y  <- fresh 
+  = do y  <- fresh
        γ' <- (γ, "addAllBind 2") += (y, forallExprRefType γ tx)
        splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
@@ -607,8 +607,8 @@ splitC (SubR γ o r)
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
-rsplitsCWithVariance False _ _ _ _ 
-  = return [] 
+rsplitsCWithVariance False _ _ _ _
+  = return []
 
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
@@ -706,9 +706,10 @@ initCGI cfg info = CGInfo {
     spc        = spec info
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
 
+coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
   = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts ]
-                ++ [(F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
+                ++ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where
     lconsts      = literalConst tce <$> literals (cbs info)

@@ -196,7 +196,7 @@ getGhcModGuts1 fn = do
        -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
-       let deriv = getDerivedDictionaries mod_guts 
+       let deriv = getDerivedDictionaries mod_guts
        return   $! (miModGuts (Just deriv) mod_guts)
      Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
@@ -240,8 +240,8 @@ moduleSpec cfg cbs vars defVars target mg tgtSpec logicmap impSpecs
        env        <- getSession
        let specs   = (target,tgtSpec):impSpecs
        let imps    = sortNub $ impNames ++ [ symbolString x
-                                           | (_,spec) <- specs
-                                           , x <- Ms.imports spec
+                                           | (_, sp) <- specs
+                                           , x <- Ms.imports sp
                                            ]
        ghcSpec    <- liftIO $ makeGhcSpec cfg target cbs vars defVars exports env logicmap specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
