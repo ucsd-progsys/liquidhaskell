@@ -1,11 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Language.Haskell.Liquid.Literals (
-        literalFRefType, literalFReft, literalConst
-        ) where
+         literalFRefType
+       , literalFReft
+       , literalConst
+       ) where
 
 import TypeRep
-import Literal 
-
+import Literal
+import qualified TyCon  as TC
 import Language.Haskell.Liquid.Measure
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.RefType
@@ -47,6 +50,7 @@ mkReft e = case e of
 --    otherwise string-literals show up as global int-constants
 --    which blow up qualifier instantiation.
 
-literalConst tce l         = (sort, mkLit l)
+literalConst :: F.TCEmb TC.TyCon -> Literal -> (F.Sort, Maybe F.Expr)
+literalConst tce l = (t, mkLit l)
   where
-    sort                   = typeSort tce $ literalType l
+    t              = typeSort tce $ literalType l

@@ -216,7 +216,7 @@ checkRType emb env t         = checkAppTys t <|> checkFunRefs t <|> checkAbstrac
     pbinds p                 = (pname p, pvarRType p :: RSort)
                               : [(x, t) | (t, x, _) <- pargs p]
 
-checkAppTys t = go t
+checkAppTys = go
   where
     go (RAllT _ t)      = go t
     go (RAllP _ t)      = go t
@@ -241,7 +241,8 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
         <+> text "arguments"
   | otherwise
     = Nothing
-  where expectedArity = realTcArity tc
+  where
+    expectedArity = realTcArity tc
 
 
 checkFunRefs t = go t
@@ -358,12 +359,12 @@ checkMeasure emb γ (M name@(Loc src _ n) sort body)
     txerror = ErrMeas (sourcePosSrcSpan src) n
 
 checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort γ' body
-  where 
+  where
     γ'   = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats  = (mapSnd (rTypeSortedReft emb) <$> as)
     xts  = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep = toRTypeRep ct
-    su   = checkMBodyUnify (ty_res trep) (last txs) 
+    su   = checkMBodyUnify (ty_res trep) (last txs)
     txs  = snd4 $ bkArrowDeep sort
     ct   = ofType $ dataConUserType c :: SpecType
 

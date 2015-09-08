@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections  #-}
 {-# LANGUAGE CPP #-}
 
+
 {-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
@@ -32,8 +33,6 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
-
-
 
 main :: IO b
 main = do cfg0     <- getOpts
