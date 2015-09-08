@@ -41,10 +41,12 @@ instance PPrint a => PPrint (S.HashSet a) where
   pprint = pprint . S.toList
 
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
-  pprint         = vcat . punctuate (text "\n") . map pp1 . M.toList
-    where
-      pp1 (x, y) = pprint x <+> text ":=" <+> pprint y
+  pprint = pprintKVs . M.toList
 
+pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
+pprintKVs = vcat . punctuate (text "\n") . map pp1 -- . M.toList
+  where
+    pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
   pprint (x, y, z)  = parens $ pprint x <> text "," <> pprint y <> text "," <> pprint z
