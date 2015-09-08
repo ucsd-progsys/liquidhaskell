@@ -91,8 +91,7 @@ partitionN mi fi cp
 -- | Return the "size" of a CPart. Used to determine if it's
 -- substantial enough to be worth parallelizing.
 cpartSize :: F.CPart a -> Int
-cpartSize = M.size . F.pcm -- TODO: There's likely a better
-                           -- metric of size than this
+cpartSize c = M.size . F.pcm $ c --(M.size . F.pcm) c + (length . F.pws) c
 
 -- | Convert a CPart to an FInfo
 cpartToFinfo :: F.FInfo a -> F.CPart a -> F.FInfo a
