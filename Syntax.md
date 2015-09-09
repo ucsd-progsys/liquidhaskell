@@ -1,25 +1,34 @@
+- Niki Vazou
 
-
-Current Syntax                     Future Syntax
-
-- Abstract Refinements
-
-List <{\x v -> v >= x}> Int        List Int (\x v -> v >= x)
-[a<p>]<{\x v -> v >= x}>           [a p] (\x v -> v >= x) (??)
-Int<p>                             Int p 
-Int<\x -> x >=0>                   Int (\x -> x >= 0) 
-Maybe <<p>> (a<q>) (?)             Maybe (a q) p
-
-
-- Type Arguments
-
-ListN a {len xs + len ys}          ListN a (len xs + len ys)
-
-
+|                      | Current Syntax                | Future Syntax                 |
+|----------------------|-------------------------------|-------------------------------|
+| Abstract Refinements | `List <{\x v -> v >= x}> Int` | `List Int (\x v -> v >= x)`   |
+|                      | `[a<p>]<{\x v -> v >= x}>`    | `[a p] (\x v -> v >= x) (??)` |
+|                      | `Int<p>`                      | `Int p`                       |
+|                      | `Int<\x -> x >=0>`            | `Int (\x -> x >= 0)`          |
+|                      | `Maybe <<p>> (a<q>) (?)`      | `Maybe (a q) p`               |
+| Type Arguments       | `ListN a {len xs + len ys}`   | `ListN a (len xs + len ys)`   |
 
 Q:How do I distinguish `Int p` with `ListN a n`?
 (`p` is a abstract refinement and `n` is an `Integer`)
-A: From the context! 
-Use simple kinds, i.e. 
+A: From the context!
+Use simple kinds, i.e.
 `ListN :: * -> Int -> *`
 `Int :: ?AR -> *`
+
+- Chris Tetreault
+
+Currently for specifications, we write them as such:
+
+`{-@ unsafeLookup :: n:Nat ->  {v:Vector a | n < (vlen v)} -> a @-}`
+
+... where we bind `n` as a `Nat` and `v` as a `Vector a` such that [stuff]. As a Haskeller, I find it strange to put logic into something that appears to be a function signature. I propose:
+
+```
+{-@
+   unsafeLookup :: Nat -> Vector a -> a
+   unsafeLookup n v = n < vlen v
+@-}
+```
+
+Here we have a function that takes a refined type `Nat` or a Haskell type `Vector a` and returns an `a`. The definition of this refinement binds the `Nat` to `n` and the `Vector a` to `v`, then specifies that `n < vlen v`. We could mix the syntax up a bit to address my previous concern that it not look "too much like haskell", presuably drawing from the list of symbols that get used elsewhere, but I'm more concerned with getting this "function syntax".
