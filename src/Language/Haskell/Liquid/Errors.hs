@@ -301,4 +301,3 @@ errSaved x = ErrSaved x . text
 -- | Throw a panic exception
 exitWithPanic  :: String -> a
 exitWithPanic  = Ex.throw . errOther . text
-
