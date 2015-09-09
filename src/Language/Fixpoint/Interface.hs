@@ -96,6 +96,7 @@ solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   let Right fi' = validate cfg fi
+  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Validated Constraints"
   let fi''   = renameAll fi'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
