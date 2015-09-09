@@ -11,9 +11,6 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
-  , defaultCores
-  , defaultMinPartSize
-  , defaultMaxPartSize
 ) where
 
 import           System.Console.CmdArgs
