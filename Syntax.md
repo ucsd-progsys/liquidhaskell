@@ -17,6 +17,8 @@ Use simple kinds, i.e.
 `ListN :: * -> Int -> *`
 `Int :: ?AR -> *`
 
+----------------------------
+
 - Chris Tetreault
 
 Currently for specifications, we write them as such:
