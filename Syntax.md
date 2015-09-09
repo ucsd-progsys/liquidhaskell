@@ -30,8 +30,10 @@ Currently for specifications, we write them as such:
 ```
 {-@
    unsafeLookup :: Nat -> Vector a -> a
-   unsafeLookup n v = n < vlen v
+   unsafeLookup n v _ | n < vlen v
 @-}
 ```
 
-Here we have a function that takes a refined type `Nat` and a Haskell type `Vector a` and returns an `a`. The definition of this refinement binds the `Nat` to `n` and the `Vector a` to `v`, then specifies that `n < vlen v`. We could mix the syntax up a bit to address my previous concern that it not look "too much like haskell", presuably drawing from the list of symbols that get used elsewhere, but I'm more concerned with getting this "function syntax" that with what specific glyphs get used.
+Here we have a "function" that takes a refined type `Nat` and a Haskell type `Vector a` and returns a Haskell type `a`. The definition of this refinement binds the `Nat` to `n` and the `Vector a` to `v`, and doesn't care about the `a`. Next, it specifies that `n < vlen v`.
+
+We could mix the syntax up a bit more to address my previous concern that it not look "too much like haskell", presuably drawing from the list of symbols that get used elsewhere, but I'm more concerned with getting this sort of "function syntax" than with what specific glyphs get used.
