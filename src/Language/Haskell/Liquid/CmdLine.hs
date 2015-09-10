@@ -71,18 +71,8 @@ import Text.PrettyPrint.HughesPJ           hiding (Mode)
 -- Config Magic Numbers----------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-defaultCores :: Int
-defaultCores = 1
-
-defaultMinPartSize :: Int
-defaultMinPartSize = 500
-
-defaultMaxPartSize :: Int
-defaultMaxPartSize = 700
-
 defaultMaxParams :: Int
 defaultMaxParams = 2
-
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
