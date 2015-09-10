@@ -135,7 +135,7 @@ config = cmdArgsMode $ Config {
     = def &= help "Check tota`lity"
 
  , cores
-    = defaultCores &= help "Use m cores to solve logical constraints"
+    = def &= help "Use m cores to solve logical constraints"
 
  , minPartSize
     = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
