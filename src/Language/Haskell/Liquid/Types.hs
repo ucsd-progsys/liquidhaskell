@@ -269,7 +269,7 @@ data Config = Config {
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , totality       :: Bool       -- ^ check totality in definitions
   , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
-  , cores          :: Int        -- ^ number of cores used to solve constraints
+  , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
   , minPartSize    :: Int        -- ^ Minimum size of a partition
   , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
   , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
