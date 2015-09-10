@@ -27,9 +27,6 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
-defaultCores :: Int
-defaultCores = 1
-
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
 
@@ -41,7 +38,7 @@ data Config
       inFile      :: FilePath         -- ^ target fq-file
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
-    , cores       :: Int              -- ^ number of cores used to solve constraints
+    , cores       :: Maybe Int        -- ^ number of cores used to solve constraints
     , minPartSize :: Int              -- ^ Minimum size of a partition
     , maxPartSize :: Int              -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver        -- ^ which SMT solver to use
@@ -60,7 +57,7 @@ instance Default Config where
   def = Config { inFile      = ""
                , outFile     = def
                , srcFile     = def
-               , cores       = defaultCores
+               , cores       = def
                , minPartSize = defaultMinPartSize
                , maxPartSize = defaultMaxPartSize
                , solver      = def
