@@ -11,6 +11,8 @@ module Language.Fixpoint.Config (
   , GenQualifierSort (..)
   , UeqAllSorts (..)
   , withTarget
+  , defaultMinPartSize
+  , defaultMaxPartSize
 ) where
 
 import           System.Console.CmdArgs
@@ -27,9 +29,6 @@ class Command a  where
 withTarget        :: Config -> FilePath -> Config
 withTarget cfg fq = cfg { inFile = fq } { outFile = fq `withExt` Out }
 
-defaultCores :: Int
-defaultCores = 1
-
 defaultMinPartSize :: Int
 defaultMinPartSize = 500
 
@@ -41,7 +40,7 @@ data Config
       inFile      :: FilePath         -- ^ target fq-file
     , outFile     :: FilePath         -- ^ output file
     , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
-    , cores       :: Int              -- ^ number of cores used to solve constraints
+    , cores       :: Maybe Int        -- ^ number of cores used to solve constraints
     , minPartSize :: Int              -- ^ Minimum size of a partition
     , maxPartSize :: Int              -- ^ Maximum size of a partition. Overrides minPartSize
     , solver      :: SMTSolver        -- ^ which SMT solver to use
@@ -60,7 +59,7 @@ instance Default Config where
   def = Config { inFile      = ""
                , outFile     = def
                , srcFile     = def
-               , cores       = defaultCores
+               , cores       = def
                , minPartSize = defaultMinPartSize
                , maxPartSize = defaultMaxPartSize
                , solver      = def
@@ -150,7 +149,7 @@ config = Config {
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
-  , cores       = defaultCores &= help "(numeric) Number of threads to use"
+  , cores       = def   &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   }
