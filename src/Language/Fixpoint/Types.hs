@@ -837,11 +837,11 @@ emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
 bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
-bindEnvFromList bs = BE (1 + nbs) be'
+bindEnvFromList [] = emptyBindEnv
+bindEnvFromList bs = BE (1 + maxId) be
   where
-    nbs            = length bs
+    maxId          = maximum $ fst3 <$> bs
     be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
-    be'            = assert (M.size be == nbs) be
 
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
@@ -916,6 +916,7 @@ data BindEnv       = BE { beSize  :: Int
                         , beBinds :: BindMap (Symbol, SortedReft)
                         }
                      deriving (Show)
+-- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred

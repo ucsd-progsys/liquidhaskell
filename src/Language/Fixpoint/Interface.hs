@@ -102,6 +102,7 @@ solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
   donePhase Loud "Uniqify"
   let fi'''  = renameVV fi''
+  writeLoud $ "fq file after renameVV: \n" ++ render (toFixpoint cfg fi''')
   fi''''     <- elim cfg fi'''
   Result stat soln <- S.solve cfg fi''''
   donePhase Loud "Solve"
