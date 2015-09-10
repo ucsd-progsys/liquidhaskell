@@ -334,7 +334,7 @@ defConfig = Config { files          = def
                    , notruetypes    = def
                    , totality       = def
                    , noPrune        = def
-                   , cores          = defaultCores
+                   , cores          = def
                    , minPartSize    = defaultMinPartSize
                    , maxPartSize    = defaultMaxPartSize
                    , maxParams      = defaultMaxParams
