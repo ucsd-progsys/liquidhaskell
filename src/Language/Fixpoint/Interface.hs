@@ -29,9 +29,10 @@ import           Data.Functor
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-
 import           System.Exit
 import           System.IO                        (IOMode (..), hPutStr, withFile)
+import           System.Console.CmdArgs.Verbosity hiding (Loud)
+import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
 import           Language.Fixpoint.Solver.Validate
@@ -41,19 +42,15 @@ import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
--- import           Language.Fixpoint.Solver.TrivialSort     (nontrivsorts)
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
-import           System.Console.CmdArgs.Verbosity hiding (Loud)
-import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Parallel
 
-
-import Debug.Trace
+import           Debug.Trace
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------

@@ -1,5 +1,7 @@
-{-# LANGUAGE PatternGuards    #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, elimKVar, findWfC) where

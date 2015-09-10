@@ -22,7 +22,7 @@ module Language.Fixpoint.Types (
     Fixpoint (..)
   , toFixpoint
   , writeFInfo
-  , FInfo (..)
+  , FInfo, GInfo (..)
 
   -- * Rendering
   , showFix
@@ -1453,17 +1453,20 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ----------------- Top-Level Constraint System --------------------------
 ------------------------------------------------------------------------
 
-data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
-                  , ws    :: ![WfC a]
-                  , bs    :: !BindEnv
-                  , gs    :: !FEnv
-                  , lits  :: ![(Symbol, Sort)]
-                  , kuts  :: Kuts
-                  , quals :: ![Qualifier]
-                  , bindInfo :: M.HashMap BindId a
-                  , fileName :: FilePath
-                  }
-               deriving (Show)
+type FInfo a = GInfo SubC a
+
+data GInfo c a = 
+  FI { cm    :: M.HashMap Integer (c a)
+     , ws    :: ![WfC a]
+     , bs    :: !BindEnv
+     , gs    :: !FEnv
+     , lits  :: ![(Symbol, Sort)]
+     , kuts  :: Kuts
+     , quals :: ![Qualifier]
+     , bindInfo :: M.HashMap BindId a
+     , fileName :: FilePath
+     }
+  deriving (Show)
 
 instance Monoid Kuts where
   mempty        = KS S.empty
