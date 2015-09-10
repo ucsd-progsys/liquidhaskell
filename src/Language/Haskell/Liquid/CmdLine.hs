@@ -71,18 +71,8 @@ import Text.PrettyPrint.HughesPJ           hiding (Mode)
 -- Config Magic Numbers----------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-defaultCores :: Int
-defaultCores = 1
-
-defaultMinPartSize :: Int
-defaultMinPartSize = 500
-
-defaultMaxPartSize :: Int
-defaultMaxPartSize = 700
-
 defaultMaxParams :: Int
 defaultMaxParams = 2
-
 
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
@@ -145,7 +135,7 @@ config = cmdArgsMode $ Config {
     = def &= help "Check tota`lity"
 
  , cores
-    = defaultCores &= help "Use m cores to solve logical constraints"
+    = def &= help "Use m cores to solve logical constraints"
 
  , minPartSize
     = defaultMinPartSize &= help "If solving on multiple cores, ensure that partitions are of at least m size"
@@ -334,7 +324,7 @@ defConfig = Config { files          = def
                    , notruetypes    = def
                    , totality       = def
                    , noPrune        = def
-                   , cores          = defaultCores
+                   , cores          = def
                    , minPartSize    = defaultMinPartSize
                    , maxPartSize    = defaultMaxPartSize
                    , maxParams      = defaultMaxParams
