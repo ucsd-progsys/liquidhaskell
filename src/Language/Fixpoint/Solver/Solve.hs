@@ -48,7 +48,7 @@ refine s w
 
 -- DEBUG
 refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"
-                      i (show $ F.cid c) (show b) (showpp w)
+                      i (show $ F.sid c) (show b) (showpp w)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -68,7 +68,7 @@ lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd $ pBinds
   where
     pBinds     = S.apply s <$> xts
-    xts        = F.envCs be $  F.cenv c
+    xts        = F.envCs be $  F.senv c
 
 rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
 rhsCands s c   = (fst <$> ks, kqs)

@@ -47,7 +47,7 @@ mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
-    ids = sort $ elemsIBindEnv $ cenv s
+    ids = sort $ elemsIBindEnv $ senv s
     nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
     m' = foldl (insertIdIdLinks be nameMap) m ids
 

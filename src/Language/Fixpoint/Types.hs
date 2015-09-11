@@ -79,9 +79,9 @@ module Language.Fixpoint.Types (
   -- * Constraints
   , WfC (..)
   , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
-  , SimpC, cid, cenv, crhs
+  , SimpC (..)
   , Tag
-  , TaggedC (..), WrappedC (..)
+  , TaggedC, WrappedC (..)
 
   -- * Accessing Constraints
   , envCs
@@ -172,6 +172,9 @@ module Language.Fixpoint.Types (
   , CPart (..)
   , MCInfo (..)
   , mcInfo
+
+  -- * FInfo to SInfo format conversion
+  , convertFormat
   ) where
 
 import           Debug.Trace               (trace)
@@ -921,44 +924,48 @@ data BindEnv       = BE { beSize  :: Int
                      deriving (Show)
 -- Invariant: All BindIds in the map are less than beSize
 
-data SubC a = SubC { senv  :: !IBindEnv
+data SubC a = SubC { _senv  :: !IBindEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , gid   :: !(Maybe Integer)
-                   , gtag  :: !Tag
-                   , ginfo :: !a
+                   , _sid   :: !(Maybe Integer)
+                   , _stag  :: !Tag
+                   , _sinfo :: !a
                    }
               deriving (Generic)
 
-data SimpC a = SimpC { cenv  :: !IBindEnv
+data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , crhs  :: !Pred
-                     , cid   :: !(Maybe Integer)
-                     , ctag  :: !Tag
-                     , cinfo :: !a
+                     , _cid   :: !(Maybe Integer)
+                     , _ctag  :: !Tag
+                     , _cinfo :: !a
                      }
               deriving (Generic)
 
 class TaggedC c a where
+  senv  :: (c a) -> IBindEnv
   sid   :: (c a) -> (Maybe Integer)
   stag  :: (c a) -> Tag
   sinfo :: (c a) -> a
 
 instance TaggedC SimpC a where
-  sid = cid
-  stag = ctag
-  sinfo = cinfo
+  senv = _cenv
+  sid = _cid
+  stag = _ctag
+  sinfo = _cinfo
 
 instance TaggedC SubC a where
-  sid = gid
-  stag = gtag
-  sinfo = ginfo
+  senv = _senv
+  sid = _sid
+  stag = _stag
+  sinfo = _sinfo
 
 data WrappedC a where 
   WrapC :: (TaggedC c a, Show (c a)) => {_x :: (c a)} -> WrappedC a
 instance Show (WrappedC a) where
   show (WrapC x) = show x
 instance TaggedC WrappedC a where
+  senv (WrapC x) = senv x
   sid (WrapC x) = sid x
   stag (WrapC x) = stag x
   sinfo (WrapC x) = sinfo x
@@ -1067,10 +1074,10 @@ instance Fixpoint a => Fixpoint (SubC a) where
 instance Fixpoint a => Fixpoint (SimpC a) where
   toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
      where bd =   -- text "env" <+> toFix (senv c)
-                  toFix (cenv c)
+                  toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
-              $+$ (pprId (cid c) <+> pprTag (ctag c))
-              $+$ toFixMeta (text "simpleConstraint" <+> pprId (cid c)) (toFix (cinfo c))
+              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 
 instance Fixpoint a => Fixpoint (WfC a) where
@@ -1462,7 +1469,7 @@ shiftVV r@(Reft (v, ras)) v'
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {gid = Just i})) [1..]
+addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
@@ -1545,7 +1552,7 @@ instance Monoid (GInfo c a) where
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc --XXTAG
+toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
                   $++$ gsDoc    x'
@@ -1569,7 +1576,7 @@ toFixpoint cfg x' =    qualsDoc x'
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
-writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO () --XXTAG
+writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
 
 -------------------------------------------------------------------------
@@ -1673,7 +1680,7 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
-symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)] --XXTAG
+symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
 symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
@@ -1895,3 +1902,31 @@ mcInfo c = do
                  , mcMinPartSize = minPartSize c
                  , mcMaxPartSize = maxPartSize c
                  }
+
+---------------------------------------------------------------------------
+-- | FInfo to SInfo conversion
+---------------------------------------------------------------------------
+convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
+---------------------------------------------------------------------------
+convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
+  where
+    fi' = foldl blowOutVV fi (M.keys $ cm fi)
+
+subcToSimpc :: SubC a -> SimpC a
+subcToSimpc s = SimpC 
+  { _cenv  = senv s
+  , crhs  = reftPred $ sr_reft $ srhs s
+  , _cid   = sid s
+  , _ctag  = stag s
+  , _cinfo = sinfo s
+  }
+
+blowOutVV :: FInfo a -> Integer -> FInfo a
+blowOutVV fi subcId = fi { bs = be', cm = cm' }
+  where
+    subc = cm fi M.! subcId
+    sr   = slhs subc
+    x    = reftBind $ sr_reft sr
+    (bindId, be') = insertBindEnv x sr $ bs fi
+    subc' = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
+    cm' = M.insert subcId subc' $ cm fi

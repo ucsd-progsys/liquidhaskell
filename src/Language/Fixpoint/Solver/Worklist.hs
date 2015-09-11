@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (envKVars', kvars)
+import           Language.Fixpoint.Visitor (envKVars, kvars)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
@@ -61,7 +61,7 @@ push c w = w {wCs = sAdds (wCs w) js}
     js   = {- tracepp ("PUSH: id = " ++ show i) $ -} wDeps w i
 
 sid'    :: F.SimpC a -> Integer
-sid' c  = fromMaybe err $ F.cid c
+sid' c  = fromMaybe err $ F.sid c
   where
     err = errorstar "sid': SimpC without id"
 
@@ -115,13 +115,13 @@ succs :: M.HashMap CId (F.SimpC a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
     ci          = getC cm i
-    iKs         = kvars $ F.crhs ci --XXTAG
+    iKs         = kvars $ F.crhs ci
     kvReads k   = M.lookupDefault [] k rdBy
 
 kvReadBy :: F.SInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
                              , k       <- {- tracepp ("lhsKVS: " ++ show i) $ -}
-                                          envKVars' bs ci] --XXTAG
+                                          envKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi

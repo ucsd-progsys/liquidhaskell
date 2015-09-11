@@ -99,25 +99,20 @@ solveNativeWithFInfo cfg fi = do
   let Right si' = validate cfg si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
-  let si''   = renameAll si'
+  let si''  = renameAll si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
-  let si'''  = si'' --renameVV si'' --XXTAG TODO
-  writeLoud $ "fq file after renameVV: \n" ++ render (toFixpoint cfg si''')
-  si''''     <- return si''' --elim cfg si''' --XXTAG TODO
-  Result stat soln <- S.solve cfg si''''
+  si'''     <- elim cfg si''
+  Result stat soln <- S.solve cfg si'''
   donePhase Loud "Solve"
-  let stat' = stat
+  let stat' = sid <$> stat
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC <$> stat) soln
 
-convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
-convertFormat = undefined
 
-
-elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
+elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
                        whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
@@ -177,7 +172,7 @@ realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
 
-exitFq :: (Fixpoint a) => FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a) --XXTAG added ctx
+exitFq :: (Fixpoint a) => FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
 exitFq _ _ (ExitFailure n) | n /= 1
   = return $ Result (Crash [] "Unknown Error") M.empty
 exitFq fn z _
