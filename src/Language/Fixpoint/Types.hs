@@ -187,6 +187,7 @@ import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Traversable
+import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq
 import           Control.Exception         (assert)
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
@@ -323,7 +324,7 @@ propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
 isListTC :: FTycon -> Bool
-isListTC (TC (Loc _ _ c)) = c == listConName
+isListTC (TC (Loc _ _ c)) = c == listConName || c == "List"
 isTupTC  (TC (Loc _ _ c)) = c == tupConName
 
 fTyconSymbol :: FTycon -> Located Symbol
@@ -1832,8 +1833,11 @@ data MCInfo = MCInfo { mcCores :: Int
                      , mcMaxPartSize :: Int
                      } deriving (Show)
 
-mcInfo :: Config -> MCInfo
-mcInfo c = MCInfo { mcCores = cores c
-                  , mcMinPartSize = minPartSize c
-                  , mcMaxPartSize = maxPartSize c
-                  }
+mcInfo :: Config -> IO MCInfo
+mcInfo c = do
+   np <- getNumProcessors
+   let nc = fromMaybe np (cores c)
+   return MCInfo { mcCores = nc
+                 , mcMinPartSize = minPartSize c
+                 , mcMaxPartSize = maxPartSize c
+                 }

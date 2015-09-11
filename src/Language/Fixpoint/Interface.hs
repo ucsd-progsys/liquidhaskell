@@ -66,7 +66,7 @@ solveFQ cfg
   | otherwise     = solveFile cfg
 
 multicore :: Config -> Bool
-multicore cfg = cores cfg > 1
+multicore cfg = cores cfg /= Just 1
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
@@ -96,6 +96,7 @@ solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   let Right fi' = validate cfg fi
+  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg fi')
   donePhase Loud "Validated Constraints"
   let fi''   = renameAll fi'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
@@ -134,7 +135,8 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 --   calls solveExt on each in parallel
 solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
-   let (_, fis) = partition' (Just (mcInfo c)) fi
+   mci <- mcInfo c
+   let (_, fis) = partition' (Just mci) fi
    writeLoud $ "Number of partitions: " ++ show (length fis)
    writeLoud $ "number of cores: " ++ show (cores c)
    writeLoud $ "minimum part size: " ++ show (minPartSize c)
@@ -143,7 +145,6 @@ solvePar c fi = do
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
       _ -> inParallelUsing fis (solveExt c)
-
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
