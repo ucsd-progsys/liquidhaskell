@@ -324,7 +324,7 @@ propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
 isListTC :: FTycon -> Bool
-isListTC (TC (Loc _ _ c)) = c == listConName
+isListTC (TC (Loc _ _ c)) = c == listConName || c == "List"
 isTupTC  (TC (Loc _ _ c)) = c == tupConName
 
 fTyconSymbol :: FTycon -> Located Symbol

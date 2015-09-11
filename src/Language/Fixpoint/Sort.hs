@@ -346,6 +346,8 @@ unify1 θ (FVar i) t         = unifyVar θ i t
 unify1 θ t (FVar i)         = unifyVar θ i t
 unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
+unify1 θ (FTC l1) (FTC l2) 
+  | isListTC l1 && isListTC l2 = return θ 
 unify1 θ t1 t2
   | t1 == t2                = return θ
   | otherwise               = throwError $ errUnify t1 t2
@@ -359,6 +361,7 @@ unifyVar θ i t@(FVar j)
 
 unifyVar θ i t
   = case lookupVar i θ of
+      Just (FVar j) -> return $ updateVar i t $ updateVar j t θ 
       Just t'       -> if t == t' then return θ else throwError (errUnify t t')
       Nothing       -> return $ updateVar i t θ
 
