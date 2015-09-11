@@ -60,7 +60,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
-                     ++ checkQualifiers                            (qualifiers sp)
+                     ++ checkQualifiers env                        (qualifiers sp)
                      ++ checkDuplicate                             (asmSigs sp)
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
@@ -82,8 +82,13 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     sigs             =  tySigs sp ++ asmSigs sp
 
 
-checkQualifiers :: [Qualifier] -> [Error]
-checkQualifiers _ = []
+checkQualifiers      :: SEnv SortedReft -> [Qualifier] -> [Error]
+checkQualifiers env  = catMaybes . map (checkQualifier env)
+
+checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
+checkQualifier env q =  mkE <$> checkSortFull γ propSort  (q_body q)
+  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q)
+        mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
 
 checkRefinedClasses :: [RClass BareType] -> [RInstance BareType] -> [Error]
 checkRefinedClasses definitions instances
