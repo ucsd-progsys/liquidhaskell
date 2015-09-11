@@ -60,6 +60,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
+                     ++ checkQualifiers                            (qualifiers sp)
                      ++ checkDuplicate                             (asmSigs sp)
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
@@ -79,6 +80,10 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     tcEnv            =  tyconEnv sp
     ms               =  measures sp
     sigs             =  tySigs sp ++ asmSigs sp
+
+
+checkQualifiers :: [Qualifier] -> [Error]
+checkQualifiers _ = []
 
 checkRefinedClasses :: [RClass BareType] -> [RInstance BareType] -> [Error]
 checkRefinedClasses definitions instances
