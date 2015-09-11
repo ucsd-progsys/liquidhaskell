@@ -21,14 +21,14 @@ import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
 
 ---------------------------------------------------------------------------
-solve :: Config -> F.FInfo a -> IO (F.Result a)
+solve :: Config -> F.SInfo a -> IO (F.Result F.SimpC a)
 ---------------------------------------------------------------------------
 solve cfg fi'  = runSolverM cfg fi' $ solve_ cfg fi'
   -- where
   --   Right fi' = validate cfg fi
 
 ---------------------------------------------------------------------------
-solve_ :: Config -> F.FInfo a -> SolveM (F.Result a)
+solve_ :: Config -> F.SInfo a -> SolveM (F.Result F.SimpC a)
 ---------------------------------------------------------------------------
 solve_ cfg fi = refine s0 wkl >>= result fi
   where
@@ -48,12 +48,12 @@ refine s w
 
 -- DEBUG
 refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"
-                      i (show $ F.sid c) (show b) (showpp w)
+                      i (show $ F.cid c) (show b) (showpp w)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: Int -> S.Solution -> F.SubC a -> SolveM (Bool, S.Solution)
+refineC :: Int -> S.Solution -> F.SimpC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
@@ -64,19 +64,17 @@ refineC _i s c
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
-lhsPred :: S.Solution -> F.SubC a -> F.BindEnv -> F.Pred
-lhsPred s c be = F.pAnd $ pGrd : pLhs : pBinds
+lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Pred
+lhsPred s c be = F.pAnd $ pBinds
   where
-    pGrd       = F.sgrd c
-    pLhs       = S.apply s  $  F.lhsCs c
     pBinds     = S.apply s <$> xts
-    xts        = F.envCs be $  F.senv c
+    xts        = F.envCs be $  F.cenv c
 
-rhsCands :: S.Solution -> F.SubC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
+rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
   where
     kqs        = [ cnd k su q | (k, su) <- ks, q <- S.lookup s k]
-    ks         = predKs . F.reftPred . F.rhsCs $ c
+    ks         = predKs . F.crhs $ c
     cnd k su q = (F.subst su (S.eqPred q), (k, q))
 
 predKs :: F.Pred -> [(F.KVar, F.Subst)]
@@ -87,14 +85,14 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: F.FInfo a -> S.Solution -> SolveM (F.Result a)
+result :: F.SInfo a -> S.Solution -> SolveM (F.Result F.SimpC a)
 ---------------------------------------------------------------------------
 result fi s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ fi s
   return   $ F.Result stat sol
 
-result_ :: F.FInfo a -> S.Solution -> SolveM (F.FixResult (F.SubC a))
+result_ :: F.SInfo a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi s = res <$> filterM (isUnsat s) cs
   where
     cs       = M.elems $ F.cm fi
@@ -102,7 +100,7 @@ result_ fi s = res <$> filterM (isUnsat s) cs
     res cs'  = F.Unsafe cs'
 
 ---------------------------------------------------------------------------
-isUnsat :: S.Solution -> F.SubC a -> SolveM Bool
+isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
   lp    <- lhsPred s c <$> getBinds
@@ -112,5 +110,5 @@ isUnsat s c = do
 isValid :: F.Pred -> F.Pred -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
 
-rhsPred :: S.Solution -> F.SubC a -> F.Pred
-rhsPred s c = S.apply s $ F.rhsCs c
+rhsPred :: S.Solution -> F.SimpC a -> F.Pred
+rhsPred s c = S.apply s $ F.crhs c

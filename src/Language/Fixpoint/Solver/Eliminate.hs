@@ -36,10 +36,13 @@ instance Elimable (SubC a) where
                    , srhs = elimKVar f (srhs x)
                    }
 
+instance Elimable (SimpC a) where
+  elimKVar f x = x { crhs = mapKVars' f (crhs x) }
+
 instance Elimable SortedReft where
   elimKVar f x = x { sr_reft = mapKVars' f (sr_reft x) }
 
-instance Elimable (FInfo a) where
+instance (Elimable (c a)) => Elimable (GInfo c a) where
   elimKVar f x = x { cm = M.map (elimKVar f) (cm x)
                    , bs = elimKVar f (bs x)
                    }

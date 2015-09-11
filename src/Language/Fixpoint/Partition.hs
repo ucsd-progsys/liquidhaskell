@@ -27,7 +27,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.Applicative              ((<$>))
 #endif
 
-partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
+partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result F.WrappedC a)
 partition cfg fi
   = do dumpPartitions cfg fis
        dumpEdges      cfg es

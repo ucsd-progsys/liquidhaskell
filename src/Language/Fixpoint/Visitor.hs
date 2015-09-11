@@ -17,7 +17,7 @@ module Language.Fixpoint.Visitor (
 
   -- * Clients
   , kvars
-  , envKVars
+  , envKVars, envKVars'
   , mapKVars, mapKVars'
   , lhsKVars, rhsKVars
 
@@ -179,6 +179,11 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
     squish = S.toList  . S.fromList . concat
     kvs    = kvars . sr_reft
 
+envKVars' :: BindEnv -> SimpC a -> [KVar]
+envKVars' be c = squish [ kvs sr |  (_, sr) <- envCs be (cenv c)]
+  where
+    squish = S.toList  . S.fromList . concat
+    kvs    = kvars . sr_reft
 
 lhsKVars :: BindEnv -> SubC a -> [KVar]
 lhsKVars binds c = envKVs ++ lhsKVs

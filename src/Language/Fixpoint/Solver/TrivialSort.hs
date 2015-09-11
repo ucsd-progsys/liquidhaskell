@@ -21,7 +21,7 @@ import           Debug.Trace
 import           Language.Fixpoint.PrettyPrint
 
 -------------------------------------------------------------------------
-nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result SubC a)
 -------------------------------------------------------------------------
 nontrivsorts cfg fi = do
   let fi' = simplify' cfg fi

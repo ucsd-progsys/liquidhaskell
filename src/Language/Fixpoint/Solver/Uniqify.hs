@@ -18,7 +18,7 @@ import           Control.Monad.State     (evalState, State, state)
 import           Control.Arrow           (second)
 
 --------------------------------------------------------------
-renameAll    :: FInfo a -> FInfo a
+renameAll    :: SInfo a -> SInfo a
 renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
   where
     ids      = map fst3 $ bindEnvToList $ bs fi
@@ -41,17 +41,17 @@ invertMap m = M.fromListWith S.union entries
 toListExtended :: [BindId] -> M.HashMap BindId (S.HashSet Ref) -> [(BindId, S.HashSet Ref)]
 toListExtended ids m = [(id, M.lookupDefault S.empty id m) | id <- ids]
 
-mkIdMap :: FInfo a -> IdMap
+mkIdMap :: SInfo a -> IdMap
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
-updateIdMap :: BindEnv -> IdMap -> Integer -> SubC a -> IdMap
-updateIdMap be m subcId s = M.insertWith S.union (RI subcId) refSet m'
+updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
+updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
-    ids = sort $ elemsIBindEnv $ senv s
+    ids = sort $ elemsIBindEnv $ cenv s
     nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
     m' = foldl (insertIdIdLinks be nameMap) m ids
 
-    symList = (freeVars $ sr_reft $ slhs s) ++ (freeVars $ sr_reft $ srhs s)
+    symList = syms $ crhs s
     refSet = S.fromList $ namesToIds symList nameMap
 
 insertIdIdLinks :: BindEnv -> NameMap -> IdMap -> BindId -> IdMap
@@ -68,25 +68,25 @@ freeVars :: Reft -> [Symbol]
 freeVars reft@(Reft (v, _)) = syms reft \\ [v]
 
 
-renameVars :: FInfo a -> [(BindId, S.HashSet Ref)] -> FInfo a
+renameVars :: SInfo a -> [(BindId, S.HashSet Ref)] -> SInfo a
 renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
 
-renameVarIfSeen :: FInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (FInfo a)
+renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
 renameVarIfSeen fi x@(id, _) = state (\m ->
   let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
   if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m)) --insertIfNotConstant fi sym srt m))
 
 ----TODO: only valid if the binding has no kvars and is of the same sort
 ---- as the constant. Should that be checked here, or in Validate?
---insertIfNotConstant :: FInfo a -> Symbol -> Sort -> M.HashMap Symbol Sort -> M.HashMap Symbol Sort
+--insertIfNotConstant :: SInfo a -> Symbol -> Sort -> M.HashMap Symbol Sort -> M.HashMap Symbol Sort
 --insertIfNotConstant fi sym srt m | sym `elem` (fst <$> finfoDefs fi) = m
 --                                 | otherwise                         = M.insert sym srt m
 
-handleSeenVar :: FInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (FInfo a, (M.HashMap Symbol Sort))
+handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (SInfo a, (M.HashMap Symbol Sort))
 handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
                              | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
-renameVar :: FInfo a -> (BindId, S.HashSet Ref) -> FInfo a
+renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
 renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
   where
     sym = fst $ lookupBindEnv id (bs fi)
@@ -96,14 +96,13 @@ renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: opt
     fi' = fi { bs = adjustBindEnv (go sub) id (bs fi) }
     fi'' = S.foldl' (applySub sub) fi' refs
 
-applySub :: (Symbol, Expr) -> FInfo a -> Ref -> FInfo a
+applySub :: (Symbol, Expr) -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB id) = fi { bs = adjustBindEnv go id (bs fi) }
   where go (sym, sr) = (sym, subst1 sr sub)
 applySub sub fi (RI id) = fi { cm = M.adjust go id (cm fi) }
-  where go c = c { slhs = subst1 (slhs c) sub ,
-                   srhs = subst1 (srhs c) sub }
+  where go c = c { crhs = subst1 (crhs c) sub }
 
-updateKVars :: FInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
+updateKVars :: SInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
 updateKVars fi id oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where

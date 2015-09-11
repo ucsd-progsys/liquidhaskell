@@ -34,6 +34,7 @@ import           System.IO                        (IOMode (..), hPutStr, withFil
 import           System.Console.CmdArgs.Verbosity hiding (Loud)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+import           Control.Monad (liftM)
 
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
@@ -68,7 +69,7 @@ multicore cfg = cores cfg /= Just 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
 solve cfg
   | parts cfg     = partition cfg
   | stats cfg     = statistics cfg
@@ -79,7 +80,7 @@ solve cfg
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
+solveWith :: Config -> (FInfo () -> IO (Result c ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
@@ -88,28 +89,32 @@ solveWith cfg s = exit (ExitFailure 2) $ do
   res      <- s fi'
   return    $ resultExit (resStatus res)
 
-solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let Right fi' = validate cfg fi
-  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg fi')
+  let si = convertFormat fi
+  writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
+  donePhase Loud "Format Conversion"
+  let Right si' = validate cfg si
+  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
-  let fi''   = renameAll fi'
-  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
+  let si''   = renameAll si'
+  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
-  let fi'''  = renameVV fi''
-  writeLoud $ "fq file after renameVV: \n" ++ render (toFixpoint cfg fi''')
-  fi''''     <- elim cfg fi'''
-  Result stat soln <- S.solve cfg fi''''
+  let si'''  = si'' --renameVV si'' --XXTAG TODO
+  writeLoud $ "fq file after renameVV: \n" ++ render (toFixpoint cfg si''')
+  si''''     <- return si''' --elim cfg si''' --XXTAG TODO
+  Result stat soln <- S.solve cfg si''''
   donePhase Loud "Solve"
-  let stat' = sid <$> stat
+  let stat' = stat
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result stat soln
+  return    $ Result (WrapC <$> stat) soln
 
-
+convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
+convertFormat = undefined
 
 
 elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
@@ -123,7 +128,7 @@ elim cfg fi
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
 ---------------------------------------------------------------------------
-solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
@@ -131,7 +136,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 
 -- | Partitions an FInfo into 1 or more independent parts, then
 --   calls solveExt on each in parallel
-solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
 solvePar c fi = do
    mci <- mcInfo c
    let (_, fis) = partition' (Just mci) fi
@@ -172,14 +177,14 @@ realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
 
-exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
+exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result WrappedC a)
 exitFq _ _ (ExitFailure n) | n /= 1
   = return $ Result (Crash [] "Unknown Error") M.empty
 exitFq fn z _
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = parseFixpointOutput str
        let x'     = fmap (mlookup z) x
-       return     $ Result x' y
+       return     $ Result (WrapC <$> x') y
 
 parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
 parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)

@@ -96,7 +96,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
-init :: Config -> F.FInfo a -> Solution
+init :: Config -> F.GInfo c a -> Solution
 --------------------------------------------------------------------
 init _ fi = tracepp "init solution" s
   where
@@ -106,7 +106,7 @@ init _ fi = tracepp "init solution" s
     ws    = F.ws    fi
 
 --------------------------------------------------------------------
-refine :: F.FInfo a
+refine :: F.GInfo c a
        -> [F.Qualifier]
        -> Solution
        -> F.WfC a

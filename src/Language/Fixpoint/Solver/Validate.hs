@@ -29,7 +29,7 @@ import           Text.Printf
 type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
-validate :: Config -> F.FInfo a -> ValidateM (F.FInfo a)
+validate :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
            . dropFuncSortedShadowedBinders
@@ -39,7 +39,7 @@ validate _ = Right
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
 ---------------------------------------------------------------------------
-symbolSorts :: F.FInfo a -> ValidateM [(F.Symbol, F.Sort)]
+symbolSorts :: F.GInfo c a -> ValidateM [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
 symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
@@ -47,7 +47,7 @@ symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
     dm         = M.fromList defs
     defs       = finfoDefs fi
 
-finfoDefs :: F.FInfo a -> [(F.Symbol, F.Sort)]
+finfoDefs :: F.GInfo c a -> [(F.Symbol, F.Sort)]
 finfoDefs fi = {- THIS KILLS ELIM: tracepp "defs" $ -} lits ++ consts
   where
     lits     = F.lits fi
@@ -71,7 +71,7 @@ compact xts
     binds     = M.toList . M.map Misc.sortNub . Misc.group
 
 ---------------------------------------------------------------------------
-bindSorts  :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
+bindSorts  :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
 bindSorts fi
   | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
@@ -126,7 +126,7 @@ subcVV c = (x, sr)
 ---------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
 ---------------------------------------------------------------------------
-dropFuncSortedShadowedBinders :: F.FInfo a -> F.FInfo a
+dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
@@ -136,14 +136,14 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
 ---------------------------------------------------------------------------
 -- | Drop Higher-Order Binders and Constants from Environment
 ---------------------------------------------------------------------------
-dropHigherOrderBinders :: F.FInfo a -> F.FInfo a
+dropHigherOrderBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
 ---------------------------------------------------------------------------
-dropBinders :: KeepBindF -> KeepSortF -> F.FInfo a -> F.FInfo a
+dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
   where
@@ -156,8 +156,8 @@ dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
 type KeepBindF = F.Symbol -> F.Sort -> Bool
 type KeepSortF = F.Sort -> Bool
 
-deleteSubCBinds :: [F.BindId] -> F.SubC a -> F.SubC a
-deleteSubCBinds bs sc = sc { F.senv = foldr F.deleteIBindEnv (F.senv sc) bs }
+deleteSubCBinds :: [F.BindId] -> F.SimpC a -> F.SimpC a
+deleteSubCBinds bs sc = sc { F.cenv = foldr F.deleteIBindEnv (F.cenv sc) bs }
 
 deleteWfCBinds :: [F.BindId] -> F.WfC a -> F.WfC a
 deleteWfCBinds bs wf = wf { F.wenv = foldr F.deleteIBindEnv (F.wenv wf) bs }

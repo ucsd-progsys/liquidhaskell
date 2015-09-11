@@ -8,6 +8,8 @@
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE GADTs                      #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -22,7 +24,7 @@ module Language.Fixpoint.Types (
     Fixpoint (..)
   , toFixpoint
   , writeFInfo
-  , FInfo, GInfo (..)
+  , FInfo, SInfo, GInfo (..)
 
   -- * Rendering
   , showFix
@@ -77,7 +79,9 @@ module Language.Fixpoint.Types (
   -- * Constraints
   , WfC (..)
   , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SimpC, cid, cenv, crhs
   , Tag
+  , TaggedC (..), WrappedC (..)
 
   -- * Accessing Constraints
   , envCs
@@ -189,7 +193,6 @@ import qualified Data.Text                 as T
 import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq
-import           Control.Exception         (assert)
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
@@ -922,11 +925,41 @@ data SubC a = SubC { senv  :: !IBindEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , sid   :: !(Maybe Integer)
-                   , stag  :: !Tag
-                   , sinfo :: !a
+                   , gid   :: !(Maybe Integer)
+                   , gtag  :: !Tag
+                   , ginfo :: !a
                    }
               deriving (Generic)
+
+data SimpC a = SimpC { cenv  :: !IBindEnv
+                     , crhs  :: !Pred
+                     , cid   :: !(Maybe Integer)
+                     , ctag  :: !Tag
+                     , cinfo :: !a
+                     }
+              deriving (Generic)
+
+class TaggedC c a where
+  sid   :: (c a) -> (Maybe Integer)
+  stag  :: (c a) -> Tag
+  sinfo :: (c a) -> a
+
+instance TaggedC SimpC a where
+  sid = cid
+  stag = ctag
+  sinfo = cinfo
+
+instance TaggedC SubC a where
+  sid = gid
+  stag = gtag
+  sinfo = ginfo
+
+data WrappedC a where 
+  WrapC :: (TaggedC c a) => {_x :: (c a)} -> WrappedC a
+instance TaggedC WrappedC a where
+  sid (WrapC x) = sid x
+  stag (WrapC x) = stag x
+  sinfo (WrapC x) = sinfo x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
@@ -941,12 +974,15 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-data Result a = Result { resStatus   :: FixResult (SubC a)
-                       , resSolution :: M.HashMap KVar Pred }
-                deriving (Show)
+data Result c a where
+  Result :: (TaggedC c a) =>
+    { resStatus   :: FixResult (c a)
+    , resSolution :: M.HashMap KVar Pred
+    } -> Result c a
+  --deriving (Show)
 ---------------------------------------------------------------------------
 
-instance Monoid (Result a) where
+instance (TaggedC c a) => Monoid (Result c a) where
   mempty        = Result mempty mempty
   mappend r1 r2 = Result stat soln
     where
@@ -1013,6 +1049,9 @@ instance Fixpoint a => Show (WfC a) where
 instance Fixpoint a => Show (SubC a) where
   show = showFix
 
+instance Fixpoint a => Show (SimpC a) where
+  show = showFix
+
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids
 
@@ -1025,6 +1064,14 @@ instance Fixpoint a => Fixpoint (SubC a) where
               $+$ text "rhs" <+> toFix (srhs c)
               $+$ (pprId (sid c) <+> pprTag (stag c))
               $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
+
+instance Fixpoint a => Fixpoint (SimpC a) where
+  toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
+     where bd =   -- text "env" <+> toFix (senv c)
+                  toFix (cenv c)
+              $+$ text "rhs" <+> toFix (crhs c)
+              $+$ (pprId (cid c) <+> pprTag (ctag c))
+              $+$ toFixMeta (text "simpleConstraint" <+> pprId (cid c)) (toFix (cinfo c))
 
 
 instance Fixpoint a => Fixpoint (WfC a) where
@@ -1416,7 +1463,7 @@ shiftVV r@(Reft (v, ras)) v'
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+addIds = zipWith (\i c -> (i, shiftId i $ c {gid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
@@ -1454,6 +1501,7 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ------------------------------------------------------------------------
 
 type FInfo a = GInfo SubC a
+type SInfo a = GInfo SimpC a
 
 data GInfo c a = 
   FI { cm    :: M.HashMap Integer (c a)
@@ -1482,7 +1530,7 @@ instance Monoid BindEnv where
   mappend b (BE 0 _) = b
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
-instance Monoid (FInfo a) where
+instance Monoid (GInfo c a) where
   mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
@@ -1498,7 +1546,7 @@ instance Monoid (FInfo a) where
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
+toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc --XXTAG
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
                   $++$ gsDoc    x'
@@ -1522,7 +1570,7 @@ toFixpoint cfg x' =    qualsDoc x'
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
-writeFInfo :: (Fixpoint a) => Config -> FInfo a -> FilePath -> IO ()
+writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO () --XXTAG
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
 
 -------------------------------------------------------------------------
@@ -1626,7 +1674,7 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
-symConstLits    :: FInfo a -> [(Symbol, Sort)]
+symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)] --XXTAG
 symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
@@ -1651,7 +1699,7 @@ litPrefix    = "lit" `T.snoc` symSepName
 class SymConsts a where
   symConsts :: a -> [SymConst]
 
-instance SymConsts (FInfo a) where
+instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
       csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
@@ -1663,6 +1711,9 @@ instance SymConsts (SubC a) where
   symConsts c  = symConsts (sgrd c) ++
                  symConsts (slhs c) ++
                  symConsts (srhs c)
+
+instance SymConsts (SimpC a) where
+  symConsts c  = symConsts (crhs c)
 
 instance SymConsts SortedReft where
   symConsts = symConsts . sr_reft
