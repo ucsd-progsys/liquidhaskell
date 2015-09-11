@@ -87,7 +87,7 @@ checkQualifiers env  = catMaybes . map (checkQualifier env)
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull γ propSort  (q_body q)
-  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q)
+  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
 
 checkRefinedClasses :: [RClass BareType] -> [RInstance BareType] -> [Error]
