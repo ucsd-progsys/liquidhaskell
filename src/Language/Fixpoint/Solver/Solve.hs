@@ -21,14 +21,14 @@ import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
 
 ---------------------------------------------------------------------------
-solve :: Config -> F.SInfo a -> IO (F.Result F.SimpC a)
+solve :: (F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg fi'  = runSolverM cfg fi' $ solve_ cfg fi'
   -- where
   --   Right fi' = validate cfg fi
 
 ---------------------------------------------------------------------------
-solve_ :: Config -> F.SInfo a -> SolveM (F.Result F.SimpC a)
+solve_ :: (F.Fixpoint a) => Config -> F.SInfo a -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 solve_ cfg fi = refine s0 wkl >>= result fi
   where
@@ -85,12 +85,12 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: F.SInfo a -> S.Solution -> SolveM (F.Result F.SimpC a)
+result :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result fi s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ fi s
-  return   $ F.Result stat sol
+  return   $ F.Result (F.WrapC <$> stat) sol
 
 result_ :: F.SInfo a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi s = res <$> filterM (isUnsat s) cs

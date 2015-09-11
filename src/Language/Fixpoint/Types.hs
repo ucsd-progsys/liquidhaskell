@@ -955,7 +955,9 @@ instance TaggedC SubC a where
   sinfo = ginfo
 
 data WrappedC a where 
-  WrapC :: (TaggedC c a) => {_x :: (c a)} -> WrappedC a
+  WrapC :: (TaggedC c a, Show (c a)) => {_x :: (c a)} -> WrappedC a
+instance Show (WrappedC a) where
+  show (WrapC x) = show x
 instance TaggedC WrappedC a where
   sid (WrapC x) = sid x
   stag (WrapC x) = stag x
@@ -974,15 +976,12 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-data Result c a where
-  Result :: (TaggedC c a) =>
-    { resStatus   :: FixResult (c a)
-    , resSolution :: M.HashMap KVar Pred
-    } -> Result c a
-  --deriving (Show)
+data Result a = Result { resStatus   :: FixResult (WrappedC a)
+                       , resSolution :: M.HashMap KVar Pred }
+                deriving (Show)
 ---------------------------------------------------------------------------
 
-instance (TaggedC c a) => Monoid (Result c a) where
+instance Monoid (Result a) where
   mempty        = Result mempty mempty
   mappend r1 r2 = Result stat soln
     where

@@ -69,7 +69,7 @@ multicore cfg = cores cfg /= Just 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
+solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | parts cfg     = partition cfg
   | stats cfg     = statistics cfg
@@ -80,7 +80,7 @@ solve cfg
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
-solveWith :: Config -> (FInfo () -> IO (Result c ())) -> IO ExitCode
+solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
@@ -89,7 +89,7 @@ solveWith cfg s = exit (ExitFailure 2) $ do
   res      <- s fi'
   return    $ resultExit (resStatus res)
 
-solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
+solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
@@ -128,7 +128,7 @@ elim cfg fi
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
 ---------------------------------------------------------------------------
-solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
+solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
@@ -136,7 +136,7 @@ solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
 
 -- | Partitions an FInfo into 1 or more independent parts, then
 --   calls solveExt on each in parallel
-solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result WrappedC a)
+solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solvePar c fi = do
    mci <- mcInfo c
    let (_, fis) = partition' (Just mci) fi
@@ -177,7 +177,7 @@ realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
 
-exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result WrappedC a)
+exitFq :: (Fixpoint a) => FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a) --XXTAG added ctx
 exitFq _ _ (ExitFailure n) | n /= 1
   = return $ Result (Crash [] "Unknown Error") M.empty
 exitFq fn z _

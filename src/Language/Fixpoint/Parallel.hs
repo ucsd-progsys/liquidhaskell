@@ -28,7 +28,7 @@ import Data.Monoid
 #endif
 
 -- | Throw an UnknownError exception
-unknownError :: (TaggedC c a) => String -> Result c a
+unknownError :: String -> Result a
 unknownError e = Result (UnknownError e) mempty
 
 #if __GLASGOW_HASKELL__ < 710
@@ -37,9 +37,9 @@ displayException = show
 #endif
 
 -- | Solve a list of FInfos using the provided solver function in parallel
-inParallelUsing :: (TaggedC c a) => [FInfo a] -- ^ To solve in parallel
-                   -> (FInfo a -> IO (Result c a)) -- ^ The solver function
-                   -> IO (Result c a) -- ^ The combined results
+inParallelUsing :: [FInfo a] -- ^ To solve in parallel
+                   -> (FInfo a -> IO (Result a)) -- ^ The solver function
+                   -> IO (Result a) -- ^ The combined results
 inParallelUsing finfos a = do
    setNumCapabilities (length finfos)
    fw <- newChan
