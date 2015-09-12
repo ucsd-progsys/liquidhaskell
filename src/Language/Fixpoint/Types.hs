@@ -8,6 +8,8 @@
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE GADTs                      #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -22,7 +24,7 @@ module Language.Fixpoint.Types (
     Fixpoint (..)
   , toFixpoint
   , writeFInfo
-  , FInfo (..)
+  , FInfo, SInfo, GInfo (..)
 
   -- * Rendering
   , showFix
@@ -77,7 +79,9 @@ module Language.Fixpoint.Types (
   -- * Constraints
   , WfC (..)
   , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SimpC (..)
   , Tag
+  , TaggedC, WrappedC (..)
 
   -- * Accessing Constraints
   , envCs
@@ -168,6 +172,9 @@ module Language.Fixpoint.Types (
   , CPart (..)
   , MCInfo (..)
   , mcInfo
+
+  -- * FInfo to SInfo format conversion
+  , convertFormat
   ) where
 
 import           Debug.Trace               (trace)
@@ -189,7 +196,6 @@ import qualified Data.Text                 as T
 import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq
-import           Control.Exception         (assert)
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
@@ -837,11 +843,11 @@ emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
 
 bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
-bindEnvFromList bs = BE (1 + nbs) be'
+bindEnvFromList [] = emptyBindEnv
+bindEnvFromList bs = BE (1 + maxId) be
   where
-    nbs            = length bs
+    maxId          = maximum $ fst3 <$> bs
     be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
-    be'            = assert (M.size be == nbs) be
 
 bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
 bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
@@ -916,16 +922,53 @@ data BindEnv       = BE { beSize  :: Int
                         , beBinds :: BindMap (Symbol, SortedReft)
                         }
                      deriving (Show)
+-- Invariant: All BindIds in the map are less than beSize
 
-data SubC a = SubC { senv  :: !IBindEnv
+data SubC a = SubC { _senv  :: !IBindEnv
                    , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , sid   :: !(Maybe Integer)
-                   , stag  :: !Tag
-                   , sinfo :: !a
+                   , _sid   :: !(Maybe Integer)
+                   , _stag  :: !Tag
+                   , _sinfo :: !a
                    }
               deriving (Generic)
+
+data SimpC a = SimpC { _cenv  :: !IBindEnv
+                     , crhs  :: !Pred
+                     , _cid   :: !(Maybe Integer)
+                     , _ctag  :: !Tag
+                     , _cinfo :: !a
+                     }
+              deriving (Generic)
+
+class TaggedC c a where
+  senv  :: (c a) -> IBindEnv
+  sid   :: (c a) -> (Maybe Integer)
+  stag  :: (c a) -> Tag
+  sinfo :: (c a) -> a
+
+instance TaggedC SimpC a where
+  senv = _cenv
+  sid = _cid
+  stag = _ctag
+  sinfo = _cinfo
+
+instance TaggedC SubC a where
+  senv = _senv
+  sid = _sid
+  stag = _stag
+  sinfo = _sinfo
+
+data WrappedC a where 
+  WrapC :: (TaggedC c a, Show (c a)) => {_x :: (c a)} -> WrappedC a
+instance Show (WrappedC a) where
+  show (WrapC x) = show x
+instance TaggedC WrappedC a where
+  senv (WrapC x) = senv x
+  sid (WrapC x) = sid x
+  stag (WrapC x) = stag x
+  sinfo (WrapC x) = sinfo x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
@@ -940,7 +983,7 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 -- | The output of the Solver
 ---------------------------------------------------------------------------
-data Result a = Result { resStatus   :: FixResult (SubC a)
+data Result a = Result { resStatus   :: FixResult (WrappedC a)
                        , resSolution :: M.HashMap KVar Pred }
                 deriving (Show)
 ---------------------------------------------------------------------------
@@ -1012,6 +1055,9 @@ instance Fixpoint a => Show (WfC a) where
 instance Fixpoint a => Show (SubC a) where
   show = showFix
 
+instance Fixpoint a => Show (SimpC a) where
+  show = showFix
+
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids
 
@@ -1024,6 +1070,14 @@ instance Fixpoint a => Fixpoint (SubC a) where
               $+$ text "rhs" <+> toFix (srhs c)
               $+$ (pprId (sid c) <+> pprTag (stag c))
               $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
+
+instance Fixpoint a => Fixpoint (SimpC a) where
+  toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
+     where bd =   -- text "env" <+> toFix (senv c)
+                  toFix (senv c)
+              $+$ text "rhs" <+> toFix (crhs c)
+              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 
 instance Fixpoint a => Fixpoint (WfC a) where
@@ -1415,7 +1469,7 @@ shiftVV r@(Reft (v, ras)) v'
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {sid = Just i})) [1..]
+addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
@@ -1452,17 +1506,21 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ----------------- Top-Level Constraint System --------------------------
 ------------------------------------------------------------------------
 
-data FInfo a = FI { cm    :: M.HashMap Integer (SubC a)
-                  , ws    :: ![WfC a]
-                  , bs    :: !BindEnv
-                  , gs    :: !FEnv
-                  , lits  :: ![(Symbol, Sort)]
-                  , kuts  :: Kuts
-                  , quals :: ![Qualifier]
-                  , bindInfo :: M.HashMap BindId a
-                  , fileName :: FilePath
-                  }
-               deriving (Show)
+type FInfo a = GInfo SubC a
+type SInfo a = GInfo SimpC a
+
+data GInfo c a = 
+  FI { cm    :: M.HashMap Integer (c a)
+     , ws    :: ![WfC a]
+     , bs    :: !BindEnv
+     , gs    :: !FEnv
+     , lits  :: ![(Symbol, Sort)]
+     , kuts  :: Kuts
+     , quals :: ![Qualifier]
+     , bindInfo :: M.HashMap BindId a
+     , fileName :: FilePath
+     }
+  deriving (Show)
 
 instance Monoid Kuts where
   mempty        = KS S.empty
@@ -1478,7 +1536,7 @@ instance Monoid BindEnv where
   mappend b (BE 0 _) = b
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
-instance Monoid (FInfo a) where
+instance Monoid (GInfo c a) where
   mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
@@ -1494,7 +1552,7 @@ instance Monoid (FInfo a) where
 ($++$) :: Doc -> Doc -> Doc
 x $++$ y = x $+$ text "\n" $+$ y
 
-toFixpoint :: (Fixpoint a) => Config -> FInfo a -> Doc
+toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
                   $++$ gsDoc    x'
@@ -1518,7 +1576,7 @@ toFixpoint cfg x' =    qualsDoc x'
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
 
-writeFInfo :: (Fixpoint a) => Config -> FInfo a -> FilePath -> IO ()
+writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
 
 -------------------------------------------------------------------------
@@ -1622,7 +1680,7 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
-symConstLits    :: FInfo a -> [(Symbol, Sort)]
+symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
 symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
@@ -1647,7 +1705,7 @@ litPrefix    = "lit" `T.snoc` symSepName
 class SymConsts a where
   symConsts :: a -> [SymConst]
 
-instance SymConsts (FInfo a) where
+instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
     where
       csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
@@ -1659,6 +1717,9 @@ instance SymConsts (SubC a) where
   symConsts c  = symConsts (sgrd c) ++
                  symConsts (slhs c) ++
                  symConsts (srhs c)
+
+instance SymConsts (SimpC a) where
+  symConsts c  = symConsts (crhs c)
 
 instance SymConsts SortedReft where
   symConsts = symConsts . sr_reft
@@ -1841,3 +1902,31 @@ mcInfo c = do
                  , mcMinPartSize = minPartSize c
                  , mcMaxPartSize = maxPartSize c
                  }
+
+---------------------------------------------------------------------------
+-- | FInfo to SInfo conversion
+---------------------------------------------------------------------------
+convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
+---------------------------------------------------------------------------
+convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
+  where
+    fi' = foldl blowOutVV fi (M.keys $ cm fi)
+
+subcToSimpc :: SubC a -> SimpC a
+subcToSimpc s = SimpC 
+  { _cenv  = senv s
+  , crhs  = reftPred $ sr_reft $ srhs s
+  , _cid   = sid s
+  , _ctag  = stag s
+  , _cinfo = sinfo s
+  }
+
+blowOutVV :: FInfo a -> Integer -> FInfo a
+blowOutVV fi subcId = fi { bs = be', cm = cm' }
+  where
+    subc = cm fi M.! subcId
+    sr   = slhs subc
+    x    = reftBind $ sr_reft sr
+    (bindId, be') = insertBindEnv x sr $ bs fi
+    subc' = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
+    cm' = M.insert subcId subc' $ cm fi

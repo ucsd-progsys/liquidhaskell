@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
+import           Language.Fixpoint.Visitor (envKVars, kvars)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Config
@@ -33,7 +33,7 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
-init :: Config -> F.FInfo a -> Worklist a
+init :: Config -> F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
 init _ fi = WL roots (cSucc cd) (F.cm fi)
   where
@@ -41,7 +41,7 @@ init _ fi = WL roots (cSucc cd) (F.cm fi)
     roots = S.fromList $ cRoots cd
 
 ---------------------------------------------------------------------------
-pop  :: Worklist a -> Maybe (F.SubC a, Worklist a)
+pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
@@ -53,17 +53,17 @@ getC cm i = fromMaybe err $ M.lookup i cm
     err  = errorstar "getC: bad CId i"
 
 ---------------------------------------------------------------------------
-push :: F.SubC a -> Worklist a -> Worklist a
+push :: F.SimpC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
 push c w = w {wCs = sAdds (wCs w) js}
   where
     i    = sid' c
     js   = {- tracepp ("PUSH: id = " ++ show i) $ -} wDeps w i
 
-sid'    :: F.SubC a -> Integer
+sid'    :: F.SimpC a -> Integer
 sid' c  = fromMaybe err $ F.sid c
   where
-    err = errorstar "sid': SubC without id"
+    err = errorstar "sid': SimpC without id"
 
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
@@ -75,7 +75,7 @@ type KVRead = M.HashMap F.KVar [CId]
 
 data Worklist a = WL { wCs   :: S.Set CId
                      , wDeps :: CSucc
-                     , wCm   :: M.HashMap CId (F.SubC a)
+                     , wCm   :: M.HashMap CId (F.SimpC a)
                      }
 
 instance PPrint (Worklist a) where
@@ -89,7 +89,7 @@ data CDeps = CDs { cRoots :: ![CId]
                  , cSucc  :: CId -> [CId]
                  }
 
-cDeps :: F.FInfo a -> CDeps
+cDeps :: F.SInfo a -> CDeps
 cDeps fi = CDs (map (fst3 . foo) rs) next
   where
     next = kvSucc fi
@@ -105,23 +105,23 @@ filterRoots g (scc:sccs) = scc ++ (filterRoots g rem)
   where
     rem = filter (not . path g (head scc) . head) sccs
 
-kvSucc :: F.FInfo a -> CSucc
+kvSucc :: F.SInfo a -> CSucc
 kvSucc fi = succs cm rdBy
   where
     rdBy  = kvReadBy fi
     cm    = F.cm     fi
 
-succs :: M.HashMap CId (F.SubC a) -> KVRead -> CSucc
+succs :: M.HashMap CId (F.SimpC a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
     ci          = getC cm i
-    iKs         = rhsKVars ci
+    iKs         = kvars $ F.crhs ci
     kvReads k   = M.lookupDefault [] k rdBy
 
-kvReadBy :: F.FInfo a -> KVRead
+kvReadBy :: F.SInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
                              , k       <- {- tracepp ("lhsKVS: " ++ show i) $ -}
-                                          lhsKVars bs ci]
+                                          envKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi

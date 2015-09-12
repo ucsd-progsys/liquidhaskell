@@ -1,5 +1,7 @@
-{-# LANGUAGE PatternGuards    #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, elimKVar, findWfC) where
@@ -19,7 +21,7 @@ import           Control.Applicative ((<$>))
 
 
 --------------------------------------------------------------
-eliminateAll :: FInfo a -> FInfo a
+eliminateAll :: SInfo a -> SInfo a
 eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
   where
     nonCuts = depNonCuts $ deps fi
@@ -34,10 +36,13 @@ instance Elimable (SubC a) where
                    , srhs = elimKVar f (srhs x)
                    }
 
+instance Elimable (SimpC a) where
+  elimKVar f x = x { crhs = mapKVars' f (crhs x) }
+
 instance Elimable SortedReft where
   elimKVar f x = x { sr_reft = mapKVars' f (sr_reft x) }
 
-instance Elimable (FInfo a) where
+instance (Elimable (c a)) => Elimable (GInfo c a) where
   elimKVar f x = x { cm = M.map (elimKVar f) (cm x)
                    , bs = elimKVar f (bs x)
                    }
@@ -46,16 +51,16 @@ instance Elimable BindEnv where
   elimKVar f = mapBindEnv $ second (elimKVar f)
 
 
-eliminate :: FInfo a -> KVar -> State Integer (FInfo a)
+eliminate :: SInfo a -> KVar -> State Integer (SInfo a)
 eliminate fi kv = do
-  let relevantSubCs  = M.filter (   elem kv . rhsKVars) (cm fi)
-  let remainingSubCs = M.filter (notElem kv . rhsKVars) (cm fi)
+  let relevantSubCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
+  let remainingSubCs = M.filter (notElem kv . kvars . crhs) (cm fi)
   let (kvWfC, remainingWs) = findWfC kv (ws fi)
   predsBinds <- mapM (extractPred kvWfC (bs fi)) (M.elems relevantSubCs)
   let orPred = POr $ map fst predsBinds
   let symSReftList = map (second trueSortedReft) (concatMap snd predsBinds)
   let (ids, be) = insertsBindEnv symSReftList $ bs fi
-  let newSubCs = M.map (\s -> s { senv = insertsIBindEnv ids (senv s)}) remainingSubCs
+  let newSubCs = M.map (\s -> s { _cenv = insertsIBindEnv ids (senv s)}) remainingSubCs
   let replacement (k, _) = if kv == k then Just orPred else Nothing
   return $ elimKVar replacement (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
@@ -69,7 +74,7 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ show kv ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> BindEnv -> SubC a -> State Integer (Pred, [(Symbol, Sort)])
+extractPred :: WfC a -> BindEnv -> SimpC a -> State Integer (Pred, [(Symbol, Sort)])
 extractPred wfc be subC =  exprsToPreds . unzip <$> mapM renameVar vars
   where
     exprsToPreds (bs, subs) = (subst (mkSubst subs) finalPred, bs)
@@ -78,10 +83,9 @@ extractPred wfc be subC =  exprsToPreds . unzip <$> mapM renameVar vars
     unmatchedIBinds = subcIBinds \\ wfcIBinds
     unmatchedIBindEnv = insertsIBindEnv unmatchedIBinds emptyIBindEnv
     unmatchedBindings = envCs be unmatchedIBindEnv
-    lhs = slhs subC
-    (vars, prList) = substBinds $ (reftBind $ sr_reft lhs, lhs) : unmatchedBindings
+    (vars, prList) = substBinds unmatchedBindings
 
-    suPreds = substPreds (usableDomain be wfc) $ reftPred $ sr_reft $ srhs subC
+    suPreds = substPreds (usableDomain be wfc) $ crhs subC
     finalPred = PAnd $ prList ++ suPreds
 
 -- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
