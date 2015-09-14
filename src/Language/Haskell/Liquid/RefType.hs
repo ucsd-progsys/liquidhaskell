@@ -67,6 +67,7 @@ module Language.Haskell.Liquid.RefType (
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Var
+import Kind 
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
@@ -804,12 +805,15 @@ ofType_ (TyVarTy α)
 ofType_ (FunTy τ τ')
   = rFun dummySymbol (ofType_ τ) (ofType_ τ')
 ofType_ (ForAllTy α τ)
+  | isKindVar α
+  = ofType_ τ
+  | otherwise  
   = RAllT (rTyVar α) $ ofType_ τ
 ofType_ (TyConApp c τs)
   | Just (αs, τ) <- TC.synTyConDefn_maybe c
   = ofType_ $ substTyWith αs τs τ
   | otherwise
-  = rApp c (ofType_ <$> τs) [] mempty
+  = rApp c (ofType_ <$> filter (not . isKind) τs) [] mempty
 ofType_ (AppTy t1 t2)
   = RAppTy (ofType_ t1) (ofType t2) mempty
 ofType_ (LitTy x)
