@@ -94,12 +94,12 @@ q_lteplus = undefined
 {-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}
 
 
-qFoo1 :: A.MArray a -> (Int, b)
-{-@ qFoo1 :: a:A.MArray a -> {v:(Int, b) | snd v <= malen a} @-}
+qFoo1 :: Num b => A.MArray a -> (Int, b)
+{-@ qFoo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= malen a} @-}
 qFoo1 = undefined 
 
-qFoo2 :: A.Array a -> (Int, b)
-{-@ qFoo2 :: a:A.Array a -> {v:(Int, b) | snd v <= alen a} @-}
+qFoo2 :: Num b => A.Array -> (Int, b)
+{-@ qFoo2 :: Num b => a:A.Array -> {v:(Int, b) | snd v <= alen a} @-}
 qFoo2 = undefined 
 
 
