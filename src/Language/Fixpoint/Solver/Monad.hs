@@ -44,7 +44,7 @@ data SolverState = SS { ssCtx   :: !Context
                       }
 
 ---------------------------------------------------------------------------
-runSolverM :: Config -> F.FInfo b -> SolveM a -> IO a
+runSolverM :: Config -> F.GInfo c b -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
@@ -99,7 +99,7 @@ filterValid_ p qs me = catMaybes <$> do
       return $ if valid then Just x else Nothing
 
 ---------------------------------------------------------------------------
-declare :: F.FInfo a -> SolveM ()
+declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
 declare fi  = withContext $ \me -> do
   xts      <- either E.die return $ declSymbols fi
@@ -107,12 +107,12 @@ declare fi  = withContext $ \me -> do
   forM_ xts $ uncurry $ smtDecl     me
   forM_ ess $           smtDistinct me
 
-declLiterals :: F.FInfo a -> [[F.Expr]]
+declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi = [es | (_, es) <- tess ]
   where
     tess        = groupList [(t, F.expr x) | (x, t) <- F.lits fi]
 
-declSymbols :: F.FInfo a -> Either E.Error [(F.Symbol, F.Sort)]
+declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where
     dropThy = filter (not . isThy . fst)
