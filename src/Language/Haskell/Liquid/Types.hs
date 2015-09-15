@@ -1544,6 +1544,11 @@ data TError t =
                 , insts :: ![(SrcSpan, Doc)]
                 } -- ^ Refined Class/Interfaces Conflict
 
+  | ErrBadQual  { pos   :: !SrcSpan
+                , qname :: !Doc 
+                , msg   :: !Doc
+                } -- ^ Non well sorted Qualifier
+
   | ErrOther    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC

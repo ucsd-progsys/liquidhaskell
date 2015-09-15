@@ -85,7 +85,7 @@ q_lteplus = undefined
         : ((((ord x) <  65536) => (v = i))
         && (((ord x) >= 65536) => (v = (i + 1))))
   @-}
-{-@ qualif Ord(v:Char, i:int)
+{-@ qualif Ord(v:int, x:Char)
         : ((((ord x) <  65536) => (v >= 0))
         && (((ord x) >= 65536) => (v >= 1)))
   @-}
@@ -93,12 +93,15 @@ q_lteplus = undefined
 {-@ qualif MALenLE(v:int, a:A.MArray s): v <= (malen a) @-}
 {-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}
 
-{-@ qualif Foo(v:a, a:A.MArray s):
-        (snd v) <= (malen a)
-  @-}
-{-@ qualif Foo(v:a, a:A.Array):
-        (snd v) <= (alen a)
-  @-}
+
+qFoo1 :: Num b => A.MArray a -> (Int, b)
+{-@ qFoo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= malen a} @-}
+qFoo1 = undefined 
+
+qFoo2 :: Num b => A.Array -> (Int, b)
+{-@ qFoo2 :: Num b => a:A.Array -> {v:(Int, b) | snd v <= alen a} @-}
+qFoo2 = undefined 
+
 
 {-@ qualif Foo(v:int): v >= -1 @-}
 {-@ qualif Foo(v:int): v >=  4 @-}
