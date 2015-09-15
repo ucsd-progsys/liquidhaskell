@@ -162,10 +162,11 @@ solveFile cfg
        {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand fp z3 v
     where
       fixCommand fp z3 verbosity
-        = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s"
-          z3 fp verbosity rf (command cfg)
+        = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s %s"
+          z3 fp verbosity rf newcheckf (command cfg) 
         where
           rf  = if real cfg then realFlags else ""
+          newcheckf = if newcheck cfg then "-newcheck" else ""
 
 realFlags :: String
 realFlags =  "-no-uif-multiply "
