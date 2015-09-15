@@ -193,6 +193,12 @@ ppError' _ dSp (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
     $+$ (pprint v <+> dcolon <+> pprint s)
 
+
+ppError' _ dSp (ErrBadQual _ n d)
+  = dSp <+> text "Bad Qualifier Specification for" <+> n
+    $+$ (pprint d)
+
+
 ppError' _ dSp (ErrTermSpec _ v e s)
   = dSp <+> text "Bad Termination Specification"
     $+$ (pprint v <+> dcolon <+> pprint e)
