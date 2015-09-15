@@ -6,7 +6,7 @@ module Language.Fixpoint.Solver.Deps (
 
 import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor (lhsKVars, rhsKVars)
+import           Language.Fixpoint.Visitor (kvars, envKVars)
 import           Data.HashMap.Strict       (elems)
 import qualified Data.HashSet              as S
 import qualified Data.Graph                as G
@@ -21,7 +21,7 @@ data Deps = Deps { depCuts    :: ![KVar]
 -- | Compute Dependencies and Cuts ---------------------------
 --------------------------------------------------------------
 
-deps :: FInfo a -> Deps
+deps :: SInfo a -> Deps
 deps fi = sccsToDeps sccs (kuts fi)
   where
     subCs = elems (cm fi)
@@ -46,10 +46,10 @@ chooseCut vs (KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
     is  = S.intersection (S.fromList vs') ks
     v   = head $ if S.null is then vs' else S.toList is
 
-subcEdges :: BindEnv -> SubC a -> [(KVar, KVar)]
-subcEdges bs c = [(k1, k2)        | k1 <- lhsKVars bs c
-                                  , k2 <- rhsKVars c    ]
-              ++ [(k2, KV nonSymbol) | k2 <- rhsKVars c]
+subcEdges :: BindEnv -> SimpC a -> [(KVar, KVar)]
+subcEdges bs c = [(k1, k2)        | k1 <- envKVars bs c
+                                  , k2 <- kvars $ crhs c ]
+              ++ [(k2, KV nonSymbol) | k2 <- kvars $ crhs c]
 -- this nonSymbol hack prevents nodes with potential outdegree 0 
 -- from getting pruned by concatMap (and then stronglyConnCompR)
 

@@ -29,10 +29,12 @@ import           Data.Functor
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-
 import           System.Exit
 import           System.IO                        (IOMode (..), hPutStr, withFile)
+import           System.Console.CmdArgs.Verbosity hiding (Loud)
+import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+import           Control.Monad (liftM)
 
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
@@ -41,19 +43,15 @@ import qualified Language.Fixpoint.Solver.Solve  as S
 import           Language.Fixpoint.Config          hiding (solver)
 import           Language.Fixpoint.Files           hiding (Result)
 import           Language.Fixpoint.Misc
--- import           Language.Fixpoint.Solver.TrivialSort     (nontrivsorts)
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
 import           Language.Fixpoint.Types          hiding (kuts, lits)
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
-import           System.Console.CmdArgs.Verbosity hiding (Loud)
-import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Parallel
 
-
-import Debug.Trace
+import           Debug.Trace
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -95,26 +93,26 @@ solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let Right fi' = validate cfg fi
-  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg fi')
+  let si = convertFormat fi
+  writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
+  donePhase Loud "Format Conversion"
+  let Right si' = validate cfg si
+  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
-  let fi''   = renameAll fi'
-  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg fi'')
+  let si''  = renameAll si'
+  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
-  let fi'''  = renameVV fi''
-  fi''''     <- elim cfg fi'''
-  Result stat soln <- S.solve cfg fi''''
+  si'''     <- elim cfg si''
+  Result stat soln <- S.solve cfg si'''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result stat soln
+  return    $ Result (WrapC <$> stat) soln
 
 
-
-
-elim :: (Fixpoint a) => Config -> FInfo a -> IO (FInfo a)
+elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
                        whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
@@ -174,14 +172,14 @@ realFlags =  "-no-uif-multiply "
           ++ "-no-uif-divide "
 
 
-exitFq :: FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
+exitFq :: (Fixpoint a) => FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
 exitFq _ _ (ExitFailure n) | n /= 1
   = return $ Result (Crash [] "Unknown Error") M.empty
 exitFq fn z _
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = parseFixpointOutput str
        let x'     = fmap (mlookup z) x
-       return     $ Result x' y
+       return     $ Result (WrapC <$> x') y
 
 parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
 parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)

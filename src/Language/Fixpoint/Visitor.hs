@@ -173,12 +173,11 @@ kvars                = fold kvVis () []
     kv' _ _           = []
 
 
-envKVars :: BindEnv -> SubC a -> [KVar]
+envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
   where
     squish = S.toList  . S.fromList . concat
     kvs    = kvars . sr_reft
-
 
 lhsKVars :: BindEnv -> SubC a -> [KVar]
 lhsKVars binds c = envKVs ++ lhsKVs
