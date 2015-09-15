@@ -55,7 +55,7 @@ import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
 
 {-@ qualif PlusOnePos(v: int): 0 <= (v + 1)              @-}
 {-@ qualif LePlusOne(v: int, x: int): v <= (x + 1)       @-}
-{-@ qualif LeDiff(v: a, x: a, y:a): v <= (x - y)         @-}
+{-@ qualif LeDiff(v: int, x: int, y:int): v <= (x - y)         @-}
 {-@ qualif PlenEq(v: Ptr a, x: int): x <= (plen v)       @-}
 {-@ qualif BlenEq(v: int, x:ByteString): v = (bLength x) @-}
 {-@ qualif PSnd(v: a, x:b): v = (psnd x)                 @-}
@@ -75,7 +75,7 @@ import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
     isJustS (NothingS) = false
   @-}
 
-{-@ qualif PlusOne(v:a, x:a): v = x + 1 @-} 
+{-@ qualif PlusOne(v:int, x:int): v = x + 1 @-} 
 
 {-@ type MaybeSJ a   = {v: MaybeS a | (isJustS v)}                 @-} 
 

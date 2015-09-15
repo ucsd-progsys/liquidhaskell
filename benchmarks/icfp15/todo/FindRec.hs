@@ -134,7 +134,7 @@ findExec f cmd = do
       (findExec h cmd >>= return)
 
 {-@ qualif MpEq0(v:World,w:World,x:FHandle,z:FHandle): (Map_select (caps v) x) = (Map_select (caps w) z) @-}
-{-@ qualif ActiveEq(v:World,x:FHandle,b:FHandle): (Set_mem (Set_sng x) (active v))=> (Set_mem (Set_sng b) (active v)) @-}
+{-@ qualif ActiveEq(v:World,x:FHandle,b:FHandle): (Set_mem x (active v))=> (Set_mem b (active v)) @-}
       
 {-@
   prepend :: f:FHandle -> String ->
