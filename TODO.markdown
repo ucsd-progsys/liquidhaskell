@@ -1137,26 +1137,7 @@ mappend x mempty = x
 mappend x (mappend y z) = mappend (mappend x y) z
 ```
 
-etc. Can we express these laws in LH and prove them automatically?
-
-
-Lets drill in: how to represent the following "equational" proof in LH?
-
-```
-     (1 + 2) + (3 + 4)       -- e0
-
-     { 1 + 2 == 3}
-
-  == 3 + (3 + 4)             -- e1
-
-     { 3 + 4 == 7}
-
-  == 3 + 7                   -- e2
-
-     { 3 + 7 == 10}
-
-  == 10                      -- e3
-```
+**Strategy**
 
 **1. Representing Proofs**
 
@@ -1185,6 +1166,27 @@ add :: x:Int -> y:Int -> {z:Int | z = x + y} -> Eq (x + y) z
 add x y z = auto
 ```
 
+
+**Example 1: Arithmetic**
+
+Lets drill in: how to represent the following "equational" proof in LH?
+
+```
+     (1 + 2) + (3 + 4)       -- e0
+
+     { 1 + 2 == 3}
+
+  == 3 + (3 + 4)             -- e1
+
+     { 3 + 4 == 7}
+
+  == 3 + 7                   -- e2
+
+     { 3 + 7 == 10}
+
+  == 10                      -- e3
+```
+
 Now the above proof looks like this:
 
 ```
@@ -1200,11 +1202,13 @@ prop = (((refl e0  `imp` (add 1 2 3))   -- :: Eq e0 (3 + (3 + 4))
 ```
 
 
-A more interesting example.
+**Example 2: Lists**
 
-Lets see what the `prop_app_nil` looks like:
+A more interesting example: Lets prove `prop_app_nil`:
 
-**Append**
+    prop_app_nil: forall xs. append xs [] = xs
+
+The definition of
 
 ```
 append []     ys = ys
@@ -1218,31 +1222,122 @@ append_nil  :: ys:_ -> Eq (append [] ys) ys
 append_cons :: x:_ -> xs:_ -> ys:_ -> Eq (append (x:xs) ys) (x : append xs ys)
 ```
 
-Now, lets prove that `forall xs. append xs [] == xs`.
-
 Code on left, "equations" on right.
 
 ```
-prop_app        :: xs:[a] -> Eq (append xs []) xs
+prop_app_nil    :: xs:[a] -> Eq (append xs []) xs
 
-prop_app []     = refl (append [] [])             -- append [] []
+prop_app_nil []     = refl (append [] [])             
+                                                   -- append [] []
+                       `by` (append_nil [])        -- { append_nil [] }    
+                                                   -- == []  
 
-                    `imp` (append_nil [])         --    { append_nil [] }    
-
-                                                  -- == []  
-
-prop_app (x:xs) = refl (append (x:xs) [])         -- append (x:xs) []
-
-                    `imp` (append_cons x xs [])   --    { append_cons x xs [] }
-
-                                                  -- == x : append xs []
-
-                    `imp` (prop_app xs)           --    { IH: prop_app xs     }
-
-                                                  -- == x : xs
+prop_app_nil (x:xs) = refl (append (x:xs) [])       
+                                                   -- append (x:xs) []
+                       `by` (append_cons x xs [])  -- { append_cons x xs [] }
+                                                   -- == x : append xs []
+                       `by` (prop_app_nil xs)      -- { IH: prop_app xs }
+                                                   -- == x : xs
 ```
 
 
+**Example 3: Map Fusion**
+
+Lets go fancier:
+
+
+    forall xs. map (f . g) xs = (map f . map g) xs
+
+Here's the classical (?) equational proof:
+
+```
+map (f . g) []   
+   { map_nil (f . g) }
+   == []
+   { map_nil f }
+   == map f []
+   { map_nil g }
+   == map f (map g [])
+   { dot f g }
+   == (map f . map g) []
+
+map (f . g) (x:xs)  
+   { map_cons (f . g) x xs }
+   == (f . g) x : map (f . g) xs
+   { map_dot f g xs }
+   == (f . g) x : (map f . map g) xs
+   { dot (map f) (map g) }
+   == (f . g) x : map f (map g xs)
+   { dot f g }
+   == f (g x) : map f (map g xs)
+   {map_cons f (g x) (map g xs) }
+   == map f (g x : map g xs)
+   {map_cons g x xs}
+   == map f (map g (x : xs))
+   { dot (map f) (map g) }
+   ==  (map f . map g) (x : xs)
+```
+
+Formalize thus (with functions/axioms)
+
+```
+map f []     = []               -- map_nil
+map f (x:xs) = f x  : map f xs  -- map_cons
+
+(f . g) x    =  f (g x)         -- dot
+```
+
+Now, we formalize map-fusion as:
+
+```
+map_fusion :: f:_ -> g:_ -> xs:_ ->
+              Eq (map (f . g) xs) (map f . map g) xs
+
+map_fusion f g []     = map_dot_nil f g
+map_fusion f g (x:xs) = map_dot_cons f g x xs
+```
+
+The hard work happens in the two "lemmas"
+
+```
+map_dot_nil :: f:_ -> g:_ ->
+               Eq (map (f . g) []) ((map f . map g) [])
+map_dot_nil f g
+  = refl (map (f . g) [])   
+                              -- map (f . g) []
+     `by` (map_nil (f . g))
+                              -- == []
+     `by` (map_nil f)
+                              -- == map f []
+     `by` (map_nil g)
+                              -- == map f (map g [])
+     `by` (dot f g)
+                              -- == (map f . map g) []
+```
+
+and
+
+```
+map_dot_nil :: f:_ -> g:_ -> x:_ -> xs:_ ->
+               Eq (map (f . g) []) ((map f . map g) [])
+map_dot_cons f g x xs
+  = refl (map (f . g) (x:xs))
+                                          -- map (f . g) (x : xs)
+      `by` (map_cons (f . g) x xs)
+                                          -- == (f . g) x : map (f . g) xs
+      `by` (map_dot f g xs)
+                                          -- == (f . g) x : (map f . map g) xs
+      `by` (dot (map f) (map g))
+                                          -- == (f . g) x : map f (map g xs)
+      `by` (dot f g)
+                                          -- == f (g x) : map f (map g xs)
+      `by` (map_cons f (g x) (map g xs))
+                                          -- == map f (g x : map g xs)
+      `by` (map_cons g x xs)
+                                          -- == map f (map g (x : xs))
+      `by` (dot (map f) (map g))
+                                          -- ==  (map f . map g) (x : xs)
+```
 
 
 
