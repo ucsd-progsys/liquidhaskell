@@ -14,6 +14,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Visitor (kvars)
 import           Language.Fixpoint.Sort (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import qualified Language.Fixpoint.Types  as F
@@ -31,6 +32,7 @@ validate :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 validate _ = Right
            . dropFuncSortedShadowedBinders
            . dropHigherOrderBinders
+           . removeExtraWfCs
            -- . renameVV
 
 ---------------------------------------------------------------------------
@@ -99,6 +101,17 @@ type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
 binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
+
+
+---------------------------------------------------------------------------
+-- | Drop WfCs that do not have a KVar (TODO - check well-sorted first?)
+---------------------------------------------------------------------------
+removeExtraWfCs :: F.SInfo a -> F.SInfo a
+---------------------------------------------------------------------------
+removeExtraWfCs fi = fi { F.ws = filter hasKVar $ F.ws fi }
+  where
+    hasKVar = not . null . kvars . F.wrft
+
 
 ---------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
