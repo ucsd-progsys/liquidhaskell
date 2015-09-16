@@ -21,3 +21,5 @@ abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
 
 ./gipeda;
 abort_if_failed "Unable to generate report...";
+
+echo "Site generation completed successfully!";
