@@ -3,7 +3,6 @@
 SCRIPT_DIR=`pwd`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
-GIPEDA_REPO="$GIPEDA_DIR/repository";
 
 function abort_if_failed {
     local EXIT_CODE=$?;

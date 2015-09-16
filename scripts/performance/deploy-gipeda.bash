@@ -7,7 +7,6 @@ ALL_FOUND=true;
 
 SCRIPT_DIR=`pwd`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
-GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 REL_SANDBOX_BIN=".cabal-sandbox/bin";
 
@@ -104,3 +103,10 @@ abort_if_failed "Failed to copy $LOG2CSV to $GIPEDA_DIR...";
 
 $CABAL exec $GHC -- $LOG2CSV -o $GIPEDA_DIR/log2csv
 abort_if_failed "Unable to install log2csv...";
+
+# install javascript libraries
+
+./install-jslibs.sh
+abort_if_failed "Unable to install javascript dependencies...";
+
+echo "Deploy completed successfully!";
