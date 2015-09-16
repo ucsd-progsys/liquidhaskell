@@ -1,4 +1,4 @@
-Liquid Fixpoint
+Liquid Fixpoint [![Build Status](https://travis-ci.org/ucsd-progsys/liquid-fixpoint.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquid-fixpoint)
 ===============
 
 This package is a Haskell wrapper to the SMTLIB-based 
