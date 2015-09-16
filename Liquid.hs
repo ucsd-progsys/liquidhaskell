@@ -100,6 +100,7 @@ solveCs cfg target cgi info dc
     where
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.real        = real        cfg
+                       , FC.newcheck    = newcheck    cfg 
                        , FC.native      = native      cfg
                        , FC.srcFile     = target
                        , FC.cores       = cores       cfg
