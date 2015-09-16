@@ -105,7 +105,7 @@ dirTests root ignored code
        return    $ mkTest code root <$> tests
 
 isTest   :: FilePath -> Bool
-isTest f = takeExtension f == ".hs" 
+isTest f = takeExtension f == ".hs"
 
 ---------------------------------------------------------------------------
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
@@ -132,8 +132,8 @@ mkTest code dir file
     log = "tests/logs/cur" </> test <.> "log"
 
 binPath pkgName = do
-  testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
+  testPath <- getASDASDASDExecutablePath
+  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
                    , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
