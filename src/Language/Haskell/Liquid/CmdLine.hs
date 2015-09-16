@@ -49,7 +49,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Config            hiding (Config, real, native,
                                                    getOpts, cores, minPartSize,
-                                                   maxPartSize)
+                                                   maxPartSize, newcheck)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -147,6 +147,9 @@ config = cmdArgsMode $ Config {
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
+
+ , newcheck
+    = False &= help "New fixpoint check"
 
  , noCheckUnknown
     = def &= explicit
@@ -310,6 +313,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 defConfig :: Config
 defConfig = Config { files          = def
                    , idirs          = def
+                   , newcheck       = False   
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
