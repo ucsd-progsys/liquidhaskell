@@ -48,6 +48,7 @@ data Config
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
     , native      :: Bool             -- ^ use haskell solver
     , real        :: Bool             -- ^ interpret div and mul in SMT
+    , newcheck    :: Bool             -- ^ new fixpoint sort check 
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
@@ -67,6 +68,7 @@ instance Default Config where
                , ueqAllSorts = def
                , native      = def
                , real        = def
+               , newcheck    = False 
                , eliminate   = def
                , metadata    = def
                , stats       = def
@@ -144,6 +146,7 @@ config = Config {
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "Use UEq on all sorts"
   , native      = False &= help "(alpha) Haskell Solver"
+  , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , metadata    = False &= help "Print meta-data associated with constraints"
