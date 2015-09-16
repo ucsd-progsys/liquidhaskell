@@ -1,6 +1,7 @@
 #!/bin/bash
 
 GIT=`which git`;
+MAKE=`which make`;
 CABAL=`which cabal`;
 ALL_FOUND=true;
 
@@ -10,15 +11,40 @@ GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
 
-START=0
-END=0
-FORCE=0
+START=0;
+END=0;
+FORCE=false;
+
+START_FOUND=false;
+END_FOUND=false;
 
 function generate_log {
     local HASH=$1;
     local RETURN=0;
+    local RESULT=$GIPEDA_LOGS/$HASH.log;
+    local SHOULD_GEN=true;
 
-    # do stuff
+    if [ -e $RESULT ]
+    then
+        if [ $FORCE = false ]
+        then
+            SHOULD_GEN=false;
+        fi
+    fi
+
+    if [ $SHOULD_GEN = true ]
+    then
+
+        $MAKE clean;
+        rm -rf .cabal-sandbox;
+        rm cabal.sandbox.config;
+        $CABAL sandbox init;
+
+        $CABAL install --only-dependencies --enable-tests;
+        $CABAL test
+
+
+    fi
 
     echo $RETURN;
 }
@@ -36,7 +62,7 @@ function usage {
     echo "$0 -s [START HASH] -e [END HASH] -f"
     echo "   -s - hash to start generating logs at";
     echo "   -e - hash to end generating logs at";
-    echo "   -f - If passed, will force re-creation of all logs. Will take an extremely long time!";
+    echo "   -f - If passed, will force re-creation of all logs. This will take an extremely long time!";
     exit 1;
 }
 
@@ -49,7 +75,7 @@ while getopts ":s:e:f" OPT; do
         e)
             END=$OPTARG;;
         f)
-            FORCE=1;;
+            FORCE=true;;
         *)
             usage;;
     esac
@@ -60,6 +86,12 @@ done
 if [ $GIT = "" ]
 then
     echo "Git not found...";
+    ALL_FOUND=false;
+fi
+
+if [ $MAKE = "" ]
+then
+    echo "Make not found...";
     ALL_FOUND=false;
 fi
 
@@ -97,15 +129,40 @@ fi
 cd $GIPEDA_REPO;
 abort_if_failed "Couldn't change to $GIPEDA_REPO...";
 
+if [ $END = 0 ]
+then
+    END_FOUND=true;
+fi
+
 for CURR in `git log --format=%H`
 do
-    RESULT=`generate_log $CURR`;
-    if [ $RESULT = 0 ]
+    if [ $START_FOUND = false ]
     then
-        echo "Log generation for $CURR completed successfully...";
-    else
-        echo "Log generation for $CUR failed...";
+        if [ $END_FOUND = false ]
+        then
+            if [ $CURR = $END ]
+            then
+                END_FOUND=true;
+            fi
+        fi
+
+        if [ $END_FOUND = true ]
+        then
+            echo "Processing: $CURR";
+            RESULT=`generate_log $CURR`;
+        fi
+
+        if [ ! $RESULT = 0 ]
+        then
+            echo "Log generation for $CURR failed...";
+        fi
+
+        if [ $CURR = $START ]
+        then
+            START_FOUND=true;
+        fi
     fi
+
 done
 
 # generate site
