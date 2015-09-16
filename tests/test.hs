@@ -68,10 +68,10 @@ knownToFail = []
 type TestCmd = FilePath -> FilePath -> FilePath -> String
 
 nativeCmd :: TestCmd
-nativeCmd bin dir file = printf "cd %s && %s -n %s" dir bin file
+nativeCmd bin dir file = printf "cd %s && %s --native %s" dir bin file
 
 elimCmd :: TestCmd
-elimCmd bin dir file = printf "cd %s && %s -n -e %s" dir bin file
+elimCmd bin dir file = printf "cd %s && %s --native -e %s" dir bin file
 
 
 
