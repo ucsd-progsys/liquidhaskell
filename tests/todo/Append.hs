@@ -1,20 +1,33 @@
+{-
+  A first example in equalional reasoning. 
+  From the definition of append we should be able to 
+  semi-automatically prove the three axioms.
+ -}
+
+{-@ LIQUID "--newcheck" @-}
+{-@ LIQUID "--no-termination" @-}
+
 module Append where
 
+data L a = N |  C a (L a)
+
+{-@ measure append :: L a -> L a -> L a @-}
+append :: L a -> L a -> L a 
+append N xs        = xs
+append (C y ys) xs = C y (append ys xs) 
 
 
-data RGRef a
 
-{-@ measure tv :: RGRef a -> a @-}
-{-@ qualif FOO(r:RGRef a): ( N == 0 ) @-}
-
-{- LIQUID "--no-termination" @-}
-
-data L a = N
-
-{- measure append :: L a -> L a -> L a @-}
-
-{- axiom_nil :: xs:L a ->  {v:L a | v == xs &&  append N v == v} @-}
-axiom_nil :: L a ->  L a
-axiom_nil xs = xs
+{-@ axiom_nil_left :: xs:L a ->  {v:L a | v == xs &&  append N v == v} @-}
+axiom_nil_left :: L a ->  L a
+axiom_nil_left xs = xs
 
 
+{-@ axiom_nil_right :: xs:L a ->  {v:L a | v == xs &&  append v N == v} @-}
+axiom_nil_right :: L a ->  L a
+axiom_nil_right xs = xs
+
+
+{-@ axiom_assoc :: xs:L a -> ys: L a ->  zs: L a -> {v: Bool | append xs (append ys zs) == append (append xs ys) zs } @-}
+axiom_assoc :: L a ->  L a -> L a -> Bool 
+axiom_assoc xs ys zs = True 

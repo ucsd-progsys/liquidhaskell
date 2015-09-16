@@ -149,7 +149,7 @@ config = cmdArgsMode $ Config {
     = def &= help "Name of SMT-Solver"
 
  , newcheck
-    = True &= help "New fixpoint check"
+    = False &= help "New fixpoint check"
 
  , noCheckUnknown
     = def &= explicit
@@ -313,7 +313,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 defConfig :: Config
 defConfig = Config { files          = def
                    , idirs          = def
-                   , newcheck       = True  
+                   , newcheck       = False   
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
