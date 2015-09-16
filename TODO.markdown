@@ -15,12 +15,12 @@ Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
 Automatically refine *inductors*
 --------------------------------
 Proposed by Valentine: in dependent languages (Coq) inductors (like our `loop` for natural numbers)
-automatically get types abstracted over properties. 
+automatically get types abstracted over properties.
 Trasversal should create such functions. Maybe we can automatically refine them.
 
 Check refinements using `Eq` and `Ord` info
 -------------------------------------------
-Currenly we arbitrary allow `=` and comparison operators in refinements to arbitraty types. 
+Currenly we arbitrary allow `=` and comparison operators in refinements to arbitraty types.
 This can lead to non-well formed refinements.
 
 promotion of haskell functions to measures
@@ -40,13 +40,13 @@ benchmarks
 
 * hmatrix
 
-* error messages (see issues on github) 
+* error messages (see issues on github)
 
 remove-parens
 -------------
 
 + x16 to v
-+ Range {0} {100} -- allow Range 0 100 instead. 
++ Range {0} {100} -- allow Range 0 100 instead.
 + extra PARENS in refinement printout.
 + qualifier duplication
 
@@ -140,12 +140,12 @@ hmatrix
 Dependency order for hmatrix
 
 NA [ 1 of 36] Data.Packed.Internal.Signatures
-TY [ 2 of 36] Data.Packed.Internal.Common 
+TY [ 2 of 36] Data.Packed.Internal.Common
   > see tests/pos/transpose.hs
 
-[ 3 of 36] Data.Packed.Internal.Vector 
-[ 4 of 36] Numeric.GSL.Vector 
-[ 5 of 36] Data.Packed.Internal.Matrix 
+[ 3 of 36] Data.Packed.Internal.Vector
+[ 4 of 36] Numeric.GSL.Vector
+[ 5 of 36] Data.Packed.Internal.Matrix
 [ 6 of 36] Numeric.Conversion
 [ 7 of 36] Data.Packed.Internal
 [ 8 of 36] Data.Packed.ST
@@ -160,12 +160,12 @@ TY [ 2 of 36] Data.Packed.Internal.Common
 [17 of 36] Data.Packed.Matrix
 [18 of 36] Numeric.GSL.Minimization
 [19 of 36] Numeric.GSL.Root
-[20 of 36] Numeric.LinearAlgebra.LAPACK 
+[20 of 36] Numeric.LinearAlgebra.LAPACK
 [21 of 36] Data.Packed.Vector
 [22 of 36] Data.Packed
 [23 of 36] Numeric.ContainerBoot
 [24 of 36] Numeric.Chain
-[25 of 36] Numeric.LinearAlgebra.Algorithms 
+[25 of 36] Numeric.LinearAlgebra.Algorithms
 [26 of 36] Numeric.IO
 [27 of 36] Data.Packed.Random
 [28 of 36] Numeric.Container
@@ -174,34 +174,34 @@ TY [ 2 of 36] Data.Packed.Internal.Common
 [31 of 36] Numeric.LinearAlgebra
 [32 of 36] Numeric.GSL.Fitting
 [33 of 36] Numeric.GSL
-[34 of 36] Numeric.LinearAlgebra.Util.Convolution 
-[35 of 36] Numeric.LinearAlgebra.Util 
+[34 of 36] Numeric.LinearAlgebra.Util.Convolution
+[35 of 36] Numeric.LinearAlgebra.Util
 [36 of 36] Graphics.Plot
 
 
 Embed
 =====
 
-see 
+see
 
     tests/pos/ptr.hs
     tests/pos/ptr2.hs
 
-run with 
+run with
 
-    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs 
+    liquid -i include/ -i benchmarks/bytestring-0.9.2.1/ tests/pos/ptr2.hs
 
 GET THIS TO WORK WITHOUT THE "base" measure and realated theorem,
 but with raw pointer arithmetic. I.e. give plusPtr the right signature:
   (v = base + off)
 Can do so now, by:
 
-  embed Ptr as int 
+  embed Ptr as int
 
 but the problem is that then it throws off all qualifier definitions like
- 
+
   qualif EqPLen(v: ForeignPtr a, x: Ptr a): (fplen v) = (plen x)
-  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x) 
+  qualif EqPLen(v: Ptr a, x: ForeignPtr a): (plen v) = (fplen x)
 
 because there is no such thing as Ptr a by the time we get to Fixpoint. yuck.
 Meaning we have to rewrite the above to the rather lame:
@@ -240,13 +240,13 @@ Measures
 --------
 
 [DONE] Lists I-Sets  ("" but with Sets as the measure)
-- LambdaEval	
+- LambdaEval
 
 Abstract Refinements
 --------------------
 
 [DONE] ParaPoly/Ty  
-[DONE] Sorting      <--------------- STOP 
+[DONE] Sorting      <--------------- STOP
 
 - Maps I        (BST property, add, delete)
 - Map II        (Data.Map with elements etc.)
@@ -292,7 +292,7 @@ Benchmarks
         - key-set-properties
         - key-dependence
         - balance (NO)
-        
+
 -   vector-algorithms "vector bounds checking"
       - e.g. "unsafeSlice"
       - maybe only specify types for Vector?
@@ -328,13 +328,13 @@ Paper #2
 -> Haskell + DB / Yesod / Snap
 -> NDM/catch benchmarks (with refinements)
 
-Known Bugs 
+Known Bugs
 ==========
 
 -> tests/todo/fft.hs
 
 -> binsearch crashes because you have chains like:
-        
+
         x1 = 2
         x2 = x1
         x3 = x2
@@ -359,20 +359,20 @@ Theorems (from Wouter Swierstra's Coq Development)
 
     - Invariant: NoDuplicates
 
-    - prop_empty_I      : new  : ? -> {v | invariant(v)} 
-    - prop_view_I       : view : ? -> {v | invariant(v)} 
+    - prop_empty_I      : new  : ? -> {v | invariant(v)}
+    - prop_view_I       : view : ? -> {v | invariant(v)}
     - prop_greedyView_I : view : ? -> {v | invariant(v)}
     - prop_focusUp_I
     - prop_focusMaster_I
-    - prop_focusDown_I 
-    - prop_focus_I 
+    - prop_focusDown_I
+    - prop_focus_I
     - prop_insertUp_I
     - prop_delete_I
     - prop_swap_master_I
     - prop_swap_left_I  
     - prop_swap_right_I
-    - prop_shift_I 
-    - prop_shift_win_I 
+    - prop_shift_I
+    - prop_shift_win_I
 
 [prop_FOO_I] check that various functions outputs satisfy "invariant"
 
@@ -384,22 +384,22 @@ Theorems (from Wouter Swierstra's Coq Development)
     > Theorem prop_focusUp_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
     > Theorem prop_focusDown_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
     > Theorem prop_focusMaster_I (l a sd : Set) (n : nat) (s : StackSet.stackSet nat l a sd) :
-    > Theorem prop_empty_I (m : l) (wids : {wids : list i | wids <> nil}) 
-    > Theorem prop_empty (m : l) (wids : {wids : list i | wids <> nil}) 
+    > Theorem prop_empty_I (m : l) (wids : {wids : list i | wids <> nil})
+    > Theorem prop_empty (m : l) (wids : {wids : list i | wids <> nil})
     > Theorem prop_differentiate (xs : list a) :
 
-[prop_FOO_local] check that various functions preserve a [hidden_spaces] MEASURE 
+[prop_FOO_local] check that various functions preserve a [hidden_spaces] MEASURE
 
     FOO :: x: StackSet -> {v: StackSet | hidden_spaces(v) = hidden_spaces(x) }
 
     > Theorem prop_focus_down_local (s : stackSet i l a sd) :
-    > Theorem prop_focus_up_local (s : stackSet i l a sd) : 
+    > Theorem prop_focus_up_local (s : stackSet i l a sd) :
     > Theorem prop_focus_master_local (s : stackSet i l a sd) :
     > Theorem prop_delete_local (s : stackSet i l a sd) (eq_dec : forall x y, {x = y} + {x <> y}) :
-    > Theorem prop_swap_master_local (s : stackSet i l a sd) : 
-    > Theorem prop_swap_left_local (s : stackSet i l a sd) : 
-    > Theorem prop_swap_right_local (s : stackSet i l a sd) : 
-    > Theorem prop_shift_master_local (s : stackSet i l a sd) : 
+    > Theorem prop_swap_master_local (s : stackSet i l a sd) :
+    > Theorem prop_swap_left_local (s : stackSet i l a sd) :
+    > Theorem prop_swap_right_local (s : stackSet i l a sd) :
+    > Theorem prop_shift_master_local (s : stackSet i l a sd) :
     > Theorem prop_insert_local (x : stackSet i l a sd) (eq_dec : forall x y, {x = y} + {x <> y}) :
 
 
@@ -414,33 +414,33 @@ BAD: these check that: forall x: foo (bar x) == x
     > Theorem prop_swap_right_focus (x : StackSet.stackSet i l a sd) :
 
 
-BAD? forall x. swapMaster (swapMaster x) == x 
-    > Theorem prop_swap_master_idempotent (x : StackSet.stackSet i l a sd) : 
-    
+BAD? forall x. swapMaster (swapMaster x) == x
+    > Theorem prop_swap_master_idempotent (x : StackSet.stackSet i l a sd) :
+
 BAD? forall x. view i (view i x) == (view i x)
     > Theorem prop_focusMaster_idem (x : StackSet.stackSet i l a sd) :
 
     NO. Prove: view :: i -> x -> {v: focus(v) = i}
-                    :: i -> x -> {v: focus(x) = i => x = v } 
-        
+                    :: i -> x -> {v: focus(x) = i => x = v }
+
     To prove foo_IDEMPOTENT, find a property P such that:
 
                 foo :: x:t -> {v:t | P(v)}
                 foo :: x:t -> {v:t | P(x) => v = x }
 
-SETS: 
+SETS:
     > Theorem prop_screens (s : stackSet i l a sd) :
 
 
 TRIV/HARD: (function definition)
     > [TRIV]  Theorem prop_screens_work (x : stackSet i l a sd) :
-    > Theorem prop_mapWorkspaceId (x : stackSet i l a sd) : 
+    > Theorem prop_mapWorkspaceId (x : stackSet i l a sd) :
     > Theorem prop_mapLayoutId (s : stackSet i l a sd) :
     > Theorem prop_mapLayoutInverse (s : stackSet i nat a sd) :
     > Theorem prop_mapWorkspaceInverse (s : stackSet nat l a sd) :
 
 Theorem prop_lookup_current (x : stackSet i l a sd) :
-Theorem prop_lookup_visible (x : stackSet i l a sd) : 
+Theorem prop_lookup_visible (x : stackSet i l a sd) :
 
 
 Random Links
@@ -503,15 +503,15 @@ http://www.reddit.com/r/haskell/comments/1okcmh/odd_space_leak_when_using_parsec
 the poster probably feels silly, but I have, on several occasions, hit
 this issue with parsec. Wonder whether our termination checker could be used... hmm...
 
-Sure! You just have to give 
+Sure! You just have to give
 
 type GenParser tok st = Parsec [tok] st
 
-a size, I guess (len [tok]). The hard part will be to prove it when the size is actually decreasing... 
+a size, I guess (len [tok]). The hard part will be to prove it when the size is actually decreasing...
 
 Hmm... Surely we need to track somehow the "effect" of executing a single parsing action.
 
-For example, 
+For example,
 
     chars :: Char -> Parser [Char]
     chars c = do z  <- char c
@@ -538,36 +538,36 @@ You need a measure
 
 which describes (a lower bound) on the number of tokens consumed by the action `Parser a`.
 
-Now, you give 
+Now, you give
 
    return :: a -> {v: Parser a | (eats v) = 0}
 
 and most importantly,
 
-   (>>=)  :: forall <Q :: Parser b -> Prop> 
-             x: Parser a 
-          -> f:{v: a -> Parser b <Q> | (rec v) => (eats x) > 0} 
+   (>>=)  :: forall <Q :: Parser b -> Prop>
+             x: Parser a
+          -> f:{v: a -> Parser b <Q> | (rec v) => (eats x) > 0}
           -> exists z:Parser b <Q>. {v:Parser b | (eats v) = (eats z) + (eats x)}
 
-(Of course you have to give appropriate signatures for the parsec combinators 
+(Of course you have to give appropriate signatures for the parsec combinators
 -- perhaps one can even PROVE the `eats` measure. However, note that
 
    type Parser a = [Char] -> (a, [Char])
 
 roughly speaking, and here `eats` is actually the DIFFERENCE of the lengths of
-the input and output [Char] ... so I'm not sure how exactly we would reason about 
-the IMPLEMENTATION of `eats` but certainly we should be able to USE it in clients 
+the input and output [Char] ... so I'm not sure how exactly we would reason about
+the IMPLEMENTATION of `eats` but certainly we should be able to USE it in clients
 of parsec.
- 
+
 Note that you need a refinement ON the function type, the idea being that:
 
 1. the BODY of a recursive function is checked in the termination-strengthened
 environment that constrains the function to satisfy the predicate `rec`
 
-2. whenever you use >>= on a recursive function, the PRECEDING action must have 
+2. whenever you use >>= on a recursive function, the PRECEDING action must have
 consumed some tokens.
 
-3. the number of tokens consumed by the combined action equals the sum of the two 
+3. the number of tokens consumed by the combined action equals the sum of the two
 actions (all the business about exists z and Q is to allow us to depend on the output
 value of `f` (c.f. tests/pos/cont1.hs)
 
@@ -580,10 +580,10 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 + Introduce a new sort of refinement `Ref` (with alias `RTProp`)
    + Types.hs: Add to `Ref` -- in addition to `RMono` [---> `RPropP`] and `RPoly` [---> `RProp`]
    + Types.hs: Add a `World t` for SL formulas...
-   
+
 
 + Allow `PVar` to have the sort `HProp`
-   + CHANGE `ptype :: PVKind t` where `data PVKind t = PVProp t | PVHProp` 
+   + CHANGE `ptype :: PVKind t` where `data PVKind t = PVProp t | PVHProp`
    + Can we reuse `RAllP` to encode `HProp`-quantification? (YES)
    + Update `RTyCon` to store `HProp` vars
 
@@ -591,7 +591,7 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
    + Can we reuse type-application sites for `HProp`-instantiation? (Yes)
    - Constraint.hs  :1642:   = errorstar "TODO:EFFECTS:freshPredRef"
    - PredType.hs         : go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
-	 
+
 - Write cons-solve
   - eliminate/solve `HProp` constraints prior to subtype splitting.
 
@@ -608,13 +608,13 @@ PROJECT: HTT style ST/IO reasoning with Abstract Refinements
 ### RHProp
 
 a. Following `RProp` we should have
-	
+
 	* RHProp := x1:t1,...,xn:tn -> World
 
 b. Where `World` is a _spatial conjunction_ of
 
 	* WPreds : (h v1 ... vn), h2, ...
-	* Wbinds : x1 := T1, x2 := T2, ... 
+	* Wbinds : x1 := T1, x2 := T2, ...
 
 c. Such that each `World` has _at most one_ `WPred` (that is _not rigid_ i.e. can be solved for.)
 
@@ -661,16 +661,16 @@ CP := l :-> T * CP  -- Concrete Heap
     | emp
 
 HP := CP       
-    | CP * H        -- Heap Variable 
+    | CP * H        -- Heap Variable
 ```
 
 That is, an `HProp` is of the form:
 
-    H * l1 |-> T1 * ... * ln |-> Tn 
+    H * l1 |-> T1 * ... * ln |-> Tn
 
-or 
+or
 
-    l1 |-> T1 * ... * ln |-> Tn 
+    l1 |-> T1 * ... * ln |-> Tn
 
 I am disallowing multiple variables because it causes problems...
 
@@ -684,10 +684,10 @@ data IO a <Pre :: HProp, Post :: a -> HProp>
 **Refined Monadic Operators**
 
 ```haskell
-return :: forall a, <H :: HProp>. 
+return :: forall a, <H :: HProp>.
             a -> IO <H, \_ -> H> a
 
-(>>=)  :: forall a, b, <P :: HProp, Q :: a -> HProp, R :: b -> HProp>. 
+(>>=)  :: forall a, b, <P :: HProp, Q :: a -> HProp, R :: b -> HProp>.
             IO<P, Q> a -> (x:a -> IO<Q x, R> b) -> IO<P, R> b
 ```
 
@@ -697,21 +697,21 @@ Via subtyping as always, so:
 
          forall i. Γ |- Ti <: Ti'
     -----------------------------------
-    Γ |- *_i li :-> Ti <: *_i li -> Ti' 
+    Γ |- *_i li :-> Ti <: *_i li -> Ti'
 
 For this, we need to put in explicit `HProp` instantiations, just like
-tyvar (α) and  predvar (π) instinstatntiations. This is doable with a 
+tyvar (α) and  predvar (π) instinstatntiations. This is doable with a
 pre-pass that generates and solves `HProp` constraints as follows:
 
 1. At each instantiation, make up _fresh_ variables `h`
 2. Treat _bound_ heap-variables as **constants**
-3. Instantiation yields a set of constraints over `h` 
+3. Instantiation yields a set of constraints over `h`
 4. Solve constraints via algorithm below.
 
 **Q2.** Can you _name_ values inside `HProp`?
 
-Nope. There's no reason for this, but its tedious to have to make up 
-new heap binders and what not. Clutters stuff. This is _slightly_ 
+Nope. There's no reason for this, but its tedious to have to make up
+new heap binders and what not. Clutters stuff. This is _slightly_
 problematic. For example, how do you write a function of the form:
 
 ```haskell
@@ -727,9 +727,9 @@ incr :: p:IORef Int -> i:Int -> IO {v:Int| v = i} <p |-> {v = i}, p |-> {v = i +
 
 **Q3.** How to relate `Post`-condition to the `Pre`-conditions?
 
-Note that the `Post`-condition is a unary predicate -- i.e. _does not_ 
-refer to the input world. How then do we relate the input and output heaps? 
-As above: _name_ the values of the input heap that you care about, and then 
+Note that the `Post`-condition is a unary predicate -- i.e. _does not_
+refer to the input world. How then do we relate the input and output heaps?
+As above: _name_ the values of the input heap that you care about, and then
 relate `Post` to `Pre` via the name.
 
 **Q4.** How to _read_ values off the heap?
@@ -768,34 +768,34 @@ Here, each `ch` is of the form:
 
     l1 |-> τ1 * ... * ln -> τn * A1 * ... * An
 
-where each `Ai` is a _rigid_ or quantified heap var that is atomic, 
-i.e. cannot be further solved for. For solving, we throw away _all_ 
-refinements, and just use the shape τ. 
+where each `Ai` is a _rigid_ or quantified heap var that is atomic,
+i.e. cannot be further solved for. For solving, we throw away _all_
+refinements, and just use the shape τ.
 
 ```
 solve :: Sol -> [Constraint] -> Maybe Sol
 solve σ []     
   = Just σ
-solve σ (c:cs) 
+solve σ (c:cs)
   = case c of
-      C0 ch1 ch2 -> 
+      C0 ch1 ch2 ->
         if ch1 `equals` ch2  then
           -- c is trivially SAT,
-          solve σ cs 
-        else 
+          solve σ cs
+        else
           -- c and hence all constraints are unsat
           Nothing
-                  
-      C1 (H1 * ch1) ch2 -> 
-        if ch1 `subset` ch2 then 
+
+      C1 (H1 * ch1) ch2 ->
+        if ch1 `subset` ch2 then
           let σ' = [H1 := c2 `minus` c1]
           solve (σ . σ') (σ' <$> cs)
-        else 
+        else
           -- c and hence all constraints are unsat
           Nothing
-                  
+
       C2 (H1 * ch1) (H2 * ch2) ->
-        let H = fresh heap variable 
+        let H = fresh heap variable
         let σ'  = [H1 := H * ch2, H2 := H * ch1]
         solve (σ . σ') (σ' <$> cs)
 ```
@@ -806,8 +806,8 @@ PROJECT: (OLD) HTT style ST/IO reasoning with Abstract Refinements
 ------------------------------------------------------------------
 
 
-Can we use abstract refinements to do "stateful reasoning", 
-e.g. about stuff in `IO` ? For example, to read files, this 
+Can we use abstract refinements to do "stateful reasoning",
+e.g. about stuff in `IO` ? For example, to read files, this
 is the API:
 
     open  :: FilePath -> IO Handle
@@ -841,22 +841,22 @@ give types to the File API:
 Wonder if something like this would work?
 
 Niki:
-My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop) 
+My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop)
 to a pre-condition.
 I guess you need to apply a value x :: a and a w :: Word to write (a -> IO b<Q x w, R>).
 
 I think the problem is that the "correct" values x and w are not "in scope"
- 
+
 
 So assume
-    
-    data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> 
+
+    data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop>
       = IO (x:Word<P> -> (y:a, Word<Q y x>))
 
 and you want to type
 
     bind :: IO a <P,Q> -> (a -> IO b <Q x w, R>) -> IO b <P,R>
-    bind (IO m) k = IO $ \s -> case m s of 
+    bind (IO m) k = IO $ \s -> case m s of
                                  (a, s') -> unIO (k a) s'
 
 
@@ -868,17 +868,17 @@ you can assume
 
     s:: Word <P>
 
-so 
+so
 
     m s         :: (y:a, Word <Q y s>)
     k a         :: IO b <Q x w, R>
     uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
 
-and we want 
+and we want
 
-    (uniIO k a) s :: (xx:b , Word <R xx s>) 
+    (uniIO k a) s :: (xx:b , Word <R xx s>)
 
-so basically we need 
+so basically we need
 
     P  => Q x w
 
@@ -891,20 +891,20 @@ the latter takes only one.
 
 BUT, how about this (basically, all you need is an EXISTS).
 
-   -- | the type for `return` says that the output world satisfies 
+   -- | the type for `return` says that the output world satisfies
    --   whatever predicate the input world satisfied.
-   
+
    return :: a -> IO a <P, {\_ _ w' -> (P w')}>
- 
-   -- | the type for `bind` says that its action requires as input a world that satisfies 
+
+   -- | the type for `bind` says that its action requires as input a world that satisfies
    --   Q (for SOME input world w0) and produces as output an R world.
-   (>>=)  :: IO a <P, Q> 
-          -> (x:a -> \exists w0:World. IO b<{\w -> (Q x w0 w)}, R>) 
+   (>>=)  :: IO a <P, Q>
+          -> (x:a -> \exists w0:World. IO b<{\w -> (Q x w0 w)}, R>)
           -> IO b<P, {\xb w w' -> \exists xa:a w0:World<Q xa w>.(R xb w0 w')}>
 
 
 
-Basically, I am using exists in the same way as in the "compose" 
+Basically, I am using exists in the same way as in the "compose"
 
 https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/pos/funcomposition.hs
 
@@ -935,12 +935,12 @@ Now, it should be possible to give types like:
 
 
 
-My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop) 
+My question is how do you make Q from a post-condition (Q :: a -> Word -> Word -> Prop)
 to a pre-condition.
 I guess you need to apply a value x :: a and a w :: Word to write (a -> IO b<Q x w, R>).
 
 I think the problem is that the "correct" values x and w are not "in scope"
- 
+
 
 So assume
 data IO a <P :: Word -> Prop, Q: a -> Word -> Word -> Prop> = IO (x:Word<P> -> (y:a, Word<Q y x>))
@@ -958,26 +958,26 @@ IO m :: IO a <P. Q>
 you can assume
 s:: Word <P>
 
-so 
+so
 m s :: (y:a, Word <Q y s>)
 
 k a :: IO b <Q x w, R>
 
 uniIO (k a) :: z:Word <Q x w> -> (xx:b, Word <R xx z>)
 
-and we want 
-(uniIO k a) s :: (xx:b , Word <R xx s>) 
+and we want
+(uniIO k a) s :: (xx:b , Word <R xx s>)
 
-so basically we need 
+so basically we need
 P  => Q x w
 to be able to make the final application
 
 
 bind :: ST a <P,Q> -> (a -> ST b <Q x w, R>) -> ST b <P,R>
 bind (ST f1) k = ST $ \s0 -> let (x, s1) = f1 s0  
-                                 ST f2   = k x 
+                                 ST f2   = k x
                                  (y, s2) = f2 s1
-                             in 
+                             in
                                  (y, s2)
 
 
@@ -1008,7 +1008,7 @@ Q: How to encode *heterogenous* maps like:
 
    and write
 
-    showName d1 
+    showName d1
     showName d2
 
    or even
@@ -1022,15 +1022,15 @@ Step 1: Encode dictionary as vanilla Haskell type
     put   :: (Dynamic a) => String -> a -> Dict -> Dict
     get   :: (Dynamic a) => String -> Dict -> Dict
 
-Step 2: **Create** dictionaries 
+Step 2: **Create** dictionaries
 
     d1 = put "name"   "RJ"
        $ put "age"    36
-       $ put "alive"  True 
+       $ put "alive"  True
        $ empty
-       
+
     d1 = put "name"   "Jupiter"
-       $ put "pos"    5 
+       $ put "pos"    5
        $ empty
 
 Step 3: **Lookup** dictionaries
@@ -1039,9 +1039,9 @@ Step 3: **Lookup** dictionaries
     showName d = get "name" d
 
     -- TODO: how to support
-    showName :: Dict -> Dict 
-    incrAge d = put "age" (n + 1) d 
-      where 
+    showName :: Dict -> Dict
+    incrAge d = put "age" (n + 1) d
+      where
             n = get "age" d
 
     -- TODO: how to support
@@ -1057,9 +1057,9 @@ inside logic, so you can write measures like
 
     measure TypeOf :: a -> Type
 
-and use it to define refinements like 
+and use it to define refinements like
 
-    (TypeOf v = Int) 
+    (TypeOf v = Int)
 
 (TODO: too bad we don't have relational measures... or multi-param measures ... yet!)
 
@@ -1073,31 +1073,31 @@ Step 5: Refined Signatures for `Dict` API
 
     put :: (Dynamic a) => key:String
                        -> {value:a | (Q key value)}
-                       -> d:Dict <Q /\ {\k _ -> k /= key}> 
+                       -> d:Dict <Q /\ {\k _ -> k /= key}>
                        -> Dict <Q /\ {\k v -> (Fld k v key a)}>
-                       
+
     get :: (Dynamic a) => key:String
-                       -> d:Dict <{\k v -> (Fld k v key a)}> 
+                       -> d:Dict <{\k v -> (Fld k v key a)}>
                        -> a
 
 Step 6: Now, for example, we should be able to type our dictionaries as
 
     {-@ d1 :: Dict<Q1> @-}
 
-where 
+where
 
-    Q1 == \k v -> Fld k v "name"  String /\ 
-                  Fld k v "age"   Int    /\ 
+    Q1 == \k v -> Fld k v "name"  String /\
+                  Fld k v "age"   Int    /\
                   Fld k v "alive" Bool   
 
-and 
+and
 
     {-@ d2 :: Dict<Q2> @-}
 
 where
 
-    Q2 == \k v -> Fld k v "name"  String /\ 
-                  Fld k v "pos"   Int    /\ 
+    Q2 == \k v -> Fld k v "name"  String /\
+                  Fld k v "pos"   Int    /\
 
 **TODO:**
 
@@ -1105,7 +1105,7 @@ where
   + needed for `TypeOf` measure, equality checks
   + requires doing type-substitutions inside refinements
 
-+ add support for 
++ add support for
   + update [isn't that just `put`?]
   + concat
 
@@ -1115,8 +1115,11 @@ where
   - Filter (takes a predicate that should only read valid columns of the record)
 
 
-PROJECT: Proving Type-Class Laws
---------------------------------
+PROJECT: Equational Reasoning
+-----------------------------
+
+e.g. Type class laws.
+
 Many type-classes come with a set of laws that instances are expected
 to abide by, e.g.
 
@@ -1134,7 +1137,208 @@ mappend x mempty = x
 mappend x (mappend y z) = mappend (mappend x y) z
 ```
 
-etc. Can we express these laws in LH and prove them automatically?
+**Strategy**
+
+**1. Representing Proofs**
+
+```
+data Proof  = Proof           -- void, pure refinement
+
+type Pf P   = {v:Proof | P}
+
+type Eq X Y = Pf (X == Y)
+```
+
+**2. Combining Proofs**
+
+```
+bound Imp P Q R = P => Q => R
+
+eq, imp :: (Imp P Q R) => Pf P -> Pf Q -> Pf R
+
+refl    :: x:a -> Eq a x x
+```
+
+**3. Axiomatizing arithmetic**
+
+```
+add :: x:Int -> y:Int -> {z:Int | z = x + y} -> Eq (x + y) z
+add x y z = auto
+```
+
+
+**Example 1: Arithmetic**
+
+Lets drill in: how to represent the following "equational" proof in LH?
+
+```
+     (1 + 2) + (3 + 4)       -- e0
+
+     { 1 + 2 == 3}
+
+  == 3 + (3 + 4)             -- e1
+
+     { 3 + 4 == 7}
+
+  == 3 + 7                   -- e2
+
+     { 3 + 7 == 10}
+
+  == 10                      -- e3
+```
+
+Now the above proof looks like this:
+
+```
+e0 :: Int
+e0 = (1 + 2) + (3 + 4)
+
+prop :: Eq e0 10
+prop = (((refl e0  `imp` (add 1 2 3))   -- :: Eq e0 (3 + (3 + 4))
+
+                   `imp` (add 3 4 7))   -- :: Eq e0 (3 + 7)
+
+                   `imp` (add 3 7 10))  -- :: Eq e0 10  
+```
+
+
+**Example 2: Lists**
+
+A more interesting example: Lets prove `prop_app_nil`:
+
+    prop_app_nil: forall xs. append xs [] = xs
+
+The definition of
+
+```
+append []     ys = ys
+append (x:xs) ys = x : append xs ys
+```
+
+yields the *axioms*
+
+```
+append_nil  :: ys:_ -> Eq (append [] ys) ys
+append_cons :: x:_ -> xs:_ -> ys:_ -> Eq (append (x:xs) ys) (x : append xs ys)
+```
+
+Code on left, "equations" on right.
+
+```
+prop_app_nil    :: xs:[a] -> Eq (append xs []) xs
+
+prop_app_nil []     = refl (append [] [])             
+                                                   -- append [] []
+                       `by` (append_nil [])        -- { append_nil [] }    
+                                                   -- == []  
+
+prop_app_nil (x:xs) = refl (append (x:xs) [])       
+                                                   -- append (x:xs) []
+                       `by` (append_cons x xs [])  -- { append_cons x xs [] }
+                                                   -- == x : append xs []
+                       `by` (prop_app_nil xs)      -- { IH: prop_app xs }
+                                                   -- == x : xs
+```
+
+
+**Example 3: Map Fusion**
+
+Lets go fancier:
+
+
+    forall xs. map (f . g) xs = (map f . map g) xs
+
+Here's the classical (?) equational proof:
+
+```
+map (f . g) []   
+   { map_nil (f . g) }
+   == []
+   { map_nil f }
+   == map f []
+   { map_nil g }
+   == map f (map g [])
+   { dot f g }
+   == (map f . map g) []
+
+map (f . g) (x:xs)  
+   { map_cons (f . g) x xs }
+   == (f . g) x : map (f . g) xs
+   { map_dot f g xs }
+   == (f . g) x : (map f . map g) xs
+   { dot (map f) (map g) }
+   == (f . g) x : map f (map g xs)
+   { dot f g }
+   == f (g x) : map f (map g xs)
+   {map_cons f (g x) (map g xs) }
+   == map f (g x : map g xs)
+   {map_cons g x xs}
+   == map f (map g (x : xs))
+   { dot (map f) (map g) }
+   ==  (map f . map g) (x : xs)
+```
+
+Formalize thus (with functions/axioms)
+
+```
+map f []     = []               -- map_nil
+map f (x:xs) = f x  : map f xs  -- map_cons
+
+(f . g) x    =  f (g x)         -- dot
+```
+
+Now, we formalize map-fusion as:
+
+```
+map_fusion :: f:_ -> g:_ -> xs:_ ->
+              Eq (map (f . g) xs) (map f . map g) xs
+
+map_fusion f g []     = map_dot_nil f g
+map_fusion f g (x:xs) = map_dot_cons f g x xs
+```
+
+The hard work happens in the two "lemmas"
+
+```
+map_dot_nil :: f:_ -> g:_ ->
+               Eq (map (f . g) []) ((map f . map g) [])
+map_dot_nil f g
+  = refl (map (f . g) [])   
+                              -- map (f . g) []
+     `by` (map_nil (f . g))
+                              -- == []
+     `by` (map_nil f)
+                              -- == map f []
+     `by` (map_nil g)
+                              -- == map f (map g [])
+     `by` (dot f g)
+                              -- == (map f . map g) []
+```
+
+and
+
+```
+map_dot_nil :: f:_ -> g:_ -> x:_ -> xs:_ ->
+               Eq (map (f . g) []) ((map f . map g) [])
+map_dot_cons f g x xs
+  = refl (map (f . g) (x:xs))
+                                          -- map (f . g) (x : xs)
+      `by` (map_cons (f . g) x xs)
+                                          -- == (f . g) x : map (f . g) xs
+      `by` (map_dot f g xs)
+                                          -- == (f . g) x : (map f . map g) xs
+      `by` (dot (map f) (map g))
+                                          -- == (f . g) x : map f (map g xs)
+      `by` (dot f g)
+                                          -- == f (g x) : map f (map g xs)
+      `by` (map_cons f (g x) (map g xs))
+                                          -- == map f (g x : map g xs)
+      `by` (map_cons g x xs)
+                                          -- == map f (map g (x : xs))
+      `by` (dot (map f) (map g))
+                                          -- ==  (map f . map g) (x : xs)
+```
+
 
 
 GHC 7.10
