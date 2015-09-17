@@ -132,7 +132,7 @@ mkTest code dir file
     log = "tests/logs/cur" </> test <.> "log"
 
 binPath pkgName = do
-  testPath <- getASDASDASDExecutablePath
+  testPath <- getExecutablePath
   return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
