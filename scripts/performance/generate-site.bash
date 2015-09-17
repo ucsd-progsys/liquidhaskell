@@ -41,6 +41,7 @@ function generate_log {
         $CABAL sandbox init;
 
         $CABAL install --only-dependencies --enable-tests;
+        $CABAL configure -fdevel --enable-tests --disable-library-profiling -O2;
         $CABAL test
 
 
