@@ -313,7 +313,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 defConfig :: Config
 defConfig = Config { files          = def
                    , idirs          = def
-                   , newcheck       = True    
+                   , newcheck       = True     
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
