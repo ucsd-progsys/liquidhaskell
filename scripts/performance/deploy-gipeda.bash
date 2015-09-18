@@ -11,7 +11,7 @@ GIPEDA_REPO="$GIPEDA_DIR/repository";
 REL_SANDBOX_BIN=".cabal-sandbox/bin";
 
 GIPEDA_URL="https://github.com/nomeata/gipeda.git"
-LIQUID_URL="https://github.com/christetreault/liquidhaskell.git"
+LIQUID_URL="https://github.com/ucsd-progsys/liquidhaskell.git"
 
 SETTINGS_FILE="settings.yaml"
 LOG2CSV="log2csv.hs"
