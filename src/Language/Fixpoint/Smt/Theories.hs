@@ -16,6 +16,7 @@ module Language.Fixpoint.Smt.Theories
      
      ) where
 
+import           Prelude hiding (map)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
@@ -24,6 +25,7 @@ import qualified Data.Text                as T
 import           Data.Text.Format
 import           Control.Applicative      ((<$>))
 import qualified Data.Text.Lazy           as LT
+
 
 --------------------------------------------------------------------------
 -- | Set Theory ----------------------------------------------------------
@@ -50,7 +52,7 @@ sel   = "smt_map_sel"
 sto   = "smt_map_sto"
 
 
-setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng :: Symbol
+setEmpty, setEmp, setCap, setSub, setAdd, setMem, setCom, setCup, setDif, setSng, mapSel, mapSto :: Symbol
 setEmpty = "Set_empty"
 setEmp   = "Set_emp"
 setCap   = "Set_cap"
@@ -61,6 +63,8 @@ setCom   = "Set_com"
 setCup   = "Set_cup"
 setDif   = "Set_dif"
 setSng   = "Set_sng"
+mapSel   = "Map_select"
+mapSto   = "Map_store"
 
 z3Preamble :: [LT.Text]
 z3Preamble
@@ -84,6 +88,12 @@ z3Preamble
         (dif, set, set, set, cap, com)
     , format "(define-fun {} ((s1 {}) (s2 {})) Bool (= {} ({} s1 s2)))"
         (sub, set, set, emp, dif)
+    , format "(define-sort {} () (Array {} {}))"
+        (map, elt, elt)
+    , format "(define-fun {} ((m {}) (k {})) {} (select m k))"
+        (sel, map, elt, elt)
+    , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
+        (sto, map, elt, elt, map)
     ]
 
 smtlibPreamble :: [LT.Text]
@@ -98,6 +108,8 @@ smtlibPreamble
     , format "(declare-fun {} ({} {}) {})"   (dif, set, set, set)
     , format "(declare-fun {} ({} {}) Bool)" (sub, set, set)
     , format "(declare-fun {} ({} {}) Bool)" (mem, elt, set)
+    , format "(declare-fun {} ({} {}) {})"    (sel, map, elt, elt)
+    , format "(declare-fun {} ({} {} {}) {})" (sto, map, elt, elt, map)
     ]
 
 mkSetSort _ _  = set
@@ -125,6 +137,8 @@ theorySymbols = M.fromList
   , tSym setDif dif undefined
   , tSym setSub sub undefined
   , tSym setCom com undefined
+  , tSym mapSel sel undefined
+  , tSym mapSto sto undefined
   ]
 
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
@@ -140,6 +154,8 @@ smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
 smt2Sort :: Sort -> Maybe LT.Text
 smt2Sort (FApp (FTC c) t)
   | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
+smt2Sort (FApp (FApp (FTC c) t1) t2)
+  | fTyconSymbol c == "Map_t"   = Just $ format "{}" (Only map)
 smt2Sort _                      = Nothing
 
 smt2App :: LocSymbol -> [LT.Text] -> Maybe LT.Text
@@ -149,6 +165,6 @@ smt2App f [d]
   | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
 
-preamble :: SMTSolver ->[LT.Text]
+preamble :: SMTSolver -> [LT.Text]
 preamble Z3 = z3Preamble
 preamble _  = smtlibPreamble
