@@ -10,6 +10,8 @@ GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
+REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
+REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
 
 START=0;
 END=0;
@@ -36,18 +38,52 @@ function generate_log {
     then
 
         $MAKE clean;
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
+
         rm -rf .cabal-sandbox;
         rm cabal.sandbox.config;
+
         $CABAL sandbox init;
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
 
-        $CABAL install --only-dependencies --enable-tests;
+        $CABAL install --enable-tests;
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
+
         $CABAL configure -fdevel --enable-tests --disable-library-profiling -O2;
-        $CABAL test
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
 
+        $CABAL build;
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
 
+        $CABAL exec $REPO_TEST;
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
+
+        cp $REPO_LOG $RESULT
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
     fi
 
-    echo $RETURN;
+    return 0;
 }
 
 function abort_if_failed {
@@ -170,6 +206,9 @@ done
 
 cd $GIPEDA_DIR;
 abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
+
+exit 0;
+# from here down is TODO
 
 ./gipeda;
 abort_if_failed "Unable to generate report...";
