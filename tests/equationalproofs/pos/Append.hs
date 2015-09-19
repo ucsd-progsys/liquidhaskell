@@ -61,7 +61,12 @@ toProof x y = Proof
 eqProof :: a -> a -> Proof -> a 
 eqProof x y _ = y 
 
+{-@ (===) :: l:a -> (a, Proof)<{\r v -> l == r}> -> {v:a | v = l } @-}
+(===) :: a -> (a,Proof) -> a 
+(===) x (y, _) = y 
 
+using a -> Proof -> (a, Proof)
+using x y = (x, y)
 
 -- | Proof 1: N is neutral element 
 
@@ -69,14 +74,14 @@ eqProof x y _ = y
 prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N 
 
-prop_nil (C x xs) = toProof e1 $ eqProof e1 (eqProof e2 e3 pr2) pr1
+prop_nil (C x xs) = toProof e1 $ 
+  eqProof e1 (e2 === (e3 `using` pr2)) pr1
    where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
    	e2  = C x (append xs N)
    	pr2 = prop_nil xs
    	e3  = C x xs
-
 
 -- | Proof 2: append is associative
 
