@@ -94,7 +94,7 @@ Executable liquid
                , liquidhaskell
 
   Main-is: Liquid.hs
-  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -threaded
+  ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
   Default-Extensions: PatternGuards
 
 
