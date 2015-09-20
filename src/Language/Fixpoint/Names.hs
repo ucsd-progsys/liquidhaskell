@@ -7,6 +7,8 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE CPP                        #-}
+
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -51,18 +53,20 @@ module Language.Fixpoint.Names (
   , prims
 ) where
 
-import           Control.Applicative
-import           Control.DeepSeq
+#if __GLASGOW_HASKELL__ < 710
+import           Control.Applicative ((<$>))
+import           Data.Monoid (Monoid (..))
+#endif
+
+import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
-import           Data.Char
+import           Data.Char                   (isAlpha, chr, ord)
 import           Data.Generics               (Data)
-import           Data.Hashable
+import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
-import           Data.Interned
+import           Data.Interned               (intern, unintern)
 import           Data.Interned.Internal.Text
-import           Data.Monoid
-import           Data.String
-import           Data.Text                   (Text)
+import           Data.String                 (IsString)
 import qualified Data.Text                   as T
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
@@ -123,7 +127,7 @@ encode s
 
 encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
 
-symbolText :: Symbol -> Text
+symbolText :: Symbol -> T.Text
 symbolText (S s) = unintern s
 
 -- symbolString :: Symbol -> String
@@ -233,7 +237,7 @@ class Symbolic a where
 instance Symbolic String where
   symbol = symbol . T.pack
 
-instance Symbolic Text where
+instance Symbolic T.Text where
   symbol = S . intern
 
 instance Symbolic InternedText where

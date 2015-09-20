@@ -21,37 +21,37 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-import qualified Data.HashMap.Strict              as M
-import           Data.List hiding (partition)
-
 #if __GLASGOW_HASKELL__ < 710
-import           Data.Functor
+import           Data.Functor ((<$>))
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-import           System.Exit
-import           System.IO                        (IOMode (..), hPutStr, withFile)
-import           System.Console.CmdArgs.Verbosity hiding (Loud)
-import           Text.PrettyPrint.HughesPJ
-import           Text.Printf
-import           Control.Monad (liftM)
 
-import           Language.Fixpoint.Solver.Validate
+import qualified Data.HashMap.Strict                as M
+import           Data.List                          hiding (partition)
+import           System.Exit                        (ExitCode (..))
+import           System.IO                          (IOMode (..), hPutStr, withFile)
+import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           Text.PrettyPrint.HughesPJ          (render)
+import           Text.Printf                        (printf)
+import           Control.Monad                      (liftM)
+
+import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
-import qualified Language.Fixpoint.Solver.Solve  as S
-import           Language.Fixpoint.Config          hiding (solver)
-import           Language.Fixpoint.Files           hiding (Result)
+import qualified Language.Fixpoint.Solver.Solve     as S
+import           Language.Fixpoint.Config           (Config (..), command, withTarget)
+import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition, partition')
-import           Language.Fixpoint.Parse          (rr, rr')
+import           Language.Fixpoint.Statistics       (statistics)
+import           Language.Fixpoint.Partition        (partition, partition')
+import           Language.Fixpoint.Parse            (rr, rr')
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors (exit)
-import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
-import           Language.Fixpoint.Parallel
+import           Language.Fixpoint.Errors           (exit)
+import           Language.Fixpoint.PrettyPrint      (showpp, pprintKVs)
+import           Language.Fixpoint.Parallel         (inParallelUsing)
 
-import           Debug.Trace
+import           Debug.Trace                        (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------

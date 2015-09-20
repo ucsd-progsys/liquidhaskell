@@ -195,7 +195,7 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
-import           Control.DeepSeq
+import           Control.DeepSeq           (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 

@@ -8,10 +8,10 @@
 
 module Language.Fixpoint.Misc where
 
-import qualified Control.Exception                as Ex
+import           Control.Exception                (catch, IOException, bracket_)
 import           Data.Hashable
 import           Data.Traversable                 (traverse)
-import qualified Data.HashSet        as S
+import qualified Data.HashSet                     as S
 import           Control.Applicative              ((<$>))
 import           Control.Monad                    (forM_, (>=>))
 import qualified Data.ByteString                  as B
@@ -22,11 +22,11 @@ import           Data.Tuple                       (swap)
 import           Data.Maybe                       (fromJust, catMaybes, fromMaybe)
 import qualified Data.Text                        as T
 
-import           Data.Data
+import           Data.Data                        (Data, Typeable)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           System.Exit
+import           System.Exit                      (ExitCode (..))
 import           System.Process                   (system)
 
 import           Text.PrettyPrint.HughesPJ
@@ -164,8 +164,8 @@ boxStrCat ::  String -> [String] -> String
 boxStrCat sep = ("[" ++) . (++ "]") . L.intercalate sep
 
 tryIgnore :: String -> IO () -> IO ()
-tryIgnore s a = Ex.catch a $ \e ->
-                do let err = show (e :: Ex.IOException)
+tryIgnore s a = catch a $ \e ->
+                do let err = show (e :: IOException)
                    writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
                    return ()
 
@@ -421,11 +421,11 @@ ifM bm xm ym
 
 executeShellCommand phase cmd
   = do writeLoud $ "EXEC: " ++ cmd
-       Ex.bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
+       bracket_ (startPhase Loud phase) (donePhase Loud phase) $ system cmd
 
 executeShellCommandWithOptStars v phase cmd
   = do writeLoud $ "EXEC: " ++ cmd
-       Ex.bracket_ (startPhaseWithOptStars v Loud phase) (donePhaseWithOptStars v Loud phase) $ system cmd
+       bracket_ (startPhaseWithOptStars v Loud phase) (donePhaseWithOptStars v Loud phase) $ system cmd
 
 checkExitCode _   (ExitSuccess)   = return ()
 checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n

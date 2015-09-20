@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE CPP                       #-}
 
 module Language.Fixpoint.Parse (
 
@@ -66,14 +67,17 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
+#endif
+
 import           Control.Arrow               (first)
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
-import           Text.Parsec.Language
+import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
