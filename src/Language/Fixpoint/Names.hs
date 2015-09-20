@@ -53,6 +53,7 @@ module Language.Fixpoint.Names (
 
 import           Control.Applicative
 import           Control.DeepSeq
+import           Control.Arrow               (second)
 import           Data.Char
 import           Data.Generics               (Data)
 import           Data.Hashable
@@ -66,7 +67,7 @@ import qualified Data.Text                   as T
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (errorstar, mapSnd, stripParens)
+import           Language.Fixpoint.Misc      (errorstar, stripParens)
 
 
 ---------------------------------------------------------------
@@ -157,7 +158,7 @@ singletonSym = (`consSym` "")
 lengthSym (symbolText -> t) = T.length t
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
-unconsSym (symbolText -> s) = mapSnd symbol <$> T.uncons s
+unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolText -> t) = symbol $ T.drop n t

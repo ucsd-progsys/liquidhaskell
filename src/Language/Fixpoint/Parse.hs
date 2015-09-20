@@ -67,6 +67,7 @@ module Language.Fixpoint.Parse (
   ) where
 
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
+import           Control.Arrow               (first)
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
@@ -80,7 +81,7 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      hiding (dcolon)
+import           Language.Fixpoint.Misc      (single, sortNub)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Types
@@ -463,7 +464,7 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
   where
     (vv,t):zts = gSorts xts
-    yts        = mapFst mkParam <$> zts
+    yts        = first mkParam <$> zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
 
 gSorts :: [(a, Sort)] -> [(a, Sort)]

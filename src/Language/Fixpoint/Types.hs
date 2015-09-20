@@ -183,11 +183,11 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
+import           Control.Arrow             (second)
 import           Data.Char                 (toLower)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
--- import           Data.Interned
 import           Data.List                 (foldl', intersect, nub, sort)
 import           Data.Monoid               hiding ((<>))
 import           Data.String
@@ -201,13 +201,13 @@ import           Text.Printf               (printf)
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Names
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 
 import           Data.Array                hiding (indices)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
-import           Language.Fixpoint.Names
 
 
 class Fixpoint a where
@@ -1235,7 +1235,7 @@ unsafeMkSubst  = Su
 
 unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
   where
-    s1'                           = mapSnd (subst θ2) <$> s1
+    s1'                           = second (subst θ2) <$> s1
 
 -- TODO: this is **not used**, because of degenerate substitutions.
 -- e.g. consider: s1 = [v := v], s2 = [v := x].
@@ -1243,7 +1243,7 @@ unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
 
 unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
   where
-    s1' = mapSnd (subst (Su s2')) <$> s1
+    s1' = second (subst (Su s2')) <$> s1
     s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
 
 -- TODO: nano-js throws all sorts of issues, will look into this later...
@@ -1255,7 +1255,7 @@ safeCatSubst θ1@(Su s1) θ2@(Su s2)
   | otherwise
   = errorstar msg
   where
-    s1' = mapSnd (subst (Su s2)) <$> s1
+    s1' = second (subst (Su s2)) <$> s1
     xs1 = fst <$> s1
     xs2 = fst <$> s2
     msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
