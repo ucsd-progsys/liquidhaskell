@@ -79,7 +79,7 @@ prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N 
 
 prop_nil (C x xs) = toProof e1 $ 
-  eqProof e1 (e2 `eq` e3 pr2) pr1
+  eqProof e1 (eqProof e2 e3 pr2) pr1
    where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
