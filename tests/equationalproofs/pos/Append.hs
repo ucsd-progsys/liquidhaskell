@@ -61,8 +61,13 @@ toProof x y = Proof
 
 
 {-@ (===) :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
+<<<<<<< HEAD
 (===) :: a -> a -> Proof -> a
 (===) x y _ = y
+=======
+(===) :: a -> a -> Proof -> a 
+(===) x y _ = y 
+>>>>>>> 2b053533e02c066dd70a5378c52c0b73f6992eba
 
 -- | Proof 1: N is neutral element
 
@@ -72,7 +77,11 @@ prop_nil N   =  axiom_append_nil N
 
 prop_nil (C x xs) = toProof e1 $ ((
   e1 === e2) pr1
+<<<<<<< HEAD
      === e3) pr2
+=======
+     === e3) pr2 
+>>>>>>> 2b053533e02c066dd70a5378c52c0b73f6992eba
    where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
@@ -109,19 +118,32 @@ prop_app_nil (C x xs)
 
 -- | Proof 2: append is associative
 
+<<<<<<< HEAD
 
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
 prop_assoc N ys zs =
+=======
+{-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
+               -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
+prop_assoc :: Eq a => L a -> L a -> L a -> Proof
+prop_assoc N ys zs = 
+>>>>>>> 2b053533e02c066dd70a5378c52c0b73f6992eba
   toProof (append (append N ys) zs) $ ((
     append (append N ys) zs === append ys zs)             (axiom_append_nil ys)
                             === append N (append ys zs))  (axiom_append_nil (append ys zs))
 
+<<<<<<< HEAD
 prop_assoc (C x xs) ys zs =
   toProof e1 $ ((((
    e1  === e2) pr1
+=======
+prop_assoc (C x xs) ys zs = 
+  toProof e1 $ ((((
+   e1  === e2) pr1 
+>>>>>>> 2b053533e02c066dd70a5378c52c0b73f6992eba
        === e3) pr2
        === e4) pr3
        === e5) pr4
@@ -135,3 +157,7 @@ prop_assoc (C x xs) ys zs =
     e4  = C x (append xs (append ys zs))
     pr4 = axiom_append_cons x xs (append ys zs)
     e5  = append (C x xs) (append ys zs)
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2b053533e02c066dd70a5378c52c0b73f6992eba
