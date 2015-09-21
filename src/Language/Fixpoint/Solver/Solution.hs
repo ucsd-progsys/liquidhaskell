@@ -24,7 +24,7 @@ import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
-import           Data.Monoid                    ((<>))
+import           Data.Monoid                    ((<>), mempty)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V

@@ -1062,7 +1062,7 @@ instance Fixpoint a => Fixpoint (SubC a) where
               $+$ text "grd" <+> toFix (sgrd c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
-              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
               $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 instance Fixpoint a => Fixpoint (SimpC a) where
@@ -1070,7 +1070,7 @@ instance Fixpoint a => Fixpoint (SimpC a) where
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
-              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
               $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 
@@ -1088,9 +1088,6 @@ toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
-
-pprTag []       = text ""
-pprTag is       = text "tag" <+> toFix is
 
 instance Fixpoint Int where
   toFix = tshow
