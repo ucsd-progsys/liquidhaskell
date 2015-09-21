@@ -378,10 +378,10 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
-resDocs _ Safe             = [text "SAFE"]
-resDocs k (Crash xs s)     = text ("ERROR: " ++ s) : pprManyOrdered k "" (errToFCrash <$> xs)
-resDocs k (Unsafe xs)      = text "UNSAFE" : pprManyOrdered k "" (nub xs)
-resDocs _ (UnknownError d) = [text $ "PANIC: Unexpected Error: " ++ d, reportUrl]
+resDocs _ Safe             = [text "RESULT: SAFE"]
+resDocs k (Crash xs s)     = text ("RESULT: ERROR: " ++ s) : pprManyOrdered k "" (errToFCrash <$> xs)
+resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
+resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
 
 reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 

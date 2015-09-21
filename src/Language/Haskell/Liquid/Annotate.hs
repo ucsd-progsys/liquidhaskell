@@ -224,9 +224,9 @@ mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders c
 
 mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
-  $ groupWith (lineCol . fst)
-    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+  $ groupWith (lineCol . fst) locBinds
   where
+    locBinds       = {- traceShow "LOCBINDS: " $ -}  [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
     bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 
