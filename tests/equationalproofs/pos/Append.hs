@@ -61,12 +61,16 @@ toProof x y = Proof
 eqProof :: a -> a -> Proof -> a 
 eqProof x y _ = y 
 
-{-@ (===) :: l:a -> (a, Proof)<{\r v -> l == r}> -> {v:a | v = l } @-}
-(===) :: a -> (a,Proof) -> a 
-(===) x (y, _) = y 
+{-@ eq :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
+eq :: a -> a -> Proof -> a 
+eq x y _ = y 
 
-using a -> Proof -> (a, Proof)
-using x y = (x, y)
+infixr 9 `eq`
+
+data Pair a b = P a b 
+{-@ data Pair a b <p :: a -> b -> Prop> = P {pfst::a, psnd::b<p pfst>} @-}
+
+
 
 -- | Proof 1: N is neutral element 
 
@@ -75,7 +79,7 @@ prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N 
 
 prop_nil (C x xs) = toProof e1 $ 
-  eqProof e1 (e2 === (e3 `using` pr2)) pr1
+  eqProof e1 (e2 `eq` e3 pr2) pr1
    where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
