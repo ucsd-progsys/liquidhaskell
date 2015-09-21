@@ -307,12 +307,6 @@ instance Fixpoint Bool where
   simplify z  = z
 
 
-toFixGs :: SEnv SortedReft -> Doc
-toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
-
-toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
-
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
 ----------------------------------------------------------------------
@@ -1513,8 +1507,7 @@ data GInfo c a =
   FI { cm    :: M.HashMap Integer (c a)
      , ws    :: ![WfC a]
      , bs    :: !BindEnv
-     , gs    :: !FEnv
-     , lits  :: ![(Symbol, Sort)]
+     , lits  :: !(SEnv Sort)
      , kuts  :: Kuts
      , quals :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
@@ -1537,11 +1530,10 @@ instance Monoid BindEnv where
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
-                     , gs       = mappend (gs i1)       (gs i2)
                      , lits     = mappend (lits i1)     (lits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
                      , quals    = mappend (quals i1)    (quals i2)
@@ -1555,7 +1547,6 @@ x $++$ y = x $+$ text "\n" $+$ y
 toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
-                  $++$ gsDoc    x'
                   $++$ conDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
@@ -1563,18 +1554,20 @@ toFixpoint cfg x' =    qualsDoc x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
-    conDoc        = vcat     . map toFixConstant . lits
+    conDoc        = vcat     . map toFixConstant . toListSEnv . lits
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . ws
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
-    gsDoc         = toFixGs  . gs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
+
+toFixConstant (c, so)
+  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
@@ -1706,11 +1699,10 @@ class SymConsts a where
   symConsts :: a -> [SymConst]
 
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
-  symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
+  symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
     where
       csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
       bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
-      gsLits   = concatMap symConsts $         M.elems $ seBinds $  gs    fi
       qsLits   = concatMap symConsts $                   q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
