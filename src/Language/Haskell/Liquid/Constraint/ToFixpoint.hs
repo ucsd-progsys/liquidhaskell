@@ -29,8 +29,7 @@ targetFInfo info cgi fn
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
          , F.ws       = fixWfs cgi
          , F.bs       = binds cgi
-         , F.gs       = F.fromListSEnv [] 
-         , F.lits     = lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
+         , F.lits     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
          , F.kuts     = kuts cgi
          , F.quals    = targetQuals info
          , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
