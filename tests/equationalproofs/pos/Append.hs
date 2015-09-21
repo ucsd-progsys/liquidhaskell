@@ -6,9 +6,11 @@
 -- | totallity: all the cases should be covered
 -- | termination: we cannot have diverging things into proofs
 
-{-@ LIQUID "totality" @-}
+{-@ LIQUID "--totality" @-}
 
 module Append where
+
+import Language.Haskell.Liquid.Prelude
 
 data L a = N |  C a (L a) deriving (Eq)
 
@@ -57,16 +59,10 @@ data Proof = Proof
 toProof :: a -> a -> Proof
 toProof x y = Proof
 
-{-@ eqProof :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
-eqProof :: a -> a -> Proof -> a
-eqProof x y _ = y
 
-{-@ (===) :: l:a -> (a, Proof)<{\r v -> l == r}> -> {v:a | v = l } @-}
-(===) :: a -> (a,Proof) -> a
-(===) x (y, _) = y
-
-using :: a -> Proof -> (a, Proof)
-using x y = (x, y)
+{-@ (===) :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
+(===) :: a -> a -> Proof -> a
+(===) x y _ = y
 
 -- | Proof 1: N is neutral element
 
@@ -74,8 +70,9 @@ using x y = (x, y)
 prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N
 
-prop_nil (C x xs) = toProof e1 $
-  eqProof e1 (e2 === (e3 `using` pr2)) pr1
+prop_nil (C x xs) = toProof e1 $ ((
+  e1 === e2) pr1
+     === e3) pr2
    where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
@@ -83,29 +80,58 @@ prop_nil (C x xs) = toProof e1 $
    	pr2 = prop_nil xs
    	e3  = C x xs
 
+{-@ type Equal X Y = {v:Proof | X == Y} @-}
+
+
+{-@ bound chain @-}
+chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
+chain p q r = \ v -> p v ==> q v ==> r v
+
+
+{-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
+             (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
+@-}
+by :: Proof -> Proof -> Proof
+by _ r = r
+{-@ refl :: x:a -> Equal x x @-}
+refl :: a -> Proof
+refl x = Proof
+
+{-@ prop_app_nil :: ys:L a -> {v:Proof | append N ys == ys} @-}
+prop_app_nil N =  axiom_append_nil N
+
+prop_app_nil (C x xs)
+  = (refl e1 `by` pr1) `by` pr2
+  where
+   	e1  = append (C x xs) N
+   	pr1 = axiom_append_cons x xs N
+   	pr2 = prop_nil xs
+
 -- | Proof 2: append is associative
+
 
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
-prop_assoc N ys zs = toProof (append (append N ys) zs) $
-	                 eqProof (append (append N ys) zs)
-                    (eqProof (append ys zs)
-                             (append N (append ys zs))
-                             (axiom_append_nil (append ys zs))
-                    )(axiom_append_nil ys)
+prop_assoc N ys zs =
+  toProof (append (append N ys) zs) $ ((
+    append (append N ys) zs === append ys zs)             (axiom_append_nil ys)
+                            === append N (append ys zs))  (axiom_append_nil (append ys zs))
 
 prop_assoc (C x xs) ys zs =
-	toProof e1 $
-	eqProof e1 (eqProof e2 (eqProof e3 (eqProof e4 e5 pr4) pr3) pr2) pr1
+  toProof e1 $ ((((
+   e1  === e2) pr1
+       === e3) pr2
+       === e4) pr3
+       === e5) pr4
   where
-  	e1  = append (append (C x xs) ys) zs
-  	pr1 = axiom_append_cons x xs ys
-  	e2  = append (C x (append xs ys)) zs
-  	pr2 = axiom_append_cons x (append xs ys) zs
-  	e3  = C x (append (append xs ys) zs)
-  	pr3 = prop_assoc xs ys zs
-  	e4  = C x (append xs (append ys zs))
-  	pr4 = axiom_append_cons x xs (append ys zs)
-  	e5  = append (C x xs) (append ys zs)
+    e1  = append (append (C x xs) ys) zs
+    pr1 = axiom_append_cons x xs ys
+    e2  = append (C x (append xs ys)) zs
+    pr2 = axiom_append_cons x (append xs ys) zs
+    e3  = C x (append (append xs ys) zs)
+    pr3 = prop_assoc xs ys zs
+    e4  = C x (append xs (append ys zs))
+    pr4 = axiom_append_cons x xs (append ys zs)
+    e5  = append (C x xs) (append ys zs)
