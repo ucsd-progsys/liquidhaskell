@@ -94,9 +94,9 @@ solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
   --FIXME: inefficient since toFixpoint and rr are mostly inverses - better to
-  -- replace this by the net effect of rr . toFixpoint (cf simulatePrintAndParse),
+  -- replace this by the net effect of rr . toFixpoint,
   -- and the correct solution is to make toFixpoint and rr actually inverses.
-  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo () --simulatePrintAndParse fi
+  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo ()
   let si = convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   donePhase Loud "Format Conversion"
@@ -114,13 +114,6 @@ solveNativeWithFInfo cfg fi = do
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . (\i -> M.lookupDefault (error "blah") (mfromJust "" i) (cm fi)) <$> stat') soln
-
---simulatePrintAndParse :: (Fixpoint a) => FInfo a -> FInfo ()
---simulatePrintAndParse fi = fi { gs = gs', lits = lits' }
---  where
---    notFun = not . isFunctionSortedReft
---    gs' = fromListSEnv $ toListSEnv (gs fi) ++ ((second (`RR` mempty)) <$> lits fi)
---    lits' = second sr_sort <$> (filter (snd . second notFun) $ toListSEnv gs')
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
