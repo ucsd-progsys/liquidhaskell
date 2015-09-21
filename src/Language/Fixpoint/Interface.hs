@@ -46,7 +46,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics     (statistics)
 import           Language.Fixpoint.Partition      (partition, partition')
 import           Language.Fixpoint.Parse          (rr, rr')
-import           Language.Fixpoint.Types          hiding (kuts, lits)
+import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors (exit)
 import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
 import           Language.Fixpoint.Parallel
@@ -212,4 +212,4 @@ parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
-                  , gs    = gs     fi }
+                  , lits  = lits   fi }

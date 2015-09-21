@@ -573,17 +573,15 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = FI cm ws bs gs lts kts qs mempty mempty
+defsFInfo defs = FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
-    lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
+    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [q                | Qul q       <- defs]
     cid    = fromJust . sid
-    notFun = not . isFunctionSortedReft . (`RR` trueReft)
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------

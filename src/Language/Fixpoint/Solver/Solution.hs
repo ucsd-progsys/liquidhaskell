@@ -116,7 +116,7 @@ refine fi qs s w = refineK env qs s (wfKvar w)
   where
     env          = wenv <> genv
     wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-    genv         = F.gs fi
+    genv         = (`F.RR` mempty) <$> F.lits fi
 
 refineK :: F.SEnv F.SortedReft
         -> [F.Qualifier]

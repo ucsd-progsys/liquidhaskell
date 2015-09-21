@@ -7,8 +7,6 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
-
-       , finfoDefs
        )
        where
 
@@ -44,13 +42,7 @@ symbolSorts fi = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize  = fmap (map (unShadow dm))
     dm         = M.fromList defs
-    defs       = finfoDefs fi
-
-finfoDefs :: F.GInfo c a -> [(F.Symbol, F.Sort)]
-finfoDefs fi = {- THIS KILLS ELIM: tracepp "defs" $ -} lits ++ consts
-  where
-    lits     = F.lits fi
-    consts   = [(x, t) | (x, F.RR t _) <- F.toListSEnv $ F.gs fi]
+    defs       = F.toListSEnv $ F.lits fi
 
 unShadow :: M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
 unShadow dm (x, t)
@@ -121,7 +113,7 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
     f x t              = (not $ M.member x defs) || isFirstOrder t
-    defs               = M.fromList $ finfoDefs fi
+    defs               = M.fromList $ F.toListSEnv $ F.lits fi
 
 ---------------------------------------------------------------------------
 -- | Drop Higher-Order Binders and Constants from Environment
@@ -135,13 +127,13 @@ dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
 ---------------------------------------------------------------------------
 dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
-dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.gs = gs' }
+dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.lits = lits' }
   where
     discards        = tracepp "DISCARDING" diss
     (bs', diss)     = filterBindEnv f $ F.bs fi
     cm'             = deleteSubCBinds discards   <$> F.cm fi
     ws'             = deleteWfCBinds  discards   <$> F.ws fi
-    gs'             = F.filterSEnv (g . F.sr_sort) (F.gs fi)
+    lits'           = F.filterSEnv g (F.lits fi)
 
 type KeepBindF = F.Symbol -> F.Sort -> Bool
 type KeepSortF = F.Sort -> Bool
