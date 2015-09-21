@@ -563,8 +563,7 @@ subC' env grd lhs rhs i tag l l'
 
 
 tagP  :: Parser [Int]
-tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
-     <|> (return [])
+tagP  = reserved "tag" >> spaces >> (brackets $ sepBy intP semi)
 
 envP  :: Parser IBindEnv
 envP  = do binds <- brackets $ sepBy (intP <* spaces) semi

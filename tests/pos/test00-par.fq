@@ -4,40 +4,40 @@ constraint:
   grd true
   lhs {v : int | [v = 10]}
   rhs {v : int | [v > 0]}
-  id 1 
+  id 1 tag []
 
 constraint:
   env [ ]
   grd true 
   lhs {v : int | [v = 20]}
   rhs {v : int | [v > 0]}
-  id 2 
+  id 2 tag []
 
 constraint:
   env [ ]
   grd true 
   lhs {v : int | [v = 20]}
   rhs {v : int | [v > 0]}
-  id 3 
+  id 3 tag []
 
 constraint:
   env [ ]
   grd true
   lhs {v : int | [v = 10]}
   rhs {v : int | [v > 0]}
-  id 4 
+  id 4 tag []
 
 constraint:
   env [ ]
   grd true 
   lhs {v : int | [v = 20]}
   rhs {v : int | [v > 0]}
-  id 5 
+  id 5 tag []
 
 constraint:
   env [ ]
   grd true 
   lhs {v : int | [v = 20]}
   rhs {v : int | [v > 0]}
-  id 6 
+  id 6 tag []
 

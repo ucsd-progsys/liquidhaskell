@@ -11,14 +11,14 @@ constraint:
   grd true
   lhs {v : int | v = 12 }
   rhs {v : int | $k0    }
-  id 1 
+  id 1 tag []
 
 constraint:
   env [ 2 ]
   grd true 
   lhs {v : int | v  = z}
   rhs {v : int | v /= 0}
-  id 2 
+  id 2 tag []
 
 wf:
   env [ 0 ]
