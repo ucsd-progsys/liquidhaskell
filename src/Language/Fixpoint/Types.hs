@@ -69,7 +69,6 @@ module Language.Fixpoint.Types (
   , eProp
   , pAnd, pOr, pIte
   , isTautoPred
-  , symConstLits
 
   -- * Generalizing Embedding with Typeclasses
   , Symbolic (..)
@@ -86,8 +85,6 @@ module Language.Fixpoint.Types (
   -- * Accessing Constraints
   , envCs
   , addIds, sinfo
-  , trueSubCKvar
-  , removeLhsKvars
 
   -- * Solutions
   , Result (..)
@@ -103,7 +100,6 @@ module Language.Fixpoint.Types (
   , filterSEnv
   , lookupSEnvWithDistance
 
-  , FEnv, insertFEnv
   , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
@@ -135,7 +131,7 @@ module Language.Fixpoint.Types (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, squishRefas, conjuncts
+  , flattenRefas, conjuncts
   , shiftVV
   , mapPredReft
 
@@ -880,13 +876,8 @@ instance Fixpoint BindEnv where
 
 toFixBind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
 
-hashMapToAscList    ::  Ord a => M.HashMap a b -> [(a, b)]
-hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
-
-insertFEnv   = insertSEnv . lower
-  where lower s = case unconsSym s of
-                    Nothing     -> s
-                    Just (c,s') -> consSym (toLower c) s'
+hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
+hashMapToAscList = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
 
 -- instance (Fixpoint a) => Fixpoint (SEnv a) where
 --   toFix (SE e)    = vcat $ map pprxt $ hashMapToAscList e
@@ -907,7 +898,6 @@ instance Fixpoint (SEnv a) => Show (SEnv a) where
 type Tag           = [Int]
 
 type BindId        = Int
-type FEnv          = SEnv SortedReft
 type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
@@ -1242,10 +1232,10 @@ unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
 -- e.g. consider: s1 = [v := v], s2 = [v := x].
 -- We want s1 `cat` s2 to be [v := x] and not [v := v] ...
 
-unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
-  where
-    s1' = second (subst (Su s2')) <$> s1
-    s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
+--unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
+--  where
+--    s1' = second (subst (Su s2')) <$> s1
+--    s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
 
 -- TODO: nano-js throws all sorts of issues, will look into this later...
 -- but also, the check is too conservative, because of degenerate substitutions,
@@ -1304,10 +1294,10 @@ flattenRefas         = concatMap flatRa
     flatP  (PAnd ps) = concatMap flatP ps
     flatP  p         = [p]
 
-squishRefas     :: [Refa] -> [Refa]
-squishRefas ras =  [squish (raPred <$> ras)]
-  where
-    squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
+--squishRefas     :: [Refa] -> [Refa]
+--squishRefas ras =  [squish (raPred <$> ras)]
+--  where
+--    squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
 
 conjuncts :: Pred -> [Pred]
 conjuncts (PAnd ps) = concatMap conjuncts ps
@@ -1333,9 +1323,6 @@ instance NFData Sub where
 
 instance NFData Subst where
   rnf (Su x) = rnf x
-
-instance NFData FEnv where
-  rnf (SE x) = rnf x
 
 instance NFData IBindEnv where
   rnf (FB x) = rnf x
@@ -1437,13 +1424,9 @@ rhsCs      = sr_reft . srhs
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
--- mkFEnv :: BindEnv -> IBindEnv -> FEnv
--- mkFEnv be env = fromListSEnv $ envCs be env
 
-
-
-removeLhsKvars cs vs
-  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
+--removeLhsKvars cs vs
+--  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
 
 -- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
 -- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}
@@ -1451,9 +1434,9 @@ removeLhsKvars cs vs
 -- CUTSOLVER        f (RKvar v _) | v `elem` vs = False
 -- CUTSOLVER        f r                         = True
 
-trueSubCKvar k = subC emptyIBindEnv mempty rhs  Nothing [0]
-  where
-    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
+--trueSubCKvar k = subC emptyIBindEnv mempty rhs  Nothing [0]
+--  where
+--    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
 
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
@@ -1671,8 +1654,8 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
-symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
-symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
+--symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
+--symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
