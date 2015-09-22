@@ -131,7 +131,6 @@ Library
                 , bytestring == 0.10.*
                 , fingertree == 0.1.*
                 , Cabal >= 1.18
-
                 --, bifunctors
                 --, intern
                 --, process >= 1.2
