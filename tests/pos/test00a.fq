@@ -8,21 +8,18 @@ bind 2 z : {v : int | true}
 
 constraint:
   env [0]
-  grd true
   lhs {v : int | (x = 10)}
   rhs {v : int | $k0[v:=x]}
   id 1 tag []
 
 constraint:
   env [1]
-  grd true 
   lhs {v : int | y = 20}
   rhs {v : int | $k0[v:=y]}
   id 2 tag []
 
 constraint:
   env [2]
-  grd true 
   lhs {v : int | $k0[v:=z]}
   rhs {v : int | 10 <= z}
   id 3 tag []

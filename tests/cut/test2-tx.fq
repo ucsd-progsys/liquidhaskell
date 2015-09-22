@@ -38,22 +38,19 @@ So you get:
 
   constraint:
     env [ 0; 1]
-    grd true
-    lhs {v : int | v = x + a}
+      lhs {v : int | v = x + a}
     rhs {v : int | k0}
     id 1 
 
   constraint:
     env [2; 3]
-    grd true 
-    lhs {v : int | v = y + b}
+      lhs {v : int | v = y + b}
     rhs {v : int | k0}
     id 2 
 
   constraint:
     env [4]
-    grd true 
-    lhs {v : int | v = c  }
+      lhs {v : int | v = c  }
     rhs {v : int | 10 <= v}
     id 4 
 
@@ -96,23 +93,20 @@ So you get:
 
   constraint:
     env [ ]
-    grd true
-    lhs {v : int | v = 0}
+      lhs {v : int | v = 0}
     rhs {v : int | k1 }
     id 0 
 
 
   constraint:
     env [ ]
-    grd true 
-    lhs {v : int | (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a))
+      lhs {v : int | (exists x:int a:int. (x=10) /\ k1[a/v] /\ (v=x+a))
                 \/ (exists y:int b:int. (y=20) /\ k1[b/v] /\ (v=y+b))}
     rhs {v : int | k1}
     id 3
 
   constraint:
     env [4]
-    grd true 
-    lhs {v : int | v = c  }
+      lhs {v : int | v = c  }
     rhs {v : int | 10 <= v}
     id 4 

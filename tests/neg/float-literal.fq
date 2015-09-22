@@ -1,7 +1,6 @@
 
 constraint:
   env []
-  grd true
   lhs {VV#F2 : a_aZU | []}
   rhs {VV#F2 : a_aZU | [(VV#F2 >= 1.0)]}
   id 2 tag [2]

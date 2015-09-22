@@ -6,14 +6,12 @@ bind 0 a : {v: int | $k0}
 
 constraint:
   env [ ]
-  grd true
   lhs {v : int | (v = 9)}
   rhs {v : int | $k0}
   id 1 tag []
 
 constraint:
   env [ ]
-  grd true 
   lhs {v : int | v = 20}
   rhs {v : int | $k0}
   id 2 tag []
@@ -21,7 +19,6 @@ constraint:
 constraint:
   env [ 0
       ]
-  grd true 
   lhs {v : int | v = a}
   rhs {v : int | 10 <= v}
   id 3 tag []
