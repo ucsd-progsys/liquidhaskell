@@ -149,13 +149,10 @@ solvePar c fi = do
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
-  = do writeFile fq qstr
-       withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
+  = do writeFile fq $ render $ {-# SCC "FixPointify" #-} toFixpoint cfg fi
        solveFile $ cfg `withTarget` fq
     where
        fq   = extFileName Fq fn
-       d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       qstr = render (vcat (toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg
