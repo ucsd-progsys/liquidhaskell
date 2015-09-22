@@ -94,6 +94,8 @@ benchTests
     , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
     , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []           ExitSuccess
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"]           (ExitFailure 1)
+    , testGroup "eq_pos"    <$> dirTests "tests/equationalproofs/pos"                []           ExitSuccess
+    , testGroup "eq_neg"    <$> dirTests "tests/equationalproofs/pos"                []           (ExitFailure 1)
     ]
 
 ---------------------------------------------------------------------------

@@ -9,13 +9,13 @@ module Language.Haskell.Liquid.WiredIn
        ) where
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Variance
 
 import Language.Fixpoint.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc  (mapSnd)
 
 import BasicTypes
 import DataCon

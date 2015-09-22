@@ -11,7 +11,7 @@ import Language.Fixpoint.Types (meet)
 
 import Language.Haskell.Liquid.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (safeZipWithError, intToString)
+import Language.Haskell.Liquid.Misc (safeZipWithError)
 
 -- TODO: Rename, "Sort" isn't a good name for this module
 
@@ -68,3 +68,7 @@ addSymSortRef' _ _ _ _
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 
 
+intToString 1 = "1st"
+intToString 2 = "2nd"
+intToString 3 = "3rd"
+intToString n = show n ++ "th"

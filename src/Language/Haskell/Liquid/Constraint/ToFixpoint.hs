@@ -8,7 +8,7 @@ import qualified Language.Fixpoint.Types        as F
 import Language.Haskell.Liquid.Constraint.Types
 
 import Language.Haskell.Liquid.Types hiding     ( binds )
-import Language.Fixpoint.Misc                   ( mapSnd )
+import Language.Haskell.Liquid.Misc             ( mapSnd )
 import Language.Fixpoint.Interface              ( parseFInfo )
 
 import           Control.Applicative ((<$>))
@@ -29,8 +29,7 @@ targetFInfo info cgi fn
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
          , F.ws       = fixWfs cgi
          , F.bs       = binds cgi
-         , F.gs       = F.fromListSEnv . map mkSort $ meas spc
-         , F.lits     = lits cgi
+         , F.lits     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
          , F.kuts     = kuts cgi
          , F.quals    = targetQuals info
          , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi

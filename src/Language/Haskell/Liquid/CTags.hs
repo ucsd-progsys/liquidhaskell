@@ -26,9 +26,9 @@ import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
-import Language.Fixpoint.Misc         (mapSnd)
-import Language.Fixpoint.Types     (Tag)
+import Language.Fixpoint.Types          (Tag)
 import Language.Haskell.Liquid.Visitors (freeVars)
+import Language.Haskell.Liquid.Misc     (mapSnd)
 
 -- | The @TagKey@ is the top-level binder, and @Tag@ is a singleton Int list
 
