@@ -77,7 +77,50 @@ git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
 Configuration Management
 ------------------------
 
-It is very important that the version of
+It is very important that the version of Liquid Fixpoint be maintained properly.
+
+Suppose that the current version of Liquid Haskell is `A.B.C.D`:
+
++ After a release to hackage is made, the `D` component of Liquid Fixpoint shall be incremented by 1. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
+
++ The first time a new function or type is exported from Liquid Fixpoint, the `C` component shall be incremented, and the `D` component shall be set to `0`. The version of Liquid Fixpoint is now `A.B.(C + 1).0`
+
++ The first time the signature of an exported function or type is changed, or an exported function or type is removed, the `B` component shall be incremented by 1, and the `C` and `D` components shall be set to `0`. The version of Liquid Fixpoint is now `A.(B + 1).0.0`
+
++ The `A` component shall be updated at the sole discretion of the project owners.
+
+It is recommended to use the [Bumper](https://hackage.haskell.org/package/bumper) utility to manage the versioning of Liquid Fixpoint. Bumper will automatically do the correct update to the cabal file. Additionally, it will update any packages that you have the source for that depend on Liquid Fixpoint.
+
+To update Liquid Fixpoint and Liquid Haskell, first clone Liquid Haskell and Liquid Fixpoint to a common location:
+
+```
+git clone https://github.com/ucsd-progsys/liquidhaskell.git
+git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
+```
+
+To increment the `D` component of Liquid Fixpoint:
+
+```
+./path/to/bumper -3 liquid-fixpoint
+```
+
+This will update the `D` component of Liquid Fixpoint. If necessary, this will update the `Build-Depends` of Liquid Haskell. If the `Build-Depends` was updated, Liquid Haskell's `D` component will be incremented.
+
+To increment the `C` component of Liquid Fixpoint, and to set its `D` component to `0`:
+
+```
+./path/to/bumper --minor liquid-fixpoint
+```
+
+As before, this will update Liquid Fixpoint and, if necessary, Liquid Haskell.
+
+To increment the `B` component of Liquid Fixpoint, and to set its `D` and `C` components to 0:
+
+```
+./path/to/bumper --major liquid-fixpoint
+```
+
+As before, this will update Liquid Fixpoint and, if necessary, Liquid Haskell
 
 SMTLIB2 Interface
 -----------------
