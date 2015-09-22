@@ -78,7 +78,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , SimpC (..)
   , Tag
   , TaggedC, WrappedC (..)
@@ -922,7 +922,6 @@ data BindEnv       = BE { beSize  :: Int
 -- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { _senv  :: !IBindEnv
-                   , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
                    , _sid   :: !(Maybe Integer)
@@ -1062,7 +1061,6 @@ instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
-              $+$ text "grd" <+> toFix (sgrd c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
               $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
@@ -1392,8 +1390,8 @@ instance NFData SortedReft where
   rnf (RR so r) = rnf so `seq` rnf r
 
 instance (NFData a) => NFData (SubC a) where
-  rnf (SubC x1 x2 x3 x4 x5 x6 x7)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7
+  rnf (SubC x1 x2 x3 x4 x5 x6)
+    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6
 
 instance (NFData a) => NFData (WfC a) where
   rnf (WfC x1 x2 x3 x4)
@@ -1413,8 +1411,8 @@ instance Hashable FTycon where
 wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
 wfC  = WfC
 
-subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
-subC γ p sr1 sr2 i y z = [SubC γ p sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
+subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
      RR t2 r2          = sr2
@@ -1453,7 +1451,7 @@ removeLhsKvars cs vs
 -- CUTSOLVER        f (RKvar v _) | v `elem` vs = False
 -- CUTSOLVER        f r                         = True
 
-trueSubCKvar k = subC emptyIBindEnv PTrue mempty rhs  Nothing [0]
+trueSubCKvar k = subC emptyIBindEnv mempty rhs  Nothing [0]
   where
     rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
 
@@ -1706,8 +1704,7 @@ instance (SymConsts (c a)) => SymConsts (GInfo c a) where
       qsLits   = concatMap symConsts $                   q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
-  symConsts c  = symConsts (sgrd c) ++
-                 symConsts (slhs c) ++
+  symConsts c  = symConsts (slhs c) ++
                  symConsts (srhs c)
 
 instance SymConsts (SimpC a) where

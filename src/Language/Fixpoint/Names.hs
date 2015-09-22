@@ -195,7 +195,7 @@ isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymCh
 isFixSym' _        = False
 
 isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
+keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "lhs", "rhs"]
 
 encodeChar c
   | c `S.member` okSymChars

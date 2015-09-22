@@ -541,8 +541,6 @@ subCP :: Parser (SubC ())
 subCP = do pos <- getPosition
            reserved "env"
            env <- envP
-           reserved "grd"
-           grd <- predP
            reserved "lhs"
            lhs <- sortedReftP
            reserved "rhs"
@@ -551,15 +549,15 @@ subCP = do pos <- getPosition
            i   <- integer <* spaces
            tag <- tagP
            pos' <- getPosition
-           -- ORIG return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
-           return $ subC' env grd lhs rhs i tag pos pos'
+           -- ORIG return $ safeHead "subCP" $ subC env lhs rhs (Just i) tag ()
+           return $ subC' env lhs rhs i tag pos pos'
 
-subC' env grd lhs rhs i tag l l'
+subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
       _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
     where
-       cs = subC env grd lhs rhs (Just i) tag ()
+       cs = subC env lhs rhs (Just i) tag ()
 
 -- idVV :: Integer -> SortedReft -> SortedReft
 -- idVV i sr = sr {sr_reft = ri }
