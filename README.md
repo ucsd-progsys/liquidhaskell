@@ -81,11 +81,11 @@ It is very important that the version of Liquid Fixpoint be maintained properly.
 
 Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
-+ After a release to hackage is made, if any of the components `B`, `C`, or `D` are missing, they shall be added and set to `0`. Then, the `D` component of Liquid Fixpoint shall be incremented by `1`. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
++ After a release to hackage is made, if any of the components `B`, `C`, or `D` are missing, they shall be added and set to `0`. Then the `D` component of Liquid Fixpoint shall be incremented by `1`. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
 
-+ The first time a new function or type is exported from Liquid Fixpoint, if any of the components `B`, or `C` are missing, they shall be added and set to `0`. Then,the `C` component shall be incremented by `1`, and the `D` component shall stripped. The version of Liquid Fixpoint is now `A.B.(C + 1)`
++ The first time a new function or type is exported from Liquid Fixpoint, if any of the components `B`, or `C` are missing, they shall be added and set to `0`. Then the `C` component shall be incremented by `1`, and the `D` component shall stripped. The version of Liquid Fixpoint is now `A.B.(C + 1)`
 
-+ The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Fixpoint re-exports from its own dependencies), if the `B` component is missing, it shall be added. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Fixpoint is now `A.(B + 1)`
++ The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Fixpoint re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Fixpoint is now `A.(B + 1)`
 
 + The `A` component shall be updated at the sole discretion of the project owners.
 
@@ -106,7 +106,7 @@ To increment the `D` component of Liquid Fixpoint:
 
 This will update the `D` component of Liquid Fixpoint. If necessary, this will update the `Build-Depends` of Liquid Haskell. If the `Build-Depends` was updated, Liquid Haskell's `D` component will be incremented.
 
-To increment the `C` component of Liquid Fixpoint, and to set its `D` component to `0`:
+To increment the `C` component of Liquid Fixpoint, and strip the `D` component:
 
 ```
 ./path/to/bumper --minor liquid-fixpoint
@@ -114,7 +114,7 @@ To increment the `C` component of Liquid Fixpoint, and to set its `D` component 
 
 As before, this will update Liquid Fixpoint and, if necessary, Liquid Haskell.
 
-To increment the `B` component of Liquid Fixpoint, and to set its `D` and `C` components to 0:
+To increment the `B` component of Liquid Fixpoint, and strip the `D` and `C` components:
 
 ```
 ./path/to/bumper --major liquid-fixpoint
