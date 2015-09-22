@@ -22,19 +22,6 @@ import Language.Fixpoint.Misc
 
 import Paths_liquidhaskell
 
-firstDuplicate :: Ord a => [a] -> Maybe a
-firstDuplicate = go . L.sort
-  where
-    go (y:x:xs) | x == y    = Just x 
-                | otherwise = go (x:xs)
-    go _                    = Nothing            
-
-
-safeIndex err n ls 
-  | n >= length ls
-  = errorstar err
-  | otherwise 
-  = ls !! n
 
 (!?) :: [a] -> Int -> Maybe a
 []     !? _ = Nothing
@@ -42,7 +29,7 @@ safeIndex err n ls
 (_:xs) !? n = xs !? (n-1)
 
 safeFromJust _  (Just x) = x
-safeFromJust err _        = errorstar err
+safeFromJust err _       = errorstar err
 
 fst4 (a,_,_,_) = a
 snd4 (_,b,_,_) = b
@@ -140,11 +127,11 @@ splitters seps str
 bchopAlts :: [(B.ByteString, B.ByteString)] -> B.ByteString -> [B.ByteString]
 bchopAlts seps  = go
   where
-    go  s                 = maybe [s] (go' s) (firstElems seps s)
-    go' s (i,c',(s0, s1)) = if (B.length s2 == B.length s1) then [B.concat [s0,s1]] else (s0 : s2' : go s3')
-                            where (s2, s3) = B.breakSubstring c' s1
-                                  s2'      = B.append s2 c'
-                                  s3'      = B.drop (B.length c') s3
+    go  s               = maybe [s] go' (firstElems seps s)
+    go' (_,c',(s0, s1)) = if (B.length s2 == B.length s1) then [B.concat [s0,s1]] else (s0 : s2' : go s3')
+                          where (s2, s3) = B.breakSubstring c' s1
+                                s2'      = B.append s2 c'
+                                s3'      = B.drop (B.length c') s3
 
 chopAlts seps str = unpack <$> bchopAlts [(pack c, pack c') | (c, c') <- seps] (pack str)
 
@@ -173,5 +160,3 @@ tryIgnore s a = catch a $ \e ->
                    return ()
 
 (=>>) m f = m >>= (\x -> f x >> return x)
-
---data Empty = Emp deriving (Data, Typeable, Eq, Show)
