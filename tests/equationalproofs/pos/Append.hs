@@ -66,7 +66,7 @@ toProof x y = Proof
 
 -- | Proof 1: N is neutral element
 
-{-@ prop_nil :: xs:L a -> {v:Proof | (append xs N == xs) <=> true } @-}
+{-@ prop_nil :: xs:L a -> {v:Proof | (append xs N == xs) } @-}
 prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N
 
@@ -82,11 +82,11 @@ prop_nil (C x xs) = toProof e1 $ ((
 
 {-@ type Equal X Y = {v:Proof | X == Y} @-}
 
+{-@ invariant {v:Proof | v == Proof } @-}
 
 {-@ bound chain @-}
 chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
-chain p q r = \ v -> p v ==> q v ==> r v
-
+chain p q r v = p v ==> q v ==> r v
 
 {-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
              (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
@@ -97,7 +97,9 @@ by _ r = r
 refl :: a -> Proof
 refl x = Proof
 
-{-@ prop_app_nil :: ys:L a -> {v:Proof | append N ys == ys} @-}
+floop = axiom_append_cons
+
+{-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil N =  axiom_append_nil N
 
 prop_app_nil (C x xs)
@@ -105,7 +107,7 @@ prop_app_nil (C x xs)
   where
    	e1  = append (C x xs) N
    	pr1 = axiom_append_cons x xs N
-   	pr2 = prop_nil xs
+   	pr2 = prop_app_nil xs
 
 -- | Proof 2: append is associative
 
