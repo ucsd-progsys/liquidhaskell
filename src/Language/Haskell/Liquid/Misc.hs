@@ -7,19 +7,23 @@ import Control.Applicative
 import Control.Arrow (first)
 import System.FilePath
 
+import           Control.Exception     (catch, IOException)
+import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
-import           Data.List             (group, sort, minimumBy)
+import qualified Data.List             as L
 import           Data.Maybe            (fromJust)
 import           Data.Hashable
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
+import           Text.PrettyPrint.HughesPJ ((<>), char)
+import           Debug.Trace (trace)
 
-import Language.Fixpoint.Misc (errorstar, sortNub, fst3)
+import Language.Fixpoint.Misc
 
 import Paths_liquidhaskell
 
 firstDuplicate :: Ord a => [a] -> Maybe a
-firstDuplicate = go . sort
+firstDuplicate = go . L.sort
   where
     go (y:x:xs) | x == y    = Just x 
                 | otherwise = go (x:xs)
@@ -80,9 +84,6 @@ getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
 getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 
 
-maximumWithDefault zero [] = zero
-maximumWithDefault _    xs = maximum xs
-
 {-@ type ListN a N = {v:[a] | len v = N} @-}
 {-@ type ListL a L = ListN a (len L) @-}
 
@@ -100,28 +101,6 @@ mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 mapN 0 f (x:xs) = f x : xs
 mapN n f (x:xs) = x : mapN (n-1) f xs
 mapN _ _ []     = []
-
-
- 
-pad _ f [] ys   = (f <$> ys, ys)
-pad _ f xs []   = (xs, f <$> xs)
-pad msg _ xs ys
-  | nxs == nys  = (xs, ys)
-  | otherwise   = errorstar $ "pad: " ++ msg
-  where
-    nxs         = length xs
-    nys         = length ys
-
-
-
-ordNub :: Ord a => [a] -> [a]
-ordNub = map head . group . sort
-
-intToString :: Int -> String
-intToString 1 = "1st"
-intToString 2 = "2nd"
-intToString 3 = "3rd"
-intToString n = show n ++ "th"
 
 
 --------------------------------------
@@ -150,7 +129,7 @@ firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.B
 firstElems seps str
   = case splitters seps str of
       [] -> Nothing
-      is -> Just $ minimumBy (\x y -> compare (fst3 x) (fst3 y)) is
+      is -> Just $ L.minimumBy (\x y -> compare (fst3 x) (fst3 y)) is
 
 splitters seps str
   = [(i, c', z) | (c, c') <- seps
@@ -178,3 +157,21 @@ sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
       | otherwise            = go xs ys'
     go xs []                 = xs
     go [] _                  = []
+
+angleBrackets p    = char '<' <> p <> char '>'
+
+mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
+mkGraph = fmap S.fromList . group
+
+traceShow     ::  Show a => String -> a -> a
+traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
+
+tryIgnore :: String -> IO () -> IO ()
+tryIgnore s a = catch a $ \e ->
+                do let err = show (e :: IOException)
+                   writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
+                   return ()
+
+(=>>) m f = m >>= (\x -> f x >> return x)
+
+--data Empty = Emp deriving (Data, Typeable, Eq, Show)

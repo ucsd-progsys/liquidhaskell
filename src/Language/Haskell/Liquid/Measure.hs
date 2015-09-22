@@ -140,8 +140,15 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
     ms'    = checkDuplicateMeasure ms
     -- ms'    = checkFail "Duplicate Measure Definition" (distinct . fmap name) ms
 
+--checkFail ::  [Char] -> (a -> Bool) -> a -> a
+--checkFail msg f x
+--  | f x
+--  = x
+--  | otherwise
+--  = errorstar $ "Check-Failure: " ++ msg
 
-
+--distinct ::  Ord a => [a] -> Bool
+--distinct xs = length xs == length (sortNub xs)
 
 
 checkDuplicateMeasure ms
