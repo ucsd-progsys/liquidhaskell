@@ -60,18 +60,20 @@ import           Data.Monoid (Monoid (..))
 
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
+import           Control.Monad               ((>=>))
 import           Data.Char                   (isAlpha, chr, ord)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
 import           Data.Interned               (intern, unintern)
 import           Data.Interned.Internal.Text
+import           Data.Maybe                  (fromMaybe)
 import           Data.String                 (IsString)
 import qualified Data.Text                   as T
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (errorstar, stripParens)
+import           Language.Fixpoint.Misc      (errorstar)
 
 
 ---------------------------------------------------------------
@@ -139,8 +141,21 @@ symbolText (S s) = unintern s
 --       chunks = unIntersperse symSepName
 --       tx i s = if even i then s else [decodeStr s]
 
-indices :: [Integer]
-indices = [0..]
+--unIntersperse x ys
+--  = case L.elemIndex x ys of
+--      Nothing -> [ys]
+--      Just i  -> let (y, _:ys') = splitAt i ys
+--                 in (y : unIntersperse x ys')
+
+--indices :: [Integer]
+--indices = [0..]
+
+--chopPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
+--chopPrefix p xs
+--  | p `L.isPrefixOf` xs
+--  = Just $ drop (length p) xs
+--  | otherwise
+--  = Nothing
 
 okSymChars
   = S.fromList
@@ -166,6 +181,11 @@ unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolText -> t) = symbol $ T.drop n t
+
+stripParens :: T.Text -> T.Text
+stripParens t = fromMaybe t (strip t)
+  where
+    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym (symbolText -> t) = symbol $ stripParens t
 

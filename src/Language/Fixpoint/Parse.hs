@@ -85,7 +85,7 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      (single, sortNub)
+import           Language.Fixpoint.Misc      (sortNub)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Types
@@ -328,6 +328,8 @@ sortP' appArgsP
   <|> try bvSortP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> try (fApp   <$> tvarP   <*> appArgsP)
+
+single x = [x]
 
 tvarP :: Parser Sort
 tvarP

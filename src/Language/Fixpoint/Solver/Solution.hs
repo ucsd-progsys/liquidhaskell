@@ -80,6 +80,12 @@ update s ks kqs = {- tracepp msg -} (or bs, s')
     (bs, s')    = folds update1 s kqss
     -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
 
+folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+folds f b = L.foldl' step ([], b)
+  where
+     step (cs, acc) x = (c:cs, x')
+       where
+         (c, x')      = f acc x
 
 groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
 groupKs ks kqs = M.toList $ groupBase m0 kqs

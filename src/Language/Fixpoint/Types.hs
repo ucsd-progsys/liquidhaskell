@@ -188,7 +188,7 @@ import           Data.Char                 (toLower)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
-import           Data.List                 (foldl', intersect, nub, sort)
+import           Data.List                 (foldl', intersect, nub, sort, sortBy)
 import           Data.Monoid               hiding ((<>))
 import           Data.String
 import           Data.Text                 (Text)
@@ -879,6 +879,9 @@ instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
 
 toFixBind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
+
+hashMapToAscList    ::  Ord a => M.HashMap a b -> [(a, b)]
+hashMapToAscList    = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
 
 insertFEnv   = insertSEnv . lower
   where lower s = case unconsSym s of
