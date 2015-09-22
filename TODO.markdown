@@ -1240,8 +1240,34 @@ prop_app_nil (x:xs) = refl (append (x:xs) [])
                                                    -- == x : xs
 ```
 
+**Example 4: Append Associates**
 
-**Example 3: Map Fusion**
+
+```
+prop_app_assoc :: xs:_ -> ys:_ -> zs:_ ->
+                     Eq ((xs ++ ys) ++ zs) (xs ++ (ys ++ zs))
+
+prop_app_assoc [] ys zs
+  ([] ++ ys) ++ zs
+  { append_nil _ }    
+  == ys ++ zs
+  { append_nil _ }
+  == [] ++ (ys ++ zs)
+
+prop_app_assoc (x:xs) ys zs
+  ((x:xs) ++ ys) ++ zs
+  { append_cons _ _ _ }    
+  == (x : (xs ++ ys)) ++ zs
+  { append_cons _ _ _ }
+  == x : ((xs ++ ys) ++ zs)
+  { prop_app_assoc _ _ _ }
+  == x : (xs ++ (ys ++ zs))
+  { append_cons _ _ _ }
+  == (x : xs) ++ (ys ++ zs)
+```
+
+
+**Example 4: Map Fusion**
 
 Lets go fancier:
 
@@ -1318,8 +1344,8 @@ map_dot_nil f g
 and
 
 ```
-map_dot_nil :: f:_ -> g:_ -> x:_ -> xs:_ ->
-               Eq (map (f . g) []) ((map f . map g) [])
+map_dot_cons :: f:_ -> g:_ -> x:_ -> xs:_ ->
+               Eq (map (f . g) (x:xs)) ((map f . map g) (x:xs))
 map_dot_cons f g x xs
   = refl (map (f . g) (x:xs))
                                           -- map (f . g) (x : xs)

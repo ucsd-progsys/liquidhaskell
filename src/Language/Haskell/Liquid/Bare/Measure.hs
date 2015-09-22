@@ -40,7 +40,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc (mlookup, sortNub)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Types (Expr(..))
 import Language.Fixpoint.Sort (isFirstOrder)
@@ -48,7 +48,7 @@ import Language.Fixpoint.Sort (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.CoreToLogic
-import Language.Haskell.Liquid.Misc    (mapSndM)
+import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types

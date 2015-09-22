@@ -7,6 +7,7 @@
 |                      | `Int<p>`                      | `Int p`                       |
 |                      | `Int<\x -> x >=0>`            | `Int (\x -> x >= 0)`          |
 |                      | `Maybe <<p>> (a<q>) (?)`      | `Maybe (a q) p`               |
+|                      | `Map <l, r> <<p>> k v  (?)`   | `Maybe k v l r p`             |
 | Type Arguments       | `ListN a {len xs + len ys}`   | `ListN a (len xs + len ys)`   |
 
 Q: How do I distinguish `Int p` with `ListN a n`?

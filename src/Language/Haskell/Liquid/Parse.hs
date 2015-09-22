@@ -36,13 +36,14 @@ import Language.Fixpoint.Types hiding (Def, R)
 
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (listConName, hpropConName, propConName, tupConName, headSym)
-import Language.Fixpoint.Misc hiding (dcolon, dot)
+import Language.Fixpoint.Misc (safeLast, errorstar)
 import Language.Fixpoint.Parse hiding (angles)
 
 ----------------------------------------------------------------------------

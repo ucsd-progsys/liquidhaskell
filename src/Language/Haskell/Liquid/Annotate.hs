@@ -32,6 +32,7 @@ import           Control.Arrow            hiding ((<+>))
 import           Control.Applicative      ((<$>))
 import           Control.Monad            (when, forM_)
 
+import           System.Exit                      (ExitCode (..))
 import           System.FilePath          (takeFileName, dropFileName, (</>))
 import           System.Directory         (findExecutable, copyFile)
 import           Text.Printf              (printf)
@@ -129,6 +130,9 @@ renderPandoc' pandocPath htmlFile srcFile css body
     where mdFile = extFileName Mkdn srcFile
           cmd    = pandocCmd pandocPath mdFile htmlFile
 
+checkExitCode _   (ExitSuccess)   = return ()
+checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n
+
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile
 
@@ -224,9 +228,9 @@ mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders c
 
 mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
-  $ groupWith (lineCol . fst)
-    [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+  $ groupWith (lineCol . fst) locBinds
   where
+    locBinds       = {- traceShow "LOCBINDS: " $ -}  [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
     bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 

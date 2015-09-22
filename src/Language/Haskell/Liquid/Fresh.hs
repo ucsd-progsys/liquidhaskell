@@ -13,6 +13,7 @@ import           Control.Applicative           (Applicative, (<$>), (<*>))
 import           Data.Monoid                   (mempty)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
+import           Language.Haskell.Liquid.Misc  (single)
 import           Language.Haskell.Liquid.Types
 
 class (Applicative m, Monad m) => Freshable m a where
