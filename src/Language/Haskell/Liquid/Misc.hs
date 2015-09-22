@@ -4,13 +4,17 @@
 module Language.Haskell.Liquid.Misc where
 
 import Control.Applicative
+import Control.Arrow (first)
 import System.FilePath
 
-import qualified Data.List as L
+import qualified Data.HashMap.Strict   as M
+import           Data.List             (group, sort, minimumBy)
+import           Data.Maybe            (fromJust)
+import           Data.Hashable
+import qualified Data.ByteString       as B
+import           Data.ByteString.Char8 (pack, unpack)
 
-import Language.Fixpoint.Misc (errorstar)
-
-import Data.List              (sort)
+import Language.Fixpoint.Misc (errorstar, sortNub, fst3)
 
 import Paths_liquidhaskell
 
@@ -111,7 +115,7 @@ pad msg _ xs ys
 
 
 ordNub :: Ord a => [a] -> [a]
-ordNub = map head . L.group . L.sort
+ordNub = map head . group . sort
 
 intToString :: Int -> String
 intToString 1 = "1st"
@@ -119,3 +123,58 @@ intToString 2 = "2nd"
 intToString 3 = "3rd"
 intToString n = show n ++ "th"
 
+
+--------------------------------------
+-- Originally part of Fixpoint's Misc:
+--------------------------------------
+
+single x = [x]
+
+mapFst f (x, y)  = (f x, y)
+mapSnd f (x, y)  = (x, f y)
+
+mapFst3 f (x, y, z) = (f x, y, z)
+mapSnd3 f (x, y, z) = (x, f y, z)
+mapThd3 f (x, y, z) = (x, y, f z)
+
+
+hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
+hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))
+
+hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
+hashMapMapKeys f    = M.fromList . fmap (first f) . M.toList
+
+concatMapM f = fmap concat . mapM f
+
+firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.ByteString, (B.ByteString, B.ByteString))
+firstElems seps str
+  = case splitters seps str of
+      [] -> Nothing
+      is -> Just $ minimumBy (\x y -> compare (fst3 x) (fst3 y)) is
+
+splitters seps str
+  = [(i, c', z) | (c, c') <- seps
+                , let z   = B.breakSubstring c str
+                , let i   = B.length (fst z)
+                , i < B.length str                 ]
+
+bchopAlts :: [(B.ByteString, B.ByteString)] -> B.ByteString -> [B.ByteString]
+bchopAlts seps  = go
+  where
+    go  s                 = maybe [s] (go' s) (firstElems seps s)
+    go' s (i,c',(s0, s1)) = if (B.length s2 == B.length s1) then [B.concat [s0,s1]] else (s0 : s2' : go s3')
+                            where (s2, s3) = B.breakSubstring c' s1
+                                  s2'      = B.append s2 c'
+                                  s3'      = B.drop (B.length c') s3
+
+chopAlts seps str = unpack <$> bchopAlts [(pack c, pack c') | (c, c') <- seps] (pack str)
+
+sortDiff :: (Ord a) => [a] -> [a] -> [a]
+sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
+  where
+    go xs@(x:xs') ys@(y:ys')
+      | x <  y               = x : go xs' ys
+      | x == y               = go xs' ys'
+      | otherwise            = go xs ys'
+    go xs []                 = xs
+    go [] _                  = []

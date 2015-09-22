@@ -29,8 +29,7 @@ import           Var
 import           Name (isSystemName)
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Haskell.Liquid.GhcPlay
-import           Language.Haskell.Liquid.Misc (mapSndM)
-import           Language.Fixpoint.Misc       (mapSnd)
+import           Language.Haskell.Liquid.Misc (mapSndM, mapSnd)
 
 import           Data.List                (foldl', isInfixOf)
 import           Control.Applicative      ((<$>))

@@ -19,13 +19,14 @@ import           Data.Hashable
 import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
-import           Language.Fixpoint.Misc              hiding (intersperse)
+import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (shiftVV)
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
 import           Language.Haskell.Liquid.Simplify
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Misc        (single)
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
