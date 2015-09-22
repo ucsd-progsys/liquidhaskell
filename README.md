@@ -1,16 +1,16 @@
 Liquid Fixpoint [![Build Status](https://travis-ci.org/ucsd-progsys/liquid-fixpoint.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquid-fixpoint)
 ===============
 
-This package is a Haskell wrapper to the SMTLIB-based 
+This package is a Haskell wrapper to the SMTLIB-based
 Horn-Clause/Logical Implication constraint solver used
-for Liquid Types. 
+for Liquid Types.
 
-The solver itself is written in Ocaml. 
+The solver itself is written in Ocaml.
 
-The package includes: 
+The package includes:
 
 1. Types for Expressions, Predicates, Constraints, Solutions
-2. Code for serializing the above 
+2. Code for serializing the above
 3. Code for parsing the results from the fixpoint.native binary
 4. The Ocaml fixpoint code and pre-compiled binaries
 5. (Deprecated) Z3 binaries if you want to link against the API.
@@ -18,7 +18,7 @@ The package includes:
 Requirements
 ------------
 
-In addition to the .cabal dependencies you require 
+In addition to the .cabal dependencies you require
 
 - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
   If on Windows, please make sure to place the binary and any associated DLLs
@@ -39,7 +39,7 @@ You can use one of several SMTLIB2 compliant solvers, by:
     fixpoint --smtsolver=z3 path/to/file.hs
 
 Currently, we support
-    
+
     * z3
     * CVC4
     * MathSat
@@ -47,11 +47,11 @@ Currently, we support
 Building With Z3 (Optional)
 ---------------------------
 
-As of now, you can **ONLY link with Z3 on Linux** 
+As of now, you can **ONLY link with Z3 on Linux**
 
 These other things are required
 
-- the GNU multiprecision library 
+- the GNU multiprecision library
 - a recent OCaml compiler
 - the CamlIDL library
 
@@ -59,7 +59,7 @@ These other things are required
 
     sudo apt-get install haskell-platform ocaml camlidl g++ libgmp3c2
 
-2. Modify `configure` to set 
+2. Modify `configure` to set
 
     Z3MEM=true
 
@@ -70,9 +70,14 @@ These other things are required
 How to Clone
 ------------
 
-To clone liquidhaskell:
+To clone Liquid Fixpoint:
 
-    git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
+git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
+
+Configuration Management
+------------------------
+
+It is very important that the version of
 
 SMTLIB2 Interface
 -----------------
@@ -91,16 +96,14 @@ Options
 `--parts` Partitions an `FInfo` into a `[FInfo]` and emits a bunch of files. So:
 
     $ fixpoint -n -p path/to/foo.fq
-    
+
 will now emit files:
-    
+
     path/to/.liquid/foo.1.fq
     path/to/.liquid/foo.2.fq
     . . .
     path/to/.liquid/foo.k.fq
 
 and also a dot file with the constraint dependency graph:
-                    
-    path/to/.liquid/foo.fq.dot
 
-                        
+    path/to/.liquid/foo.fq.dot
