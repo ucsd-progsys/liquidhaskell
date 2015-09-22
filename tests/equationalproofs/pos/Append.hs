@@ -93,6 +93,7 @@ chain p q r v = p v ==> q v ==> r v
 @-}
 by :: Proof -> Proof -> Proof
 by _ r = r
+
 {-@ refl :: x:a -> Equal x x @-}
 refl :: a -> Proof
 refl x = Proof
@@ -103,11 +104,12 @@ floop = axiom_append_cons
 prop_app_nil N =  axiom_append_nil N
 
 prop_app_nil (C x xs)
-  = (refl e1 `by` pr1) `by` pr2
-  where
-   	e1  = append (C x xs) N
-   	pr1 = axiom_append_cons x xs N
-   	pr2 = prop_app_nil xs
+  = refl (append (C x xs) N)
+                                      -- (C x xs) ++ N
+      `by` (axiom_append_cons x xs N)
+                                      -- == C x (xs ++ N)
+      `by` (prop_app_nil xs)
+                                      -- == C x xs
 
 -- | Proof 2: append is associative
 
