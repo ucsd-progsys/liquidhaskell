@@ -243,7 +243,7 @@ import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
 import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Misc (mapSndM, safeZip3WithError)
+import Language.Haskell.Liquid.Misc
 
 
 import Data.Default

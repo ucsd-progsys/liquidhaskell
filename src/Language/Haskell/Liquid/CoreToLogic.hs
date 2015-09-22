@@ -28,13 +28,14 @@ import TysWiredIn
 
 import Control.Applicative 
 
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc (snd3)
 import Language.Fixpoint.Names (dropModuleNames, propConName, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.GhcPlay
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
+import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.RefType
 
