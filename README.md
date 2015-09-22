@@ -81,11 +81,11 @@ It is very important that the version of Liquid Fixpoint be maintained properly.
 
 Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
-+ After a release to hackage is made, the `D` component of Liquid Fixpoint shall be incremented by 1. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
++ After a release to hackage is made, the `D` component of Liquid Fixpoint shall be incremented by `1`. The version of Liquid Fixpoint is now `A.B.C.(D + 1)`
 
-+ The first time a new function or type is exported from Liquid Fixpoint, the `C` component shall be incremented, and the `D` component shall be set to `0`. The version of Liquid Fixpoint is now `A.B.(C + 1).0`
++ The first time a new function or type is exported from Liquid Fixpoint, the `C` component shall be incremented by `1`, and the `D` component shall be set to `0`. The version of Liquid Fixpoint is now `A.B.(C + 1).0`
 
-+ The first time the signature of an exported function or type is changed, or an exported function or type is removed, the `B` component shall be incremented by 1, and the `C` and `D` components shall be set to `0`. The version of Liquid Fixpoint is now `A.(B + 1).0.0`
++ The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Fixpoint re-exports from its own dependencies), the `B` component shall be incremented by `1`, and the `C` and `D` components shall be set to `0`. The version of Liquid Fixpoint is now `A.(B + 1).0.0`
 
 + The `A` component shall be updated at the sole discretion of the project owners.
 
