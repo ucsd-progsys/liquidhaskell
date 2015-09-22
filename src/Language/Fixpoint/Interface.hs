@@ -32,7 +32,7 @@ import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
 import           System.IO                          (IOMode (..), hPutStr, withFile)
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
-import           Text.PrettyPrint.HughesPJ          (render)
+import           Text.PrettyPrint.HughesPJ          (render, vcat, ($$), text)
 import           Text.Printf                        (printf)
 import           Control.Monad                      (liftM)
 
