@@ -35,7 +35,7 @@ import           Data.List              hiding (find)
 import           Data.Maybe             (fromMaybe)
 import           System.Directory
 import           System.FilePath
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc (errorstar)
 
 ------------------------------------------------------------
 -- | Hardwired Paths and Files -----------------------------
@@ -171,6 +171,16 @@ copyFiles srcs tgt
 
 getFileInDirs :: FilePath -> [FilePath] -> IO (Maybe FilePath)
 getFileInDirs name = findFirst (testM doesFileExist . (</> name))
+
+testM f x = do b <- f x
+               return $ if b then [x] else []
+
+findFirst ::  Monad m => (t -> m [a]) -> [t] -> m (Maybe a)
+findFirst _ []     = return Nothing
+findFirst f (x:xs) = do r <- f x
+                        case r of
+                          y:_ -> return (Just y)
+                          []  -> findFirst f xs
 
 -- findFileInDirs ::  FilePath -> [FilePath] -> IO FilePath
 -- findFileInDirs file dirs

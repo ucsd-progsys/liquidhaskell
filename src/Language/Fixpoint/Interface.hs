@@ -113,12 +113,12 @@ solveNativeWithFInfo cfg fi = do
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC . (\i -> M.lookupDefault (error "blah") (mfromJust "" i) (cm fi)) <$> stat') soln
+  return    $ Result (WrapC . (\i -> mlookup (cm fi) (mfromJust "WAT" i)) <$> stat') soln
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
-                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
                        donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
@@ -191,6 +191,12 @@ sanitizeFixpointOutput
   . filter (not . ("//"     `isPrefixOf`))
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
+
+chopAfter ::  (a -> Bool) -> [a] -> [a]
+chopAfter f xs
+  = case findIndex f xs of
+      Just n  -> take n xs
+      Nothing -> xs
 
 ---------------------------------------------------------------------------
 resultExit :: FixResult a -> ExitCode

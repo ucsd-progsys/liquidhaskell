@@ -15,6 +15,7 @@ import           Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
+import qualified Data.List                      as L
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable
@@ -177,6 +178,16 @@ wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
 
 wfKvars :: F.WfC a -> [F.KVar]
 wfKvars = V.kvars . F.sr_reft . F.wrft
+
+-- | Version of Misc's inserts that handles Maybe keys. If the key is
+-- Nothing, the value is not inserted
+maybeInserts Nothing _ m = m
+maybeInserts (Just k) v m = inserts k v m
+
+maybeGroupMap f = L.foldl' (\m x -> maybeInserts (f x) x m) M.empty
+
+groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
+groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 
 -------------------------------------------------------------------------------------
 -------------------------------------------------------------------------------------
