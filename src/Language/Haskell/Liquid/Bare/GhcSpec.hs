@@ -29,7 +29,7 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc (thd3)
 import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
 import Language.Fixpoint.Types
 
@@ -38,6 +38,7 @@ import Language.Haskell.Liquid.GhcMisc (getSourcePosE, getSourcePos, sourcePosSr
 import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.CoreToLogic

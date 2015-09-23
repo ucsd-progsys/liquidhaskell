@@ -17,10 +17,11 @@ import Var
 
 import Language.Fixpoint.Names      (dropModuleNames)
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc       (errorstar)
 
 import Language.Haskell.Liquid.GhcMisc ()
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (mapFst)
 
 import qualified Data.HashMap.Strict as M
 import Language.Haskell.Liquid.PrettyPrint ()

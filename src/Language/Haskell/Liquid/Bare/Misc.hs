@@ -34,12 +34,13 @@ import Data.Maybe (isNothing)
 import qualified Data.List as L
 
 import Language.Fixpoint.Names (dropModuleNames)
-import Language.Fixpoint.Misc  (sortDiff, sortNub)
+import Language.Fixpoint.Misc  (sortNub)
 import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (sortDiff)
 
 import Language.Haskell.Liquid.Bare.Env
 

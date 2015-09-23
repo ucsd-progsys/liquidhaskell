@@ -32,6 +32,7 @@ import           Control.Arrow            hiding ((<+>))
 import           Control.Applicative      ((<$>))
 import           Control.Monad            (when, forM_)
 
+import           System.Exit                      (ExitCode (..))
 import           System.FilePath          (takeFileName, dropFileName, (</>))
 import           System.Directory         (findExecutable, copyFile)
 import           Text.Printf              (printf)
@@ -128,6 +129,9 @@ renderPandoc' pandocPath htmlFile srcFile css body
        checkExitCode cmd ec
     where mdFile = extFileName Mkdn srcFile
           cmd    = pandocCmd pandocPath mdFile htmlFile
+
+checkExitCode _   (ExitSuccess)   = return ()
+checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile
