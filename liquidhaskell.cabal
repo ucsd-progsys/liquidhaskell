@@ -132,8 +132,8 @@ Library
                 , fingertree >= 0.1 && < 0.2
                 , Cabal >= 1.18
 
+                , bifunctors >= 5 && < 5.1
                 --, process >= 1.2 && < 1.4
-                --, bifunctors
                 --, intern
                 --, process >= 1.2
                 --, filemanip
