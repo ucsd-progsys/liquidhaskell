@@ -10,12 +10,12 @@ import Data.Maybe
 
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
 
 import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Types (Expr(..), Pred(..), Symbol)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.Misc (ordNub)
 import Language.Haskell.Liquid.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
 
@@ -140,6 +140,9 @@ genExpandOrder table graph
       = map (fst3 . lookupVertex) $ reverse $ topSort digraph
 
 --------------------------------------------------------------------------------
+
+ordNub :: Ord a => [a] -> [a]
+ordNub = map head . L.group . L.sort
 
 buildTypeEdges :: AliasTable BareType -> BareType -> [Symbol]
 buildTypeEdges table = ordNub . go
