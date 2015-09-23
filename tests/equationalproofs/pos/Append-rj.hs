@@ -109,7 +109,9 @@ prop_app_nil (C x xs)
 
 -- | Proof 2: append is associative
 
-
+{-@ incr :: Nat -> Nat @-}
+incr :: Int -> Int
+incr x = x - 1
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
