@@ -112,7 +112,7 @@ Library
                 , containers >= 0.5 && < 0.6
                 , cpphs >= 1.19 && < 1.20
                 , data-default >= 0.5 && < 0.6
-                , deepseq >= 1.3 && < 1.5
+                , deepseq >= 1.3
                 , directory >= 1.2 && < 1.3
                 , Diff >= 0.3 && < 0.4
                 , filepath >= 1.3 && < 1.5
@@ -260,7 +260,7 @@ test-suite test
                      directory == 1.2.*,
                      filepath >= 1.3 && < 1.5,
                      mtl == 2.2.*,
-                     --process >= 1.1 && < 1.3,
+                     process >= 1.1 && < 1.3,
                      optparse-applicative >= 0.11 && < 0.12,
                      stm >= 2.4 && < 2.5,
                      tagged >= 0.8 && < 0.9,
