@@ -115,7 +115,7 @@ Library
                 , deepseq == 1.4.*
                 , directory == 1.2.*
                 , Diff == 0.3.*
-                , filepath == 1.4.*
+                , filepath >= 1.3.0.0 && < 1.5.0.0
                 , ghc-paths == 0.1.*
                 , hscolour == 1.23.*
                 , mtl == 2.2.*
