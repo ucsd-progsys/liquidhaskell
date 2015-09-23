@@ -132,7 +132,7 @@ Library
                 , fingertree >= 0.1 && < 0.2
                 , Cabal >= 1.18
 
-                , process >= 1.2 && < 1.4
+                --, process >= 1.2 && < 1.4
                 --, bifunctors
                 --, intern
                 --, process >= 1.2
@@ -260,7 +260,7 @@ test-suite test
                      directory == 1.2.*,
                      filepath >= 1.3 && < 1.5,
                      mtl == 2.2.*,
-                     process >= 1.1 && < 1.3,
+                     --process >= 1.1 && < 1.3,
                      optparse-applicative >= 0.11 && < 0.12,
                      stm >= 2.4 && < 2.5,
                      tagged >= 0.8 && < 0.9,
