@@ -84,7 +84,7 @@ unitTests
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
     , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           []           ExitSuccess
-    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/pos"           []           (ExitFailure 1)
+    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           []           (ExitFailure 1)
    ]
 
 benchTests
