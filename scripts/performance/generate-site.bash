@@ -13,6 +13,9 @@ GIPEDA_LOGS="$GIPEDA_DIR/logs";
 REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
 
+ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40"
+ALL_GIT_HASHES="$GIT log --format=%H"
+
 START=0;
 END=0;
 FORCE=false;
@@ -22,7 +25,6 @@ END_FOUND=false;
 
 function generate_log {
     local HASH=$1;
-    local RETURN=0;
     local RESULT=$GIPEDA_LOGS/$HASH.log;
     local SHOULD_GEN=true;
 
@@ -166,24 +168,24 @@ fi
 cd $GIPEDA_REPO;
 abort_if_failed "Couldn't change to $GIPEDA_REPO...";
 
-if [ $START = 0 ]
+if [ $END = 0 ]
 then
-    START_FOUND=true;
+    END_FOUND=true;
 fi
 
-for CURR in `$GIT show-ref --tags | grep liquidhaskell | cut -c -40`
+for CURR in `$ALL_GIT_HASHES`
 do
-    if [ $END_FOUND = false ]
+    if [ $START_FOUND = false ]
     then
-        if [ $START_FOUND = false ]
+        if [ $END_FOUND = false ]
         then
-            if [ $CURR = $START ]
+            if [ $CURR = $END ]
             then
-                START_FOUND=true;
+                END_FOUND=true;
             fi
         fi
 
-        if [ $START_FOUND = true ]
+        if [ $END_FOUND = true ]
         then
             echo "Processing: $CURR";
             generate_log $CURR;
@@ -194,9 +196,9 @@ do
             echo "Log generation for $CURR failed...";
         fi
 
-        if [ $CURR = $END ]
+        if [ $CURR = $START ]
         then
-            END_FOUND=true;
+            START_FOUND=true;
         fi
     fi
 
