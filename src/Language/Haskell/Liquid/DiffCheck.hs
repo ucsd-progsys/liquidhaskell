@@ -41,10 +41,10 @@ import qualified  Data.HashSet                  as S
 import qualified  Data.HashMap.Strict           as M
 import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
-import            Language.Fixpoint.Misc          (mkGraph)
 import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Files
 import            Language.Haskell.Liquid.Types   (SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GhcMisc
 import            Language.Haskell.Liquid.Visitors
 import            Language.Haskell.Liquid.Errors   ()

@@ -8,10 +8,11 @@ module Language.Haskell.Liquid.Bare.RefToLogic (
   ) where
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc  (errorstar)
 import Language.Fixpoint.Names
 
 import qualified Data.HashMap.Strict as M

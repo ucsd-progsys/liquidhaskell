@@ -26,9 +26,10 @@ import qualified Data.HashMap.Strict as M
 import Control.Applicative           ((<$>))
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc        (errorstar)
 
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Misc  (mapFst, mapSnd)
 import Language.Haskell.Liquid.RefType
 
 

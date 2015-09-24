@@ -20,7 +20,7 @@ directory of the distribution:
 1. Install a suitable smt solver binary, e.g.
 
     + [Z3](https://github.com/Z3Prover/z3)
-    + [CVC4](http://cvc4.cs.nyu.edu/) 
+    + [CVC4](http://cvc4.cs.nyu.edu/)
     + [MathSat](http://mathsat.fbk.eu/download.html)
 
    **IMPORTANT**: if you're on Windows, please make sure the solver
@@ -68,7 +68,7 @@ To verify a file called `foo.hs` at type
     $ liquid foo.hs
 
 
-How To Run Regression Tests 
+How To Run Regression Tests
 ---------------------------
 
     $ make test
@@ -79,15 +79,15 @@ To use threads to speed up the tests
 
 Or your favorite number of threads, depending on cores etc.
 
-You can directly extend and run the tests by modifying 
+You can directly extend and run the tests by modifying
 
     tests/test.hs
 
 To run the regression test *and* the benchmarks run
-  
+
      $ make all-test
 
-How to Profile 
+How to Profile
 --------------
 
 1. Build with profiling on
@@ -100,8 +100,8 @@ How to Profile
 
     $ time liquid range.hs +RTS -hy -p
 
-   Followed by this which shows the stats file 
-    
+   Followed by this which shows the stats file
+
     $ more liquid.prof
 
    or by this to see the graph
@@ -112,7 +112,7 @@ How to Profile
 
    etc.
 
-How to Get Stack Traces On Exceptions 
+How to Get Stack Traces On Exceptions
 -------------------------------------
 
 1. Build with profiling on
@@ -139,25 +139,25 @@ for example, to disable termination checking (see below)
 
 You may also put command line options in the environment variable
 `LIQUIDHASKELL_OPTS`. For example, if you add the line:
-  
+
     LIQUIDHASKELL_OPTS="--diff"
 
-to your `.bashrc` then, by default, all files will be 
-*incrementally checked* unless you run with the overriding 
+to your `.bashrc` then, by default, all files will be
+*incrementally checked* unless you run with the overriding
 `--full` flag (see below).
 
 Incremental Checking
 --------------------
 
-LiquidHaskell supports *incremental* checking where each run only checks 
+LiquidHaskell supports *incremental* checking where each run only checks
 the part of the program that has been modified since the previous run.
 
     $ liquid --diff foo.hs
 
-Each run of `liquid` saves the file to a `.bak` file and the *subsequent* 
-run 
+Each run of `liquid` saves the file to a `.bak` file and the *subsequent*
+run
     + does a `diff` to see what has changed w.r.t. the `.bak` file
-    + only generates constraints for the `[CoreBind]` corresponding to the 
+    + only generates constraints for the `[CoreBind]` corresponding to the
        changed top-level binders and their transitive dependencies.
 
 The time savings are quite significant. For example:
@@ -197,7 +197,7 @@ To force LiquidHaskell to check the **whole** file (DEFAULT), use:
 
     $ liquid --full foo.hs
 
-to the file. This will override any other `--diff` incantation 
+to the file. This will override any other `--diff` incantation
 elsewhere (e.g. inside the file.)
 
 
@@ -217,7 +217,7 @@ To run a different solver (supporting SMTLIB2) do:
 
 Currently, LiquidHaskell supports
 
-+ [CVC4](http://cvc4.cs.nyu.edu/) 
++ [CVC4](http://cvc4.cs.nyu.edu/)
 + [MathSat](http://mathsat.fbk.eu/download.html )
 
 To use these solvers, you must install the corresponding binaries
@@ -228,18 +228,18 @@ dependencies). If you do so, you can use that interface with:
 
     $ liquid --smtsolver=z3mem foo.hs
 
-     
+
 Short Error Messages
 --------------------
 
-By default, subtyping error messages will contain the inferred type, the 
-expected type -- which is **not** a super-type, hence the error -- and a 
+By default, subtyping error messages will contain the inferred type, the
+expected type -- which is **not** a super-type, hence the error -- and a
 context containing relevant variables and their type to help you understand
-the error. If you don't want the above and instead, want only the 
+the error. If you don't want the above and instead, want only the
 **source position** of the error use:
 
     --short-errors
-    
+
 Short (Unqualified) Module Names
 -------------------------------
 
@@ -254,11 +254,11 @@ Totality Check
 
 LiquidHaskell can prove the absence of pattern match failures.
 Use the `totality` flag to prove that all defined functions are total.
-   
+
     liquid --totality test.hs
 
 For example, the definition
-     
+
      fromJust :: Maybe a -> a
      fromJust (Just a) = a
 
@@ -275,7 +275,7 @@ Termination Check
 By **default** a termination check is performed on all recursive functions.
 
 Use the `no-termination` option to disable the check
- 
+
     liquid --no-termination test.hs
 
 In recursive functions the *first* algebraic or integer argument should be decreasing.
@@ -291,36 +291,36 @@ Defines that `llen` is the decreasing measure (to be defined by the user).
 For example, in the function `foldl`
 
     foldl k acc N           = acc
-    foldl k acc (Cons x xs) = foldl k (x `k` acc) xs 
+    foldl k acc (Cons x xs) = foldl k (x `k` acc) xs
 
-by default the *second* argument (the first non-function argument) will be 
-checked to be decreasing. However, the explicit hint 
+by default the *second* argument (the first non-function argument) will be
+checked to be decreasing. However, the explicit hint
 
     {-@ Decrease foo 3 @-}
 
-tells LiquidHaskell to instead use the *third* argument. 
+tells LiquidHaskell to instead use the *third* argument.
 
-Apart from specifying a specific decreasing measure for an Algebraic Data Type, 
-the user can specify that the ADT follows the expected decreasing measure by 
+Apart from specifying a specific decreasing measure for an Algebraic Data Type,
+the user can specify that the ADT follows the expected decreasing measure by
 
   {-@ autosize L @-}
 
-Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`. 
+Then, LiquidHaskell will define an instance of the function `autosize` for `L` that decreases by 1 at each recursive call and use `autosize` at functions that recurse on `L`.
 
-For example, `autosize L` will refine the data constroctors of `L a` with the `autosize :: a -> Int` information, such that 
+For example, `autosize L` will refine the data constroctors of `L a` with the `autosize :: a -> Int` information, such that
 
    Nil  :: {v:L a | autosize v = 0}
    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
-   
+
 Also, an invariant that `autosize` is non negative will be generated
 
   invariant  {v:L a| autosize v >= 0 }
-  
+
 This information is all LiquidHaskell needs to prove termination on functions that recurse on `L a` (on ADTs in general.)
 
 
-To *disable* termination checking for `foo` that is, to *assume* that it 
-is terminating (possibly for some complicated reason currently beyond the 
+To *disable* termination checking for `foo` that is, to *assume* that it
+is terminating (possibly for some complicated reason currently beyond the
 scope of LiquidHaskell) you can write
 
     {-@ Lazy foo @-}
@@ -340,21 +340,21 @@ annotation
 
     {-@ Decrease ack 1 2 @-}
 
-An alternative way to express this specification is by annotating 
+An alternative way to express this specification is by annotating
 the function's type with the appropriate *numeric* decreasing expressions.
 As an example, you can give `ack` a type
 
     {-@ ack :: m:Nat -> n:Nat -> Nat / [m,n] @-}
-    
+
 stating that the *numeric* expressions `[m, n]` are lexicographically decreasing.
 
-Decreasing expressions can be arbitrary refinement expressions, e.g., 
+Decreasing expressions can be arbitrary refinement expressions, e.g.,
 
     {-@ merge :: Ord a => xs:[a] -> ys:[a] -> [a] / [(len xs) + (len ys)] @-}
-    
-states that at each recursive call of `merge` the sum of the lengths 
+
+states that at each recursive call of `merge` the sum of the lengths
 of its arguments will be decreased.
-    
+
 When dealing with mutually recursive functions you may run into a
 situation where the decreasing parameter must be measured *across* a
 series of invocations, e.g.
@@ -387,7 +387,7 @@ With this annotation the definition of `z` will be checked at the points where
 it is used. For example, with the above annotation the following code is SAFE:
 
     foo   = if x > 0 then z else x
-      where 
+      where
         z = 42 `safeDiv` x
         x = choose 0
 
@@ -397,10 +397,10 @@ failing checks at the point where these variables are used.
 Prune Unsorted Predicates
 -------------------------
 
-By default unsorted predicates are pruned away (yielding `true` 
-for the corresponding refinement.) To disable this behaviour 
+By default unsorted predicates are pruned away (yielding `true`
+for the corresponding refinement.) To disable this behaviour
 use the `no-prune-unsorted` flag.
- 
+
     liquid --no-prune-unsorted test.hs
 
 
@@ -411,7 +411,7 @@ Ignore False Predicates
 [PLEASE EDIT: I have no idea what "ignoring false predicates means"]
 
 To ignore false predicates use the nofalse option
- 
+
     liquid --nofalse test.hs
 
 See <a url="tests/neg/lazy.lhs">tests/neg/lazy.lhs</a>
@@ -438,42 +438,42 @@ See, for example, the contents of
 Modules WITH code: Data
 -----------------------
 
-Write the specification directly into the .hs or .lhs file, 
+Write the specification directly into the .hs or .lhs file,
 above the data definition. See, for example, `tests/pos/Map.hs`
 
     {-@
     data Map k a <l :: k -> k -> Bool, r :: k -> k -> Bool>
-      = Tip 
-      | Bin (sz    :: Size) 
-            (key   :: k) 
-            (value :: a) 
-            (left  :: Map <l, r> (k <l key>) a) 
-            (right :: Map <l, r> (k <r key>) a) 
+      = Tip
+      | Bin (sz    :: Size)
+            (key   :: k)
+            (value :: a)
+            (left  :: Map <l, r> (k <l key>) a)
+            (right :: Map <l, r> (k <r key>) a)
     @-}
     data Map k a = Tip
                  | Bin Size k a (Map k a) (Map k a)
 
-You can also write invariants for data type definitions 
+You can also write invariants for data type definitions
 together with the types. For example see (tests/pos/record0.hs)
 
     {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
                          , elems :: {v: [a] | (len v) = size }
                          }
     @-}
-    
+
 Finally you can specify the variance of type variables for data types.
-For example [see](tests/pos/Variance.hs), where data type `Foo` has four 
-type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant, 
+For example [see](tests/pos/Variance.hs), where data type `Foo` has four
+type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
-   
+
    data Foo a b c d
    {-@ data variance Foo invariant bivariant covariant contravariant @-}
 
 
-Modules WITH code: Functions 
+Modules WITH code: Functions
 ----------------------------
 
-Write the specification directly into the .hs or .lhs file, 
+Write the specification directly into the .hs or .lhs file,
 above the function definition. For example (tests/pos/spec0.hs)
 
     {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
@@ -483,7 +483,7 @@ above the function definition. For example (tests/pos/spec0.hs)
 Modules WITH code: Type Classes
 ---------------------------------------
 
-Write the specification directly into the .hs or .lhs file, 
+Write the specification directly into the .hs or .lhs file,
 above the type class definition. For example (tests/pos/Class.hs)
 
     {-@ class Sized s where
@@ -496,24 +496,24 @@ Any measures used in the refined class definition will need to be
 *generic* (see [Specifying Measures](#specifying-measures)).
 
 
-As an alternative, you can refine class instances. 
+As an alternative, you can refine class instances.
 For example (tests/pos/LiquidClass.hs)
 
 ~~~~
-instance Compare Int where  
+instance Compare Int where
 
-{-@ instance Compare Int where 
+{-@ instance Compare Int where
     cmax :: Odd -> Odd -> Odd
   @-}
 
     cmax y x = if x >= y then x else y
 ~~~~
 
-When `cmax` method is used on `Int`, liquidHaskell will give it 
-the refined type `Odd -> Odd -> Odd`. 
+When `cmax` method is used on `Int`, liquidHaskell will give it
+the refined type `Odd -> Odd -> Odd`.
 
 Note that currently liquidHaskell does not allow refining instances of
-refined classes. 
+refined classes.
 
 Refinement Type Aliases
 -----------------------
@@ -532,7 +532,7 @@ and then use the aliases inside refinements, [for example](tests/pos/pred.hs)
     incr :: Int -> Int
     incr x = x + 1
 
-See [Data.Map](benchmarks/esop2013-submission/Base.hs) for a more substantial 
+See [Data.Map](benchmarks/esop2013-submission/Base.hs) for a more substantial
 and compelling example.
 
 **Syntax:** The key requirements for type aliases are:
@@ -543,7 +543,7 @@ and compelling example.
 #### Type Aliases
 
 
-Similarly, it is often quite tedious to keep writing 
+Similarly, it is often quite tedious to keep writing
 
     {v: Int | v > 0}
 
@@ -556,18 +556,18 @@ or
 
     {-@ type SortedList a = [a]<{\fld v -> (v >= fld)}> @-}
 
-or 
+or
 
     {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
- 
-or 
+
+or
 
     {-@ type MinSPair a = (a, OSplay a) <\fld -> {v : Splay {v:a|v>fld} | 0=0}> @-}
-   
+
 and then use the above in signatures like:
 
     {-@ incr: x: Int -> GeNum Int x @-}
-    
+
     or
 
     {-@ incr: x: Int -> Gt x @-}
@@ -608,11 +608,11 @@ Propositional measures (tests/pos/LambdaEval.hs)
 
     {-@
     measure isValue      :: Expr -> Bool
-    isValue (Const i)    = true 
-    isValue (Lam x e)    = true 
+    isValue (Const i)    = true
+    isValue (Lam x e)    = true
     isValue (Var x)      = false
     isValue (App e1 e2)  = false
-    isValue (Plus e1 e2) = false 
+    isValue (Plus e1 e2) = false
     isValue (Fst e)      = false
     isValue (Snd e)      = false
     isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
@@ -620,7 +620,7 @@ Propositional measures (tests/pos/LambdaEval.hs)
 
 Raw measures (tests/pos/meas8.hs)
 
-    {-@ measure rlen :: [a] -> Int 
+    {-@ measure rlen :: [a] -> Int
     rlen ([])   = {v | v = 0}
     rlen (y:ys) = {v | v = (1 + rlen(ys))}
     @-}
@@ -659,24 +659,24 @@ about `Maybe` values
     {-@ type IMaybe a = {v0 : Maybe {v : a | ((isJust v0) && v = (fromJust v0))} | 0 = 0 } @-}
 
 states that the *inner* `a` enjoys the property that the *outer* container
-is definitely a `Just` and furthermore, the inner value is exactly the same 
+is definitely a `Just` and furthermore, the inner value is exactly the same
 as the `fromJust` property of the outer container.
 
 As another example, suppose we have a [measure](include/Data/Set/Set.spec):
 
-    measure listElts :: [a] -> (Set a) 
+    measure listElts :: [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
     listElts(x:xs) = {v | v = Set_cup(Set_sng(x), listElts(xs)) }
 
-Now, all lists enjoy the property 
+Now, all lists enjoy the property
 
     {-@ type IList a = {v0 : List  {v : a | (Set_mem v (listElts v0)) } | true } @-}
 
 which simply states that each *inner* element is indeed, a member of the
-set of the elements belonging to the entire list. 
+set of the elements belonging to the entire list.
 
 One often needs these *circular* or *self* invariants to connect different
-levels (or rather, to *reify* the connections between the two levels.) See 
+levels (or rather, to *reify* the connections between the two levels.) See
 [this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
 [Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
 
@@ -689,7 +689,7 @@ setting, correspond to subtyping constraints that must be satisfied by the concr
 See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
 
 
-Invariants 
+Invariants
 ==========
 There are two ways of specifying invariants in LiquidHaskell.
 First, there are *global* invariants that always hold for a data-type. For
@@ -777,12 +777,12 @@ Specifying Qualifiers
 
 There are several ways to specify qualifiers.
 
-By Separate `.hquals` Files 
+By Separate `.hquals` Files
 ---------------------------
 
-You can write qualifier files e.g. [Prelude.hquals](include/Prelude.hquals) 
+You can write qualifier files e.g. [Prelude.hquals](include/Prelude.hquals)
 
-If a module is called or imports 
+If a module is called or imports
 
     Foo.Bar.Baz
 
@@ -804,15 +804,15 @@ In Haskell Source or Spec Files
 -------------------------------
 
 Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
-files by writing as shown [here](tests/pos/qualTest.hs) 
+files by writing as shown [here](tests/pos/qualTest.hs)
 
     {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
 
 
 **Note** In addition to these, LiquidHaskell scrapes qualifiers from all
-the specifications you write i.e. 
+the specifications you write i.e.
 
-1. all imported type signatures, 
+1. all imported type signatures,
 2. measure bodies and,
 3. data constructor definitions.
 
@@ -821,16 +821,16 @@ the specifications you write i.e.
 Generating HTML Output
 ======================
 
-The system produces HTML files with colorized source, and mouseover 
-inferred type annotations, which are quite handy for debugging failed 
+The system produces HTML files with colorized source, and mouseover
+inferred type annotations, which are quite handy for debugging failed
 verification attempts.
 
-- **Regular Haskell** When you run: `liquid foo.hs` you get a file 
+- **Regular Haskell** When you run: `liquid foo.hs` you get a file
   `foo.hs.html` with the annotations. The coloring is done using
   `hscolour`.
 
 - **Markdown + Literate Haskell** You can also feed in literate haskell files
-  where the comments are in [Pandoc markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html). 
+  where the comments are in [Pandoc markdown](http://johnmacfarlane.net/pandoc/demo/example9/pandocs-markdown.html).
   In this case, the tool will run `pandoc` to generate the HTML from the comments.
   Of course, this requires that you have `pandoc` installed as a binary on
   your system. If not, `hscolour` is used to render the HTML.
@@ -873,3 +873,17 @@ that is, somewhere in the file (perhaps at the top) put in:
 
 to have the relevant option be used for that file.
 
+Configuration Management
+------------------------
+
+It is very important that the version of Liquid Haskell be maintained properly.
+
+Suppose that the current version of Liquid Haskell is `A.B.C.D`:
+
++ After a release to hackage is made, if any of the components `B`, `C`, or `D` are missing, they shall be added and set to `0`. Then the `D` component of Liquid Haskell shall be incremented by `1`. The version of Liquid Haskell is now `A.B.C.(D + 1)`
+
++ The first time a new function or type is exported from Liquid Haskell, if any of the components `B`, or `C` are missing, they shall be added and set to `0`. Then the `C` component shall be incremented by `1`, and the `D` component shall stripped. The version of Liquid Haskell is now `A.B.(C + 1)`
+
++ The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Haskell re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Haskell is now `A.(B + 1)`
+
++ The `A` component shall be updated at the sole discretion of the project owners.

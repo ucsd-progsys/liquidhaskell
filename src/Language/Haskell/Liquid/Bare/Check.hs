@@ -25,12 +25,12 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (applyNonNull, group, mapSnd, errorstar, safeHead)
+import Language.Fixpoint.Misc (applyNonNull, group, errorstar, safeHead)
 import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types hiding (R)
 
 import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
-import Language.Haskell.Liquid.Misc (firstDuplicate, snd4)
+import Language.Haskell.Liquid.Misc (snd4, mapSnd)
 import Language.Haskell.Liquid.PredType (pvarRType, wiredSortedSyms)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
 import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
@@ -119,6 +119,13 @@ checkDuplicateFieldNames = catMaybes . map go
     mkErr l d x = ErrBadData (sourcePosSrcSpan l)
                              (pprint d)
                              (text "Multiple declarations of record selector" <+> pprintSymbol x)
+
+firstDuplicate :: Ord a => [a] -> Maybe a
+firstDuplicate = go . L.sort
+  where
+    go (y:x:xs) | x == y    = Just x
+                | otherwise = go (x:xs)
+    go _                    = Nothing
 
 checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkInv emb tcEnv env t   = checkTy err emb tcEnv env (val t)
