@@ -99,7 +99,7 @@ refl :: a -> Proof
 refl x = Proof
 
 floop = axiom_append_cons
-
+ 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil N =  axiom_append_nil N
 
