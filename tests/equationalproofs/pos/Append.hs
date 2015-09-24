@@ -82,23 +82,21 @@ prop_nil (C x xs) = toProof e1 $ ((
 
 {-@ type Equal X Y = {v:Proof | X == Y} @-}
 
-{-@ invariant {v:Proof | v == Proof } @-}
+{- invariant {v:Proof | v == Proof } @-}
 
 {-@ bound chain @-}
 chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
 chain p q r v = p v ==> q v ==> r v
 
-{-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-             (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
+{-@  assume by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
+                 (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
 @-}
 by :: Proof -> Proof -> Proof
-by _ r = r
+by p r = r
 
 {-@ refl :: x:a -> Equal x x @-}
 refl :: a -> Proof
 refl x = Proof
-
-floop = axiom_append_cons
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil N =  axiom_append_nil N
@@ -118,17 +116,22 @@ prop_app_nil (C x xs)
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
+
+{-
 prop_assoc N ys zs =
   toProof (append (append N ys) zs) $ ((
     append (append N ys) zs === append ys zs)             (axiom_append_nil ys)
                             === append N (append ys zs))  (axiom_append_nil (append ys zs))
+-}
+
+prop_assoc N ys zs =
+  refl (append (append N ys) zs)
+  `by` axiom_append_nil ys             -- == append ys zs
+  `by` axiom_append_nil (append ys zs) -- == append N (append ys zs)
 
 prop_assoc (C x xs) ys zs =
-  toProof e1 $ ((((
-   e1  === e2) pr1
-       === e3) pr2
-       === e4) pr3
-       === e5) pr4
+  refl e1
+    `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
     pr1 = axiom_append_cons x xs ys

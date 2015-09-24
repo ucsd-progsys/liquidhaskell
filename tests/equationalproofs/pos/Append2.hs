@@ -66,7 +66,7 @@ toProof x y = Proof
 
 -- | Proof 1: N is neutral element
 
-{-@ prop_nil :: xs:L a -> {v:Proof | (append xs N == xs) <=> true } @-}
+{-@ prop_nil :: xs:L a -> {v:Proof | (append xs N == xs) } @-}
 prop_nil     :: Eq a => L a -> Proof
 prop_nil N   =  axiom_append_nil N
 
@@ -80,38 +80,9 @@ prop_nil (C x xs) = toProof e1 $ ((
    	pr2 = prop_nil xs
    	e3  = C x xs
 
-{-@ type Equal X Y = {v:Proof | X == Y} @-}
-
-
-{-@ bound chain @-}
-chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
-chain p q r = \ v -> p v ==> q v ==> r v
-
-
-{-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-             (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
-@-}
-by :: Proof -> Proof -> Proof
-by _ r = r
-{-@ refl :: x:a -> Equal x x @-}
-refl :: a -> Proof
-refl x = Proof
-
-{-@ prop_app_nil :: ys:L a -> {v:Proof | append N ys == ys} @-}
-prop_app_nil N =  axiom_append_nil N
-
-prop_app_nil (C x xs)
-  = (refl e1 `by` pr1) `by` pr2
-  where
-   	e1  = append (C x xs) N
-   	pr1 = axiom_append_cons x xs N
-   	pr2 = prop_nil xs
-
 -- | Proof 2: append is associative
 
-{-@ incr :: Nat -> Nat @-}
-incr :: Int -> Int
-incr x = x - 1
+
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
                -> {v:Proof | (append (append xs ys) zs == append xs (append ys zs))} @-}
