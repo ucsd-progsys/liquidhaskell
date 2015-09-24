@@ -335,3 +335,8 @@ ppTable m = vcat $ pprxt <$> xts
     keySize     = length . render . pprint
     xts         = sortBy (compare `on` fst) $ M.toList m
     thresh      = 6
+
+maximumWithDefault zero [] = zero
+maximumWithDefault _    xs = maximum xs
+
+dot                = char '.'

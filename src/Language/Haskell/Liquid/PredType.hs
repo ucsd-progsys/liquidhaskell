@@ -220,9 +220,16 @@ substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
 
-
-
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
+
+pad _ f [] ys   = (f <$> ys, ys)
+pad _ f xs []   = (xs, f <$> xs)
+pad msg _ xs ys
+  | nxs == nys  = (xs, ys)
+  | otherwise   = errorstar $ "pad: " ++ msg
+  where
+    nxs         = length xs
+    nys         = length ys
 
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
