@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 GIT=`which git`;
 MAKE=`which make`;
@@ -9,12 +9,13 @@ SCRIPT_DIR=`pwd`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
+GIPEDA_FIXPOINT="$GIPEDA_DIR/liquid-fixpoint";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
 REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
 
-ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40"
-ALL_GIT_HASHES="$GIT log --format=%H"
+ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40";
+ALL_GIT_HASHES="$GIT log --format=%H";
 
 START=0;
 END=0;
@@ -54,6 +55,12 @@ function generate_log {
             return 1;
         fi
 
+        $CABAL sandbox add-source $GIPEDA_FIXPOINT
+        if [ $? != 0 ]
+        then
+            return 1;
+        fi
+
         $CABAL install --enable-tests;
         if [ $? != 0 ]
         then
@@ -73,10 +80,8 @@ function generate_log {
         fi
 
         $CABAL exec $REPO_TEST;
-        if [ $? != 0 ]
-        then
-            return 1;
-        fi
+        # Not testing for failure; failed tests shouldn't prevent the site from
+        # being generated.
 
         cp $REPO_LOG $RESULT
         if [ $? != 0 ]
