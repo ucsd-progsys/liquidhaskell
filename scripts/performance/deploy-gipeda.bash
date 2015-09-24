@@ -8,13 +8,15 @@ ALL_FOUND=true;
 SCRIPT_DIR=`pwd`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
+GIPEDA_FIXPOINT="$GIPEDA_DIR/liquid-fixpoint";
 REL_SANDBOX_BIN=".cabal-sandbox/bin";
 
-GIPEDA_URL="https://github.com/nomeata/gipeda.git"
-LIQUID_URL="https://github.com/ucsd-progsys/liquidhaskell.git"
+GIPEDA_URL="https://github.com/nomeata/gipeda.git";
+LIQUID_URL="https://github.com/ucsd-progsys/liquidhaskell.git";
+FIXPOINT_URL="https://github.com/ucsd-progsys/liquid-fixpoint.git";
 
-SETTINGS_FILE="settings.yaml"
-LOG2CSV="log2csv.hs"
+SETTINGS_FILE="settings.yaml";
+LOG2CSV="log2csv.hs";
 
 function abort_if_failed {
     local EXIT_CODE=$?;
@@ -78,6 +80,9 @@ abort_if_failed "Unable to clone Gipeda...";
 
 git clone $LIQUID_URL $GIPEDA_REPO
 abort_if_failed "Unable to clone Liquid Haskell...";
+
+git clone $FIXPOINT_URL $GIPEDA_FIXPOINT
+abort_if_failed "Unable to clone Liquid Fixpoint...";
 
 # build gipeda in a sandbox, link executables
 

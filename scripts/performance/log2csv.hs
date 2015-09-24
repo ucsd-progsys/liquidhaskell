@@ -1,4 +1,4 @@
-import Data.Attoparsec
+--import Data.Attoparsec.ByteString
 
 type Log = [(String, String)]
 
