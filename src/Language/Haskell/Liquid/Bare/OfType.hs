@@ -186,18 +186,16 @@ failRTAliasApp l rta _ _
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
 expandRTAliasApp l rta args r
   | length args == length αs + length εs
-    = do args' <- mapM (ofBareType l) args
-         let ts  = take (length αs) args'
-             αts = zipWith (\α t -> (α, toRSort t, t)) αs ts
-         return $ subst su . (`strengthen` r) . subsTyVars_meet αts $ rtBody rta
+    = do ts <- mapM (ofBareType l)                   $ take (length αs) args
+         es <- mapM (resolve l . exprArg (show err)) $ drop (length αs) args
+         let tsu = zipWith (\α t -> (α, toRSort t, t)) αs ts
+         let esu = mkSubst $ zip (symbol <$> εs) es
+         return $ subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
   | otherwise
     = Ex.throw err
   where
-    su        = mkSubst $ zip (symbol <$> εs) es
     αs        = rtTArgs rta
     εs        = rtVArgs rta
-    es_       = drop (length αs) args
-    es        = map (exprArg $ show err) es_
     err       :: Error
     err       = ErrAliasApp (sourcePosSrcSpan l) (length args) (pprint $ rtName rta) (sourcePosSrcSpan $ rtPos rta) (length αs + length εs)
 
