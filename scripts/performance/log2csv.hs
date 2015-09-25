@@ -18,7 +18,9 @@ readLog :: BS.ByteString -> IResult BS.ByteString Log
 readLog l = parse logFile l
 
 logFile :: Parser Log
-logFile = logLine `manyTill` endOfInput
+logFile = do
+   anyChar `manyTill` endOfLine
+   logLine `manyTill` endOfInput
 
 logLine :: Parser (String, String)
 logLine = do
