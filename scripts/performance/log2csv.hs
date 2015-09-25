@@ -1,4 +1,8 @@
---import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString
+import Data.Attoparsec.ByteString.Char8
+import qualified Data.ByteString.Char8 as BS
+import System.Environment
+import System.Exit
 
 type Log = [(String, String)]
 
@@ -10,4 +14,24 @@ printLog l = printLines $ fmap printLine l
       printLine :: (String, String) -> String
       printLine (test, time) = test ++ ";" ++ time ++ "\n"
 
-main = undefined
+readLog :: BS.ByteString -> IResult BS.ByteString Log
+readLog l = parse logFile l
+
+logFile :: Parser Log
+logFile = logLine `manyTill` endOfInput
+
+logLine :: Parser (String, String)
+logLine = do
+   first <- anyChar `manyTill` (char ',')
+   skipSpace
+   second <- anyChar `manyTill` (char '`')
+   anyChar `manyTill` endOfLine
+   return (first, second)
+
+
+main = do
+   (i:_) <- getArgs
+   logF <- return $ readLog $ BS.pack i
+   case logF of
+      Done _ r -> putStr $ printLog r
+      _ -> exitFailure
