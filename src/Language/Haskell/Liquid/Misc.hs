@@ -150,9 +150,6 @@ angleBrackets p    = char '<' <> p <> char '>'
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
 
-traceShow     ::  Show a => String -> a -> a
-traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
-
 tryIgnore :: String -> IO () -> IO ()
 tryIgnore s a = catch a $ \e ->
                 do let err = show (e :: IOException)
