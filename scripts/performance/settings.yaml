@@ -1,0 +1,12 @@
+title: Liquid Haskell
+diffLink: "https://github.com/ucsd-progsys/liquidhaskell/compare/{{base}}...{{rev}}"
+revisionInfo: '<a href="https://github.com/ucsd-progsys/liquidhaskell/commit/{{rev}}">View Diff</a>'
+limitRecent: 20
+https://github.com/ucsd-progsys/liquidhaskell/
+
+benchmarks:
+   - match: "*"
+     smallerIsBetter: True
+     group: (ungrouped)
+     type: float
+     unit: Seconds
