@@ -461,7 +461,7 @@ qualifierP tP = do
   body   <- predP
   return  $ mkQual n params body pos
 
-sortBindP tP = (,) <$> symbolP <* colon <*> tP
+sortBindP tP = pairP symbolP colon tP
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP

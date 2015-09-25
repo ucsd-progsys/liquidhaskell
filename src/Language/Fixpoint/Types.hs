@@ -1095,7 +1095,6 @@ class Subable a where
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
-  -- subst1 y (x, e) = subst (Su $ M.singleton x e) y
   subst1 y (x, e) = subst (Su [(x,e)]) y
 
 subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
