@@ -26,14 +26,19 @@ logLine :: Parser (String, String)
 logLine = do
    first <- anyChar `manyTill` (char ',')
    skipSpace
-   second <- anyChar `manyTill` (char '`')
+   second <- anyChar `manyTill` (char ',')
    anyChar `manyTill` endOfLine
    return (first, second)
 
 
 main = do
    (i:_) <- getArgs
-   logF <- return $ readLog $ BS.pack i
-   case logF of
-      Done _ r -> putStr $ printLog r
-      _ -> exitFailure
+   i' <- BS.readFile i
+   logF <- return $ readLog i'
+   case (untilDone logF) of
+      Right r -> putStr $ printLog $ r
+      Left _ -> exitFailure
+   where
+      untilDone (Done _ r) = Right r
+      untilDone (Partial f) = untilDone (f $ BS.pack "")
+      untilDone failure = Left $ show failure

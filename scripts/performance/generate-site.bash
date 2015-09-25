@@ -214,9 +214,6 @@ done
 cd $GIPEDA_DIR;
 abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
 
-exit 0;
-# from here down is TODO
-
 ./gipeda;
 abort_if_failed "Unable to generate report...";
 
