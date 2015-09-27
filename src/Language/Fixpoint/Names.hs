@@ -7,6 +7,8 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE CPP                        #-}
+
 
 -- | This module contains Haskell variables representing globally visible names.
 --   Rather than have strings floating around the system, all constant names
@@ -51,22 +53,27 @@ module Language.Fixpoint.Names (
   , prims
 ) where
 
-import           Control.Applicative
-import           Control.DeepSeq
-import           Data.Char
+#if __GLASGOW_HASKELL__ < 710
+import           Control.Applicative ((<$>))
+import           Data.Monoid (Monoid (..))
+#endif
+
+import           Control.DeepSeq             (NFData (..))
+import           Control.Arrow               (second)
+import           Control.Monad               ((>=>))
+import           Data.Char                   (isAlpha, chr, ord)
 import           Data.Generics               (Data)
-import           Data.Hashable
+import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
-import           Data.Interned
+import           Data.Interned               (intern, unintern)
 import           Data.Interned.Internal.Text
-import           Data.Monoid
-import           Data.String
-import           Data.Text                   (Text)
+import           Data.Maybe                  (fromMaybe)
+import           Data.String                 (IsString)
 import qualified Data.Text                   as T
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (errorstar, mapSnd, stripParens)
+import           Language.Fixpoint.Misc      (errorstar)
 
 
 ---------------------------------------------------------------
@@ -122,7 +129,7 @@ encode s
 
 encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
 
-symbolText :: Symbol -> Text
+symbolText :: Symbol -> T.Text
 symbolText (S s) = unintern s
 
 -- symbolString :: Symbol -> String
@@ -134,8 +141,21 @@ symbolText (S s) = unintern s
 --       chunks = unIntersperse symSepName
 --       tx i s = if even i then s else [decodeStr s]
 
-indices :: [Integer]
-indices = [0..]
+--unIntersperse x ys
+--  = case L.elemIndex x ys of
+--      Nothing -> [ys]
+--      Just i  -> let (y, _:ys') = splitAt i ys
+--                 in (y : unIntersperse x ys')
+
+--indices :: [Integer]
+--indices = [0..]
+
+--chopPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
+--chopPrefix p xs
+--  | p `L.isPrefixOf` xs
+--  = Just $ drop (length p) xs
+--  | otherwise
+--  = Nothing
 
 okSymChars
   = S.fromList
@@ -157,10 +177,15 @@ singletonSym = (`consSym` "")
 lengthSym (symbolText -> t) = T.length t
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
-unconsSym (symbolText -> s) = mapSnd symbol <$> T.uncons s
+unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolText -> t) = symbol $ T.drop n t
+
+stripParens :: T.Text -> T.Text
+stripParens t = fromMaybe t (strip t)
+  where
+    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym (symbolText -> t) = symbol $ stripParens t
 
@@ -170,7 +195,7 @@ isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymCh
 isFixSym' _        = False
 
 isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "grd", "lhs", "rhs"]
+keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "lhs", "rhs"]
 
 encodeChar c
   | c `S.member` okSymChars
@@ -232,7 +257,7 @@ class Symbolic a where
 instance Symbolic String where
   symbol = symbol . T.pack
 
-instance Symbolic Text where
+instance Symbolic T.Text where
   symbol = S . intern
 
 instance Symbolic InternedText where

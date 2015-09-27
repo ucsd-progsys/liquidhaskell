@@ -347,7 +347,8 @@ unify1 θ t (FVar i)         = unifyVar θ i t
 unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ (FTC l1) (FTC l2) 
-  | isListTC l1 && isListTC l2 = return θ 
+  | isListTC l1 && isListTC l2     = return θ 
+unify1 θ (FFunc _ ts1) (FFunc _ ts2) = unifyMany θ ts1 ts2 
 unify1 θ t1 t2
   | t1 == t2                = return θ
   | otherwise               = throwError $ errUnify t1 t2

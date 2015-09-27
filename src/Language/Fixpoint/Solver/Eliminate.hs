@@ -4,11 +4,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll, elimKVar, findWfC) where
+       (eliminateAll, findWfC) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps (depNonCuts, deps)
-import           Language.Fixpoint.Visitor     (kvars, mapKVars', rhsKVars)
+import           Language.Fixpoint.Visitor     (kvars, mapKVars, rhsKVars)
 import           Language.Fixpoint.Names       (existSymbol)
 import           Language.Fixpoint.Misc        (errorstar, snd3, thd3)
 
@@ -27,30 +27,6 @@ eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
     nonCuts = depNonCuts $ deps fi
 --------------------------------------------------------------
 
-
-class Elimable a where
-  elimKVar :: ((KVar, Subst) -> Maybe Pred) -> a -> a
-
-instance Elimable (SubC a) where
-  elimKVar f x = x { slhs = elimKVar f (slhs x) 
-                   , srhs = elimKVar f (srhs x)
-                   }
-
-instance Elimable (SimpC a) where
-  elimKVar f x = x { crhs = mapKVars' f (crhs x) }
-
-instance Elimable SortedReft where
-  elimKVar f x = x { sr_reft = mapKVars' f (sr_reft x) }
-
-instance (Elimable (c a)) => Elimable (GInfo c a) where
-  elimKVar f x = x { cm = M.map (elimKVar f) (cm x)
-                   , bs = elimKVar f (bs x)
-                   }
-
-instance Elimable BindEnv where
-  elimKVar f = mapBindEnv $ second (elimKVar f)
-
-
 eliminate :: SInfo a -> KVar -> State Integer (SInfo a)
 eliminate fi kv = do
   let relevantSubCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
@@ -61,8 +37,8 @@ eliminate fi kv = do
   let symSReftList = map (second trueSortedReft) (concatMap snd predsBinds)
   let (ids, be) = insertsBindEnv symSReftList $ bs fi
   let newSubCs = M.map (\s -> s { _cenv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  let replacement (k, _) = if kv == k then Just orPred else Nothing
-  return $ elimKVar replacement (fi { cm = newSubCs , ws = remainingWs , bs = be })
+  let replacement k = if kv == k then Just orPred else Nothing
+  return $ mapKVars replacement (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
 insertsBindEnv = runState . mapM (uncurry $ (fmap.fmap) state insertBindEnv)

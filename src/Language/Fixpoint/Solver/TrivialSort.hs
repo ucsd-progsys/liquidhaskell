@@ -142,14 +142,10 @@ simplifyFInfo tm fi = fi {
      cm   = simplifySubCs   tm $ cm fi
    , ws   = simplifyWfCs    tm $ ws fi
    , bs   = simplifyBindEnv tm $ bs fi
-   , gs   = simplifyFEnv    tm $ gs fi
 }
 
 simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
 simplifyBindEnv = mapBindEnv . second . simplifySortedReft
-
-simplifyFEnv :: NonTrivSorts -> FEnv -> FEnv
-simplifyFEnv = fmap . simplifySortedReft
 
 simplifyWfCs :: NonTrivSorts -> [WfC a] -> [WfC a]
 simplifyWfCs tm = filter (isNonTrivialSort tm . sr_sort . wrft)

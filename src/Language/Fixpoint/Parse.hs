@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE CPP                       #-}
 
 module Language.Fixpoint.Parse (
 
@@ -66,13 +67,17 @@ module Language.Fixpoint.Parse (
   , remainderP
   ) where
 
+#if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative         ((<$>), (<*), (*>), (<*>))
+#endif
+
+import           Control.Arrow               (first)
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
 import           Text.Parsec
 import           Text.Parsec.Expr
-import           Text.Parsec.Language
+import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
@@ -80,7 +85,7 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      hiding (dcolon)
+import           Language.Fixpoint.Misc      (sortNub)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Types
@@ -324,6 +329,8 @@ sortP' appArgsP
   <|> try (fAppTC <$> fTyConP <*> appArgsP)
   <|> try (fApp   <$> tvarP   <*> appArgsP)
 
+single x = [x]
+
 tvarP :: Parser Sort
 tvarP
    =  try (string "@" >> varSortP)
@@ -454,7 +461,7 @@ qualifierP tP = do
   body   <- predP
   return  $ mkQual n params body pos
 
-sortBindP tP = (,) <$> symbolP <* colon <*> tP
+sortBindP tP = pairP symbolP colon tP
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
@@ -463,7 +470,7 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
   where
     (vv,t):zts = gSorts xts
-    yts        = mapFst mkParam <$> zts
+    yts        = first mkParam <$> zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
 
 gSorts :: [(a, Sort)] -> [(a, Sort)]
@@ -534,8 +541,6 @@ subCP :: Parser (SubC ())
 subCP = do pos <- getPosition
            reserved "env"
            env <- envP
-           reserved "grd"
-           grd <- predP
            reserved "lhs"
            lhs <- sortedReftP
            reserved "rhs"
@@ -544,15 +549,15 @@ subCP = do pos <- getPosition
            i   <- integer <* spaces
            tag <- tagP
            pos' <- getPosition
-           -- ORIG return $ safeHead "subCP" $ subC env grd lhs rhs (Just i) tag ()
-           return $ subC' env grd lhs rhs i tag pos pos'
+           -- ORIG return $ safeHead "subCP" $ subC env lhs rhs (Just i) tag ()
+           return $ subC' env lhs rhs i tag pos pos'
 
-subC' env grd lhs rhs i tag l l'
+subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
       _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
     where
-       cs = subC env grd lhs rhs (Just i) tag ()
+       cs = subC env lhs rhs (Just i) tag ()
 
 -- idVV :: Integer -> SortedReft -> SortedReft
 -- idVV i sr = sr {sr_reft = ri }
@@ -563,8 +568,7 @@ subC' env grd lhs rhs i tag l l'
 
 
 tagP  :: Parser [Int]
-tagP  =  try (reserved "tag" >> spaces >> (brackets $ sepBy intP semi))
-     <|> (return [])
+tagP  = reserved "tag" >> spaces >> (brackets $ sepBy intP semi)
 
 envP  :: Parser IBindEnv
 envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
@@ -574,17 +578,15 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = FI cm ws bs gs lts kts qs mempty mempty
+defsFInfo defs = FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    gs     = fromListSEnv     [(x, RR t mempty) | Con x t     <- defs]
-    lts    =                  [(x, t)           | Con x t     <- defs, notFun t]
+    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [q                | Qul q       <- defs]
     cid    = fromJust . sid
-    notFun = not . isFunctionSortedReft . (`RR` trueReft)
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------

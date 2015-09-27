@@ -21,37 +21,38 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-import qualified Data.HashMap.Strict              as M
-import           Data.List hiding (partition)
-
 #if __GLASGOW_HASKELL__ < 710
-import           Data.Functor
+import           Data.Functor ((<$>))
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-import           System.Exit
-import           System.IO                        (IOMode (..), hPutStr, withFile)
-import           System.Console.CmdArgs.Verbosity hiding (Loud)
-import           Text.PrettyPrint.HughesPJ
-import           Text.Printf
-import           Control.Monad (liftM)
 
-import           Language.Fixpoint.Solver.Validate
+import qualified Data.HashMap.Strict                as M
+import           Data.List                          hiding (partition)
+import           System.Exit                        (ExitCode (..))
+import           System.IO                          (IOMode (..), hPutStr, withFile)
+import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+import           Text.PrettyPrint.HughesPJ          (render, vcat, ($$), text)
+import           Text.Printf                        (printf)
+import           Control.Monad                      (liftM, when)
+
+import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
-import qualified Language.Fixpoint.Solver.Solve  as S
-import           Language.Fixpoint.Config          hiding (solver)
-import           Language.Fixpoint.Files           hiding (Result)
+import qualified Language.Fixpoint.Solver.Solve     as S
+import           Language.Fixpoint.Config           (Config (..), command, withTarget)
+import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Statistics     (statistics)
-import           Language.Fixpoint.Partition      (partition, partition')
-import           Language.Fixpoint.Parse          (rr, rr')
-import           Language.Fixpoint.Types          hiding (kuts, lits)
-import           Language.Fixpoint.Errors (exit)
-import           Language.Fixpoint.PrettyPrint (showpp, pprintKVs)
-import           Language.Fixpoint.Parallel
+import           Language.Fixpoint.Statistics       (statistics)
+import           Language.Fixpoint.Partition        (partition, partition')
+import           Language.Fixpoint.Parse            (rr, rr')
+import           Language.Fixpoint.Types
+import           Language.Fixpoint.Errors           (exit)
+import           Language.Fixpoint.PrettyPrint      (showpp, pprintKVs)
+import           Language.Fixpoint.Parallel         (inParallelUsing)
 
-import           Debug.Trace
+import           Debug.Trace                        (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
@@ -93,12 +94,17 @@ solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let si = convertFormat fi
+  --FIXME: inefficient since toFixpoint and rr are mostly inverses - better to
+  -- replace this by the net effect of rr . toFixpoint,
+  -- and the correct solution is to make toFixpoint and rr actually inverses.
+  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo ()
+  let si = convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   donePhase Loud "Format Conversion"
   let Right si' = validate cfg si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
+  when (elimStats cfg) $ printElimStats (deps si')
   let si''  = renameAll si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
@@ -109,13 +115,19 @@ solveNativeWithFInfo cfg fi = do
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC <$> stat) soln
+  return    $ Result (WrapC . (\i -> mlookup (cm fi) (mfromJust "WAT" i)) <$> stat') soln
 
+printElimStats :: Deps -> IO ()
+printElimStats d = do
+  let postElims = length $ depCuts d
+  let total = postElims + (length $ depNonCuts d)
+  putStrLn $ "TOTAL KVars: " ++ show total
+          ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
   | eliminate cfg = do let fi' = eliminateAll fi
-                       whenLoud $ putStrLn $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
                        donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
@@ -146,13 +158,10 @@ solvePar c fi = do
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
-  = do writeFile fq qstr
-       withFile fq AppendMode (\h -> {-# SCC "HPrintDump" #-} hPutStr h (render d))
+  = do writeFile fq $ render $ {-# SCC "FixPointify" #-} toFixpoint cfg fi
        solveFile $ cfg `withTarget` fq
     where
        fq   = extFileName Fq fn
-       d    = {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       qstr = render (vcat (toFix <$> quals fi) $$ text "\n")
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg
@@ -192,6 +201,12 @@ sanitizeFixpointOutput
   . chopAfter ("//QUALIFIERS" `isPrefixOf`)
   . lines
 
+chopAfter ::  (a -> Bool) -> [a] -> [a]
+chopAfter f xs
+  = case findIndex f xs of
+      Just n  -> take n xs
+      Nothing -> xs
+
 ---------------------------------------------------------------------------
 resultExit :: FixResult a -> ExitCode
 ---------------------------------------------------------------------------
@@ -212,4 +227,4 @@ parseFI f = do
   str   <- readFile f
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
-                  , gs    = gs     fi }
+                  , lits  = lits   fi }

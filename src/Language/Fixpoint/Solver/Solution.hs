@@ -24,7 +24,7 @@ import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
-import           Data.Monoid                    ((<>))
+import           Data.Monoid                    ((<>), mempty)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
@@ -80,6 +80,12 @@ update s ks kqs = {- tracepp msg -} (or bs, s')
     (bs, s')    = folds update1 s kqss
     -- msg         = printf "ks = %s, s = %s" (showpp ks) (showpp s)
 
+folds   :: (a -> b -> (c, a)) -> a -> [b] -> ([c], a)
+folds f b = L.foldl' step ([], b)
+  where
+     step (cs, acc) x = (c:cs, x')
+       where
+         (c, x')      = f acc x
 
 groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
 groupKs ks kqs = M.toList $ groupBase m0 kqs
@@ -116,7 +122,7 @@ refine fi qs s w = refineK env qs s (wfKvar w)
   where
     env          = wenv <> genv
     wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-    genv         = F.gs fi
+    genv         = (`F.RR` mempty) <$> F.lits fi
 
 refineK :: F.SEnv F.SortedReft
         -> [F.Qualifier]

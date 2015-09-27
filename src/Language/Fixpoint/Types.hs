@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -69,7 +70,6 @@ module Language.Fixpoint.Types (
   , eProp
   , pAnd, pOr, pIte
   , isTautoPred
-  , symConstLits
 
   -- * Generalizing Embedding with Typeclasses
   , Symbolic (..)
@@ -78,7 +78,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, subcId, sid, sgrd, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , SimpC (..)
   , Tag
   , TaggedC, WrappedC (..)
@@ -86,8 +86,6 @@ module Language.Fixpoint.Types (
   -- * Accessing Constraints
   , envCs
   , addIds, sinfo
-  , trueSubCKvar
-  , removeLhsKvars
 
   -- * Solutions
   , Result (..)
@@ -103,7 +101,6 @@ module Language.Fixpoint.Types (
   , filterSEnv
   , lookupSEnvWithDistance
 
-  , FEnv, insertFEnv
   , IBindEnv, BindId, BindMap
   , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
 
@@ -135,7 +132,7 @@ module Language.Fixpoint.Types (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, squishRefas, conjuncts
+  , flattenRefas, conjuncts
   , shiftVV
   , mapPredReft
 
@@ -183,31 +180,31 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
+import           Control.Arrow             (second)
 import           Data.Char                 (toLower)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
--- import           Data.Interned
-import           Data.List                 (foldl', intersect, nub, sort)
+import           Data.List                 (foldl', intersect, nub, sort, sortBy)
 import           Data.Monoid               hiding ((<>))
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
-import           Control.DeepSeq
+import           Control.DeepSeq           (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Names
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 
 import           Data.Array                hiding (indices)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
-import           Language.Fixpoint.Names
 
 
 class Fixpoint a where
@@ -306,12 +303,6 @@ instance Fixpoint Bool where
   toFix False = text "False"
   simplify z  = z
 
-
-toFixGs :: SEnv SortedReft -> Doc
-toFixGs (SE e) = vcat  $ map (toFixConstant . mapSnd sr_sort) $ hashMapToAscList e
-
-toFixConstant (c, so)
-  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 ----------------------------------------------------------------------
 ------------------------ Type Constructors ---------------------------
@@ -886,10 +877,8 @@ instance Fixpoint BindEnv where
 
 toFixBind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
 
-insertFEnv   = insertSEnv . lower
-  where lower s = case unconsSym s of
-                    Nothing     -> s
-                    Just (c,s') -> consSym (toLower c) s'
+hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
+hashMapToAscList = sortBy (\x y -> compare (fst x) (fst y)) . M.toList
 
 -- instance (Fixpoint a) => Fixpoint (SEnv a) where
 --   toFix (SE e)    = vcat $ map pprxt $ hashMapToAscList e
@@ -910,22 +899,19 @@ instance Fixpoint (SEnv a) => Show (SEnv a) where
 type Tag           = [Int]
 
 type BindId        = Int
-type FEnv          = SEnv SortedReft
 type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
-
-data BindEnv       = BE { beSize  :: Int
-                        , beBinds :: BindMap (Symbol, SortedReft)
-                        }
-                     deriving (Show)
+data SizedEnv a    = BE { beSize  :: Int
+                        , beBinds :: BindMap a
+                        } deriving (Show, Functor, F.Foldable, Traversable)
+type BindEnv       = SizedEnv (Symbol, SortedReft) 
 -- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { _senv  :: !IBindEnv
-                   , sgrd  :: !Pred
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
                    , _sid   :: !(Maybe Integer)
@@ -1065,10 +1051,9 @@ instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
-              $+$ text "grd" <+> toFix (sgrd c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
-              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
               $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 instance Fixpoint a => Fixpoint (SimpC a) where
@@ -1076,7 +1061,7 @@ instance Fixpoint a => Fixpoint (SimpC a) where
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
-              $+$ (pprId (sid c) <+> pprTag (stag c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
               $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 
@@ -1095,9 +1080,6 @@ toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
 
-pprTag []       = text ""
-pprTag is       = text "tag" <+> toFix is
-
 instance Fixpoint Int where
   toFix = tshow
 
@@ -1113,7 +1095,6 @@ class Subable a where
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
-  -- subst1 y (x, e) = subst (Su $ M.singleton x e) y
   subst1 y (x, e) = subst (Su [(x,e)]) y
 
 subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
@@ -1244,16 +1225,16 @@ unsafeMkSubst  = Su
 
 unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
   where
-    s1'                           = mapSnd (subst θ2) <$> s1
+    s1'                           = second (subst θ2) <$> s1
 
 -- TODO: this is **not used**, because of degenerate substitutions.
 -- e.g. consider: s1 = [v := v], s2 = [v := x].
 -- We want s1 `cat` s2 to be [v := x] and not [v := v] ...
 
-unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
-  where
-    s1' = mapSnd (subst (Su s2')) <$> s1
-    s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
+--unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
+--  where
+--    s1' = second (subst (Su s2')) <$> s1
+--    s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
 
 -- TODO: nano-js throws all sorts of issues, will look into this later...
 -- but also, the check is too conservative, because of degenerate substitutions,
@@ -1264,7 +1245,7 @@ safeCatSubst θ1@(Su s1) θ2@(Su s2)
   | otherwise
   = errorstar msg
   where
-    s1' = mapSnd (subst (Su s2)) <$> s1
+    s1' = second (subst (Su s2)) <$> s1
     xs1 = fst <$> s1
     xs2 = fst <$> s2
     msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
@@ -1312,10 +1293,10 @@ flattenRefas         = concatMap flatRa
     flatP  (PAnd ps) = concatMap flatP ps
     flatP  p         = [p]
 
-squishRefas     :: [Refa] -> [Refa]
-squishRefas ras =  [squish (raPred <$> ras)]
-  where
-    squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
+--squishRefas     :: [Refa] -> [Refa]
+--squishRefas ras =  [squish (raPred <$> ras)]
+--  where
+--    squish      = Refa . pAnd . sortNub . filter (not . isTautoPred) . concatMap conjuncts
 
 conjuncts :: Pred -> [Pred]
 conjuncts (PAnd ps) = concatMap conjuncts ps
@@ -1341,9 +1322,6 @@ instance NFData Sub where
 
 instance NFData Subst where
   rnf (Su x) = rnf x
-
-instance NFData FEnv where
-  rnf (SE x) = rnf x
 
 instance NFData IBindEnv where
   rnf (FB x) = rnf x
@@ -1398,8 +1376,8 @@ instance NFData SortedReft where
   rnf (RR so r) = rnf so `seq` rnf r
 
 instance (NFData a) => NFData (SubC a) where
-  rnf (SubC x1 x2 x3 x4 x5 x6 x7)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6 `seq` rnf x7
+  rnf (SubC x1 x2 x3 x4 x5 x6)
+    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6
 
 instance (NFData a) => NFData (WfC a) where
   rnf (WfC x1 x2 x3 x4)
@@ -1419,8 +1397,8 @@ instance Hashable FTycon where
 wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
 wfC  = WfC
 
-subC :: IBindEnv -> Pred -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
-subC γ p sr1 sr2 i y z = [SubC γ p sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
+subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
      RR t2 r2          = sr2
@@ -1445,13 +1423,9 @@ rhsCs      = sr_reft . srhs
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
--- mkFEnv :: BindEnv -> IBindEnv -> FEnv
--- mkFEnv be env = fromListSEnv $ envCs be env
 
-
-
-removeLhsKvars cs vs
-  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
+--removeLhsKvars cs vs
+--  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
 
 -- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
 -- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}
@@ -1459,9 +1433,9 @@ removeLhsKvars cs vs
 -- CUTSOLVER        f (RKvar v _) | v `elem` vs = False
 -- CUTSOLVER        f r                         = True
 
-trueSubCKvar k = subC emptyIBindEnv PTrue mempty rhs  Nothing [0]
-  where
-    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
+--trueSubCKvar k = subC emptyIBindEnv mempty rhs  Nothing [0]
+--  where
+--    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
 
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
@@ -1513,8 +1487,7 @@ data GInfo c a =
   FI { cm    :: M.HashMap Integer (c a)
      , ws    :: ![WfC a]
      , bs    :: !BindEnv
-     , gs    :: !FEnv
-     , lits  :: ![(Symbol, Sort)]
+     , lits  :: !(SEnv Sort)
      , kuts  :: Kuts
      , quals :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
@@ -1537,11 +1510,10 @@ instance Monoid BindEnv where
   mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
-                     , gs       = mappend (gs i1)       (gs i2)
                      , lits     = mappend (lits i1)     (lits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
                      , quals    = mappend (quals i1)    (quals i2)
@@ -1555,7 +1527,6 @@ x $++$ y = x $+$ text "\n" $+$ y
 toFixpoint :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> Doc
 toFixpoint cfg x' =    qualsDoc x'
                   $++$ kutsDoc  x'
-                  $++$ gsDoc    x'
                   $++$ conDoc   x'
                   $++$ bindsDoc x'
                   $++$ csDoc    x'
@@ -1563,18 +1534,20 @@ toFixpoint cfg x' =    qualsDoc x'
                   $++$ binfoDoc x'
                   $++$ text "\n"
   where
-    conDoc        = vcat     . map toFixConstant . lits
+    conDoc        = vcat     . map toFixConstant . toListSEnv . lits
     csDoc         = vcat     . map toFix . M.elems . cm
     wsDoc         = vcat     . map toFix . ws
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
-    gsDoc         = toFixGs  . gs
     qualsDoc      = vcat     . map toFix . quals
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)
     mdata         = metadata cfg
     binfoDoc
       | mdata     = vcat     . map metaDoc . M.toList . bindInfo
       | otherwise = \_ -> text "\n"
+
+toFixConstant (c, so)
+  = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
@@ -1680,8 +1653,8 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
-symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
-symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
+--symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
+--symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
 
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
@@ -1706,16 +1679,14 @@ class SymConsts a where
   symConsts :: a -> [SymConst]
 
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
-  symConsts fi = sortNub $ csLits ++ bsLits ++ gsLits ++ qsLits
+  symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
     where
       csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
       bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
-      gsLits   = concatMap symConsts $         M.elems $ seBinds $  gs    fi
       qsLits   = concatMap symConsts $                   q_body  <$> quals fi
 
 instance SymConsts (SubC a) where
-  symConsts c  = symConsts (sgrd c) ++
-                 symConsts (slhs c) ++
+  symConsts c  = symConsts (slhs c) ++
                  symConsts (srhs c)
 
 instance SymConsts (SimpC a) where

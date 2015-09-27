@@ -3,7 +3,6 @@
 
 constraint:
   env [z : {v : int | true}]
-  grd true 
   lhs {v : int | (z=10) \/ (z=20)}
   rhs {v : int | 10 <= z}
   id 3 
@@ -37,8 +36,7 @@ Take the \/ of all constraints on k0
 So you get:
 
      env [2]
-     grd true 
-     lhs {v : int | (\x. x=10 /\ z=x) \/ (\y. y=20 /\ z=y)}
+        lhs {v : int | (\x. x=10 /\ z=x) \/ (\y. y=20 /\ z=y)}
      rhs {v : int | 10 <= z}
      id 3 
 

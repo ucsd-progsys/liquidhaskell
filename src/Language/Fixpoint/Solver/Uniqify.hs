@@ -3,10 +3,10 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Visitor (mapKVars')
 import           Language.Fixpoint.Names (renameSymbol)
-import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
+import           Language.Fixpoint.Solver.Eliminate (findWfC)
 import           Language.Fixpoint.Misc  (fst3)
-import           Language.Fixpoint.Solver.Validate (finfoDefs)
 import qualified Data.HashMap.Strict     as M
 import qualified Data.HashSet            as S
 import           Data.List               ((\\), sort)
@@ -74,20 +74,14 @@ renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
 renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
 renameVarIfSeen fi x@(id, _) = state (\m ->
   let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
-  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m)) --insertIfNotConstant fi sym srt m))
-
-----TODO: only valid if the binding has no kvars and is of the same sort
----- as the constant. Should that be checked here, or in Validate?
---insertIfNotConstant :: SInfo a -> Symbol -> Sort -> M.HashMap Symbol Sort -> M.HashMap Symbol Sort
---insertIfNotConstant fi sym srt m | sym `elem` (fst <$> finfoDefs fi) = m
---                                 | otherwise                         = M.insert sym srt m
+  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m))
 
 handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (SInfo a, (M.HashMap Symbol Sort))
 handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
                              | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
+renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
   where
     sym = fst $ lookupBindEnv id (bs fi)
     sym' = renameSymbol sym id

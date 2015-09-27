@@ -50,6 +50,7 @@ data Config
     , real        :: Bool             -- ^ interpret div and mul in SMT
     , newcheck    :: Bool             -- ^ new fixpoint sort check 
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
+    , elimStats   :: Bool             -- ^ print eliminate stats
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
@@ -70,6 +71,7 @@ instance Default Config where
                , real        = def
                , newcheck    = False 
                , eliminate   = def
+               , elimStats   = def
                , metadata    = def
                , stats       = def
                , parts       = def
@@ -149,6 +151,7 @@ config = Config {
   , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
+  , elimStats   = False &= help "(alpha) Print eliminate stats"
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
