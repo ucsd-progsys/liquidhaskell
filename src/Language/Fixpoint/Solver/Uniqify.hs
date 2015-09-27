@@ -3,8 +3,9 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Visitor (mapKVars')
 import           Language.Fixpoint.Names (renameSymbol)
-import           Language.Fixpoint.Solver.Eliminate (elimKVar, findWfC)
+import           Language.Fixpoint.Solver.Eliminate (findWfC)
 import           Language.Fixpoint.Misc  (fst3)
 import qualified Data.HashMap.Strict     as M
 import qualified Data.HashSet            as S
@@ -80,7 +81,7 @@ handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
                              | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (id, refs) = elimKVar (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
+renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
   where
     sym = fst $ lookupBindEnv id (bs fi)
     sym' = renameSymbol sym id

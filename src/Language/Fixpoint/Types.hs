@@ -904,11 +904,10 @@ newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
-
-data BindEnv       = BE { beSize  :: Int
-                        , beBinds :: BindMap (Symbol, SortedReft)
-                        }
-                     deriving (Show)
+data SizedEnv a    = BE { beSize  :: Int
+                        , beBinds :: BindMap a
+                        } deriving (Show, Functor, Foldable, Traversable)
+type BindEnv       = SizedEnv (Symbol, SortedReft) 
 -- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { _senv  :: !IBindEnv

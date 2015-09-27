@@ -1,5 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Visitor (
@@ -28,7 +30,7 @@ module Language.Fixpoint.Visitor (
 #if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative       (Applicative, (<$>), (<*>))
 import           Data.Monoid
-import           Data.Traversable          (Traversable, traverse)
+import           Data.Traversable          (Traversable, traverse, mapM)
 #endif
 
 import           Control.Monad.Trans.State (State, modify, runState)
@@ -92,7 +94,7 @@ instance Visitable Pred where
   visit = visitPred
 
 instance Visitable Refa where
-  visit v c (Refa p) =  Refa <$> visit v c p
+  visit v c (Refa p) = Refa <$> visit v c p
 
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
@@ -100,6 +102,26 @@ instance Visitable Reft where
 instance Visitable SortedReft where
   visit v c (RR t r) = RR t <$> visit v c r
 
+instance Visitable (Symbol, SortedReft) where
+  visit v c (sym, sr) = (sym, ) <$> visit v c sr
+
+instance Visitable BindEnv where
+  visit v c = mapM (visit v c)
+  
+---------------------------------------------------------------------------------
+-- Warning: these instances were written for mapKVars over SInfos only; 
+--  check that they behave as expected before using with other clients.
+instance Visitable (SimpC a) where
+  visit v c x = do
+    rhs' <- visit v c (crhs x)
+    return x { crhs = rhs' }
+
+instance Visitable (SInfo a) where
+  visit v c x = do
+    cm' <- mapM (visit v c) (cm x)
+    bs' <- visit v c (bs x)
+    return x { cm = cm', bs = bs' }
+---------------------------------------------------------------------------------
 
 visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
 visitMany v c xs = visit v c <$$> xs
