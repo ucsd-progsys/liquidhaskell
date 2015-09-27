@@ -81,7 +81,7 @@ handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
                              | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (elimKVar separately on every rename is expensive)
+renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
   where
     sym = fst $ lookupBindEnv id (bs fi)
     sym' = renameSymbol sym id

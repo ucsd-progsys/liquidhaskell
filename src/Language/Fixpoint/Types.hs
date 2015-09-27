@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -906,7 +907,7 @@ newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
 
 data SizedEnv a    = BE { beSize  :: Int
                         , beBinds :: BindMap a
-                        } deriving (Show, Functor, Foldable, Traversable)
+                        } deriving (Show, Functor, F.Foldable, Traversable)
 type BindEnv       = SizedEnv (Symbol, SortedReft) 
 -- Invariant: All BindIds in the map are less than beSize
 

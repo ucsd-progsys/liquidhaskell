@@ -31,6 +31,7 @@ module Language.Fixpoint.Visitor (
 import           Control.Applicative       (Applicative, (<$>), (<*>))
 import           Data.Monoid
 import           Data.Traversable          (Traversable, traverse, mapM)
+import           Prelude                   hiding (mapM)
 #endif
 
 import           Control.Monad.Trans.State (State, modify, runState)
@@ -107,7 +108,7 @@ instance Visitable (Symbol, SortedReft) where
 
 instance Visitable BindEnv where
   visit v c = mapM (visit v c)
-  
+
 ---------------------------------------------------------------------------------
 -- Warning: these instances were written for mapKVars over SInfos only; 
 --  check that they behave as expected before using with other clients.
