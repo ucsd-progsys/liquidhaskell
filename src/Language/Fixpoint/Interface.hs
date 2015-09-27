@@ -119,10 +119,10 @@ solveNativeWithFInfo cfg fi = do
 
 printElimStats :: Deps -> IO ()
 printElimStats d = do
-  let postElims = length $ depNonCuts d
-  let total = postElims + (length $ depCuts d)
+  let postElims = length $ depCuts d
+  let total = postElims + (length $ depNonCuts d)
   putStrLn $ "TOTAL KVars: " ++ show total
-          ++ "POST-ELIMINATION KVars: " ++ show postElims
+          ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
