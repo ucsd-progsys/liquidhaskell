@@ -34,10 +34,11 @@ import           System.IO                          (IOMode (..), hPutStr, withF
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render, vcat, ($$), text)
 import           Text.Printf                        (printf)
-import           Control.Monad                      (liftM)
+import           Control.Monad                      (liftM, when)
 
 import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve     as S
 import           Language.Fixpoint.Config           (Config (..), command, withTarget)
@@ -103,6 +104,7 @@ solveNativeWithFInfo cfg fi = do
   let Right si' = validate cfg si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
+  when (elimStats cfg) $ printElimStats (deps si')
   let si''  = renameAll si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
@@ -114,6 +116,13 @@ solveNativeWithFInfo cfg fi = do
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . (\i -> mlookup (cm fi) (mfromJust "WAT" i)) <$> stat') soln
+
+printElimStats :: Deps -> IO ()
+printElimStats d = do
+  let postElims = length $ depNonCuts d
+  let total = postElims + (length $ depCuts d)
+  putStrLn $ "TOTAL KVars: " ++ show total
+          ++ "POST-ELIMINATION KVars: " ++ show postElims
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
 elim cfg fi
