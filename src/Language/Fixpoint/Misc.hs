@@ -8,23 +8,18 @@
 
 module Language.Fixpoint.Misc where
 
-import           Control.Exception                (catch, IOException, bracket_)
+import           Control.Exception                (bracket_)
 import           Data.Hashable
-import           Data.Traversable                 (traverse)
-import           Control.Applicative              ((<$>))
-import           Control.Arrow                    (first, second)
-import           Control.Monad                    (forM_, (>=>))
+import           Control.Arrow                    (second)
+import           Control.Monad                    (forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       (fromJust, catMaybes, fromMaybe)
-import qualified Data.Text                        as T
+import           Data.Maybe                       (fromMaybe)
 
-import           Data.Data                        (Data, Typeable)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
-import           System.Exit                      (ExitCode (..))
 import           System.Process                   (system)
 
 import           Text.PrettyPrint.HughesPJ        hiding (first)

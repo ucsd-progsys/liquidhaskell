@@ -10,7 +10,6 @@ import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict  as M
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
-import           Language.Fixpoint.Solver.Validate
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad

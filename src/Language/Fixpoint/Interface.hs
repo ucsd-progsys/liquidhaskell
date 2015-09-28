@@ -30,11 +30,10 @@ import           Data.Monoid (mconcat, mempty)
 import qualified Data.HashMap.Strict                as M
 import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
-import           System.IO                          (IOMode (..), hPutStr, withFile)
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
-import           Text.PrettyPrint.HughesPJ          (render, vcat, ($$), text)
+import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
-import           Control.Monad                      (liftM, when)
+import           Control.Monad                      (when)
 
 import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
@@ -49,10 +48,8 @@ import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors           (exit)
-import           Language.Fixpoint.PrettyPrint      (showpp, pprintKVs)
+import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
-
-import           Debug.Trace                        (trace)
 
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------

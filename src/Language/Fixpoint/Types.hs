@@ -181,7 +181,6 @@ import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
 import           Control.Arrow             (second)
-import           Data.Char                 (toLower)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
