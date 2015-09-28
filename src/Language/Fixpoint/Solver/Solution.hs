@@ -26,7 +26,6 @@ import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 import           Data.Monoid                    ((<>), mempty)
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
@@ -102,9 +101,9 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
-init :: Config -> F.GInfo c a -> Solution
+init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init _ fi = tracepp "init solution" s
+init fi = tracepp "init solution" s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
