@@ -53,8 +53,9 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
-    errors           =  mapMaybe (checkBind "constructor" emb tcEnv env) (dcons      sp)
-                     ++ mapMaybe (checkBind "measure"     emb tcEnv env) (meas       sp)
+    errors           =  mapMaybe (checkBind "constructor"  emb tcEnv env) (dcons      sp)
+                     ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
+                     ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
                      ++ (checkIAl  emb tcEnv env) (ialiases   sp)
                      ++ checkMeasures emb env ms
