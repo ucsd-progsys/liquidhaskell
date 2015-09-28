@@ -85,10 +85,11 @@ prop_nil (C x xs) = toProof e1 $ ((
 {- invariant {v:Proof | v == Proof } @-}
 
 {-@ bound chain @-}
-chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
-chain p q r v = p v ==> q v ==> r v
+chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool)
+      -> Proof -> Proof -> Proof -> Bool
+chain p q r v1 v2 v3  = p v1 ==> q v2 ==> r v3
 
-{-@  assume by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
+{-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
                  (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
 @-}
 by :: Proof -> Proof -> Proof
