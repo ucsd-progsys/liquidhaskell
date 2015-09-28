@@ -38,7 +38,13 @@ eliminate fi kv = do
   return $ mapKVars replacement (fi { cm = newSubCs , ws = remainingWs , bs = be })
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
-insertsBindEnv = runState . mapM (uncurry $ (fmap.fmap) state insertBindEnv)
+insertsBindEnv = runState . mapM go
+  where
+    go (sym, srft) = do be <- get
+                        let (id, be') = insertBindEnv sym srft be
+                        put be'
+                        return id
+--insertsBindEnv = runState . mapM (uncurry $ (fmap.fmap) state insertBindEnv)
 
 findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
 findWfC kv ws = (w', ws')
@@ -82,8 +88,12 @@ functionsInBindEnv be = map snd3 fList
 
 
 renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
-renameVar (sym, srt) = state $ (addExpr . existSymbol sym) &&& (+1)
-  where addExpr s = ((s, srt) , (sym, eVar s))
+renameVar (sym, srt) = do n <- get
+                          let s = existSymbol sym n
+                          put (n+1)
+                          return ((s, srt) , (sym, eVar s))
+--renameVar (sym, srt) = state $ (addExpr . existSymbol sym) &&& (+1)
+--  where addExpr s = ((s, srt) , (sym, eVar s))
 
 -- [ x:{v:int|v=10} , y:{v:int|v=20} ] -> [x:int, y:int], [(x=10), (y=20)]
 substBinds :: [(Symbol, SortedReft)] -> ([(Symbol,Sort)],[Pred])
