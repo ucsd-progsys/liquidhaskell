@@ -33,7 +33,7 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Error       (catchError, throwError)
 import qualified Data.HashMap.Strict       as M
-import           Data.Maybe                (mapMaybe, catMaybes, fromMaybe)
+import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types

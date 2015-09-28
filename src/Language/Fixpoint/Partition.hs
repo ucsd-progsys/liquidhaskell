@@ -24,7 +24,6 @@ import           Data.List (sortBy)
 
 #if __GLASGOW_HASKELL__ < 710
 import           Data.Monoid (mempty, mappend)
-import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.Applicative              ((<$>))
 #endif
 
