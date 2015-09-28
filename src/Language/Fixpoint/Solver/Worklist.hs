@@ -10,7 +10,6 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Add a constraint and all its dependencies
        , push
-
        )
        where
 

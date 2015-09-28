@@ -23,7 +23,7 @@ where
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>), mempty)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor      as V
@@ -31,7 +31,6 @@ import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
--- import           Text.Printf (printf)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -130,7 +129,9 @@ refineK :: F.SEnv F.SortedReft
         -> Solution
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
-    eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
+    eqs  = instK env v t qs 
+    --OLD: eqs = fromMaybe (instK env v t qs) (M.lookup k s)
+    --OLD: --but the lookup should _always_ fail, right?
     eqs' = filter (okInst env v t) eqs
 
     -- OLD eqs' = case M.lookup k s of
