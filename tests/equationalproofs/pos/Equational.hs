@@ -22,10 +22,11 @@ toProof x y = Proof
 {-@ bound chain @-}
 chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool)
       -> Proof -> Proof -> Proof -> Bool
-chain p q r = \v1 v2 v3 ->  p v1 ==> q v2 ==> r v3
+chain p q r = \v1 v2 v3 -> p v1 ==> q v2 ==> r v3
 
 {-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-                 (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
+                 {vp::Proof<p> |- Proof<q> <: Proof<r> } 
+                 Proof<p> -> Proof<q> -> Proof<r>
 @-}
 by :: Proof -> Proof -> Proof
 by _ r = r
