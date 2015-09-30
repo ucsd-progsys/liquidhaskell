@@ -10,7 +10,7 @@
 
 module Append where
 
-import Language.Haskell.Liquid.Prelude
+import Equational
 
 data L a = N |  C a (L a) deriving (Eq)
 
@@ -50,20 +50,6 @@ axiom_append_cons :: a -> L a -> L a -> Proof
 axiom_append_cons x xs ys = Proof
 
 
--- | Proof library:
-
-data Proof = Proof
-
-
-{-@ toProof :: l:a -> r:{a|l = r} -> {v:Proof | l = r } @-}
-toProof :: a -> a -> Proof
-toProof x y = Proof
-
-
-{-@ (===) :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
-(===) :: a -> a -> Proof -> a
-(===) x y _ = y
-
 -- | Proof 1: N is neutral element
 
 {-@ prop_nil :: xs:L a -> {v:Proof | (append xs N == xs) } @-}
@@ -79,24 +65,6 @@ prop_nil (C x xs) = toProof e1 $ ((
    	e2  = C x (append xs N)
    	pr2 = prop_nil xs
    	e3  = C x xs
-
-{-@ type Equal X Y = {v:Proof | X == Y} @-}
-
-{- invariant {v:Proof | v == Proof } @-}
-
-{-@ bound chain @-}
-chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
-chain p q r v = p v ==> q v ==> r v
-
-{-@  assume by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-                 (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
-@-}
-by :: Proof -> Proof -> Proof
-by p r = r
-
-{-@ refl :: x:a -> Equal x x @-}
-refl :: a -> Proof
-refl x = Proof
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil N =  axiom_append_nil N
