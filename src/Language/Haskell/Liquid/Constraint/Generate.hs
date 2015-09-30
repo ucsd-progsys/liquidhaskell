@@ -708,8 +708,8 @@ initCGI cfg info = CGInfo {
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
-  = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
-                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
+  = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]    -- strings
+                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
     lconsts      = literalConst tce <$> literals (cbs info)
     dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
