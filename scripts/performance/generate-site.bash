@@ -6,6 +6,7 @@ CABAL=`which cabal`;
 ALL_FOUND=true;
 
 SCRIPT_DIR=`pwd`;
+
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
@@ -170,8 +171,17 @@ then
     abort_if_failed "$GIPEDA_LOGS doesn't exist and couldn't be created...";
 fi
 
+cd $GIPEDA_FIXPOINT;
+abort_if_failed "Couldn't change to $GIPEDA_FIXPOINT...";
+
+$GIT pull origin master;
+abort_if_failed "Couldn't pull Liquid Fixpoint from remote...";
+
 cd $GIPEDA_REPO;
 abort_if_failed "Couldn't change to $GIPEDA_REPO...";
+
+$GIT pull origin master;
+abort_if_failed "Couldn't pull Liquid Haskell from remote...";
 
 if [ $END = 0 ]
 then
@@ -205,6 +215,8 @@ do
         then
             START_FOUND=true;
         fi
+        rm -rf /tmp/ghc*;
+        rm -rf /tmp/cabal*;
     fi
 
 done
