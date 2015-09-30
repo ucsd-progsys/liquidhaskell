@@ -66,7 +66,7 @@ module Language.Fixpoint.Types (
   , Constant (..)
   , Bop (..), Brel (..)
   , Expr (..), Pred (..)
-  , eVar
+  , eVar, elit
   , eProp
   , pAnd, pOr, pIte
   , isTautoPred
@@ -224,7 +224,7 @@ exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
     go (EVar x)        = [x]
-    go (ELit x _)      = [val x]
+--     go (ELit x _)      = [val x]
     go (EApp f es)     = val f : concatMap go es
     go (ENeg e)        = go e
     go (EBin _ e1 e2)  = go e1 ++ go e2
@@ -459,7 +459,7 @@ data Bop  = Plus | Minus | Times | Div | Mod
 data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
-          | ELit !LocSymbol !Sort
+--           | ELit !LocSymbol !Sort
           | EApp !LocSymbol ![Expr]
           | ENeg !Expr
           | EBin !Bop !Expr !Expr
@@ -467,6 +467,8 @@ data Expr = ESym !SymConst
           | ECst !Expr !Sort
           | EBot
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+elit l s = ECon $ L (symbolText $ val l) s 
 
 instance Fixpoint Integer where
   toFix = integer
@@ -513,7 +515,7 @@ instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
-  toFix (ELit s _)     = toFix s
+--   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = toFix f <> parens (toFix es)
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
@@ -1343,8 +1345,7 @@ instance NFData Expr where
   rnf (ESym x)        = rnf x
   rnf (ECon x)        = rnf x
   rnf (EVar x)        = rnf x
-  -- rnf (EDat x1 x2)    = rnf x1 `seq` rnf x2
-  rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
+--   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
   rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
   rnf (ENeg x1)       = rnf x1
   rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3

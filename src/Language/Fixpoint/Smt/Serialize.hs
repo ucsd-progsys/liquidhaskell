@@ -96,7 +96,7 @@ instance SMTLIB2 Expr where
   smt2 (ESym z)         = smt2 z
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
-  smt2 (ELit x _)       = smt2 x
+--   smt2 (ELit x _)       = smt2 x
   smt2 (EApp f es)      = smt2App f es
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
   smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)
