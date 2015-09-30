@@ -708,8 +708,7 @@ initCGI cfg info = CGInfo {
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
-  = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts ]
-                ++ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
+  = sortNub      [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
   where
     lconsts      = literalConst tce <$> literals (cbs info)
