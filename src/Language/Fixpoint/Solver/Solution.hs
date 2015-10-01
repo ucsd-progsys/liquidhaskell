@@ -54,7 +54,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
                  , eqArgs :: ![F.Expr]
                  }
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Show)
 
 instance PPrint EQual where
   pprint = pprint . eqPred

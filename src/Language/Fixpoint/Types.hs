@@ -466,7 +466,7 @@ data Expr = ESym !SymConst
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic)
 
 elit l s = ECon $ L (symbolText $ val l) s 
 
@@ -540,7 +540,7 @@ data Pred = PTrue
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic)
 
 {-@ PAnd :: ListNE Pred -> Pred @-}
 
@@ -739,10 +739,10 @@ mapPredReft f (Reft (v, Refa p)) = Reft (v, Refa (f p))
 ---------------------------------------------------------------
 
 newtype Refa = Refa { raPred :: Pred }
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+               deriving (Eq, Show, Data, Typeable, Generic)
 
 newtype Reft = Reft (Symbol, Refa)
-               deriving (Eq, Ord, Data, Typeable, Generic)
+               deriving (Eq, Data, Typeable, Generic)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x
@@ -1205,7 +1205,7 @@ instance Subable SortedReft where
   substa f (RR so r) = RR so $ substa f r
 
 newtype Subst = Su [(Symbol, Expr)]
-                deriving (Eq, Ord, Data, Typeable, Generic)
+                deriving (Eq, Data, Typeable, Generic)
 
 appSubst :: Subst -> Symbol -> Expr
 appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
@@ -1461,7 +1461,7 @@ data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_body   :: Pred             -- ^ Predicate
                    , q_pos    :: !SourcePos       -- ^ Source Location
                    }
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+               deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Fixpoint Qualifier where
   toFix = pprQual
