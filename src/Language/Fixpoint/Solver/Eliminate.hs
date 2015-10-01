@@ -1,7 +1,4 @@
 {-# LANGUAGE PatternGuards        #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, findWfC) where
@@ -51,7 +48,7 @@ findWfC kv ws = (w', ws')
        | otherwise = errorstar $ show kv ++ " needs exactly one wf constraint"
 
 extractPred :: WfC a -> BindEnv -> SimpC a -> State Integer (Pred, [(Symbol, Sort)])
-extractPred wfc be subC = undefined-- exprsToPreds . unzip <$> mapM renameVar vars
+extractPred wfc be subC = exprsToPreds . unzip <$> mapM renameVar vars
   where
     exprsToPreds (bs, subs) = (subst (mkSubst subs) finalPred, bs)
     wfcIBinds  = elemsIBindEnv $ wenv wfc
@@ -66,7 +63,7 @@ extractPred wfc be subC = undefined-- exprsToPreds . unzip <$> mapM renameVar va
 
 -- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: [Symbol] -> Pred -> [Pred]
-substPreds dom (PKVar _ (Su subs)) = undefined --[PAtom Eq (eVar sym) expr | (sym, expr) <- subs , sym `elem` dom]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- M.toList subs , sym `elem` dom]
 
 -- TODO: filtering out functions like this is a temporary hack - we shouldn't
 -- have function substitutions to begin with

@@ -242,7 +242,7 @@ predSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PBexp e)          = exprSymbols e
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su')) = {- CUTSOLVER k : -} concatMap syms su'
+    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
     go (PAll xts p)       = (fst <$> xts) ++ go p
     go _                  = []
 
@@ -1217,7 +1217,7 @@ mkSubst :: [(Symbol, Expr)] -> Subst
 mkSubst = unsafeMkSubst . M.fromList . reverse
 
 isEmptySubst :: Subst -> Bool
-isEmptySubst (Su xes) = null xes
+isEmptySubst (Su xes) = M.null xes
 
 unsafeMkSubst  = Su
 
