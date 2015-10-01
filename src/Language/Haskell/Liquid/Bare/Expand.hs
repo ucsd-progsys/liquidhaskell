@@ -111,8 +111,8 @@ expandExpr e@(ECon _)
   = return e
 expandExpr e@(EVar _)
   = return e
-expandExpr e@(ELit _ _)
-  = return e
+--expandExpr e@(ELit _ _)
+--  = return e
 
 expandExpr EBot
   = return EBot
