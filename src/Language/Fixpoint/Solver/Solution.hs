@@ -147,7 +147,7 @@ instK :: F.SEnv F.SortedReft
 --------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
-    unique qs = M.elems $ M.fromList [(eqPred q, q) | q <- qs ]
+    unique = L.nubBy ((. eqPred) . (==) . eqPred)
 
 instKQ :: F.SEnv F.SortedReft
        -> F.Symbol

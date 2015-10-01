@@ -101,4 +101,4 @@ updateKVars fi id oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)
-    relevant = (id `elem` (elemsIBindEnv $ wenv wfc)) && (oldSym `elem` (map fst su))
+    relevant = (id `elem` (elemsIBindEnv $ wenv wfc)) && (oldSym `elem` M.keys su)

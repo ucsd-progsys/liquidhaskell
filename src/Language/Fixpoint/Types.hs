@@ -184,7 +184,7 @@ import           Control.Arrow             (second)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
-import           Data.List                 (foldl', intersect, nub, sort, sortBy)
+import           Data.List                 (foldl', intersect, nub, sort, sortBy, reverse)
 import           Data.Monoid               hiding ((<>))
 import           Data.String
 import           Data.Text                 (Text)
@@ -427,12 +427,12 @@ instance Show Subst where
   show = showFix
 
 instance Fixpoint Subst where
-  toFix (Su m) = case {- hashMapToAscList -} m of
+  toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
 
 targetSubstSyms :: Subst -> [Symbol]
-targetSubstSyms (Su ms) = syms $ snd <$> ms
+targetSubstSyms (Su ms) = syms $ M.elems ms
 
 
 ---------------------------------------------------------------
@@ -548,9 +548,6 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
-instance Hashable Subst
-instance Hashable Expr
-instance Hashable Pred
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -1096,7 +1093,7 @@ class Subable a where
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
-  subst1 y (x, e) = subst (Su [(x,e)]) y
+  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
 subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
 subst1Except xs z su@(x, _)
@@ -1108,7 +1105,7 @@ substfExcept f xs y = if y `elem` xs then EVar y else f y
 
 substExcept  :: Subst -> [Symbol] -> Subst
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs)
-substExcept  (Su xes) xs = Su $ filter (not . (`elem` xs) . fst) xes
+substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 
 instance Subable Symbol where
   substa f                 = f
@@ -1204,29 +1201,29 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-newtype Subst = Su [(Symbol, Expr)]
+newtype Subst = Su (M.HashMap Symbol Expr)
                 deriving (Eq, Data, Typeable, Generic)
 
 appSubst :: Subst -> Symbol -> Expr
-appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
+appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
 
 emptySubst :: Subst
-emptySubst = Su [] -- M.empty
+emptySubst = Su M.empty
 
 catSubst :: Subst -> Subst -> Subst
 catSubst = unsafeCatSubst
 
-mkSubst  :: [(Symbol, Expr)] -> Subst
-mkSubst  = unsafeMkSubst
+mkSubst :: [(Symbol, Expr)] -> Subst
+mkSubst = unsafeMkSubst . M.fromList . reverse
 
 isEmptySubst :: Subst -> Bool
 isEmptySubst (Su xes) = null xes
 
 unsafeMkSubst  = Su
 
-unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
+unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
   where
-    s1'                           = second (subst θ2) <$> s1
+    s1'                           = subst θ2 <$> s1
 
 -- TODO: this is **not used**, because of degenerate substitutions.
 -- e.g. consider: s1 = [v := v], s2 = [v := x].
@@ -1240,25 +1237,25 @@ unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
 -- TODO: nano-js throws all sorts of issues, will look into this later...
 -- but also, the check is too conservative, because of degenerate substitutions,
 -- see above.
-safeCatSubst θ1@(Su s1) θ2@(Su s2)
-  | null $ intersect xs1 xs2
-  = unsafeCatSubst θ1 θ2
-  | otherwise
-  = errorstar msg
-  where
-    s1' = second (subst (Su s2)) <$> s1
-    xs1 = fst <$> s1
-    xs2 = fst <$> s2
-    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
+--safeCatSubst θ1@(Su s1) θ2@(Su s2)
+--  | null $ intersect xs1 xs2
+--  = unsafeCatSubst θ1 θ2
+--  | otherwise
+--  = errorstar msg
+--  where
+--    s1' = second (subst (Su s2)) <$> s1
+--    xs1 = fst <$> s1
+--    xs2 = fst <$> s2
+--    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
 
 
-safeMkSubst θ
-  | nub θ == θ
-  = Su θ
-  | otherwise
-  = errorstar msg
-  where
-    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
+--safeMkSubst θ
+--  | nub θ == θ
+--  = Su θ
+--  | otherwise
+--  = errorstar msg
+--  where
+--    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1719,7 +1716,7 @@ instance SymConsts Pred where
   symConsts (PAll _ p)         = symConsts p
   symConsts (PBexp e)          = symConsts e
   symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
-  symConsts (PKVar _ (Su xes)) = concatMap symConsts $ snd <$> xes
+  symConsts (PKVar _ (Su xes)) = concatMap symConsts $ M.elems xes
   symConsts _                  = []
 
 ---------------------------------------------------------------
