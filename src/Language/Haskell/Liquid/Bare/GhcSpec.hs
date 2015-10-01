@@ -68,7 +68,7 @@ makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> H
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv
-       let renv = ghcSpecEnv sp cbs
+       let renv = ghcSpecEnv sp
        throwLeft $ checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
@@ -94,22 +94,22 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
-ghcSpecEnv :: GhcSpec -> [CoreBind] -> SEnv SortedReft
-ghcSpecEnv sp cbs    = fromListSEnv binds
+ghcSpecEnv :: GhcSpec -> SEnv SortedReft
+ghcSpecEnv sp        = fromListSEnv binds
   where
     emb              = tcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
                      ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
-                     ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
+                     -- ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
-    lconsts          = literals cbs
-    stringrSort      :: RSort
-    stringrSort      = ofType stringTy
-    isString s       = rTypeSort emb stringrSort == s
+    --lconsts          = literals cbs
+    --stringrSort      :: RSort
+    --stringrSort      = ofType stringTy
+    --isString s       = rTypeSort emb stringrSort == s
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
