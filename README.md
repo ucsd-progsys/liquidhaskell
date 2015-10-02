@@ -140,6 +140,14 @@ Working With Submodules
    `./liquid-fixpoint` submodule, or else git may get confused. Do any
    `liquid-fixpoint` development inside a separate clone/copy elsewhere.
 
+ - If something goes wrong, run
+
+    rm -r ./liquid-fixpoint
+    git submodule update --init
+
+   to blow away your copy of the `liquid-fixpoint` submodule and revert to the
+   last saved commit hash.
+
 Command Line Options
 ====================
 
