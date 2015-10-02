@@ -12,7 +12,6 @@ module Language.Fixpoint.Smt.Serialize where
 
 import           Control.Applicative         ((<$>))
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
@@ -54,16 +53,18 @@ instance SMTLIB2 Sort where
 instance SMTLIB2 Symbol where
   smt2 s
     | Just t <- Thy.smt2Symbol s = LT.fromStrict t
-  smt2 s                         = LT.fromStrict . T.pack . encode . T.unpack . symbolText $ s
+  smt2 s                         = LT.fromStrict . encode . symbolText $ s
 
 -- FIXME: this is probably too slow
 
--- encode :: T.Text -> T.Text
--- encode t = {-# SCC "encode" #-}
---  foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
---                              ,("(", "ZL"), (")", "ZR"), (",", "ZT")
---                              ,("|", "zb"), ("#", "zh"), ("\\","zr")
---                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
+encode :: T.Text -> T.Text
+encode t = {-# SCC "encode" #-}
+  foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                              ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                              ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
+                              ,(" ", "_")
+                              ]
 
 instance SMTLIB2 SymConst where
   -- smt2 (SL s) = LT.fromStrict s

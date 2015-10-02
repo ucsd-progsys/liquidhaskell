@@ -125,44 +125,18 @@ encode :: String -> String
 encode s
   | isFixKey  s = encodeSym s
   | isFixSym' s = s
-  | otherwise   = encodeSym s -- S $ fixSymPrefix ++ concatMap encodeChar s
+  | otherwise   = encodeSym s
 
 encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
 
 symbolText :: Symbol -> T.Text
 symbolText (S s) = unintern s
 
--- symbolString :: Symbol -> String
--- symbolString (S str)
---   = case chopPrefix fixSymPrefix str of
---       Just s  -> concat $ zipWith tx indices $ chunks s
---       Nothing -> str
---     where
---       chunks = unIntersperse symSepName
---       tx i s = if even i then s else [decodeStr s]
 
---unIntersperse x ys
---  = case L.elemIndex x ys of
---      Nothing -> [ys]
---      Just i  -> let (y, _:ys') = splitAt i ys
---                 in (y : unIntersperse x ys')
-
---indices :: [Integer]
---indices = [0..]
-
---chopPrefix :: (Eq a) => [a] -> [a] -> Maybe [a]
---chopPrefix p xs
---  | p `L.isPrefixOf` xs
---  = Just $ drop (length p) xs
---  | otherwise
---  = Nothing
-
-okSymChars
-  = S.fromList
-   $ ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '.'  ]
+okSymChars = S.fromList $ ['a' .. 'z']
+                       ++ ['A' .. 'Z']
+                       ++ ['0' .. '9']
+                       ++ ['_', '.'  ]
 
 fixSymPrefix = "fix" ++ [symSepName]
 
@@ -282,7 +256,7 @@ propConName  = "Prop"
 hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
-symSepName   = '_'
+symSepName   = '#' -- Do not ever change this
 
 nilName      = "nil"    :: Symbol
 consName     = "cons"   :: Symbol
