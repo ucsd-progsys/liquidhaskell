@@ -194,7 +194,7 @@ import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq           -- (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
-
+import           Text.Parsec.Pos         (SourcePos (..))
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Names
@@ -1314,7 +1314,11 @@ conjuncts p
 ----------------------------------------------------------------
 
 instance NFData SourcePos where
-  rnf (SourcePos f l c) = rnf f `seq` rnf l `seq` rnf c
+  rnf p = rnf f `seq` rnf l `seq` rnf c
+    where
+      f = sourceName   p
+      l = sourceLine   p
+      c = sourceColumn p
 
 instance NFData KVar
 instance NFData Kuts

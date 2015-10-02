@@ -73,9 +73,9 @@ renameVars :: SInfo a -> [(BindId, S.HashSet Ref)] -> SInfo a
 renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
 
 renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
-renameVarIfSeen fi x@(id, _) = state (\m ->
+renameVarIfSeen fi x@(id, _) = state $ \m ->
   let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
-  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m))
+  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m)
 
 handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (SInfo a, (M.HashMap Symbol Sort))
 handleSeenVar fi x sym srt m
@@ -83,13 +83,12 @@ handleSeenVar fi x sym srt m
   | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
+renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
   where
-    sym = fst $ lookupBindEnv id (bs fi)
-    sym' = renameSymbol sym id
-    sub = (sym, eVar sym')
-    go subst x = subst1 x subst
-    fi' = fi { bs = adjustBindEnv (go sub) id (bs fi) }
+    sym  = fst $ lookupBindEnv i (bs fi)
+    sym' = renameSymbol sym i
+    sub  = (sym, eVar sym')
+    fi'  = fi { bs = adjustBindEnv (`subst1` sub) i (bs fi) }
     fi'' = S.foldl' (applySub sub) fi' refs
 
 applySub :: (Symbol, Expr) -> SInfo a -> Ref -> SInfo a
