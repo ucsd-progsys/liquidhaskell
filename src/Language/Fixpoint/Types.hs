@@ -184,7 +184,7 @@ import           Control.Arrow             (second)
 import qualified Data.Foldable             as F
 import           Data.Functor
 import           Data.Hashable
-import           Data.List                 (foldl', intersect, nub, sort, sortBy)
+import           Data.List                 (foldl', intersect, nub, sort, sortBy, reverse)
 import           Data.Monoid               hiding ((<>))
 import           Data.String
 import           Data.Text                 (Text)
@@ -242,7 +242,7 @@ predSymbols = go
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PBexp e)          = exprSymbols e
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su')) = {- CUTSOLVER k : -} concatMap syms su'
+    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
     go (PAll xts p)       = (fst <$> xts) ++ go p
     go _                  = []
 
@@ -427,12 +427,12 @@ instance Show Subst where
   show = showFix
 
 instance Fixpoint Subst where
-  toFix (Su m) = case {- hashMapToAscList -} m of
+  toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
                    xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
 
 targetSubstSyms :: Subst -> [Symbol]
-targetSubstSyms (Su ms) = syms $ snd <$> ms
+targetSubstSyms (Su ms) = syms $ M.elems ms
 
 
 ---------------------------------------------------------------
@@ -466,7 +466,7 @@ data Expr = ESym !SymConst
           | EIte !Pred !Expr !Expr
           | ECst !Expr !Sort
           | EBot
-          deriving (Eq, Ord, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic)
 
 elit l s = ECon $ L (symbolText $ val l) s
 
@@ -540,7 +540,7 @@ data Pred = PTrue
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Pred
           | PTop
-          deriving (Eq, Ord, Show, Data, Typeable, Generic)
+          deriving (Eq, Show, Data, Typeable, Generic)
 
 {-@ PAnd :: ListNE Pred -> Pred @-}
 
@@ -548,9 +548,6 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
-instance Hashable Subst
-instance Hashable Expr
-instance Hashable Pred
 
 instance Fixpoint Pred where
   toFix PTop             = text "???"
@@ -739,10 +736,10 @@ mapPredReft f (Reft (v, Refa p)) = Reft (v, Refa (f p))
 ---------------------------------------------------------------
 
 newtype Refa = Refa { raPred :: Pred }
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+               deriving (Eq, Show, Data, Typeable, Generic)
 
 newtype Reft = Reft (Symbol, Refa)
-               deriving (Eq, Ord, Data, Typeable, Generic)
+               deriving (Eq, Data, Typeable, Generic)
 
 instance Show Reft where
   show (Reft x) = render $ toFix x
@@ -1100,7 +1097,7 @@ class Subable a where
   substf :: (Symbol -> Expr) -> a -> a
   subst  :: Subst -> a -> a
   subst1 :: a -> (Symbol, Expr) -> a
-  subst1 y (x, e) = subst (Su [(x,e)]) y
+  subst1 y (x, e) = subst (Su $ M.fromList [(x,e)]) y
 
 subst1Except :: (Subable a) => [Symbol] -> a -> (Symbol, Expr) -> a
 subst1Except xs z su@(x, _)
@@ -1112,7 +1109,7 @@ substfExcept f xs y = if y `elem` xs then EVar y else f y
 
 substExcept  :: Subst -> [Symbol] -> Subst
 -- substExcept  (Su m) xs = Su (foldr M.delete m xs)
-substExcept  (Su xes) xs = Su $ filter (not . (`elem` xs) . fst) xes
+substExcept (Su xes) xs = Su $ M.filterWithKey (const . not . (`elem` xs)) xes
 
 instance Subable Symbol where
   substa f                 = f
@@ -1208,29 +1205,29 @@ instance Subable SortedReft where
   substf f (RR so r) = RR so $ substf f r
   substa f (RR so r) = RR so $ substa f r
 
-newtype Subst = Su [(Symbol, Expr)]
-                deriving (Eq, Ord, Data, Typeable, Generic)
+newtype Subst = Su (M.HashMap Symbol Expr)
+                deriving (Eq, Data, Typeable, Generic)
 
 appSubst :: Subst -> Symbol -> Expr
-appSubst (Su s) x        = fromMaybe (EVar x) (lookup x s)
+appSubst (Su s) x = fromMaybe (EVar x) (M.lookup x s)
 
 emptySubst :: Subst
-emptySubst = Su [] -- M.empty
+emptySubst = Su M.empty
 
 catSubst :: Subst -> Subst -> Subst
 catSubst = unsafeCatSubst
 
-mkSubst  :: [(Symbol, Expr)] -> Subst
-mkSubst  = unsafeMkSubst
+mkSubst :: [(Symbol, Expr)] -> Subst
+mkSubst = unsafeMkSubst . M.fromList . reverse
 
 isEmptySubst :: Subst -> Bool
-isEmptySubst (Su xes) = null xes
+isEmptySubst (Su xes) = M.null xes
 
 unsafeMkSubst  = Su
 
-unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
+unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
   where
-    s1'                           = second (subst θ2) <$> s1
+    s1'                           = subst θ2 <$> s1
 
 -- TODO: this is **not used**, because of degenerate substitutions.
 -- e.g. consider: s1 = [v := v], s2 = [v := x].
@@ -1244,25 +1241,25 @@ unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ s1' ++ s2
 -- TODO: nano-js throws all sorts of issues, will look into this later...
 -- but also, the check is too conservative, because of degenerate substitutions,
 -- see above.
-safeCatSubst θ1@(Su s1) θ2@(Su s2)
-  | null $ intersect xs1 xs2
-  = unsafeCatSubst θ1 θ2
-  | otherwise
-  = errorstar msg
-  where
-    s1' = second (subst (Su s2)) <$> s1
-    xs1 = fst <$> s1
-    xs2 = fst <$> s2
-    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
+--safeCatSubst θ1@(Su s1) θ2@(Su s2)
+--  | null $ intersect xs1 xs2
+--  = unsafeCatSubst θ1 θ2
+--  | otherwise
+--  = errorstar msg
+--  where
+--    s1' = second (subst (Su s2)) <$> s1
+--    xs1 = fst <$> s1
+--    xs2 = fst <$> s2
+--    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
 
 
-safeMkSubst θ
-  | nub θ == θ
-  = Su θ
-  | otherwise
-  = errorstar msg
-  where
-    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
+--safeMkSubst θ
+--  | nub θ == θ
+--  = Su θ
+--  | otherwise
+--  = errorstar msg
+--  where
+--    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1505,7 +1502,7 @@ data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_body   :: Pred             -- ^ Predicate
                    , q_pos    :: !SourcePos       -- ^ Source Location
                    }
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+               deriving (Eq, Show, Data, Typeable, Generic)
 
 {-
 instance Show Qualifier where
@@ -1764,9 +1761,10 @@ litPrefix    = "lit" `T.snoc` symSepName
   -- symConsts (PAll _ p)         = symConsts p
   -- symConsts (PBexp e)          = symConsts e
   -- symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
-  -- symConsts (PKVar _ (Su xes)) = concatMap symConsts $ snd <$> xes
+  -- symConsts (PKVar _ (Su xes)) = concatMap symConsts $ M.elems xes
   -- symConsts _                  = []
 --
+
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
 ---------------------------------------------------------------

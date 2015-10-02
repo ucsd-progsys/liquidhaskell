@@ -109,22 +109,21 @@ renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi'' --TODO: opti
     fi'' = S.foldl' (applySub sub) fi' refs
 
 applySub :: (Symbol, Expr) -> SInfo a -> Ref -> SInfo a
-applySub sub fi (RB id) = fi { bs = adjustBindEnv go id (bs fi) }
+applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
     go (sym, sr)        = (sym, subst1 sr sub)
 
-applySub sub fi (RI id) = fi { cm = M.adjust go id (cm fi) }
+applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
     go c                = c { crhs = subst1 (crhs c) sub }
 
 updateKVars :: SInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
-updateKVars fi id oldSym newSym (k, Su su) =
+updateKVars fi i oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)
-    relevant = (id `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` map fst su)
-
-
+    -- relevant = (id `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` map fst su)
+    relevant = (i `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` M.keys su)
 
 
 -- renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty

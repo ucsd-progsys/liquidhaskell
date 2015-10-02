@@ -54,7 +54,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
                  , eqArgs :: ![F.Expr]
                  }
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Show)
 
 instance PPrint EQual where
   pprint = pprint . eqPred
@@ -147,7 +147,7 @@ instK :: F.SEnv F.SortedReft
 --------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
-    unique qs = M.elems $ M.fromList [(eqPred q, q) | q <- qs ]
+    unique = L.nubBy ((. eqPred) . (==) . eqPred)
 
 instKQ :: F.SEnv F.SortedReft
        -> F.Symbol
