@@ -6,6 +6,7 @@
 /dist*
 
 /.vagrant/
+/.stack-work/
 /build.sh
 /external/fixpoint/config.make
 /external/fixpoint/fixpoint.native
