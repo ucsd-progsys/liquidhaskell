@@ -56,12 +56,15 @@ instance SMTLIB2 Symbol where
   smt2 s                         = LT.fromStrict . encode . symbolText $ s
 
 -- FIXME: this is probably too slow
+
 encode :: T.Text -> T.Text
 encode t = {-# SCC "encode" #-}
   foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
                               ,("(", "ZL"), (")", "ZR"), (",", "ZT")
                               ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")]
+                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
+                              ,(" ", "_")
+                              ]
 
 instance SMTLIB2 SymConst where
   -- smt2 (SL s) = LT.fromStrict s
@@ -93,7 +96,7 @@ instance SMTLIB2 Brel where
   smt2 _     = error "SMTLIB2 Brel"
 
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 z
+  smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
   smt2 (EVar x)         = smt2 x
 --   smt2 (ELit x _)       = smt2 x

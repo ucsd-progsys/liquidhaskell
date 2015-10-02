@@ -259,7 +259,8 @@ instance Show KVar where
 
 instance Hashable KVar
 
-newtype Kuts = KS { ksVars :: S.HashSet KVar } deriving (Show)
+newtype Kuts = KS { ksVars :: S.HashSet KVar }
+               deriving (Eq, Show)
 
 instance NFData Kuts where
   rnf (KS _) = () -- rnf s
@@ -468,7 +469,7 @@ data Expr = ESym !SymConst
           | EBot
           deriving (Eq, Show, Data, Typeable, Generic)
 
-elit l s = ECon $ L (symbolText $ val l) s 
+elit l s = ECon $ L (symbolText $ val l) s
 
 instance Fixpoint Integer where
   toFix = integer
@@ -899,14 +900,15 @@ type Tag           = [Int]
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Data, Typeable)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable)
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
 data SizedEnv a    = BE { beSize  :: Int
                         , beBinds :: BindMap a
-                        } deriving (Show, Functor, F.Foldable, Traversable)
-type BindEnv       = SizedEnv (Symbol, SortedReft) 
+                        } deriving (Eq, Show, Functor, F.Foldable, Traversable)
+
+type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { _senv  :: !IBindEnv
@@ -916,7 +918,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
                    , _stag  :: !Tag
                    , _sinfo :: !a
                    }
-              deriving (Generic)
+              deriving (Eq, Generic, Functor)
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , crhs  :: !Pred
@@ -924,7 +926,7 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _ctag  :: !Tag
                      , _cinfo :: !a
                      }
-              deriving (Generic)
+              deriving (Generic, Functor)
 
 class TaggedC c a where
   senv  :: (c a) -> IBindEnv
@@ -944,14 +946,16 @@ instance TaggedC SubC a where
   stag = _stag
   sinfo = _sinfo
 
-data WrappedC a where 
+data WrappedC a where
   WrapC :: (TaggedC c a, Show (c a)) => {_x :: (c a)} -> WrappedC a
+
 instance Show (WrappedC a) where
   show (WrapC x) = show x
+
 instance TaggedC WrappedC a where
-  senv (WrapC x) = senv x
-  sid (WrapC x) = sid x
-  stag (WrapC x) = stag x
+  senv (WrapC x)  = senv x
+  sid (WrapC x)   = sid x
+  stag (WrapC x)  = stag x
   sinfo (WrapC x) = sinfo x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
@@ -959,7 +963,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wid   :: !(Maybe Integer)
                    , winfo :: !a
                    }
-              deriving (Generic)
+              deriving (Eq, Generic, Functor)
 
 subcId :: SubC a -> Integer
 subcId = mfromJust "subCId" . sid
@@ -1460,6 +1464,11 @@ data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
 
+{-
+instance Show Qualifier where
+  show = render . toFix
+-}
+
 instance Fixpoint Qualifier where
   toFix = pprQual
 
@@ -1480,7 +1489,7 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 type FInfo a = GInfo SubC a
 type SInfo a = GInfo SimpC a
 
-data GInfo c a = 
+data GInfo c a =
   FI { cm    :: M.HashMap Integer (c a)
      , ws    :: ![WfC a]
      , bs    :: !BindEnv
@@ -1490,7 +1499,7 @@ data GInfo c a =
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
      }
-  deriving (Show)
+  deriving (Eq, Show, Functor)
 
 instance Monoid Kuts where
   mempty        = KS S.empty
@@ -1672,52 +1681,53 @@ decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
 litPrefix    :: Text
 litPrefix    = "lit" `T.snoc` symSepName
 
-class SymConsts a where
-  symConsts :: a -> [SymConst]
-
-instance (SymConsts (c a)) => SymConsts (GInfo c a) where
-  symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
-    where
-      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
-      bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
-      qsLits   = concatMap symConsts $                   q_body  <$> quals fi
-
-instance SymConsts (SubC a) where
-  symConsts c  = symConsts (slhs c) ++
-                 symConsts (srhs c)
-
-instance SymConsts (SimpC a) where
-  symConsts c  = symConsts (crhs c)
-
-instance SymConsts SortedReft where
-  symConsts = symConsts . sr_reft
-
-instance SymConsts Reft where
-  symConsts (Reft (_, ra)) = symConsts ra
-
-instance SymConsts Refa where
-  symConsts (Refa p)           = symConsts p
-
-instance SymConsts Expr where
-  symConsts (ESym c)       = [c]
-  symConsts (EApp _ es)    = concatMap symConsts es
-  symConsts (ENeg e)       = symConsts e
-  symConsts (EBin _ e e')  = concatMap symConsts [e, e']
-  symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
-  symConsts (ECst e _)     = symConsts e
-  symConsts _              = []
-
-instance SymConsts Pred where
-  symConsts (PNot p)           = symConsts p
-  symConsts (PAnd ps)          = concatMap symConsts ps
-  symConsts (POr ps)           = concatMap symConsts ps
-  symConsts (PImp p q)         = concatMap symConsts [p, q]
-  symConsts (PIff p q)         = concatMap symConsts [p, q]
-  symConsts (PAll _ p)         = symConsts p
-  symConsts (PBexp e)          = symConsts e
-  symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
-  symConsts (PKVar _ (Su xes)) = concatMap symConsts $ M.elems xes
-  symConsts _                  = []
+-- class SymConsts a where
+  -- symConsts :: a -> [SymConst]
+--
+-- instance (SymConsts (c a)) => SymConsts (GInfo c a) where
+  -- symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
+    -- where
+      -- csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
+      -- bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
+      -- qsLits   = concatMap symConsts $                   q_body  <$> quals fi
+--
+-- instance SymConsts (SubC a) where
+  -- symConsts c  = symConsts (slhs c) ++
+                 -- symConsts (srhs c)
+--
+-- instance SymConsts (SimpC a) where
+  -- symConsts c  = symConsts (crhs c)
+--
+-- instance SymConsts SortedReft where
+  -- symConsts = symConsts . sr_reft
+--
+-- instance SymConsts Reft where
+  -- symConsts (Reft (_, ra)) = symConsts ra
+--
+-- instance SymConsts Refa where
+  -- symConsts (Refa p)           = symConsts p
+--
+-- instance SymConsts Expr where
+  -- symConsts (ESym c)       = [c]
+  -- symConsts (EApp _ es)    = concatMap symConsts es
+  -- symConsts (ENeg e)       = symConsts e
+  -- symConsts (EBin _ e e')  = concatMap symConsts [e, e']
+  -- symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
+  -- symConsts (ECst e _)     = symConsts e
+  -- symConsts _              = []
+--
+-- instance SymConsts Pred where
+  -- symConsts (PNot p)           = symConsts p
+  -- symConsts (PAnd ps)          = concatMap symConsts ps
+  -- symConsts (POr ps)           = concatMap symConsts ps
+  -- symConsts (PImp p q)         = concatMap symConsts [p, q]
+  -- symConsts (PIff p q)         = concatMap symConsts [p, q]
+  -- symConsts (PAll _ p)         = symConsts p
+  -- symConsts (PBexp e)          = symConsts e
+  -- symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
+  -- symConsts (PKVar _ (Su xes)) = concatMap symConsts $ M.elems xes
+  -- symConsts _                  = []
+--
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
@@ -1787,6 +1797,7 @@ instance Expression a => Expression (Located a) where
 
 instance Functor Located where
   fmap f (Loc l l' x) =  Loc l l' (f x)
+
 
 instance F.Foldable Located where
   foldMap f (Loc _ _ x) = f x
@@ -1881,7 +1892,7 @@ convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
     fi' = foldl blowOutVV fi (M.keys $ cm fi)
 
 subcToSimpc :: SubC a -> SimpC a
-subcToSimpc s = SimpC 
+subcToSimpc s = SimpC
   { _cenv  = senv s
   , crhs  = reftPred $ sr_reft $ srhs s
   , _cid   = sid s
