@@ -45,7 +45,7 @@ import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
-import           Language.Fixpoint.Parse            (rr, rr')
+import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
@@ -120,7 +120,7 @@ solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  let fi' = fi
+  let fi' = fi { quals = remakeQual <$> quals fi }
   let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   donePhase Loud "Format Conversion"
@@ -154,6 +154,9 @@ elim cfg fi
                        donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
+
+remakeQual :: Qualifier -> Qualifier
+remakeQual q = mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
