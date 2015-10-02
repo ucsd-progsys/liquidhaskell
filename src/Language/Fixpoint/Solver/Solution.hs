@@ -104,7 +104,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init _ fi = tracepp "init solution" s
+init _ fi = {- tracepp "init solution" -} s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -196,7 +196,7 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, F.Refa p))
     p             = eqPred eq
-    tc            = tracepp msg $ So.checkSortedReftFull env sr
+    tc            = {- tracepp msg $ -} So.checkSortedReftFull env sr
     msg           = "okInst [p := " ++ show p ++ " ]"
 
 ---------------------------------------------------------------------

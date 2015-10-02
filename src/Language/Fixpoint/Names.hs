@@ -229,7 +229,7 @@ isNontrivialVV      = not . (vv Nothing ==)
 
 dummySymbol         = dummyName
 
-intSymbol :: (Show a) => Symbol -> a -> Symbol 
+intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i       = x `mappend` symbol ('_' : show i)
 
 tempSymbol, existSymbol :: Symbol -> Integer -> Symbol
@@ -282,7 +282,7 @@ propConName  = "Prop"
 hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
-symSepName   = '#'
+symSepName   = '_'
 
 nilName      = "nil"    :: Symbol
 consName     = "cons"   :: Symbol

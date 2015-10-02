@@ -71,7 +71,7 @@ solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve cfg
   | parts cfg     = partition cfg
   | stats cfg     = statistics cfg
-  | native cfg    = solveNativeWithFInfo cfg
+  | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg
   | multicore cfg = solvePar cfg
   | otherwise     = solveExt cfg
 
@@ -82,42 +82,68 @@ solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
-  let fi    = rr' file str :: FInfo ()
+  let fi    = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
   let fi'   = fi { fileName = file }
   res      <- s fi'
   return    $ resultExit (resStatus res)
+
+-- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
+-- DEBUG debugDiff fi fi' = putStrLn msg
+  -- DEBUG where
+    -- DEBUG {- msg          = printf "\nDEBUG: diff = %s, cs = %s, ws = %s, bs = %s, \n lits = %s \n, \n lits' = %s"
+                     -- DEBUG (show $ ufi      == ufi')
+                     -- DEBUG (show $ cm ufi   == cm   ufi')
+                     -- DEBUG (show $ ws ufi   == ws   ufi')
+                     -- DEBUG (show $ bs ufi   == bs   ufi')
+                     -- DEBUG -- (show $ lits ufi == lits ufi')
+                     -- DEBUG (show $ lits ufi)
+                     -- DEBUG (show $ lits ufi') -}
+-- DEBUG
+    -- DEBUG msg          = printf "\nquals = %s\n\n\nquals' = %s"
+                     -- DEBUG (show $ sort $ quals fi)
+                     -- DEBUG (show $ sort $ quals fi')
+-- DEBUG
+    -- DEBUG (ufi, ufi')  = (fu <$> fi    ,  fu <$> fi')
+    -- DEBUG fu           = const ()
+    -- DEBUG (ncs, ncs')  = (cLength  fi  , cLength fi')
+    -- DEBUG (nws, nws')  = (wLength  fi  , wLength fi')
+    -- DEBUG (nbs, nbs')  = (beLength fi  , beLength fi')
+    -- DEBUG (nls, nls')  = (litLength fi , litLength fi')
+    -- DEBUG (nqs, nqs')  = (qLength   fi , qLength fi')
+    -- DEBUG cLength      = M.size . cm
+    -- DEBUG wLength      = length . ws
+    -- DEBUG beLength     = length . bindEnvToList . bs
+    -- DEBUG litLength    = length . toListSEnv . lits
+    -- DEBUG qLength      = length . quals
 
 solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo cfg fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   donePhase Loud "Read Constraints"
-  --FIXME: inefficient since toFixpoint and rr are mostly inverses - better to
-  -- replace this by the net effect of rr . toFixpoint,
-  -- and the correct solution is to make toFixpoint and rr actually inverses.
-  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo ()
-  let si = convertFormat fi'
+  let fi' = fi
+  let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   donePhase Loud "Format Conversion"
-  let Right si' = validate cfg si
+  let Right si' = {-# SCC "validate" #-} validate cfg si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   donePhase Loud "Validated Constraints"
   when (elimStats cfg) $ printElimStats (deps si')
-  let si''  = renameAll si'
+  let si''  = {-# SCC "renameAll" #-} renameAll si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   donePhase Loud "Uniqify"
-  si'''     <- elim cfg si''
-  Result stat soln <- S.solve cfg si'''
+  si'''     <- {-# SCC "elim" #-} elim cfg si''
+  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg si'''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
   putStrLn  $ "Solution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC . (\i -> mlookup (cm fi) (mfromJust "WAT" i)) <$> stat') soln
+  return    $ Result (WrapC . mlookup (cm fi) . mfromJust "WAT" <$> stat') soln
 
 printElimStats :: Deps -> IO ()
 printElimStats d = do
   let postElims = length $ depCuts d
-  let total = postElims + (length $ depNonCuts d)
+  let total = postElims + length (depNonCuts d)
   putStrLn $ "TOTAL KVars: " ++ show total
           ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
@@ -169,7 +195,7 @@ solveFile cfg
     where
       fixCommand fp z3 verbosity
         = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s %s"
-          z3 fp verbosity rf newcheckf (command cfg) 
+          z3 fp verbosity rf newcheckf (command cfg)
         where
           rf  = if real cfg then realFlags else ""
           newcheckf = if newcheck cfg then "-newcheck" else ""

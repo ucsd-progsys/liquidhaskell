@@ -152,12 +152,14 @@ negativeP
 {-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
 pairs :: [a] -> [(a,a)]
 pairs !xs = case L.splitAt 2 xs of
-              ([],b)      -> []
+              ([],_)      -> []
               ([x,y], zs) -> (x,y) : pairs zs
 
 smtWriteRaw      :: Context -> LT.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
+  LTIO.appendFile "DEBUG.smt2" s
+  LTIO.appendFile "DEBUG.smt2" "\n"
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
