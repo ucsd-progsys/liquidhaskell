@@ -1,7 +1,8 @@
 -- | This module implements the top-level API for interfacing with Fixpoint
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Fixpoint.Interface (
 
@@ -50,7 +51,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
-
+import           Control.DeepSeq
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -67,13 +68,13 @@ multicore cfg = cores cfg /= Just 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg
-  | parts cfg     = partition cfg
-  | stats cfg     = statistics cfg
-  | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg
-  | multicore cfg = solvePar cfg
-  | otherwise     = solveExt cfg
+solve :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve cfg fi
+  | parts cfg     = partition cfg  $!! fi
+  | stats cfg     = statistics cfg $!! fi
+  | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg $!! fi
+  | multicore cfg = solvePar cfg $!! fi
+  | otherwise     = solveExt cfg $!! fi
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
@@ -116,24 +117,24 @@ solveWith cfg s = exit (ExitFailure 2) $ do
     -- DEBUG litLength    = length . toListSEnv . lits
     -- DEBUG qLength      = length . quals
 
-solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo cfg fi = do
+solveNativeWithFInfo :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveNativeWithFInfo !cfg !fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
-  donePhase Loud "Read Constraints"
+  rnf fi `seq` donePhase Loud "Read Constraints"
   let fi' = fi { quals = remakeQual <$> quals fi }
   let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
-  donePhase Loud "Format Conversion"
-  let Right si' = {-# SCC "validate" #-} validate cfg si
+  rnf si `seq` donePhase Loud "Format Conversion"
+  let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
-  donePhase Loud "Validated Constraints"
+  rnf si' `seq` donePhase Loud "Validated Constraints"
   when (elimStats cfg) $ printElimStats (deps si')
-  let si''  = {-# SCC "renameAll" #-} renameAll si'
+  let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
-  donePhase Loud "Uniqify"
-  si'''     <- {-# SCC "elim" #-} elim cfg si''
-  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg si'''
-  donePhase Loud "Solve"
+  rnf si'' `seq` donePhase Loud "Uniqify"
+  si'''     <- {-# SCC "elim" #-} elim cfg $!! si''
+  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg $!! si'''
+  rnf soln `seq` donePhase Loud "Solve"
   let stat' = sid <$> stat
   writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln

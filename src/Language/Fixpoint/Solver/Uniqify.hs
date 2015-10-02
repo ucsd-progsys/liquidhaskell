@@ -9,23 +9,31 @@ import           Language.Fixpoint.Solver.Eliminate (findWfC)
 import           Language.Fixpoint.Misc  (fst3)
 import qualified Data.HashMap.Strict     as M
 import qualified Data.HashSet            as S
-import           Data.List               ((\\), sort)
+import           Data.List               ((\\), sort, foldl')
 import           Data.Maybe              (catMaybes)
-import           Data.Foldable           (foldlM)
 import           Data.Hashable
 import           GHC.Generics            (Generic)
-import           Control.Monad.State     (evalState, State, state)
 import           Control.Arrow           (second)
+import           Control.DeepSeq
+
+-- import           Control.Monad.State     (evalState, State, state)
+-- import           Data.Foldable           (foldlM)
 
 --------------------------------------------------------------
 renameAll    :: SInfo a -> SInfo a
-renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
+renameAll fi = fi'
   where
-    ids      = map fst3 $ bindEnvToList $ bs fi
+    fi'      = {-# SCC "renameVars" #-} renameVars fi $!! eids
+    ids      = {-# SCC "ids"        #-} map fst3 $!! bindEnvToList $!! bs fi
+    eids     = {-# SCC "toListExt"  #-} toListExtended ids $!! idm'
+    idm'     = {-# SCC "invertMap"  #-} invertMap $!! idm
+    idm      = {-# SCC "mkIdMap"    #-} mkIdMap fi
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
 
+
+instance NFData   Ref
 instance Hashable Ref
 
 -- stores for each constraint and BindId the set of other BindIds that it
@@ -69,19 +77,28 @@ freeVars :: Reft -> [Symbol]
 freeVars reft@(Reft (v, _)) = syms reft \\ [v]
 
 
+type RnInfo a = (M.HashMap Symbol Sort, SInfo a)
+
 renameVars :: SInfo a -> [(BindId, S.HashSet Ref)] -> SInfo a
-renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
+renameVars fi xs = fi'
+  where
+    (_, fi')     = foldl' renameVarIfSeen (M.empty, fi) xs
 
-renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
-renameVarIfSeen fi x@(id, _) = state $ \m ->
-  let (sym, srt) = second sr_sort $ lookupBindEnv id (bs fi) in
-  if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m)
+renameVarIfSeen :: RnInfo a -> (BindId, S.HashSet Ref) -> RnInfo a
+renameVarIfSeen (m, fi) x@(i, _)
+  | M.member sym m = handleSeenVar fi x sym t m
+  | otherwise      = (M.insert sym t m, fi)
+  where
+    (sym, t)       = second sr_sort $ lookupBindEnv i (bs fi)
 
-handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (SInfo a, (M.HashMap Symbol Sort))
-handleSeenVar fi x sym srt m
-  | M.lookup sym m == Just srt = (fi, m)
-  | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
+handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> M.HashMap Symbol Sort -> RnInfo a
+handleSeenVar fi x sym t m
+  | same      = (m, fi)
+  | otherwise = (m, renameVar fi x) --TODO: do we need to send future collisions to the same new name?
+  where
+    same      = M.lookup sym m == Just t
 
+-- | THIS IS TERRIBLE! Quadratic in the size of the environment!
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
 renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
   where
@@ -93,13 +110,27 @@ renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi'' --TODO: opti
 
 applySub :: (Symbol, Expr) -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB id) = fi { bs = adjustBindEnv go id (bs fi) }
-  where go (sym, sr) = (sym, subst1 sr sub)
+  where
+    go (sym, sr)        = (sym, subst1 sr sub)
+
 applySub sub fi (RI id) = fi { cm = M.adjust go id (cm fi) }
-  where go c = c { crhs = subst1 (crhs c) sub }
+  where
+    go c                = c { crhs = subst1 (crhs c) sub }
 
 updateKVars :: SInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
 updateKVars fi id oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)
-    relevant = (id `elem` (elemsIBindEnv $ wenv wfc)) && (oldSym `elem` (map fst su))
+    relevant = (id `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` map fst su)
+
+
+
+
+-- renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
+-- renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
+-- renameVarIfSeen fi x@(id, _) = state $ \m ->
+  -- let (sym, t) = second sr_sort $ lookupBindEnv id (bs fi) in
+  -- if sym `M.member` m
+    -- then handleSeenVar fi x sym t m
+    -- else (fi, M.insert sym srt m)

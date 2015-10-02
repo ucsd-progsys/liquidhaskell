@@ -515,17 +515,17 @@ data Def a
   --  Dep of FixConstraint.dep
 
 fInfoP :: Parser (FInfo ())
-fInfoP = defsFInfo <$> many defP
+fInfoP = defsFInfo <$> {-# SCC "many-defP" #-} many defP
 
 defP :: Parser (Def ())
 defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Axm   <$> (reserved "axiom"      >> colon >> predP)
-    <|> Cst   <$> (reserved "constraint" >> colon >> subCP)
-    <|> Wfc   <$> (reserved "wf"         >> colon >> wfCP)
+    <|> Cst   <$> (reserved "constraint" >> colon >> {-# SCC "subCP" #-} subCP)
+    <|> Wfc   <$> (reserved "wf"         >> colon >> {-# SCC "wfCP"  #-} wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
-    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
+    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
 
 sortedReftP :: Parser SortedReft
 sortedReftP = refP (RR <$> (sortP <* spaces))
@@ -578,7 +578,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = FI cm ws bs lts kts qs mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
@@ -702,7 +702,7 @@ instance Inputable (FixResult Integer, FixSolution) where
   rr' = doParse' solutionFileP
 
 instance Inputable (FInfo ()) where
-  rr' = doParse' fInfoP
+  rr' = {-# SCC "fInfoP" #-} doParse' fInfoP
 
 instance Inputable Command where
   rr' = doParse' commandP

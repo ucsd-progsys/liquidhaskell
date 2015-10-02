@@ -1342,6 +1342,7 @@ instance (NFData a) => NFData (SEnv a)
 instance (NFData a) => NFData (FixResult a)
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
+instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Located a)
 
