@@ -35,7 +35,7 @@ import PrelNames
 import TypeRep
 import Class            (Class, className)
 import Var
-import Kind 
+import Kind
 import Id
 import IdInfo
 import Name
@@ -1464,10 +1464,10 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ (App e (Type τ)) | isKind τ
-  = consE γ e 
+  = consE γ e
 
 
-consE γ e'@(App e (Type τ)) 
+consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
