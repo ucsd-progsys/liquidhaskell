@@ -191,7 +191,7 @@ import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
-import           Control.DeepSeq           (NFData (..))
+import           Control.DeepSeq           -- (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
 
@@ -249,7 +249,9 @@ predSymbols = go
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------
 ---------------------------------------------------------------
-newtype KVar = KV {kv :: Symbol } deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+
+newtype KVar = KV {kv :: Symbol }
+               deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
 intKvar :: Integer -> KVar
 intKvar = KV . intSymbol "k_"
@@ -260,10 +262,7 @@ instance Show KVar where
 instance Hashable KVar
 
 newtype Kuts = KS { ksVars :: S.HashSet KVar }
-               deriving (Eq, Show)
-
-instance NFData Kuts where
-  rnf (KS _) = () -- rnf s
+               deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
   toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
@@ -375,7 +374,7 @@ data Sort = FInt
 
 instance Hashable Sort
 
-newtype Sub = Sub [(Int, Sort)]
+newtype Sub = Sub [(Int, Sort)] deriving (Generic)
 
 instance Fixpoint Sort where
   toFix = toFixSort
@@ -903,13 +902,14 @@ type Tag           = [Int]
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable)
+newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
+
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
 
 data SizedEnv a    = BE { beSize  :: Int
                         , beBinds :: BindMap a
-                        } deriving (Eq, Show, Functor, F.Foldable, Traversable)
+                        } deriving (Eq, Show, Functor, F.Foldable, Generic, Traversable)
 
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
@@ -938,15 +938,15 @@ class TaggedC c a where
   sinfo :: (c a) -> a
 
 instance TaggedC SimpC a where
-  senv = _cenv
-  sid = _cid
-  stag = _ctag
+  senv  = _cenv
+  sid   = _cid
+  stag  = _ctag
   sinfo = _cinfo
 
 instance TaggedC SubC a where
-  senv = _senv
-  sid = _sid
-  stag = _stag
+  senv  = _senv
+  sid   = _sid
+  stag  = _stag
   sinfo = _sinfo
 
 data WrappedC a where
@@ -976,7 +976,7 @@ subcId = mfromJust "subCId" . sid
 ---------------------------------------------------------------------------
 data Result a = Result { resStatus   :: FixResult (WrappedC a)
                        , resSolution :: M.HashMap KVar Pred }
-                deriving (Show)
+                deriving (Generic, Show)
 ---------------------------------------------------------------------------
 
 instance Monoid (Result a) where
@@ -1313,79 +1313,114 @@ conjuncts p
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
 
-instance NFData FTycon where
-  rnf (TC c)       = rnf c
+instance NFData SourcePos where
+  rnf (SourcePos f l c) = rnf f `seq` rnf l `seq` rnf c
 
-instance NFData Sort where
-  rnf (FVar x)     = rnf x
-  rnf (FFunc n ts) = rnf n `seq` (rnf <$> ts) `seq` ()
-  rnf (FApp t1 t2) = rnf t1 `seq` rnf t2 `seq` ()
-  rnf (z)          = z `seq` ()
-
-instance NFData Sub where
-  rnf (Sub x) = rnf x
-
-instance NFData Subst where
-  rnf (Su x) = rnf x
-
-instance NFData IBindEnv where
-  rnf (FB x) = rnf x
-
-instance NFData BindEnv where
-  rnf (BE x m) = rnf x `seq` rnf m
-
-instance NFData Constant where
-  rnf (I x)     = rnf x
-  rnf (R x)     = rnf x
-  rnf (L s t) = rnf s `seq` rnf t
-
-instance NFData SymConst where
-  rnf (SL x) = rnf x
-
+instance NFData KVar
+instance NFData Kuts
+instance NFData Qualifier
+instance NFData FTycon
+instance NFData Sort
+instance NFData Sub
+instance NFData Subst
+instance NFData IBindEnv
+instance NFData BindEnv
+instance NFData Constant
+instance NFData SymConst
 instance NFData Brel
 instance NFData Bop
+instance NFData Expr
+instance NFData Pred
+instance NFData Refa
+instance NFData Reft
+instance NFData SortedReft
+instance (NFData a) => NFData (SEnv a)
+instance (NFData a) => NFData (FixResult a)
+instance (NFData a) => NFData (SubC a)
+instance (NFData a) => NFData (WfC a)
+instance (NFData (c a), NFData a) => NFData (GInfo c a)
+instance (NFData a) => NFData (Located a)
 
-instance NFData Expr where
-  rnf (ESym x)        = rnf x
-  rnf (ECon x)        = rnf x
-  rnf (EVar x)        = rnf x
---   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
-  rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
-  rnf (ENeg x1)       = rnf x1
-  rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (EIte x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (ECst x1 x2)    = rnf x1 `seq` rnf x2
-  rnf (_)             = ()
+-- instance NFData Kuts where
+--   rnf (KS s) = rnf s
 
-instance NFData Pred where
-  rnf (PAnd x)         = rnf x
-  rnf (POr  x)         = rnf x
-  rnf (PNot x)         = rnf x
-  rnf (PBexp x)        = rnf x
-  rnf (PImp x1 x2)     = rnf x1 `seq` rnf x2
-  rnf (PIff x1 x2)     = rnf x1 `seq` rnf x2
-  rnf (PAll x1 x2)     = rnf x1 `seq` rnf x2
-  rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (_)              = ()
+-- instance NFData Qualifier where
+--   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
 
-instance NFData Refa where
-  rnf (Refa x)     = rnf x
-  -- rnf (RKvar x1 x2) = rnf x1 `seq` rnf x2
-  -- rnf (RPvar _)     = () -- rnf x
+-- instance NFData FTycon where
+--   rnf (TC c)       = rnf c
+--
+-- instance NFData Sort where
+  -- rnf (FVar x)     = rnf x
+  -- rnf (FFunc n ts) = rnf n `seq` (rnf <$> ts) `seq` ()
+  -- rnf (FApp t1 t2) = rnf t1 `seq` rnf t2 `seq` ()
+  -- rnf (z)          = z `seq` ()
+--
+-- instance NFData Sub where
+--  rnf (Sub x) = rnf x
 
-instance NFData Reft where
-  rnf (Reft (v, ras)) = rnf v `seq` rnf ras
+-- instance NFData Subst where
+--  rnf (Su x) = rnf x
 
-instance NFData SortedReft where
-  rnf (RR so r) = rnf so `seq` rnf r
+-- instance NFData IBindEnv where
+--  rnf (FB x) = rnf x
 
-instance (NFData a) => NFData (SubC a) where
-  rnf (SubC x1 x2 x3 x4 x5 x6)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6
+-- instance NFData BindEnv where
+--  rnf (BE x m) = rnf x `seq` rnf m
 
-instance (NFData a) => NFData (WfC a) where
-  rnf (WfC x1 x2 x3 x4)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
+-- instance NFData Constant where
+  -- rnf (I x)     = rnf x
+  -- rnf (R x)     = rnf x
+  -- rnf (L s t) = rnf s `seq` rnf t
+
+-- instance NFData SymConst where
+--  rnf (SL x) = rnf x
+
+
+
+-- instance NFData Expr where
+  -- rnf (ESym x)        = rnf x
+  -- rnf (ECon x)        = rnf x
+  -- rnf (EVar x)        = rnf x
+-- --   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
+  -- rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
+  -- rnf (ENeg x1)       = rnf x1
+  -- rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
+  -- rnf (EIte x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
+  -- rnf (ECst x1 x2)    = rnf x1 `seq` rnf x2
+  -- rnf (_)             = ()
+--
+-- instance NFData Pred where
+  -- rnf (PAnd x)         = rnf x
+  -- rnf (POr  x)         = rnf x
+  -- rnf (PNot x)         = rnf x
+  -- rnf (PBexp x)        = rnf x
+  -- rnf (PImp x1 x2)     = rnf x1 `seq` rnf x2
+  -- rnf (PIff x1 x2)     = rnf x1 `seq` rnf x2
+  -- rnf (PAll x1 x2)     = rnf x1 `seq` rnf x2
+  -- rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
+  -- rnf (_)              = ()
+--
+-- instance NFData Refa where
+  -- rnf (Refa x)     = rnf x
+--
+-- instance NFData Reft where
+  -- rnf (Reft (v, ras)) = rnf v `seq` rnf ras
+
+-- instance NFData SortedReft where
+--  rnf (RR so r) = rnf so `seq` rnf r
+
+-- instance (NFData a) => NFData (SubC a) where
+  -- rnf (SubC x1 x2 x3 x4 x5 x6)
+    -- = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6
+--
+-- instance (NFData a) => NFData (WfC a) where
+  -- rnf (WfC x1 x2 x3 x4)
+    -- = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
+
+-- instance (NFData a) => NFData (Located a) where
+  -- FIXME: no instance NFData SrcSpan
+  -- rnf (Loc _ _  x) = rnf x
 
 ----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------
@@ -1478,9 +1513,6 @@ instance Fixpoint Qualifier where
 instance Fixpoint () where
   toFix _ = text "()"
 
-instance NFData Qualifier where
-  rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
-
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
@@ -1501,7 +1533,7 @@ data GInfo c a =
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
      }
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Generic)
 
 instance Monoid Kuts where
   mempty        = KS S.empty
@@ -1824,9 +1856,6 @@ instance Subable a => Subable (Located a) where
 instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val
 
-instance (NFData a) => NFData (Located a) where
-  -- FIXME: no instance NFData SrcSpan
-  rnf (Loc _ _  x) = rnf x
 
 -------------------------------------------------------------------------
 -- | Exported Basic Sorts -----------------------------------------------
