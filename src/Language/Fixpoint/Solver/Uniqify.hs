@@ -3,21 +3,18 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor (mapKVars')
-import           Language.Fixpoint.Names (renameSymbol)
+import           Language.Fixpoint.Visitor          (mapKVars')
+import           Language.Fixpoint.Names            (renameSymbol)
 import           Language.Fixpoint.Solver.Eliminate (findWfC)
-import           Language.Fixpoint.Misc  (fst3)
-import qualified Data.HashMap.Strict     as M
-import qualified Data.HashSet            as S
-import           Data.List               ((\\), sort, foldl')
-import           Data.Maybe              (catMaybes)
-import           Data.Hashable
-import           GHC.Generics            (Generic)
-import           Control.Arrow           (second)
-import           Control.DeepSeq
-
--- import           Control.Monad.State     (evalState, State, state)
--- import           Data.Foldable           (foldlM)
+import           Language.Fixpoint.Misc             (fst3)
+import qualified Data.HashMap.Strict                as M
+import qualified Data.HashSet                       as S
+import           Data.List                          ((\\), sort, foldl')
+import           Data.Maybe                         (catMaybes)
+import           Data.Hashable                      (Hashable)
+import           GHC.Generics                       (Generic)
+import           Control.Arrow                      (second)
+import           Control.DeepSeq                    (NFData, ($!!))
 
 --------------------------------------------------------------
 renameAll    :: SInfo a -> SInfo a
@@ -31,7 +28,6 @@ renameAll fi = fi'
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
-
 
 instance NFData   Ref
 instance Hashable Ref
@@ -100,7 +96,7 @@ handleSeenVar fi x sym t m
 
 -- | THIS IS TERRIBLE! Quadratic in the size of the environment!
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)
+renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi''
   where
     sym  = fst $ lookupBindEnv i (bs fi)
     sym' = renameSymbol sym i
@@ -122,14 +118,4 @@ updateKVars fi i oldSym newSym (k, Su su) =
   if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
   where
     wfc = fst $ findWfC k (ws fi)
-    -- relevant = (id `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` map fst su)
     relevant = (i `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` M.keys su)
-
-
--- renameVars fi xs = evalState (foldlM renameVarIfSeen fi xs) M.empty
--- renameVarIfSeen :: SInfo a -> (BindId, S.HashSet Ref) -> State (M.HashMap Symbol Sort) (SInfo a)
--- renameVarIfSeen fi x@(id, _) = state $ \m ->
-  -- let (sym, t) = second sr_sort $ lookupBindEnv id (bs fi) in
-  -- if sym `M.member` m
-    -- then handleSeenVar fi x sym t m
-    -- else (fi, M.insert sym srt m)
