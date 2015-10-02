@@ -25,6 +25,7 @@ renameAll fi = renameVars fi $ toListExtended ids $ invertMap $ mkIdMap fi
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
+
 instance Hashable Ref
 
 -- stores for each constraint and BindId the set of other BindIds that it
@@ -77,8 +78,9 @@ renameVarIfSeen fi x@(id, _) = state (\m ->
   if sym `M.member` m then handleSeenVar fi x sym srt m else (fi, M.insert sym srt m))
 
 handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> (M.HashMap Symbol Sort) -> (SInfo a, (M.HashMap Symbol Sort))
-handleSeenVar fi x sym srt m | M.lookup sym m == Just srt = (fi, m)
-                             | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
+handleSeenVar fi x sym srt m
+  | M.lookup sym m == Just srt = (fi, m)
+  | otherwise                  = (renameVar fi x, m) --TODO: do we need to send future collisions to the same new name?
 
 renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
 renameVar fi (id, refs) = mapKVars' (updateKVars fi id sym sym') fi'' --TODO: optimize? (mapKVars separately on every rename is expensive)

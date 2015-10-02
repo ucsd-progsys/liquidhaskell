@@ -1489,16 +1489,15 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ----------------- Top-Level Constraint System --------------------------
 ------------------------------------------------------------------------
 
-type FInfo a = GInfo SubC a
-type SInfo a = GInfo SimpC a
-
+type FInfo a   = GInfo SubC a
+type SInfo a   = GInfo SimpC a
 data GInfo c a =
-  FI { cm    :: M.HashMap Integer (c a)
-     , ws    :: ![WfC a]
-     , bs    :: !BindEnv
-     , lits  :: !(SEnv Sort)
-     , kuts  :: Kuts
-     , quals :: ![Qualifier]
+  FI { cm       :: M.HashMap Integer (c a)
+     , ws       :: ![WfC a]
+     , bs       :: !BindEnv
+     , lits     :: !(SEnv Sort)
+     , kuts     :: Kuts
+     , quals    :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
      }

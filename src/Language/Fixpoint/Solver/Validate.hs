@@ -129,7 +129,7 @@ dropBinders :: KeepBindF -> KeepSortF -> F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropBinders f g fi  = fi { F.bs = bs' , F.cm = cm' , F.ws = ws' , F.lits = lits' }
   where
-    discards        = tracepp "DISCARDING" diss
+    discards        = {- tracepp "DISCARDING" -} diss
     (bs', diss)     = filterBindEnv f $ F.bs fi
     cm'             = deleteSubCBinds discards   <$> F.cm fi
     ws'             = deleteWfCBinds  discards   <$> F.ws fi

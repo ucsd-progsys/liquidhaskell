@@ -135,7 +135,7 @@ solveNativeWithFInfo cfg fi = do
   Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg si'''
   donePhase Loud "Solve"
   let stat' = sid <$> stat
-  putStrLn  $ "Solution:\n"  ++ showpp soln
+  writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . mlookup (cm fi) . mfromJust "WAT" <$> stat') soln
@@ -156,7 +156,9 @@ elim cfg fi
   | otherwise     = return fi
 
 remakeQual :: Qualifier -> Qualifier
-remakeQual q = mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+  where
+    msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
