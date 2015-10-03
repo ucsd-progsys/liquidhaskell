@@ -26,7 +26,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3)
+import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Types (Expr(..))
 import Language.Fixpoint.Sort (isFirstOrder)
@@ -39,6 +39,7 @@ import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSr
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -50,20 +51,22 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
+
+
 makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol 
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> return ((val x, makeType v), [])
-    (Rec [(v, def)]:_) -> return ((val x, makeType v), [])
+    (NonRec v def:_)   -> return (traceShow ("AXIOMATIZE NonRec\n" ++ show def) (val x, makeType v), [])
+    (Rec [(v, def)]:_) -> return (traceShow ("AXIOMATIZE Rec   \n" ++ show def) (val x, makeType v), [])
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
     binders (Rec xes)    = fst <$> xes
 
-    coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
-                           Left l  -> return     l
-                           Right e -> throwError e
+    _coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
+                            Left l  -> return     l
+                            Right e -> throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
@@ -72,23 +75,14 @@ makeAxiom lmap cbs _ _ x
 
 
 axiomType :: (F.Reftable r) => Type -> RRType r
-axiomType τ = fromRTypeRep $ t{ty_res = res, ty_binds = binds, ty_args = args, ty_refts = refts}
+axiomType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}  
   where 
-    t   = toRTypeRep $ ofType τ 
-    res = mkResType $ ty_res t
-    (binds, args, refts) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
-    
+    t    = toRTypeRep $ ofType τ 
+    args = dropWhile isClassType $ ty_args t
+    res  = mkType args $ ty_res t
 
-    mkResType t 
-     | isBool t   = propType
-     | otherwise  = t
-
-    propType = undefined
-    boolTyCon = undefined 
-
-isBool _ = False
-
-
+    mkType []     tr = tr 
+    mkType (t:ts) tr = arrowType t $ mkType ts tr
 
 {-
 makeMeasureDefinition :: LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
