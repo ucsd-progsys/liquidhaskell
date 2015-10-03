@@ -54,7 +54,7 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
                  , eqArgs :: ![F.Expr]
                  }
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Show)
 
 instance PPrint EQual where
   pprint = pprint . eqPred
@@ -104,7 +104,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: Config -> F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init _ fi = tracepp "init solution" s
+init _ fi = {- tracepp "init solution" -} s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -147,7 +147,7 @@ instK :: F.SEnv F.SortedReft
 --------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
-    unique qs = M.elems $ M.fromList [(eqPred q, q) | q <- qs ]
+    unique = L.nubBy ((. eqPred) . (==) . eqPred)
 
 instKQ :: F.SEnv F.SortedReft
        -> F.Symbol
@@ -196,7 +196,7 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, F.Refa p))
     p             = eqPred eq
-    tc            = tracepp msg $ So.checkSortedReftFull env sr
+    tc            = {- tracepp msg $ -} So.checkSortedReftFull env sr
     msg           = "okInst [p := " ++ show p ++ " ]"
 
 ---------------------------------------------------------------------

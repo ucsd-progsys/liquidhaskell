@@ -1,7 +1,8 @@
 -- | This module implements the top-level API for interfacing with Fixpoint
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP          #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Fixpoint.Interface (
 
@@ -45,12 +46,12 @@ import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
-import           Language.Fixpoint.Parse            (rr, rr')
+import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
-
+import           Control.DeepSeq
 ---------------------------------------------------------------------------
 -- | Solve .fq File -------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -67,13 +68,13 @@ multicore cfg = cores cfg /= Just 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg
-  | parts cfg     = partition cfg
-  | stats cfg     = statistics cfg
-  | native cfg    = solveNativeWithFInfo cfg
-  | multicore cfg = solvePar cfg
-  | otherwise     = solveExt cfg
+solve :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve cfg fi
+  | parts cfg     = partition cfg  $!! fi
+  | stats cfg     = statistics cfg $!! fi
+  | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg $!! fi
+  | multicore cfg = solvePar cfg $!! fi
+  | otherwise     = solveExt cfg $!! fi
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
@@ -82,42 +83,68 @@ solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
   let file  = inFile cfg
   str      <- readFile file
-  let fi    = rr' file str :: FInfo ()
+  let fi    = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
   let fi'   = fi { fileName = file }
   res      <- s fi'
   return    $ resultExit (resStatus res)
 
-solveNativeWithFInfo :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo cfg fi = do
+-- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
+-- DEBUG debugDiff fi fi' = putStrLn msg
+  -- DEBUG where
+    -- DEBUG {- msg          = printf "\nDEBUG: diff = %s, cs = %s, ws = %s, bs = %s, \n lits = %s \n, \n lits' = %s"
+                     -- DEBUG (show $ ufi      == ufi')
+                     -- DEBUG (show $ cm ufi   == cm   ufi')
+                     -- DEBUG (show $ ws ufi   == ws   ufi')
+                     -- DEBUG (show $ bs ufi   == bs   ufi')
+                     -- DEBUG -- (show $ lits ufi == lits ufi')
+                     -- DEBUG (show $ lits ufi)
+                     -- DEBUG (show $ lits ufi') -}
+-- DEBUG
+    -- DEBUG msg          = printf "\nquals = %s\n\n\nquals' = %s"
+                     -- DEBUG (show $ sort $ quals fi)
+                     -- DEBUG (show $ sort $ quals fi')
+-- DEBUG
+    -- DEBUG (ufi, ufi')  = (fu <$> fi    ,  fu <$> fi')
+    -- DEBUG fu           = const ()
+    -- DEBUG (ncs, ncs')  = (cLength  fi  , cLength fi')
+    -- DEBUG (nws, nws')  = (wLength  fi  , wLength fi')
+    -- DEBUG (nbs, nbs')  = (beLength fi  , beLength fi')
+    -- DEBUG (nls, nls')  = (litLength fi , litLength fi')
+    -- DEBUG (nqs, nqs')  = (qLength   fi , qLength fi')
+    -- DEBUG cLength      = M.size . cm
+    -- DEBUG wLength      = length . ws
+    -- DEBUG beLength     = length . bindEnvToList . bs
+    -- DEBUG litLength    = length . toListSEnv . lits
+    -- DEBUG qLength      = length . quals
+
+solveNativeWithFInfo :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveNativeWithFInfo !cfg !fi = do
   writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
-  donePhase Loud "Read Constraints"
-  --FIXME: inefficient since toFixpoint and rr are mostly inverses - better to
-  -- replace this by the net effect of rr . toFixpoint,
-  -- and the correct solution is to make toFixpoint and rr actually inverses.
-  let fi' = rr $ render $ toFixpoint cfg fi :: FInfo ()
-  let si = convertFormat fi'
+  rnf fi `seq` donePhase Loud "Read Constraints"
+  let fi' = fi { quals = remakeQual <$> quals fi }
+  let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
-  donePhase Loud "Format Conversion"
-  let Right si' = validate cfg si
+  rnf si `seq` donePhase Loud "Format Conversion"
+  let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
   writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
-  donePhase Loud "Validated Constraints"
+  rnf si' `seq` donePhase Loud "Validated Constraints"
   when (elimStats cfg) $ printElimStats (deps si')
-  let si''  = renameAll si'
+  let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
-  donePhase Loud "Uniqify"
-  si'''     <- elim cfg si''
-  Result stat soln <- S.solve cfg si'''
-  donePhase Loud "Solve"
+  rnf si'' `seq` donePhase Loud "Uniqify"
+  si'''     <- {-# SCC "elim" #-} elim cfg $!! si''
+  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg $!! si'''
+  rnf soln `seq` donePhase Loud "Solve"
   let stat' = sid <$> stat
-  putStrLn  $ "Solution:\n"  ++ showpp soln
+  writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
   colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC . (\i -> mlookup (cm fi) (mfromJust "WAT" i)) <$> stat') soln
+  return    $ Result (WrapC . mlookup (cm fi) . mfromJust "WAT" <$> stat') soln
 
 printElimStats :: Deps -> IO ()
 printElimStats d = do
   let postElims = length $ depCuts d
-  let total = postElims + (length $ depNonCuts d)
+  let total = postElims + length (depNonCuts d)
   putStrLn $ "TOTAL KVars: " ++ show total
           ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
@@ -128,6 +155,11 @@ elim cfg fi
                        donePhase Loud "Eliminate"
                        return fi'
   | otherwise     = return fi
+
+remakeQual :: Qualifier -> Qualifier
+remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+  where
+    msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
@@ -169,7 +201,7 @@ solveFile cfg
     where
       fixCommand fp z3 verbosity
         = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s %s"
-          z3 fp verbosity rf newcheckf (command cfg) 
+          z3 fp verbosity rf newcheckf (command cfg)
         where
           rf  = if real cfg then realFlags else ""
           newcheckf = if newcheck cfg then "-newcheck" else ""
