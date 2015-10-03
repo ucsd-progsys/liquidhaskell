@@ -28,6 +28,7 @@ llen N = 0
 llen (C x xs) = 1 + llen xs
 
 
+{-@ axiomatize append @-}
 append :: L a -> L a -> L a
 append N xs        = xs
 append (C y ys) xs = C y (append ys xs)
