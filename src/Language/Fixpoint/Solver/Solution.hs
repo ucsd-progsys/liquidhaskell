@@ -12,7 +12,7 @@ module Language.Fixpoint.Solver.Solution
           -- * Initial Solution
         , init
 
-          -- * Update Solution
+          -- * Update Solutio n
         , update
 
           -- * Lookup Solution
@@ -173,7 +173,6 @@ match xts xs (t : ts)
        match xts (x : xs) (So.apply su <$> ts)
 match _   xs []
   = return xs
-
 
 -----------------------------------------------------------------------
 candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
