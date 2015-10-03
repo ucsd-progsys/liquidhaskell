@@ -103,9 +103,12 @@ function install_stack {
 function configure_stack {
   local ghc_version="$1"
 
+  echo "Configuring stack.yaml for GHC ${ghc_version}..."
+
   local resolver="${GHC_7_10_RESOLVER}"
   if [[ "${ghc_version}" == "7.8" ]]; then
     resolver="${GHC_7_8_RESOLVER}"
+    echo                        >> stack.yaml
     echo " - tasty-rerun-1.1.5" >> stack.yaml
   fi
 
