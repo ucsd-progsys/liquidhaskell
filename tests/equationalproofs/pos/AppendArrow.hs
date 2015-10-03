@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 -- |   A first example in equalional reasoning.
 -- |  From the definition of append we should be able to
 -- |  semi-automatically prove the two axioms.
@@ -71,6 +73,24 @@ prop_nil (C x xs) = toProof e1 $ ((
    	e2  = C x (append xs N)
    	pr2 = prop_nil xs
    	e3  = C x xs
+
+{-
+-- use_axiom :: a -> b -> ArgList -> Proof
+use_axiom = undefined
+
+combine x y = y
+data ArgList a b c
+  = NoArgs
+  | ThreeArgs {a1::a, a2::b, a3::c }
+
+-- | axiomatixation of append will not be a haskell function anymore,
+-- | thus the user cannot directly access it.
+-- | use a function called `use_axiom` to apply these axioms.
+
+prop_nil_future N        = use_axiom append N NoArgs
+prop_nil_future (C x xs) = use_axiom append C (ThreeArgs x xs N) `combine` prop_nil_future xs
+
+-}
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | runFun (runFun append ys) N == ys} @-}
 prop_app_nil N =  axiom_append_nil N
