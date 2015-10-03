@@ -1,4 +1,5 @@
-language: c
+language: haskell
+ghc: 7.8 # Only used for Cabal
 
 branches:
   only:
