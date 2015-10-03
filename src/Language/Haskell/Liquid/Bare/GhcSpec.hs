@@ -145,8 +145,7 @@ makeAxioms cbs spec sp
   = do lmap        <- logicEnv <$> get
        (ms, tys) <- unzip <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)  
        return     $ spec { meas   = ms         ++  meas   spec 
-                         , tySigs = concat tys ++ tySigs spec}  
-
+                         , tySigs = concat tys ++ tySigs spec} 
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty

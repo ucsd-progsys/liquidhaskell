@@ -46,3 +46,7 @@ constant papp4 : func(8, [Pred @(0) @(1) @(2) @(6); @(3); @(4); @(5); @(7); bool
 
 
 constant Prop : func(0, [GHC.Types.Bool; bool])
+constant runFun : func(2, [Arrow @(0) @(1); @(0); @(1)])
+
+
+
