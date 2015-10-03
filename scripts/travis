@@ -118,7 +118,7 @@ function setup_ghc {
 }
 
 function install_dependencies {
-  loud stack build 'liquidhaskell' --only-dependencies --test --no-run-tests
+  loud stack build --only-dependencies --test --no-run-tests
 }
 
 ## Building & Testing Stages
