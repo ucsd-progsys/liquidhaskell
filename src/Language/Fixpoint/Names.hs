@@ -70,7 +70,7 @@ import           Data.Interned.Internal.Text
 import           Data.Maybe                  (fromMaybe)
 import           Data.String                 (IsString)
 import qualified Data.Text                   as T
-import           Data.Binary                 (Binary)
+import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
@@ -78,7 +78,7 @@ import           Language.Fixpoint.Misc      (errorstar)
 
 
 ---------------------------------------------------------------
----------------------------- Symbols --------------------------
+-- | Symbols --------------------------------------------------
 ---------------------------------------------------------------
 
 symChars
@@ -113,8 +113,11 @@ instance NFData Symbol where
 instance Hashable Symbol where
   hashWithSalt i (S s) = hashWithSalt i s
 
-instance Binary InternedText
-instance Binary Symbol
+-- instance Binary InternedText
+
+instance Binary Symbol where
+  get = S . intern <$> get
+  put = put . symbolText
 
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
