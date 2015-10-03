@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 
 import CoreSyn
@@ -26,7 +28,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3)
+import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 
 import Language.Fixpoint.Names
 import Language.Fixpoint.Types (Expr(..))
@@ -34,6 +36,7 @@ import Language.Fixpoint.Sort (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
 
+import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
@@ -56,8 +59,8 @@ makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v _def:_)   -> return ((val x, makeType v), [])
-    (Rec [(v, _def)]:_) -> return ((val x, makeType v), [])
+    (NonRec v _def:_)   -> return $ traceShow ("makeAxiom NonRec") ((val x, makeType v), [(v, makeAssumeType v)])
+    (Rec [(v, _def)]:_) -> return $ traceShow ("makeAxiom Rec   ") ((val x, makeType v), [(v, makeAssumeType v)])
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
@@ -70,11 +73,31 @@ makeAxiom lmap cbs _ _ x
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
-    makeType v = x{val = axiomType $ varType v}
+    makeType v       = x{val = ufType    $ varType v}
+    makeAssumeType v = x{val = axiomType x $ varType v}
 
 
-axiomType :: (F.Reftable r) => Type -> RRType r
-axiomType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}  
+-- | Specification for Haskell function 
+axiomType :: LocSymbol -> Type -> SpecType
+axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}  
+  where 
+    t  = toRTypeRep $ ofType τ 
+    ys = dropWhile isClassType $ ty_args t
+    xs = (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
+    x  = F.vv_
+
+    res = ty_res t `strengthen` U ref mempty mempty
+
+    ref = F.Reft (x, F.Refa $ F.PAtom F.Eq (F.EVar x) (mkApp xs))
+
+    mkApp = foldl runFun (F.EVar $ val s)
+
+    runFun e x = F.EApp (dummyLoc runFunName) [e, F.EVar x]
+ 
+
+-- | Type for uninterpreted function that approximated Haskell function into logic
+ufType :: (F.Reftable r) => Type -> RRType r
+ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}  
   where 
     t    = toRTypeRep $ ofType τ 
     args = dropWhile isClassType $ ty_args t
