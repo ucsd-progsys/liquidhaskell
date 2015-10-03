@@ -116,7 +116,8 @@ function configure_stack {
 }
 
 function setup_ghc {
-  stack setup
+  loud stack setup
+  loud stack ghc -- --version
 }
 
 function install_dependencies {
