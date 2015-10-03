@@ -5,6 +5,8 @@ branches:
     - master
     - multiparams
 
+sudo: false
+
 addons:
   apt:
     packages:
