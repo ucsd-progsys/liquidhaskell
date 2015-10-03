@@ -18,19 +18,19 @@ cache:
   - $HOME/.stack
 
 env:
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Unit/
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/text
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/bytestring
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/esop
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/vect-algs
- - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/icfp*
+ - GHC="7.8"  SMT=z3   TESTS=Unit/
+ - GHC="7.8"  SMT=z3   TESTS=Benchmarks/text
+ - GHC="7.8"  SMT=z3   TESTS=Benchmarks/bytestring
+ - GHC="7.8"  SMT=z3   TESTS=Benchmarks/esop
+ - GHC="7.8"  SMT=z3   TESTS=Benchmarks/vect-algs
+ - GHC="7.8"  SMT=z3   TESTS=Benchmarks/icfp*
 
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Unit/
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/text
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/bytestring
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/esop
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/vect-algs
- - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/icfp*
+ - GHC="7.10" SMT=z3   TESTS=Unit/
+ - GHC="7.10" SMT=z3   TESTS=Benchmarks/text
+ - GHC="7.10" SMT=z3   TESTS=Benchmarks/bytestring
+ - GHC="7.10" SMT=z3   TESTS=Benchmarks/esop
+ - GHC="7.10" SMT=z3   TESTS=Benchmarks/vect-algs
+ - GHC="7.10" SMT=z3   TESTS=Benchmarks/icfp*
 
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
@@ -38,7 +38,7 @@ env:
 install:
  - scripts/travis install_smt "$SMT"
  - scripts/travis install_stack
- - scripts/travis configure_stack "$RESOLVER"
+ - scripts/travis configure_stack "$GHC"
  - scripts/travis setup_ghc
  - scripts/travis install_dependencies
 

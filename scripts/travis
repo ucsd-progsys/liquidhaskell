@@ -5,6 +5,9 @@ set -o pipefail
 
 STACK_VERSION="0.1.5.0"
 
+GHC_7_8_RESOLVER="lts-2.22"
+GHC_7_10_RESOLVER="nightly-2015-09-24"
+
 ## Helper Functions
 
 function loud {
@@ -98,7 +101,13 @@ function install_stack {
 }
 
 function configure_stack {
-  local resolver="$1"
+  local ghc_version="$1"
+
+  local resolver="${GHC_7_10_RESOLVER}"
+  if [[ "${ghc_version}" == "7.8" ]]; then
+    resolver="${GHC_7_8_RESOLVER}"
+    echo " - tasty-rerun-1.1.5" >> stack.yaml
+  fi
 
   sed -i "s,^resolver:.\+,resolver: ${resolver},g" stack.yaml
   loud cat stack.yaml
