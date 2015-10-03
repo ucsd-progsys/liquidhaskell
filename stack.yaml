@@ -1,0 +1,18 @@
+# GHC 7.10
+resolver: nightly-2015-09-24
+
+# GHC 7.8
+# resolver: lts-2.14
+# resolver: nightly-2015-07-02
+
+packages:
+- ./liquid-fixpoint
+- .
+
+flags:
+  liquid-fixpoint:
+    build-external: true
+
+extra-deps:
+- intern-0.9.1.4
+- located-base-0.1.0.0
