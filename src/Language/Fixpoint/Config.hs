@@ -48,12 +48,13 @@ data Config
     , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
     , native      :: Bool             -- ^ use haskell solver
     , real        :: Bool             -- ^ interpret div and mul in SMT
-    , newcheck    :: Bool             -- ^ new fixpoint sort check 
+    , newcheck    :: Bool             -- ^ new fixpoint sort check
     , eliminate   :: Bool             -- ^ eliminate non-cut KVars
     , elimStats   :: Bool             -- ^ print eliminate stats
     , metadata    :: Bool             -- ^ print meta-data associated with constraints
     , stats       :: Bool             -- ^ compute constraint statistics
     , parts       :: Bool             -- ^ partition FInfo into separate fq files
+    , binary      :: Bool             -- ^ save FInfo as binary file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -69,12 +70,13 @@ instance Default Config where
                , ueqAllSorts = def
                , native      = def
                , real        = def
-               , newcheck    = False 
+               , newcheck    = False
                , eliminate   = def
                , elimStats   = def
                , metadata    = def
                , stats       = def
                , parts       = def
+               , binary      = def
                }
 
 instance Command Config where
@@ -152,6 +154,7 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
+  , binary      = False &= help "(alpha) Save Query as Binary File"
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"
@@ -175,5 +178,5 @@ getOpts = do md <- cmdArgs config
              return md
 
 banner :: String
-banner =  "Liquid-Fixpoint Copyright 2009-13 Regents of the University of California.\n"
+banner =  "Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"

@@ -176,7 +176,7 @@ module Language.Fixpoint.Types (
 
 import           Debug.Trace               (trace)
 
-import           Data.Binary               (Binary)
+import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -195,7 +195,7 @@ import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq           -- (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
-import           Text.Parsec.Pos         (SourcePos (..))
+-- import           Text.Parsec.Pos           (newPos, SourcePos (..))
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Names
@@ -1307,61 +1307,65 @@ conjuncts p
   | isTautoPred p   = []
   | otherwise       = [p]
 
-
-
-----------------------------------------------------------------
--- | Source Positions-------------------------------------------
-----------------------------------------------------------------
-
--- reimplementing because parsec's doesnt have a generic instance...
-
-data SrcPos = SrcPos { srcFile :: !FilePath
-                     , srcLine :: !Int
-                     , srcCol  :: !Int }
-                     deriving (Eq, Generic)
-
 ----------------------------------------------------------------
 -- | Serialization ---------------------------------------------
 ----------------------------------------------------------------
 
-instance Binary SrcPos
-instance Binary KVar
-instance (Binary a) => Binary (S.HashSet a)
-instance Binary Kuts
-instance Binary Qualifier
-instance Binary FTycon
-instance Binary Sort
-instance Binary Sub
-instance Binary Subst
-instance Binary IBindEnv
-instance Binary BindEnv
-instance Binary Constant
-instance Binary SymConst
-instance Binary Brel
-instance Binary Bop
-instance Binary Expr
-instance Binary Pred
-instance Binary Refa
-instance Binary Reft
-instance Binary SortedReft
-instance (Binary a) => Binary (SEnv a)
-instance (Binary a) => Binary (FixResult a)
-instance (Binary a) => Binary (SubC a)
-instance (Binary a) => Binary (WfC a)
-instance (Binary a) => Binary (SimpC a)
-instance (Binary (c a), Binary a) => Binary (GInfo c a)
-instance (Binary a) => Binary (Located a)
+instance B.Binary SourcePos where
+  put = B.put . ofSourcePos
+  get = toSourcePos <$> B.get
+
+instance B.Binary KVar
+
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
+  put = B.put . S.toList
+  get = S.fromList <$> B.get
+
+instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) where
+  put = B.put . M.toList
+  get = M.fromList <$> B.get
+
+instance B.Binary Kuts
+instance B.Binary Qualifier
+instance B.Binary FTycon
+instance B.Binary Sort
+instance B.Binary Sub
+instance B.Binary Subst
+instance B.Binary IBindEnv
+instance B.Binary BindEnv
+instance B.Binary Constant
+instance B.Binary SymConst
+instance B.Binary Brel
+instance B.Binary Bop
+instance B.Binary Expr
+instance B.Binary Pred
+instance B.Binary Refa
+instance B.Binary Reft
+instance B.Binary SortedReft
+instance (B.Binary a) => B.Binary (SEnv a)
+instance (B.Binary a) => B.Binary (FixResult a)
+instance (B.Binary a) => B.Binary (SubC a)
+instance (B.Binary a) => B.Binary (WfC a)
+instance (B.Binary a) => B.Binary (SimpC a)
+instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
+instance (B.Binary a) => B.Binary (Located a)
 
 ----------------------------------------------------------------
 -- | Strictness ------------------------------------------------
 ----------------------------------------------------------------
 
 instance NFData SourcePos where
-  rnf p = rnf f `seq` rnf l `seq` rnf c
-    where
-      f = sourceName   p
-      l = sourceLine   p
-      c = sourceColumn p
+  rnf = rnf . ofSourcePos
+
+ofSourcePos :: SourcePos -> (SourceName, Line, Column)
+ofSourcePos p = (f, l, c)
+  where
+   f = sourceName   p
+   l = sourceLine   p
+   c = sourceColumn p
+
+toSourcePos :: (SourceName, Line, Column) -> SourcePos
+toSourcePos (f, l, c) = newPos f l c
 
 instance NFData KVar
 instance NFData Kuts
@@ -1546,7 +1550,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
-                   , q_pos    :: !SourcePos       -- ^ Source Location
+                   , q_pos    :: !SourcePos          -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
 
