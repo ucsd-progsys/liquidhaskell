@@ -19,6 +19,7 @@ cache:
   apt: true
   directories:
   - $HOME/.stack
+  - .stack-work
 
 env:
   global:
