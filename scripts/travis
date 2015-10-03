@@ -3,6 +3,8 @@
 set -eu
 set -o pipefail
 
+STACK_VERSION="0.1.5.0"
+
 ## Helper Functions
 
 function loud {
@@ -67,58 +69,51 @@ function pastebin {
   curl -s -F 'clbin=<-' https://clbin.com
 }
 
-## Testing Stages
+## Setup Stages
 
-function clean_cache {
-  local smt="$1"
+function install_stack {
+  mkdir -p "${HOME}/.local/bin"
+  mkdir -p '/tmp/stack'
 
-  loud ghc-pkg unregister liquidhaskell --force || true
-  loud ghc-pkg unregister liquid-fixpoint --force || true
-  loud rm "$HOME/.cabal/bin/$smt" || true
-}
+  pushd '/tmp/stack'
 
-function clone_fixpoint {
-  loud git clone git://github.com/ucsd-progsys/liquid-fixpoint.git /tmp/fixpoint
+  local dir_name="stack-${STACK_VERSION}-x86_64-linux"
+  local archive_name="${dir_name}.tar.gz"
+  local stack_url="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/${archive_name}"
+
+  loud wget "${stack_url}"
+  loud tar -xzvf "./${archive_name}"
+  loud cp "./${dir_name}/stack" "${HOME}/.local/bin/stack"
+  loud chmod a+x "${HOME}/.local/bin/stack"
+
+  popd
 }
 
 function install_smt {
   local smt="$1"
 
-  mkdir -p "$HOME/.cabal/bin"
-  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "$HOME/.cabal/bin/$smt"
-  loud chmod a+x "$HOME/.cabal/bin/$smt"
+  mkdir -p "${HOME}/.local/bin"
+  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "${HOME}/.local/bin/$smt"
+  loud chmod a+x "${HOME}/.local/bin/$smt"
 }
 
-function install_cabal_deps {
-  if ! _install_cabal_deps; then
-    echo " ==> Cabal install failed. Clearing dependency cache and retrying."
-    loud rm -rf "$HOME/.cabal"
-    loud rm -rf "$HOME/.ghc"
-    _install_cabal_deps
-  fi
-
-  # this is dumb, but the -j1 makes cabal print the build log to stdout instead of a file
-  loud travis_retry cabal install -j1 -fbuild-external /tmp/fixpoint
+function install_dependencies {
+  loud stack build 'liquidhaskell' --only-dependencies --test --no-run-tests
 }
 
-function _install_cabal_deps {
-  loud travis_retry cabal update || return 1
-  loud travis_retry cabal install --reorder-goals --only-dependencies --upgrade-dependencies --enable-tests -fbuild-external . /tmp/fixpoint || return 1
-}
+## Building & Testing Stages
 
 function do_build {
-  loud cabal configure -fdevel --enable-tests -v2
-  loud prevent_timeout cabal build -j2
-  loud cabal haddock
-  loud cabal copy
-  loud cabal register
+  loud stack build --test --no-run-tests
 }
 
 function do_test {
   local tests="$1"
   local smt="$2"
 
-  loud prevent_timeout ./dist/build/test/test --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
+  local test_runner="$(find .stack-work/ -type f -name test)"
+
+  loud prevent_timeout stack exec -- "${test_runner}" --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
 }
 
 function dump_fail_logs {
@@ -126,19 +121,6 @@ function dump_fail_logs {
     echo "${file}:"
     echo "    $(pastebin < "${file}")"
   done
-}
-
-function test_source_pkg {
-  loud cabal sdist
-
-  local src_tgz="dist/$(cabal info . | awk '{print $2 ".tar.gz";exit}')"
-
-  if [ -f "$src_tgz" ]; then
-    loud prevent_timeout cabal install -j4 "$src_tgz"
-  else
-    echo "expected '$src_tgz' not found"
-    return 1
-  fi
 }
 
 ## Run Test Stage
