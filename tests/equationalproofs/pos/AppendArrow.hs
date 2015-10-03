@@ -11,8 +11,6 @@
 module Append where
 
 import Equational
-import Arrow
-
 
 data L a = N |  C a (L a) deriving (Eq)
 
@@ -40,7 +38,6 @@ append (C y ys) xs = C y (append ys xs)
 -- |  axiomatize append
 -- |
 
-{-@ measure append :: Arrow (L a) (Arrow (L a) (L a)) @-}
 {-@ assume append :: xs:L a -> ys:L a -> {v:L a | v == runFun (runFun append xs) ys } @-}
 
 {-@ assume axiom_append_nil :: xs:L a -> {v:Proof | (runFun (runFun append N) xs) == xs} @-}
@@ -55,7 +52,7 @@ axiom_append_cons x xs ys = Proof
 
 -- | Proof 1: N is neutral element
 
-{-@ prop_foo :: xs:L a -> {v: L a | v == runFun (runFun append xs) N } @-}
+{-@ prop_foo :: xs:L a -> {v: L a | v == (runFun (runFun append xs) N) } @-}
 prop_foo     :: L a -> L a -- (Arrow (L a) (L a))
 prop_foo     =  undefined
 
