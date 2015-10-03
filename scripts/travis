@@ -3,11 +3,6 @@
 set -eu
 set -o pipefail
 
-STACK_VERSION="0.1.5.0"
-
-GHC_7_8_RESOLVER="lts-2.22"
-GHC_7_10_RESOLVER="nightly-2015-09-24"
-
 ## Helper Functions
 
 function loud {
@@ -83,14 +78,16 @@ function install_smt {
 }
 
 function install_stack {
+  local stack_version="$1"
+
   mkdir -p "${HOME}/.local/bin"
   mkdir -p '/tmp/stack'
 
   pushd '/tmp/stack'
 
-  local dir_name="stack-${STACK_VERSION}-x86_64-linux"
+  local dir_name="stack-${stack_version}-x86_64-linux"
   local archive_name="${dir_name}.tar.gz"
-  local stack_url="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/${archive_name}"
+  local stack_url="https://github.com/commercialhaskell/stack/releases/download/v${stack_version}/${archive_name}"
 
   loud wget "${stack_url}"
   loud tar -xzvf "./${archive_name}"
@@ -103,15 +100,20 @@ function install_stack {
 function configure_stack {
   local ghc_version="$1"
 
-  echo "Configuring stack.yaml for GHC ${ghc_version}..."
+  echo "Configuring stack.yaml for ${ghc_version}..."
 
-  local resolver="${GHC_7_10_RESOLVER}"
-  if [[ "${ghc_version}" == "7.8" ]]; then
-    resolver="${GHC_7_8_RESOLVER}"
-    echo "- tasty-rerun-1.1.5" >> stack.yaml
-  fi
+  cat << EOF > 'stack.yaml'
+resolver: ${ghc_version}
 
-  sed -i "s,^resolver:.\+,resolver: ${resolver},g" stack.yaml
+packages:
+- ./liquid-fixpoint
+- .
+
+flags:
+  liquid-fixpoint:
+    build-external: true
+EOF
+
   loud cat stack.yaml
 }
 

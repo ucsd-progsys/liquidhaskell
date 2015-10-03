@@ -20,26 +20,30 @@ cache:
   - $HOME/.stack
 
 env:
- - GHC="7.8"  SMT=z3   TESTS=Unit/
- - GHC="7.8"  SMT=z3   TESTS=Benchmarks/text
- - GHC="7.8"  SMT=z3   TESTS=Benchmarks/bytestring
- - GHC="7.8"  SMT=z3   TESTS=Benchmarks/esop
- - GHC="7.8"  SMT=z3   TESTS=Benchmarks/vect-algs
- - GHC="7.8"  SMT=z3   TESTS=Benchmarks/icfp*
+  global:
+  - STACK=0.1.5.0
+  - SMT=z3
+  matrix:
+  - GHC=ghc-7.8.4   TESTS=Unit/
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/text
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/bytestring
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/esop
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/vect-algs
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/icfp*
 
- - GHC="7.10" SMT=z3   TESTS=Unit/
- - GHC="7.10" SMT=z3   TESTS=Benchmarks/text
- - GHC="7.10" SMT=z3   TESTS=Benchmarks/bytestring
- - GHC="7.10" SMT=z3   TESTS=Benchmarks/esop
- - GHC="7.10" SMT=z3   TESTS=Benchmarks/vect-algs
- - GHC="7.10" SMT=z3   TESTS=Benchmarks/icfp*
+  - GHC=ghc-7.10.2  TESTS=Unit/
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/text
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/bytestring
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/esop
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/vect-algs
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/icfp*
 
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
 install:
  - scripts/travis install_smt "$SMT"
- - scripts/travis install_stack
+ - scripts/travis install_stack "$STACK"
  - scripts/travis configure_stack "$GHC"
  - scripts/travis setup_ghc
  - scripts/travis install_dependencies
