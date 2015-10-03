@@ -41,7 +41,7 @@ refine s w
   | Just (c, w') <- W.pop w = do i       <- tickIter
                                  (b, s') <- refineC i s c
                                  let w'' = if b then W.push c w' else w'
-                                 refine s' w'' -- $ trace (refineMsg i c b w'') $ w''
+                                 refine s' w'' {- $ trace (refineMsg i c b w'') $ w'' -}
   | otherwise               = return s
 
 -- DEBUG
