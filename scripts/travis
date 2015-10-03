@@ -100,7 +100,7 @@ function install_stack {
 function configure_stack {
   local resolver="$1"
 
-  loud sed -i "s,^resolver:.\+,resolver: ${resolver},g" stack.yaml
+  sed -i "s,^resolver:.\+,resolver: ${resolver},g" stack.yaml
   loud cat stack.yaml
 }
 
