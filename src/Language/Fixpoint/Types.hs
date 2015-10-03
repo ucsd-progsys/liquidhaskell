@@ -176,6 +176,7 @@ module Language.Fixpoint.Types (
 
 import           Debug.Trace               (trace)
 
+import           Data.Binary               (Binary)
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -1306,8 +1307,53 @@ conjuncts p
   | isTautoPred p   = []
   | otherwise       = [p]
 
+
+
 ----------------------------------------------------------------
----------------------- Strictness ------------------------------
+-- | Source Positions-------------------------------------------
+----------------------------------------------------------------
+
+-- reimplementing because parsec's doesnt have a generic instance...
+
+data SrcPos = SrcPos { srcFile :: !FilePath
+                     , srcLine :: !Int
+                     , srcCol  :: !Int }
+                     deriving (Eq, Generic)
+
+----------------------------------------------------------------
+-- | Serialization ---------------------------------------------
+----------------------------------------------------------------
+
+instance Binary SrcPos
+instance Binary KVar
+instance (Binary a) => Binary (S.HashSet a)
+instance Binary Kuts
+instance Binary Qualifier
+instance Binary FTycon
+instance Binary Sort
+instance Binary Sub
+instance Binary Subst
+instance Binary IBindEnv
+instance Binary BindEnv
+instance Binary Constant
+instance Binary SymConst
+instance Binary Brel
+instance Binary Bop
+instance Binary Expr
+instance Binary Pred
+instance Binary Refa
+instance Binary Reft
+instance Binary SortedReft
+instance (Binary a) => Binary (SEnv a)
+instance (Binary a) => Binary (FixResult a)
+instance (Binary a) => Binary (SubC a)
+instance (Binary a) => Binary (WfC a)
+instance (Binary a) => Binary (SimpC a)
+instance (Binary (c a), Binary a) => Binary (GInfo c a)
+instance (Binary a) => Binary (Located a)
+
+----------------------------------------------------------------
+-- | Strictness ------------------------------------------------
 ----------------------------------------------------------------
 
 instance NFData SourcePos where
