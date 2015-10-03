@@ -120,10 +120,12 @@ Working With Submodules
 
  - To update the `liquid-fixpoint` submodule, run
 
+    ```
     cd ./liquid-fixpoint
     git fetch --all
     git checkout <remote>/<branch>
     cd ..
+    ```
 
    This will update `liquid-fixpoint` to the latest version on `<branch>`
    (usually `master`) from `<remote>` (usually `origin`).
@@ -131,7 +133,9 @@ Working With Submodules
  - After updating `liquid-fixpoint`, make sure to include this change in a
    commit! Running
 
+    ```
     git add ./liquid-fixpoint
+    ```
 
    will save the current commit hash of `liquid-fixpoint` in your next commit
    to the `liquidhaskell` repository.
@@ -142,8 +146,10 @@ Working With Submodules
 
  - If something goes wrong, run
 
+    ```
     rm -r ./liquid-fixpoint
     git submodule update --init
+    ```
 
    to blow away your copy of the `liquid-fixpoint` submodule and revert to the
    last saved commit hash.
