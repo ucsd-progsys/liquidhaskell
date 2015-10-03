@@ -26,7 +26,8 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
+import Language.Fixpoint.Misc (mlookup, sortNub, snd3)
+
 import Language.Fixpoint.Names
 import Language.Fixpoint.Types (Expr(..))
 import Language.Fixpoint.Sort (isFirstOrder)
@@ -51,14 +52,12 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
-
-
 makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol 
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> return (traceShow ("AXIOMATIZE NonRec\n" ++ show def) (val x, makeType v), [])
-    (Rec [(v, def)]:_) -> return (traceShow ("AXIOMATIZE Rec   \n" ++ show def) (val x, makeType v), [])
+    (NonRec v _def:_)   -> return ((val x, makeType v), [])
+    (Rec [(v, _def)]:_) -> return ((val x, makeType v), [])
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
