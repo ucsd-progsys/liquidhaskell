@@ -141,7 +141,7 @@ function do_test {
   local tests="$1"
   local smt="$2"
 
-  local test_runner="$(find .stack-work/ -type f -name test)"
+  local test_runner="$(stack path --dist-dir)/build/test/test"
 
   loud prevent_timeout stack exec -- "${test_runner}" --pattern "$tests/" --smtsolver "$smt" -j2 +RTS -N2 -RTS
 }
