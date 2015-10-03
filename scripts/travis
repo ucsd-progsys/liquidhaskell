@@ -97,6 +97,13 @@ function install_stack {
   popd
 }
 
+function configure_stack {
+  local resolver="$1"
+
+  loud sed -i "s,^resolver:.\+,resolver: ${resolver},g" stack.yaml
+  loud cat stack.yaml
+}
+
 function setup_ghc {
   stack setup
 }
