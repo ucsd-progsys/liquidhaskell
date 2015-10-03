@@ -153,6 +153,24 @@ Working With Submodules
 
    to blow away your copy of the `liquid-fixpoint` submodule and revert to the
    last saved commit hash.
+   
+ - Want to work fully offline? git lets you add a local directory as a remote.
+   Run
+
+    ```
+    cd ./liquid-fixpoint
+    git remote add local /path/to/your/fixpoint/clone
+    cd ..
+    ```
+
+   Then to update the submodule from your local clone, you can run
+
+    ```
+    cd ./liquid-fixpoint
+    git fetch local
+    git checkout local/<branch>
+    cd ..
+    ```
 
 Command Line Options
 ====================
