@@ -115,6 +115,9 @@ flags:
 EOF
 
   loud cat stack.yaml
+
+  echo "Solving Cabal dependency constraints..."
+  loud stack solver --modify-stack-yaml
 }
 
 function setup_ghc {
