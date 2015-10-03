@@ -11,6 +11,8 @@
 module Append where
 
 import Equational
+import Arrow
+
 
 data L a = N |  C a (L a) deriving (Eq)
 
@@ -27,6 +29,9 @@ llen (C x xs) = 1 + llen xs
 
 
 {-@ axiomatize append @-}
+-- | TODO: what happens in append has user provided specification?
+-- | Now it will just be ignored
+
 append :: L a -> L a -> L a
 append N xs        = xs
 append (C y ys) xs = C y (append ys xs)
@@ -38,7 +43,8 @@ append (C y ys) xs = C y (append ys xs)
 -- |  axiomatize append
 -- |
 
-{-@ assume append :: xs:L a -> ys:L a -> {v:L a | v == runFun (runFun append xs) ys } @-}
+{- DONE AUTOMATICALLY! measure append :: Arrow (L a) (Arrow (L a) (L a)) @-}
+{- DONE AUTOMATICALLY! assume append :: xs:L a -> ys:L a -> {v:L a | v == runFun (runFun append xs) ys } @-}
 
 {-@ assume axiom_append_nil :: xs:L a -> {v:Proof | (runFun (runFun append N) xs) == xs} @-}
 axiom_append_nil :: L a -> Proof
@@ -51,12 +57,6 @@ axiom_append_cons x xs ys = Proof
 
 
 -- | Proof 1: N is neutral element
-
-{-@ prop_foo :: xs:L a -> {v: L a | v == (runFun (runFun append xs) N) } @-}
-prop_foo     :: L a -> L a -- (Arrow (L a) (L a))
-prop_foo     =  undefined
-
-
 
 {-@ prop_nil :: xs:L a -> {v:Proof | (runFun (runFun append xs) N == xs) } @-}
 prop_nil     :: Eq a => L a -> Proof
