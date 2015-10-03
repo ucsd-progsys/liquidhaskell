@@ -83,10 +83,11 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Pred
          | PAss
          | Dat
-         | Smt2   -- ^ SMTLIB2 query file
+         | BinFq    -- ^ Binary representation of .fq / FInfo
+         | Smt2     -- ^ SMTLIB2 query file
          deriving (Eq, Ord, Show)
 
-extMap e = go e
+extMap          = go
   where
     go Cgi      = ".cgi"
     go Pred     = ".pred"
@@ -111,6 +112,7 @@ extMap e = go e
     go Cache    = ".err"
     go Smt2     = ".smt2"
     go Dot      = ".dot"
+    go BinFq    = ".bfq"
     go (Part n) = "." ++ show n
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
