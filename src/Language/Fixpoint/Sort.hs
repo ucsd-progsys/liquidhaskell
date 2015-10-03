@@ -38,6 +38,7 @@ import           Control.Monad.Error       (MonadError(..))
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
+import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (subst)
 import           Language.Fixpoint.Visitor (foldSort)
@@ -321,7 +322,7 @@ checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
-checkRelTy :: (Fixpoint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
+checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
 checkRelTy f _ _ (FObj l) (FObj l') | l /= l'
   = (checkNumeric f l >> checkNumeric f l') `catchError` (\_ -> throwError $ errNonNumerics l l')
 checkRelTy f _ _ FInt (FObj l)     = checkNumeric f l `catchError` (\_ -> throwError $ errNonNumeric l)
@@ -480,30 +481,30 @@ emptySubst = Th M.empty
 -- | Error messages -----------------------------------------------------
 -------------------------------------------------------------------------
 
-errUnify t1 t2       = printf "Cannot unify %s with %s" (showFix t1) (showFix t2)
+errUnify t1 t2       = printf "Cannot unify %s with %s" (showpp t1) (showpp t2)
 
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
-                         (showFix ts) (showFix ts')
+                         (showpp ts) (showpp ts')
 errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
-                         (showFix e) (showFix t1) (showFix t2)
-errBExp e t          = printf "BExp %s with non-propositional type %s" (showFix e) (showFix t)
+                         (showpp e) (showpp t1) (showpp t2)
+errBExp e t          = printf "BExp %s with non-propositional type %s" (showpp e) (showpp t)
 errOp e t t'
   | t == t'          = printf "Operands have non-numeric types %s in %s"
-                         (showFix t) (showFix e)
+                         (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
-                         (showFix t) (showFix t') (showFix e)
+                         (showpp t) (showpp t') (showpp e)
 errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showFix g) (length its) (length es) (showFix (EApp g es))
+                         (showpp g) (length its) (length es) (showpp (EApp g es))
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
-                         (showFix e1) (showFix t1) (showFix e2) (showFix t2)
+                         (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
-                         (showFix e) (showFix t') (showFix t)
-errUnbound x         = printf "Unbound Symbol %s" (showFix x)
+                         (showpp e) (showpp t') (showpp t)
+errUnbound x         = printf "Unbound Symbol %s" (showpp x)
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
-                        (showFix x)
-                        (foldr1 (\w s -> w ++ ", " ++ s) (showFix <$> xs))
-errNonFunction t     = printf "Sort %s is not a function" (showFix t)
-errNonNumeric  l     = printf "FObj sort %s is not numeric" (showFix l)
-errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showFix l) (showFix l')
-errNonFractional  l  = printf "FObj sort %s is not fractional" (showFix l)
-errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showFix p)
+                        (showpp x)
+                        (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
+errNonFunction t     = printf "Sort %s is not a function" (showpp t)
+errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
+errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
+errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
+errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showpp p)
