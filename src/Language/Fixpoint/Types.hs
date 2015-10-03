@@ -1493,8 +1493,8 @@ subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2
    where
      RR t1 r1          = sr1
      RR t2 r2          = sr2
-     sr1'              = RR t1 r1  -- FIXME $ shiftVV r1  vv'
-     sr2' r2'          = RR t2 r2' -- FIXME $ shiftVV r2' vv'
+     sr1'              = RR t1 $ shiftVV r1  vv'
+     sr2' r2'          = RR t2 $ shiftVV r2' vv'
      vv'               = mkVV i
 
 reftConjuncts :: Reft -> [Reft]
