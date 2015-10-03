@@ -17,12 +17,12 @@ cache:
   - $HOME/.stack
 
 env:
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Unit/
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Benchmarks/text
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Benchmarks/bytestring
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Benchmarks/esop
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Benchmarks/vect-algs
- - RESOLVER="nightly-2015-07-02" SMT=z3   TESTS=Benchmarks/icfp*
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Unit/
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/text
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/bytestring
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/esop
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/vect-algs
+ - RESOLVER="lts-2.22"           SMT=z3   TESTS=Benchmarks/icfp*
 
  - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Unit/
  - RESOLVER="nightly-2015-09-24" SMT=z3   TESTS=Benchmarks/text
