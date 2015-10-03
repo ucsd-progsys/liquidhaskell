@@ -10,6 +10,7 @@ addons:
     packages:
     - ocaml
     - camlidl
+    - libgmp-dev
 
 cache:
   apt: true
