@@ -35,8 +35,9 @@ env:
  # - TESTS=hscolour
 
 install:
- - scripts/travis install_stack
  - scripts/travis install_smt "$SMT"
+ - scripts/travis install_stack
+ - scripts/travis setup_ghc
  - scripts/travis install_dependencies
 
 script:

@@ -71,6 +71,14 @@ function pastebin {
 
 ## Setup Stages
 
+function install_smt {
+  local smt="$1"
+
+  mkdir -p "${HOME}/.local/bin"
+  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "${HOME}/.local/bin/$smt"
+  loud chmod a+x "${HOME}/.local/bin/$smt"
+}
+
 function install_stack {
   mkdir -p "${HOME}/.local/bin"
   mkdir -p '/tmp/stack'
@@ -89,12 +97,8 @@ function install_stack {
   popd
 }
 
-function install_smt {
-  local smt="$1"
-
-  mkdir -p "${HOME}/.local/bin"
-  loud curl "http://goto.ucsd.edu/~gridaphobe/$smt" -o "${HOME}/.local/bin/$smt"
-  loud chmod a+x "${HOME}/.local/bin/$smt"
+function setup_ghc {
+  stack setup
 }
 
 function install_dependencies {
