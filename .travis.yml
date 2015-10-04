@@ -37,3 +37,7 @@ script:
 
 after_failure:
  - scripts/travis dump_fail_logs
+
+notifications:
+  slack:
+    secure: S5vyUw2Dz74B9RIKDL0tnSKwWYtpXKFxxxFnSN4IcVFpvXa+iXNjbsdgtHZj74GwloIRkLWPBGWyfMiIo/zjDTKTCpSuEmBCbXE7gCoizSpqqu4dB7Z0UVYvz9f8J7PEaVURu9CVB5dasq4EWFPzYsylhvydvCtrUkLnolGFfAc=
