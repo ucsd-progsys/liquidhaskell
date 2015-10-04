@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts  #-}
 
 module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 
