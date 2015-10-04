@@ -1,26 +1,21 @@
 language: haskell
-ghc: 7.8 # Only used for Cabal
-
+ghc: 7.8
 branches:
   only:
-    - master
-    - multiparams
-
+  - master
+  - multiparams
 sudo: false
-
 addons:
   apt:
     packages:
     - ocaml
     - camlidl
     - libgmp-dev
-
 cache:
   apt: true
   directories:
-  - $HOME/.stack
-  - .stack-work
-
+  - "$HOME/.stack"
+  - ".stack-work"
 env:
   global:
   - STACK=0.1.5.0
@@ -32,27 +27,22 @@ env:
   - GHC=ghc-7.8.4   TESTS=Benchmarks/esop
   - GHC=ghc-7.8.4   TESTS=Benchmarks/vect-algs
   - GHC=ghc-7.8.4   TESTS=Benchmarks/icfp*
-
   - GHC=ghc-7.10.2  TESTS=Unit/
   - GHC=ghc-7.10.2  TESTS=Benchmarks/text
   - GHC=ghc-7.10.2  TESTS=Benchmarks/bytestring
   - GHC=ghc-7.10.2  TESTS=Benchmarks/esop
   - GHC=ghc-7.10.2  TESTS=Benchmarks/vect-algs
   - GHC=ghc-7.10.2  TESTS=Benchmarks/icfp*
-
- # ugh... Classify.hs is too slow and makes travis think the build is stalled
- # - TESTS=hscolour
-
 install:
- - scripts/travis install_smt "$SMT"
- - scripts/travis install_stack "$STACK"
- - scripts/travis configure_stack "$GHC"
- - scripts/travis setup_ghc
- - scripts/travis install_dependencies
-
+- scripts/travis install_smt "$SMT"
+- scripts/travis install_stack "$STACK"
+- scripts/travis configure_stack "$GHC"
+- scripts/travis setup_ghc
+- scripts/travis install_dependencies
 script:
- - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT"
-
+- scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT"
 after_failure:
- - scripts/travis dump_fail_logs
-
+- scripts/travis dump_fail_logs
+notifications:
+  slack:
+    secure: afKBO2aaKltsvhRymrPqg6O7OC60f/sSxlmStwzXSqRpoN9NfJ3GOwvHNH+1OEuYuD+0LKFzIoP14kV7ur3GpWyBy6RQEJrWyZYd/wUzEChGUsQfUZyE/aQ9Zvw5Sd6Tr3OQXbHSmgJ1hEjVAH8406+AXV0USG9Exzk757B8Fzo=
