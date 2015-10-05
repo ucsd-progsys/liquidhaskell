@@ -28,6 +28,7 @@ import           Data.Monoid (mconcat, mempty)
 #endif
 
 
+import           Data.Binary
 import qualified Data.HashMap.Strict                as M
 import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
@@ -58,6 +59,7 @@ import           Control.DeepSeq
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg
+  | binary cfg    = saveBinary cfg
   | native cfg    = solveWith cfg (solve    cfg)
   | multicore cfg = solveWith cfg (solvePar cfg)
   | otherwise     = solveFile cfg
@@ -77,16 +79,55 @@ solve cfg fi
   | otherwise     = solveExt cfg $!! fi
 
 ---------------------------------------------------------------------------
+-- | Save Query to Binary File
+---------------------------------------------------------------------------
+saveBinary :: Config -> IO ExitCode
+saveBinary cfg
+  | isBinary f = return ExitSuccess
+  | otherwise  = exit (ExitFailure 2) $ saveBinaryFile f f'
+  where
+    f          = inFile cfg
+    f'         = withExt f BinFq
+
+saveBinaryFile :: FilePath -> FilePath -> IO ExitCode
+saveBinaryFile file bfile = do
+  fi <- readFInfo file
+  encodeFile bfile fi
+  return ExitSuccess
+
+isBinary :: FilePath -> Bool
+isBinary = isExtFile BinFq
+
+---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
 solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
-  let file  = inFile cfg
-  str      <- readFile file
-  let fi    = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  let fi'   = fi { fileName = file }
-  res      <- s fi'
-  return    $ resultExit (resStatus res)
+  -- let file  = inFile cfg
+  -- str      <- readFile file
+  -- let fi    = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
+  -- let fi'   = fi { fileName = file }
+  fi    <- readFInfo (inFile cfg)
+  res   <- s fi
+  return $ resultExit (resStatus res)
+
+readFInfo :: FilePath -> IO (FInfo ())
+readFInfo f        = fixFileName <$> act
+  where
+    fixFileName fi = fi {fileName = f}
+    act
+      | isBinary f = readBinFq f
+      | otherwise  = readFq f
+
+readFq :: FilePath -> IO (FInfo ())
+readFq file = do
+  str   <- readFile file
+  let fi = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
+  return fi
+
+readBinFq :: FilePath -> IO (FInfo ())
+readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
+
 
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
 -- DEBUG debugDiff fi fi' = putStrLn msg

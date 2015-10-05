@@ -1,5 +1,6 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
 --   1. Each binder must be associated with a UNIQUE sort
+{-# LANGUAGE TupleSections #-}
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate and Transform FInfo to enforce invariants
@@ -56,8 +57,9 @@ defuncSort t            = t
 compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
 compact xts
   | null bad  = Right [(x, t) | (x, [t]) <- ok ]
-  | otherwise = Left $ dupBindErrors bad
+  | otherwise = Left $ dupBindErrors bad'
   where
+    bad'      = [(x, (, []) <$> ts) | (x, ts) <- bad]
     (bad, ok) = L.partition multiSorted . binds $ xts
     binds     = M.toList . M.map Misc.sortNub . Misc.group
 
@@ -66,7 +68,7 @@ bindSorts  :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 ---------------------------------------------------------------------------
 bindSorts fi
   | null bad   = Right [ (x, t) | (x, [(t, _)]) <- ok ]
-  | otherwise  = Left $ dupBindErrors [ (x, map fst ts) | (x, ts) <- bad]
+  | otherwise  = Left $ dupBindErrors [ (x, ts) | (x, ts) <- bad]
   where
     (bad, ok)  = L.partition multiSorted . binds $ fi
     binds      = symBinds . F.bs
@@ -75,7 +77,7 @@ bindSorts fi
 multiSorted :: (x, [t]) -> Bool
 multiSorted = (1 <) . length . snd
 
-dupBindErrors :: [(F.Symbol, [F.Sort])] -> E.Error
+dupBindErrors :: [(F.Symbol, [(F.Sort, [F.BindId] )])] -> E.Error
 dupBindErrors = foldr1 E.catError . map dbe
   where
    dbe (x, y) = E.err E.dummySpan $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
