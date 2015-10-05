@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
@@ -6,25 +7,26 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor          (mapKVars')
 import           Language.Fixpoint.Names            (renameSymbol)
 import           Language.Fixpoint.Solver.Eliminate (findWfC)
-import           Language.Fixpoint.Misc             (fst3)
+import           Language.Fixpoint.Misc             (fst3, mlookup)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
-import           Data.List                          ((\\), sort, foldl')
-import           Data.Maybe                         (catMaybes)
+import qualified Data.List                          as L
+import           Data.Foldable                      (foldl')
+import           Data.Maybe                         (catMaybes, fromJust, isJust)
 import           Data.Hashable                      (Hashable)
 import           GHC.Generics                       (Generic)
 import           Control.Arrow                      (second)
+import           Control.Applicative                ((<$>))
 import           Control.DeepSeq                    (NFData, ($!!))
 
 --------------------------------------------------------------
 renameAll    :: SInfo a -> SInfo a
-renameAll fi = fi'
+renameAll fi = fi''
   where
-    fi'      = {-# SCC "renameVars" #-} renameVars fi $!! eids
-    ids      = {-# SCC "ids"        #-} map fst3 $!! bindEnvToList $!! bs fi
-    eids     = {-# SCC "toListExt"  #-} toListExtended ids $!! idm'
-    idm'     = {-# SCC "invertMap"  #-} invertMap $!! idm
-    idm      = {-# SCC "mkIdMap"    #-} mkIdMap fi
+    fi''     = {-# SCC "renameBinds" #-} renameBinds fi' $!! rnm
+    fi'      = {-# SCC "renameVars"  #-} renameVars fi rnm $!! idm
+    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi
+    idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
@@ -35,87 +37,133 @@ instance Hashable Ref
 -- stores for each constraint and BindId the set of other BindIds that it
 -- references, i.e. those where it needs to know when their names gets changed
 type IdMap = M.HashMap Ref (S.HashSet BindId)
-type NameMap = M.HashMap Symbol BindId
 
-invertMap   :: (Hashable k, Hashable v, Eq k, Eq v)
-            => M.HashMap k (S.HashSet v) -> M.HashMap v (S.HashSet k)
-invertMap m = M.fromListWith S.union entries
-  where
-    entries = [(v, S.singleton k) | (k, vs) <- M.toList m, v <- S.toList vs]
+-- map from old name and sort to new name, represented by a hashmap containing
+-- association lists. Nothing as new name means same as old
+type RenameMap = M.HashMap Symbol [(Sort, Maybe Symbol)]
 
-toListExtended :: [BindId] -> M.HashMap BindId (S.HashSet Ref) -> [(BindId, S.HashSet Ref)]
-toListExtended ids m = [(id, M.lookupDefault S.empty id m) | id <- ids]
-
+--------------------------------------------------------------
 mkIdMap :: SInfo a -> IdMap
+--------------------------------------------------------------
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
 updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
-    ids = sort $ elemsIBindEnv $ senv s
+    ids = elemsIBindEnv $ senv s
     nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
-    m' = foldl (insertIdIdLinks be nameMap) m ids
+    m' = foldl' (insertIdIdLinks be nameMap) m ids
 
     symList = syms $ crhs s
     refSet = S.fromList $ namesToIds symList nameMap
 
-insertIdIdLinks :: BindEnv -> NameMap -> IdMap -> BindId -> IdMap
+insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m id = M.insertWith S.union (RB id) refSet m
   where
     sr = snd $ lookupBindEnv id be
     symList = freeVars $ sr_reft sr
     refSet = S.fromList $ namesToIds symList nameMap
 
-namesToIds :: [Symbol] -> NameMap -> [BindId]
+namesToIds :: [Symbol] -> M.HashMap Symbol BindId -> [BindId]
 namesToIds syms m = catMaybes [M.lookup sym m | sym <- syms] --TODO why any Nothings?
 
 freeVars :: Reft -> [Symbol]
-freeVars reft@(Reft (v, _)) = syms reft \\ [v]
+freeVars reft@(Reft (v, _)) = L.delete v $ syms reft
+--------------------------------------------------------------
 
-
-type RnInfo a = (M.HashMap Symbol Sort, SInfo a)
-
-renameVars :: SInfo a -> [(BindId, S.HashSet Ref)] -> SInfo a
-renameVars fi xs = fi'
+--------------------------------------------------------------
+mkRenameMap :: BindEnv -> RenameMap
+--------------------------------------------------------------
+mkRenameMap be = foldl' (addId be) M.empty ids
   where
-    (_, fi')     = foldl' renameVarIfSeen (M.empty, fi) xs
+    ids = fst3 <$> bindEnvToList be
 
-renameVarIfSeen :: RnInfo a -> (BindId, S.HashSet Ref) -> RnInfo a
-renameVarIfSeen (m, fi) x@(i, _)
-  | M.member sym m = handleSeenVar fi x sym t m
-  | otherwise      = (M.insert sym t m, fi)
+addId :: BindEnv -> RenameMap -> BindId -> RenameMap
+addId be m i
+  | M.member sym m = addDupId m sym t i
+  | otherwise      = M.insert sym [(t, Nothing)] m
   where
-    (sym, t)       = second sr_sort $ lookupBindEnv i (bs fi)
+    (sym, t)       = second sr_sort $ lookupBindEnv i be
 
-handleSeenVar :: SInfo a -> (BindId, S.HashSet Ref) -> Symbol -> Sort -> M.HashMap Symbol Sort -> RnInfo a
-handleSeenVar fi x sym t m
-  | same      = (m, fi)
-  | otherwise = (m, renameVar fi x) --TODO: do we need to send future collisions to the same new name?
+addDupId :: RenameMap -> Symbol -> Sort -> BindId -> RenameMap
+addDupId m sym t i
+  | isJust $ L.lookup t mapping = m
+  | otherwise                   = M.insert sym ((t, Just $ renameSymbol sym i) : mapping) m
   where
-    same      = M.lookup sym m == Just t
+    mapping = fromJust $ M.lookup sym m
+--------------------------------------------------------------
 
--- | THIS IS TERRIBLE! Quadratic in the size of the environment!
-renameVar :: SInfo a -> (BindId, S.HashSet Ref) -> SInfo a
-renameVar fi (i, refs) = mapKVars' (updateKVars fi i sym sym') fi''
+--------------------------------------------------------------
+renameVars :: SInfo a -> RenameMap -> IdMap -> SInfo a
+--------------------------------------------------------------
+renameVars fi rnMap idMap = M.foldlWithKey' (updateRef rnMap) fi idMap
+
+updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
+updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
-    sym  = fst $ lookupBindEnv i (bs fi)
-    sym' = renameSymbol sym i
-    sub  = (sym, eVar sym')
-    fi'  = fi { bs = adjustBindEnv (`subst1` sub) i (bs fi) }
-    fi'' = S.foldl' (applySub sub) fi' refs
+    symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
+    subs = catMaybes $ (mkSubUsing rnMap) <$> symTList
 
-applySub :: (Symbol, Expr) -> SInfo a -> Ref -> SInfo a
+mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
+mkSubUsing m (sym, t) = do
+  newName <- fromJust $ L.lookup t $ mlookup m sym
+  return (sym, eVar newName)
+
+applySub :: Subst -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
-    go (sym, sr)        = (sym, subst1 sr sub)
+    go (sym, sr)        = (sym, dsubst sub sr)
 
 applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
-    go c                = c { crhs = subst1 (crhs c) sub }
+    go c                = c { crhs = dsubst sub (crhs c) }
+--------------------------------------------------------------
 
-updateKVars :: SInfo a -> BindId -> Symbol -> Symbol -> (KVar, Subst) -> Maybe Pred
-updateKVars fi i oldSym newSym (k, Su su) =
-  if relevant then Just $ PKVar k $ mkSubst [(newSym, eVar oldSym)] else Nothing
+--------------------------------------------------------------
+renameBinds :: SInfo a -> RenameMap -> SInfo a
+--------------------------------------------------------------
+renameBinds fi m = fi { bs = bindEnvFromList $ (renameBind m) <$> beList }
   where
-    wfc = fst $ findWfC k (ws fi)
-    relevant = (i `elem` elemsIBindEnv (wenv wfc)) && (oldSym `elem` M.keys su)
+    beList = bindEnvToList $ bs fi
+
+renameBind :: RenameMap -> (BindId, Symbol, SortedReft) -> (BindId, Symbol, SortedReft)
+renameBind m (i, sym, sr)
+  | (Just newSym) <- mnewSym = (i, newSym, sr)
+  | otherwise                = (i, sym,    sr)
+  where
+    t       = sr_sort sr
+    mnewSym = fromJust $ L.lookup t $ mlookup m sym
+--------------------------------------------------------------
+
+
+-- This class mirrors Subable exactly except when applying a Subst to a KVar.
+-- In that case, it applies the Subst to both left and right hand sides of the
+-- old subst rather than (telescopically) concatenating them, e.g.
+-- dsubst [x:=y] k[x:=z] = k[y:=z]
+-- subst  [x:=y] k[x:=z] = k[x:=z][x:=y] = k[x:=z]
+class DSubable a where
+  dsubst  :: Subst -> a -> a
+
+instance DSubable Pred where
+  dsubst su (PAnd ps)       = PAnd $ map (dsubst su) ps
+  dsubst su (POr  ps)       = POr  $ map (dsubst su) ps
+  dsubst su (PNot p)        = PNot $ dsubst su p
+  dsubst su (PImp p1 p2)    = PImp (dsubst su p1) (dsubst su p2)
+  dsubst su (PIff p1 p2)    = PIff (dsubst su p1) (dsubst su p2)
+  dsubst su (PBexp e)       = PBexp $ subst su e
+  dsubst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
+  dsubst su (PKVar k su')   = PKVar k $ dsubst su su'
+  dsubst _  (PAll _ _)      = error "dsubst: FORALL"
+  dsubst _  p               = p
+
+instance DSubable Refa where
+  dsubst su (Refa p)       = Refa $ dsubst su p
+
+instance DSubable Reft where
+  dsubst su (Reft (v, ras))  = Reft (v, dsubst (substExcept su [v]) ras)
+
+instance DSubable SortedReft where
+  dsubst su (RR so r) = RR so $ dsubst su r
+
+instance DSubable Subst where
+  dsubst su (Su m) = Su $ M.fromList $ subst su $ M.toList m
