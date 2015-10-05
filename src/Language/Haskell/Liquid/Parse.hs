@@ -490,6 +490,7 @@ data Pspec ty ctor
   | LVars   LocSymbol
   | Lazy    LocSymbol
   | HMeas   LocSymbol
+  | Axiom   LocSymbol
   | Inline  LocSymbol
   | ASize   LocSymbol
   | HBound  LocSymbol
@@ -521,6 +522,7 @@ instance Show (Pspec a b) where
   show (Decr   _) = "Decr"
   show (LVars  _) = "LVars"
   show (Lazy   _) = "Lazy"
+  show (Axiom  _) = "Axiom"
   show (HMeas  _) = "HMeas"
   show (HBound _) = "HBound"
   show (Inline _) = "Inline"
@@ -555,6 +557,7 @@ mkSpec name xs         = (name,)
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.axioms     = S.fromList [s | Axiom  s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
@@ -575,6 +578,7 @@ specP
     <|> (reservedToken "assert"    >> liftM Asrt   tyBindP   )
     <|> (reservedToken "autosize"  >> liftM ASize  asizeP    )
     <|> (reservedToken "Local"     >> liftM LAsrt  tyBindP   )
+    <|> (reservedToken "axiomatize" >> liftM Axiom  axiomP )
     <|> try (reservedToken "measure"  >> liftM Meas   measureP  )
     <|> (reservedToken "measure"   >> liftM HMeas  hmeasureP )
     <|> (reservedToken "inline"   >> liftM Inline  inlineP )
@@ -614,6 +618,9 @@ lazyVarP = locParserP binderP
 
 hmeasureP :: Parser LocSymbol
 hmeasureP = locParserP binderP
+
+axiomP :: Parser LocSymbol
+axiomP = locParserP binderP
 
 hboundP :: Parser LocSymbol
 hboundP = locParserP binderP

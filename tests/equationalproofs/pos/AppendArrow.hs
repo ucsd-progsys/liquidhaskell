@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes         #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 -- |   A first example in equalional reasoning.
 -- |  From the definition of append we should be able to
 -- |  semi-automatically prove the two axioms.
@@ -28,6 +30,10 @@ llen N = 0
 llen (C x xs) = 1 + llen xs
 
 
+{-@ axiomatize append @-}
+-- | TODO: what happens in append has user provided specification?
+-- | Now it will just be ignored
+
 append :: L a -> L a -> L a
 append N xs        = xs
 append (C y ys) xs = C y (append ys xs)
@@ -39,8 +45,8 @@ append (C y ys) xs = C y (append ys xs)
 -- |  axiomatize append
 -- |
 
-{-@ measure append :: Arrow (L a) (Arrow (L a) (L a)) @-}
-{-@ assume append :: xs:L a -> ys:L a -> {v:L a | v == runFun (runFun append xs) ys } @-}
+{- DONE AUTOMATICALLY! measure append :: Arrow (L a) (Arrow (L a) (L a)) @-}
+{- DONE AUTOMATICALLY! assume append :: xs:L a -> ys:L a -> {v:L a | v == runFun (runFun append xs) ys } @-}
 
 {-@ assume axiom_append_nil :: xs:L a -> {v:Proof | (runFun (runFun append N) xs) == xs} @-}
 axiom_append_nil :: L a -> Proof
@@ -53,12 +59,6 @@ axiom_append_cons x xs ys = Proof
 
 
 -- | Proof 1: N is neutral element
-
-{-@ prop_foo :: xs:L a -> {v: L a | v == runFun (runFun append xs) N } @-}
-prop_foo     :: L a -> L a -- (Arrow (L a) (L a))
-prop_foo     =  undefined
-
-
 
 {-@ prop_nil :: xs:L a -> {v:Proof | (runFun (runFun append xs) N == xs) } @-}
 prop_nil     :: Eq a => L a -> Proof
@@ -73,6 +73,24 @@ prop_nil (C x xs) = toProof e1 $ ((
    	e2  = C x (append xs N)
    	pr2 = prop_nil xs
    	e3  = C x xs
+
+{-
+-- use_axiom :: a -> b -> ArgList -> Proof
+use_axiom = undefined
+
+combine x y = y
+data ArgList a b c
+  = NoArgs
+  | ThreeArgs {a1::a, a2::b, a3::c }
+
+-- | axiomatixation of append will not be a haskell function anymore,
+-- | thus the user cannot directly access it.
+-- | use a function called `use_axiom` to apply these axioms.
+
+prop_nil_future N        = use_axiom append N NoArgs
+prop_nil_future (C x xs) = use_axiom append C (ThreeArgs x xs N) `combine` prop_nil_future xs
+
+-}
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | runFun (runFun append ys) N == ys} @-}
 prop_app_nil N =  axiom_append_nil N

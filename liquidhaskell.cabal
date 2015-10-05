@@ -194,6 +194,7 @@ Library
                     Language.Haskell.Liquid.Bare.Existential
                     Language.Haskell.Liquid.Bare.GhcSpec
                     Language.Haskell.Liquid.Bare.Lookup
+                    Language.Haskell.Liquid.Bare.Axiom
                     Language.Haskell.Liquid.Bare.Measure
                     Language.Haskell.Liquid.Bare.Misc
                     Language.Haskell.Liquid.Bare.OfType
