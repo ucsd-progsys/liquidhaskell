@@ -872,6 +872,60 @@ that is, somewhere in the file (perhaps at the top) put in:
 
 to have the relevant option be used for that file.
 
+Generating Performance Reports
+------------------------------
+
+We have set up infrastructure to generate performance reports using [Gipeda](https://github.com/nomeata/gipeda).
+
+Gipeda will generate a static webpage that tracks the peformance improvements
+and regressions between commits. To generate the site, first ensure you have the
+following dependencies available:
+
+* Git
+* Cabal >= 1.18
+* GHC
+* Make
+* Bash (installed at `/bin/bash`)
+
+After ensuring all dependencies are available, from the Liquid Haskell
+directory, execute:
+
+```
+cd scripts/performance
+./deploy-gipeda.bash
+```
+
+This will download and install all the relevant repositories and files. Next, to
+generate the performance report, use the `generate-site.bash` script. This script
+has a few options:
+
+* `-s [hash]`: Do not attempt to generate performance reports for any commit
+older than the commit specified by the entered git hash
+* `-e [hash]`: Do not attempt to generate performance reports for any commit
+newer than the commit specified by the entered git hash
+* `-f`: The default behavior of `generate-site.bash` is to first check if logs
+have been created for a given hash. If logs already exist, `generate-site.bash`
+will not recreate them. Specify this option to skip this check and regenerate
+all logs.
+
+You should expect this process to take a very long time. `generate-site.bash`
+will compile each commit, then run the entire test suite and benchmark suite
+for each commit. It is suggested to provide a managable range to `generate-site.bash`:
+
+```
+./generate-site.bash -s [starting hash] -e [ending hash]
+```
+
+...will generate reports for all commits between (inclusive) [starting hash]
+and [ending hash].
+
+```
+./generate-site.bash -s [starting hash]
+```
+
+... will generate reports for all commits newer than [starting hash]. This command
+can be the basis for some automated report generation process (i.e. a cron job).
+
 Configuration Management
 ------------------------
 
