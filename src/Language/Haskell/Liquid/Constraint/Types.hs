@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
 import Language.Haskell.Liquid.RefType  (shiftVV)
-import Language.Haskell.Liquid.PredType (wiredSortedSyms)
+import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc

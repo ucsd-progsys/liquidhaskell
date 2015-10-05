@@ -50,6 +50,7 @@ import Language.Haskell.Liquid.Bare.DataType
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Measure
+import Language.Haskell.Liquid.Bare.Axiom
 import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
 import Language.Haskell.Liquid.Bare.Plugged
 import Language.Haskell.Liquid.Bare.RTEnv
@@ -132,6 +133,19 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec3 datacons tycons embs syms
          >>= makeGhcSpec4 defVars specs name su
          >>= makeSpecDictionaries embs vars specs
+         >>= makeGhcAxioms cbs name specs
+
+makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
+makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec 
+  where
+    spec = fromMaybe mempty $ lookup name bspecs  
+
+makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
+makeAxioms cbs spec sp 
+  = do lmap        <- logicEnv <$> get
+       (ms, tys) <- unzip <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)  
+       return     $ spec { meas    = ms         ++  meas   spec 
+                         , asmSigs = concat tys ++ asmSigs spec} 
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty
