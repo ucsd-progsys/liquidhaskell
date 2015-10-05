@@ -926,6 +926,15 @@ and [ending hash].
 ... will generate reports for all commits newer than [starting hash]. This command
 can be the basis for some automated report generation process (i.e. a cron job).
 
+Finally, to remove the Gipeda infrastructure from your computer, you may execute:
+
+```
+./cleanup-gipeda.bash
+```
+
+...which will remove any files created by `deploy-gipeda.bash` and `generate-site.bash`
+from your computer.
+
 Configuration Management
 ------------------------
 
