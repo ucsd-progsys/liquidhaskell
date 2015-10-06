@@ -183,10 +183,10 @@ encodeChar c
   | c `S.member` okSymChars
   = [c]
   | otherwise
-  = [symSepName] ++ (show $ ord c) ++ [symSepName]
+  = [symSepName] ++ show (ord c) ++ [symSepName]
 
 decodeStr s
-  = chr ((read s) :: Int)
+  = chr (read s :: Int)
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
 qualifySymbol m'@(symbolText -> m) x'@(symbolText -> x)

@@ -55,26 +55,23 @@ instance SMTLIB2 Symbol where
     | Just t <- Thy.smt2Symbol s = LT.fromStrict t
   smt2 s                         = LT.fromStrict . encode . symbolText $ s
 
--- FIXME: this is probably too slow
-
+-- FIXME: this is probably too slow.
+-- RJ: Yes it is!
 encode :: T.Text -> T.Text
-encode t = {-# SCC "encode" #-}
+encode t = {-# SCC "smt2-encode" #-}
   foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
                               ,("(", "ZL"), (")", "ZR"), (",", "ZT")
                               ,("|", "zb"), ("#", "zh"), ("\\","zr")
                               ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
-                              ,(" ", "_")
+                              ,(" ", "_") , ("'", "ZT")
                               ]
 
 instance SMTLIB2 SymConst where
-  -- smt2 (SL s) = LT.fromStrict s
-  smt2 = smt2 . symbol -- encodeSymConst
-
+  smt2 = smt2 . symbol
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
   smt2 (R d)   = format "{}" (Only d)
-  -- smt2 (L t _) = t
 
 instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val
