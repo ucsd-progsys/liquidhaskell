@@ -148,9 +148,6 @@ tSym x n t = (x, Thy x n t)
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
 
--- format' :: Format -> ps -> LT.Text
-format' f x = toStrict $ format f x
-
 smt2Symbol :: Symbol -> Maybe T.Text
 smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
 
