@@ -113,8 +113,6 @@ instance NFData Symbol where
 instance Hashable Symbol where
   hashWithSalt i (S s) = hashWithSalt i s
 
--- instance Binary InternedText
-
 instance Binary Symbol where
   get = S . intern <$> get
   put = put . symbolText
@@ -122,12 +120,12 @@ instance Binary Symbol where
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
 
+symbolText :: Symbol -> T.Text
+symbolText (S s) = unintern s
+
 ---------------------------------------------------------------------------
 ------ Converting Strings To Fixpoint -------------------------------------
 ---------------------------------------------------------------------------
-
--- stringSymbolRaw :: String -> Symbol
--- stringSymbolRaw = S
 
 encode :: String -> String
 encode s
@@ -136,10 +134,6 @@ encode s
   | otherwise   = encodeSym s
 
 encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
-
-symbolText :: Symbol -> T.Text
-symbolText (S s) = unintern s
-
 
 okSymChars = S.fromList $ ['a' .. 'z']
                        ++ ['A' .. 'Z']
@@ -177,7 +171,16 @@ isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymCh
 isFixSym' _        = False
 
 isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "lhs", "rhs"]
+keywords   = S.fromList [ "env"
+                        , "id"
+                        , "tag"
+                        , "qualif"
+                        , "constant"
+                        , "cut"
+                        , "bind"
+                        , "constraint"
+                        , "lhs"
+                        , "rhs"]
 
 encodeChar c
   | c `S.member` okSymChars
@@ -228,8 +231,10 @@ existPrefix         = "lq_ext_"
 renamePrefix         = "lq_rnm_"
 
 nonSymbol :: Symbol
-nonSymbol           = ""
-isNonSymbol         = (== nonSymbol)
+nonSymbol = ""
+
+isNonSymbol :: Symbol -> Bool
+isNonSymbol = (== nonSymbol)
 
 -- | Values that can be viewed as Symbols
 

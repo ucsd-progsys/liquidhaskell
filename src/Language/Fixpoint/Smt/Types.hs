@@ -82,4 +82,3 @@ data TheorySymbol  = Thy { tsSym  :: Symbol
 -- | Types that can be serialized
 class SMTLIB2 a where
   smt2 :: a -> LT.Text
-

@@ -68,6 +68,7 @@ import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
+import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
 import           System.FilePath
 import           System.IO                (IOMode (..), hClose, hFlush, openFile)
@@ -95,16 +96,16 @@ debugFile = "DEBUG.smt2"
 -- | SMT IO --------------------------------------------------------------
 --------------------------------------------------------------------------
 
+
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd      = {-# SCC "command" #-} say me cmd >> hear me cmd
+command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say me               = smtWrite me . smt2
-    hear me CheckSat     = smtRead me
-    hear me (GetValue _) = smtRead me
-    hear me _            = return Ok
-
+    say               = smtWrite me . smt2
+    hear CheckSat     = smtRead me
+    hear (GetValue _) = smtRead me
+    hear _            = return Ok
 
 
 smtWrite :: Context -> LT.Text -> IO ()
@@ -161,8 +162,9 @@ pairs !xs = case L.splitAt 2 xs of
 smtWriteRaw      :: Context -> LT.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
-  -- DO NOT DELETE: LTIO.appendFile debugFile s
-  -- DO NOT DELETE: LTIO.appendFile debugFile "\n"
+  when (verbose me) $ do
+    LTIO.appendFile debugFile s
+    LTIO.appendFile debugFile "\n"
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
@@ -178,26 +180,28 @@ hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
 makeContext   :: SMTSolver -> FilePath -> IO Context
 --------------------------------------------------------------------------
 makeContext s f
-  = do me  <- makeProcess s
-       pre <- smtPreamble s me
+  = do me   <- makeProcess s
+       pre  <- smtPreamble s me
        createDirectoryIfMissing True $ takeDirectory smtFile
-       hLog               <- openFile smtFile WriteMode
+       hLog <- openFile smtFile WriteMode
        let me' = me { cLog = Just hLog }
        mapM_ (smtWrite me') pre
        return me'
     where
        smtFile = extFileName Smt2 f
 
-
+makeContextNoLog :: SMTSolver -> IO Context
 makeContextNoLog s
   = do me  <- makeProcess s
        pre <- smtPreamble s me
        mapM_ (smtWrite me) pre
        return me
 
+makeProcess :: SMTSolver -> IO Context
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
-       return $ Ctx pid hIn hOut Nothing False
+       loud <- isLoud
+       return $ Ctx pid hIn hOut Nothing loud
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
