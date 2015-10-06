@@ -35,7 +35,7 @@ import PrelNames
 import TypeRep
 import Class            (Class, className)
 import Var
-import Kind 
+import Kind
 import Id
 import IdInfo
 import Name
@@ -101,7 +101,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: GhcInfo -> CG ()
 consAct info
-  = do γ     <- initEnv info
+  = do γ     <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
@@ -708,9 +708,8 @@ initCGI cfg info = CGInfo {
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
-  = sortNub      $ [ (val x, so) | (_, Just (F.ELit x so)) <- lconsts ]
-                ++ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]
-                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]
+  = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]    -- strings
+                ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
     lconsts      = literalConst tce <$> literals (cbs info)
     dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
@@ -1465,10 +1464,10 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ (App e (Type τ)) | isKind τ
-  = consE γ e 
+  = consE γ e
 
 
-consE γ e'@(App e (Type τ)) 
+consE γ e'@(App e (Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t

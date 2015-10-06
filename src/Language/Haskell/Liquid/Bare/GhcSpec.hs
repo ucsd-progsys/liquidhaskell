@@ -50,6 +50,7 @@ import Language.Haskell.Liquid.Bare.DataType
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Existential
 import Language.Haskell.Liquid.Bare.Measure
+import Language.Haskell.Liquid.Bare.Axiom
 import Language.Haskell.Liquid.Bare.Misc (makeSymbols, mkVarExpr)
 import Language.Haskell.Liquid.Bare.Plugged
 import Language.Haskell.Liquid.Bare.RTEnv
@@ -68,7 +69,7 @@ makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> H
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv
-       let renv = ghcSpecEnv sp cbs
+       let renv = ghcSpecEnv sp
        throwLeft $ checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
@@ -94,22 +95,22 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
-ghcSpecEnv :: GhcSpec -> [CoreBind] -> SEnv SortedReft
-ghcSpecEnv sp cbs    = fromListSEnv binds
+ghcSpecEnv :: GhcSpec -> SEnv SortedReft
+ghcSpecEnv sp        = fromListSEnv binds
   where
     emb              = tcEmbeds sp
     binds            =  [(x,        rSort t) | (x, Loc _ _ t) <- meas sp]
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- ctors sp]
                      ++ [(x,        vSort v) | (x, v) <- freeSyms sp, isConLikeId v]
-                     ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
+                     -- ++ [(val x   , rSort stringrSort) | Just (ELit x s) <- mkLit <$> lconsts, isString s]
     rSort            = rTypeSortedReft emb
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
     varRSort         = ofType . varType
-    lconsts          = literals cbs
-    stringrSort      :: RSort
-    stringrSort      = ofType stringTy
-    isString s       = rTypeSort emb stringrSort == s
+    --lconsts          = literals cbs
+    --stringrSort      :: RSort
+    --stringrSort      = ofType stringTy
+    --isString s       = rTypeSort emb stringrSort == s
 
 ------------------------------------------------------------------------------------------------
 makeGhcSpec' :: Config -> [CoreBind] -> [Var] -> [Var] -> NameSet -> [(ModName, Ms.BareSpec)] -> BareM GhcSpec
@@ -132,6 +133,19 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec3 datacons tycons embs syms
          >>= makeGhcSpec4 defVars specs name su
          >>= makeSpecDictionaries embs vars specs
+         >>= makeGhcAxioms cbs name specs
+
+makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
+makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec
+  where
+    spec = fromMaybe mempty $ lookup name bspecs
+
+makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
+makeAxioms cbs spec sp
+  = do lmap        <- logicEnv <$> get
+       (ms, tys) <- unzip <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)
+       return     $ spec { meas    = ms         ++  meas   spec
+                         , asmSigs = concat tys ++ asmSigs spec}
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty

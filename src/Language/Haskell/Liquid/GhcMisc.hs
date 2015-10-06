@@ -136,8 +136,12 @@ stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
         occ  = mkTyVarOcc s
 
+
 stringTyCon :: Char -> Int -> String -> TyCon
-stringTyCon c n s = TC.mkKindTyCon name superKind
+stringTyCon = stringTyConWithKind superKind
+
+stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
+stringTyConWithKind k c n s = TC.mkKindTyCon name k
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -417,6 +421,7 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
+symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
 symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar n = stringTyVar (symbolString n)
 

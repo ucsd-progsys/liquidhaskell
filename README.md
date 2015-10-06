@@ -11,7 +11,6 @@ LiquidHaskell requires (in addition to the cabal dependencies)
 How To Clone, Build and Install
 -------------------------------
 
-
 To begin building, run the following commands in the root
 directory of the distribution:
 
@@ -26,15 +25,15 @@ directory of the distribution:
    is installed in the **same** directory as LiquidHaskell itself
    (i.e. whereever cabal puts your binaries).
 
-2. Create top-level project directory and clone repositories:
+2. Clone the `liquidhaskell` repository *recursively*.
 
     ```
-    mkdir /path/to/liquid
-    cd /path/to/liquid
-    git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
-    git clone git@github.com:ucsd-progsys/liquidhaskell.git
+    git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     ```
+
+   This will clone the correct version of `liquid-fixpoint` as a submodule
+   within the `liquidhaskell` repository.
 
 3. (If using **stack**) To build and install
 
@@ -44,10 +43,9 @@ directory of the distribution:
 
    (If using **cabal**) then
 
-
     ```
     cabal sandbox init
-    cabal sandbox add-source ../liquid-fixpoint/
+    cabal sandbox add-source ./liquid-fixpoint
     cabal install
     ```
 
@@ -55,17 +53,12 @@ directory of the distribution:
 
     `make` or `cabal install` or `stack install`
 
-   inside
-
-    /path/to/liquid/liquidhaskell/
-
 How To Run
 ----------
 
 To verify a file called `foo.hs` at type
 
     $ liquid foo.hs
-
 
 How To Run Regression Tests
 ---------------------------
@@ -122,6 +115,62 @@ How to Get Stack Traces On Exceptions
 
     $ liquid +RTS -xc -RTS foo.hs
 
+Working With Submodules
+-----------------------
+
+ - To update the `liquid-fixpoint` submodule, run
+
+    ```
+    cd ./liquid-fixpoint
+    git fetch --all
+    git checkout <remote>/<branch>
+    cd ..
+    ```
+
+   This will update `liquid-fixpoint` to the latest version on `<branch>`
+   (usually `master`) from `<remote>` (usually `origin`).
+
+ - After updating `liquid-fixpoint`, make sure to include this change in a
+   commit! Running
+
+    ```
+    git add ./liquid-fixpoint
+    ```
+
+   will save the current commit hash of `liquid-fixpoint` in your next commit
+   to the `liquidhaskell` repository.
+
+ - For the best experience, **don't** make changes directly to the
+   `./liquid-fixpoint` submodule, or else git may get confused. Do any
+   `liquid-fixpoint` development inside a separate clone/copy elsewhere.
+
+ - If something goes wrong, run
+
+    ```
+    rm -r ./liquid-fixpoint
+    git submodule update --init
+    ```
+
+   to blow away your copy of the `liquid-fixpoint` submodule and revert to the
+   last saved commit hash.
+   
+ - Want to work fully offline? git lets you add a local directory as a remote.
+   Run
+
+    ```
+    cd ./liquid-fixpoint
+    git remote add local /path/to/your/fixpoint/clone
+    cd ..
+    ```
+
+   Then to update the submodule from your local clone, you can run
+
+    ```
+    cd ./liquid-fixpoint
+    git fetch local
+    git checkout local/<branch>
+    cd ..
+    ```
 
 Command Line Options
 ====================
