@@ -101,7 +101,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: GhcInfo -> CG ()
 consAct info
-  = do γ     <- initEnv info
+  = do γ     <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
