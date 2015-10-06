@@ -12,6 +12,7 @@
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and
 -- the code for syntax-directed constraint generation.
@@ -40,11 +41,14 @@ import Id
 import IdInfo
 import Name
 import NameSet
+import TypeRep
+import Unique 
+
 import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Control.Monad.State
 
-import Control.Applicative      ((<$>), (<*>))
+import Control.Applicative      ((<$>), (<*>), Applicative)
 
 import Data.Monoid              (mconcat, mempty, mappend)
 import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
@@ -62,6 +66,7 @@ import Text.Printf
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import Language.Fixpoint.Sort (pruneUnsortedReft)
 import Language.Fixpoint.Visitor
+import Language.Fixpoint.Names
 
 import Language.Haskell.Liquid.Fresh
 
@@ -77,13 +82,15 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr, isDataConId)
+                                                , hasBaseTypeVar, showPpr, isDataConId
+                                                , symbolFastString)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
 import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 
+import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
@@ -105,7 +112,8 @@ consAct info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
-       foldM_ (consCBTop trustBinding) γ (cbs info)
+       cbs'  <- mapM expandProofs $ cbs info 
+       foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
        hws   <- hsWfs <$> get
        scss  <- sCs   <$> get
@@ -670,9 +678,6 @@ rsplitC γ (RProp s1 r1) (RProp s2 r2)
 rsplitC _ _ _
   = errorstar "rsplit Rpoly - RPropP"
 
-
-type CG = State CGInfo
-
 initCGI cfg info = CGInfo {
     hsCs       = []
   , sCs        = []
@@ -700,6 +705,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
+  , haxioms    = axioms spc 
   }
   where
     tce        = tcEmbeds spc

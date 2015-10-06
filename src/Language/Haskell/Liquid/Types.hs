@@ -196,6 +196,8 @@ module Language.Haskell.Liquid.Types (
 
   -- * String Literals
   , liquidBegin, liquidEnd
+
+  , Axiom(..), HAxiom, LAxiom
   )
   where
 
@@ -240,7 +242,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
 import Language.Fixpoint.Names      (funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
-import CoreSyn (CoreBind)
+import CoreSyn (CoreBind, CoreExpr)
 
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Misc
@@ -373,6 +375,7 @@ data GhcSpec = SP {
   , measures   :: [Measure SpecType DataCon]
   , tyconEnv   :: M.HashMap TyCon RTyCon
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
+  , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
   }
 
 type LogicMap = M.HashMap Symbol LMap
@@ -856,6 +859,29 @@ instance Functor RInstance where
   fmap f (RI x t xts) = RI x (f t) (mapSnd f <$> xts)
 
 
+--------------------------------------------------------------------------
+-- | Values Related to Specifications ------------------------------------
+--------------------------------------------------------------------------
+
+data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon) 
+                         , abinds :: [b] 
+                         , atypes :: [s]
+                         , alhs   :: e 
+                         , arhs   :: e  
+                         }
+type HAxiom = Axiom Var Type CoreExpr
+type LAxiom = Axiom Symbol Sort Expr 
+
+
+instance Show (Axiom Var Type CoreExpr) where
+  show (Axiom (n, c) bs _ts lhs rhs) = "Axiom : " ++ 
+                                       "\nFun Name: " ++ (showPpr n) ++ 
+                                       "\nData Con: " ++ (showPpr c) ++ 
+                                       "\nArguments:" ++ (showPpr bs)  ++
+                                       -- "\nTypes    :" ++ (showPpr ts)  ++
+                                       "\nLHS      :" ++ (showPpr lhs) ++
+                                       "\nRHS      :" ++ (showPpr rhs)
+  
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
