@@ -35,7 +35,7 @@ import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
-import           Control.Monad                      (when)
+import           Control.Monad                      (when, void)
 
 import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
@@ -70,8 +70,11 @@ multicore cfg = cores cfg /= Just 1
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg fi
+solve, solve' :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve cfg fi      = do when (binary cfg) $ saveBinaryFile cfg fi
+                       solve' cfg fi
+
+solve' cfg fi
   | parts cfg     = partition cfg  $!! fi
   | stats cfg     = statistics cfg $!! fi
   | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg $!! fi
@@ -84,19 +87,25 @@ solve cfg fi
 saveBinary :: Config -> IO ExitCode
 saveBinary cfg
   | isBinary f = return ExitSuccess
-  | otherwise  = exit (ExitFailure 2) $ saveBinaryFile f f'
+  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
+                                        saveBinaryFile cfg >>
+                                        return ExitSuccess
   where
     f          = inFile cfg
-    f'         = withExt f BinFq
 
-saveBinaryFile :: FilePath -> FilePath -> IO ExitCode
-saveBinaryFile file bfile = do
-  fi <- readFInfo file
-  encodeFile bfile fi
-  return ExitSuccess
+saveBinaryFile      :: Config -> FInfo a -> IO ()
+saveBinaryFile cfg  = encodeFile f' . void -- fi
+  where
+    f'              = withExt (inFile cfg) BinFq
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
+
+-- saveBinaryFile :: FilePath -> FilePath -> IO ExitCode
+-- saveBinaryFile file bfile = do
+  -- fi <- readFInfo file
+  -- encodeFile bfile fi
+  -- return ExitSuccess
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver

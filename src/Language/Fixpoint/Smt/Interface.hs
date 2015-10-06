@@ -88,6 +88,9 @@ runCommands cmds
        return zs
 -}
 
+debugFile :: FilePath
+debugFile = "DEBUG.smt2"
+
 --------------------------------------------------------------------------
 -- | SMT IO --------------------------------------------------------------
 --------------------------------------------------------------------------
@@ -158,6 +161,8 @@ pairs !xs = case L.splitAt 2 xs of
 smtWriteRaw      :: Context -> LT.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
+  -- DO NOT DELETE: LTIO.appendFile debugFile s
+  -- DO NOT DELETE: LTIO.appendFile debugFile "\n"
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw

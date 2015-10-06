@@ -948,7 +948,7 @@ instance TaggedC SubC a where
   sinfo = _sinfo
 
 data WrappedC a where
-  WrapC :: (TaggedC c a, Show (c a)) => {_x :: (c a)} -> WrappedC a
+  WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
 
 instance Show (WrappedC a) where
   show (WrapC x) = show x
