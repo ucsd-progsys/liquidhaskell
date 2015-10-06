@@ -9,7 +9,8 @@ data L a = N | C a (L a)
 
 {-@ axiomatize append @-}
 $(axiomatize
-  [d| append xs N = xs
+  [d| append :: L a -> L a -> L a
+      append xs N = xs
       append xs (C y ys) = xs
     |])
 
