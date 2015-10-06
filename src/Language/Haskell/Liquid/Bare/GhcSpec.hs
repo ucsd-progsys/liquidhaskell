@@ -136,9 +136,9 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcAxioms cbs name specs
 
 makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
-makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec 
+makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec
   where
-    spec = fromMaybe mempty $ lookup name bspecs  
+    spec = fromMaybe mempty $ lookup name bspecs
 
 makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
 makeAxioms cbs spec sp 

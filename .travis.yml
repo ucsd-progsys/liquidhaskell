@@ -19,6 +19,7 @@ cache:
   apt: true
   directories:
   - $HOME/.stack
+  - .stack-work
 
 env:
   global:
@@ -55,3 +56,10 @@ script:
 after_failure:
  - scripts/travis dump_fail_logs
 
+notifications:
+  slack:
+    rooms:
+      secure: CPaI+XVTUSM9gLQefB8zSXazawNIaUnClS7FwaujPfM37hNBm5UIoiC80KBEe0KZKBr+Gt/LWq0zv506Zl/vILuPpVmfSi2BQ8zyyKCBbUrE/E0uBTjmT7wjaITf/mn3mqiLLcHbAVXI1bn7HzVvAq4S4eIpttgCapF7pbMhZCk=
+    on_success: change
+    on_failure: always
+    on_start: never
