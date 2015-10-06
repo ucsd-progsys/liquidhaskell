@@ -30,7 +30,7 @@ module Language.Fixpoint.Smt.Types (
 import           Language.Fixpoint.Types
 
 import qualified Data.Text                as T
-import qualified Data.Text.Lazy           as LT
+-- import qualified Data.Text.Lazy           as LT
 import           System.IO                (Handle)
 import           System.Process
 
@@ -81,4 +81,4 @@ data TheorySymbol  = Thy { tsSym  :: Symbol
 
 -- | Types that can be serialized
 class SMTLIB2 a where
-  smt2 :: a -> LT.Text
+  smt2 :: a -> T.Text

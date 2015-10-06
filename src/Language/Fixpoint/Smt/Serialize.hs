@@ -16,7 +16,7 @@ import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format
-import qualified Data.Text.Lazy                 as LT
+-- import qualified Data.Text.Lazy                 as LT
 import           Data.Maybe (fromMaybe)
 {-
     (* (L t1 t2 t3) is now encoded as
@@ -50,10 +50,11 @@ instance SMTLIB2 Sort where
     | Just d <- Thy.smt2Sort t = d
   smt2 _                       = "Int"
 
+
 instance SMTLIB2 Symbol where
   smt2 s
-    | Just t <- Thy.smt2Symbol s = LT.fromStrict t
-  smt2 s                         = LT.fromStrict . encode . symbolText $ s
+    | Just t <- Thy.smt2Symbol s = t
+  smt2 s                         = symbolSafeText  s
 
 -- FIXME: this is probably too slow.
 -- RJ: Yes it is!
@@ -104,7 +105,7 @@ instance SMTLIB2 Expr where
   smt2 (ECst e _)       = smt2 e
   smt2 e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
 
-smt2App :: LocSymbol -> [Expr] -> LT.Text
+smt2App :: LocSymbol -> [Expr] -> T.Text
 
 smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
   where
@@ -142,13 +143,13 @@ instance SMTLIB2 Command where
   smt2 (Push)              = "(push 1)"
   smt2 (Pop)               = "(pop 1)"
   smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = LT.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+  smt2 (GetValue xs)       = T.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
 
-smt2s    :: SMTLIB2 a => [a] -> LT.Text
+smt2s    :: SMTLIB2 a => [a] -> T.Text
 smt2s    = smt2many . fmap smt2
 
-smt2many :: [LT.Text] -> LT.Text
-smt2many = LT.intercalate " "
+smt2many :: [T.Text] -> T.Text
+smt2many = T.intercalate " "
 
 {-
 (declare-fun x () Int)
