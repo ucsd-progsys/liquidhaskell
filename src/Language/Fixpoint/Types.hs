@@ -38,14 +38,14 @@ module Language.Fixpoint.Types (
   , anfPrefix, tempPrefix, vv, vv_, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , symbolText, symbolString
+  , symbolSafeText, symbolSafeString
 
   -- * Creating Symbols
   , dummySymbol
   , intSymbol
   , tempSymbol
   , qualifySymbol
-  , suffixSymbol
+  -- , suffixSymbol
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
@@ -469,7 +469,7 @@ data Expr = ESym !SymConst
           | EBot
           deriving (Eq, Show, Data, Typeable, Generic)
 
-elit l s = ECon $ L (symbolText $ val l) s
+elit l s = ECon $ L (symbolSafeText $ val l) s
 
 instance Fixpoint Integer where
   toFix = integer
@@ -486,7 +486,7 @@ instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
 instance Fixpoint Symbol where
-  toFix = text . encode . T.unpack . symbolText
+  toFix = toFix . symbolSafeText
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <> toFix k
@@ -803,8 +803,9 @@ lookupSEnvWithDistance x (SE env)
      Nothing -> Alts $ symbol . T.pack <$> alts
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = T.unpack . symbolText <$> fst <$> M.toList env
-    x'         = T.unpack $ symbolText x
+    -- FIXME: symbolUnsafeText
+    ss         = T.unpack . symbolSafeText <$> fst <$> M.toList env
+    x'         = T.unpack $ symbolSafeText x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
 
@@ -1565,7 +1566,7 @@ instance Fixpoint Qualifier where
 instance Fixpoint () where
   toFix _ = text "()"
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolSafeString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -1756,16 +1757,13 @@ instance Symbolic SymConst where
   symbol = encodeSymConst
 
 encodeSymConst        :: SymConst -> Symbol
-encodeSymConst (SL s) = symbol $ litPrefix `mappend` s
+encodeSymConst (SL s) = litPrefix `mappend` symbol s
 
 sortSymConst          :: SymConst -> Sort
 sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
-
-litPrefix    :: Text
-litPrefix    = "lit" `T.snoc` symSepName
+decodeSymConst = fmap (SL . symbolSafeText) . stripPrefix litPrefix
 
 -- class SymConsts a where
   -- symConsts :: a -> [SymConst]
