@@ -88,6 +88,7 @@ runCommands cmds
        return zs
 -}
 
+debugFile :: FilePath
 debugFile = "DEBUG.smt2"
 
 --------------------------------------------------------------------------
