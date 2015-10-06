@@ -90,7 +90,7 @@ instance Transformable Expr where
   tx s m (EApp f es)    = txEApp (s, m) f (tx s m <$> es)
   tx _ _ (ESym c)       = ESym c
   tx _ _ (ECon c)       = ECon c
-  tx _ _ (ELit l s')    = ELit l s'
+  --tx _ _ (ELit l s')    = ELit l s'
   tx s m (ENeg e)       = ENeg (tx s m e)
   tx s m (EBin o e1 e2) = EBin o (tx s m e1) (tx s m e2)
   tx s m (EIte p e1 e2) = EIte (tx s m p) (tx s m e1) (tx s m e2)

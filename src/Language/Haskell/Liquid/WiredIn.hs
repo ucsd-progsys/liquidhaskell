@@ -3,9 +3,13 @@
 module Language.Haskell.Liquid.WiredIn
        ( propType
        , propTyCon
+       , arrowTyCon 
+       , arrowType
+       , runFunName, runFunSort
        , hpropTyCon
        , pdVarReft
        , wiredTyCons, wiredDataCons
+       , wiredSortedSyms
        ) where
 
 import Language.Haskell.Liquid.Types
@@ -13,6 +17,7 @@ import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.PredType
 
 import Language.Fixpoint.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
@@ -21,18 +26,41 @@ import BasicTypes
 import DataCon
 import TyCon
 import TysWiredIn
+import Kind 
 
 import Data.Monoid
 import Control.Applicative
+
+wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
+
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
-propTyCon, hpropTyCon :: TyCon
-propTyCon  = symbolTyCon 'w' 24 propConName
-hpropTyCon = symbolTyCon 'w' 24 hpropConName
+arrowConName, runFunName :: Symbol
+arrowConName = "Arrow"
+runFunName   = "runFun"
 
+arrowTyCon, propTyCon, hpropTyCon :: TyCon
+
+
+{- ATTENTION: Uniques should be different when defining TyCons 
+   otherwise the TyCons are equal and they will all resolve to
+   bool in fixpoint, as propTyCon is a bool
+ -}
+
+arrowTyCon = (symbolTyConWithKind k 'w' 24 arrowConName) 
+  where k = mkArrowKinds [superKind, superKind] superKind
+
+propTyCon  = symbolTyCon 'w' 25 propConName
+hpropTyCon = symbolTyCon 'w' 26 hpropConName
+
+
+arrowFTyCon = symbolFTycon $ dummyLoc arrowConName
+
+runFunSort :: Sort 
+runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------
@@ -40,6 +68,8 @@ hpropTyCon = symbolTyCon 'w' 24 hpropConName
 
 propType :: Reftable r => RRType r
 propType = RApp (RTyCon propTyCon [] defaultTyConInfo) [] [] mempty
+
+arrowType t1 t2 = RApp (RTyCon arrowTyCon [] defaultTyConInfo) [t1, t2] [] mempty
 
 --------------------------------------------------------------------
 ------ Predicate Types for WiredIns --------------------------------

@@ -31,6 +31,8 @@ _build
 *.swp
 *.swo
 
+/.stack-work/
+/.vagrant/
 TAGS
 a.out
 *.json

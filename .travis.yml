@@ -1,50 +1,65 @@
-language: c
+language: haskell
+ghc: 7.8 # Only used for Cabal
 
 branches:
   only:
     - master
     - multiparams
 
+sudo: false
+
+addons:
+  apt:
+    packages:
+    - ocaml
+    - camlidl
+    - libgmp-dev
+
 cache:
   apt: true
   directories:
-  - $HOME/.cabal
-  - $HOME/.ghc
+  - $HOME/.stack
+  - .stack-work
 
 env:
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Unit/
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/text
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/bytestring
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/esop
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/vect-algs
- - GHC="7.8.4"  CABAL="1.18" SMT=z3   TESTS=Benchmarks/icfp*
+  global:
+  - STACK=0.1.5.0
+  - SMT=z3
+  matrix:
+  - GHC=ghc-7.8.4   TESTS=Unit/
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/text
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/bytestring
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/esop
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/vect-algs
+  - GHC=ghc-7.8.4   TESTS=Benchmarks/icfp*
 
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Unit/
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Benchmarks/text
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Benchmarks/bytestring
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Benchmarks/esop
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Benchmarks/vect-algs
- - GHC="7.10.2" CABAL="1.22" SMT=z3   TESTS=Benchmarks/icfp*
+  - GHC=ghc-7.10.2  TESTS=Unit/
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/text
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/bytestring
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/esop
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/vect-algs
+  - GHC=ghc-7.10.2  TESTS=Benchmarks/icfp*
 
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
 
-before_install:
- - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
- - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-$CABAL ghc-$GHC ocaml camlidl
- - export PATH="$HOME/.cabal/bin:/opt/ghc/$GHC/bin:/opt/cabal/$CABAL/bin:$PATH"
- - scripts/travis clean_cache "$SMT"
- - scripts/travis clone_fixpoint
-
 install:
- - scripts/travis install_cabal_deps
  - scripts/travis install_smt "$SMT"
+ - scripts/travis install_stack "$STACK"
+ - scripts/travis configure_stack "$GHC"
+ - scripts/travis setup_ghc
+ - scripts/travis install_dependencies
 
 script:
- - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT" && scripts/travis test_source_pkg
- - scripts/travis clean_cache "$SMT"
+ - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT"
 
 after_failure:
  - scripts/travis dump_fail_logs
 
+notifications:
+  slack:
+    rooms:
+      secure: CPaI+XVTUSM9gLQefB8zSXazawNIaUnClS7FwaujPfM37hNBm5UIoiC80KBEe0KZKBr+Gt/LWq0zv506Zl/vILuPpVmfSi2BQ8zyyKCBbUrE/E0uBTjmT7wjaITf/mn3mqiLLcHbAVXI1bn7HzVvAq4S4eIpttgCapF7pbMhZCk=
+    on_success: change
+    on_failure: always
+    on_start: never

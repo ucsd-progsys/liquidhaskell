@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.PredType (
 
   , substParg
   , pApp
-  , wiredSortedSyms
+  , pappSort, pappArity
   ) where
 
 import Type
@@ -329,14 +329,14 @@ substParg (x, y) = fmap fp
 -------------------------------------------------------------------------------
 -----------------------------  Predicate Application --------------------------
 -------------------------------------------------------------------------------
-
+pappArity :: Int 
 pappArity  = 7
 
+pappSort :: Int -> Sort
 pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
   where
     ptycon = fAppTC predFTyCon $ FVar <$> [0..n-1]
     args   = FVar <$> [n..(2*n-1)]
 
-wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 predFTyCon = symbolFTycon $ dummyLoc predName
