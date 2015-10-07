@@ -16,6 +16,8 @@ import qualified Data.List           as L
 import Control.Applicative      ((<$>))
 import Data.Monoid              (mconcat)
 import Data.Maybe               (catMaybes)
+import Control.Monad.State
+
 
 import Var
 
@@ -29,6 +31,8 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
+
+type CG = State CGInfo
 
 data CGEnv
   = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
@@ -128,6 +132,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+                     , haxioms    :: [HAxiom]                     -- ^ Axioms 
                      }
 
 instance PPrint CGInfo where
