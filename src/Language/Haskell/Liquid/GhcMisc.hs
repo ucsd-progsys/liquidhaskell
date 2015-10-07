@@ -25,7 +25,7 @@ import           CoreSyn                      hiding (Expr, sourceName)
 import qualified CoreSyn as Core
 import           CostCentre
 import           GHC                          hiding (L)
-import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
+import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
 import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFileName_maybe)
@@ -34,16 +34,14 @@ import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Language.Fixpoint.Names      (dropModuleNames)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
+
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
 import           Panic                        (throwGhcException)
-import           HscTypes                     (HscEnv(..), FindResult(..))
 import           FastString
 import           TcRnDriver
 import           TcRnTypes
@@ -56,7 +54,6 @@ import           IdInfo
 import qualified TyCon                        as TC
 -- import qualified DataCon                      as DC
 import           Data.Char                    (isLower, isSpace)
-import           Data.Monoid                  (mempty)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
@@ -71,9 +68,10 @@ import           DynFlags
 
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 
-import Data.Monoid (mappend)
+import           Data.Monoid                  (mempty, mappend)
 
-import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
+import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
+import           Language.Fixpoint.Names      (symbolSafeText, symSepName, isSuffixOfSym, singletonSym)
 
 
 #if __GLASGOW_HASKELL__ < 710
@@ -341,7 +339,7 @@ collectArguments n e = if length xs > n then take n xs else xs
         vs        = fst $ collectValBinders $ ignoreLetBinds e'
         xs        = vs' ++ vs
 
-collectValBinders' expr = go [] expr
+collectValBinders' = go []
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
     go tvs (Lam b e) | isId    b = go (b:tvs) e
@@ -456,7 +454,7 @@ fastStringText = T.decodeUtf8 . fastStringToByteString
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
 tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
 tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
-tyConTyVarsDef c = TC.tyConTyVars c 
+tyConTyVarsDef c = TC.tyConTyVars c
 
 
 
@@ -478,18 +476,18 @@ synTyConRhs_maybe :: TyCon -> Maybe Type
 tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 
 desugarModule tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm 
+  let ms = pm_mod_summary $ tm_parsed_module tcm
   -- let ms = modSummary tcm
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
+  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 #if __GLASGOW_HASKELL__ < 710
 
 -- desugarModule tcm = do
---   let ms = pm_mod_summary $ tm_parsed_module tcm 
+--   let ms = pm_mod_summary $ tm_parsed_module tcm
 --   -- let ms = modSummary tcm
 --   let (tcg, _) = tm_internals_ tcm
 --   hsc_env <- getSession
@@ -497,7 +495,10 @@ desugarModule tcm = do
 --   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
 --   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
-symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
+symbolFastString = T.unsafeDupablePerformIO
+                 . mkFastStringByteString
+                 . T.encodeUtf8
+                 . symbolSafeText
 
 lintCoreBindings = CoreLint.lintCoreBindings
 
@@ -512,7 +513,7 @@ tcRnLookupRdrName env rn = TcRnDriver.tcRnLookupRdrName env (unLoc rn)
 
 -- desugarModule = GHC.desugarModule
 
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolSafeText
 
 type Prec = TyPrec
 
@@ -523,3 +524,40 @@ synTyConRhs_maybe = TC.synTyConRhs_maybe
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 #endif
+
+
+-- LiquidHaskell Specific: Move to GHCMisc
+sepModNames = "."
+sepUnique   = "#"
+
+dropModuleNames  = mungeNames safeLast sepModNames "dropModuleNames: "
+takeModuleNames  = mungeNames safeInit sepModNames "takeModuleNames: "
+dropModuleUnique = mungeNames safeHead sepUnique   "dropModuleUnique: "
+
+safeHead :: String -> [T.Text] -> Symbol
+safeHead msg []  = errorstar $ "safeHead with empty list" ++ msg
+safeHead _ (x:_) = symbol x
+
+safeInit :: String -> [T.Text] -> Symbol
+safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
+safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
+
+safeLast :: String -> [T.Text] -> Symbol
+safeLast _ xs@(_:_)      = symbol $ last xs
+safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
+
+mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
+mungeNames _ _ _ ""  = ""
+mungeNames f d msg s'@(symbolSafeText -> s)
+  | s' == tupConName = tupConName
+  | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
+
+qualifySymbol :: Symbol -> Symbol -> Symbol
+qualifySymbol m'@(symbolSafeText -> m) x'@(symbolSafeText -> x)
+  | isQualified x  = x'
+  | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
+  | otherwise      = symbol (m `mappend` "." `mappend` x)
+
+isQualified y = "." `T.isInfixOf` y
+wrapParens x  = "(" `mappend` x `mappend` ")"
+isParened xs  = xs /= stripParens xs
