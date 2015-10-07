@@ -24,8 +24,7 @@ axiomatize q = do d <- q
 axiomatizeOne :: [(Name, Type)] -> Dec -> Q [Dec]
 axiomatizeOne env f@(FunD name cs)
   = do axioms <- makeAxioms (lookup name env) name cs
-       let c = PragmaD $ LineP 0 "@ liquid @"
-       return $ c:f:axioms
+       return $ f:axioms
 axiomatizeOne _ (SigD _ _)
   = return []
 axiomatizeOne _ d
