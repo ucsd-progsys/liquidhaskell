@@ -469,13 +469,14 @@ mkQual :: Symbol -> [(Symbol, Sort)] -> Pred -> SourcePos -> Qualifier
 mkQual n xts p = Q n ((v, t) : yts) (subst su p)
   where
     (v, t):zts = gSorts xts
-    yts        = first mkParam <$> zts
+    -- yts        = first mkParam <$> zts
+    yts        = zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
 
-mkParam :: Symbol -> Symbol
-mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
-  where
-    Just (c,cs) = T.uncons $ symbolSafeText s
+-- mkParam :: Symbol -> Symbol
+-- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
+--  where
+--    Just (c,cs) = T.uncons $ symbolSafeText s
 
 gSorts :: [(a, Sort)] -> [(a, Sort)]
 gSorts xts     = [(x, substVars su t) | (x, t) <- xts]

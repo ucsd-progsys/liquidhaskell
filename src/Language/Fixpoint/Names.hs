@@ -23,7 +23,8 @@ module Language.Fixpoint.Names (
   -- * Conversion to/from Text
   , symbolSafeText
   , symbolSafeString
-  , unsafeTextSymbol -- TODO: deprecate!
+  , symbolUnsafeText
+  , symbolUnsafeString
 
   -- Predicates
   , isPrefixOfSym
@@ -33,6 +34,7 @@ module Language.Fixpoint.Names (
 
   -- * Destructors
   , stripParensSym
+  , stripParens
   , stripPrefix
   , consSym
   , unconsSym
@@ -45,10 +47,6 @@ module Language.Fixpoint.Names (
   -- * Transforms
   , nonSymbol
   , vvCon
-
-  -- , dropModuleNames
-  -- , dropModuleUnique
-  -- , takeModuleNames
 
   -- * Widely used prefixes
   , anfPrefix
@@ -63,7 +61,6 @@ module Language.Fixpoint.Names (
   , tempSymbol
   , existSymbol
   , renameSymbol
-  , qualifySymbol
 
   -- * Hardwired global names
   , dummyName
@@ -93,13 +90,16 @@ import           Control.Applicative ((<$>))
 import           Data.Monoid (Monoid (..))
 #endif
 
+import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Control.Monad               ((>=>))
-import           Data.Char                   (isAlpha, chr, ord)
+import           Data.IORef
+-- import           Data.Char                   (isAlpha, chr, ord)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
+import qualified Data.HashMap.Strict         as M
 import           Data.Interned               (intern, unintern)
 import           Data.Interned.Internal.Text
 import           Data.Maybe                  (fromMaybe)
@@ -115,7 +115,6 @@ import           Language.Fixpoint.Misc      (errorstar)
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
 ---------------------------------------------------------------
-
 
 deriving instance Data     InternedText
 deriving instance Typeable InternedText
@@ -141,13 +140,11 @@ instance IsString Symbol where
 
 instance Monoid Symbol where
   mempty        = ""
-  mappend s1 s2 = safeTextSymbol $ safeCat (symbolSafeText s1) (symbolSafeText s2)
+  mappend s1 s2 = toSymbol $ mappend s1' s2'
+    where
+      s1'       = symbolUnsafeText s1
+      s2'       = symbolUnsafeText s2
 
--- instance Eq Symbol where
-  -- s == s' = internal s == internal s'
---
--- instance Ord Symbol where
-  -- compare s s' = compare (internal s) (internal s')
 
 instance Hashable InternedText where
   hashWithSalt s (InternedText i _) = hashWithSalt s i
@@ -165,8 +162,8 @@ instance Hashable Symbol where
   hashWithSalt i (S x) = hashWithSalt i x
 
 instance Binary Symbol where
-  get = safeTextSymbol <$> get  -- FIXME: serializing ERASES original external-text
-  put = put . symbolSafeText
+  get = toSymbol <$> get
+  put = put . symbolUnsafeText
 
 symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
@@ -174,14 +171,16 @@ symbolSafeString = T.unpack . symbolSafeText
 symbolSafeText :: Symbol -> SafeText
 symbolSafeText (S s) = unintern s
 
+symbolUnsafeText :: Symbol -> T.Text
+symbolUnsafeText (S s) = fromMaybe (unintern s) (memoDecode i)
+  where
+    i                  = internedTextId s
+
+symbolUnsafeString :: Symbol -> String
+symbolUnsafeString = T.unpack . symbolUnsafeText
+
 safeTextSymbol :: SafeText -> Symbol
 safeTextSymbol = S . intern
-
-unsafeTextSymbol :: T.Text -> Symbol
-unsafeTextSymbol = safeTextSymbol -- FIXME: nasty ~A business for qualifier params. Sigh.
-
-safeCat :: SafeText -> SafeText -> SafeText
-safeCat = mappend
 
 ---------------------------------------------------------------------------
 ------ Converting Strings To Fixpoint -------------------------------------
@@ -190,15 +189,21 @@ safeCat = mappend
 
 -- INVARIANT: All strings *must* be built from here
 toSymbol :: T.Text -> Symbol
-toSymbol = S . intern . encode
+toSymbol = safeTextSymbol . encode
 
 encode :: T.Text -> SafeText
 encode t
   | isSafeText t   = t
-  | otherwise      = safeCat "enc$" (i2t i)
+  | otherwise      = safeCat encPrefix (i2t i)
   where
-  InternedText i _ = intern t
-  i2t              = T.pack . show
+    i              = memoEncode t
+    i2t            = T.pack . show
+
+encPrefix :: SafeText
+encPrefix = "enc$"
+
+safeCat :: SafeText -> SafeText -> SafeText
+safeCat = mappend
 
 isSafeText :: T.Text -> Bool
 isSafeText t = T.all (`S.member` okSymChars) t && not (isFixKey t)
@@ -226,34 +231,38 @@ symChars
   ++ ['0' .. '9']
   ++ ['_' ,  '.']
 
+okSymChars :: S.HashSet Char
 okSymChars = S.fromList symChars
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
-isPrefixOfSym (symbolSafeText -> p) (symbolSafeText -> x) = p `T.isPrefixOf` x
+isPrefixOfSym (symbolUnsafeText -> p) (symbolUnsafeText -> x) = p `T.isPrefixOf` x
 
 isSuffixOfSym :: Symbol -> Symbol -> Bool
-isSuffixOfSym (symbolSafeText -> p) (symbolSafeText -> x) = p `T.isSuffixOf` x
+isSuffixOfSym (symbolUnsafeText -> p) (symbolUnsafeText -> x) = p `T.isSuffixOf` x
 
 takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
-takeWhileSym p (symbolSafeText -> t) = symbol $ T.takeWhile p t
+takeWhileSym p (symbolUnsafeText -> t) = symbol $ T.takeWhile p t
 
 headSym :: Symbol -> Char
-headSym (symbolSafeText -> t) = T.head t
+headSym (symbolUnsafeText -> t) = T.head t
 
 consSym :: Char -> Symbol -> Symbol
-consSym c (symbolSafeText -> s) = symbol $ T.cons c s
+consSym c (symbolUnsafeText -> s) = symbol $ T.cons c s
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
-unconsSym (symbolSafeText -> s) = second symbol <$> T.uncons s
+unconsSym (symbolUnsafeText -> s) = second symbol <$> T.uncons s
 
 singletonSym :: Char -> Symbol -- Yuck
 singletonSym = (`consSym` "")
 
 lengthSym :: Symbol -> Int
-lengthSym (symbolSafeText -> t) = T.length t
+lengthSym (symbolUnsafeText -> t) = T.length t
 
 dropSym :: Int -> Symbol -> Symbol
-dropSym n (symbolSafeText -> t) = symbol $ T.drop n t
+dropSym n (symbolUnsafeText -> t) = symbol $ T.drop n t
+
+stripPrefix :: Symbol -> Symbol -> Maybe Symbol
+stripPrefix p x = symbol <$> T.stripPrefix (symbolUnsafeText p) (symbolUnsafeText x)
 
 stripParens :: T.Text -> T.Text
 stripParens t = fromMaybe t (strip t)
@@ -261,28 +270,13 @@ stripParens t = fromMaybe t (strip t)
     strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym :: Symbol -> Symbol
-stripParensSym (symbolSafeText -> t) = symbol $ stripParens t
-
-stripPrefix :: Symbol -> Symbol -> Maybe Symbol
-stripPrefix p x = safeTextSymbol <$> T.stripPrefix (symbolSafeText p) (symbolSafeText x)
-
-qualifySymbol :: Symbol -> Symbol -> Symbol
-qualifySymbol m'@(symbolSafeText -> m) x'@(symbolSafeText -> x)
-  | isQualified x  = x'
-  | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
-  | otherwise      = symbol (m `mappend` "." `mappend` x)
-
-isQualified y         = "." `T.isInfixOf` y
-wrapParens x          = "(" `mappend` x `mappend` ")"
-isParened xs          = xs /= stripParens xs
+stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
 
 ---------------------------------------------------------------------
 
 vv                  :: Maybe Integer -> Symbol
 vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i) --  S (vvName ++ [symSepName] ++ show i)
 vv Nothing          = vvName
-
--- vvCon               = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` "F" --  S (vvName ++ [symSepName] ++ "F")
 
 isNontrivialVV      = not . (vv Nothing ==)
 
@@ -387,3 +381,24 @@ prims = [ propConName
         , nilName
         , consName
         ]
+
+-------------------------------------------------------------------------------
+-- | Memoized Decoding
+-------------------------------------------------------------------------------
+
+{-# NOINLINE symbolMemo #-}
+symbolMemo :: IORef (M.HashMap Int T.Text)
+symbolMemo = unsafePerformIO (newIORef M.empty)
+
+{-# NOINLINE memoEncode #-}
+memoEncode :: T.Text -> Int
+memoEncode t = unsafePerformIO $
+                 atomicModifyIORef symbolMemo $ \m ->
+                    (M.insert i t m, i)
+  where
+    i        = internedTextId $ intern t
+
+{-# NOINLINE memoDecode #-}
+memoDecode :: Int -> Maybe T.Text
+memoDecode i = unsafePerformIO $
+                 M.lookup i <$> readIORef symbolMemo

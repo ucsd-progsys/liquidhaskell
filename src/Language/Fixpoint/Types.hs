@@ -44,15 +44,11 @@ module Language.Fixpoint.Types (
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , qualifySymbol
-  -- , suffixSymbol
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
-  -- , strFTyCon
-  -- , propFTyCon
 
   , intSort, realSort, propSort, boolSort, strSort, funcSort
   , listFTyCon
@@ -469,7 +465,8 @@ data Expr = ESym !SymConst
           | EBot
           deriving (Eq, Show, Data, Typeable, Generic)
 
-elit l s = ECon $ L (symbolSafeText $ val l) s
+elit :: Located Symbol -> Sort -> Expr
+elit l s = ECon $ L (symbolUnsafeText $ val l) s
 
 instance Fixpoint Integer where
   toFix = integer
@@ -803,9 +800,8 @@ lookupSEnvWithDistance x (SE env)
      Nothing -> Alts $ symbol . T.pack <$> alts
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    -- FIXME: symbolUnsafeText
-    ss         = T.unpack . symbolSafeText <$> fst <$> M.toList env
-    x'         = T.unpack $ symbolSafeText x
+    ss         = T.unpack . symbolUnsafeText <$> fst <$> M.toList env
+    x'         = T.unpack $ symbolUnsafeText x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
 
@@ -1566,7 +1562,7 @@ instance Fixpoint Qualifier where
 instance Fixpoint () where
   toFix _ = text "()"
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolSafeString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolUnsafeString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -1763,7 +1759,7 @@ sortSymConst          :: SymConst -> Sort
 sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolSafeText) . stripPrefix litPrefix
+decodeSymConst = fmap (SL . symbolUnsafeText) . stripPrefix litPrefix
 
 -- class SymConsts a where
   -- symConsts :: a -> [SymConst]
