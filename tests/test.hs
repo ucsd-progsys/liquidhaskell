@@ -83,8 +83,8 @@ unitTests
     , testGroup "crash"       <$> dirTests "tests/crash"                          []           (ExitFailure 2)
     , testGroup "parser/pos"  <$> dirTests "tests/parser/pos"                     []           ExitSuccess
     , testGroup "error/crash" <$> dirTests "tests/error_messages/crash"           []           (ExitFailure 2)
-    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["tests/equationalproofs/pos/Axiomatize.hs"]           ExitSuccess
-    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["tests/equationalproofs/pos/Axiomatize.hs"]           (ExitFailure 1)
+    , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs"]           ExitSuccess
+    , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs"]           (ExitFailure 1)
    ]
 
 benchTests

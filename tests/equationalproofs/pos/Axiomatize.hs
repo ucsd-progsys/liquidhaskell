@@ -1,9 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes     #-}
+
 module Axiomatize where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
+import Language.Haskell.TH.Syntax
 
 import Debug.Trace
 
@@ -22,7 +24,8 @@ axiomatize q = do d <- q
 axiomatizeOne :: [(Name, Type)] -> Dec -> Q [Dec]
 axiomatizeOne env f@(FunD name cs)
   = do axioms <- makeAxioms (lookup name env) name cs
-       return $ f:axioms
+       let c = PragmaD $ LineP 0 "@ liquid @"
+       return $ c:f:axioms
 axiomatizeOne _ (SigD _ _)
   = return []
 axiomatizeOne _ d
