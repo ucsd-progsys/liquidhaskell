@@ -93,8 +93,8 @@ import Language.Haskell.Liquid.Constraint.Types
 
 
 class Provable a where 
-	expandProofs :: a -> CG a 
-	expandProofs = return 
+  expandProofs :: a -> CG a 
+  expandProofs = return 
 
 instance Provable CoreBind where
 
