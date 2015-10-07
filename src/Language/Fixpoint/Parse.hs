@@ -88,7 +88,7 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      (sortNub)
 import           Language.Fixpoint.Smt.Types
 
-import           Language.Fixpoint.Names     (unsafeTextSymbol, headSym)
+import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
