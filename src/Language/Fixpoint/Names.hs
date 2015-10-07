@@ -19,20 +19,50 @@ module Language.Fixpoint.Names (
   -- * Symbols
     Symbol
   , Symbolic (..)
-  , anfPrefix, litPrefix, tempPrefix, vv, stripPrefix, isPrefixOfSym, isSuffixOfSym, stripParensSym
-  , consSym, unconsSym, dropSym, singletonSym, headSym, takeWhileSym, lengthSym
-  , symChars, isNonSymbol, nonSymbol
+
+  -- * Conversion to/from Text
+  , symbolSafeText
+  , symbolSafeString
+  , unsafeTextSymbol -- TODO: deprecate!
+
+  -- Predicates
+  , isPrefixOfSym
+  , isSuffixOfSym
+  , isNonSymbol
   , isNontrivialVV
-  , symbolSafeText, symbolSafeString
+
+  -- * Destructors
+  , stripParensSym
+  , stripPrefix
+  , consSym
+  , unconsSym
+  , dropSym
+  , singletonSym
+  , headSym
+  , takeWhileSym
+  , lengthSym
+
+  -- * Transforms
+  , nonSymbol
   , vvCon
   , dropModuleNames
   , dropModuleUnique
   , takeModuleNames
 
+  -- * Widely used prefixes
+  , anfPrefix
+  , litPrefix
+  , tempPrefix
+  , vv
+  , symChars
+
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol, existSymbol, renameSymbol
+  , dummySymbol
+  , intSymbol
+  , tempSymbol
+  , existSymbol
+  , renameSymbol
   , qualifySymbol
-  -- , suffixSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -48,8 +78,13 @@ module Language.Fixpoint.Names (
   , consName
   , vvName
   , symSepName
-  , size32Name, size64Name, bitVecName, bvAndName, bvOrName
+  , size32Name
+  , size64Name
+  , bitVecName
+  , bvAndName
+  , bvOrName
   , prims
+
 ) where
 
 #if __GLASGOW_HASKELL__ < 710
@@ -141,6 +176,9 @@ symbolSafeText (S s) = unintern s
 safeTextSymbol :: SafeText -> Symbol
 safeTextSymbol = S . intern
 
+unsafeTextSymbol :: T.Text -> Symbol
+unsafeTextSymbol = safeTextSymbol -- FIXME: nasty ~A business for qualifier params. Sigh.
+
 safeCat :: SafeText -> SafeText -> SafeText
 safeCat = mappend
 
@@ -189,16 +227,29 @@ symChars
 
 okSymChars = S.fromList symChars
 
+isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolSafeText -> p) (symbolSafeText -> x) = p `T.isPrefixOf` x
+
+isSuffixOfSym :: Symbol -> Symbol -> Bool
 isSuffixOfSym (symbolSafeText -> p) (symbolSafeText -> x) = p `T.isSuffixOf` x
+
+takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
 takeWhileSym p (symbolSafeText -> t) = symbol $ T.takeWhile p t
+
+headSym :: Symbol -> Char
 headSym (symbolSafeText -> t) = T.head t
+
+consSym :: Char -> Symbol -> Symbol
 consSym c (symbolSafeText -> s) = symbol $ T.cons c s
-singletonSym = (`consSym` "")
-lengthSym (symbolSafeText -> t) = T.length t
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolSafeText -> s) = second symbol <$> T.uncons s
+
+singletonSym :: Char -> Symbol -- Yuck
+singletonSym = (`consSym` "")
+
+lengthSym :: Symbol -> Int
+lengthSym (symbolSafeText -> t) = T.length t
 
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolSafeText -> t) = symbol $ T.drop n t
@@ -213,30 +264,6 @@ stripParensSym (symbolSafeText -> t) = symbol $ stripParens t
 
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = safeTextSymbol <$> T.stripPrefix (symbolSafeText p) (symbolSafeText x)
-
-
--- suffixSymbol (S s) suf = symbol $ (unintern s) `mappend` suf
-
--- encode s =
---  | isFixKey  s = encodeSym s
---  | isFixSym' s = s
---  | otherwise   = encodeSym s
-
--- encodeSym s = fixSymPrefix ++ concatMap encodeChar s
-
--- fixSymPrefix = "fix" ++ [symSepName]
-
--- isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymChars)) chs
--- isFixSym' _        = False
-
--- encodeChar c
-  -- | c `S.member` okSymChars
-  -- = [c]
-  -- | otherwise
-  -- = [symSepName] ++ show (ord c) ++ [symSepName]
---
--- decodeStr s
-  -- = chr (read s :: Int)
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
 qualifySymbol m'@(symbolSafeText -> m) x'@(symbolSafeText -> x)

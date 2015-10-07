@@ -26,13 +26,13 @@ module Language.Fixpoint.Smt.Types (
     , TheorySymbol (..)
 
     -- * Strict Formatter
-    , format' 
+    , format
 
     ) where
 
 import           Language.Fixpoint.Types
 
-import           Data.Text.Format
+import qualified Data.Text.Format         as DTF
 import           Data.Text.Format.Params  (Params)
 import qualified Data.Text                as T
 import qualified Data.Text.Lazy           as LT
@@ -84,8 +84,8 @@ data TheorySymbol  = Thy { tsSym  :: Symbol
 -- | AST Conversion: Types that can be serialized ---------------------
 -----------------------------------------------------------------------
 
-format' :: Params ps => Format -> ps -> T.Text
-format' f x = LT.toStrict $ format f x
+format :: Params ps => DTF.Format -> ps -> T.Text
+format f x = LT.toStrict $ DTF.format f x
 
 -- | Types that can be serialized
 class SMTLIB2 a where

@@ -63,10 +63,10 @@ import           Data.Char
 import qualified Data.List                as L
 import           Data.Monoid
 import qualified Data.Text                as T
-import           Data.Text.Format
+import           Data.Text.Format         hiding (format)
 import qualified Data.Text.IO             as TIO
-import qualified Data.Text.Lazy           as LT
-import qualified Data.Text.Lazy.IO        as LTIO
+-- import qualified Data.Text.Lazy           as LT
+-- import qualified Data.Text.Lazy.IO        as LTIO
 import           System.Directory
 import           System.Console.CmdArgs.Verbosity
 import           System.Exit              hiding (die)
@@ -108,7 +108,7 @@ command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
     hear _            = return Ok
 
 
-smtWrite :: Context -> LT.Text -> IO ()
+smtWrite :: Context -> T.Text -> IO ()
 smtWrite me !s = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
@@ -120,7 +120,7 @@ smtRead me = {-# SCC "smtRead" #-}
          Right r -> do
            maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
            when (verbose me) $
-             LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+             TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
 
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
@@ -153,24 +153,24 @@ negativeP
   = do v <- A.char '(' *> A.takeWhile1 (/=')') <* A.char ')'
        return $ "(" <> v <> ")"
 
-{-@ pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] @-}
-pairs :: [a] -> [(a,a)]
-pairs !xs = case L.splitAt 2 xs of
-              ([],_)      -> []
-              ([x,y], zs) -> (x,y) : pairs zs
+-- {- pairs :: {v:[a] | (len v) mod 2 = 0} -> [(a,a)] -}
+-- pairs :: [a] -> [(a,a)]
+-- pairs !xs = case L.splitAt 2 xs of
+--              ([],_)      -> []
+--              ([x,y], zs) -> (x,y) : pairs zs
 
-smtWriteRaw      :: Context -> LT.Text -> IO ()
+smtWriteRaw      :: Context -> T.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
   when (verbose me) $ do
-    LTIO.appendFile debugFile s
-    LTIO.appendFile debugFile "\n"
+    TIO.appendFile debugFile s
+    TIO.appendFile debugFile "\n"
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
 smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (cIn me)
 
-hPutStrLnNow h !s   = LTIO.hPutStrLn h s >> hFlush h
+hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
 
 --------------------------------------------------------------------------
 -- | SMT Context ---------------------------------------------------------

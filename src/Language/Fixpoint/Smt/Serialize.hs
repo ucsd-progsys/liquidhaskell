@@ -15,8 +15,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
-import           Data.Text.Format
--- import qualified Data.Text.Lazy                 as LT
+import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
 {-
     (* (L t1 t2 t3) is now encoded as
@@ -58,14 +57,14 @@ instance SMTLIB2 Symbol where
 
 -- FIXME: this is probably too slow.
 -- RJ: Yes it is!
-encode :: T.Text -> T.Text
-encode t = {-# SCC "smt2-encode" #-}
-  foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                              ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                              ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                              ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
-                              ,(" ", "_") , ("'", "ZT")
-                              ]
+-- encode :: T.Text -> T.Text
+-- encode t = {-# SCC "smt2-encode" #-}
+  -- foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
+                              -- ,("(", "ZL"), (")", "ZR"), (",", "ZT")
+                              -- ,("|", "zb"), ("#", "zh"), ("\\","zr")
+                              -- ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
+                              -- ,(" ", "_") , ("'", "ZT")
+                              -- ]
 
 instance SMTLIB2 SymConst where
   smt2 = smt2 . symbol
