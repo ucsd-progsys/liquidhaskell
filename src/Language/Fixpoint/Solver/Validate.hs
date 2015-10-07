@@ -13,7 +13,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor (kvars)
+import           Language.Fixpoint.Visitor (kvars, mapKVarSubsts)
 import           Language.Fixpoint.Sort (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import qualified Language.Fixpoint.Types  as F
@@ -29,6 +29,7 @@ type ValidateM a = Either E.Error a
 validate :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 validate _ = Right
+           . dropFunctionSubs
            . dropFuncSortedShadowedBinders
            . dropHigherOrderBinders
            . removeExtraWfCs
@@ -123,6 +124,26 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
 dropHigherOrderBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
+
+
+---------------------------------------------------------------------------
+-- | Drop substitutions of functions from all KVars
+---------------------------------------------------------------------------
+dropFunctionSubs :: F.SInfo a -> F.SInfo a
+---------------------------------------------------------------------------
+dropFunctionSubs fi = mapKVarSubsts go fi
+  where
+    funcs = functionsInBindEnv $ F.bs fi --NOTE: assumes binders are unique
+    go (F.Su subs) = F.mkSubst $ filter nonFunction $ M.toList subs
+    nonFunction (sym, _) = sym `notElem` funcs
+
+functionsInBindEnv :: F.BindEnv -> [F.Symbol]
+functionsInBindEnv be = map Misc.snd3 fList
+  where
+    fList = filter (F.isFunctionSortedReft . Misc.thd3) $ F.bindEnvToList be
+---------------------------------------------------------------------------
+
+
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo

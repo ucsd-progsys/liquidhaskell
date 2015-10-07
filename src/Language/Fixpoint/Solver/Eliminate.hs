@@ -45,7 +45,7 @@ extractPred wfc fi sc = projectNonWFVars be binds wfc $ PAnd (lhsPreds ++ suPred
     be = bs fi
     binds = second sr_sort <$> envCs be (senv sc)
     lhsPreds = bindPred <$> envCs be (senv sc)
-    suPreds = substPreds (domain be wfc) $ crhs sc --usableDomain
+    suPreds = substPreds (usableDomain be wfc) $ crhs sc
 
 -- x:{v:int|v=10} -> (x=10)
 bindPred :: (Symbol, SortedReft) -> Pred
@@ -58,17 +58,17 @@ bindPred (sym, sr) = subst1 (reftPred reft) sub
 substPreds :: [Symbol] -> Pred -> [Pred]
 substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- M.toList subs , sym `elem` dom]
 
----- TODO: filtering out functions like this is a temporary hack - we shouldn't
----- have function substitutions to begin with
---usableDomain :: BindEnv -> WfC a -> [Symbol]
---usableDomain be wfc = filter nonFunction $ domain be wfc
---  where
---    nonFunction sym = sym `notElem` functionsInBindEnv be
+-- TODO: filtering out functions like this is a temporary hack - we shouldn't
+-- have function substitutions to begin with
+usableDomain :: BindEnv -> WfC a -> [Symbol]
+usableDomain be wfc = filter nonFunction $ domain be wfc
+  where
+    nonFunction sym = sym `notElem` functionsInBindEnv be
 
---functionsInBindEnv :: BindEnv -> [Symbol]
---functionsInBindEnv be = map snd3 fList
---  where
---    fList = filter (isFunctionSortedReft . thd3) $ bindEnvToList be
+functionsInBindEnv :: BindEnv -> [Symbol]
+functionsInBindEnv be = map snd3 fList
+  where
+    fList = filter (isFunctionSortedReft . thd3) $ bindEnvToList be
 
 domain :: BindEnv -> WfC a -> [Symbol]
 domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
@@ -76,6 +76,6 @@ domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
 projectNonWFVars :: BindEnv -> [(Symbol,Sort)] -> WfC a -> Pred -> Pred
 projectNonWFVars be binds wf pr = PExist [v | v <- binds, not (elem (fst v) wfVars)] pr
   where
-    wfVars = fst <$> envCs be (wenv wf)
+    wfVars = domain be wf --fst <$> envCs be (wenv wf)
     
 

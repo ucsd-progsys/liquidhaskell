@@ -1167,6 +1167,7 @@ instance Subable Pred where
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
   subst _  (PAll _ _)      = errorstar "subst: FORALL"
+  subst su (PExist bs p)   = PExist bs $ subst (substExcept su (fst <$> bs)) p
   subst _  p               = p
 
 instance Subable Refa where
