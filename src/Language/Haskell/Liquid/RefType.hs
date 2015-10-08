@@ -937,8 +937,7 @@ shiftVV :: SpecType -> Symbol -> SpecType
 -------------------------------------------------------------------------------
 
 shiftVV t@(RApp _ ts _ r) vv'
-  = t { rt_args = subst1 ts (rTypeValueVar t, EVar vv') }
-      { rt_reft = (`F.shiftVV` vv') <$> r }
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RFun _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
