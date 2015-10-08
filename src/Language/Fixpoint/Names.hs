@@ -171,13 +171,13 @@ symbolSafeText (S s) = unintern s
 symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
 
-symbolUnsafeText :: Symbol -> T.Text
-symbolUnsafeText x = traceShow msg $ symbolUnsafeText' x
-  where
-    msg            = "SyUnTxt: x = " ++ show (symbolSafeText x)
+-- symbolUnsafeText :: Symbol -> T.Text
+-- symbolUnsafeText x = traceShow msg $ symbolUnsafeText' x
+  -- where
+    -- msg            = "SyUnTxt: x = " ++ show (symbolSafeText x)
 
-symbolUnsafeText' :: Symbol -> T.Text
-symbolUnsafeText' x
+symbolUnsafeText :: Symbol -> T.Text
+symbolUnsafeText x
   | Just i <- encId s = memoDecode i
   | otherwise         = s
   where
@@ -242,8 +242,13 @@ keywords   = S.fromList [ "env"
 safeChars :: [Char]
 safeChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['_', '.'  ]
 
+-- | RJ: We allow the extra 'unsafeChars' to allow parsing encoded symbols.
+--   e.g. the raw string "This#is%$inval!d" may get encoded as "enc%12"
+--   and serialized as such in the fq/bfq file. We want to allow the parser
+--   to then be able to read the above back in.
+
 symChars :: S.HashSet Char
-symChars =  S.fromList $ ['%', '#'] ++ safeChars
+symChars =  S.fromList $ ['%', '#', '$'] ++ safeChars
 
 okSymChars :: S.HashSet Char
 okSymChars = S.fromList safeChars
