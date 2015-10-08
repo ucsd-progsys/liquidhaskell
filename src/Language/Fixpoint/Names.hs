@@ -109,7 +109,7 @@ import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (errorstar)
+import           Language.Fixpoint.Misc      (safeLookup, errorstar)
 import Debug.Trace
 
 ---------------------------------------------------------------
@@ -174,15 +174,15 @@ symbolSafeString = T.unpack . symbolSafeText
 symbolUnsafeText :: Symbol -> T.Text
 symbolUnsafeText = trace "symbolUnsafeText: " . symbolUnsafeText'
 
-symbolUnsafeText' x   
+symbolUnsafeText' :: Symbol -> T.Text
+symbolUnsafeText' x
   | Just i <- encId s = memoDecode i
   | otherwise         = s
   where
     s                 = symbolUnsafeText x
-    -- i              = internedTextId s
 
 encId :: T.Text -> Maybe Int
-encId s = t2i <$> T.stripPrefix encPrefix p
+encId = fmap t2i . T.stripPrefix encPrefix
 
 t2i :: T.Text -> Int
 t2i = read . T.unpack
@@ -359,14 +359,14 @@ vvName       = "VV"
 symSepName   :: Char
 symSepName   = '#' -- Do not ever change this
 
-nilName      = "nil"    :: Symbol
-consName     = "cons"   :: Symbol
-
-size32Name   = "Size32" :: Symbol
-size64Name   = "Size64" :: Symbol
-bitVecName   = "BitVec" :: Symbol
-bvOrName     = "bvor"   :: Symbol
-bvAndName    = "bvAnd"  :: Symbol
+nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
+nilName      = "nil"
+consName     = "cons"
+size32Name   = "Size32"
+size64Name   = "Size64"
+bitVecName   = "BitVec"
+bvOrName     = "bvor"
+bvAndName    = "bvAnd"
 
 prims :: [Symbol]
 prims = [ propConName
@@ -413,6 +413,8 @@ memoEncode t = unsafePerformIO $
     i        = internedTextId $ intern t
 
 {-# NOINLINE memoDecode #-}
-memoDecode :: Int -> Maybe T.Text
+memoDecode :: Int -> T.Text
 memoDecode i = unsafePerformIO $
-                 M.lookup i <$> readIORef symbolMemo
+                 safeLookup msg i <$> readIORef symbolMemo
+               where
+                 msg = "Symbol Decode Error: " ++ show i
