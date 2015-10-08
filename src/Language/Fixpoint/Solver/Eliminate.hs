@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE BangPatterns         #-}
 
 module Language.Fixpoint.Solver.Eliminate
        (eliminateAll, findWfC) where
@@ -15,22 +16,23 @@ import           Data.List           (partition, (\\), foldl')
 import           Control.Monad.State (get, put, runState, evalState, State, state)
 import           Control.Applicative ((<$>))
 import           Control.Arrow       (second)
+import           Control.DeepSeq     (($!!))
 
 
 --------------------------------------------------------------
 eliminateAll :: SInfo a -> SInfo a
-eliminateAll fi = foldl' eliminate fi nonCuts
+eliminateAll !fi = foldl' eliminate fi nonCuts
   where
     nonCuts = depNonCuts $ deps fi
 --------------------------------------------------------------
 
 eliminate :: SInfo a -> KVar -> SInfo a
-eliminate fi kv = mapKVars (\k -> if k == kv then Just orPred else Nothing) (fi { cm = remainingCs , ws = remainingWs})
+eliminate !fi kv = {-# SCC "mapKVars" #-} mapKVars (\k -> if k == kv then Just orPred else Nothing) (fi { cm = remainingCs , ws = remainingWs})
   where
     relevantCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
     remainingCs = M.filter (notElem kv . kvars . crhs) (cm fi)
     (kvWfC, remainingWs) = findWfC kv (ws fi)
-    orPred = POr $ extractPred kvWfC fi <$> M.elems relevantCs
+    orPred = {-# SCC "orPred" #-} POr $!! extractPred kvWfC fi <$> M.elems relevantCs
 
 findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
 findWfC kv ws = (w', ws')
@@ -76,6 +78,6 @@ domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
 projectNonWFVars :: BindEnv -> [(Symbol,Sort)] -> WfC a -> Pred -> Pred
 projectNonWFVars be binds wf pr = PExist [v | v <- binds, not (elem (fst v) wfVars)] pr
   where
-    wfVars = domain be wf --fst <$> envCs be (wenv wf)
+    wfVars = domain be wf
     
 
