@@ -179,7 +179,7 @@ symbolUnsafeText' x
   | Just i <- encId s = memoDecode i
   | otherwise         = s
   where
-    s                 = symbolUnsafeText x
+    s                 = symbolSafeText x
 
 encId :: T.Text -> Maybe Int
 encId = fmap t2i . T.stripPrefix encPrefix
