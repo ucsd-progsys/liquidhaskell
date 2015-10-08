@@ -183,12 +183,12 @@ locParserP p = do l1 <- getPosition
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
-condIdP  :: [Char] -> (String -> Bool) -> Parser Symbol
+condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP chars f
   = do c  <- letter
-       cs <- many (satisfy (`elem` chars))
+       cs <- many (satisfy (`S.member` chars))
        blanks
-       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
+       if f (c:cs) then return (symbol $ c:cs) else parserZero
 
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isLower . head)

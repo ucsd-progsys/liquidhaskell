@@ -224,15 +224,14 @@ keywords   = S.fromList [ "env"
                         , "rhs"]
 
 
-symChars :: [Char]
-symChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_' ,  '.']
+safeChars :: [Char]
+safeChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['_', '.'  ]
+
+symChars :: S.HashSet Char
+symChars =  S.fromList $ ['%', '#'] ++ safeChars
 
 okSymChars :: S.HashSet Char
-okSymChars = S.fromList symChars
+okSymChars = S.fromList safeChars
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolUnsafeText -> p) (symbolUnsafeText -> x) = p `T.isPrefixOf` x
