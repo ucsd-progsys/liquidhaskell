@@ -37,11 +37,10 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (group, snd3)
-import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, symbolUnsafeString, takeModuleNames)
+import Language.Fixpoint.Names (dropSym, isPrefixOfSym,  symbolUnsafeString)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
-
 import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
+import Language.Haskell.Liquid.GhcMisc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4, mapFst, concatMapM)
 import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
