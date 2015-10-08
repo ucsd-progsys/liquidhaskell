@@ -1,13 +1,13 @@
 module Test1 () where
 
 inc :: Int -> Int
-inc x = x + 1
+inc xoooo = xoooo + 1
 
 test1 :: Int -> Int
-test1 n = let b = 0 <= n in
+test1 nine = let b = 0 <= nine in
           if b then
-            let a = inc n
+            let a = inc nine
             in
-               div n a
+               div nine a
           else
             1
