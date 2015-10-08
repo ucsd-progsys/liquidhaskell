@@ -33,8 +33,8 @@ module Language.Fixpoint.Names (
   , isNontrivialVV
 
   -- * Destructors
-  , stripParensSym
-  , stripParens
+  -- , stripParensSym
+  -- , stripParens
   , stripPrefix
   , consSym
   , unconsSym
@@ -263,13 +263,13 @@ dropSym n (symbolUnsafeText -> t) = symbol $ T.drop n t
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolUnsafeText p) (symbolUnsafeText x)
 
-stripParens :: T.Text -> T.Text
-stripParens t = fromMaybe t (strip t)
-  where
-    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
+-- stripParens :: T.Text -> T.Text
+-- stripParens t = fromMaybe t (strip t)
+--  where
+--    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
-stripParensSym :: Symbol -> Symbol
-stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
+-- stripParensSym :: Symbol -> Symbol
+-- stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
 
 ---------------------------------------------------------------------
 
