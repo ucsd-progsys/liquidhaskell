@@ -42,6 +42,7 @@ import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve     as S
+import           Language.Fixpoint.Solver.Solution  (Solution)
 import           Language.Fixpoint.Config           (Config (..), command, withTarget)
 import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
@@ -182,8 +183,8 @@ solveNativeWithFInfo !cfg !fi = do
   let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   rnf si'' `seq` donePhase Loud "Uniqify"
-  si'''     <- {-# SCC "elim" #-} elim cfg $!! si''
-  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg $!! si'''
+  (s0, si''') <- {-# SCC "elim" #-} elim cfg $!! si''
+  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg s0 $!! si'''
   rnf soln `seq` donePhase Loud "Solve"
   let stat' = sid <$> stat
   writeLoud $ "\nSolution:\n"  ++ showpp soln
@@ -198,13 +199,13 @@ printElimStats d = do
   putStrLn $ "TOTAL KVars: " ++ show total
           ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
-elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
+elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
-  | eliminate cfg = do let fi' = eliminateAll fi
-                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-                       donePhase Loud "Eliminate"
-                       return fi'
-  | otherwise     = return fi
+   | eliminate cfg = do let (s0, fi') = eliminateAll fi
+                        writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                        donePhase Loud "Eliminate"
+                        return (s0, fi')
+   | otherwise     = return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)

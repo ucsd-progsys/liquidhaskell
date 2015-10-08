@@ -7,9 +7,10 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps (depNonCuts, deps)
-import           Language.Fixpoint.Visitor     (kvars, mapKVars, rhsKVars)
+import           Language.Fixpoint.Visitor     (kvars, rhsKVars)
 import           Language.Fixpoint.Names       (existSymbol)
 import           Language.Fixpoint.Misc        (errorstar, snd3, thd3)
+import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (partition, (\\), foldl')
@@ -20,14 +21,14 @@ import           Control.DeepSeq     (($!!))
 
 
 --------------------------------------------------------------
-eliminateAll :: SInfo a -> SInfo a
-eliminateAll !fi = foldl' eliminate fi nonCuts
+eliminateAll :: SInfo a -> (Solution, SInfo a)
+eliminateAll !fi = foldl' eliminate (M.empty, fi) nonCuts
   where
     nonCuts = depNonCuts $ deps fi
 --------------------------------------------------------------
 
-eliminate :: SInfo a -> KVar -> SInfo a
-eliminate !fi kv = {-# SCC "mapKVars" #-} mapKVars (\k -> if k == kv then Just orPred else Nothing) (fi { cm = remainingCs , ws = remainingWs})
+eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
+eliminate (!s, !fi) kv = (M.insert kv (mkJVar orPred) s, fi { cm = remainingCs , ws = remainingWs})
   where
     relevantCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
     remainingCs = M.filter (notElem kv . kvars . crhs) (cm fi)
