@@ -238,7 +238,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
-import Language.Fixpoint.Names      (symbolUnsafeText, symbolUnsafeString, funConName, listConName, tupConName)
+import Language.Fixpoint.Names      (symbolText, symbolString, funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
@@ -814,7 +814,7 @@ instance TyConable Symbol where
   isFun   s = funConName == s
   isList  s = listConName == s
   isTuple s = tupConName == s
-  ppTycon   = text . symbolUnsafeString
+  ppTycon   = text . symbolString
 
 instance TyConable LocSymbol where
   isFun   = isFun . val
@@ -1375,7 +1375,7 @@ instance PPrint Sort where
   pprint = F.pprint
 
 instance PPrint Symbol where
-  pprint = pprint . symbolUnsafeText
+  pprint = pprint . symbolText
 
 instance PPrint Expr where
   pprint = F.pprint

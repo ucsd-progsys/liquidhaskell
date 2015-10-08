@@ -34,7 +34,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
-import Language.Fixpoint.Names (symbolUnsafeString, propConName, hpropConName)
+import Language.Fixpoint.Names (symbolString, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
@@ -112,7 +112,7 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
     ppE Full  = ppEnv
 
 ppTyConB bb
-  | ppShort bb = text . symbolUnsafeString . dropModuleNames . symbol . render . ppTycon
+  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
   | otherwise  = ppTycon
 
 
@@ -251,7 +251,7 @@ ppr_forall bb p t
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)
   where
-    pp | ppShort bb = text . symbolUnsafeString . dropModuleNames . symbol . render . pprint
+    pp | ppShort bb = text . symbolString . dropModuleNames . symbol . render . pprint
        | otherwise  = pprint
 
 
@@ -263,7 +263,7 @@ ppr_pvar_def pprv (PV s t _ xts)
 
 ppr_pvar_kind pprv (PVProp t) = pprv t <+> arrow <+> ppr_name propConName
 ppr_pvar_kind _    (PVHProp)  = ppr_name hpropConName
-ppr_name                      = text . symbolUnsafeString
+ppr_name                      = text . symbolString
 
 instance PPrint RTyVar where
   pprint (RTV α)

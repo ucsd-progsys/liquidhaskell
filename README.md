@@ -60,6 +60,15 @@ To verify a file called `foo.hs` at type
 
     $ liquid foo.hs
 
+How to Run inside GHCi
+----------------------
+
+To run inside `ghci` e.g. when developing do:
+   
+    $ stack ghci liquidhaskell
+    ghci> :m +Language.Haskell.Liquid.Liquid
+    ghci> liquid ["tests/pos/Abs.hs"]
+
 How To Run Regression Tests
 ---------------------------
 

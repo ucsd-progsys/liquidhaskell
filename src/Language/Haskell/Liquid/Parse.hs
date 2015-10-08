@@ -42,7 +42,7 @@ import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (symbolUnsafeString, listConName, hpropConName, propConName, tupConName, headSym)
+import Language.Fixpoint.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc (safeLast, errorstar)
 import Language.Fixpoint.Parse hiding (angles)
 
@@ -58,7 +58,7 @@ hsSpecificationP = parseWithError $ do
     name <-  try (lookAhead $ skipMany (commentP >> spaces)
                            >> reserved "module" >> symbolP)
          <|> return "Main"
-    liftM (mkSpec (ModName SrcImport $ mkModuleName $ symbolUnsafeString name)) $ specWraps specP
+    liftM (mkSpec (ModName SrcImport $ mkModuleName $ symbolString name)) $ specWraps specP
 
 -------------------------------------------------------------------------------
 lhsSpecificationP :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
@@ -90,7 +90,7 @@ specificationP
        name   <- symbolP
        reserved "where"
        xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolUnsafeString name) xs
+       return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
 
 ---------------------------------------------------------------------------
 parseWithError :: Parser a -> SourceName -> String -> Either Error a

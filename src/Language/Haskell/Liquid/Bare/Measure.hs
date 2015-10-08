@@ -249,7 +249,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
 
 toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
 
-capitalizeBound = fmap (symbol . toUpperHead . symbolUnsafeString)
+capitalizeBound = fmap (symbol . toUpperHead . symbolString)
   where
     toUpperHead []     = []
     toUpperHead (x:xs) = toUpper x:xs

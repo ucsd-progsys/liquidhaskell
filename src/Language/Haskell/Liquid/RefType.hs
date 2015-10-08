@@ -100,7 +100,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Fixpoint.Names (symbolUnsafeString, listConName, tupConName)
+import Language.Fixpoint.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
 
 
@@ -347,7 +347,7 @@ instance Hashable RTyCon where
 rVar        = (`RVar` mempty) . RTV
 rTyVar      = RTV
 
-symbolRTyVar = rTyVar . stringTyVar . symbolUnsafeString
+symbolRTyVar = rTyVar . stringTyVar . symbolString
 
 normalizePds t = addPds ps t'
   where (t', ps) = nlzP [] t
@@ -960,7 +960,7 @@ shiftVV t _
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n as xs t p _) =
-    printf "type %s %s %s = %s -- defined at %s" (symbolUnsafeString n)
+    printf "type %s %s %s = %s -- defined at %s" (symbolString n)
       (unwords (show <$> as))
       (unwords (show <$> xs))
       (show t) (show p)

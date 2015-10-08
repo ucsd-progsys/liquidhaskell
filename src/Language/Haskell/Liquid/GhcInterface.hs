@@ -239,7 +239,7 @@ moduleSpec cfg cbs vars defVars target mg tgtSpec logicmap impSpecs
        addContext  $ IIModule $ moduleName $ mgi_module mg
        env        <- getSession
        let specs   = (target,tgtSpec):impSpecs
-       let imps    = sortNub $ impNames ++ [ symbolUnsafeString x
+       let imps    = sortNub $ impNames ++ [ symbolString x
                                            | (_, sp) <- specs
                                            , x <- Ms.imports sp
                                            ]
@@ -288,7 +288,7 @@ transParseSpecs exts paths seenFiles specs newFiles
        let newFiles'  = [f | (_,f) <- impFiles, not (f `S.member` seenFiles')]
        transParseSpecs exts paths seenFiles' specs' newFiles'
   where
-    specsImports ss = nub $ concatMap (map symbolUnsafeString . Ms.imports . thd3) ss
+    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . thd3) ss
     noTerm spec = spec { Ms.decr=mempty, Ms.lazy=mempty, Ms.termexprs=mempty }
     third f (a,b,c) = (a,b,f c)
 
@@ -320,7 +320,7 @@ moduleFile paths name ext
 
 specIncludes :: GhcMonad m => Ext -> [FilePath] -> [FilePath] -> m [FilePath]
 specIncludes ext paths reqs
-  = do let libFile  = extFileNameR ext $ symbolUnsafeString preludeName
+  = do let libFile  = extFileNameR ext $ symbolString preludeName
        let incFiles = catMaybes $ reqFile ext <$> reqs
        liftIO $ forM (libFile : incFiles) $ \f -> do
          mfile <- getFileInDirs f paths

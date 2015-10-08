@@ -37,7 +37,7 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (group, snd3)
-import Language.Fixpoint.Names (dropSym, isPrefixOfSym,  symbolUnsafeString)
+import Language.Fixpoint.Names (dropSym, isPrefixOfSym,  symbolString)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
@@ -142,7 +142,7 @@ makeAssumeSpec cmod cfg vs lvs (mod,spec)
 grepClassAsserts  = concatMap go
    where
     go    = map goOne . risigs
-    goOne = mapFst (fmap (symbol . (".$c" ++ ) . symbolUnsafeString))
+    goOne = mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
 
 
 makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
