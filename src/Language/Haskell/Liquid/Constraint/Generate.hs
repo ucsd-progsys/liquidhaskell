@@ -727,7 +727,7 @@ extendEnvWithTrueVV γ t
   = true t >>= extendEnvWithVV γ 
 
 extendEnvWithVV γ t
-  | F.isNontrivialVV vv
+  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
   = (γ, "extVV") += (vv, t)
   | otherwise
   = return γ
