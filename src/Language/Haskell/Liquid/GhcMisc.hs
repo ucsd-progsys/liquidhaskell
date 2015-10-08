@@ -560,7 +560,7 @@ mungeNames f d msg s'@(symbolUnsafeText -> s)
 
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
-qualifySymbol m'@(symbolUnsafeText -> m) x'@(symbolUnsafeText -> x)
+qualifySymbol (symbolUnsafeText -> m) x'@(symbolUnsafeText -> x)
   | isQualified x  = x'
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
