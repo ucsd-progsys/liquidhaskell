@@ -53,8 +53,8 @@ import           TypeRep
 import           Var
 import           IdInfo
 import qualified TyCon                        as TC
--- import qualified DataCon                      as DC
 import           Data.Char                    (isLower, isSpace)
+import           Data.Maybe                   (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
@@ -64,6 +64,7 @@ import qualified Data.Text.Unsafe             as T
 import qualified Data.Text                    as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
+import           Control.Monad                ((>=>))
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
@@ -494,7 +495,7 @@ desugarModule tcm = do
 symbolFastString = T.unsafeDupablePerformIO
                  . mkFastStringByteString
                  . T.encodeUtf8
-                 . symbolSafeText
+                 . symbolUnsafeText
 
 lintCoreBindings = CoreLint.lintCoreBindings
 
@@ -509,7 +510,7 @@ tcRnLookupRdrName env rn = TcRnDriver.tcRnLookupRdrName env (unLoc rn)
 
 -- desugarModule = GHC.desugarModule
 
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolSafeText
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolUnsafeText
 
 type Prec = TyPrec
 
@@ -553,7 +554,7 @@ sepUnique   = "#"
 
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""
-mungeNames f d msg s'@(symbolSafeText -> s)
+mungeNames f d msg s'@(symbolUnsafeText -> s)
   | s' == tupConName = tupConName
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
 
@@ -569,3 +570,11 @@ isParened xs  = xs /= stripParens xs
 
 isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
+
+stripParens :: T.Text -> T.Text
+stripParens t = fromMaybe t (strip t)
+  where
+    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
+
+stripParensSym :: Symbol -> Symbol
+stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
