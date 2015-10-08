@@ -15,7 +15,7 @@ import Control.Applicative      ((<$>))
 import Var
 
 
-import Language.Fixpoint.Names      (symbolUnsafeString)
+import Language.Fixpoint.Names      (symbolString)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc       (errorstar)
 
@@ -34,9 +34,9 @@ makeDictionary :: RInstance SpecType -> (Symbol, M.HashMap Symbol SpecType)
 makeDictionary (RI c t xts) = (makeDictionaryName c t, M.fromList (mapFst val <$> xts))
 
 makeDictionaryName :: Located Symbol -> SpecType -> Symbol
-makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ symbolUnsafeString (val t) ++ c')
+makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ symbolString (val t) ++ c')
   where
-        c' = symbolUnsafeString (dropModuleNames $ symbol $ rtc_tc c)
+        c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
 makeDictionaryName _ _              = errorstar "makeDictionaryName: called with invalid type"
 

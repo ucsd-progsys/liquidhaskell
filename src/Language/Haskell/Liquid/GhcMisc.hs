@@ -416,9 +416,9 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
-symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolUnsafeString n)
-symbolTyCon x i n = stringTyCon x i (symbolUnsafeString n)
-symbolTyVar n = stringTyVar (symbolUnsafeString n)
+symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
+symbolTyCon x i n = stringTyCon x i (symbolString n)
+symbolTyVar n = stringTyVar (symbolString n)
 
 instance Symbolic TyCon where
   symbol = symbol . qualifiedNameSymbol . getName
@@ -495,7 +495,7 @@ desugarModule tcm = do
 symbolFastString = T.unsafeDupablePerformIO
                  . mkFastStringByteString
                  . T.encodeUtf8
-                 . symbolUnsafeText
+                 . symbolText
 
 lintCoreBindings = CoreLint.lintCoreBindings
 
@@ -510,7 +510,7 @@ tcRnLookupRdrName env rn = TcRnDriver.tcRnLookupRdrName env (unLoc rn)
 
 -- desugarModule = GHC.desugarModule
 
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolUnsafeText
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
 type Prec = TyPrec
 
@@ -554,13 +554,13 @@ sepUnique   = "#"
 
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""
-mungeNames f d msg s'@(symbolUnsafeText -> s)
+mungeNames f d msg s'@(symbolText -> s)
   | s' == tupConName = tupConName
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
 
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
-qualifySymbol (symbolUnsafeText -> m) x'@(symbolUnsafeText -> x)
+qualifySymbol (symbolText -> m) x'@(symbolText -> x)
   | isQualified x  = x'
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
@@ -578,4 +578,4 @@ stripParens t = fromMaybe t (strip t)
     strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym :: Symbol -> Symbol
-stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
+stripParensSym (symbolText -> t) = symbol $ stripParens t

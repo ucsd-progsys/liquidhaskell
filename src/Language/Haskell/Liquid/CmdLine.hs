@@ -376,7 +376,7 @@ exitWithResult cfg target out
 
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolUnsafeString . dropModuleNames . symbol)
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where

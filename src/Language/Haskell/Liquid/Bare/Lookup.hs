@@ -35,7 +35,7 @@ import Text.PrettyPrint.HughesPJ (text)
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolUnsafeString)
+import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
 import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
@@ -68,7 +68,7 @@ lookupGhcThing name f x
          Just x' -> return x'
          Nothing -> throwError $ ErrGhc (srcSpan x) (text msg)
   where
-    msg = "Not in scope: " ++ name ++ " `" ++ symbolUnsafeString (symbol x) ++ "'"
+    msg = "Not in scope: " ++ name ++ " `" ++ symbolString (symbol x) ++ "'"
 
 -- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x
@@ -97,14 +97,14 @@ wiredIn      = M.fromList $ special ++ wiredIns
 symbolLookupEnv env mod s
   | isSrcImport mod
   = do let modName = getModName mod
-       L _ rn <- hscParseIdentifier env $ symbolUnsafeString s
+       L _ rn <- hscParseIdentifier env $ symbolString s
        res    <- lookupRdrName env modName rn
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
        res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
        return $ catMaybes [res, res']
   | otherwise
-  = do rn             <- hscParseIdentifier env $ symbolUnsafeString s
+  = do rn             <- hscParseIdentifier env $ symbolString s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
