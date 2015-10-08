@@ -59,7 +59,6 @@ module Language.Fixpoint.Names (
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , existSymbol
   , renameSymbol
 
   -- * Hardwired global names
@@ -308,17 +307,15 @@ dummySymbol = dummyName
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i       = x `mappend` symbol ('_' : show i)
 
-tempSymbol, existSymbol :: Symbol -> Integer -> Symbol
-tempSymbol  prefix = intSymbol (tempPrefix  `mappend` prefix)
-existSymbol prefix = intSymbol (existPrefix `mappend` prefix)
+tempSymbol :: Symbol -> Integer -> Symbol
+tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
 
 renameSymbol :: Symbol -> Int -> Symbol
 renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
 
-tempPrefix, anfPrefix, existPrefix, renamePrefix, litPrefix :: Symbol
+tempPrefix, anfPrefix, renamePrefix, litPrefix :: Symbol
 tempPrefix   = "lq_tmp_"
 anfPrefix    = "lq_anf_"
-existPrefix  = "lq_ext_"
 renamePrefix = "lq_rnm_"
 litPrefix    = "lit$"
 
