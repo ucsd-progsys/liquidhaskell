@@ -466,7 +466,7 @@ data Expr = ESym !SymConst
           deriving (Eq, Show, Data, Typeable, Generic)
 
 elit :: Located Symbol -> Sort -> Expr
-elit l s = ECon $ L (symbolUnsafeText $ val l) s
+elit l s = ECon $ L (symbolText $ val l) s
 
 instance Fixpoint Integer where
   toFix = integer
@@ -800,8 +800,8 @@ lookupSEnvWithDistance x (SE env)
      Nothing -> Alts $ symbol . T.pack <$> alts
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = T.unpack . symbolUnsafeText <$> fst <$> M.toList env
-    x'         = T.unpack $ symbolUnsafeText x
+    ss         = T.unpack . symbolText <$> fst <$> M.toList env
+    x'         = T.unpack $ symbolText x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
 
@@ -1562,7 +1562,7 @@ instance Fixpoint Qualifier where
 instance Fixpoint () where
   toFix _ = text "()"
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolUnsafeString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -1759,7 +1759,7 @@ sortSymConst          :: SymConst -> Sort
 sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolUnsafeText) . stripPrefix litPrefix
+decodeSymConst = fmap (SL . symbolText) . stripPrefix litPrefix
 
 -- class SymConsts a where
   -- symConsts :: a -> [SymConst]

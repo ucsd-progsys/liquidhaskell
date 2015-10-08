@@ -23,8 +23,8 @@ module Language.Fixpoint.Names (
   -- * Conversion to/from Text
   , symbolSafeText
   , symbolSafeString
-  , symbolUnsafeText
-  , symbolUnsafeString
+  , symbolText
+  , symbolString
 
   -- Predicates
   , isPrefixOfSym
@@ -142,8 +142,8 @@ instance Monoid Symbol where
   mempty        = ""
   mappend s1 s2 = toSymbol $ mappend s1' s2'
     where
-      s1'       = symbolUnsafeText s1
-      s2'       = symbolUnsafeText s2
+      s1'       = symbolText s1
+      s2'       = symbolText s2
 
 
 instance Hashable InternedText where
@@ -163,7 +163,7 @@ instance Hashable Symbol where
 
 instance Binary Symbol where
   get = toSymbol <$> get
-  put = put . symbolUnsafeText
+  put = put . symbolText
 
 symbolSafeText :: Symbol -> SafeText
 symbolSafeText (S s) = unintern s
@@ -171,13 +171,13 @@ symbolSafeText (S s) = unintern s
 symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
 
--- symbolUnsafeText :: Symbol -> T.Text
--- symbolUnsafeText x = traceShow msg $ symbolUnsafeText' x
+-- symbolText :: Symbol -> T.Text
+-- symbolText x = traceShow msg $ symbolText' x
   -- where
     -- msg            = "SyUnTxt: x = " ++ show (symbolSafeText x)
 
-symbolUnsafeText :: Symbol -> T.Text
-symbolUnsafeText x
+symbolText :: Symbol -> T.Text
+symbolText x
   | Just i <- encId s = memoDecode i
   | otherwise         = s
   where
@@ -189,8 +189,8 @@ encId = fmap t2i . T.stripPrefix encPrefix
 t2i :: T.Text -> Int
 t2i = read . T.unpack
 
-symbolUnsafeString :: Symbol -> String
-symbolUnsafeString = T.unpack . symbolUnsafeText
+symbolString :: Symbol -> String
+symbolString = T.unpack . symbolText
 
 safeTextSymbol :: SafeText -> Symbol
 safeTextSymbol = S . intern
@@ -254,34 +254,34 @@ okSymChars :: S.HashSet Char
 okSymChars = S.fromList safeChars
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
-isPrefixOfSym (symbolUnsafeText -> p) (symbolUnsafeText -> x) = p `T.isPrefixOf` x
+isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
 
 isSuffixOfSym :: Symbol -> Symbol -> Bool
-isSuffixOfSym (symbolUnsafeText -> p) (symbolUnsafeText -> x) = p `T.isSuffixOf` x
+isSuffixOfSym (symbolText -> p) (symbolText -> x) = p `T.isSuffixOf` x
 
 takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
-takeWhileSym p (symbolUnsafeText -> t) = symbol $ T.takeWhile p t
+takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
 headSym :: Symbol -> Char
-headSym (symbolUnsafeText -> t) = T.head t
+headSym (symbolText -> t) = T.head t
 
 consSym :: Char -> Symbol -> Symbol
-consSym c (symbolUnsafeText -> s) = symbol $ T.cons c s
+consSym c (symbolText -> s) = symbol $ T.cons c s
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
-unconsSym (symbolUnsafeText -> s) = second symbol <$> T.uncons s
+unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
 singletonSym :: Char -> Symbol -- Yuck
 singletonSym = (`consSym` "")
 
 lengthSym :: Symbol -> Int
-lengthSym (symbolUnsafeText -> t) = T.length t
+lengthSym (symbolText -> t) = T.length t
 
 dropSym :: Int -> Symbol -> Symbol
-dropSym n (symbolUnsafeText -> t) = symbol $ T.drop n t
+dropSym n (symbolText -> t) = symbol $ T.drop n t
 
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
-stripPrefix p x = symbol <$> T.stripPrefix (symbolUnsafeText p) (symbolUnsafeText x)
+stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
 
 
@@ -291,7 +291,7 @@ stripPrefix p x = symbol <$> T.stripPrefix (symbolUnsafeText p) (symbolUnsafeTex
 --    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 -- stripParensSym :: Symbol -> Symbol
--- stripParensSym (symbolUnsafeText -> t) = symbol $ stripParens t
+-- stripParensSym (symbolText -> t) = symbol $ stripParens t
 
 ---------------------------------------------------------------------
 
