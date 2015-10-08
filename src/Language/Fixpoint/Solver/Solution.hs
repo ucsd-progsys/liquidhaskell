@@ -17,6 +17,8 @@ module Language.Fixpoint.Solver.Solution
 
           -- * Lookup Solution
         , lookup
+
+        , mkJVar
         )
 where
 
@@ -47,6 +49,11 @@ lookup s k = M.lookupDefault [] k s
 ---------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------
 ---------------------------------------------------------------------
+
+dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
+
+mkJVar :: F.Pred -> KBind
+mkJVar p = [EQL dummyQual p []]
 
 data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
@@ -207,7 +214,7 @@ class Solvable a where
   apply :: Solution -> a -> F.Pred
 
 instance Solvable EQual where
-  apply _ = eqPred
+  apply s = apply s . eqPred
 
 instance Solvable F.KVar where
   apply s k = apply s $ safeLookup err k s

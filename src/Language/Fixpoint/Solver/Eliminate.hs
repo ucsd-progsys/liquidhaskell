@@ -8,26 +8,30 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps (depNonCuts, deps)
-import           Language.Fixpoint.Visitor     (kvars, mapKVars, rhsKVars)
+import           Language.Fixpoint.Visitor     (kvars, rhsKVars)
 import           Language.Fixpoint.Names       (existSymbol)
 import           Language.Fixpoint.Misc        (errorstar, snd3, thd3)
+import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (partition, (\\))
 import           Data.Foldable       (foldlM)
-import           Control.Monad.State (get, put, runState, evalState, State, state)
+import           Control.Monad.State (get, put, runState, State, state)
 import           Control.Arrow (second, (&&&))
 import           Control.Applicative ((<$>))
 
 
+data ElimState = ES { freshIdx :: Integer , solution :: Solution }
+
 --------------------------------------------------------------
-eliminateAll :: SInfo a -> SInfo a
-eliminateAll fi = evalState (foldlM eliminate fi nonCuts) 0
+eliminateAll :: SInfo a -> (Solution, SInfo a)
+eliminateAll fi = (s, fi')
   where
     nonCuts = depNonCuts $ deps fi
+    (fi', ES n s) = runState (foldlM eliminate fi nonCuts) (ES 0 M.empty)
 --------------------------------------------------------------
 
-eliminate :: SInfo a -> KVar -> State Integer (SInfo a)
+eliminate :: SInfo a -> KVar -> State ElimState (SInfo a)
 eliminate fi kv = do
   let relevantSubCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
   let remainingSubCs = M.filter (notElem kv . kvars . crhs) (cm fi)
@@ -36,9 +40,9 @@ eliminate fi kv = do
   let orPred = POr $ map fst predsBinds
   let symSReftList = map (second trueSortedReft) (concatMap snd predsBinds)
   let (ids, be) = insertsBindEnv symSReftList $ bs fi
-  let newSubCs = M.map (\s -> s { _cenv = insertsIBindEnv ids (senv s)}) remainingSubCs
-  let replacement k = if kv == k then Just orPred else Nothing
-  return $ mapKVars replacement (fi { cm = newSubCs , ws = remainingWs , bs = be })
+  (ES n sol) <- get
+  put (ES n (M.insert kv (mkJVar orPred) sol))
+  return $ fi { cm = remainingSubCs , ws = remainingWs , bs = be }
 
 insertsBindEnv :: [(Symbol, SortedReft)] -> BindEnv -> ([BindId], BindEnv)
 insertsBindEnv = runState . mapM go
@@ -56,7 +60,7 @@ findWfC kv ws = (w', ws')
     w' | [x] <- w  = x
        | otherwise = errorstar $ show kv ++ " needs exactly one wf constraint"
 
-extractPred :: WfC a -> BindEnv -> SimpC a -> State Integer (Pred, [(Symbol, Sort)])
+extractPred :: WfC a -> BindEnv -> SimpC a -> State ElimState (Pred, [(Symbol, Sort)])
 extractPred wfc be subC =  exprsToPreds . unzip <$> mapM renameVar vars
   where
     exprsToPreds (bs, subs) = (subst (mkSubst subs) finalPred, bs)
@@ -90,10 +94,10 @@ functionsInBindEnv be = map snd3 fList
     fList = filter (isFunctionSortedReft . thd3) $ bindEnvToList be
 
 
-renameVar :: (Symbol, Sort) -> State Integer ((Symbol, Sort), (Symbol, Expr))
-renameVar (sym, srt) = do n <- get
+renameVar :: (Symbol, Sort) -> State ElimState ((Symbol, Sort), (Symbol, Expr))
+renameVar (sym, srt) = do (ES n sol) <- get
                           let s = existSymbol sym n
-                          put (n+1)
+                          put (ES (n+1) sol)
                           return ((s, srt) , (sym, eVar s))
 --renameVar (sym, srt) = state $ (addExpr . existSymbol sym) &&& (+1)
 --  where addExpr s = ((s, srt) , (sym, eVar s))

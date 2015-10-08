@@ -13,24 +13,29 @@ import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
+import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 
 -- DEBUG
 import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
+import           Text.PrettyPrint.HughesPJ          (render)
+
 
 ---------------------------------------------------------------------------
 solve :: (F.Fixpoint a) => Config -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg fi = runSolverM cfg fi $ solve_ fi
+solve cfg fi = runSolverM cfg fi' $ solve_ cfg fi' s0
+  where
+    (s0, fi') = eliminateAll fi
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => F.SInfo a -> SolveM (F.Result a)
+solve_ :: (F.Fixpoint a) => Config -> F.SInfo a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-solve_ fi = refine s0 wkl >>= result fi
+solve_ cfg fi s0 = refine s0' wkl >>= result fi
   where
-    s0        = trace "DONE: S.init" $ S.init fi
-    wkl       = trace "DONE: W.init" $ W.init fi
+    s0'          = trace "DONE: S.init" $ mappend s0 $ S.init fi
+    wkl          = trace "DONE: W.init" $ W.init fi
 
 ---------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution

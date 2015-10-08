@@ -10,6 +10,7 @@ module Language.Fixpoint.Interface (
 
     -- * Invoke Solver on an FInfo
   , solve
+  , solveNativeWithFInfo
 
     -- * Invoke Solver on a .fq file
   , solveFQ
@@ -122,12 +123,12 @@ printElimStats d = do
           ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (SInfo a)
-elim cfg fi
-  | eliminate cfg = do let fi' = eliminateAll fi
-                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-                       donePhase Loud "Eliminate"
-                       return fi'
-  | otherwise     = return fi
+elim cfg fi = return fi
+  -- | eliminate cfg = do let fi' = eliminateAll fi
+  --                     writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+  --                     donePhase Loud "Eliminate"
+  --                     return fi'
+  -- | otherwise     = return fi
 
 ---------------------------------------------------------------------------
 -- | External Ocaml Solver
