@@ -31,6 +31,7 @@ import qualified Data.HashMap.Strict as M
 import Data.List        (partition, foldl')
 import Data.Monoid      (mempty, mappend, mconcat)
 
+import Language.Fixpoint.Names (symbolUnsafeString)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
 import qualified Language.Fixpoint.Types as F
@@ -143,7 +144,7 @@ wpredRTyCon   :: RTyCon
 wpredRTyCon   = symbolRTyCon wpredName
 
 symbolRTyCon   :: Symbol -> RTyCon
-symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolString n) [] def
+symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ symbolUnsafeString n) [] def
 
 -------------------------------------------------------------------------------------
 -- | Instantiate `PVar` with `RTProp` -----------------------------------------------
@@ -329,7 +330,7 @@ substParg (x, y) = fmap fp
 -------------------------------------------------------------------------------
 -----------------------------  Predicate Application --------------------------
 -------------------------------------------------------------------------------
-pappArity :: Int 
+pappArity :: Int
 pappArity  = 7
 
 pappSort :: Int -> Sort
