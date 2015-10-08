@@ -172,7 +172,9 @@ symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
 
 symbolUnsafeText :: Symbol -> T.Text
-symbolUnsafeText = trace "symbolUnsafeText: " . symbolUnsafeText'
+symbolUnsafeText x = traceShow msg $ symbolUnsafeText' x
+  where
+    msg            = "SyUnTxt: x = " ++ show (symbolSafeText x)
 
 symbolUnsafeText' :: Symbol -> T.Text
 symbolUnsafeText' x

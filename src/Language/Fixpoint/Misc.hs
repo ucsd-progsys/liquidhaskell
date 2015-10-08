@@ -31,7 +31,6 @@ import GHC.Stack
 #endif
 
 
-
 traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 

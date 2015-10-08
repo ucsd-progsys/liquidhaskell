@@ -71,7 +71,9 @@ multicore cfg = cores cfg /= Just 1
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve, solve' :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve cfg fi      = do when (binary cfg) $ saveBinaryFile cfg fi
+solve cfg fi      = do when (binary cfg) $ do
+                         putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
+                         saveBinaryFile cfg fi
                        solve' cfg fi
 
 solve' cfg fi
@@ -94,28 +96,19 @@ saveBinary cfg
     f          = inFile cfg
 
 saveBinaryFile      :: Config -> FInfo a -> IO ()
-saveBinaryFile cfg  = encodeFile f' . void -- fi
-  where
-    f'              = withExt (inFile cfg) BinFq
+saveBinaryFile cfg  = encodeFile (binaryFile cfg) . void
+
+binaryFile :: Config -> FilePath
+binaryFile cfg = withExt (fileName cfg) BinFq
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
-
--- saveBinaryFile :: FilePath -> FilePath -> IO ExitCode
--- saveBinaryFile file bfile = do
-  -- fi <- readFInfo file
-  -- encodeFile bfile fi
-  -- return ExitSuccess
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver
 ---------------------------------------------------------------------------
 solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
 solveWith cfg s = exit (ExitFailure 2) $ do
-  -- let file  = inFile cfg
-  -- str      <- readFile file
-  -- let fi    = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  -- let fi'   = fi { fileName = file }
   fi    <- readFInfo (inFile cfg)
   res   <- s fi
   return $ resultExit (resStatus res)
