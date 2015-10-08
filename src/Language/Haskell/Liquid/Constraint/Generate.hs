@@ -723,8 +723,11 @@ coreBindLits tce info
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
+extendEnvWithTrueVV γ t
+  = true t >>= extendEnvWithVV γ 
+
 extendEnvWithVV γ t
-  | F.isNontrivialVV vv
+  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
   = (γ, "extVV") += (vv, t)
   | otherwise
   = return γ
@@ -1684,11 +1687,13 @@ refreshVVRef (RHProp _ _)
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ x _   (DataAlt c) ys
+caseEnv γ0 x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ0 ??= x'
+       let xt            = shiftVV xt0 x' 
+       γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt] 
        tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
-       let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
+       let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
