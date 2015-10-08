@@ -99,6 +99,7 @@ config = cmdArgsMode $ Config {
  , real
     = def
           &= help "Supports real number arithmetic"
+
  , native
     = def &= help "Use native (Haskell) fixpoint constraint solver"
 
@@ -191,13 +192,31 @@ config = cmdArgsMode $ Config {
               , "  liquid foo.hs "
               ]
 
-getOpts :: IO Config
-getOpts = do
+getOpts :: [String] -> IO Config
+getOpts as = do
+  --  as     <- getArgs
   cfg0   <- envCfg
   cfg1   <- mkOpts =<< cmdArgsRun'
-            config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
+                         config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
+                         as
   cfg    <- fixConfig cfg1
   whenNormal $ putStrLn copyright
+  withSmtSolver cfg
+
+
+cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
+cmdArgsRun' md as
+  = case parseResult of
+      Left e  -> putStrLn (helpMsg e) >> exitFailure
+      Right a -> cmdArgsApply a
+    where
+      helpMsg e = showText defaultWrap $ helpText [e] HelpFormatDefault md
+      parseResult = process md as -- <$> getArgs
+
+--------------------------------------------------------------------------------
+withSmtSolver :: Config -> IO Config
+--------------------------------------------------------------------------------
+withSmtSolver cfg =
   case smtsolver cfg of
     Just _  -> return cfg
     Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
@@ -206,17 +225,6 @@ getOpts = do
                     _     -> exitWithPanic noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
-
-cmdArgsRun' :: Mode (CmdArgs a) -> IO a
-cmdArgsRun' mode
-  = do parseResult <- process mode <$> getArgs
-       case parseResult of
-         Left err ->
-           putStrLn (help err) >> exitFailure
-         Right args ->
-           cmdArgsApply args
-    where
-      help err = showText defaultWrap $ helpText [err] HelpFormatDefault mode
 
 findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)
