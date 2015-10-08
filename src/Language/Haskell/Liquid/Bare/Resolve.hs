@@ -16,7 +16,7 @@ import qualified Data.List           as L
 import qualified Data.Text           as T
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (prims)
+import Language.Fixpoint.Names (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Pred(..),
                                 Qualifier(..),
@@ -27,7 +27,6 @@ import Language.Fixpoint.Types (Expr(..),
                                 fTyconSymbol,
                                 symbol,
                                 symbolFTycon,
-                                symbolText,
                                 fAppTC,
                                 fApp)
 
@@ -82,9 +81,9 @@ instance Resolvable LocSymbol where
 
 addSym x = modify $ \be -> be { varEnv = varEnv be `L.union` [x] }
 
-isCon c
-  | Just (c,_) <- T.uncons $ symbolText c = isUpper c
-  | otherwise                             = False
+isCon s
+  | Just (c,_) <- unconsSym s = isUpper c
+  | otherwise                 = False
 
 instance Resolvable Symbol where
   resolve l x = fmap val $ resolve l $ Loc l l x
