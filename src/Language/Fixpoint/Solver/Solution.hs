@@ -214,6 +214,9 @@ class Solvable a where
 
 instance Solvable EQual where
   apply s = apply s . eqPred
+  --TODO: this used to be just eqPred, but Eliminate allows KVars to 
+  -- have other KVars in their solutions. Does this extra 'apply s'
+  -- make a significant difference?
 
 instance Solvable F.KVar where
   apply s k = apply s $ safeLookup err k s

@@ -25,12 +25,12 @@ import           Text.PrettyPrint.HughesPJ          (render)
 ---------------------------------------------------------------------------
 solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg s0 fi = runSolverM cfg fi $ solve_ cfg fi s0
+solve cfg s0 fi = runSolverM cfg fi $ solve_ fi s0
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => Config -> F.SInfo a -> S.Solution -> SolveM (F.Result a)
+solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-solve_ cfg fi s0 = refine s0' wkl >>= result fi
+solve_ fi s0 = refine s0' wkl >>= result fi
   where
     s0'          = trace "DONE: S.init" $ mappend s0 $ S.init fi
     wkl          = trace "DONE: W.init" $ W.init fi

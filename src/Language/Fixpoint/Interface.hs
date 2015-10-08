@@ -5,12 +5,8 @@
 {-# LANGUAGE BangPatterns #-}
 
 module Language.Fixpoint.Interface (
-
-    -- * Containing Constraints
-    FInfo (..)
-
     -- * Invoke Solver on an FInfo
-  , solve
+    solve
 
     -- * Invoke Solver on a .fq file
   , solveFQ
@@ -201,11 +197,11 @@ printElimStats d = do
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
-   | eliminate cfg = do let (s0, fi') = eliminateAll fi
-                        writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-                        donePhase Loud "Eliminate"
-                        return (s0, fi')
-   | otherwise     = return (M.empty, fi)
+  | eliminate cfg = do let (s0, fi') = eliminateAll fi
+                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+                       donePhase Loud "Eliminate"
+                       return (s0, fi')
+  | otherwise     = return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
