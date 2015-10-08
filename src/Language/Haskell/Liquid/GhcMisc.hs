@@ -558,8 +558,9 @@ mungeNames f d msg s'@(symbolUnsafeText -> s)
   | s' == tupConName = tupConName
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
 
+
 qualifySymbol :: Symbol -> Symbol -> Symbol
-qualifySymbol m'@(symbolSafeText -> m) x'@(symbolSafeText -> x)
+qualifySymbol m'@(symbolUnsafeText -> m) x'@(symbolUnsafeText -> x)
   | isQualified x  = x'
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
