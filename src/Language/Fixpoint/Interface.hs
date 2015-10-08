@@ -99,7 +99,7 @@ saveBinaryFile      :: Config -> FInfo a -> IO ()
 saveBinaryFile cfg  = encodeFile (binaryFile cfg) . void
 
 binaryFile :: Config -> FilePath
-binaryFile cfg = withExt (fileName cfg) BinFq
+binaryFile cfg = withExt (srcFile cfg) BinFq
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
