@@ -49,7 +49,7 @@ import System.FilePath                     (dropFileName, isAbsolute,
 
 import Language.Fixpoint.Config            hiding (Config, real, native,
                                                    getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck)
+                                                   maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Names             (dropModuleNames)
@@ -181,6 +181,9 @@ config = cmdArgsMode $ Config {
           &= typ "OPTION"
           &= help "Tell GHC to compile and link against these files"
 
+ , eliminate
+    = def &= name "eliminate"
+          &= help "Use experimental 'eliminate' feature (requires --native)"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -338,6 +341,7 @@ defConfig = Config { files          = def
                    , cabalDir       = def
                    , ghcOptions     = def
                    , cFiles         = def
+                   , eliminate      = def
                    }
 
 instance Monoid SMTSolver where
