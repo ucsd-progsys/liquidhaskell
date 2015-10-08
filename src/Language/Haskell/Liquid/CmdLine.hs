@@ -52,7 +52,7 @@ import Language.Fixpoint.Config            hiding (Config, real, native,
                                                    maxPartSize, newcheck)
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names             (dropModuleNames)
+import Language.Fixpoint.Names
 import Language.Fixpoint.Types             hiding (Result)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc
@@ -313,7 +313,7 @@ fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buil
 defConfig :: Config
 defConfig = Config { files          = def
                    , idirs          = def
-                   , newcheck       = True     
+                   , newcheck       = True
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
@@ -368,7 +368,7 @@ exitWithResult cfg target out
 
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolUnsafeString . dropModuleNames . symbol)
 
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where

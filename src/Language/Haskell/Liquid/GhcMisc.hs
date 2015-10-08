@@ -7,6 +7,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -60,19 +61,17 @@ import qualified Data.List                    as L
 import           Data.Aeson
 import qualified Data.Text.Encoding           as T
 import qualified Data.Text.Unsafe             as T
+import qualified Data.Text                    as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
-
 import qualified Text.PrettyPrint.HughesPJ    as PJ
-
 import           Data.Monoid                  (mempty, mappend)
-
 import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
-import           Language.Fixpoint.Names      (symbolSafeText, symSepName, isSuffixOfSym, singletonSym)
-
+import           Language.Fixpoint.Names
+import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 
 #if __GLASGOW_HASKELL__ < 710
 import Language.Haskell.Liquid.Desugar.HscMain
@@ -356,9 +355,6 @@ isDictionaryExpression (Tick _ e) = isDictionaryExpression e
 isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
 
-isDictionary x = L.isPrefixOf "$f" (symbolString $ dropModuleNames $ symbol x)
-isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
-
 
 realTcArity :: TyCon -> Arity
 realTcArity
@@ -419,9 +415,9 @@ ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
         go' x | SigD (InlineSig _ _) <-  unLoc x = False
               | otherwise                        = True
 
-symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
-symbolTyCon x i n = stringTyCon x i (symbolString n)
-symbolTyVar n = stringTyVar (symbolString n)
+symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolUnsafeString n)
+symbolTyCon x i n = stringTyCon x i (symbolUnsafeString n)
+symbolTyVar n = stringTyVar (symbolUnsafeString n)
 
 instance Symbolic TyCon where
   symbol = symbol . qualifiedNameSymbol . getName
@@ -525,26 +521,35 @@ tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 #endif
 
+------------------------------------------------------------------------
+-- | Manipulating Symbols ----------------------------------------------
+------------------------------------------------------------------------
 
--- LiquidHaskell Specific: Move to GHCMisc
+dropModuleNames, takeModuleNames, dropModuleUnique :: Symbol -> Symbol
+dropModuleNames  = mungeNames lastName sepModNames "dropModuleNames: "
+  where
+    lastName msg = symbol . safeLast msg
+
+takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
+  where
+    initName msg = symbol . T.intercalate "." . safeInit msg
+
+dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
+  where
+    headName msg = symbol . safeHead msg
+
+
 sepModNames = "."
 sepUnique   = "#"
 
-dropModuleNames  = mungeNames safeLast sepModNames "dropModuleNames: "
-takeModuleNames  = mungeNames safeInit sepModNames "takeModuleNames: "
-dropModuleUnique = mungeNames safeHead sepUnique   "dropModuleUnique: "
 
-safeHead :: String -> [T.Text] -> Symbol
-safeHead msg []  = errorstar $ "safeHead with empty list" ++ msg
-safeHead _ (x:_) = symbol x
+-- safeHead :: String -> [T.Text] -> Symbol
+-- safeHead msg []  = errorstar $ "safeHead with empty list" ++ msg
+-- safeHead _ (x:_) = symbol x
 
-safeInit :: String -> [T.Text] -> Symbol
-safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
-safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
-
-safeLast :: String -> [T.Text] -> Symbol
-safeLast _ xs@(_:_)      = symbol $ last xs
-safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
+-- safeInit :: String -> [T.Text] -> Symbol
+-- safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
+-- safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
 
 mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
 mungeNames _ _ _ ""  = ""
@@ -561,3 +566,6 @@ qualifySymbol m'@(symbolSafeText -> m) x'@(symbolSafeText -> x)
 isQualified y = "." `T.isInfixOf` y
 wrapParens x  = "(" `mappend` x `mappend` ")"
 isParened xs  = xs /= stripParens xs
+
+isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
+isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol

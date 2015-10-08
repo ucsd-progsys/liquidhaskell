@@ -35,7 +35,7 @@ import Text.PrettyPrint.HughesPJ (text)
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
+import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolUnsafeString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
 import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
@@ -68,7 +68,7 @@ lookupGhcThing name f x
          Just x' -> return x'
          Nothing -> throwError $ ErrGhc (srcSpan x) (text msg)
   where
-    msg = "Not in scope: " ++ name ++ " `" ++ symbolString (symbol x) ++ "'"
+    msg = "Not in scope: " ++ name ++ " `" ++ symbolUnsafeString (symbol x) ++ "'"
 
 -- lookupGhcThing' :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM (Maybe b)
 lookupGhcThing' _    f x
@@ -87,7 +87,7 @@ symbolLookup env mod k
   = symbolLookupEnv env mod k
 
 wiredIn      :: M.HashMap Symbol Name
-wiredIn      = M.fromList $ special ++ wiredIns 
+wiredIn      = M.fromList $ special ++ wiredIns
   where
     wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
     special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
@@ -97,14 +97,14 @@ wiredIn      = M.fromList $ special ++ wiredIns
 symbolLookupEnv env mod s
   | isSrcImport mod
   = do let modName = getModName mod
-       L _ rn <- hscParseIdentifier env $ symbolString s
+       L _ rn <- hscParseIdentifier env $ symbolUnsafeString s
        res    <- lookupRdrName env modName rn
        -- 'hscParseIdentifier' defaults constructors to 'DataCon's, but we also
        -- need to get the 'TyCon's for declarations like @data Foo = Foo Int@.
        res'   <- lookupRdrName env modName (setRdrNameSpace rn tcName)
        return $ catMaybes [res, res']
   | otherwise
-  = do rn             <- hscParseIdentifier env $ symbolString s
+  = do rn             <- hscParseIdentifier env $ symbolUnsafeString s
        (_, lookupres) <- tcRnLookupRdrName env rn
        case lookupres of
          Just ns -> return ns
@@ -131,11 +131,11 @@ lookupGhcVar x
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
                        `catchError` (tryPropTyCon s)
-  where 
+  where
     ftc (ATyCon x)   = Just x
     ftc _            = Nothing
 
-tryPropTyCon s e   
+tryPropTyCon s e
   | sx == propConName  = return propTyCon
   | sx == hpropConName = return hpropTyCon
   | otherwise          = throwError e
@@ -159,7 +159,6 @@ isTupleDC zs
   = Nothing
 
 lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
-  where 
+  where
     fdc (AConLike (RealDataCon x)) = Just x
     fdc _            = Nothing
-

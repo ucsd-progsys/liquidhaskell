@@ -33,7 +33,6 @@ import Data.Maybe (isNothing)
 
 import qualified Data.List as L
 
-import Language.Fixpoint.Names (dropModuleNames)
 import Language.Fixpoint.Misc  (sortNub)
 import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
@@ -55,10 +54,10 @@ makeSymbols vs xs' xts yts ivs
       zs    = concatMap freeSymbols (snd <$> xts) `sortDiff` xs'
       zs'   = concatMap freeSymbols (snd <$> yts) `sortDiff` xs'
       zs''  = concatMap freeSymbols ivs           `sortDiff` xs'
-      
-freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> id) emptySEnv [] (val ty)
-  where 
-    f γ _ r xs = let Reft (v, _) = toReft r in 
+
+freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (const ()) f (const id) emptySEnv [] (val ty)
+  where
+    f γ _ r xs = let Reft (v, _) = toReft r in
                  [ x | x <- syms r, x /= v, not (x `memberSEnv` γ)] : xs
 
 
@@ -67,7 +66,7 @@ freeSymbols ty = sortNub $ concat $ efoldReft (\_ _ -> []) (\ _ -> ()) f (\_ -> 
 -------------------------------------------------------------------------------
 
 data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
-                        , errmsg :: Error 
+                        , errmsg :: Error
                         }
 
 initMapSt = MTVST []
@@ -75,36 +74,36 @@ initMapSt = MTVST []
 -- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
 --       single "clean" function as the API.
 runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
-runMapTyVars x s = execStateT x s
+runMapTyVars = execStateT
 
 mapTyVars :: (PPrint r, Reftable r) => Type -> RRType r -> StateT MapTyVarST (Either Error) ()
-mapTyVars τ (RAllT _ t)   
+mapTyVars τ (RAllT _ t)
   = mapTyVars τ t
-mapTyVars (ForAllTy _ τ) t 
+mapTyVars (ForAllTy _ τ) t
   = mapTyVars τ t
-mapTyVars (FunTy τ τ') (RFun _ t t' _) 
+mapTyVars (FunTy τ τ') (RFun _ t t' _)
    = mapTyVars τ t  >> mapTyVars τ' t'
-mapTyVars (TyConApp _ τs) (RApp _ ts _ _) 
+mapTyVars (TyConApp _ τs) (RApp _ ts _ _)
    = zipWithM_ mapTyVars τs ts
-mapTyVars (TyVarTy α) (RVar a _)      
+mapTyVars (TyVarTy α) (RVar a _)
    = do s  <- get
         s' <- mapTyRVar α a s
         put s'
-mapTyVars τ (RAllP _ t)   
-  = mapTyVars τ t 
-mapTyVars τ (RAllS _ t)   
-  = mapTyVars τ t 
-mapTyVars τ (RAllE _ _ t)   
-  = mapTyVars τ t 
+mapTyVars τ (RAllP _ t)
+  = mapTyVars τ t
+mapTyVars τ (RAllS _ t)
+  = mapTyVars τ t
+mapTyVars τ (RAllE _ _ t)
+  = mapTyVars τ t
 mapTyVars τ (RRTy _ _ _ t)
   = mapTyVars τ t
 mapTyVars τ (REx _ _ t)
-  = mapTyVars τ t 
+  = mapTyVars τ t
 mapTyVars _ (RExprArg _)
   = return ()
-mapTyVars (AppTy τ τ') (RAppTy t t' _) 
-  = do  mapTyVars τ t 
-        mapTyVars τ' t' 
+mapTyVars (AppTy τ τ') (RAppTy t t' _)
+  = do  mapTyVars τ t
+        mapTyVars τ' t'
 mapTyVars _ (RHole _)
   = return ()
 mapTyVars _ _
@@ -119,15 +118,15 @@ mapTyRVar α a s@(MTVST αas err)
 
 
 
-mkVarExpr v 
+mkVarExpr v
   | isFunVar v = EApp (varFunSymbol v) []
   | otherwise  = EVar (symbol v)
 
-varFunSymbol = dummyLoc . dataConSymbol . idDataCon 
+varFunSymbol = dummyLoc . dataConSymbol . idDataCon
 
 isFunVar v   = isDataConId v && not (null αs) && isNothing tf
   where
-    (αs, t)  = splitForAllTys $ varType v 
+    (αs, t)  = splitForAllTys $ varType v
     tf       = splitFunTy_maybe t
 
 -- the Vars we lookup in GHC don't always have the same tyvars as the Vars
@@ -143,7 +142,6 @@ simpleSymbolVar :: Var -> Symbol
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 
 hasBoolResult (ForAllTy _ t) = hasBoolResult t
-hasBoolResult (FunTy _ t)    | eqType boolTy t = True 
+hasBoolResult (FunTy _ t)    | eqType boolTy t = True
 hasBoolResult (FunTy _ t)    = hasBoolResult t
 hasBoolResult _              = False
-

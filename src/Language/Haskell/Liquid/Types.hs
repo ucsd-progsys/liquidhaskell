@@ -238,7 +238,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
-import Language.Fixpoint.Names      (funConName, listConName, tupConName)
+import Language.Fixpoint.Names      (symbolUnsafeText, symbolUnsafeString, funConName, listConName, tupConName)
 import qualified Language.Fixpoint.PrettyPrint as F
 import CoreSyn (CoreBind)
 
@@ -255,7 +255,7 @@ import Data.Default
 data Config = Config {
     files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check 
+  , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , real           :: Bool       -- ^ supports real number arithmetic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
@@ -814,7 +814,7 @@ instance TyConable Symbol where
   isFun   s = funConName == s
   isList  s = listConName == s
   isTuple s = tupConName == s
-  ppTycon = text . symbolString
+  ppTycon   = text . symbolUnsafeString
 
 instance TyConable LocSymbol where
   isFun   = isFun . val
@@ -1375,7 +1375,7 @@ instance PPrint Sort where
   pprint = F.pprint
 
 instance PPrint Symbol where
-  pprint = pprint . symbolText
+  pprint = pprint . symbolUnsafeText
 
 instance PPrint Expr where
   pprint = F.pprint
@@ -1548,7 +1548,7 @@ data TError t =
                 } -- ^ Refined Class/Interfaces Conflict
 
   | ErrBadQual  { pos   :: !SrcSpan
-                , qname :: !Doc 
+                , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
 

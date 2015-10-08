@@ -26,27 +26,25 @@ module Language.Haskell.Liquid.PrettyPrint (
 
 import ErrUtils                         (ErrMsg)
 import HscTypes                         (SourceError)
-import SrcLoc                           -- (RealSrcSpan, SrcSpan (..))
+import SrcLoc
 import GHC                              (Name, Class)
---import VarEnv                           (emptyTidyEnv)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
-import Language.Fixpoint.Names (dropModuleNames, propConName, hpropConName)
+import Language.Fixpoint.Names (symbolUnsafeString, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)
 import TyCon            (TyCon)
-import Control.Applicative ((<$>))
 import Data.Maybe   (fromMaybe)
 import Data.List    (sort, sortBy)
 import Data.Function (on)
 import Data.Monoid   (mempty)
+import Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict as M
-
 
 
 pprintSymbol :: Symbol -> Doc
@@ -114,7 +112,7 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
     ppE Full  = ppEnv
 
 ppTyConB bb
-  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
+  | ppShort bb = text . symbolUnsafeString . dropModuleNames . symbol . render . ppTycon
   | otherwise  = ppTycon
 
 
@@ -152,7 +150,7 @@ ppr_rtype _ _ (RExprArg e)
   = braces $ pprint e
 ppr_rtype bb p (RAppTy t t' r)
   = ppTy r $ ppr_rtype bb p t <+> ppr_rtype bb p t'
-ppr_rtype bb p (RRTy e _ OCons t)         
+ppr_rtype bb p (RRTy e _ OCons t)
   = sep [braces (ppr_rsubtype bb p e) <+> "=>", ppr_rtype bb p t]
 ppr_rtype bb p (RRTy e r o t)
   = sep [ppp (pprint o <+> ppe <+> pprint r), ppr_rtype bb p t]
@@ -162,14 +160,14 @@ ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
 
-ppr_rsubtype bb p e 
+ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
   where
     (el, r)  = (init e,  last e)
     (env, l) = (init el, last el)
     tr   = snd $ r
     tl   = snd $ l
-    pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t 
+    pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
 ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
@@ -185,7 +183,7 @@ ppSpine (RVar _ _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
 ppSpine (RRTy _ _ _ _)   = text "RRTy"
 
--- | From GHC: TypeRep 
+-- | From GHC: TypeRep
 maybeParen :: Prec -> Prec -> Doc -> Doc
 maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
@@ -253,7 +251,7 @@ ppr_forall bb p t
 ppr_cls bb p c ts
   = pp c <+> hsep (map (ppr_rtype bb p) ts)
   where
-    pp | ppShort bb = text . symbolString . dropModuleNames . symbol . render . pprint
+    pp | ppShort bb = text . symbolUnsafeString . dropModuleNames . symbol . render . pprint
        | otherwise  = pprint
 
 
@@ -265,7 +263,7 @@ ppr_pvar_def pprv (PV s t _ xts)
 
 ppr_pvar_kind pprv (PVProp t) = pprv t <+> arrow <+> ppr_name propConName
 ppr_pvar_kind _    (PVHProp)  = ppr_name hpropConName
-ppr_name                      = text . symbolString
+ppr_name                      = text . symbolUnsafeString
 
 instance PPrint RTyVar where
   pprint (RTV α)
