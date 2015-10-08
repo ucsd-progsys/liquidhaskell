@@ -10,15 +10,13 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Add a constraint and all its dependencies
        , push
-
        )
        where
 
 import           Prelude hiding (init)
 import           Language.Fixpoint.Visitor (envKVars, kvars)
-import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.PrettyPrint (PPrint (..))
+import           Language.Fixpoint.Misc (errorstar, fst3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
@@ -33,9 +31,9 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
-init :: Config -> F.SInfo a -> Worklist a
+init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init _ fi = WL roots (cSucc cd) (F.cm fi)
+init fi = WL roots (cSucc cd) (F.cm fi)
   where
     cd    = cDeps fi
     roots = S.fromList $ cRoots cd
@@ -120,8 +118,7 @@ succs cm rdBy i = sortNub $ concatMap kvReads iKs
 
 kvReadBy :: F.SInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- {- tracepp ("lhsKVS: " ++ show i) $ -}
-                                          envKVars bs ci]
+                             , k       <- envKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi

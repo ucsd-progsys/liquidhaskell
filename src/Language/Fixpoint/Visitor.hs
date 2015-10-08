@@ -20,7 +20,7 @@ module Language.Fixpoint.Visitor (
   -- * Clients
   , kvars
   , envKVars
-  , mapKVars, mapKVars'
+  , mapKVars, mapKVars', mapKVarSubsts
   , lhsKVars, rhsKVars
 
   -- * Sorts
@@ -161,7 +161,8 @@ visitPred v = vP
     step c (PIff p1 p2)    = PIff     <$> vP c p1 <*> vP c p2
     step c (PBexp  e)      = PBexp    <$> vE c e
     step c (PAtom r e1 e2) = PAtom r  <$> vE c e1 <*> vE c e2
-    step c (PAll xts p)    = PAll xts <$> vP c p
+    step c (PAll xts p)    = PAll   xts <$> vP c p
+    step c (PExist xts p)  = PExist xts <$> vP c p
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
     step _ p@PTrue         = return p
     step _ p@PFalse        = return p
@@ -186,6 +187,13 @@ mapKVars' f             = trans kvVis () []
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
+    txK _ p            = p
+
+mapKVarSubsts :: Visitable t => (Subst -> Subst) -> t -> t
+mapKVarSubsts f             = trans kvVis () []
+  where
+    kvVis              = defaultVisitor { txPred = txK }
+    txK _ (PKVar k su) = PKVar k $ f su
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]

@@ -55,6 +55,9 @@ instance SMTLIB2 Symbol where
     | Just t <- Thy.smt2Symbol s = LT.fromStrict t
   smt2 s                         = LT.fromStrict . encode . symbolText $ s
 
+instance SMTLIB2 (Symbol, Sort) where
+  smt2 (sym, t) = format "({} {})"  (smt2 sym, smt2 t)
+
 -- FIXME: this is probably too slow.
 -- RJ: Yes it is!
 encode :: T.Text -> T.Text
@@ -123,6 +126,7 @@ instance SMTLIB2 Pred where
   smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
   smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
+  smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PBexp e)        = smt2 e
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
   smt2 _                = error "smtlib2 Pred"

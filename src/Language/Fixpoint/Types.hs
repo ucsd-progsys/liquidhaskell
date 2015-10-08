@@ -540,6 +540,7 @@ data Pred = PTrue
           | PAtom  !Brel  !Expr !Expr
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Pred
+          | PExist ![(Symbol, Sort)] !Pred
           | PTop
           deriving (Eq, Show, Data, Typeable, Generic)
 
@@ -563,6 +564,7 @@ instance Fixpoint Pred where
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
   toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
+  toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -1165,6 +1167,7 @@ instance Subable Pred where
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
   subst _  (PAll _ _)      = errorstar "subst: FORALL"
+  subst su (PExist bs p)   = PExist bs $ subst (substExcept su (fst <$> bs)) p
   subst _  p               = p
 
 instance Subable Refa where
