@@ -110,7 +110,7 @@ import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
 import           Language.Fixpoint.Misc      (errorstar)
-
+import Debug.Trace
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -165,16 +165,27 @@ instance Binary Symbol where
   get = toSymbol <$> get
   put = put . symbolUnsafeText
 
-symbolSafeString :: Symbol -> String
-symbolSafeString = T.unpack . symbolSafeText
-
 symbolSafeText :: Symbol -> SafeText
 symbolSafeText (S s) = unintern s
 
+symbolSafeString :: Symbol -> String
+symbolSafeString = T.unpack . symbolSafeText
+
 symbolUnsafeText :: Symbol -> T.Text
-symbolUnsafeText (S s) = fromMaybe (unintern s) (memoDecode i)
+symbolUnsafeText = trace "symbolUnsafeText: " . symbolUnsafeText'
+
+symbolUnsafeText' x   
+  | Just i <- encId s = memoDecode i
+  | otherwise         = s
   where
-    i                  = internedTextId s
+    s                 = symbolUnsafeText x
+    -- i              = internedTextId s
+
+encId :: T.Text -> Maybe Int
+encId s = t2i <$> T.stripPrefix encPrefix p
+
+t2i :: T.Text -> Int
+t2i = read . T.unpack
 
 symbolUnsafeString :: Symbol -> String
 symbolUnsafeString = T.unpack . symbolUnsafeText
@@ -183,13 +194,15 @@ safeTextSymbol :: SafeText -> Symbol
 safeTextSymbol = S . intern
 
 ---------------------------------------------------------------------------
------- Converting Strings To Fixpoint -------------------------------------
+-- | Converting Strings To Fixpoint ---------------------------------------
 ---------------------------------------------------------------------------
-
 
 -- INVARIANT: All strings *must* be built from here
 toSymbol :: T.Text -> Symbol
 toSymbol = safeTextSymbol . encode
+
+
+-- encode 'abs#45' == 'enc$7' where 7 |-> 'abs#45'
 
 encode :: T.Text -> SafeText
 encode t
@@ -262,6 +275,8 @@ dropSym n (symbolUnsafeText -> t) = symbol $ T.drop n t
 
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolUnsafeText p) (symbolUnsafeText x)
+
+
 
 -- stripParens :: T.Text -> T.Text
 -- stripParens t = fromMaybe t (strip t)
