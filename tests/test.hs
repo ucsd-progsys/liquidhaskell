@@ -22,7 +22,8 @@ unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"  []  ExitSuccess
     , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"  []  (ExitFailure 1)
-    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  []  ExitSuccess
+    --Given all the changes in LH, Ben doesn't trust test000 anymore until he can reproduce the failure using a current LH test
+    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  ["test000.hs.fq"]  ExitSuccess 
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim" []  ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"  []  (ExitFailure 1)
    ]

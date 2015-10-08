@@ -5,6 +5,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
+import           Data.Monoid (mappend)
 import           Control.Monad (filterM)
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict  as M
