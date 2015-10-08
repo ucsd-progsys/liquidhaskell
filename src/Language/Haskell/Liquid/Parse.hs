@@ -283,7 +283,8 @@ bareAllP
 
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isLower . head)
-           where alphanums = ['a'..'z'] ++ ['0'..'9']
+           where
+             alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 predVarDefsP
   =  try (angles $ sepBy1 predVarDefP comma)
@@ -699,7 +700,9 @@ rtAliasP f bodyP
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
 
 aliasIdP :: Parser Symbol
-aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head)
+aliasIdP = condIdP alphaNums (isAlpha . head)
+           where
+             alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
 measureP :: Parser (Measure BareType LocSymbol)
 measureP
