@@ -6,6 +6,7 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE CPP                        #-}
 
 
@@ -140,7 +141,7 @@ instance IsString Symbol where
 
 instance Monoid Symbol where
   mempty        = ""
-  mappend s1 s2 = toSymbol $ mappend s1' s2'
+  mappend s1 s2 = textSymbol $ mappend s1' s2'
     where
       s1'       = symbolText s1
       s2'       = symbolText s2
@@ -162,8 +163,18 @@ instance Hashable Symbol where
   hashWithSalt i (S x) = hashWithSalt i x
 
 instance Binary Symbol where
-  get = toSymbol <$> get
+  get = textSymbol <$> get
   put = put . symbolText
+
+---------------------------------------------------------------------------
+-- | Decoding Symbols -----------------------------------------------------
+---------------------------------------------------------------------------
+
+symbolText :: Symbol -> T.Text
+symbolText = decode
+
+symbolString :: Symbol -> String
+symbolString = T.unpack . symbolText
 
 symbolSafeText :: Symbol -> SafeText
 symbolSafeText (S s) = unintern s
@@ -171,13 +182,8 @@ symbolSafeText (S s) = unintern s
 symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
 
--- symbolText :: Symbol -> T.Text
--- symbolText x = traceShow msg $ symbolText' x
-  -- where
-    -- msg            = "SyUnTxt: x = " ++ show (symbolSafeText x)
-
-symbolText :: Symbol -> T.Text
-symbolText x
+decode :: Symbol -> T.Text
+decode x
   | Just i <- encId s = memoDecode i
   | otherwise         = s
   where
@@ -189,22 +195,13 @@ encId = fmap t2i . T.stripPrefix encPrefix
 t2i :: T.Text -> Int
 t2i = read . T.unpack
 
-symbolString :: Symbol -> String
-symbolString = T.unpack . symbolText
-
-safeTextSymbol :: SafeText -> Symbol
-safeTextSymbol = S . intern
-
 ---------------------------------------------------------------------------
--- | Converting Strings To Fixpoint ---------------------------------------
+-- | Encoding Symbols -----------------------------------------------------
 ---------------------------------------------------------------------------
 
 -- INVARIANT: All strings *must* be built from here
-toSymbol :: T.Text -> Symbol
-toSymbol = safeTextSymbol . encode
-
-
--- encode 'abs#45' == 'enc$7' where 7 |-> 'abs#45'
+textSymbol :: T.Text -> Symbol
+textSymbol = S . intern . encode
 
 encode :: T.Text -> SafeText
 encode t
@@ -216,6 +213,7 @@ encode t
 
 encPrefix :: SafeText
 encPrefix = "enc$"
+
 
 safeCat :: SafeText -> SafeText -> SafeText
 safeCat = mappend
@@ -336,7 +334,7 @@ class Symbolic a where
   symbol :: a -> Symbol
 
 instance Symbolic T.Text where
-  symbol = toSymbol
+  symbol = textSymbol
 
 instance Symbolic String where
   symbol = symbol . T.pack
