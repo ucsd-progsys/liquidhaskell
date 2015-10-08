@@ -936,7 +936,7 @@ appSolRefa s (Refa p) = Refa $ mapKVars f p
 shiftVV :: SpecType -> Symbol -> SpecType
 -------------------------------------------------------------------------------
 
-shiftVV t@(RApp _ ts _ r) vv'
+shiftVV t@(RApp _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RFun _ _ _ r) vv'
