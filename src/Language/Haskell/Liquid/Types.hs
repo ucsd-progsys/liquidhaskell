@@ -282,6 +282,7 @@ data Config = Config {
   , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
+  , eliminate      :: Bool
   } deriving (Data, Typeable, Show, Eq)
 
 

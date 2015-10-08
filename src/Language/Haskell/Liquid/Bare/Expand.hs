@@ -46,6 +46,7 @@ mapPredM f = go
     go (PBexp e)       = PBexp <$> f e
     go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
     go (PAll xs p)     = PAll xs <$> go p
+    go (PExist _ _)    = error "mapPredM: PExist is for fixpoint internals only"
     -- go (PExist xs p)   = PExist xs <$> go p
     go PTop            = return PTop
 
