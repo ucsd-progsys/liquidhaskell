@@ -189,6 +189,7 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
+
 holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = try refaP
