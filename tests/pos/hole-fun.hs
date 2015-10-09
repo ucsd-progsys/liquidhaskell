@@ -8,5 +8,3 @@ app :: (Int -> Int) -> Int -> Int
 app f x = f x
 
 test = app inc 7
-
-
