@@ -272,10 +272,15 @@ encodeUnsafe = joinChunks . splitChunks
 
 joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
 joinChunks (t, [] ) = t
-joinChunks (t, cts) = T.concat $ t : (tx <$> cts)
+joinChunks (t, cts) = T.concat $ padNull t : (tx <$> cts)
   where
     tx (c, ct)      = mconcat ["$", c2t c, "$", ct]
     c2t             = T.pack . show . ord
+
+padNull :: T.Text -> T.Text
+padNull t
+  | T.null t  = "z$"
+  | otherwise = t
 
 splitChunks :: T.Text -> (T.Text, [(Char, SafeText)])
 splitChunks t = (h, go tl)
