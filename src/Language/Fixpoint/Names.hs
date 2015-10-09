@@ -101,7 +101,7 @@ import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
 import qualified Data.HashMap.Strict         as M
-import           Data.Interned               -- (intern, unintern)
+import           Data.Interned
 import           Data.Interned.Internal.Text
 import           Data.Maybe                  (fromMaybe)
 import           Data.String                 (IsString(..))
@@ -168,7 +168,7 @@ instance NFData Symbol where
   rnf (S {}) = ()
 
 instance Binary Symbol where
-  get = intern <$> get
+  get = textSymbol <$> get
   put = put . symbolText
 
 sCache :: Cache Symbol
@@ -176,14 +176,14 @@ sCache = mkCache
 {-# NOINLINE sCache #-}
 
 instance IsString Symbol where
-  fromString = intern . T.pack
+  fromString = textSymbol . T.pack
 
 instance Show Symbol where
   show = show . symbolRaw
 
 instance Monoid Symbol where
   mempty        = ""
-  mappend s1 s2 = intern $ mappend s1' s2'
+  mappend s1 s2 = textSymbol $ mappend s1' s2'
     where
       s1'       = symbolText s1
       s2'       = symbolText s2
@@ -255,6 +255,9 @@ symbolSafeString = T.unpack . symbolSafeText
 -- INVARIANT: All strings *must* be built from here
 -- textSymbol :: T.Text -> Symbol
 -- textSymbol = S . intern . encode
+
+textSymbol :: T.Text -> Symbol
+textSymbol = intern
 
 encode :: T.Text -> SafeText
 encode t
@@ -413,7 +416,7 @@ class Symbolic a where
   symbol :: a -> Symbol
 
 instance Symbolic T.Text where
-  symbol = intern
+  symbol = textSymbol 
 
 instance Symbolic String where
   symbol = symbol . T.pack
@@ -479,6 +482,7 @@ prims = [ propConName
         , consName
         ]
 
+{- 
 -------------------------------------------------------------------------------
 -- | Memoized Decoding
 -------------------------------------------------------------------------------
@@ -501,3 +505,5 @@ memoDecode i = unsafePerformIO $
                  safeLookup msg i <$> readIORef symbolMemo
                where
                  msg = "Symbol Decode Error: " ++ show i
+
+-}
