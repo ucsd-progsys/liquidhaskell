@@ -13,6 +13,7 @@ import CoreSyn hiding (Expr)
 import HscTypes
 import Id
 import NameSet
+import Name 
 import TyCon
 import Var
 import TysWiredIn
@@ -29,12 +30,12 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (thd3)
-import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
+import Language.Fixpoint.Misc (thd3, traceShow)
+import Language.Fixpoint.Names (takeWhileSym, nilName, consName, dropModuleNames)
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc (getSourcePosE, getSourcePos, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
@@ -91,7 +92,7 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
   -- HEREHEREHEREHERE (addTyConInfo stuff)
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    tySigs'  = traceShow "TYSIGS HERE " $ mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
@@ -134,6 +135,32 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec4 defVars specs name su
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms cbs name specs
+         >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)  
+
+
+makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
+makeExactDataCons n flag vs spec 
+  | flag      = return $ spec {tySigs = (tySigs spec) ++ xts}
+  | otherwise = return spec 
+  where 
+    xts = makeExact <$> (filter isDataConId $ filter isLocal vs) 
+    isLocal v = L.isPrefixOf (show n) $ show v
+
+makeExact :: Var -> (Var, Located SpecType)
+makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+  where 
+    t    :: SpecType
+    t    = ofType $ varType x 
+    trep = toRTypeRep t 
+    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+
+    res  = ty_res trep `strengthen` U ref mempty mempty
+    vv   = vv_
+    x'   = symbol x --  simpleSymbolVar x 
+    ref  = Reft (vv, Refa $ PAtom Eq (EVar vv) eq)
+    eq   | null (ty_vars trep) && null xs = EVar x'
+         | otherwise = EApp (dummyLoc x') (EVar <$> xs)
+
 
 makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
 makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec

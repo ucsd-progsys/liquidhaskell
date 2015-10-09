@@ -100,6 +100,13 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Supports real number arithmetic"
 
+<<<<<<< HEAD
+=======
+ , exactDC 
+    = def &= help "Ecaxt Type for Data Constructors"
+          &= name "exact-data-cons"
+
+>>>>>>> adding datacon singleton flag
  , native
     = def &= help "Use native (Haskell) fixpoint constraint solver"
 
@@ -339,6 +346,7 @@ defConfig = Config { files          = def
                    , notruetypes    = def
                    , totality       = def
                    , noPrune        = def
+                   , exactDC        = def 
                    , cores          = def
                    , minPartSize    = defaultMinPartSize
                    , maxPartSize    = defaultMaxPartSize

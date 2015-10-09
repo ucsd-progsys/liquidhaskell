@@ -132,11 +132,11 @@ initEnv :: GhcInfo -> CG CGEnv
 initEnv info
   = do let tce   = tcEmbeds sp
        let fVars = impVars info
-       let dcs   = filter isConLikeId ((snd <$> freeSyms sp))
-       let dcs'  = filter isConLikeId fVars
+       let dcs   = traceShow "DCS"  $ filter isConLikeId ((snd <$> freeSyms sp))
+       let dcs'  = traceShow "DCS'" $ filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty'   <- forM dcs'  $ \x -> liftM (x,) (trueTy $ varType x)
+       dcsty    <- forM dcs   $ makeDataConTypes  
+       dcsty'   <- forM dcs'  $ makeDataConTypes 
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
@@ -147,11 +147,11 @@ initEnv info
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
-       let f4    = mergeDataConTypes f40 (f41 ++ f42)
+       let f4    = mergeDataConTypes (mergeDataConTypes (traceShow "f40" f40) (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4]
+       let bs    = (tx <$> ) <$> (printFs 0 [f0 ++ f0', f1 ++ f1', f2,  f3, f4])
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
@@ -162,6 +162,13 @@ initEnv info
     vals f       = map (mapSnd val) . f
     mapSndM f (x,y) = (x,) <$> f y
     makedcs      = map strengthenDataConType
+
+
+printFs i (x:xs) = traceShow ("\nf" ++ show i ++ " = " ++  show (fst <$> x) ++ "\n" ++ show x ) x :printFs (i+1) xs 
+printFs _ [] = [] 
+
+makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+
 
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
@@ -192,7 +199,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
 
-mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
+mergeDataConTypes xts yts = traceShow ("MERGED\n\n" ++ show xts ++ "\n AND\n" ++ show yts) $ merge (L.sortBy f xts) (L.sortBy f yts)
   where
     f (x,_) (y,_) = compare x y
     merge [] ys = ys
