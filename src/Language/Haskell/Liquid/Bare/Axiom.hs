@@ -1,5 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 
 module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 
@@ -54,20 +56,22 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
-makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
-          -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)])
+makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol 
+          -> BareM ((Symbol, Located SpecType), (Var, Located SpecType), [HAxiom])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v _def:_)   -> return $ traceShow "makeAxiom NonRec" ((val x, makeType v), [(v, makeAssumeType v)])
-    (Rec [(v, _def)]:_) -> return $ traceShow "makeAxiom Rec   " ((val x, makeType v), [(v, makeAssumeType v)])
-    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
+    (NonRec v def:_)   -> return $ traceShow ("makeAxiom NonRec" ++ show def) 
+                                   ((val x, makeType v), (v, makeAssumeType v), defAxioms v def)
+    (Rec [(v, def)]:_) -> return $ traceShow ("makeAxiom Rec   " ++ show def ++ showpp (coreToDef' x v def)) 
+                                   ((val x, makeType v), (v, makeAssumeType v), defAxioms v def)
+    _                  -> throwError $ mkError "NIKI: Please add SrcPos here: Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
     binders (Rec xes)    = fst <$> xes
 
-    _coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
-                            Left l  -> return     l
-                            Right e -> throwError e
+    coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
+                            Left l  -> l :: [Def (RRType ()) DataCon] -- return     l
+                            Right _ -> error $ "ERROR" -- throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
@@ -76,7 +80,70 @@ makeAxiom lmap cbs _ _ x
     makeAssumeType v = x{val = axiomType x $ varType v}
 
 
+<<<<<<< HEAD
 -- | Specification for Haskell function
+=======
+defAxioms _ _  = [] 
+
+{- NV TODO: what are axioms??
+
+defAxioms v e = go [] e  
+  where
+  	go bs (Tick _ e) = go bs e
+  	go bs (Lam x e) | isTyVar x               = go bs e  
+  	go bs (Lam x e) | isClassPred (varType x) = go bs e 
+  	go bs (Lam x e) = go (bs++[x]) e 
+  	go bs (Case  (Var x) _ _ alts)  = goalt x bs  <$> alts 
+  	go _ _ = error "TODO: defAxioms"
+
+  	goalt x bs (DataAlt c, ys, e) = let vs = [b | b<- bs , b /= x] ++ ys in 
+                                    Axiom (v, Just c) vs (varType <$> vs) (mkApp bs x c ys) $ simplify e
+  	goalt _ _  (LitAlt _,  _,  _) = error "TODO defAxioms: goalt Lit"
+  	goalt _ _  (DEFAULT,   _,  _) = error "TODO defAxioms: goalt Def"
+
+  	mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
+
+
+class Simplifiable a where
+	simplify :: a -> a
+
+instance Simplifiable CoreExpr where
+	simplify (Tick _ e) = simplify e
+	simplify (Lam x e) | isTyVar x = simplify e 
+	simplify (Lam x e) | isClassPred (varType x) = simplify e 
+	simplify (Lam x e) = Lam x $ simplify e 
+	simplify (Let b e) = unANF (simplify b) (simplify e)
+	simplify (Case e v t alts) = Case e v t alts 
+	simplify (Cast e _) = simplify e 
+	simplify (App e (Type _)) = simplify e 
+	simplify (App e (Var x)) | isClassPred (varType x) = simplify e 
+	simplify (App f e) = App (simplify f) (simplify e)
+	simplify e@(Var _) = e 
+	simplify e = error ("TODO simplify" ++ show e)
+
+unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
+  = subst (x, ex) e 
+unANF b e = Let b e
+
+instance Simplifiable CoreBind where
+	simplify (NonRec x e) = NonRec x $ simplify e 
+	simplify (Rec xes)    = Rec (second simplify <$> xes) 
+
+
+class Subable a where
+	subst :: (Var, CoreExpr) -> a -> a 
+
+instance Subable CoreExpr where
+	subst (x, ex) (Var y) | x == y    = ex 
+	                      | otherwise = Var y
+	subst su (App f e) = App (subst su f) (subst su e)  
+	subst su (Lam x e) = Lam x (subst su e)
+	subst _ _          = error "TODO Subable"
+
+-}
+
+-- | Specification for Haskell function 
+>>>>>>> 72df78a7d7386d172186abe0c0d7c703ca7edada
 axiomType :: LocSymbol -> Type -> SpecType
 axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
   where
@@ -104,25 +171,6 @@ ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts
 
     mkType []     tr = tr
     mkType (t:ts) tr = arrowType t $ mkType ts tr
-
-{-
-makeMeasureDefinition :: LogicMap -> [CoreBind] -> LocSymbol -> BareM (Measure SpecType DataCon)
-makeMeasureDefinition lmap cbs x
-  = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
-    (Rec [(v, def)]:_) -> Ms.mkM x (logicType $ varType v) <$> coreToDef' x v def
-    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
-  where
-    binders (NonRec x _) = [x]
-    binders (Rec xes)    = fst <$> xes
-
-    coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
-                           Left l  -> return     l
-                           Right e -> throwError e
-
-    mkError :: String -> Error
-    mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
--}
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
