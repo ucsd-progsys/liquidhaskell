@@ -260,8 +260,8 @@ encode :: T.Text -> SafeText
 encode t
   | isFixKey t     = T.append "key$" t
   | otherwise      = encodeUnsafe t
-  -- | isUnsafe t     = encodeUnsafe t
-  -- | otherwise      = t
+--  --   isUnsafe t     = encodeUnsafe t
+  --  otherwise      = t
   -- where
   --   isUnsafe       = T.any isUnsafeChar
   -- encodeUnsafe = T.intercalate "$" . T.split isUnsafeChar
