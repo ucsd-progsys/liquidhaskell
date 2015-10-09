@@ -17,22 +17,22 @@ module Language.Fixpoint.Solver.Solution
 
           -- * Lookup Solution
         , lookup
+
+        , mkJVar
         )
 where
 
 import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>), mempty)
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Config
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
--- import           Text.Printf (printf)
 
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
@@ -49,6 +49,11 @@ lookup s k = M.lookupDefault [] k s
 ---------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------
 ---------------------------------------------------------------------
+
+dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
+
+mkJVar :: F.Pred -> KBind
+mkJVar p = [EQL dummyQual p []]
 
 data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
@@ -102,9 +107,9 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
-init :: Config -> F.GInfo c a -> Solution
+init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init _ fi = {- tracepp "init solution" -} s
+init fi = {- tracepp "init solution" -} s
   where
     s     = L.foldl' (refine fi qs) s0 ws
     s0    = M.empty
@@ -131,7 +136,9 @@ refineK :: F.SEnv F.SortedReft
         -> Solution
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
-    eqs  = fromMaybe (instK env v t qs) (M.lookup k s)
+    eqs  = instK env v t qs 
+    --OLD: eqs = fromMaybe (instK env v t qs) (M.lookup k s)
+    --OLD: --but the lookup should _always_ fail, right?
     eqs' = filter (okInst env v t) eqs
 
     -- OLD eqs' = case M.lookup k s of
@@ -206,7 +213,10 @@ class Solvable a where
   apply :: Solution -> a -> F.Pred
 
 instance Solvable EQual where
-  apply _ = eqPred
+  apply s = apply s . eqPred
+  --TODO: this used to be just eqPred, but Eliminate allows KVars to 
+  -- have other KVars in their solutions. Does this extra 'apply s'
+  -- make a significant difference?
 
 instance Solvable F.KVar where
   apply s k = apply s $ safeLookup err k s
