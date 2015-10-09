@@ -47,7 +47,7 @@ chooseCut vs (KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
     v   = head $ if S.null is then vs' else S.toList is
 
 subcEdges :: BindEnv -> SimpC a -> [(KVar, KVar)]
-subcEdges bs c = [(k1, k2)        | k1 <- envKVars bs c
+subcEdges be c = [(k1, k2)        | k1 <- envKVars be c
                                   , k2 <- kvars $ crhs c ]
               ++ [(k2, KV nonSymbol) | k2 <- kvars $ crhs c]
 -- this nonSymbol hack prevents nodes with potential outdegree 0 

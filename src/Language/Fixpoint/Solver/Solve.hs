@@ -65,7 +65,7 @@ refineC _i s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
 lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Pred
-lhsPred s c be = F.pAnd $ pBinds
+lhsPred s c be = F.pAnd pBinds
   where
     pBinds     = S.apply s <$> xts
     xts        = F.envCs be $  F.senv c

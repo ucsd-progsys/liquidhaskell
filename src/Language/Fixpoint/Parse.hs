@@ -285,7 +285,7 @@ eMinus     = EBin Minus (expr (0 :: Integer))
 
 exprCastP
   = do e  <- exprP
-       ((try dcolon) <|> colon)
+       (try dcolon) <|> colon
        so <- sortP
        return $ ECst e so
 

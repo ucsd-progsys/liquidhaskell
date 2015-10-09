@@ -4,9 +4,7 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor          (mapKVars')
 import           Language.Fixpoint.Names            (renameSymbol)
-import           Language.Fixpoint.Solver.Eliminate (findWfC)
 import           Language.Fixpoint.Misc             (fst3, mlookup)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
@@ -51,16 +49,16 @@ updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids = elemsIBindEnv $ senv s
-    nameMap = M.fromList [(fst $ lookupBindEnv id be, id) | id <- ids]
+    nameMap = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
     m' = foldl' (insertIdIdLinks be nameMap) m ids
 
     symList = syms $ crhs s
     refSet = S.fromList $ namesToIds symList nameMap
 
 insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
-insertIdIdLinks be nameMap m id = M.insertWith S.union (RB id) refSet m
+insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
-    sr = snd $ lookupBindEnv id be
+    sr = snd $ lookupBindEnv i be
     symList = freeVars $ sr_reft sr
     refSet = S.fromList $ namesToIds symList nameMap
 
@@ -68,7 +66,7 @@ namesToIds :: [Symbol] -> M.HashMap Symbol BindId -> [BindId]
 namesToIds syms m = catMaybes [M.lookup sym m | sym <- syms] --TODO why any Nothings?
 
 freeVars :: Reft -> [Symbol]
-freeVars reft@(Reft (v, _)) = L.delete v $ syms reft
+freeVars rft@(Reft (v, _)) = L.delete v $ syms rft
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -102,7 +100,7 @@ updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
     symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
-    subs = catMaybes $ (mkSubUsing rnMap) <$> symTList
+    subs = catMaybes $ mkSubUsing rnMap <$> symTList
 
 mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
 mkSubUsing m (sym, t) = do
@@ -122,7 +120,7 @@ applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
 --------------------------------------------------------------
 renameBinds :: SInfo a -> RenameMap -> SInfo a
 --------------------------------------------------------------
-renameBinds fi m = fi { bs = bindEnvFromList $ (renameBind m) <$> beList }
+renameBinds fi m = fi { bs = bindEnvFromList $ renameBind m <$> beList }
   where
     beList = bindEnvToList $ bs fi
 
