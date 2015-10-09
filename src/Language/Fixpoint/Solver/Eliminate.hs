@@ -75,4 +75,4 @@ domain :: BindEnv -> WfC a -> [Symbol]
 domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
 
 projectNonWFVars :: [(Symbol,Sort)] -> [Symbol] -> Pred -> Pred
-projectNonWFVars binds kDom pr = PExist [v | v <- binds, not (elem (fst v) kDom)] pr
+projectNonWFVars binds kDom pr = PExist [v | v <- binds, notElem (fst v) kDom] pr

@@ -100,7 +100,7 @@ updateRef :: RenameMap -> SInfo a -> Ref -> S.HashSet BindId -> SInfo a
 updateRef rnMap fi rf bset = applySub (mkSubst subs) fi rf
   where
     symTList = [second sr_sort $ lookupBindEnv i $ bs fi | i <- S.toList bset]
-    subs = catMaybes $ (mkSubUsing rnMap) <$> symTList
+    subs = catMaybes $ mkSubUsing rnMap <$> symTList
 
 mkSubUsing :: RenameMap -> (Symbol, Sort) -> Maybe (Symbol, Expr)
 mkSubUsing m (sym, t) = do
@@ -120,7 +120,7 @@ applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
 --------------------------------------------------------------
 renameBinds :: SInfo a -> RenameMap -> SInfo a
 --------------------------------------------------------------
-renameBinds fi m = fi { bs = bindEnvFromList $ (renameBind m) <$> beList }
+renameBinds fi m = fi { bs = bindEnvFromList $ renameBind m <$> beList }
   where
     beList = bindEnvToList $ bs fi
 
