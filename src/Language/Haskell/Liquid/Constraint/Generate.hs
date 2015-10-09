@@ -62,7 +62,7 @@ import Text.Printf
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import Language.Fixpoint.Sort (pruneUnsortedReft)
 import Language.Fixpoint.Visitor
-
+import Language.Fixpoint.Names (symbolString)
 import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
@@ -777,7 +777,7 @@ rTypeSortedReft' pflag γ
   | otherwise
   =  γ ++= (msg, x, r)
   where err = errorstar $ msg ++ " Duplicate binding for "
-                              ++ F.symbolString x
+                              ++ symbolString x
                               ++ "\n New: " ++ showpp r
                               ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
 

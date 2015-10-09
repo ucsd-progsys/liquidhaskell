@@ -87,7 +87,7 @@ symbolLookup env mod k
   = symbolLookupEnv env mod k
 
 wiredIn      :: M.HashMap Symbol Name
-wiredIn      = M.fromList $ special ++ wiredIns 
+wiredIn      = M.fromList $ special ++ wiredIns
   where
     wiredIns = [ (symbol n, n) | thing <- wiredInThings, let n = getName thing ]
     special  = [ ("GHC.Integer.smallInteger", smallIntegerName)
@@ -131,11 +131,11 @@ lookupGhcVar x
 lookupGhcTyCon       ::  GhcLookup a => a -> BareM TyCon
 lookupGhcTyCon s     = (lookupGhcThing "type constructor or class" ftc s)
                        `catchError` (tryPropTyCon s)
-  where 
+  where
     ftc (ATyCon x)   = Just x
     ftc _            = Nothing
 
-tryPropTyCon s e   
+tryPropTyCon s e
   | sx == propConName  = return propTyCon
   | sx == hpropConName = return hpropTyCon
   | otherwise          = throwError e
@@ -159,7 +159,6 @@ isTupleDC zs
   = Nothing
 
 lookupGhcDataCon'    = lookupGhcThing "data constructor" fdc
-  where 
+  where
     fdc (AConLike (RealDataCon x)) = Just x
     fdc _            = Nothing
-
