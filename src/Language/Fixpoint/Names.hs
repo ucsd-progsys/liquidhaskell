@@ -427,7 +427,7 @@ instance Symbolic Symbol where
 
 preludeName, dummyName, boolConName, funConName, listConName :: Symbol
 preludeName  = "Prelude"
-dummyName    = "_LIQUID_dummy"
+dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
