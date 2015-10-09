@@ -80,9 +80,7 @@ makeAxiom lmap cbs _ _ x
     makeAssumeType v = x{val = axiomType x $ varType v}
 
 
-<<<<<<< HEAD
--- | Specification for Haskell function
-=======
+
 defAxioms _ _  = [] 
 
 {- NV TODO: what are axioms??
@@ -143,7 +141,6 @@ instance Subable CoreExpr where
 -}
 
 -- | Specification for Haskell function 
->>>>>>> 72df78a7d7386d172186abe0c0d7c703ca7edada
 axiomType :: LocSymbol -> Type -> SpecType
 axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
   where
