@@ -1,12 +1,13 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE CPP                        #-}
 
 
@@ -20,20 +21,47 @@ module Language.Fixpoint.Names (
   -- * Symbols
     Symbol
   , Symbolic (..)
-  , anfPrefix, tempPrefix, vv, isPrefixOfSym, isSuffixOfSym, stripParensSym
-  , consSym, unconsSym, dropSym, singletonSym, headSym, takeWhileSym, lengthSym
-  , symChars, isNonSymbol, nonSymbol
+
+  -- * Conversion to/from Text
+  , symbolSafeText
+  , symbolSafeString
+  , symbolText
+  , symbolString
+
+  -- Predicates
+  , isPrefixOfSym
+  , isSuffixOfSym
+  , isNonSymbol
   , isNontrivialVV
-  , symbolText, symbolString
-  , encode, vvCon
-  , dropModuleNames
-  , dropModuleUnique
-  , takeModuleNames
+
+  -- * Destructors
+  -- , stripParensSym
+  -- , stripParens
+  , stripPrefix
+  , consSym
+  , unconsSym
+  , dropSym
+  , singletonSym
+  , headSym
+  , takeWhileSym
+  , lengthSym
+
+  -- * Transforms
+  , nonSymbol
+  , vvCon
+
+  -- * Widely used prefixes
+  , anfPrefix
+  , litPrefix
+  , tempPrefix
+  , vv
+  , symChars
 
   -- * Creating Symbols
-  , dummySymbol, intSymbol, tempSymbol, renameSymbol
-  , qualifySymbol
-  , suffixSymbol
+  , dummySymbol
+  , intSymbol
+  , tempSymbol
+  , renameSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -49,8 +77,13 @@ module Language.Fixpoint.Names (
   , consName
   , vvName
   , symSepName
-  , size32Name, size64Name, bitVecName, bvAndName, bvOrName
+  , size32Name
+  , size64Name
+  , bitVecName
+  , bvAndName
+  , bvOrName
   , prims
+
 ) where
 
 #if __GLASGOW_HASKELL__ < 710
@@ -58,220 +91,366 @@ import           Control.Applicative ((<$>))
 import           Data.Monoid (Monoid (..))
 #endif
 
+import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Control.Monad               ((>=>))
-import           Data.Char                   (isAlpha, chr, ord)
+import           Data.IORef
+import           Data.Char                   (ord)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
-import           Data.Interned               (intern, unintern)
+import qualified Data.HashMap.Strict         as M
+import           Data.Interned               -- (intern, unintern)
 import           Data.Interned.Internal.Text
 import           Data.Maybe                  (fromMaybe)
-import           Data.String                 (IsString)
+import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
 import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (errorstar)
-
+import           Language.Fixpoint.Misc      (safeLookup, errorstar)
+import Debug.Trace
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
 ---------------------------------------------------------------
 
-symChars
-  =  ['a' .. 'z']
-  ++ ['A' .. 'Z']
-  ++ ['0' .. '9']
-  ++ ['_', '%', '.', '#']
-
 deriving instance Data     InternedText
 deriving instance Typeable InternedText
 deriving instance Generic  InternedText
 
-newtype Symbol = S InternedText
-                 deriving (Eq, Ord, Data, Typeable, Generic, IsString)
+{-@ type SafeText = {v: T.Text | IsSafe v} @-}
+type SafeText = T.Text
+
+-- | Invariant: a `SafeText` is made up of:
+--
+--     ['0'..'9'] ++ ['a'...'z'] ++ ['A'..'Z'] ++ '$'
+--
+--   If the original text has ANY other chars, it is represented as:
+--
+--     lq$i
+--
+--   where i is a unique integer (for each text)
+
+
+
+data Symbol
+  = S { symbolId      :: !Id
+      , symbolRaw     :: !T.Text
+      , symbolEncoded :: !T.Text
+      } deriving (Data, Typeable, Generic)
+
+instance Eq Symbol where
+  S i _ _ == S j _ _ = i == j
+
+instance Ord Symbol where
+  compare (S i _ _) (S j _ _) = compare i j
+
+instance Interned Symbol where
+  type Uninterned Symbol = T.Text
+  newtype Description Symbol = DT T.Text deriving (Eq)
+  describe = DT
+  identify i t = S i t (encode t)
+  cache = sCache
+
+instance Uninternable Symbol where
+  unintern (S _ t _) = t
+
+instance Hashable (Description Symbol) where
+  hashWithSalt s (DT t) = hashWithSalt s t
+
+instance Hashable Symbol where
+  hashWithSalt _ (S i _ _) = i
+
+instance NFData Symbol where
+  rnf (S {}) = ()
+
+instance Binary Symbol where
+  get = intern <$> get
+  put = put . symbolText
+
+sCache :: Cache Symbol
+sCache = mkCache
+{-# NOINLINE sCache #-}
+
+instance IsString Symbol where
+  fromString = intern . T.pack
+
+instance Show Symbol where
+  show = show . symbolRaw
 
 instance Monoid Symbol where
-  mempty      = ""
-  mappend x y = S . intern $ mappend (symbolText x) (symbolText y)
+  mempty        = ""
+  mappend s1 s2 = intern $ mappend s1' s2'
+    where
+      s1'       = symbolText s1
+      s2'       = symbolText s2
+
+{-  OLD
+newtype Symbol = S InternedText deriving (Eq, Ord, Data, Typeable, Generic)
+
+instance IsString Symbol where
+  fromString = symbol
+
 
 instance Hashable InternedText where
-  hashWithSalt s (InternedText i t) = hashWithSalt s i
+  hashWithSalt s (InternedText i _) = hashWithSalt s i
 
 instance NFData InternedText where
-  rnf (InternedText id t) = rnf id `seq` rnf t `seq` ()
+  rnf (InternedText i t) = rnf i `seq` rnf t `seq` ()
 
 instance Show Symbol where
   show (S x) = show x
 
 instance NFData Symbol where
-  rnf (S x) = rnf x
+  rnf (S x)  = rnf x
 
 instance Hashable Symbol where
-  hashWithSalt i (S s) = hashWithSalt i s
-
--- instance Binary InternedText
+  hashWithSalt i (S x) = hashWithSalt i x
 
 instance Binary Symbol where
-  get = S . intern <$> get
+  get = textSymbol <$> get
   put = put . symbolText
+
+-}
+
+---------------------------------------------------------------------------
+-- | Decoding Symbols -----------------------------------------------------
+---------------------------------------------------------------------------
+
+symbolText :: Symbol -> T.Text
+symbolText = symbolRaw -- decode
 
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText
 
+symbolSafeText :: Symbol -> SafeText
+symbolSafeText = symbolEncoded
+
+symbolSafeString :: Symbol -> String
+symbolSafeString = T.unpack . symbolSafeText
+
+-- symbolText :: Symbol -> T.Text
+-- symbolText = decode
+
+-- decode :: Symbol -> T.Text
+-- decode x
+  -- | Just i <- encId s = memoDecode i
+  -- | otherwise         = s
+  -- where
+    -- s                 = symbolSafeText x
+
+-- encId :: T.Text -> Maybe Int
+-- encId = fmap t2i . T.stripPrefix encPrefix
+
+-- t2i :: T.Text -> Int
+-- t2i = read . T.unpack
+
+
 ---------------------------------------------------------------------------
------- Converting Strings To Fixpoint -------------------------------------
+-- | Encoding Symbols -----------------------------------------------------
 ---------------------------------------------------------------------------
 
--- stringSymbolRaw :: String -> Symbol
--- stringSymbolRaw = S
+-- INVARIANT: All strings *must* be built from here
+-- textSymbol :: T.Text -> Symbol
+-- textSymbol = S . intern . encode
 
-encode :: String -> String
-encode s
-  | isFixKey  s = encodeSym s
-  | isFixSym' s = s
-  | otherwise   = encodeSym s
+encode :: T.Text -> SafeText
+encode t
+  | isFixKey t     = T.append "key$" t
+  | otherwise      = encodeUnsafe t
+  -- | isUnsafe t     = encodeUnsafe t
+  -- | otherwise      = t
+  -- where
+  --   isUnsafe       = T.any isUnsafeChar
+  -- encodeUnsafe = T.intercalate "$" . T.split isUnsafeChar
 
-encodeSym s     = fixSymPrefix ++ concatMap encodeChar s
+encodeUnsafe :: T.Text -> T.Text
+encodeUnsafe = joinChunks . splitChunks
 
-symbolText :: Symbol -> T.Text
-symbolText (S s) = unintern s
+joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
+joinChunks (t, [] ) = t
+joinChunks (t, cts) = T.concat $ padNull t : (tx <$> cts)
+  where
+    tx (c, ct)      = mconcat ["$", c2t c, "$", ct]
+    c2t             = T.pack . show . ord
+
+padNull :: T.Text -> T.Text
+padNull t
+  | T.null t  = "z$"
+  | otherwise = t
+
+splitChunks :: T.Text -> (T.Text, [(Char, SafeText)])
+splitChunks t = (h, go tl)
+  where
+    (h, tl)   = T.break isUnsafeChar t
+    go !ut    = case T.uncons ut of
+                  Nothing       -> []
+                  Just (c, ut') -> let (ct, utl) = T.break isUnsafeChar ut'
+                                   in (c, ct) : go utl
+
+isUnsafeChar :: Char -> Bool
+isUnsafeChar = not . (`S.member` okSymChars)
+
+isFixKey :: T.Text -> Bool
+isFixKey x = S.member x keywords
+
+keywords :: S.HashSet T.Text
+keywords   = S.fromList [ "env"
+                        , "id"
+                        , "tag"
+                        , "qualif"
+                        , "constant"
+                        , "cut"
+                        , "bind"
+                        , "constraint"
+                        , "lhs"
+                        , "rhs"]
 
 
-okSymChars = S.fromList $ ['a' .. 'z']
-                       ++ ['A' .. 'Z']
-                       ++ ['0' .. '9']
-                       ++ ['_', '.'  ]
+safeChars :: [Char]
+safeChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['_', '.'  ]
 
-fixSymPrefix = "fix" ++ [symSepName]
+-- | RJ: We allow the extra 'unsafeChars' to allow parsing encoded symbols.
+--   e.g. the raw string "This#is%$inval!d" may get encoded as "enc%12"
+--   and serialized as such in the fq/bfq file. We want to allow the parser
+--   to then be able to read the above back in.
 
+symChars :: S.HashSet Char
+symChars =  S.fromList $ ['%', '#', '$'] ++ safeChars
+
+okSymChars :: S.HashSet Char
+okSymChars = S.fromList safeChars
+
+isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
+
+isSuffixOfSym :: Symbol -> Symbol -> Bool
 isSuffixOfSym (symbolText -> p) (symbolText -> x) = p `T.isSuffixOf` x
+
+takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
 takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
+headSym :: Symbol -> Char
 headSym (symbolText -> t) = T.head t
-consSym c (symbolText -> s) = symbol $ T.cons c s
-singletonSym = (`consSym` "")
 
-lengthSym (symbolText -> t) = T.length t
+consSym :: Char -> Symbol -> Symbol
+consSym c (symbolText -> s) = symbol $ T.cons c s
 
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
+singletonSym :: Char -> Symbol -- Yuck
+singletonSym = (`consSym` "")
+
+lengthSym :: Symbol -> Int
+lengthSym (symbolText -> t) = T.length t
+
 dropSym :: Int -> Symbol -> Symbol
 dropSym n (symbolText -> t) = symbol $ T.drop n t
 
-stripParens :: T.Text -> T.Text
-stripParens t = fromMaybe t (strip t)
-  where
-    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
+stripPrefix :: Symbol -> Symbol -> Maybe Symbol
+stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
-stripParensSym (symbolText -> t) = symbol $ stripParens t
 
-suffixSymbol (S s) suf = symbol $ (unintern s) `mappend` suf
+-- encPrefix :: SafeText
+-- encPrefix = "enc$"
 
-isFixSym' (c:chs)  = isAlpha c && all (`S.member` (symSepName `S.insert` okSymChars)) chs
-isFixSym' _        = False
+-- safeCat :: SafeText -> SafeText -> SafeText
+-- safeCat = mappend
 
-isFixKey x = S.member x keywords
-keywords   = S.fromList ["env", "id", "tag", "qualif", "constant", "cut", "bind", "constraint", "lhs", "rhs"]
+-- isSafeText :: T.Text -> Bool
+-- isSafeText t = T.all (`S.member` okSymChars) t && not (isFixKey t)
 
-encodeChar c
-  | c `S.member` okSymChars
-  = [c]
-  | otherwise
-  = [symSepName] ++ show (ord c) ++ [symSepName]
+-- stripParens :: T.Text -> T.Text
+-- stripParens t = fromMaybe t (strip t)
+--  where
+--    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
-decodeStr s
-  = chr (read s :: Int)
-
-qualifySymbol :: Symbol -> Symbol -> Symbol
-qualifySymbol m'@(symbolText -> m) x'@(symbolText -> x)
-  | isQualified x  = x'
-  | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
-  | otherwise      = symbol (m `mappend` "." `mappend` x)
-
-isQualified y         = "." `T.isInfixOf` y
-wrapParens x          = "(" `mappend` x `mappend` ")"
-isParened xs          = xs /= stripParens xs
+-- stripParensSym :: Symbol -> Symbol
+-- stripParensSym (symbolText -> t) = symbol $ stripParens t
 
 ---------------------------------------------------------------------
 
 vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = symbol $ symbolText vvName `T.snoc` symSepName `mappend` T.pack (show i) --  S (vvName ++ [symSepName] ++ show i)
+vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i) --  S (vvName ++ [symSepName] ++ show i)
 vv Nothing          = vvName
 
-vvCon               = symbol $ symbolText vvName `T.snoc` symSepName `mappend` "F" --  S (vvName ++ [symSepName] ++ "F")
-
+isNontrivialVV      :: Symbol -> Bool
 isNontrivialVV      = not . (vv Nothing ==)
 
-
-dummySymbol         = dummyName
+vvCon, dummySymbol :: Symbol
+vvCon       = vvName `mappend` symbol [symSepName] `mappend` "F"
+dummySymbol = dummyName
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i       = x `mappend` symbol ('_' : show i)
 
 tempSymbol :: Symbol -> Integer -> Symbol
-tempSymbol  prefix n = intSymbol (tempPrefix  `mappend` prefix) n
+tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
 
 renameSymbol :: Symbol -> Int -> Symbol
-renameSymbol prefix n = intSymbol (renamePrefix `mappend` prefix) n
+renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
 
-tempPrefix, anfPrefix :: Symbol
-tempPrefix          = "lq_tmp_"
-anfPrefix           = "lq_anf_"
-renamePrefix         = "lq_rnm_"
+tempPrefix, anfPrefix, renamePrefix, litPrefix :: Symbol
+tempPrefix   = "lq_tmp_"
+anfPrefix    = "lq_anf_"
+renamePrefix = "lq_rnm_"
+litPrefix    = "lit$"
 
 nonSymbol :: Symbol
-nonSymbol           = ""
-isNonSymbol         = (== nonSymbol)
+nonSymbol = ""
 
+isNonSymbol :: Symbol -> Bool
+isNonSymbol = (== nonSymbol)
+
+------------------------------------------------------------------------------
 -- | Values that can be viewed as Symbols
+------------------------------------------------------------------------------
 
 class Symbolic a where
   symbol :: a -> Symbol
 
+instance Symbolic T.Text where
+  symbol = intern
+
 instance Symbolic String where
   symbol = symbol . T.pack
 
-instance Symbolic T.Text where
-  symbol = S . intern
-
-instance Symbolic InternedText where
-  symbol = S
-
 instance Symbolic Symbol where
   symbol = id
-
 
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
 
-preludeName, dummyName, boolConName, funConName, listConName, tupConName, propConName, strConName, vvName :: Symbol
+preludeName, dummyName, boolConName, funConName, listConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "_LIQUID_dummy"
 boolConName  = "Bool"
 funConName   = "->"
+
+tupConName, propConName, hpropConName, strConName, vvName :: Symbol
 listConName  = "[]" -- "List"
 tupConName   = "Tuple"
 propConName  = "Prop"
 hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
-symSepName   = '#' -- Do not ever change this
 
-nilName      = "nil"    :: Symbol
-consName     = "cons"   :: Symbol
+symSepName   :: Char
+symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
-size32Name   = "Size32" :: Symbol
-size64Name   = "Size64" :: Symbol
-bitVecName   = "BitVec" :: Symbol
-bvOrName     = "bvor"   :: Symbol
-bvAndName    = "bvAnd"  :: Symbol
+nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
+nilName      = "nil"
+consName     = "cons"
+size32Name   = "Size32"
+size64Name   = "Size64"
+bitVecName   = "BitVec"
+bvOrName     = "bvor"
+bvAndName    = "bvAnd"
 
 prims :: [Symbol]
 prims = [ propConName
@@ -301,38 +480,25 @@ prims = [ propConName
         , consName
         ]
 
--- dropModuleNames []  = []
--- dropModuleNames s
---   | s == tupConName = tupConName
---   | otherwise       = safeLast msg $ words $ dotWhite `fmap` stripParens s
---   where
---     msg             = "dropModuleNames: " ++ s
---     dotWhite '.'    = ' '
---     dotWhite c      = c
+-------------------------------------------------------------------------------
+-- | Memoized Decoding
+-------------------------------------------------------------------------------
 
-sepModNames = "."
-sepUnique   = "#"
+{-# NOINLINE symbolMemo #-}
+symbolMemo :: IORef (M.HashMap Int T.Text)
+symbolMemo = unsafePerformIO (newIORef M.empty)
 
-dropModuleNames          = mungeNames safeLast sepModNames "dropModuleNames: "
-takeModuleNames          = mungeNames safeInit sepModNames "takeModuleNames: "
+{-# NOINLINE memoEncode #-}
+memoEncode :: T.Text -> Int
+memoEncode t = unsafePerformIO $
+                 atomicModifyIORef symbolMemo $ \m ->
+                    (M.insert i t m, i)
+  where
+    i        = internedTextId $ intern t
 
-dropModuleUnique         = mungeNames safeHead sepUnique   "dropModuleUnique: "
-
-safeHead :: String -> [T.Text] -> Symbol
-safeHead msg [] = errorstar $ "safeHead with empty list" ++ msg
-safeHead _ (x:_) = symbol x
-
-safeInit :: String -> [T.Text] -> Symbol
-safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
-safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
-
-safeLast :: String -> [T.Text] -> Symbol
-safeLast _ xs@(_:_)      = symbol $ last xs
-safeLast msg _           = errorstar $ "safeLast with empty list " ++ msg
-
-mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
-mungeNames _ _ _ ""  = ""
-mungeNames f d msg s'@(symbolText -> s)
-  | s' == tupConName
-  = tupConName
-  | otherwise            = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
+{-# NOINLINE memoDecode #-}
+memoDecode :: Int -> T.Text
+memoDecode i = unsafePerformIO $
+                 safeLookup msg i <$> readIORef symbolMemo
+               where
+                 msg = "Symbol Decode Error: " ++ show i

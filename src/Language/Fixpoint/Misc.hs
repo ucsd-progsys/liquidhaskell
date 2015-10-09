@@ -31,7 +31,6 @@ import GHC.Stack
 #endif
 
 
-
 traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
@@ -99,9 +98,9 @@ safeLookup :: (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
 mfromJust  :: String -> Maybe a -> a
 #endif
 
-mlookup m k = case M.lookup k m of
-                Just v  -> v
-                Nothing -> errorstar $ "mlookup: unknown key " ++ show k
+mlookup m k = fromMaybe err $ M.lookup k m
+  where
+    err     = errorstar $ "mlookup: unknown key " ++ show k
 
 safeLookup msg k m = fromMaybe (errorstar msg) (M.lookup k m)
 

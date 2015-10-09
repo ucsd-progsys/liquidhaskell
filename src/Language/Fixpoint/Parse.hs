@@ -88,6 +88,7 @@ import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      (sortNub)
 import           Language.Fixpoint.Smt.Types
 
+import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
@@ -182,12 +183,12 @@ locParserP p = do l1 <- getPosition
 
 -- FIXME: we (LH) rely on this parser being dumb and *not* consuming trailing
 -- whitespace, in order to avoid some parsers spanning multiple lines..
-condIdP  :: [Char] -> (String -> Bool) -> Parser Symbol
+condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP chars f
   = do c  <- letter
-       cs <- many (satisfy (`elem` chars))
+       cs <- many (satisfy (`S.member` chars))
        blanks
-       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
+       if f (c:cs) then return (symbol $ c:cs) else parserZero
 
 upperIdP :: Parser Symbol
 upperIdP = condIdP symChars (not . isLower . head)
@@ -222,10 +223,8 @@ expr0P
  <|> (charsExpr <$> symCharsP)
 
 charsExpr cs
-  | isLower (T.head t) = expr cs
-  | otherwise          = EVar cs
-  where t = symbolText cs
---  <|> try (parens $ condP EIte exprP)
+  | isLower (headSym cs) = expr cs
+  | otherwise            = EVar cs
 
 fastIfP f bodyP
   = do reserved "if"
@@ -461,17 +460,23 @@ qualifierP tP = do
   body   <- predP
   return  $ mkQual n params body pos
 
-sortBindP tP = pairP symbolP colon tP
+sortBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
-
-mkQual n xts p = Q n ((vv, t) : yts) (subst su p)
+mkQual :: Symbol -> [(Symbol, Sort)] -> Pred -> SourcePos -> Qualifier
+mkQual n xts p = Q n ((v, t) : yts) (subst su p)
   where
-    (vv,t):zts = gSorts xts
-    yts        = first mkParam <$> zts
+    (v, t):zts = gSorts xts
+    -- yts        = first mkParam <$> zts
+    yts        = zts
     su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+
+-- mkParam :: Symbol -> Symbol
+-- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
+--  where
+--    Just (c,cs) = T.uncons $ symbolSafeText s
 
 gSorts :: [(a, Sort)] -> [(a, Sort)]
 gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
@@ -491,10 +496,6 @@ sortVars = foldSort go []
     go b (FObj x) = x : b
     go b _        = b
 
-
-mkParam s      = symbol ('~' `T.cons` toUpper c `T.cons` cs)
-  where
-    Just (c,cs)= T.uncons $ symbolText s
 
 ---------------------------------------------------------------------
 -- | Parsing Constraints (.fq files) --------------------------------

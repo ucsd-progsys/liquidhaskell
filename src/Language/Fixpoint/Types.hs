@@ -38,21 +38,17 @@ module Language.Fixpoint.Types (
   , anfPrefix, tempPrefix, vv, vv_, intKvar
   , symChars, isNonSymbol, nonSymbol
   , isNontrivialVV
-  , symbolText, symbolString
+  , symbolSafeText, symbolSafeString
 
   -- * Creating Symbols
   , dummySymbol
   , intSymbol
   , tempSymbol
-  , qualifySymbol
-  , suffixSymbol
 
   -- * Embedding to Fixpoint Types
   , Sort (..), FTycon, TCEmb
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
-  -- , strFTyCon
-  -- , propFTyCon
 
   , intSort, realSort, propSort, boolSort, strSort, funcSort
   , listFTyCon
@@ -469,6 +465,7 @@ data Expr = ESym !SymConst
           | EBot
           deriving (Eq, Show, Data, Typeable, Generic)
 
+elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
 
 instance Fixpoint Integer where
@@ -486,7 +483,7 @@ instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
 instance Fixpoint Symbol where
-  toFix = text . encode . T.unpack . symbolText
+  toFix = toFix . symbolSafeText
 
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <> toFix k
@@ -1759,16 +1756,13 @@ instance Symbolic SymConst where
   symbol = encodeSymConst
 
 encodeSymConst        :: SymConst -> Symbol
-encodeSymConst (SL s) = symbol $ litPrefix `mappend` s
+encodeSymConst (SL s) = litPrefix `mappend` symbol s
 
 sortSymConst          :: SymConst -> Sort
 sortSymConst (SL _)   = strSort
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap SL . T.stripPrefix litPrefix . symbolText
-
-litPrefix    :: Text
-litPrefix    = "lit" `T.snoc` symSepName
+decodeSymConst = fmap (SL . symbolText) . stripPrefix litPrefix
 
 -- class SymConsts a where
   -- symConsts :: a -> [SymConst]

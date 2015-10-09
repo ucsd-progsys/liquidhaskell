@@ -13,7 +13,7 @@ module Language.Fixpoint.Smt.Theories
      , smt2Symbol
        -- * Preamble to initialize SMT
      , preamble
-     
+
      ) where
 
 import           Prelude hiding (map)
@@ -22,9 +22,9 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Text                as T
-import           Data.Text.Format
+import           Data.Text.Format         hiding (format)
 import           Control.Applicative      ((<$>))
-import qualified Data.Text.Lazy           as LT
+-- import           Data.Text.Lazy (toStrict)
 
 
 --------------------------------------------------------------------------
@@ -38,6 +38,7 @@ map  = "Map"
 bit  = "BitVec"
 sz32 = "Size32"
 sz64 = "Size64"
+
 
 emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
 emp   = "smt_set_emp"
@@ -66,7 +67,7 @@ setSng   = "Set_sng"
 mapSel   = "Map_select"
 mapSto   = "Map_store"
 
-z3Preamble :: [LT.Text]
+z3Preamble :: [T.Text]
 z3Preamble
   = [ format "(define-sort {} () Int)"
         (Only elt)
@@ -96,7 +97,7 @@ z3Preamble
         (sto, map, elt, elt, map)
     ]
 
-smtlibPreamble :: [LT.Text]
+smtlibPreamble :: [T.Text]
 smtlibPreamble
   = [        "(set-logic QF_UFLIA)"
     , format "(define-sort {} () Int)"       (Only elt)
@@ -151,20 +152,20 @@ tSym x n t = (x, Thy x n t)
 smt2Symbol :: Symbol -> Maybe T.Text
 smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
 
-smt2Sort :: Sort -> Maybe LT.Text
+smt2Sort :: Sort -> Maybe T.Text
 smt2Sort (FApp (FTC c) t)
   | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
 smt2Sort (FApp (FApp (FTC c) t1) t2)
   | fTyconSymbol c == "Map_t"   = Just $ format "{}" (Only map)
 smt2Sort _                      = Nothing
 
-smt2App :: LocSymbol -> [LT.Text] -> Maybe LT.Text
+smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
 smt2App f [d]
   | val f == setEmpty = Just $ format "{}"             (Only emp)
   | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
   | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
 
-preamble :: SMTSolver -> [LT.Text]
+preamble :: SMTSolver -> [T.Text]
 preamble Z3 = z3Preamble
 preamble _  = smtlibPreamble
