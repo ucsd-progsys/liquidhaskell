@@ -26,21 +26,21 @@ eliminateAll !fi = foldl' eliminate (M.empty, fi) nonCuts
 --------------------------------------------------------------
 
 eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
-eliminate (!s, !fi) kv = (M.insert kv (mkJVar orPred) s, fi { cm = remainingCs , ws = remainingWs})
+eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , ws = remainingWs})
   where
-    relevantCs  = M.filter (   elem kv . kvars . crhs) (cm fi)
-    remainingCs = M.filter (notElem kv . kvars . crhs) (cm fi)
-    (kvWfC, remainingWs) = findWfC kv (ws fi)
+    relevantCs  = M.filter (   elem k . kvars . crhs) (cm fi)
+    remainingCs = M.filter (notElem k . kvars . crhs) (cm fi)
+    (kvWfC, remainingWs) = findWfC k (ws fi)
     be = bs fi
     kDom = domain be kvWfC
     orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
 
 findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
-findWfC kv ws = (w', ws')
+findWfC k ws = (w', ws')
   where
-    (w, ws') = partition (elem kv . kvars . sr_reft . wrft) ws
+    (w, ws') = partition (elem k . kvars . sr_reft . wrft) ws
     w' | [x] <- w  = x
-       | otherwise = errorstar $ show kv ++ " needs exactly one wf constraint"
+       | otherwise = errorstar $ show k ++ " needs exactly one wf constraint"
 
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Pred
 extractPred kDom be sc = projectNonWFVars binds kDom $ PAnd (lhsPreds ++ suPreds)
@@ -52,19 +52,19 @@ extractPred kDom be sc = projectNonWFVars binds kDom $ PAnd (lhsPreds ++ suPreds
 
 -- x:{v:int|v=10} -> (x=10)
 bindPred :: (Symbol, SortedReft) -> Pred
-bindPred (sym, sr) = subst1 (reftPred reft) sub
+bindPred (sym, sr) = subst1 (reftPred rft) sub
   where
-    reft = sr_reft sr
-    sub = (reftBind reft, eVar sym)
+    rft = sr_reft sr
+    sub = (reftBind rft, eVar sym)
 
--- on rhs, $k0[v:=e1][x:=e2] -> [v = e1, x = e2]
+-- k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: [Symbol] -> Pred -> [Pred]
-substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) expr | (sym, expr) <- M.toList subs , sym `elem` dom]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
 
 -- TODO: filtering out functions like this is a temporary hack - we shouldn't
 -- have function substitutions to begin with
 usableDomain :: BindEnv -> [Symbol] -> [Symbol]
-usableDomain be kDom = filter nonFunction kDom
+usableDomain be = filter nonFunction
   where
     nonFunction sym = sym `notElem` functionsInBindEnv be
 

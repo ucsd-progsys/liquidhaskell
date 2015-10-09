@@ -318,7 +318,7 @@ listFTyCon = TC $ dummyLoc listConName
 
 isListTC :: FTycon -> Bool
 isListTC (TC (Loc _ _ c)) = c == listConName || c == "List"
-isTupTC  (TC (Loc _ _ c)) = c == tupConName
+--isTupTC  (TC (Loc _ _ c)) = c == tupConName
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s) = s
@@ -853,7 +853,7 @@ unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
-adjustBindEnv f id (BE n m) = BE n $ M.adjust f id m
+adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
 
 instance Functor SEnv where
   fmap = mapSEnv
@@ -1129,7 +1129,7 @@ instance Subable Expr where
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
-  substf f e@(EVar x)      = f x
+  substf f (EVar x)        = f x
   substf _ e               = e
 
   subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es
@@ -1981,11 +1981,11 @@ subcToSimpc s = SimpC
   }
 
 blowOutVV :: FInfo a -> Integer -> FInfo a
-blowOutVV fi subcId = fi { bs = be', cm = cm' }
+blowOutVV fi scId = fi { bs = be', cm = cm' }
   where
-    subc = cm fi M.! subcId
+    subc = cm fi M.! scId
     sr   = slhs subc
     x    = reftBind $ sr_reft sr
     (bindId, be') = insertBindEnv x sr $ bs fi
     subc' = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
-    cm' = M.insert subcId subc' $ cm fi
+    cm' = M.insert scId subc' $ cm fi
