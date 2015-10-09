@@ -9,7 +9,7 @@
 -- | termination: we cannot have diverging things into proofs
 
 {-@ LIQUID "--totality" @-}
-
+{-@ LIQUID "--exact-data-cons" @-}
 module Append where
 
 import Axiomatize
