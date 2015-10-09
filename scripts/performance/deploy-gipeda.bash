@@ -93,11 +93,11 @@ abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
 $CABAL sandbox init;
 abort_if_failed "Unable to initialize Cabal sandbox for Gipeda...";
 
-$CABAL install;
-abort_if_failed "Unable to install Gipeda...";
-
 $CABAL update;
 abort_if_failed "Unable to perform cabal update...";
+
+$CABAL install;
+abort_if_failed "Unable to install Gipeda...";
 
 ln -s $REL_SANDBOX_BIN/gipeda gipeda;
 abort_if_failed "Unable to create link to Gipeda...";
