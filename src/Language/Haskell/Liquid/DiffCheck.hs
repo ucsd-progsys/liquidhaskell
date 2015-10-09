@@ -94,16 +94,18 @@ instance Show Def where
 -------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
 -------------------------------------------------------------------------
-slice target cbs sp = ifM (doesFileExist saved) dc (return Nothing)
+slice target cbs sp = ifM (doesFileExist savedFile)
+                          doDiffCheck
+                          (return Nothing)
   where
-    saved           = extFileName Saved target
-    dc              = sliceSaved target saved cbs sp
+    savedFile       = extFileName Saved target
+    doDiffCheck     = sliceSaved target savedFile cbs sp
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
-sliceSaved target saved cbs sp
-  = do (is, lm) <- lineDiff target saved
-       res      <- loadResult target
-       return    $ sliceSaved' is lm (DC cbs res sp)
+sliceSaved target savedFile coreBinds spec
+  = do (is, lm) <- lineDiff target savedFile
+       result   <- loadResult target
+       return    $ sliceSaved' is lm (DC coreBinds result spec)
 
 sliceSaved' :: [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
 sliceSaved' is lm (DC cbs res sp)
@@ -297,25 +299,33 @@ lineDiff new old  = lineDiff' <$> getLines new <*> getLines old
   where
     getLines      = fmap lines . readFile
 
-lineDiff'         :: [String] -> [String] -> ([Int], LMap)
-lineDiff' new old = (ns, lm)
+lineDiff' :: [String] -> [String] -> ([Int], LMap)
+lineDiff' new old = (changedLines, lm)
   where
-    ns            = diffLines 1 diff
-    lm            = foldr setShift IM.empty $ diffShifts diff
-    diff          = fmap length <$> getGroupedDiff new old
+    changedLines  = diffLines 1 diffLineCount
+    lm            = foldr setShift IM.empty $ diffShifts diffLineCount
+    diffLineCount = fmap length <$> getGroupedDiff new old
 
-diffLines _ []                  = []
-diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
-diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + i -- length ls
-diffLines n (Second _ : d)      = diffLines n d
+-- | Identifies lines that have changed
+diffLines :: Int -- ^ Starting line
+             -> [Diff Int] -- ^ List of lengths of diffs
+             -> [Int] -- ^ List of changed line numbers
+diffLines _ []                        = []
+diffLines curr (Both lnsUnchgd _ : d) = diffLines toSkip d
+   where toSkip = curr + lnsUnchgd
+diffLines curr (First lnsChgd : d)    = [curr..(toTake-1)] ++ diffLines toTake d
+   where toTake = curr + lnsChgd
+diffLines curr (_ : d)                = diffLines curr d
 
-diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
-diffShifts                      = go 1 1
+diffShifts :: [Diff Int] -> [(Int, Int, Int)]
+diffShifts = go 1 1
   where
-    go old new (Both n _ : d)   = (old, old + n - 1, new - old) : go (old + n) (new + n) d
-    go old new (Second n : d)   = go (old + n) new d
-    go old new (First n  : d)   = go old (new + n) d
-    go _   _   []               = []
+    go old new (Both n _ : d) = (old, old + n - 1, new - old) : go (old + n)
+                                                                   (new + n)
+                                                                   d
+    go old new (Second n : d) = go (old + n) new d
+    go old new (First n  : d) = go old (new + n) d
+    go _   _   []             = []
 
 instance Functor Diff where
   fmap f (First x)  = First (f x)
@@ -406,8 +416,6 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
     is            = [IM.Interval l1 l2 | D l1 l2 _ <- chDefs]
 
 
-ifM b x y    = b >>= \z -> if z then x else y
-
 -------------------------------------------------------------------------
 -- | Aeson instances ----------------------------------------------------
 -------------------------------------------------------------------------
@@ -457,3 +465,10 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
+
+-------------------------------------------------------------------------
+---- Helper functions ---------------------------------------------------
+-------------------------------------------------------------------------
+
+ifM :: (Monad m) => m Bool -> m b -> m b -> m b
+ifM b x y = b >>= \z -> if z then x else y
