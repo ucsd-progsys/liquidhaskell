@@ -278,10 +278,8 @@ checkFunRefs t = go t
     go (RExprArg _)     = Nothing
     go (RHole _)        = Nothing
     go (RFun _ t1 t2 r)
-      | isTauto r
-        = go t1 <|> go t2
-      | otherwise
-        = Just $ text "Function types cannot have refinements:" <+> (pprint r)
+      | isTauto r       = go t1 <|> go t2
+      | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
 
 checkAbstractRefs t = go t
   where

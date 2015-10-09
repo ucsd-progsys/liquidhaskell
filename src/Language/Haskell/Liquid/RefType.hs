@@ -67,7 +67,7 @@ module Language.Haskell.Liquid.RefType (
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Var
-import Kind 
+import Kind
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
@@ -100,7 +100,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Fixpoint.Names (listConName, tupConName)
+import Language.Fixpoint.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
 
 
@@ -807,7 +807,7 @@ ofType_ (FunTy τ τ')
 ofType_ (ForAllTy α τ)
   | isKindVar α
   = ofType_ τ
-  | otherwise  
+  | otherwise
   = RAllT (rTyVar α) $ ofType_ τ
 ofType_ (TyConApp c τs)
   | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -961,8 +961,8 @@ shiftVV t _
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n as xs t p _) =
     printf "type %s %s %s = %s -- defined at %s" (symbolString n)
-      (L.intercalate " " (show <$> as))
-      (L.intercalate " " (show <$> xs))
+      (unwords (show <$> as))
+      (unwords (show <$> xs))
       (show t) (show p)
 
 ----------------------------------------------------------------
