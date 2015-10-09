@@ -12,6 +12,7 @@
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and
 -- the code for syntax-directed constraint generation.
@@ -40,11 +41,14 @@ import Id
 import IdInfo
 import Name
 import NameSet
+import TypeRep
+import Unique 
+
 import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Control.Monad.State
 
-import Control.Applicative      ((<$>), (<*>))
+import Control.Applicative      ((<$>), (<*>), Applicative)
 
 import Data.Monoid              (mconcat, mempty, mappend)
 import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
@@ -77,13 +81,15 @@ import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr, isDataConId)
+                                                , hasBaseTypeVar, showPpr, isDataConId
+                                                , symbolFastString)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
 import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 
+import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
@@ -105,7 +111,8 @@ consAct info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
-       foldM_ (consCBTop trustBinding) γ (cbs info)
+       cbs'  <- mapM expandProofs $ cbs info 
+       foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
        hws   <- hsWfs <$> get
        scss  <- sCs   <$> get
@@ -670,9 +677,6 @@ rsplitC γ (RProp s1 r1) (RProp s2 r2)
 rsplitC _ _ _
   = errorstar "rsplit Rpoly - RPropP"
 
-
-type CG = State CGInfo
-
 initCGI cfg info = CGInfo {
     hsCs       = []
   , sCs        = []
@@ -700,6 +704,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
+  , haxioms    = axioms spc 
   }
   where
     tce        = tcEmbeds spc
@@ -717,8 +722,11 @@ coreBindLits tce info
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
+extendEnvWithTrueVV γ t
+  = true t >>= extendEnvWithVV γ 
+
 extendEnvWithVV γ t
-  | F.isNontrivialVV vv
+  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
   = (γ, "extVV") += (vv, t)
   | otherwise
   = return γ
@@ -1678,11 +1686,13 @@ refreshVVRef (RHProp _ _)
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ x _   (DataAlt c) ys
+caseEnv γ0 x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ0 ??= x'
+       let xt            = shiftVV xt0 x' 
+       γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt] 
        tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
-       let (rtd, yts, _) = unfoldR tdc (shiftVV xt0 x') ys
+       let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
        let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))

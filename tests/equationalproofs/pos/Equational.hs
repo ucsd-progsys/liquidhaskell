@@ -2,8 +2,7 @@ module Equational where
 
 
 import Language.Haskell.Liquid.Prelude
-
-data Proof = Proof
+import Axiomatize
 
 
 {-@ toProof :: l:a -> r:{a | l == r} -> {v:Proof | l == r } @-}
@@ -25,7 +24,7 @@ chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool)
 chain p q r = \v1 v2 v3 -> p v1 ==> q v2 ==> r v3
 
 {-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-                 {vp::Proof<p> |- Proof<q> <: Proof<r> } 
+                 {vp::Proof<p> |- Proof<q> <: Proof<r> }
                  Proof<p> -> Proof<q> -> Proof<r>
 @-}
 by :: Proof -> Proof -> Proof
