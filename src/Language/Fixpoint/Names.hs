@@ -242,11 +242,11 @@ symbolSafeString = T.unpack . symbolSafeText
   -- where
     -- s                 = symbolSafeText x
 
-encId :: T.Text -> Maybe Int
-encId = fmap t2i . T.stripPrefix encPrefix
+-- encId :: T.Text -> Maybe Int
+-- encId = fmap t2i . T.stripPrefix encPrefix
 
-t2i :: T.Text -> Int
-t2i = read . T.unpack
+-- t2i :: T.Text -> Int
+-- t2i = read . T.unpack
 
 
 ---------------------------------------------------------------------------
@@ -268,33 +268,23 @@ encode t
   -- encodeUnsafe = T.intercalate "$" . T.split isUnsafeChar
 
 encodeUnsafe :: T.Text -> T.Text
-encodeUnsafe = joinUnsafeChunks . splitUnsafeChunks
+encodeUnsafe = joinChunks . splitChunks
 
-
-joinUnsafeChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
-joinUnsafeChunks (t, [] ) = t
-joinUnsafeChunks (t, cts) = T.concat $ t : (tx <$> cts)
+joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
+joinChunks (t, [] ) = t
+joinChunks (t, cts) = T.concat $ t : (tx <$> cts)
   where
-    tx (c, t)             = mconcat ["$", c2t c, "$", t]
-    c2t                   = T.pack . show . ord
+    tx (c, ct)      = mconcat ["$", c2t c, "$", ct]
+    c2t             = T.pack . show . ord
 
-splitUnsafeChunks :: T.Text -> (T.Text, [(Char, SafeText)])
-splitUnsafeChunks t = (h, go tl)
+splitChunks :: T.Text -> (T.Text, [(Char, SafeText)])
+splitChunks t = (h, go tl)
   where
-    (h, tl)        = T.break isUnsafeChar t
-    go !t          = case T.uncons t of
-                        Nothing      -> []
-                        Just (c, t') -> let (ct, tl) = T.break isUnsafeChar t'
-                                        in (c, ct) : go tl
-
-encPrefix :: SafeText
-encPrefix = "enc$"
-
-safeCat :: SafeText -> SafeText -> SafeText
-safeCat = mappend
-
--- isSafeText :: T.Text -> Bool
--- isSafeText t = T.all (`S.member` okSymChars) t && not (isFixKey t)
+    (h, tl)   = T.break isUnsafeChar t
+    go !ut    = case T.uncons ut of
+                  Nothing       -> []
+                  Just (c, ut') -> let (ct, utl) = T.break isUnsafeChar ut'
+                                   in (c, ct) : go utl
 
 isUnsafeChar :: Char -> Bool
 isUnsafeChar = not . (`S.member` okSymChars)
@@ -360,6 +350,14 @@ stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
 
+-- encPrefix :: SafeText
+-- encPrefix = "enc$"
+
+-- safeCat :: SafeText -> SafeText -> SafeText
+-- safeCat = mappend
+
+-- isSafeText :: T.Text -> Bool
+-- isSafeText t = T.all (`S.member` okSymChars) t && not (isFixKey t)
 
 -- stripParens :: T.Text -> T.Text
 -- stripParens t = fromMaybe t (strip t)
