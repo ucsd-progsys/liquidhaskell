@@ -276,7 +276,7 @@ joinUnsafeChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
 joinUnsafeChunks (t, [] ) = t
 joinUnsafeChunks (t, cts) = T.concat $ t : (tx <$> cts)
   where
-    tx (c, t)             = "z" `mappend` c2t c `mappend` t
+    tx (c, t)             = mconcat ["$", c2t c, "$", t]
     c2t                   = T.pack . show . ord
 
 splitUnsafeChunks :: T.Text -> (T.Text, [(Char, SafeText)])
