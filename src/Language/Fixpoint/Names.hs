@@ -237,11 +237,10 @@ symbolSafeString = T.unpack . symbolSafeText
 
 -- decode :: Symbol -> T.Text
 -- decode x
-  -- | Just i <- encId s = memoDecode i
-  -- | otherwise         = s
-  -- where
-    -- s                 = symbolSafeText x
-
+--  Just i <- encId s = memoDecode i
+--  otherwise         = s
+-- where
+-- s                 = symbolSafeText x
 -- encId :: T.Text -> Maybe Int
 -- encId = fmap t2i . T.stripPrefix encPrefix
 
