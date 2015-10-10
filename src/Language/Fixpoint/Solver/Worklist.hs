@@ -39,7 +39,7 @@ init fi = WL roots (cSucc cd) (F.cm fi)
     roots = S.fromList $ cRoots cd
 
 ---------------------------------------------------------------------------
-pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a)
+pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
@@ -71,9 +71,15 @@ type CId    = Integer
 type CSucc  = CId -> [CId]
 type KVRead = M.HashMap F.KVar [CId]
 
-data Worklist a = WL { wCs   :: S.Set CId
-                     , wDeps :: CSucc
-                     , wCm   :: M.HashMap CId (F.SimpC a)
+data Worklist a = WL { wCs    :: S.Set CId
+                     , wDeps  :: CSucc
+                     , wCm    :: M.HashMap CId (CInfo a)
+                     }
+
+type Rank = Int
+
+data CInfo a = CInfo { cSimpC :: F.SimpC a
+                     , cRank  :: !Rank
                      }
 
 instance PPrint (Worklist a) where
@@ -87,21 +93,21 @@ data CDeps = CDs { cRoots :: ![CId]
                  , cSucc  :: CId -> [CId]
                  }
 
-cDeps :: F.SInfo a -> CDeps
-cDeps fi = CDs (map (fst3 . foo) rs) next
+cDeps       :: F.SInfo a -> CDeps
+cDeps fi    = CDs (map (fst3 . v) rs) next
   where
-    next = kvSucc fi
-    is   = M.keys $ F.cm fi
-    protoGraph = [(i,i,next i) | i <- is]
-    (graph,foo,_) = graphFromEdges protoGraph
-    sccs = L.reverse $ map flatten $ scc graph
-    rs = filterRoots graph sccs
+    next    = kvSucc fi
+    is      = M.keys $ F.cm fi
+    es      = [(i,i,next i) | i <- is]
+    (g,v,_) = graphFromEdges es
+    rs      = filterRoots g sccs
+    sccs    = L.reverse $ map flatten $ scc g
 
 filterRoots :: Graph -> [[Vertex]] -> [Vertex]
 filterRoots _ []         = []
-filterRoots g (scc:sccs) = scc ++ (filterRoots g rem)
+filterRoots g (sCC:sccs) = sCC ++ filterRoots g rest
   where
-    rem = filter (not . path g (head scc) . head) sccs
+    rest = filter (not . path g (head sCC) . head) sccs
 
 kvSucc :: F.SInfo a -> CSucc
 kvSucc fi = succs cm rdBy
@@ -122,7 +128,6 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
   where
     cm      = F.cm fi
     bs      = F.bs fi
-
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------

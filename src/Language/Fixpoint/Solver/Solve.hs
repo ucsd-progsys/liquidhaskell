@@ -8,7 +8,9 @@ module Language.Fixpoint.Solver.Solve (solve) where
 import           Data.Monoid (mappend)
 import           Control.Monad (filterM)
 import           Control.Applicative ((<$>))
+import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
+import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
@@ -26,25 +28,36 @@ import           Text.PrettyPrint.HughesPJ          (render)
 ---------------------------------------------------------------------------
 solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg s0 fi = runSolverM cfg fi $ solve_ fi s0
+solve cfg s0 fi = runSolverM cfg fi (workListSize wkl) $ do
+    lift $ donePhase Loud "Worklist Initialize"
+    solve_ fi s0 wkl
+  where
+    wkl = W.init fi
+
+workListSize :: W.Worklist -> Integer
+workListSize _ = 100 -- FIXME: this should be #sccs
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> SolveM (F.Result a)
+solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-solve_ fi s0 = refine s0' wkl >>= result fi
-  where
-    s0'          = trace "DONE: S.init" $ mappend s0 $ S.init fi
-    wkl          = trace "DONE: W.init" $ W.init fi
+solve_ fi s0 wkl = do
+  let s0' = mappend s0 $ S.init fi
+  lift $ donePhase Loud "Solution Initialize"
+  s <- refine s0' wkl
+  lift $ donePhase Loud "Solution Fixpoint"
+  result fi s
 
 ---------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 ---------------------------------------------------------------------------
 refine s w
-  | Just (c, w') <- W.pop w = do i       <- tickIter
-                                 (b, s') <- refineC i s c
-                                 let w'' = if b then W.push c w' else w'
-                                 refine s' w''
-  | otherwise               = return s
+  | Just (c, w', newScc) <- W.pop w = do
+     i       <- tickIter newScc
+     (b, s') <- refineC i s c
+     lift $ writeLoud $ refineMsg i c b w
+     let w'' = if b then W.push c w' else w'
+     refine s' w''
+  | otherwise = return s
 
 -- DEBUG
 refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"

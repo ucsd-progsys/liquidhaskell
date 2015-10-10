@@ -99,6 +99,7 @@ Executable fixpoint.native
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring
@@ -127,6 +128,7 @@ Executable fixpoint
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring
@@ -184,6 +186,7 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring

@@ -30,24 +30,30 @@ import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
+import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
+import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
 
+---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
 ---------------------------------------------------------------------------
 
 type SolveM = StateT SolverState IO
 
-data SolverState = SS { ssCtx   :: !Context
-                      , ssBinds :: !F.BindEnv
-                      , ssIter  :: !Int
+data SolverState = SS { ssCtx     :: !Context
+                      , ssBinds   :: !F.BindEnv
+                      , ssIter    :: !Int
+                      , ssProgRef :: !ProgressRef
                       }
 
 ---------------------------------------------------------------------------
-runSolverM :: Config -> F.GInfo c b -> SolveM a -> IO a
+runSolverM :: Config -> F.GInfo c b -> Integer -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi act = do
+runSolverM cfg fi t act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
-  fst <$> runStateT (declare fi >> act) (SS ctx be 0)
+  hSetBuffering stdout NoBuffering
+  (pr, _) <- startProgress percentage exact 80 t
+  fst <$> runStateT (declare fi >> act) (SS ctx be 0 pr)
   where
     be = F.bs fi
 
@@ -66,16 +72,13 @@ incIter :: SolveM ()
 ---------------------------------------------------------------------------
 incIter = modify $ \s -> s {ssIter = 1 + ssIter s}
 
----------------------------------------------------------------------------
-tickIter :: SolveM Int
----------------------------------------------------------------------------
-tickIter = incIter >> getIter
-
 withContext :: (Context -> IO a) -> SolveM a
 withContext k = (lift . k) =<< getContext
 
 getContext :: SolveM Context
 getContext = ssCtx <$> get
+
+
 
 
 ---------------------------------------------------------------------------
@@ -117,3 +120,37 @@ declSymbols = fmap dropThy . symbolSorts
   where
     dropThy = filter (not . isThy . fst)
     isThy   = isJust . Thy.smt2Symbol -- (`M.member` theorySymbols)
+
+---------------------------------------------------------------------------
+tickIter :: Bool -> SolveM Int
+---------------------------------------------------------------------------
+tickIter newScc = do
+  progress newScc
+  incIter
+  getIter
+
+progress :: Bool -> SolveM ()
+progress True  = do pr  <- ssProgRef <$> get
+                    lift $ incProgress pr 1
+progress False = return ()
+
+
+{-
+let display_tick = fun () -> print_now "."
+
+displayTick :: IO ()
+displayTick =
+  let icona = [| "|"; "/" ; "-"; "\\" |] in
+  let n     = ref 0                      in
+  let pos   = ref 0                      in
+  fun () ->
+    let k   = !pos                       in
+    let _   = pos := (k + 1) mod 4       in
+    let _   = incr n                     in
+    let suf = if (!n mod 76) = 0
+              then "\n"
+              else icona.(k)             in
+    let _   = print_now ("\b."^suf)      in
+    ()
+
+-}
