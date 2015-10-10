@@ -164,6 +164,9 @@ else
     exit 1;
 fi
 
+$CABAL update;
+abort_if_failed "Couldn't perform cabal update...";
+
 # generate logs
 
 if [ ! -e $GIPEDA_LOGS ]
