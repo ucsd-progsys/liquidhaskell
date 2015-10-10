@@ -1,3 +1,5 @@
+{-# LANGUAGE PartialTypeSignatures #-}
+
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
          Worklist
@@ -16,7 +18,7 @@ module Language.Fixpoint.Solver.Worklist
 import           Prelude hiding (init)
 import           Language.Fixpoint.Visitor (envKVars, kvars)
 import           Language.Fixpoint.PrettyPrint (PPrint (..))
-import           Language.Fixpoint.Misc (errorstar, fst3, sortNub, group)
+import           Language.Fixpoint.Misc (safeLookup, errorstar, fst3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
@@ -33,22 +35,37 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi = WL roots (cSucc cd) (F.cm fi)
+init fi    = WL roots (cSucc cd) (F.cm fi) (cRank cd) Nothing maxRnk
   where
-    cd    = cDeps fi
-    roots = S.fromList $ cRoots cd
-
+    cd     = cDeps fi
+    roots  = S.fromList $ cRoots cd
+    maxRnk = undefined -- FIXME
 ---------------------------------------------------------------------------
 pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
-  Just (getC (wCm w) i, w {wCs = is})
+  Just ( getC (wCm w) i
+       , w {wCs = is, wLast = Just i}
+       , newSCC w i
+       )
+
 
 getC :: M.HashMap CId a -> CId -> a
 getC cm i = fromMaybe err $ M.lookup i cm
   where
     err  = errorstar "getC: bad CId i"
+
+newSCC :: Worklist a -> CId -> Bool
+newSCC oldW i = oldRank /= newRank
+  where
+    oldRank   = getRank oldW <$> wLast oldW
+    newRank   = Just          $  getRank oldW i
+
+getRank :: Worklist a -> CId -> Rank
+getRank w i = safeLookup err i (wRm w)
+  where
+    err     = "getRank: cannot find SCC for " ++ show i
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
@@ -67,20 +84,20 @@ sid' c  = fromMaybe err $ F.sid c
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
 
+type Rank   = Int
 type CId    = Integer
 type CSucc  = CId -> [CId]
+type CRank  = M.HashMap CId    Rank
 type KVRead = M.HashMap F.KVar [CId]
 
 data Worklist a = WL { wCs    :: S.Set CId
                      , wDeps  :: CSucc
-                     , wCm    :: M.HashMap CId (CInfo a)
+                     , wCm    :: M.HashMap CId (F.SimpC a)
+                     , wRm    :: CRank
+                     , wLast  :: Maybe CId
+                     , wRanks :: Int
                      }
 
-type Rank = Int
-
-data CInfo a = CInfo { cSimpC :: F.SimpC a
-                     , cRank  :: !Rank
-                     }
 
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
@@ -91,17 +108,26 @@ instance PPrint (Worklist a) where
 
 data CDeps = CDs { cRoots :: ![CId]
                  , cSucc  :: CId -> [CId]
+                 , cRank  :: CRank
                  }
 
 cDeps       :: F.SInfo a -> CDeps
-cDeps fi    = CDs (map (fst3 . v) rs) next
+cDeps fi    = CDs (map (fst3 . v) rs) next rankm
   where
     next    = kvSucc fi
     is      = M.keys $ F.cm fi
-    es      = [(i,i,next i) | i <- is]
+    es      = [(i, i, next i) | i <- is]
     (g,v,_) = graphFromEdges es
     rs      = filterRoots g sccs
     sccs    = L.reverse $ map flatten $ scc g
+    rankm   = makeRank v sccs
+
+makeRank :: (Vertex -> (CId, a, b)) -> [[Vertex]] -> CRank
+makeRank g sccs = M.fromList irs
+  where
+    rvss        = zip [0..] sccs
+    irs         = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
+    v2i         = fst3 . g
 
 filterRoots :: Graph -> [[Vertex]] -> [Vertex]
 filterRoots _ []         = []
