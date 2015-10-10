@@ -47,10 +47,10 @@ import Language.Haskell.Liquid.Bare.Env
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
 -- WTF does this function do?
-makeSymbols vs xs' xts yts ivs
+makeSymbols f vs xs' xts yts ivs
   = do svs <- gets varEnv
-       return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)] ++ 
-                       [ (symbol v, v) | v <- vs, isDataConId v, hasBasicArgs $ varType v ])
+       return $ L.nub ([ (x,v') | (x,v) <- svs, x `elem` xs, let (v',_,_) = joinVar vs (v,x,x)] 
+                       ++  [ (symbol v, v) | v <- vs, f v, isDataConId v, hasBasicArgs $ varType v ])
     where
       xs    = sortNub $ zs ++ zs' ++ zs''
       zs    = concatMap freeSymbols (snd <$> xts) `sortDiff` xs'
