@@ -31,16 +31,18 @@ partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
   = do dumpPartitions cfg fis
        dumpEdges      cfg es
-       -- writeLoud $ render $ ppGraph es
        return mempty
     where
        (es, fis) = partition' Nothing fi
 
+------------------------------------------------------------------------------
 -- | Partition an FInfo into multiple disjoint FInfos
+------------------------------------------------------------------------------
 partition' :: Maybe F.MCInfo -- ^ Nothing to produce the maximum possible
                              -- number of partitions. Or a MultiCore Info
                              -- to control the partitioning
            -> F.FInfo a -> (KVGraph, [F.FInfo a])
+------------------------------------------------------------------------------
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
    (Just mi) -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
@@ -48,10 +50,8 @@ partition' mn fi  = case mn of
     es             = kvEdges   fi
     g              = kvGraph   es
     css            = decompose g
-    fis partF ctor = applyNonNull [ctor fi]
-                                  (partitionByConstraints
-                                   partF
-                                   fi) css
+    fis partF ctor = applyNonNull [ctor fi] (pbc partF) css
+    pbc partF      = partitionByConstraints partF fi
 
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal

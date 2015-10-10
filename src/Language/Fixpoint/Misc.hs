@@ -19,10 +19,11 @@ import           Data.Maybe                       (fromMaybe)
 
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (isLoud, whenLoud)
 import           System.Process                   (system)
-
 import           Text.PrettyPrint.HughesPJ        hiding (first)
+import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
+import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -198,3 +199,23 @@ tshow              = text . show
 -- | if loud, write a string to stdout
 writeLoud :: String -> IO ()
 writeLoud = whenLoud . putStrLn
+
+
+---------------------------------------------------------------------------
+-- | Progress Bar API
+---------------------------------------------------------------------------
+
+progressTick :: Bool -> Maybe ProgressRef -> IO ()
+progressTick True (Just pr) = incProgress pr 1
+progressTick _         _    = return ()
+
+progressBar :: Integer -> IO (Maybe ProgressRef)
+progressBar n = do
+  loud <- isLoud
+  if loud
+    then return Nothing
+    else mkPB n
+
+mkPB n = do
+  hSetBuffering stdout NoBuffering
+  Just . fst <$> startProgress percentage exact 80 n

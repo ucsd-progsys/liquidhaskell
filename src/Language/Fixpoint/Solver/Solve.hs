@@ -28,20 +28,18 @@ import           Text.PrettyPrint.HughesPJ          (render)
 ---------------------------------------------------------------------------
 solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg s0 fi = runSolverM cfg fi (workListSize wkl) $ do
+solve cfg s0 fi = runSolverM cfg fi n $ do
     lift $ donePhase Loud "Worklist Initialize"
     solve_ fi s0 wkl
   where
-    wkl = W.init fi
-
-workListSize :: W.Worklist -> Integer
-workListSize _ = 100 -- FIXME: this should be #sccs
+    wkl  = trace "W.init" $ W.init fi
+    n    = fromIntegral $ W.ranks wkl
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist -> SolveM (F.Result a)
+solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
-  let s0' = mappend s0 $ S.init fi
+  let s0' = trace "S.init" $ mappend s0 $ S.init fi
   lift $ donePhase Loud "Solution Initialize"
   s <- refine s0' wkl
   lift $ donePhase Loud "Solution Fixpoint"
@@ -54,14 +52,14 @@ refine s w
   | Just (c, w', newScc) <- W.pop w = do
      i       <- tickIter newScc
      (b, s') <- refineC i s c
-     lift $ writeLoud $ refineMsg i c b w
+     lift $ writeLoud $ refineMsg i c b
      let w'' = if b then W.push c w' else w'
      refine s' w''
   | otherwise = return s
 
 -- DEBUG
-refineMsg i c b w = printf "REFINE: iter = %d cid = %s change = %s wkl = %s"
-                      i (show $ F.sid c) (show b) (showpp w)
+refineMsg i c b = printf "REFINE: iter = %d cid = %s change = %s"
+                    i (show $ F.sid c) (show b)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

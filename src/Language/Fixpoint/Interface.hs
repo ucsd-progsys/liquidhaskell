@@ -62,17 +62,22 @@ solveFQ cfg
   | otherwise     = solveFile cfg
 
 multicore :: Config -> Bool
-multicore cfg = cores cfg /= Just 1
+multicore cfg = mc || bin
+  where
+    mc        = cores cfg /= Just 1
+    bin       = isBinary $ inFile cfg
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve, solve' :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solve :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+---------------------------------------------------------------------------
 solve cfg fi      = do when (binary cfg) $ do
                          putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
                          saveBinaryFile cfg fi
                        solve' cfg fi
 
+solve' :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solve' cfg fi
   | parts cfg     = partition cfg  $!! fi
   | stats cfg     = statistics cfg $!! fi
@@ -159,34 +164,32 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 
 solveNativeWithFInfo :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
 solveNativeWithFInfo !cfg !fi = do
-  writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
+  -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   rnf fi `seq` donePhase Loud "Read Constraints"
   let fi' = fi { quals = remakeQual <$> quals fi }
   let si  = {-# SCC "convertFormat" #-} convertFormat fi'
-  writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
+  -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   rnf si `seq` donePhase Loud "Format Conversion"
   let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
-  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
+  -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   rnf si' `seq` donePhase Loud "Validated Constraints"
   when (elimStats cfg) $ printElimStats (deps si')
   let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
-  writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
+  -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   rnf si'' `seq` donePhase Loud "Uniqify"
   (s0, si''') <- {-# SCC "elim" #-} elim cfg $!! si''
   Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg s0 $!! si'''
   rnf soln `seq` donePhase Loud "Solve"
   let stat' = sid <$> stat
-  writeLoud $ "\nSolution:\n"  ++ showpp soln
-  -- render (pprintKVs $ hashMapToAscList soln) -- showpp soln
+  -- writeLoud $ "\nSolution:\n"  ++ showpp soln
   colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . mlookup (cm fi) . mfromJust "WAT" <$> stat') soln
 
 printElimStats :: Deps -> IO ()
-printElimStats d = do
-  let postElims = length $ depCuts d
-  let total = postElims + length (depNonCuts d)
-  putStrLn $ "TOTAL KVars: " ++ show total
-          ++ "\nPOST-ELIMINATION KVars: " ++ show postElims
+printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
+  where
+    total        = postElims + length (depNonCuts d)
+    postElims    = length $ depCuts d
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
@@ -217,9 +220,9 @@ solvePar c fi = do
    mci <- mcInfo c
    let (_, fis) = partition' (Just mci) fi
    writeLoud $ "Number of partitions: " ++ show (length fis)
-   writeLoud $ "number of cores: " ++ show (cores c)
-   writeLoud $ "minimum part size: " ++ show (minPartSize c)
-   writeLoud $ "maximum part size: " ++ show (maxPartSize c)
+   writeLoud $ "number of cores: "      ++ show (cores c)
+   writeLoud $ "minimum part size: "    ++ show (minPartSize c)
+   writeLoud $ "maximum part size: "    ++ show (maxPartSize c)
    case fis of
       [] -> errorstar "partiton' returned empty list!"
       [onePart] -> solveExt c onePart
@@ -234,9 +237,9 @@ execFq cfg fn fi
 
 solveFile :: Config -> IO ExitCode
 solveFile cfg
-  = do fp  <- getFixpointPath
-       z3  <- getZ3LibPath
-       v   <- (\b -> if b then "-v 1" else "") <$> isLoud
+  = do fp <- getFixpointPath
+       z3 <- getZ3LibPath
+       v  <- (\b -> if b then "-v 1" else "") <$> isLoud
        {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand fp z3 v
     where
       fixCommand fp z3 verbosity

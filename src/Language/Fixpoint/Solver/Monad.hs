@@ -19,7 +19,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
-import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Misc    (progressBar, progressTick, groupList)
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
@@ -30,9 +30,7 @@ import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
-import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
-import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
-
+import           System.ProgressBar (ProgressRef)
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
@@ -43,7 +41,7 @@ type SolveM = StateT SolverState IO
 data SolverState = SS { ssCtx     :: !Context
                       , ssBinds   :: !F.BindEnv
                       , ssIter    :: !Int
-                      , ssProgRef :: !ProgressRef
+                      , ssProgRef :: Maybe ProgressRef
                       }
 
 ---------------------------------------------------------------------------
@@ -51,8 +49,7 @@ runSolverM :: Config -> F.GInfo c b -> Integer -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
-  hSetBuffering stdout NoBuffering
-  (pr, _) <- startProgress percentage exact 80 t
+  pr <- progressBar t
   fst <$> runStateT (declare fi >> act) (SS ctx be 0 pr)
   where
     be = F.bs fi
@@ -119,38 +116,14 @@ declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where
     dropThy = filter (not . isThy . fst)
-    isThy   = isJust . Thy.smt2Symbol -- (`M.member` theorySymbols)
+    isThy   = isJust . Thy.smt2Symbol
 
 ---------------------------------------------------------------------------
 tickIter :: Bool -> SolveM Int
 ---------------------------------------------------------------------------
-tickIter newScc = do
-  progress newScc
-  incIter
-  getIter
+tickIter newScc = progIter newScc >> incIter >> getIter
 
-progress :: Bool -> SolveM ()
-progress True  = do pr  <- ssProgRef <$> get
-                    lift $ incProgress pr 1
-progress False = return ()
-
-
-{-
-let display_tick = fun () -> print_now "."
-
-displayTick :: IO ()
-displayTick =
-  let icona = [| "|"; "/" ; "-"; "\\" |] in
-  let n     = ref 0                      in
-  let pos   = ref 0                      in
-  fun () ->
-    let k   = !pos                       in
-    let _   = pos := (k + 1) mod 4       in
-    let _   = incr n                     in
-    let suf = if (!n mod 76) = 0
-              then "\n"
-              else icona.(k)             in
-    let _   = print_now ("\b."^suf)      in
-    ()
-
--}
+progIter :: Bool -> SolveM ()
+progIter newScc = do
+  pr  <- ssProgRef <$> get
+  lift $ progressTick newScc pr

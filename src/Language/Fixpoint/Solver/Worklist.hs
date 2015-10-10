@@ -12,6 +12,9 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Add a constraint and all its dependencies
        , push
+
+         -- * Total number of SCCs
+       , ranks
        )
        where
 
@@ -35,11 +38,15 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi    = WL roots (cSucc cd) (F.cm fi) (cRank cd) Nothing maxRnk
+init fi    = WL { wCs    = S.fromList $ cRoots cd
+                , wDeps  = cSucc cd
+                , wCm    = F.cm fi
+                , wRankm = cRank cd
+                , wLast  = Nothing
+                , wRanks = cNumScc cd }
   where
     cd     = cDeps fi
-    roots  = S.fromList $ cRoots cd
-    maxRnk = undefined -- FIXME
+
 ---------------------------------------------------------------------------
 pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 ---------------------------------------------------------------------------
@@ -49,7 +56,6 @@ pop w = do
        , w {wCs = is, wLast = Just i}
        , newSCC w i
        )
-
 
 getC :: M.HashMap CId a -> CId -> a
 getC cm i = fromMaybe err $ M.lookup i cm
@@ -63,7 +69,7 @@ newSCC oldW i = oldRank /= newRank
     newRank   = Just          $  getRank oldW i
 
 getRank :: Worklist a -> CId -> Rank
-getRank w i = safeLookup err i (wRm w)
+getRank w i = safeLookup err i (wRankm w)
   where
     err     = "getRank: cannot find SCC for " ++ show i
 
@@ -81,6 +87,11 @@ sid' c  = fromMaybe err $ F.sid c
     err = errorstar "sid': SimpC without id"
 
 ---------------------------------------------------------------------------
+ranks :: Worklist a -> Int
+---------------------------------------------------------------------------
+ranks = wRanks
+
+---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
 
@@ -93,7 +104,7 @@ type KVRead = M.HashMap F.KVar [CId]
 data Worklist a = WL { wCs    :: S.Set CId
                      , wDeps  :: CSucc
                      , wCm    :: M.HashMap CId (F.SimpC a)
-                     , wRm    :: CRank
+                     , wRankm :: CRank
                      , wLast  :: Maybe CId
                      , wRanks :: Int
                      }
@@ -106,13 +117,14 @@ instance PPrint (Worklist a) where
 -- | Constraint Dependencies ----------------------------------------------
 ---------------------------------------------------------------------------
 
-data CDeps = CDs { cRoots :: ![CId]
-                 , cSucc  :: CId -> [CId]
-                 , cRank  :: CRank
+data CDeps = CDs { cRoots  :: ![CId]
+                 , cSucc   :: CId -> [CId]
+                 , cRank   :: CRank
+                 , cNumScc :: Int
                  }
 
 cDeps       :: F.SInfo a -> CDeps
-cDeps fi    = CDs (map (fst3 . v) rs) next rankm
+cDeps fi    = CDs (map (fst3 . v) rs) next rankm nSccs
   where
     next    = kvSucc fi
     is      = M.keys $ F.cm fi
@@ -121,6 +133,7 @@ cDeps fi    = CDs (map (fst3 . v) rs) next rankm
     rs      = filterRoots g sccs
     sccs    = L.reverse $ map flatten $ scc g
     rankm   = makeRank v sccs
+    nSccs   = length sccs
 
 makeRank :: (Vertex -> (CId, a, b)) -> [[Vertex]] -> CRank
 makeRank g sccs = M.fromList irs
