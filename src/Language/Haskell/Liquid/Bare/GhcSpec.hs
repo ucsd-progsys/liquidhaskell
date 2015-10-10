@@ -92,7 +92,7 @@ postProcess cbs specEnv sp@(SP {..}) = sp { tySigs = tySigs', texprs = ts, asmSi
   -- HEREHEREHEREHERE (addTyConInfo stuff)
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    tySigs'  = traceShow "TYSIGS HERE " $ mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
     asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
     dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
 
@@ -125,7 +125,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
+       syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
@@ -143,8 +143,9 @@ makeExactDataCons n flag vs spec
   | flag      = return $ spec {tySigs = (tySigs spec) ++ xts}
   | otherwise = return spec 
   where 
-    xts = makeExact <$> (filter isDataConId $ filter isLocal vs) 
-    isLocal v = L.isPrefixOf (show n) $ show v
+    xts = makeExact <$> (filter isDataConId $ filter (varInModule n) vs) 
+
+varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
 makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
