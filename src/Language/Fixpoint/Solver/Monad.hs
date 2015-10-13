@@ -48,13 +48,12 @@ data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
 
 data Stats = Stats { numIter :: !Int -- ^ # Refine Iterations
                    , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
-                   , numAsst :: !Int -- ^ # smtAssert     calls
                    , numChck :: !Int -- ^ # smtCheckUnsat calls
                    , numVald :: !Int -- ^ # times SMT said RHS Valid
                    } deriving (Show)
 
 stats0 :: Stats
-stats0 = Stats 0 0 0 0 0
+stats0 = Stats 0 0 0 0
 
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
