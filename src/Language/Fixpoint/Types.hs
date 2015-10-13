@@ -152,7 +152,8 @@ module Language.Fixpoint.Types (
   , Kuts (..)
   , ksEmpty
   , ksUnion
-
+  , ksMember
+  
   -- * Qualifiers
   , Qualifier (..)
 
@@ -270,6 +271,8 @@ ksEmpty = KS S.empty
 ksUnion :: [KVar] -> Kuts -> Kuts
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 
+ksMember :: KVar -> Kuts -> Bool
+ksMember k (KS s) = S.member k s
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
 ---------------------------------------------------------------

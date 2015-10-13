@@ -83,15 +83,10 @@ pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
-  Just ( getC (wCm w) i
+  Just ( lookupCMap (wCm w) i
        , w {wCs = is, wLast = Just i}
        , newSCC w i
        )
-
-getC :: CMap a -> CId -> a
-getC cm i = fromMaybe err $ M.lookup i cm
-  where
-    err  = errorstar "getC: bad CId i"
 
 newSCC :: Worklist a -> CId -> Bool
 newSCC oldW i = oldRank /= newRank
@@ -155,7 +150,7 @@ cDeps fi       = CDs { cRoots  = roots
     (g, vf, _)    = graphFromEdges es
     (outRs, sccs) = graphRanks g vf
     inRs          = if ks == mempty then outRs
-                                    else innerRanks cm es (F.kuts fi) outRs
+                                    else inRanks cm es (F.kuts fi) outRs
     cm            = F.cm   fi
     ks            = F.kuts fi
 
@@ -167,13 +162,15 @@ graphRanks g vf = (M.fromList irs, sccs)
     sccs       = L.reverse $ map flatten $ scc g
     v2i        = fst3 . vf
 
-innerRanks :: CMap (F.SimpC a) -> [DepEdge] -> F.Kuts -> CMap Int -> CMap Int
-innerRanks cm es ks outR = fst $ graphRanks g' vf'
+inRanks :: CMap (F.SimpC a) -> [DepEdge] -> F.Kuts -> CMap Int -> CMap Int
+inRanks cm es ks outR = fst $ graphRanks g' vf'
   where
-    (g', vf', _)         = graphFromEdges es'
-    es'                  = removeCutEdges cm ks outR es
-
-removeCutEdges cm ks outR es = error "FIXME"
+    (g', vf', _)      = graphFromEdges es'
+    es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
+    isCut i j         = S.member i cutCIds && isEqOutRank i j
+    isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
+    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
+    isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
 {-
     let is_eq_rank = let rm = IM.of_list irs in  fun i j -> (IM.find i rm = IM.find j rm)  in
@@ -208,9 +205,11 @@ kvSucc fi = succs cm rdBy
 succs :: CMap (F.SimpC a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
-    ci          = getC cm i
-    iKs         = kvars $ F.crhs ci
+    iKs         = kvWriteBy cm i
     kvReads k   = M.lookupDefault [] k rdBy
+
+kvWriteBy :: CMap (F.SimpC a) -> CId -> [F.KVar]
+kvWriteBy cm = kvars . F.crhs . lookupCMap cm
 
 kvReadBy :: F.SInfo a -> KVRead
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
@@ -249,7 +248,6 @@ instance Ord WorkItem where
         if r.iscc <> r'.iscc then compare r.iscc r'.iscc else
           if r.tag <> r'.tag then compare r.tag r'.tag else
             compare r.simpl r'.simpl
--}
 
 
 lexOrder :: [Ordering] -> Ordering
@@ -260,6 +258,7 @@ negOrder EQ = EQ
 negOrder LT = GT
 negOrder GT = LT
 
+-}
 ---------------------------------------------------------------------------
 -- | Ranks ----------------------------------------------------------------
 ---------------------------------------------------------------------------
