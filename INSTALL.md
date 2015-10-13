@@ -1,5 +1,4 @@
-Install LiquidHaskell
-=====================
+# Install LiquidHaskell
 
 To run `liquid` you need to install:
 
@@ -7,8 +6,7 @@ To run `liquid` you need to install:
 2. The `liquid` binary via package manager *or* source.
 
 
-Step 1: Install SMT Solver
---------------------------
+## Step 1: Install SMT Solver
 
 Download and install *at least one* of
 
@@ -17,8 +15,7 @@ Download and install *at least one* of
 + [MathSat](http://mathsat.fbk.eu/download.html)
 
 
-Step 2: Install `liquid` via Package Manager
---------------------------------------------
+## Step 2: Install `liquid` via Package Manager
 
 Simply do:
 
@@ -28,15 +25,13 @@ Simply do:
 
 We are working to put `liquid` on `stackage`.
 
-Step 2: Install `liquid` from Source
-------------------------------------
+## Step 2: Install `liquid` from Source
 
 If you want the most recent version, you can build from source as follows,
 either using `stack` (recommended) or `cabal`. In either case: *recursively*
 clone the repo and then build:
 
-
-**Build with `stack`** (recommended)
+### Build with `stack`
 
     ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
@@ -44,7 +39,7 @@ clone the repo and then build:
     stack install
     ```
 
-**Build with `cabal`**
+## Build with `cabal`
 
     ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
@@ -55,8 +50,7 @@ clone the repo and then build:
     cabal install
     ```
 
-Troubleshooting
----------------
+## Troubleshooting
 
 If you're on Windows, please make sure the solver is installed
 in the **same** directory as LiquidHaskell itself (i.e. wherever
