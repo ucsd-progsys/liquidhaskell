@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE BangPatterns          #-}
 
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
@@ -42,14 +43,15 @@ init :: F.SInfo a -> Worklist a
 init fi    = WL { wCs    = items
                 , wDeps  = cSucc cd
                 , wCm    = F.cm fi
-                , wRankm = cRank cd
+                , wRankm = rankm
                 , wLast  = Nothing
                 , wRanks = cNumScc cd
                 , wTime  = 0
                 }
   where
     cd     = cDeps fi
-    items  = S.fromList $ workItemsAt 0 <$> cRoots cd
+    rankm  = cRank cd
+    items  = S.fromList $ workItemsAt rankm 0 <$> cRoots cd
 
 ---------------------------------------------------------------------------
 pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
@@ -69,13 +71,14 @@ getC cm i = fromMaybe err $ M.lookup i cm
 newSCC :: Worklist a -> CId -> Bool
 newSCC oldW i = oldRank /= newRank
   where
-    oldRank   = getRank oldW <$> wLast oldW
-    newRank   = Just          $  getRank oldW i
+    oldRank   = getRank rankm <$> wLast oldW
+    newRank   = Just          $  getRank rankm i
+    rankm     = wRankm oldW
 
-getRank :: Worklist a -> CId -> Rank
-getRank w i = safeLookup err i (wRankm w)
+getRank :: CRank -> CId -> Rank
+getRank rm i = safeLookup err i rm
   where
-    err     = "getRank: cannot find SCC for " ++ show i
+    err      = "getRank: cannot find SCC for " ++ show i
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
@@ -84,11 +87,14 @@ push c w = w { wCs   = sAdds (wCs w) js
              , wTime = 1 + t       }
   where
     i    = sid' c
-    js   = workItemsAt t <$> wDeps w i
+    js   = workItemsAt (wRankm w) t <$> wDeps w i
     t    = wTime w
 
-workItemsAt :: Int -> CId -> WorkItem
-workItemsAt = error "FIXME"
+workItemsAt :: CRank -> Int -> CId -> WorkItem
+workItemsAt !r !t !i = WorkItem { wiCId  = i
+                                , wiTime = t
+                                , wiRank = getRank r i }
+
 
 sid'    :: F.SimpC a -> Integer
 sid' c  = fromMaybe err $ F.sid c
@@ -118,9 +124,6 @@ data Worklist a = WL { wCs    :: WorkSet
                      , wRanks :: !Int
                      , wTime  :: !Int
                      }
-
-
-
 
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
@@ -194,18 +197,12 @@ instance PPrint WorkItem where
   pprint = text . show
 
 instance Ord WorkItem where
-  compare = cmpWI
-
-cmpWI :: WorkItem -> WorkItem -> Ordering
-cmpWI w1 w2 = mconcat [ cmp2 (rScc . wiRank) -- SCC
-                      , cmp2 wiTime          -- TimeStamp
-                      , cmp2 (rIcc . wiRank) -- Inner SCC
-                      , cmp2 (rTag . wiRank) -- Tag
-                      ]
-  where
-    cmp2 f  = compare (f w1) (f w2)
-    wScc    = rScc . wiRank
-    wTs     = wiTime
+  compare (WorkItem _ t1 r1) (WorkItem _ t2 r2)
+    = mconcat [ compare (rScc r1) (rScc r2)   -- SCC
+              , compare t1 t2                 -- TimeStamp
+              , compare (rIcc r1) (rIcc r2)   -- Inner SCC
+              , compare (rTag r1) (rTag r2)   -- Tag
+              ]
 
 
 {- original OCAML implementation
