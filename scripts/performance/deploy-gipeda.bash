@@ -90,10 +90,13 @@ abort_if_failed "Unable to initialize the Liquid-Fixpoint git submodule...";
 cd $GIPEDA_DIR;
 abort_if_failed "Unable to change to $GIPEDA_DIR..."; #You got problems
 
-cabal sandbox init;
+$CABAL sandbox init;
 abort_if_failed "Unable to initialize Cabal sandbox for Gipeda...";
 
-cabal install;
+$CABAL update;
+abort_if_failed "Unable to perform cabal update...";
+
+$CABAL install;
 abort_if_failed "Unable to install Gipeda...";
 
 ln -s $REL_SANDBOX_BIN/gipeda gipeda;
