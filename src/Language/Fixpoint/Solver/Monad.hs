@@ -42,21 +42,30 @@ type SolveM = StateT SolverState IO
 
 data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
                       , ssBinds   :: !F.BindEnv        -- ^ All variables and types
-                      , ssIter    :: !Int              -- ^ Iteration Count
                       , ssProgRef :: Maybe ProgressRef -- ^ Progress Bar
+                      , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
-data Stats = Stats { numIters :: !Int } -- deriving (Show)
+data Stats = Stats { numIter :: !Int -- ^ # Refine Iterations
+                   , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
+                   , numAsst :: !Int -- ^ # smtAssert     calls
+                   , numChck :: !Int -- ^ # smtCheckUnsat calls
+                   , numVald :: !Int -- ^ # times SMT said RHS Valid
+                   } deriving (Show)
+
+stats0 :: Stats
+stats0 = Stats 0 0 0 0 0
 
 ---------------------------------------------------------------------------
-runSolverM :: Config -> F.GInfo c b -> Integer -> SolveM a -> IO a
+runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
-  pr <- progressBar t
-  fst <$> runStateT (declare fi >> act) (SS ctx be 0 pr)
+  pr  <- progressBar (fromIntegral t)
+  fst <$> runStateT (declare fi >> act) (SS ctx be pr stats0)
   where
     be = F.bs fi
+
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
@@ -66,12 +75,19 @@ getBinds = ssBinds <$> get
 ---------------------------------------------------------------------------
 getIter :: SolveM Int
 ---------------------------------------------------------------------------
-getIter = ssIter <$> get
+getIter = numIter . ssStats <$> get
 
 ---------------------------------------------------------------------------
-incIter :: SolveM ()
+incIter, incBrkt :: SolveM ()
 ---------------------------------------------------------------------------
-incIter = modify $ \s -> s {ssIter = 1 + ssIter s}
+incIter   = modifyStats $ \s -> s {numIter = 1 + numIter s}
+incBrkt   = modifyStats $ \s -> s {numBrkt = 1 + numBrkt s}
+
+---------------------------------------------------------------------------
+incChck, incVald :: Int -> SolveM ()
+---------------------------------------------------------------------------
+incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
+incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
 withContext :: (Context -> IO a) -> SolveM a
 withContext k = (lift . k) =<< getContext
@@ -79,18 +95,25 @@ withContext k = (lift . k) =<< getContext
 getContext :: SolveM Context
 getContext = ssCtx <$> get
 
-
-
+modifyStats :: (Stats -> Stats) -> SolveM ()
+modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs =
-  withContext $ \me ->
-    smtBracket me $
-      filterValid_ p qs me
+filterValid p qs = do
+  qs' <- withContext $ \me ->
+           smtBracket me $
+             filterValid_ p qs me
+  -- stats
+  incBrkt
+  incChck (length qs)
+  incVald (length qs')
+  return qs'
+
+
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
@@ -126,13 +149,13 @@ declSymbols = fmap dropThy . symbolSorts
 -- | Debug Information ----------------------------------------------------
 ---------------------------------------------------------------------------
 
-instance Show Stats where
-  show s = unlines [ "# Iterations = " ++ show (numIters s) ]
+-- instance Show Stats where
+--   show s = unlines [ "# Iterations = " ++ show (numIters s) ]
 
 ---------------------------------------------------------------------------
 stats :: SolveM Stats
 ---------------------------------------------------------------------------
-stats = Stats <$> getIter
+stats = ssStats <$> get
 
 ---------------------------------------------------------------------------
 tickIter :: Bool -> SolveM Int

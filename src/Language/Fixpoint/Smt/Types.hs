@@ -71,12 +71,6 @@ data Context      = Ctx { pId     :: ProcessHandle
                         , cOut    :: Handle
                         , cLog    :: Maybe Handle
                         , verbose :: Bool
-
-                        -- debug statistics
-                        , nBrkt   :: !Integer
-                        , nAsst   :: !Integer
-                        , nChck   :: !Integer
-                        , nUnst   :: !Integer
                         }
 
 -- | Theory Symbol

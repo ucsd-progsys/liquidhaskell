@@ -202,12 +202,7 @@ makeProcess s
                   , cIn     = hIn
                   , cOut    = hOut
                   , cLog    = Nothing
-                  , verbose = loud
-                  , nBrkt   = 0
-                  , nAsst   = 0
-                  , nChck   = 0
-                  , nUnst   = 0       }
-
+                  , verbose = loud    }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
