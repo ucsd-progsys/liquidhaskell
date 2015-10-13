@@ -198,7 +198,16 @@ makeProcess :: SMTSolver -> IO Context
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
        loud <- isLoud
-       return $ Ctx pid hIn hOut Nothing loud
+       return Ctx { pId     = pid
+                  , cIn     = hIn
+                  , cOut    = hOut
+                  , cLog    = Nothing
+                  , verbose = loud
+                  , nBrkt   = 0
+                  , nAsst   = 0
+                  , nChck   = 0
+                  , nUnst   = 0       }
+
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode

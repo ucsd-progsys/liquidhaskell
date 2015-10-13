@@ -12,7 +12,7 @@ import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
@@ -23,27 +23,32 @@ import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
 import           Text.PrettyPrint.HughesPJ          (render)
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 
 
 ---------------------------------------------------------------------------
 solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
-solve cfg s0 fi = runSolverM cfg fi n $ do
-    lift $ donePhase Loud "Worklist Initialize"
-    solve_ fi s0 wkl
+solve cfg s0 fi = do
+    donePhase Loud "Worklist Initialize"
+    (r, s)  <- runSolverM cfg fi n $ solve_ fi s0 wkl
+    whenLoud $ print s
+    return r
   where
     wkl  = trace "W.init" $ W.init fi
     n    = fromIntegral $ W.ranks wkl
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a)
+solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
   let s0' = trace "S.init" $ mappend s0 $ S.init fi
   lift $ donePhase Loud "Solution Initialize"
   s <- refine s0' wkl
   lift $ donePhase Loud "Solution Fixpoint"
-  result fi s
+  st  <- stats
+  res <- result fi s
+  return (res, st)
 
 ---------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution

@@ -14,8 +14,9 @@ module Language.Fixpoint.Solver.Monad
        , filterValid
 
          -- * Debug
+       , Stats
        , tickIter
-
+       , stats
        )
        where
 
@@ -28,21 +29,24 @@ import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
+import           Text.Printf          (printf)
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
 import           System.ProgressBar (ProgressRef)
----------------------------------------------------------------------------
+
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
 ---------------------------------------------------------------------------
 
 type SolveM = StateT SolverState IO
 
-data SolverState = SS { ssCtx     :: !Context
-                      , ssBinds   :: !F.BindEnv
-                      , ssIter    :: !Int
-                      , ssProgRef :: Maybe ProgressRef
+data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
+                      , ssBinds   :: !F.BindEnv        -- ^ All variables and types
+                      , ssIter    :: !Int              -- ^ Iteration Count
+                      , ssProgRef :: Maybe ProgressRef -- ^ Progress Bar
                       }
+
+data Stats = Stats { numIters :: !Int } -- deriving (Show)
 
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Integer -> SolveM a -> IO a
@@ -117,6 +121,18 @@ declSymbols = fmap dropThy . symbolSorts
   where
     dropThy = filter (not . isThy . fst)
     isThy   = isJust . Thy.smt2Symbol
+
+---------------------------------------------------------------------------
+-- | Debug Information ----------------------------------------------------
+---------------------------------------------------------------------------
+
+instance Show Stats where
+  show s = unlines [ "# Iterations = " ++ show (numIters s) ]
+
+---------------------------------------------------------------------------
+stats :: SolveM Stats
+---------------------------------------------------------------------------
+stats = Stats <$> getIter
 
 ---------------------------------------------------------------------------
 tickIter :: Bool -> SolveM Int
