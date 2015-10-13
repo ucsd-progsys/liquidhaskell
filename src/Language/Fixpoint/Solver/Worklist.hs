@@ -172,16 +172,6 @@ inRanks cm es ks outR = fst $ graphRanks g' vf'
     cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
-{-
-    let is_eq_rank = let rm = IM.of_list irs in  fun i j -> (IM.find i rm = IM.find j rm)  in
-      let is_cut_id  = is_cut_cst cm kuts                                                    in
-      let is_cut_dep = fun (i, j) -> is_cut_id i && is_eq_rank i j                           in
-      deps |> List.filter (not <.> is_cut_dep)
-           |> Fcommon.scc_rank "inner" (string_of_cid cm) (IM.domain cm)
-           |>: (fun (i, ir) -> (i, (ir, is_cut_id i)))
-
--}
-
 makeRanks :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CMap Rank
 makeRanks cm outR inR = M.fromList [(i, i2r i) | i <- M.keys cm]
   where
