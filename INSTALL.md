@@ -36,7 +36,7 @@ either using `stack` (recommended) or `cabal`. In either case: *recursively*
 clone the repo and then build:
 
 
-**Build with `stack`**
+**Build with `stack`** (recommended)
 
     ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
