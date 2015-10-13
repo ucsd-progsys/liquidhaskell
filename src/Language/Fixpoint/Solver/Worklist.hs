@@ -23,6 +23,7 @@ import           Language.Fixpoint.Visitor (envKVars, kvars)
 import           Language.Fixpoint.PrettyPrint (PPrint (..))
 import           Language.Fixpoint.Misc (safeLookup, errorstar, fst3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
+import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
@@ -30,7 +31,7 @@ import           Data.Maybe (fromMaybe)
 
 import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
 import           Data.Tree (flatten)
-
+import           Text.PrettyPrint.HughesPJ (text)
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
@@ -38,14 +39,17 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi    = WL { wCs    = S.fromList $ cRoots cd
+init fi    = WL { wCs    = items
                 , wDeps  = cSucc cd
                 , wCm    = F.cm fi
                 , wRankm = cRank cd
                 , wLast  = Nothing
-                , wRanks = cNumScc cd }
+                , wRanks = cNumScc cd
+                , wTime  = 0
+                }
   where
     cd     = cDeps fi
+    items  = S.fromList $ workItemsAt 0 <$> cRoots cd
 
 ---------------------------------------------------------------------------
 pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
@@ -76,10 +80,15 @@ getRank w i = safeLookup err i (wRankm w)
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
-push c w = w {wCs = sAdds (wCs w) js}
+push c w = w { wCs   = sAdds (wCs w) js
+             , wTime = 1 + t       }
   where
     i    = sid' c
-    js   = {- tracepp ("PUSH: id = " ++ show i) $ -} wDeps w i
+    js   = workItemsAt t <$> wDeps w i
+    t    = wTime w
+
+workItemsAt :: Int -> CId -> WorkItem
+workItemsAt = error "FIXME"
 
 sid'    :: F.SimpC a -> Integer
 sid' c  = fromMaybe err $ F.sid c
@@ -95,19 +104,22 @@ ranks = wRanks
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-type Rank   = Int
-type CId    = Integer
-type CSucc  = CId -> [CId]
-type CRank  = M.HashMap CId    Rank
-type KVRead = M.HashMap F.KVar [CId]
+type CId     = Integer
+type CSucc   = CId -> [CId]
+type CRank   = M.HashMap CId    Rank
+type KVRead  = M.HashMap F.KVar [CId]
+type WorkSet = S.Set WorkItem
 
-data Worklist a = WL { wCs    :: S.Set CId
+data Worklist a = WL { wCs    :: WorkSet
                      , wDeps  :: CSucc
                      , wCm    :: M.HashMap CId (F.SimpC a)
-                     , wRankm :: CRank
+                     , wRankm :: !CRank
                      , wLast  :: Maybe CId
-                     , wRanks :: Int
+                     , wRanks :: !Int
+                     , wTime  :: !Int
                      }
+
+
 
 
 instance PPrint (Worklist a) where
@@ -136,11 +148,11 @@ cDeps fi    = CDs (map (fst3 . v) rs) next rankm nSccs
     nSccs   = length sccs
 
 makeRank :: (Vertex -> (CId, a, b)) -> [[Vertex]] -> CRank
-makeRank g sccs = M.fromList irs
-  where
-    rvss        = zip [0..] sccs
-    irs         = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
-    v2i         = fst3 . g
+makeRank g sccs = error "FIXME: makeRank" -- M.fromList irs
+  -- where
+    -- rvss        = zip [0..] sccs
+    -- irs         = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
+    -- v2i         = fst3 . g
 
 filterRoots :: Graph -> [[Vertex]] -> [Vertex]
 filterRoots _ []         = []
@@ -168,12 +180,41 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
     cm      = F.cm fi
     bs      = F.bs fi
 
+
+---------------------------------------------------------------------------
+-- | WorkItems ------------------------------------------------------------
+---------------------------------------------------------------------------
+
+data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
+                         , wiTime :: !Int   -- ^ Time at which inserted
+                         , wiRank :: !Rank  -- ^ Rank of constraint
+                         } deriving (Eq, Show)
+
+instance PPrint WorkItem where
+  pprint = text . show
+
+instance Ord WorkItem where
+  compare = compareWorkItem
+
+compareWorkItem :: WorkItem -> WorkItem -> Ordering
+compareWorkItem i1 i2 = error "FIXME"
+
+---------------------------------------------------------------------------
+-- | Ranks ----------------------------------------------------------------
+---------------------------------------------------------------------------
+
+data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
+                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
+                 , rCut  :: !Bool   -- ^ Is the constraint RHS a CUT-VAR
+                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
+                 } deriving (Eq, Show)
+
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-sAdds :: (Ord a) => S.Set a -> [a] -> S.Set a
+sAdds :: WorkSet -> [WorkItem] -> WorkSet
 sAdds = L.foldl' (flip S.insert)
 
-sPop :: S.Set a -> Maybe (a, S.Set a)
-sPop = S.minView
+sPop :: WorkSet -> Maybe (CId, WorkSet)
+sPop = fmap (first wiCId) . S.minView
