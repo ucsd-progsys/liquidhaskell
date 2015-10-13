@@ -33,9 +33,34 @@ import           Data.Maybe (fromMaybe)
 import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
 import           Data.Tree (flatten)
 import           Text.PrettyPrint.HughesPJ (text)
+
+---------------------------------------------------------------------------
+-- | Dramatis Personae
+---------------------------------------------------------------------------
+
+type CId     = Integer
+type CSucc   = CId -> [CId]
+type CMap a  = M.HashMap CId a
+
+type KVRead  = M.HashMap F.KVar [CId]
+type WorkSet = S.Set WorkItem
+type DepEdge = (CId, CId, [CId])
+
 ---------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
 ---------------------------------------------------------------------------
+
+data Worklist a = WL { wCs    :: WorkSet
+                     , wDeps  :: CSucc
+                     , wCm    :: CMap (F.SimpC a)
+                     , wRankm :: CMap Rank
+                     , wLast  :: Maybe CId
+                     , wRanks :: !Int
+                     , wTime  :: !Int
+                     }
+
+instance PPrint (Worklist a) where
+  pprint = pprint . S.toList . wCs
 
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
@@ -63,7 +88,7 @@ pop w = do
        , newSCC w i
        )
 
-getC :: M.HashMap CId a -> CId -> a
+getC :: CMap a -> CId -> a
 getC cm i = fromMaybe err $ M.lookup i cm
   where
     err  = errorstar "getC: bad CId i"
@@ -71,14 +96,14 @@ getC cm i = fromMaybe err $ M.lookup i cm
 newSCC :: Worklist a -> CId -> Bool
 newSCC oldW i = oldRank /= newRank
   where
-    oldRank   = getRank rankm <$> wLast oldW
-    newRank   = Just          $  getRank rankm i
+    oldRank   = lookupCMap rankm <$> wLast oldW
+    newRank   = Just              $  lookupCMap rankm i
     rankm     = wRankm oldW
 
-getRank :: CRank -> CId -> Rank
-getRank rm i = safeLookup err i rm
+lookupCMap :: CMap a -> CId -> a
+lookupCMap rm i = safeLookup err i rm
   where
-    err      = "getRank: cannot find SCC for " ++ show i
+    err      = "lookupCMap: cannot find info for " ++ show i
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
@@ -90,10 +115,10 @@ push c w = w { wCs   = sAdds (wCs w) js
     js   = workItemsAt (wRankm w) t <$> wDeps w i
     t    = wTime w
 
-workItemsAt :: CRank -> Int -> CId -> WorkItem
+workItemsAt :: CMap Rank -> Int -> CId -> WorkItem
 workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiTime = t
-                                , wiRank = getRank r i }
+                                , wiRank = lookupCMap r i }
 
 
 sid'    :: F.SimpC a -> Integer
@@ -107,55 +132,66 @@ ranks :: Worklist a -> Int
 ranks = wRanks
 
 ---------------------------------------------------------------------------
--- | Worklist -------------------------------------------------------------
----------------------------------------------------------------------------
-
-type CId     = Integer
-type CSucc   = CId -> [CId]
-type CRank   = M.HashMap CId    Rank
-type KVRead  = M.HashMap F.KVar [CId]
-type WorkSet = S.Set WorkItem
-
-data Worklist a = WL { wCs    :: WorkSet
-                     , wDeps  :: CSucc
-                     , wCm    :: M.HashMap CId (F.SimpC a)
-                     , wRankm :: !CRank
-                     , wLast  :: Maybe CId
-                     , wRanks :: !Int
-                     , wTime  :: !Int
-                     }
-
-instance PPrint (Worklist a) where
-  pprint = pprint . S.toList . wCs
-
----------------------------------------------------------------------------
 -- | Constraint Dependencies ----------------------------------------------
 ---------------------------------------------------------------------------
 
 data CDeps = CDs { cRoots  :: ![CId]
-                 , cSucc   :: CId -> [CId]
-                 , cRank   :: CRank
+                 , cSucc   :: CSucc
+                 , cRank   :: CMap Rank
                  , cNumScc :: Int
                  }
 
+---------------------------------------------------------------------------
 cDeps       :: F.SInfo a -> CDeps
-cDeps fi    = CDs (map (fst3 . v) rs) next rankm nSccs
+---------------------------------------------------------------------------
+cDeps fi       = CDs { cRoots  = roots
+                     , cSucc   = next
+                     , cRank   = makeRanks cm outRs inRs
+                     , cNumScc = length sccs }
   where
-    next    = kvSucc fi
-    is      = M.keys $ F.cm fi
-    es      = [(i, i, next i) | i <- is]
-    (g,v,_) = graphFromEdges es
-    rs      = filterRoots g sccs
-    sccs    = L.reverse $ map flatten $ scc g
-    rankm   = makeRank v sccs
-    nSccs   = length sccs
+    roots         = fst3 . vf <$> filterRoots g sccs
+    next          = kvSucc fi
+    es            = [(i, i, next i) | i <- M.keys cm]
+    (g, vf, _)    = graphFromEdges es
+    (outRs, sccs) = graphRanks g vf
+    inRs          = if ks == mempty then outRs
+                                    else innerRanks cm es (F.kuts fi) outRs
+    cm            = F.cm   fi
+    ks            = F.kuts fi
 
-makeRank :: (Vertex -> (CId, a, b)) -> [[Vertex]] -> CRank
-makeRank g sccs = error "FIXME: makeRank" -- M.fromList irs
-  -- where
-    -- rvss        = zip [0..] sccs
-    -- irs         = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
-    -- v2i         = fst3 . g
+graphRanks :: Graph -> (Vertex -> DepEdge) -> (CMap Int, [[Vertex]])
+graphRanks g vf = (M.fromList irs, sccs)
+  where
+    irs        = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
+    rvss       = zip [0..] sccs
+    sccs       = L.reverse $ map flatten $ scc g
+    v2i        = fst3 . vf
+
+innerRanks :: CMap (F.SimpC a) -> [DepEdge] -> F.Kuts -> CMap Int -> CMap Int
+innerRanks cm es ks outR = fst $ graphRanks g' vf'
+  where
+    (g', vf', _)         = graphFromEdges es'
+    es'                  = removeCutEdges cm ks outR es
+
+removeCutEdges cm ks outR es = error "FIXME"
+
+{-
+    let is_eq_rank = let rm = IM.of_list irs in  fun i j -> (IM.find i rm = IM.find j rm)  in
+      let is_cut_id  = is_cut_cst cm kuts                                                    in
+      let is_cut_dep = fun (i, j) -> is_cut_id i && is_eq_rank i j                           in
+      deps |> List.filter (not <.> is_cut_dep)
+           |> Fcommon.scc_rank "inner" (string_of_cid cm) (IM.domain cm)
+           |>: (fun (i, ir) -> (i, (ir, is_cut_id i)))
+
+-}
+
+makeRanks :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CMap Rank
+makeRanks cm outR inR = M.fromList [(i, i2r i) | i <- M.keys cm]
+  where
+    i2r i             = Rank (outScc i) (inScc i) (tag i)
+    outScc            = lookupCMap outR
+    inScc             = lookupCMap inR
+    tag               = F._ctag . lookupCMap cm
 
 filterRoots :: Graph -> [[Vertex]] -> [Vertex]
 filterRoots _ []         = []
@@ -169,7 +205,7 @@ kvSucc fi = succs cm rdBy
     rdBy  = kvReadBy fi
     cm    = F.cm     fi
 
-succs :: M.HashMap CId (F.SimpC a) -> KVRead -> CSucc
+succs :: CMap (F.SimpC a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
     ci          = getC cm i
@@ -230,7 +266,6 @@ negOrder GT = LT
 
 data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
                  , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
-                 , rCut  :: !Bool   -- ^ Is the constraint RHS a CUT-VAR
                  , rTag  :: !F.Tag  -- ^ The constraint's Tag
                  } deriving (Eq, Show)
 

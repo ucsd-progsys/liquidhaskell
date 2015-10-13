@@ -265,7 +265,7 @@ instance Fixpoint Kuts where
   toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
 
 ksEmpty :: Kuts
-ksEmpty             = KS S.empty
+ksEmpty = KS S.empty
 
 ksUnion :: [KVar] -> Kuts -> Kuts
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
@@ -1974,7 +1974,7 @@ convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
   { _cenv  = senv s
-  , crhs  = reftPred $ sr_reft $ srhs s
+  , crhs   = reftPred $ sr_reft $ srhs s
   , _cid   = sid s
   , _ctag  = stag s
   , _cinfo = sinfo s
