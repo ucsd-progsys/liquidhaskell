@@ -1,7 +1,6 @@
 LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
 =============
 
-
 Requirements
 ------------
 
@@ -12,47 +11,7 @@ LiquidHaskell requires (in addition to the cabal dependencies)
 How To Clone, Build and Install
 -------------------------------
 
-To begin building, run the following commands in the root
-directory of the distribution:
-
-
-1. Install a suitable smt solver binary, e.g.
-
-    + [Z3](https://github.com/Z3Prover/z3)
-    + [CVC4](http://cvc4.cs.nyu.edu/)
-    + [MathSat](http://mathsat.fbk.eu/download.html)
-
-   **IMPORTANT**: if you're on Windows, please make sure the solver
-   is installed in the **same** directory as LiquidHaskell itself
-   (i.e. whereever cabal puts your binaries).
-
-2. Clone the `liquidhaskell` repository *recursively*.
-
-    ```
-    git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
-    cd liquidhaskell
-    ```
-
-   This will clone the correct version of `liquid-fixpoint` as a submodule
-   within the `liquidhaskell` repository.
-
-3. (If using **stack**) To build and install
-
-    ```
-    stack install
-    ```
-
-   (If using **cabal**) then
-
-    ```
-    cabal sandbox init
-    cabal sandbox add-source ./liquid-fixpoint
-    cabal install
-    ```
-
-4. To **rebuild** after this step, run
-
-    `make` or `cabal install` or `stack install`
+See [install instructions](INSTALL.md)
 
 How To Run
 ----------
@@ -65,7 +24,7 @@ How to Run inside GHCi
 ----------------------
 
 To run inside `ghci` e.g. when developing do:
-   
+
     $ stack ghci liquidhaskell
     ghci> :m +Language.Haskell.Liquid.Liquid
     ghci> liquid ["tests/pos/Abs.hs"]
@@ -163,7 +122,7 @@ Working With Submodules
 
    to blow away your copy of the `liquid-fixpoint` submodule and revert to the
    last saved commit hash.
-   
+
  - Want to work fully offline? git lets you add a local directory as a remote.
    Run
 
