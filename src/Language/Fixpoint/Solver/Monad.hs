@@ -50,10 +50,16 @@ data Stats = Stats { numIter :: !Int -- ^ # Refine Iterations
                    , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
                    , numChck :: !Int -- ^ # smtCheckUnsat calls
                    , numVald :: !Int -- ^ # times SMT said RHS Valid
-                   } deriving (Show)
+                   } -- deriving (Show)
 
 stats0 :: Stats
 stats0 = Stats 0 0 0 0
+
+instance Show Stats where
+  show s = unlines [ "# Refine Iterations         : " ++ show (numIter s)
+                   , "# SMT Push & Pops           : " ++ show (numBrkt s)
+                   , "# SMT Queries (Valid/Total) : " ++ show (numVald s) ++ "/" ++ show (numChck s)
+                   ]
 
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
