@@ -194,10 +194,38 @@ instance PPrint WorkItem where
   pprint = text . show
 
 instance Ord WorkItem where
-  compare = compareWorkItem
+  compare = cmpWI
 
-compareWorkItem :: WorkItem -> WorkItem -> Ordering
-compareWorkItem i1 i2 = error "FIXME"
+cmpWI :: WorkItem -> WorkItem -> Ordering
+cmpWI w1 w2 = mconcat [ cmp2 (rScc . wiRank) -- SCC
+                      , cmp2 wiTime          -- TimeStamp
+                      , cmp2 (rIcc . wiRank) -- Inner SCC
+                      , cmp2 (rTag . wiRank) -- Tag
+                      ]
+  where
+    cmp2 f  = compare (f w1) (f w2)
+    wScc    = rScc . wiRank
+    wTs     = wiTime
+
+
+{- original OCAML implementation
+
+   let compare (ts,r) (ts',r') =
+     if r.scc <> r'.scc then compare r.scc r'.scc else
+      if ts <> ts' then - (compare ts ts') else
+        if r.iscc <> r'.iscc then compare r.iscc r'.iscc else
+          if r.tag <> r'.tag then compare r.tag r'.tag else
+            compare r.simpl r'.simpl
+-}
+
+
+lexOrder :: [Ordering] -> Ordering
+lexOrder = mconcat
+
+negOrder :: Ordering -> Ordering
+negOrder EQ = EQ
+negOrder LT = GT
+negOrder GT = LT
 
 ---------------------------------------------------------------------------
 -- | Ranks ----------------------------------------------------------------
