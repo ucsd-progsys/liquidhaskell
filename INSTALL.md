@@ -33,6 +33,8 @@ clone the repo and then build:
 
 ### Build with `stack` (recommended)
 
+This requires that you have installed [stack][stack] (which we strongly recommend!)
+
     ```
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
@@ -62,3 +64,6 @@ in the **same** directory as LiquidHaskell itself (i.e. wherever
 
 and make sure that `z3` or `cvc4` or `mathsat` are in the `PATH`
 returned by the above.
+
+
+[stack]: https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md
