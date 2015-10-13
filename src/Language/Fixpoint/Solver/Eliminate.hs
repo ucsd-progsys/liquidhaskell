@@ -12,8 +12,7 @@ import           Language.Fixpoint.Misc            (errorstar)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
-import           Data.List           (partition, (\\), foldl')
-import           Control.Applicative ((<$>))
+import           Data.List           (partition, foldl')
 import           Control.Arrow       (second)
 import           Control.DeepSeq     (($!!))
 

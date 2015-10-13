@@ -5,7 +5,6 @@
 module Language.Fixpoint.PrettyPrint where
 
 import           Debug.Trace               (trace)
-import           Control.Applicative       ((<$>))
 import qualified Data.Text                 as T
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types

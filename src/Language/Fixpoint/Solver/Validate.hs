@@ -20,7 +20,6 @@ import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
-import           Control.Applicative ((<$>))
 import           Text.Printf
 
 type ValidateM a = Either E.Error a

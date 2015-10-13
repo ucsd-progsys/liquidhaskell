@@ -30,7 +30,6 @@ module Language.Fixpoint.Files (
 
 import qualified Control.Exception      as Ex
 import           Control.Monad
-import           Data.Functor           ((<$>))
 import           Data.List              hiding (find)
 import           Data.Maybe             (fromMaybe)
 import           System.Directory

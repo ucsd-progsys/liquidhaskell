@@ -2,7 +2,6 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor
@@ -26,13 +25,6 @@ module Language.Fixpoint.Visitor (
   -- * Sorts
   , foldSort, mapSort
   ) where
-
-#if __GLASGOW_HASKELL__ < 710
-import           Control.Applicative       (Applicative, (<$>), (<*>))
-import           Data.Monoid
-import           Data.Traversable          (Traversable, traverse, mapM)
-import           Prelude                   hiding (mapM)
-#endif
 
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types

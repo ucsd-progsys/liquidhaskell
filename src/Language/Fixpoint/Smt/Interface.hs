@@ -57,10 +57,9 @@ import           Language.Fixpoint.Smt.Serialize()
 
 
 
-import           Control.Applicative      ((*>), (<$>), (<*), (<|>))
+import           Control.Applicative      ((<|>))
 import           Control.Monad
 import           Data.Char
-import qualified Data.List                as L
 import           Data.Monoid
 import qualified Data.Text                as T
 import           Data.Text.Format         hiding (format)
