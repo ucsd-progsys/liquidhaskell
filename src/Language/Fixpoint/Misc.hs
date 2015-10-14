@@ -21,6 +21,8 @@ import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (isLoud, whenLoud)
 import           System.Process                   (system)
+import           System.Directory                 (createDirectoryIfMissing)
+import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
 import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
@@ -200,6 +202,9 @@ tshow              = text . show
 writeLoud :: String -> IO ()
 writeLoud = whenLoud . putStrLn
 
+
+ensurePath :: FilePath -> IO ()
+ensurePath = createDirectoryIfMissing True . takeDirectory
 
 ---------------------------------------------------------------------------
 -- | Progress Bar API

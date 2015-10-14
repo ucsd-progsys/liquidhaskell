@@ -25,9 +25,11 @@ import           Data.Monoid (mconcat, mempty)
 
 
 import           Data.Binary
+import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M
 import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
+
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
@@ -97,11 +99,18 @@ saveBinary cfg
   where
     f          = inFile cfg
 
-saveBinaryFile      :: Config -> FInfo a -> IO ()
-saveBinaryFile cfg  = encodeFile (binaryFile cfg) . void
+saveBinaryFile :: Config -> FInfo a -> IO ()
+saveBinaryFile cfg fi = do
+  let fi'  = void fi
+  let file = binaryFile cfg
+  putStrLn $ "Saving Binary File: " ++ file ++ "\n"
+  ensurePath file
+  encodeFile file fi'
 
 binaryFile :: Config -> FilePath
-binaryFile cfg = withExt (srcFile cfg) BinFq
+binaryFile cfg = extFileName BinFq f
+  where
+    f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
@@ -230,7 +239,8 @@ solvePar c fi = do
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
-  = do writeFile fq $ render $ {-# SCC "FixPointify" #-} toFixpoint cfg fi
+  = do ensurePath fq
+       writeFile fq $ render $ {-# SCC "FixPointify" #-} toFixpoint cfg fi
        solveFile $ cfg `withTarget` fq
     where
        fq   = extFileName Fq fn
