@@ -179,7 +179,7 @@ solveNativeWithFInfo !cfg !fi = do
   rnf si'' `seq` donePhase Loud "Uniqify"
   (s0, si''') <- {-# SCC "elim" #-} elim cfg $!! si''
   Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg s0 $!! si'''
-  rnf soln `seq` donePhase Loud "Solve"
+  rnf soln `seq` donePhase Loud "Solve2"
   let stat' = sid <$> stat
   -- writeLoud $ "\nSolution:\n"  ++ showpp soln
   colorStrLn (colorResult stat') (show stat')

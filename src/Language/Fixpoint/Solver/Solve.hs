@@ -32,8 +32,8 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
     (r, s)  <- runSolverM cfg fi n $ solve_ fi s0 wkl
-    {- whenLoud $ -}
-    print s
+    donePhase Loud "Solve1"
+    print s -- donePhase Loud $ "Solve\n" ++ show s
     return r
   where
     wkl  = trace "W.init" $ W.init fi
@@ -46,7 +46,6 @@ solve_ fi s0 wkl = do
   let s0' = trace "S.init" $ mappend s0 $ S.init fi
   lift $ donePhase Loud "Solution Initialize"
   s <- refine s0' wkl
-  lift $ donePhase Loud "Solution Fixpoint"
   st  <- stats
   res <- result fi s
   return (res, st)

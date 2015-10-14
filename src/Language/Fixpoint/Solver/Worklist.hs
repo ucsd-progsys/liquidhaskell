@@ -222,13 +222,13 @@ instance PPrint WorkItem where
   pprint = text . show
 
 instance Ord WorkItem where
-  compare (WorkItem _ t1 r1) (WorkItem _ t2 r2)
+  compare (WorkItem i1 t1 r1) (WorkItem i2 t2 r2)
     = mconcat [ compare (rScc r1) (rScc r2)   -- SCC
               , compare t1 t2                 -- TimeStamp
               , compare (rIcc r1) (rIcc r2)   -- Inner SCC
               , compare (rTag r1) (rTag r2)   -- Tag
+              , compare i1         i2         -- Otherwise Set drops items
               ]
-
 
 {- original OCAML implementation
 
