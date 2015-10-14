@@ -5,6 +5,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
+import           Data.Maybe (fromMaybe)
 import           Data.Monoid (mappend)
 import           Control.Monad (filterM)
 import           Control.Applicative ((<$>))
@@ -32,8 +33,7 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
     (r, s)  <- runSolverM cfg fi n $ solve_ fi s0 wkl
-    donePhase Loud "Solve1"
-    print s -- donePhase Loud $ "Solve\n" ++ show s
+    putStrLn $ "\n\n" ++ show s
     return r
   where
     wkl  = trace "W.init" $ W.init fi
@@ -63,8 +63,11 @@ refine s w
   | otherwise = return s
 
 -- DEBUG
-refineMsg i c b = printf "REFINE: iter = %d cid = %s change = %s"
-                    i (show $ F.sid c) (show b)
+refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
+                    i (F.subcId c) (show b)
+  -- where
+    -- getId    = fromMaybe err . F.sid
+    -- err      = errorstar "Constraint without ID!"
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

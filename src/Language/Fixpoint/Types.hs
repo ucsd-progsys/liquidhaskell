@@ -153,7 +153,7 @@ module Language.Fixpoint.Types (
   , ksEmpty
   , ksUnion
   , ksMember
-  
+
   -- * Qualifiers
   , Qualifier (..)
 
@@ -968,7 +968,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Eq, Generic, Functor)
 
-subcId :: SubC a -> Integer
+subcId :: (TaggedC c a) => c a -> Integer
 subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------

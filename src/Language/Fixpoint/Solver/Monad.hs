@@ -33,6 +33,7 @@ import           Text.Printf          (printf)
 import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
 import           System.ProgressBar (ProgressRef)
+import qualified Data.HashMap.Strict as M
 
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
@@ -46,17 +47,21 @@ data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
                       , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
-data Stats = Stats { numIter :: !Int -- ^ # Refine Iterations
+data Stats = Stats { numCstr :: !Int -- ^ # Horn Constraints
+                   , numIter :: !Int -- ^ # Refine Iterations
                    , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
                    , numChck :: !Int -- ^ # smtCheckUnsat calls
                    , numVald :: !Int -- ^ # times SMT said RHS Valid
                    } -- deriving (Show)
 
-stats0 :: Stats
-stats0 = Stats 0 0 0 0
+stats0    :: F.GInfo c b -> Stats
+stats0 fi = Stats nCs 0 0 0 0
+  where
+    nCs   = M.size $ F.cm fi
 
 instance Show Stats where
-  show s = unlines [ "# Refine Iterations         : " ++ show (numIter s)
+  show s = unlines [ "# Constraints               : " ++ show (numCstr s)
+                   , "# Refine Iterations         : " ++ show (numIter s)
                    , "# SMT Push & Pops           : " ++ show (numBrkt s)
                    , "# SMT Queries (Valid/Total) : " ++ show (numVald s) ++ "/" ++ show (numChck s)
                    ]
@@ -67,7 +72,7 @@ runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 runSolverM cfg fi t act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
   pr  <- progressBar (fromIntegral t)
-  fst <$> runStateT (declare fi >> act) (SS ctx be pr stats0)
+  fst <$> runStateT (declare fi >> act) (SS ctx be pr $ stats0 fi)
   where
     be = F.bs fi
 
