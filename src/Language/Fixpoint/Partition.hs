@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 -- | This module implements functions that print out
@@ -21,11 +20,6 @@ import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
-
-#if __GLASGOW_HASKELL__ < 710
-import           Data.Monoid (mempty, mappend)
-import           Control.Applicative              ((<$>))
-#endif
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi

@@ -28,7 +28,6 @@ import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
-import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
 
 ---------------------------------------------------------------------------

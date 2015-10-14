@@ -177,16 +177,11 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
-import           Control.Arrow             (second)
-import qualified Data.Foldable             as F
-import           Data.Functor
 import           Data.Hashable
-import           Data.List                 (foldl', intersect, nub, sort, sortBy, reverse)
-import           Data.Monoid               hiding ((<>))
+import           Data.List                 (foldl', sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import           Data.Traversable
 import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq           -- (NFData (..))
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
@@ -902,11 +897,11 @@ type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
 
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
-                     deriving (Eq, Data, Typeable, Generic, F.Foldable, Traversable)
+                     deriving (Eq, Data, Typeable, Generic, Foldable, Traversable)
 
 data SizedEnv a    = BE { beSize  :: Int
                         , beBinds :: BindMap a
-                        } deriving (Eq, Show, Functor, F.Foldable, Generic, Traversable)
+                        } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
@@ -1882,7 +1877,7 @@ instance Functor Located where
   fmap f (Loc l l' x) =  Loc l l' (f x)
 
 
-instance F.Foldable Located where
+instance Foldable Located where
   foldMap f (Loc _ _ x) = f x
 
 instance Traversable Located where

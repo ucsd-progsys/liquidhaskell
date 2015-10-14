@@ -1,7 +1,6 @@
 -- | This module implements the top-level API for interfacing with Fixpoint
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
-{-# LANGUAGE CPP          #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Language.Fixpoint.Interface (
@@ -17,12 +16,6 @@ module Language.Fixpoint.Interface (
     -- * Parse Qualifiers from File
   , parseFInfo
 ) where
-
-#if __GLASGOW_HASKELL__ < 710
-import           Data.Functor ((<$>))
-import           Data.Monoid (mconcat, mempty)
-#endif
-
 
 import           Data.Binary
 import qualified Data.HashMap.Strict                as M

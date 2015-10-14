@@ -14,7 +14,6 @@ import           Data.Maybe                         (catMaybes, fromJust, isJust
 import           Data.Hashable                      (Hashable)
 import           GHC.Generics                       (Generic)
 import           Control.Arrow                      (second)
-import           Control.Applicative                ((<$>))
 import           Control.DeepSeq                    (NFData, ($!!))
 
 --------------------------------------------------------------

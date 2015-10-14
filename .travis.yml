@@ -3,15 +3,11 @@ sudo: false
 
 matrix:
   include:
-    - env: SMT="z3" CABAL=1.18 GHC=7.8.4
-      addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4,ocaml,camlidl], sources: [hvr-ghc]}}
     - env: SMT="z3" CABAL=1.22 GHC=7.10.1
       addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.1,ocaml,camlidl],sources: [hvr-ghc]}}
 
 # env:
-#   - SMT="z3"   GHC="7.8.4"  CABAL="1.18"
 #   - SMT="z3"   GHC="7.10.1" CABAL="1.22"
-#   - SMT="cvc4" GHC="7.8.4"  CABAL="1.18"
 #   - SMT="cvc4" GHC="7.10.1" CABAL="1.22"
 
 branches:
