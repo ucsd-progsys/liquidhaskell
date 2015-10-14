@@ -25,20 +25,14 @@ env:
   global:
   - STACK=0.1.5.0
   - SMT=z3
+  - GHC=ghc-7.10.2
   matrix:
-  - GHC=ghc-7.8.4   TESTS=Unit/
-  - GHC=ghc-7.8.4   TESTS=Benchmarks/text
-  - GHC=ghc-7.8.4   TESTS=Benchmarks/bytestring
-  - GHC=ghc-7.8.4   TESTS=Benchmarks/esop
-  - GHC=ghc-7.8.4   TESTS=Benchmarks/vect-algs
-  - GHC=ghc-7.8.4   TESTS=Benchmarks/icfp*
-
-  - GHC=ghc-7.10.2  TESTS=Unit/
-  - GHC=ghc-7.10.2  TESTS=Benchmarks/text
-  - GHC=ghc-7.10.2  TESTS=Benchmarks/bytestring
-  - GHC=ghc-7.10.2  TESTS=Benchmarks/esop
-  - GHC=ghc-7.10.2  TESTS=Benchmarks/vect-algs
-  - GHC=ghc-7.10.2  TESTS=Benchmarks/icfp*
+  - TESTS=Unit/
+  - TESTS=Benchmarks/text
+  - TESTS=Benchmarks/bytestring
+  - TESTS=Benchmarks/esop
+  - TESTS=Benchmarks/vect-algs
+  - TESTS=Benchmarks/icfp*
 
  # ugh... Classify.hs is too slow and makes travis think the build is stalled
  # - TESTS=hscolour
