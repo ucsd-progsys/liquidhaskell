@@ -6,6 +6,8 @@ bind 0 x0 : {v: int | [$k0]}
 
 bind 1 x1 : {v: int | [$k1]}
 
+cut $k0
+
 constraint:
   env [ ]
   lhs {v : int | [v = 10]}
