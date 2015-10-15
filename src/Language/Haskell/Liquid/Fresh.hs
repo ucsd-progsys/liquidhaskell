@@ -26,12 +26,12 @@ class (Applicative m, Monad m) => Freshable m a where
 instance Freshable m Integer => Freshable m Symbol where
   fresh = tempSymbol "x" <$> fresh
 
-instance Freshable m Integer => Freshable m Refa where
+instance Freshable m Integer => Freshable m Pred where
   fresh  = kv <$> fresh
     where
-      kv = Refa . (`PKVar` mempty) . intKvar
+      kv = (`PKVar` mempty) . intKvar
 
-instance Freshable m Integer => Freshable m [Refa] where
+instance Freshable m Integer => Freshable m [Pred] where
   fresh = single <$> fresh
 
 instance Freshable m Integer => Freshable m Reft where

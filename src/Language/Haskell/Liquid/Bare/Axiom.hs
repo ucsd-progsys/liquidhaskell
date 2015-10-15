@@ -231,7 +231,7 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     res = ty_res t `strengthen` U ref mempty mempty
 
-    ref = F.Reft (x, F.Refa $ F.PAtom F.Eq (F.EVar x) (mkApp xs))
+    ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
     mkApp = F.EApp s . map F.EVar -- foldl runFun (F.EVar $ val s)
 

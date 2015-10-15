@@ -99,7 +99,7 @@ refTypeQuals' l tce t0        = go emptySEnv t0
 
 refTopQuals l tce t0 γ t
   = [ mkQual l t0 γ v so pa  | let (RR so (Reft (v, ra))) = rTypeSortedReft tce t
-                             , pa                        <- conjuncts $ raPred ra
+                             , pa                        <- conjuncts ra
                              , not $ isHole pa
     ] ++
     [ mkPQual l tce t0 γ s e | let (U _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t

@@ -1009,10 +1009,10 @@ addInvCond t r'
   where
     trep = toRTypeRep t
     tbd  = ty_res trep
-    r    = r' {ur_reft = Reft (v, Refa rx)}
+    r    = r' {ur_reft = Reft (v, rx)}
     su   = (v, EVar x')
     x'   = "xInv"
-    rx   = PIff (PBexp $ EVar v) $ subst1 (raPred rv) su
+    rx   = PIff (PBexp $ EVar v) $ subst1 rv su
     Reft(v, rv) = ur_reft r'
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
@@ -1129,7 +1129,7 @@ instance Reftable Predicate where
            | not (ppPs ppEnv) = d
            | otherwise        = d <> (angleBrackets $ pprint r)
 
-  toReft (Pr ps@(p:_))        = Reft (parg p, refa $ pToRef <$> ps)
+  toReft (Pr ps@(p:_))        = Reft (parg p, pAnd $ pToRef <$> ps)
   toReft _                    = mempty
   params                      = errorstar "TODO: instance of params for Predicate"
 
@@ -1422,9 +1422,6 @@ instance PPrint a => PPrint (PVar a) where
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
-
-instance PPrint Refa where
-  pprint = pprint . raPred
 
 instance PPrint Reft where
   pprint = F.pprint
