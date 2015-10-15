@@ -104,7 +104,8 @@ init fi    = WL { wCs    = items               -- Add all constraints to worklis
     cm     = F.cm  fi
     cd     = cDeps fi
     rankm  = cRank cd
-    items  = S.fromList $ workItemsAt rankm 0 <$> is
+    items  = S.fromList wis
+    wis    = workItemsAt rankm 0 <$> is
     is     = iterCandidates fi
 
 iterCandidates :: F.SInfo a -> [CId]
