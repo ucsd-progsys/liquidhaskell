@@ -26,7 +26,10 @@ deps fi = sccsToDeps sccs (kuts fi)
   where
     subCs = elems (cm fi)
     edges = concatMap (subcEdges $ bs fi) subCs
-    graph = [(k,k,ks) | (k, ks) <- groupList edges]
+    extraEdges = [(k2, KV nonSymbol) | k2 <- kvars fi]
+    -- this nonSymbol hack prevents nodes with potential outdegree 0
+    -- from getting pruned by groupList (and then stronglyConnCompR)
+    graph = [(k,k,ks) | (k, ks) <- groupList (edges ++ extraEdges)]
     sccs  = G.stronglyConnCompR graph
 
 sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Kuts -> Deps
@@ -47,10 +50,6 @@ chooseCut vs (KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
     v   = head $ if S.null is then vs' else S.toList is
 
 subcEdges :: BindEnv -> SimpC a -> [(KVar, KVar)]
-subcEdges be c = [(k1, k2)        | k1 <- envKVars be c
-                                  , k2 <- kvars $ crhs c ]
-              ++ [(k2, KV nonSymbol) | k2 <- kvars $ crhs c]
--- this nonSymbol hack prevents nodes with potential outdegree 0 
--- from getting pruned by concatMap (and then stronglyConnCompR)
+subcEdges be c = [(k1, k2) | k1 <- envKVars be c , k2 <- kvars $ crhs c]
 
 ---------------------------------------------------------------
