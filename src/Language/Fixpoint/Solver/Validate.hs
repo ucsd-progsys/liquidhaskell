@@ -8,19 +8,23 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
+
+         -- * Predicates on Constraints
+       , isKvarC, isConcC
        )
        where
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor (kvars, mapKVarSubsts)
-import           Language.Fixpoint.Sort (isFirstOrder)
+import           Language.Fixpoint.Visitor     (kvars, mapKVarSubsts)
+import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
+import           Language.Fixpoint.Misc        (fM)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
-import           Control.Applicative ((<$>))
+import           Control.Monad       ((>=>))
 import           Text.Printf
 
 type ValidateM a = Either E.Error a
@@ -28,12 +32,48 @@ type ValidateM a = Either E.Error a
 ---------------------------------------------------------------------------
 validate :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
-validate _ = Right
-           . dropFunctionSubs
-           . dropFuncSortedShadowedBinders
-           . dropHigherOrderBinders
-           . removeExtraWfCs
-           -- . renameVV
+validate _ = fM dropHigherOrderBinders
+         >=> fM dropFuncSortedShadowedBinders
+         >=> fM dropFunctionSubs
+         >=> fM removeExtraWfCs
+         >=>    checkRhsCs
+
+---------------------------------------------------------------------------
+-- | check that each constraint has RHS of form [k1,...,kn] or [p]
+---------------------------------------------------------------------------
+checkRhsCs :: F.SInfo a -> ValidateM (F.SInfo a)
+---------------------------------------------------------------------------
+checkRhsCs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
+  where
+    ics       = M.toList $ F.cm fi
+    bads      = [(i, c) | (i, c) <- ics, not $ isOk c]
+    isOk c    = isKvarC c || isConcC c
+
+badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
+badRhs = E.catErrors . map badRhs1
+
+badRhs1 :: (Integer, F.SimpC a) -> E.Error
+badRhs1 (i, c) = E.err E.dummySpan $ printf "Malformed RHS for %d : %s \n"
+                   i (showpp $ F.crhs c)
+
+isKvarC :: F.SimpC a -> Bool
+isKvarC = all isKvar . F.conjuncts . F.crhs
+
+isConcC :: F.SimpC a -> Bool
+isConcC = all isConc . F.conjuncts . F.crhs
+
+-- | Conservative check that KVars appear at "top-level" in pred
+-- isOkRhs :: F.Pred -> Bool
+-- isOkRhs p = all isKvar ps  || all isConc ps
+--  where
+--     ps    = F.conjuncts p
+
+isKvar :: F.Pred -> Bool
+isKvar (F.PKVar {}) = True
+isKvar _          = False
+
+isConc :: F.Pred -> Bool
+isConc = null . kvars
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
@@ -115,7 +155,7 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x t              = (not $ M.member x defs) || isFirstOrder t
+    f x t              = not (M.member x defs) || isFirstOrder t
     defs               = M.fromList $ F.toListSEnv $ F.lits fi
 
 ---------------------------------------------------------------------------

@@ -25,7 +25,7 @@ import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
-import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout )
+import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -200,11 +200,14 @@ tshow              = text . show
 
 -- | if loud, write a string to stdout
 writeLoud :: String -> IO ()
-writeLoud = whenLoud . putStrLn
+writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
 
 
 ensurePath :: FilePath -> IO ()
 ensurePath = createDirectoryIfMissing True . takeDirectory
+
+fM :: (Monad m) => (a -> b) -> a -> m b
+fM f = return . f
 
 ---------------------------------------------------------------------------
 -- | Progress Bar API

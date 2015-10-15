@@ -531,7 +531,7 @@ instance Fixpoint Expr where
 
 data Pred = PTrue
           | PFalse
-          | PAnd   !(ListNE Pred) -- [Pred]
+          | PAnd   !(ListNE Pred)
           | POr    ![Pred]
           | PNot   !Pred
           | PImp   !Pred !Pred
@@ -622,6 +622,7 @@ isEVar _        = False
 
 isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
+
 
 isSingletonReft :: Reft -> Maybe Expr
 isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ raConjuncts ra

@@ -110,7 +110,7 @@ instance Visitable BindEnv where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
--- Warning: these instances were written for mapKVars over SInfos only; 
+-- Warning: these instances were written for mapKVars over SInfos only;
 --  check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do

@@ -78,10 +78,10 @@ refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
                    kqs   <- filterValid lhs rhs
-                   return $ S.update s ks {-  $ tracepp (msg ks rhs kqs) -} kqs
+                   return $ S.update s ks $ tracepp (msg ks rhs kqs) kqs
   where
     (ks, rhs) = rhsCands s c
-    -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
+    msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
 lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Pred
 lhsPred s c be = F.pAnd pBinds
@@ -111,12 +111,14 @@ result fi s = do
   stat    <- result_ fi s
   return   $ F.Result (F.WrapC <$> stat) sol
 
+
 result_ :: F.SInfo a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi s = res <$> filterM (isUnsat s) cs
   where
     cs       = M.elems $ F.cm fi
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
+
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
