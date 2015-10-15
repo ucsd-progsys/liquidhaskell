@@ -122,7 +122,9 @@ pop w = do
        )
 
 popW :: Worklist a -> CId -> WorkSet -> Worklist a
-popW w i is = w {wCs = is, wLast = Just i, wPend = remPend (wPend w) i}
+popW w i is = w { wCs   = is
+                , wLast = Just i
+                , wPend = remPend (wPend w) i }
 
 
 newSCC :: Worklist a -> CId -> Bool
@@ -219,11 +221,12 @@ makeRanks cm outR inR = M.fromList [(i, i2r i) | i <- M.keys cm]
     inScc             = lookupCMap inR
     tag               = F._ctag . lookupCMap cm
 
-filterRoots :: Graph -> [[Vertex]] -> [Vertex]
-filterRoots _ []         = []
-filterRoots g (sCC:sccs) = sCC ++ filterRoots g rest
-  where
-    rest = filter (not . path g (head sCC) . head) sccs
+
+-- filterRoots :: Graph -> [[Vertex]] -> [Vertex]
+-- filterRoots _ []         = []
+-- filterRoots g (sCC:sccs) = sCC ++ filterRoots g rest
+--  where
+--    rest = filter (not . path g (head sCC) . head) sccs
 
 kvSucc :: F.SInfo a -> CSucc
 kvSucc fi = succs cm rdBy
