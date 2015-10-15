@@ -17,6 +17,7 @@ import           Language.Fixpoint.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
+import           Language.Fixpoint.Solver.Validate (isConcC, isKvarC)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 
 -- DEBUG
@@ -115,9 +116,14 @@ result fi s = do
 result_ :: F.SInfo a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi s = res <$> filterM (isUnsat s) cs
   where
-    cs       = M.elems $ F.cm fi
+    cs       = unsatCandidates fi -- M.elems $ F.cm fi
     res []   = F.Safe
     res cs'  = F.Unsafe cs'
+
+unsatCandidates :: F.SInfo a -> [F.SimpC a]
+unsatCandidates = filter isNontriv . filter isConcC . M.elems . F.cm
+  where
+    isNontriv   = not .  F.isTautoPred . F.crhs
 
 
 ---------------------------------------------------------------------------

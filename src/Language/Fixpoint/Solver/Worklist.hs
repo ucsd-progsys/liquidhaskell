@@ -20,15 +20,16 @@ module Language.Fixpoint.Solver.Worklist
        where
 
 import           Prelude hiding (init)
+import           Language.Fixpoint.Solver.Validate (isKvarC)
 import           Language.Fixpoint.Visitor (envKVars, kvars)
 import           Language.Fixpoint.PrettyPrint (PPrint (..))
-import           Language.Fixpoint.Misc (safeLookup, errorstar, fst3, sortNub, group)
+import           Language.Fixpoint.Misc (safeLookup, fst3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
-import           Data.Maybe (fromMaybe)
+-- import           Data.Maybe (fromMaybe)
 
 import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
 import           Data.Tree (flatten)
@@ -46,11 +47,10 @@ type KVRead  = M.HashMap F.KVar [CId]
 type WorkSet = S.Set WorkItem
 type DepEdge = (CId, CId, [CId])
 
----------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
----------------------------------------------------------------------------
 
 data Worklist a = WL { wCs    :: WorkSet
+                     , wPend  :: CMap ()
                      , wDeps  :: CSucc
                      , wCm    :: CMap (F.SimpC a)
                      , wRankm :: CMap Rank
@@ -62,21 +62,53 @@ data Worklist a = WL { wCs    :: WorkSet
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
 
+-- | WorkItems ------------------------------------------------------------
+
+data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
+                         , wiTime :: !Int   -- ^ Time at which inserted
+                         , wiRank :: !Rank  -- ^ Rank of constraint
+                         } deriving (Eq, Show)
+
+instance PPrint WorkItem where
+  pprint = text . show
+
+instance Ord WorkItem where
+  compare (WorkItem i1 t1 r1) (WorkItem i2 t2 r2)
+    = mconcat [ compare (rScc r1) (rScc r2)   -- SCC
+              , compare t1 t2                 -- TimeStamp
+              , compare (rIcc r1) (rIcc r2)   -- Inner SCC
+              , compare (rTag r1) (rTag r2)   -- Tag
+              , compare i1         i2         -- Otherwise Set drops items
+              ]
+
+-- | Ranks ----------------------------------------------------------------
+
+data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
+                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
+                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
+                 } deriving (Eq, Show)
+
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi    = WL { wCs    = items
+init fi    = WL { wCs    = items               -- Add all constraints to worklist
+                , wPend  = addPends M.empty is
                 , wDeps  = cSucc cd
-                , wCm    = F.cm fi
+                , wCm    = cm
                 , wRankm = rankm
                 , wLast  = Nothing
                 , wRanks = cNumScc cd
                 , wTime  = 0
                 }
   where
+    cm     = F.cm  fi
     cd     = cDeps fi
     rankm  = cRank cd
-    items  = S.fromList $ workItemsAt rankm 0 <$> cRoots cd
+    items  = S.fromList $ workItemsAt rankm 0 <$> is
+    is     = iterCandidates fi
+
+iterCandidates :: F.SInfo a -> [CId]
+iterCandidates fi = [ i | (i, c) <- M.toList $ F.cm fi, isKvarC c]
 
 ---------------------------------------------------------------------------
 pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
@@ -84,9 +116,13 @@ pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 pop w = do
   (i, is) <- sPop $ wCs w
   Just ( lookupCMap (wCm w) i
-       , w {wCs = is, wLast = Just i}
+       , popW w i is
        , newSCC w i
        )
+
+popW :: Worklist a -> CId -> WorkSet -> Worklist a
+popW w i is = w {wCs = is, wLast = Just i, wPend = remPend (wPend w) i}
+
 
 newSCC :: Worklist a -> CId -> Bool
 newSCC oldW i = oldRank /= newRank
@@ -103,12 +139,16 @@ lookupCMap rm i = safeLookup err i rm
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
-push c w = w { wCs   = sAdds (wCs w) js
-             , wTime = 1 + t       }
+push c w = w { wCs   = sAdds (wCs w) wis'
+             , wTime = 1 + t
+             , wPend = addPends wp is'
+             }
   where
-    i    = sid' c
-    js   = workItemsAt (wRankm w) t <$> wDeps w i
+    i    = F.subcId c
+    is'  = filter (not . isPend wp) $ wDeps w i
+    wis' = workItemsAt (wRankm w) t <$> is'
     t    = wTime w
+    wp   = wPend w
 
 workItemsAt :: CMap Rank -> Int -> CId -> WorkItem
 workItemsAt !r !t !i = WorkItem { wiCId  = i
@@ -116,10 +156,10 @@ workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiRank = lookupCMap r i }
 
 
-sid'    :: F.SimpC a -> Integer
-sid' c  = fromMaybe err $ F.sid c
-  where
-    err = errorstar "sid': SimpC without id"
+-- sid'    :: F.SimpC a -> Integer
+-- sid' c  = fromMaybe err $ F.sid c
+--  where
+--    err = errorstar "sid': SimpC without id"
 
 ---------------------------------------------------------------------------
 ranks :: Worklist a -> Int
@@ -130,8 +170,7 @@ ranks = wRanks
 -- | Constraint Dependencies ----------------------------------------------
 ---------------------------------------------------------------------------
 
-data CDeps = CDs { cRoots  :: ![CId]
-                 , cSucc   :: CSucc
+data CDeps = CDs { cSucc   :: CSucc
                  , cRank   :: CMap Rank
                  , cNumScc :: Int
                  }
@@ -139,12 +178,11 @@ data CDeps = CDs { cRoots  :: ![CId]
 ---------------------------------------------------------------------------
 cDeps       :: F.SInfo a -> CDeps
 ---------------------------------------------------------------------------
-cDeps fi       = CDs { cRoots  = roots
-                     , cSucc   = next
+cDeps fi       = CDs { cSucc   = next
                      , cRank   = makeRanks cm outRs inRs
                      , cNumScc = length sccs }
   where
-    roots         = fst3 . vf <$> filterRoots g sccs
+    -- roots         = fst3 . vf <$> filterRoots g sccs
     next          = kvSucc fi
     es            = [(i, i, next i) | i <- M.keys cm]
     (g, vf, _)    = graphFromEdges es
@@ -209,26 +247,6 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
     bs      = F.bs fi
 
 
----------------------------------------------------------------------------
--- | WorkItems ------------------------------------------------------------
----------------------------------------------------------------------------
-
-data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
-                         , wiTime :: !Int   -- ^ Time at which inserted
-                         , wiRank :: !Rank  -- ^ Rank of constraint
-                         } deriving (Eq, Show)
-
-instance PPrint WorkItem where
-  pprint = text . show
-
-instance Ord WorkItem where
-  compare (WorkItem i1 t1 r1) (WorkItem i2 t2 r2)
-    = mconcat [ compare (rScc r1) (rScc r2)   -- SCC
-              , compare t1 t2                 -- TimeStamp
-              , compare (rIcc r1) (rIcc r2)   -- Inner SCC
-              , compare (rTag r1) (rTag r2)   -- Tag
-              , compare i1         i2         -- Otherwise Set drops items
-              ]
 
 {- original OCAML implementation
 
@@ -249,14 +267,23 @@ negOrder LT = GT
 negOrder GT = LT
 
 -}
+
+
 ---------------------------------------------------------------------------
--- | Ranks ----------------------------------------------------------------
+-- | Pending API
 ---------------------------------------------------------------------------
 
-data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
-                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
-                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
-                 } deriving (Eq, Show)
+addPends :: CMap () -> [CId] -> CMap ()
+addPends = L.foldl' addPend
+
+addPend :: CMap () -> CId -> CMap ()
+addPend m i = M.insert i () m
+
+remPend :: CMap () -> CId -> CMap ()
+remPend m i = M.delete i m
+
+isPend :: CMap () -> CId -> Bool
+isPend w i = M.member i w
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------
