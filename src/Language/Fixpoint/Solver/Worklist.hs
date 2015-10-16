@@ -1,5 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE ImplicitParams        #-}
 
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
@@ -17,8 +19,8 @@ module Language.Fixpoint.Solver.Worklist
          -- * Constraints with Concrete RHS
        , unsatCandidates
 
-         -- * Total number of SCCs
-       , ranks
+         -- * Statistics
+       ,  stats, numSccs
        )
        where
 
@@ -30,6 +32,7 @@ import           Language.Fixpoint.Misc (errorstar, safeLookup, fst3, sortNub, g
 import qualified Language.Fixpoint.Types   as F
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
+import           Data.HashMap.Strict       ((!))
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
 import           Data.Maybe (fromMaybe)
@@ -37,7 +40,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.Graph (transposeG, graphFromEdges, scc, dfs, Graph, Vertex)
 import           Data.Tree (flatten)
 import           Text.PrettyPrint.HughesPJ (text)
-
+import GHC.Stack
 ---------------------------------------------------------------------------
 -- | Dramatis Personae
 ---------------------------------------------------------------------------
@@ -68,8 +71,19 @@ data Slice = Slice { slKVarCs :: [CId]     -- ^ CIds that transitively "reach" b
                    , slEdges  :: [DepEdge] -- ^ Dependencies between slKVarCs
                    } deriving (Eq, Show)
 
+data Stats = Stats { numKvarCs  :: !Int
+                   , numConcCs  :: !Int
+                   , numSccs    :: !Int
+                   } deriving (Eq)
+
+
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
+
+instance Show Stats where
+  show s = unlines [ "# Sliced Constraints : " ++ show (numKvarCs s)
+                   , "# Target Constraints : " ++ show (numConcCs s)
+                   ]
 
 -- | WorkItems ------------------------------------------------------------
 
@@ -102,7 +116,7 @@ data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi    = WL { wCs    = items               -- Add all constraints to worklist
+init fi    = WL { wCs    = items                 -- Add constrs to worklist
                 , wPend  = addPends M.empty is
                 , wDeps  = cSucc cd
                 , wCm    = cm
@@ -120,10 +134,7 @@ init fi    = WL { wCs    = items               -- Add all constraints to worklis
     items  = S.fromList wis
     wis    = workItemsAt rankm 0 <$> is
     is     = slKVarCs sl
-    -- is     = error "FIXME: use the sliced-kvarCs" -- iterCandidates fi
 
--- iterCandidates :: F.SInfo a -> [CId]
--- iterCandidates fi = [ i | (i, c) <- M.toList $ F.cm fi, isKvarC c]
 
 ---------------------------------------------------------------------------
 -- | Candidate Constraints to be checked AFTER computing Fixpoint ---------
@@ -159,7 +170,7 @@ newSCC oldW i = oldRank /= newRank
     newRank   = Just              $  lookupCMap rankm i
     rankm     = wRankm oldW
 
-lookupCMap :: CMap a -> CId -> a
+lookupCMap :: (?callStack :: CallStack) => CMap a -> CId -> a
 lookupCMap rm i = safeLookup err i rm
   where
     err      = "lookupCMap: cannot find info for " ++ show i
@@ -201,26 +212,35 @@ data CDeps = CDs { cSucc   :: CSucc
 ---------------------------------------------------------------------------
 cDeps :: F.SInfo a -> CDeps
 ---------------------------------------------------------------------------
-cDeps fi             = CDs { cSucc   = sliceCSucc sl
-                           , cRank   = makeRanks cm outRs inRs
+cDeps fi             = CDs { cSucc   = sliceCSucc {- $ trace ("Slice: " ++ show sl) -} sl
+                           , cRank   = M.fromList [(i, rf i) | i <- slKVarCs sl ]
                            , cNumScc = length sccs
                            , cSlice  = sl
                            }
   where
-    ks               = F.kuts fi
-    cm               = F.cm fi
     sl               = slice fi
+    rf               = rankF (F.cm fi) outRs inRs
     es               = slEdges sl
     (g, vf, _)       = graphFromEdges es
     (outRs, sccs)    = graphRanks g vf
-    inRs
-      | ks == mempty = outRs
-      | otherwise    = inRanks cm es ks outRs
+    inRs             = inRanks fi es outRs
+    -- inRs
+      -- | ks == mempty = outRs
+      -- | otherwise    = inRanks cm es ks outRs
+    -- ks               = F.kuts fi
+    -- cm               = F.cm fi
 
 sliceCSucc :: Slice -> CSucc
 sliceCSucc sl = \i -> M.lookupDefault [] i im
   where
     im        = M.fromList [(i, is) | (i,_,is) <- slEdges sl]
+
+rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
+rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
+  where
+    outScc        = lookupCMap outR
+    inScc         = lookupCMap inR
+    tag           = F._ctag . lookupCMap cm
 
 ---------------------------------------------------------------------------
 graphRanks :: Graph -> (Vertex -> DepEdge) -> (CMap Int, [[Vertex]])
@@ -232,24 +252,21 @@ graphRanks g vf = (M.fromList irs, sccs)
     sccs       = L.reverse $ map flatten $ scc g
     v2i        = fst3 . vf
 
-inRanks :: CMap (F.SimpC a) -> [DepEdge] -> F.Kuts -> CMap Int -> CMap Int
-inRanks cm es ks outR = fst $ graphRanks g' vf'
+---------------------------------------------------------------------------
+inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
+---------------------------------------------------------------------------
+inRanks fi es outR
+  | ks == mempty      = outR
+  | otherwise         = fst $ graphRanks g' vf'
   where
+    ks                = F.kuts fi
+    cm                = F.cm fi
     (g', vf', _)      = graphFromEdges es'
     es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
     isCut i j         = S.member i cutCIds && isEqOutRank i j
     isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
     cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
     isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
-
-makeRanks :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CMap Rank
-makeRanks cm outR inR = M.fromList [(i, i2r i) | i <- M.keys cm]
-  where
-    i2r i             = Rank (outScc i) (inScc i) (tag i)
-    outScc            = lookupCMap outR
-    inScc             = lookupCMap inR
-    tag               = F._ctag . lookupCMap cm
-
 
 -- filterRoots :: Graph -> [[Vertex]] -> [Vertex]
 -- filterRoots _ []         = []
@@ -283,7 +300,7 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
 ---------------------------------------------------------------------------
 slice :: F.SInfo a -> Slice
 ---------------------------------------------------------------------------
-slice fi          = graphSlice cm g' v2i i2v
+slice fi          = slice_ cm g' es v2i i2v
   where
     es            = [(i, i, next i) | i <- M.keys cm]
     next          = kvSucc fi
@@ -296,21 +313,24 @@ slice fi          = graphSlice cm g' v2i i2v
 
 
 slice_ :: CMap (F.SimpC a) -> Graph -> [DepEdge] -> (Vertex -> CId) -> (CId -> Vertex) -> Slice
-slice_ cm g es v2i i2v = Slice { slKVarCs = trace ("SLICE=" ++ show n) kvarCs
+slice_ cm g' es v2i i2v = Slice { slKVarCs = {- trace ("SLICE=" ++ show n) -} kvarCs
                                 , slConcCs = concCs
-                                , slEdges  = error "FIXME"
+                                , slEdges  = sliceEdges kvarCs es
                                 }
   where
-    n                   = length kvarCs
-    concCs              = [ i | (i, c) <- M.toList cm, isTarget c ]
-    kvarCs              = v2i <$> reachVs
-    rootVs              = i2v <$> concCs
-    reachVs             = concatMap flatten $ dfs g rootVs
-    isTarget c          = isConcC c && isNonTriv c
-    isNonTriv           = not .  F.isTautoPred . F.crhs
+    n                  = length kvarCs
+    concCs             = [ i | (i, c) <- M.toList cm, isTarget c ]
+    kvarCs             = v2i <$> reachVs
+    rootVs             = i2v <$> concCs
+    reachVs            = concatMap flatten $ dfs g' rootVs
+    isTarget c         = isConcC c && isNonTriv c
+    isNonTriv          = not .  F.isTautoPred . F.crhs
 
-sliceEdges :: Graph -> (Vertex -> CId) -> [CId] -> [DepEdge]
-sliceEdges g v2i is =
+sliceEdges :: [CId] -> [DepEdge] -> [DepEdge]
+sliceEdges is es = [ (i, i, filter inSlice js) | (i, _, js) <- es, inSlice i ]
+  where
+    inSlice i    = M.member i im
+    im           = M.fromList $ (, ()) <$> is
 
 -- unsatCandidates :: F.Worklist a -> [F.SimpC a]
 -- unsatCandidates = filter isNontriv . filter isConcC . M.elems . F.cm
@@ -335,6 +355,14 @@ negOrder EQ = EQ
 negOrder LT = GT
 negOrder GT = LT
 -}
+
+---------------------------------------------------------------------------
+stats :: Worklist a -> Stats
+---------------------------------------------------------------------------
+stats w = Stats (kn w) (cn w) (wRanks w)
+  where
+    kn  = length . slKVarCs . wSlice
+    cn  = length . slConcCs . wSlice
 
 ---------------------------------------------------------------------------
 -- | Pending API

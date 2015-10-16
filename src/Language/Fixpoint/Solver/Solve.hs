@@ -17,7 +17,6 @@ import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
-
 -- DEBUG
 import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
@@ -31,18 +30,20 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
+    putStrLn $ "\n\n" ++ show ws
     (r, s)  <- runSolverM cfg fi n $ solve_ fi s0 wkl
     putStrLn $ "\n\n" ++ show s
     return r
   where
-    wkl  = trace "W.init" $ W.init fi
-    n    = fromIntegral $ W.ranks wkl
+    wkl  = {- trace "W.init" $ -} W.init fi
+    ws   = W.stats wkl
+    n    = fromIntegral $ W.numSccs ws 
 
 ---------------------------------------------------------------------------
 solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
-  let s0' = trace "S.init" $ mappend s0 $ S.init fi
+  let s0' = {- trace "S.init" $ -} mappend s0 $ S.init fi
   lift $ donePhase Loud "Solution Initialize"
   s <- refine s0' wkl
   st  <- stats
