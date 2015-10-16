@@ -37,11 +37,10 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (group, snd3)
-import Language.Fixpoint.Names (dropModuleNames, dropSym, isPrefixOfSym, qualifySymbol, symbolString, takeModuleNames)
+import Language.Fixpoint.Names (dropSym, isPrefixOfSym,  symbolString)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
-
 import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, showPpr, symbolTyVar)
+import Language.Haskell.Liquid.GhcMisc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4, mapFst, concatMapM)
 import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
@@ -152,7 +151,7 @@ makeDefaultMethods defVs sigs
   = [ (m,dmv,t)
     | dmv <- defVs
     , let dm = symbol $ showPpr dmv
-    , "$dm" `isPrefixOfSym` (dropModuleNames dm)
+    , "$dm" `isPrefixOfSym` dropModuleNames dm
     , let mod = takeModuleNames dm
     , let method = qualifySymbol mod $ dropSym 3 (dropModuleNames dm)
     , let mb = L.find ((method `isPrefixOfSym`) . symbol . snd3) sigs
@@ -205,18 +204,18 @@ makeIAliases (mod, spec)
   = inModule mod $ makeIAliases' $ Ms.ialiases spec
 
 makeIAliases' :: [(Located BareType, Located BareType)] -> BareM [(Located SpecType, Located SpecType)]
-makeIAliases' ts = mapM mkIA ts
+makeIAliases' = mapM mkIA
   where
-    mkIA (t1, t2)      = liftM2 (,) (mkI t1) (mkI t2)
-    mkI (Loc l l' t)   = (Loc l l') . generalize <$> mkSpecType l t
+    mkIA (t1, t2)      = (,) <$> mkI t1 <*> mkI t2
+    mkI (Loc l l' t)   = Loc l l' . generalize <$> mkSpecType l t
 
 makeInvariants (mod,spec)
   = inModule mod $ makeInvariants' $ Ms.invariants spec
 
 makeInvariants' :: [Located BareType] -> BareM [Located SpecType]
-makeInvariants' ts = mapM mkI ts
+makeInvariants' = mapM mkI
   where
-    mkI (Loc l l' t)  = (Loc l l') . generalize <$> mkSpecType l t
+    mkI (Loc l l' t)  = Loc l l' . generalize <$> mkSpecType l t
 
 
 makeSpecDictionaries embs vars specs sp

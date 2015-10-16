@@ -7,6 +7,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
@@ -25,7 +26,7 @@ import           CoreSyn                      hiding (Expr, sourceName)
 import qualified CoreSyn as Core
 import           CostCentre
 import           GHC                          hiding (L)
-import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..))
+import           HscTypes                     (Dependencies, ImportedMods, ModGuts(..), HscEnv(..), FindResult(..))
 import           Kind                         (superKind)
 import           NameSet                      (NameSet)
 import           SrcLoc                       (mkRealSrcLoc, mkRealSrcSpan, srcSpanFileName_maybe)
@@ -34,16 +35,14 @@ import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Language.Fixpoint.Names      (dropModuleNames)
 import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
-import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
+
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
 import           OccName                      (mkTyVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
 import           Panic                        (throwGhcException)
-import           HscTypes                     (HscEnv(..), FindResult(..))
 import           FastString
 import           TcRnDriver
 import           TcRnTypes
@@ -54,27 +53,26 @@ import           TypeRep
 import           Var
 import           IdInfo
 import qualified TyCon                        as TC
--- import qualified DataCon                      as DC
 import           Data.Char                    (isLower, isSpace)
-import           Data.Monoid                  (mempty)
+import           Data.Maybe                   (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
 import qualified Data.List                    as L
 import           Data.Aeson
 import qualified Data.Text.Encoding           as T
 import qualified Data.Text.Unsafe             as T
+import qualified Data.Text                    as T
 import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
+import           Control.Monad                ((>=>))
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
-
 import qualified Text.PrettyPrint.HughesPJ    as PJ
-
-import Data.Monoid (mappend)
-
-import Language.Fixpoint.Names      (symSepName, isSuffixOfSym, singletonSym)
-
+import           Data.Monoid                  (mempty, mappend)
+import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
+import           Language.Fixpoint.Names
+import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 
 #if __GLASGOW_HASKELL__ < 710
 import Language.Haskell.Liquid.Desugar.HscMain
@@ -341,7 +339,7 @@ collectArguments n e = if length xs > n then take n xs else xs
         vs        = fst $ collectValBinders $ ignoreLetBinds e'
         xs        = vs' ++ vs
 
-collectValBinders' expr = go [] expr
+collectValBinders' = go []
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
     go tvs (Lam b e) | isId    b = go (b:tvs) e
@@ -357,9 +355,6 @@ isDictionaryExpression :: Core.Expr Id -> Maybe Id
 isDictionaryExpression (Tick _ e) = isDictionaryExpression e
 isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
-
-isDictionary x = L.isPrefixOf "$f" (symbolString $ dropModuleNames $ symbol x)
-isInternal   x = L.isPrefixOf "$"  (symbolString $ dropModuleNames $ symbol x)
 
 
 realTcArity :: TyCon -> Arity
@@ -456,7 +451,7 @@ fastStringText = T.decodeUtf8 . fastStringToByteString
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
 tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
 tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
-tyConTyVarsDef c = TC.tyConTyVars c 
+tyConTyVarsDef c = TC.tyConTyVars c
 
 
 
@@ -478,18 +473,18 @@ synTyConRhs_maybe :: TyCon -> Maybe Type
 tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 
 desugarModule tcm = do
-  let ms = pm_mod_summary $ tm_parsed_module tcm 
+  let ms = pm_mod_summary $ tm_parsed_module tcm
   -- let ms = modSummary tcm
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
-  return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
+  return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 #if __GLASGOW_HASKELL__ < 710
 
 -- desugarModule tcm = do
---   let ms = pm_mod_summary $ tm_parsed_module tcm 
+--   let ms = pm_mod_summary $ tm_parsed_module tcm
 --   -- let ms = modSummary tcm
 --   let (tcg, _) = tm_internals_ tcm
 --   hsc_env <- getSession
@@ -497,7 +492,10 @@ desugarModule tcm = do
 --   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
 --   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
-symbolFastString = T.unsafeDupablePerformIO . mkFastStringByteString . T.encodeUtf8 . symbolText
+symbolFastString = T.unsafeDupablePerformIO
+                 . mkFastStringByteString
+                 . T.encodeUtf8
+                 . symbolText
 
 lintCoreBindings = CoreLint.lintCoreBindings
 
@@ -523,3 +521,61 @@ synTyConRhs_maybe = TC.synTyConRhs_maybe
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 #endif
+
+------------------------------------------------------------------------
+-- | Manipulating Symbols ----------------------------------------------
+------------------------------------------------------------------------
+
+dropModuleNames, takeModuleNames, dropModuleUnique :: Symbol -> Symbol
+dropModuleNames  = mungeNames lastName sepModNames "dropModuleNames: "
+  where
+    lastName msg = symbol . safeLast msg
+
+takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
+  where
+    initName msg = symbol . T.intercalate "." . safeInit msg
+
+dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
+  where
+    headName msg = symbol . safeHead msg
+
+
+sepModNames = "."
+sepUnique   = "#"
+
+
+-- safeHead :: String -> [T.Text] -> Symbol
+-- safeHead msg []  = errorstar $ "safeHead with empty list" ++ msg
+-- safeHead _ (x:_) = symbol x
+
+-- safeInit :: String -> [T.Text] -> Symbol
+-- safeInit _ xs@(_:_)      = symbol $ T.intercalate "." $ init xs
+-- safeInit msg _           = errorstar $ "safeInit with empty list " ++ msg
+
+mungeNames :: (String -> [T.Text] -> Symbol) -> T.Text -> String -> Symbol -> Symbol
+mungeNames _ _ _ ""  = ""
+mungeNames f d msg s'@(symbolText -> s)
+  | s' == tupConName = tupConName
+  | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
+
+
+qualifySymbol :: Symbol -> Symbol -> Symbol
+qualifySymbol (symbolText -> m) x'@(symbolText -> x)
+  | isQualified x  = x'
+  | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
+  | otherwise      = symbol (m `mappend` "." `mappend` x)
+
+isQualified y = "." `T.isInfixOf` y
+wrapParens x  = "(" `mappend` x `mappend` ")"
+isParened xs  = xs /= stripParens xs
+
+isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
+isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
+
+stripParens :: T.Text -> T.Text
+stripParens t = fromMaybe t (strip t)
+  where
+    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
+
+stripParensSym :: Symbol -> Symbol
+stripParensSym (symbolText -> t) = symbol $ stripParens t

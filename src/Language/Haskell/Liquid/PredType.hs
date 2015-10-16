@@ -31,6 +31,7 @@ import qualified Data.HashMap.Strict as M
 import Data.List        (partition, foldl')
 import Data.Monoid      (mempty, mappend, mconcat)
 
+import Language.Fixpoint.Names (symbolString)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Predicate, Expr)
 import qualified Language.Fixpoint.Types as F
@@ -329,7 +330,7 @@ substParg (x, y) = fmap fp
 -------------------------------------------------------------------------------
 -----------------------------  Predicate Application --------------------------
 -------------------------------------------------------------------------------
-pappArity :: Int 
+pappArity :: Int
 pappArity  = 7
 
 pappSort :: Int -> Sort

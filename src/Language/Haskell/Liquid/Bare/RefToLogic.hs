@@ -14,7 +14,7 @@ import Language.Haskell.Liquid.Bare.Env
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Fixpoint.Misc  (errorstar)
 import Language.Fixpoint.Names
-
+import Language.Haskell.Liquid.GhcMisc (dropModuleUnique)
 import qualified Data.HashMap.Strict as M
 
 import Control.Applicative                      ((<$>))
@@ -23,7 +23,7 @@ txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'
 
 class Transformable a where
-  tx  :: Symbol -> (Either LMap TInline) -> a -> a
+  tx  :: Symbol -> Either LMap TInline -> a -> a
 
   tx' :: LogicMap -> InlnEnv -> a -> a
   tx' lmap imap x = M.foldrWithKey tx x limap
@@ -36,7 +36,7 @@ instance (Transformable a) => (Transformable [a]) where
 
 instance Transformable DataConP where
   tx s m x = x { tyConsts = tx s m (tyConsts x)
-               , tyArgs   = mapSnd (tx s m) <$> (tyArgs x)
+               , tyArgs   = mapSnd (tx s m) <$> tyArgs x
                , tyRes    = tx s m (tyRes x)
                }
 
@@ -75,6 +75,7 @@ instance Transformable Pred where
   tx s m (PBexp e)       = PBexp (tx s m e)
   tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
   tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
+  tx _ _ (PExist _ _)    = error "tx: PExist is for fixpoint internals only"
  --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p
 
@@ -124,13 +125,11 @@ txEApp (s, (Right (TI xs (Right e)))) f es
   | otherwise
   = EApp f es
 
-
 txEApp (s, (Right (TI _ (Left _)))) f es
   | cmpSymbol s (val f)
   = errorstar "txEApp: deep internal error"
   | otherwise
   = EApp f es
-
 
 txPApp (s, (Right (TI xs (Left e)))) f es
   | cmpSymbol s (val f)
@@ -141,7 +140,7 @@ txPApp (s, (Right (TI xs (Left e)))) f es
 txPApp (s, m) f es = PBexp $ txEApp (s, m) f es
 
 cmpSymbol s1 {- symbol in Core -} s2 {- logical Symbol-}
-  = (dropModuleNamesAndUnique s1) == (dropModuleNamesAndUnique s2)
+  = dropModuleNamesAndUnique s1 == dropModuleNamesAndUnique s2
 
 
 dropModuleNamesAndUnique = dropModuleUnique {- . dropModuleNames -}

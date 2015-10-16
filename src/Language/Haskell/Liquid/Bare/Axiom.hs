@@ -36,14 +36,12 @@ import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Types (Expr(..))
 import Language.Fixpoint.Sort (isFirstOrder)
-
 import qualified Language.Fixpoint.Types as F
-
-import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
-import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
+import Language.Haskell.Liquid.GhcMisc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
+-- import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
+import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.WiredIn
@@ -66,7 +64,7 @@ makeAxiom lmap cbs _ _ x
                                    ((val x, makeType v), (v, makeAssumeType v), defAxioms v def)
     (Rec [(v, def)]:_) -> return $ traceShow ("makeAxiom Rec   " ++ show def ++ showpp (coreToDef' x v def)) 
                                    ((val x, makeType v), (v, makeAssumeType v), defAxioms v def)
-    _                  -> throwError $ mkError "Cannot extract measure from haskell function"
+    _                  -> throwError $ mkError "NIKI: Please add SrcPos here: Cannot extract measure from haskell function"
   where
     binders (NonRec x _) = [x]
     binders (Rec xes)    = fst <$> xes
@@ -80,6 +78,7 @@ makeAxiom lmap cbs _ _ x
 
     makeType v       = x{val = ufType    $ varType v}
     makeAssumeType v = x{val = axiomType x $ varType v}
+
 
 
 defAxioms _ _  = [] 
@@ -143,9 +142,9 @@ instance Subable CoreExpr where
 
 -- | Specification for Haskell function 
 axiomType :: LocSymbol -> Type -> SpecType
-axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}  
-  where 
-    t  = toRTypeRep $ ofType τ 
+axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
+  where
+    t  = toRTypeRep $ ofType τ
     ys = dropWhile isClassType $ ty_args t
     xs = (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
     x  = F.vv_
@@ -157,17 +156,17 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
     mkApp = foldl runFun (F.EVar $ val s)
 
     runFun e x = F.EApp (dummyLoc runFunName) [e, F.EVar x]
- 
+
 
 -- | Type for uninterpreted function that approximated Haskell function into logic
 ufType :: (F.Reftable r) => Type -> RRType r
-ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}  
-  where 
-    t    = toRTypeRep $ ofType τ 
+ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}
+  where
+    t    = toRTypeRep $ ofType τ
     args = dropWhile isClassType $ ty_args t
     res  = mkType args $ ty_res t
 
-    mkType []     tr = tr 
+    mkType []     tr = tr
     mkType (t:ts) tr = arrowType t $ mkType ts tr
 
 simplesymbol :: CoreBndr -> Symbol
