@@ -9,14 +9,12 @@ module Language.Fixpoint.Solver.Validate
          -- * Sorts for each Symbol
        , symbolSorts
 
-         -- * Predicates on Constraints
-       , isKvarC, isConcC
        )
        where
 
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor     (kvars, mapKVarSubsts)
+import           Language.Fixpoint.Visitor     (isConcC, isKvarC, kvars, mapKVarSubsts)
 import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM)
@@ -56,24 +54,11 @@ badRhs1 :: (Integer, F.SimpC a) -> E.Error
 badRhs1 (i, c) = E.err E.dummySpan $ printf "Malformed RHS for %d : %s \n"
                    i (showpp $ F.crhs c)
 
-isKvarC :: F.SimpC a -> Bool
-isKvarC = all isKvar . F.conjuncts . F.crhs
-
-isConcC :: F.SimpC a -> Bool
-isConcC = all isConc . F.conjuncts . F.crhs
-
 -- | Conservative check that KVars appear at "top-level" in pred
 -- isOkRhs :: F.Pred -> Bool
 -- isOkRhs p = all isKvar ps  || all isConc ps
 --  where
 --     ps    = F.conjuncts p
-
-isKvar :: F.Pred -> Bool
-isKvar (F.PKVar {}) = True
-isKvar _          = False
-
-isConc :: F.Pred -> Bool
-isConc = null . kvars
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo

@@ -8,7 +8,6 @@ module Language.Fixpoint.Solver.Solve (solve) where
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid (mappend)
 import           Control.Monad (filterM)
-import           Control.Applicative ((<$>))
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
 import           Language.Fixpoint.Misc
@@ -17,7 +16,7 @@ import           Language.Fixpoint.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.Validate (isConcC, isKvarC)
+import           Language.Fixpoint.Solver.Validate (isConcC)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 
 -- DEBUG
@@ -48,7 +47,7 @@ solve_ fi s0 wkl = do
   lift $ donePhase Loud "Solution Initialize"
   s <- refine s0' wkl
   st  <- stats
-  res <- result fi s
+  res <- result fi wkl s
   return (res, st)
 
 ---------------------------------------------------------------------------
@@ -105,26 +104,25 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => F.SInfo a -> Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-result fi s = do
+result fi wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
-  stat    <- result_ fi s
+  stat    <- result_ fi wkl s
   return   $ F.Result (F.WrapC <$> stat) sol
 
 
-result_ :: F.SInfo a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_ fi s = res <$> filterM (isUnsat s) cs
+result_ :: F.SInfo a -> Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ fi w s = res <$> filterM (isUnsat s) cs
   where
-    cs       = unsatCandidates fi -- M.elems $ F.cm fi
-    res []   = F.Safe
-    res cs'  = F.Unsafe cs'
+    cs         = unsatCandidates w -- fi -- M.elems $ F.cm fi
+    res []     = F.Safe
+    res cs'    = F.Unsafe cs'
 
-unsatCandidates :: F.SInfo a -> [F.SimpC a]
+unsatCandidates :: F.Worklist a -> [F.SimpC a]
 unsatCandidates = filter isNontriv . filter isConcC . M.elems . F.cm
   where
     isNontriv   = not .  F.isTautoPred . F.crhs
-
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool

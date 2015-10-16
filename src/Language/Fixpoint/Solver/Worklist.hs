@@ -31,7 +31,7 @@ import qualified Data.Set                  as S
 import qualified Data.List                 as L
 -- import           Data.Maybe (fromMaybe)
 
-import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
+import           Data.Graph (graphFromEdges, scc, path, dfs, Graph, Vertex)
 import           Data.Tree (flatten)
 import           Text.PrettyPrint.HughesPJ (text)
 
@@ -89,7 +89,9 @@ data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
                  } deriving (Eq, Show)
 
 ---------------------------------------------------------------------------
-init :: F.SInfo a -> Worklist a
+-- | Initialize worklist and slice out irrelevant constraints -------------
+---------------------------------------------------------------------------
+init :: F.SInfo a -> (F.SInfo a, Worklist a)
 ---------------------------------------------------------------------------
 init fi    = WL { wCs    = items               -- Add all constraints to worklist
                 , wPend  = addPends M.empty is
@@ -158,12 +160,6 @@ workItemsAt !r !t !i = WorkItem { wiCId  = i
                                 , wiTime = t
                                 , wiRank = lookupCMap r i }
 
-
--- sid'    :: F.SimpC a -> Integer
--- sid' c  = fromMaybe err $ F.sid c
---  where
---    err = errorstar "sid': SimpC without id"
-
 ---------------------------------------------------------------------------
 ranks :: Worklist a -> Int
 ---------------------------------------------------------------------------
@@ -176,6 +172,8 @@ ranks = wRanks
 data CDeps = CDs { cSucc   :: CSucc
                  , cRank   :: CMap Rank
                  , cNumScc :: Int
+                 , cKCs    :: [CId]
+                 , cPCs    :: [CId]
                  }
 
 ---------------------------------------------------------------------------
@@ -183,7 +181,9 @@ cDeps       :: F.SInfo a -> CDeps
 ---------------------------------------------------------------------------
 cDeps fi       = CDs { cSucc   = next
                      , cRank   = makeRanks cm outRs inRs
-                     , cNumScc = length sccs }
+                     , cNumScc = length sccs
+                     , cSlice  =
+                     }
   where
     -- roots         = fst3 . vf <$> filterRoots g sccs
     next          = kvSucc fi

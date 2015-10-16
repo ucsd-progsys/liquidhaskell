@@ -22,6 +22,9 @@ module Language.Fixpoint.Visitor (
   , envKVars
   , mapKVars, mapKVars', mapKVarSubsts
   , lhsKVars, rhsKVars
+  
+  -- * Predicates on Constraints
+  , isConcC , isKvarC
 
   -- * Sorts
   , foldSort, mapSort
@@ -218,6 +221,19 @@ lhsKVars binds c = envKVs ++ lhsKVs
 
 rhsKVars :: SubC a -> [KVar]
 rhsKVars = kvars . rhsCs
+
+isKvarC :: SimpC a -> Bool
+isKvarC = all isKvar . conjuncts . crhs
+
+isConcC :: SimpC a -> Bool
+isConcC = all isConc . conjuncts . crhs
+
+isKvar :: Pred -> Bool
+isKvar (PKVar {}) = True
+isKvar _          = False
+
+isConc :: Pred -> Bool
+isConc = null . kvars
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
