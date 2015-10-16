@@ -51,21 +51,21 @@ updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
     nameMap = M.fromList [(fst $ lookupBindEnv i be, i) | i <- ids]
     m' = foldl' (insertIdIdLinks be nameMap) m ids
 
-    symList = syms $ crhs s
-    refSet = S.fromList $ namesToIds symList nameMap
+    symSet = S.fromList $ syms $ crhs s
+    refSet = namesToIds symSet nameMap
 
 insertIdIdLinks :: BindEnv -> M.HashMap Symbol BindId -> IdMap -> BindId -> IdMap
 insertIdIdLinks be nameMap m i = M.insertWith S.union (RB i) refSet m
   where
     sr = snd $ lookupBindEnv i be
-    symList = freeVars $ sr_reft sr
-    refSet = S.fromList $ namesToIds symList nameMap
+    symSet = freeVars $ sr_reft sr
+    refSet = namesToIds symSet nameMap
 
-namesToIds :: [Symbol] -> M.HashMap Symbol BindId -> [BindId]
-namesToIds syms m = catMaybes [M.lookup sym m | sym <- syms] --TODO why any Nothings?
+namesToIds :: S.HashSet Symbol -> M.HashMap Symbol BindId -> S.HashSet BindId
+namesToIds syms m = S.fromList $ catMaybes [M.lookup sym m | sym <- S.toList syms] --TODO why any Nothings?
 
-freeVars :: Reft -> [Symbol]
-freeVars rft@(Reft (v, _)) = L.delete v $ syms rft
+freeVars :: Reft -> S.HashSet Symbol
+freeVars rft@(Reft (v, _)) = S.delete v $ S.fromList $ syms rft
 --------------------------------------------------------------
 
 --------------------------------------------------------------
