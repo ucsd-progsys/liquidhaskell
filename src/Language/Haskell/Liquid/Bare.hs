@@ -1,4 +1,4 @@
--- | This module contains the functions that convert /from/ descriptions of 
+-- | This module contains the functions that convert /from/ descriptions of
 -- symbols, names and types (over freshly parsed /bare/ Strings),
 -- /to/ representations connected to GHC vars, names, and types.
 -- The actual /representations/ of bare and real (refinement) types are all
@@ -10,4 +10,3 @@ module Language.Haskell.Liquid.Bare (
   ) where
 
 import Language.Haskell.Liquid.Bare.GhcSpec
-

@@ -10,7 +10,7 @@ SCRIPT_DIR=`pwd`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
-GIPEDA_FIXPOINT="$GIPEDA_DIR/liquid-fixpoint";
+GIPEDA_FIXPOINT="$GIPEDA_REPO/liquid-fixpoint";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
 REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
@@ -41,6 +41,7 @@ function generate_log {
     if [ $SHOULD_GEN = true ]
     then
         $GIT checkout $HASH
+        $GIT submodule update;
         $MAKE clean;
         if [ $? != 0 ]
         then
@@ -163,6 +164,9 @@ else
     exit 1;
 fi
 
+$CABAL update;
+abort_if_failed "Couldn't perform cabal update...";
+
 # generate logs
 
 if [ ! -e $GIPEDA_LOGS ]
@@ -170,12 +174,6 @@ then
     mkdir $GIPEDA_LOGS;
     abort_if_failed "$GIPEDA_LOGS doesn't exist and couldn't be created...";
 fi
-
-cd $GIPEDA_FIXPOINT;
-abort_if_failed "Couldn't change to $GIPEDA_FIXPOINT...";
-
-$GIT pull origin master;
-abort_if_failed "Couldn't pull Liquid Fixpoint from remote...";
 
 cd $GIPEDA_REPO;
 abort_if_failed "Couldn't change to $GIPEDA_REPO...";

@@ -42,7 +42,7 @@ import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (listConName, hpropConName, propConName, tupConName, headSym)
+import Language.Fixpoint.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc (safeLast, errorstar)
 import Language.Fixpoint.Parse hiding (angles)
 
@@ -98,7 +98,7 @@ parseWithError :: Parser a -> SourceName -> String -> Either Error a
 parseWithError parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
       Left e            -> Left  $ parseErrorError f e
-      Right (r, "", _)  -> Right $ r
+      Right (r, "", _)  -> Right r
       Right (_, rem, _) -> Left  $ parseErrorError f $ remParseError f s rem
 
 ---------------------------------------------------------------------------
@@ -126,9 +126,9 @@ remLineCol src rem = (line, col)
     remLine        = length remLines
     col            = srcCol - remCol
     srcCol         = length $ srcLines !! (line - 1)
-    remCol         = length $ remLines !! 0
-    srcLines       = lines  $ src
-    remLines       = lines  $ rem
+    remCol         = length $ head remLines
+    srcLines       = lines  src
+    remLines       = lines  rem
 
 
 
@@ -176,9 +176,9 @@ bareTypeP
  <|> try bareConstraintP
  <|> try bareFunP
  <|> bareAtomP (refBindP bindP)
- <|> try (angles (do t <- parens $ bareTypeP
+ <|> try (angles (do t <- parens bareTypeP
                      p <- monoPredicateP
-                     return $ t `strengthen` (U mempty p mempty)))
+                     return $ t `strengthen` U mempty p mempty))
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
@@ -188,6 +188,7 @@ bareAtomP ref
   =  ref refasHoleP bbaseP
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
+
 
 holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
@@ -260,7 +261,7 @@ constraintEnvP
               return xts)
   <|> return []
 
-rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t
+rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
   where
     tr   = ty_res trep
     xts  = zip (ty_binds trep) (ty_args trep)
@@ -268,7 +269,7 @@ rrTy ct t = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons t
 
 bareAllS
   = do reserved "forall"
-       ss <- (angles $ sepBy1 symbolP comma)
+       ss <- angles $ sepBy1 symbolP comma
        dot
        t  <- bareTypeP
        return $ foldr RAllS t ss
@@ -283,7 +284,8 @@ bareAllP
 
 tyVarIdP :: Parser Symbol
 tyVarIdP = symbol <$> condIdP alphanums (isLower . head)
-           where alphanums = ['a'..'z'] ++ ['0'..'9']
+           where
+             alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
 predVarDefsP
   =  try (angles $ sepBy1 predVarDefP comma)
@@ -315,7 +317,7 @@ mkPredVarType t
     err       = "Predicate Variable with non-Prop output sort: " ++ showpp t
 
 xyP lP sepP rP
-  = liftM3 (\x _ y -> (x, y)) lP (spaces >> sepP) rP
+  = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
 
 data ArrowSym = ArrowFun | ArrowPred
 
@@ -457,12 +459,12 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 bCon b s [RPropP _ r1] [] _ r = RApp b [] [] $ r1 `meet` (U r mempty s)
 bCon b s rs            ts p r = RApp b ts rs $ U r p s
 
--- bAppTy v t r             = RAppTy (RVar v top) t (reftUReft r)
-bAppTy v ts r             = (foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts) `strengthen` (reftUReft r)
+bAppTy v ts r  = ts' `strengthen` reftUReft r
+  where
+    ts'        = foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts
 
-
-reftUReft      = \r -> U r mempty mempty
-predUReft      = \p -> U dummyReft p mempty
+reftUReft r    = U r mempty mempty
+predUReft p    = U dummyReft p mempty
 dummyReft      = mempty
 dummyTyId      = ""
 
@@ -699,7 +701,9 @@ rtAliasP f bodyP
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
 
 aliasIdP :: Parser Symbol
-aliasIdP = condIdP (['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']) (isAlpha . head)
+aliasIdP = condIdP alphaNums (isAlpha . head)
+           where
+             alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
 measureP :: Parser (Measure BareType LocSymbol)
 measureP
@@ -854,7 +858,8 @@ dataConNameP
 dataSizeP
   = (brackets $ (Just . mkFun) <$> locLowerIdP)
   <|> return Nothing
-  where mkFun s = \x -> EApp (symbol <$> s) [EVar x]
+  where
+    mkFun s x = EApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
 dataDeclP = try dataDeclFullP <|> dataDeclSizeP
@@ -884,21 +889,6 @@ dataDeclFullP
 -- | Parsing Qualifiers ---------------------------------------------
 ---------------------------------------------------------------------
 
-{-
-sortP
-  =   try (parens $ sortP)
-  -- <|> try (string "@"    >> varSortP)
-  <|> try (fAppTC listFTyCon . single <$> brackets sortP)
-  -- <|> try bvSortP
-  -- <|> try baseSortP
-  -- THIS IS THE PROBLEM HEREHEREHERE <|> try (symbolSort <$> locLowerIdP)
-  <|> try (fApp  <$> (Left <$> fTyConP) <*> sepBy sortP blanks)
-  <|> (FObj . symbol <$> lowerIdP)
--}
-
--- varSortP  = FVar  <$> parens intP
--- funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
-
 fTyConP :: Parser FTycon
 fTyConP
   =   (reserved "int"     >> return intFTyCon)
@@ -910,16 +900,14 @@ fTyConP
   <|> (symbolFTycon      <$> locUpperIdP)
 
 
-
-
 ---------------------------------------------------------------------
 ------------ Interacting with Fixpoint ------------------------------
 ---------------------------------------------------------------------
 
 grabUpto p
-  =  try (lookAhead p >>= return . Just)
- <|> try (eof         >> return Nothing)
- <|> (anyChar >> grabUpto p)
+  =  try (Just <$> lookAhead p)
+ <|> try (eof   >> return Nothing)
+ <|> (anyChar   >> grabUpto p)
 
 betweenMany leftP rightP p
   = do z <- grabUpto leftP

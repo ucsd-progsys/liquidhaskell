@@ -1,7 +1,6 @@
 LiquidHaskell [![Build Status](https://travis-ci.org/ucsd-progsys/liquidhaskell.svg?branch=master)](https://travis-ci.org/ucsd-progsys/liquidhaskell)
 =============
 
-
 Requirements
 ------------
 
@@ -12,47 +11,7 @@ LiquidHaskell requires (in addition to the cabal dependencies)
 How To Clone, Build and Install
 -------------------------------
 
-To begin building, run the following commands in the root
-directory of the distribution:
-
-
-1. Install a suitable smt solver binary, e.g.
-
-    + [Z3](https://github.com/Z3Prover/z3)
-    + [CVC4](http://cvc4.cs.nyu.edu/)
-    + [MathSat](http://mathsat.fbk.eu/download.html)
-
-   **IMPORTANT**: if you're on Windows, please make sure the solver
-   is installed in the **same** directory as LiquidHaskell itself
-   (i.e. whereever cabal puts your binaries).
-
-2. Clone the `liquidhaskell` repository *recursively*.
-
-    ```
-    git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
-    cd liquidhaskell
-    ```
-
-   This will clone the correct version of `liquid-fixpoint` as a submodule
-   within the `liquidhaskell` repository.
-
-3. (If using **stack**) To build and install
-
-    ```
-    stack install
-    ```
-
-   (If using **cabal**) then
-
-    ```
-    cabal sandbox init
-    cabal sandbox add-source ./liquid-fixpoint
-    cabal install
-    ```
-
-4. To **rebuild** after this step, run
-
-    `make` or `cabal install` or `stack install`
+See [install instructions](INSTALL.md)
 
 How To Run
 ----------
@@ -60,6 +19,15 @@ How To Run
 To verify a file called `foo.hs` at type
 
     $ liquid foo.hs
+
+How to Run inside GHCi
+----------------------
+
+To run inside `ghci` e.g. when developing do:
+
+    $ stack ghci liquidhaskell
+    ghci> :m +Language.Haskell.Liquid.Liquid
+    ghci> liquid ["tests/pos/Abs.hs"]
 
 How To Run Regression Tests
 ---------------------------
@@ -154,7 +122,7 @@ Working With Submodules
 
    to blow away your copy of the `liquid-fixpoint` submodule and revert to the
    last saved commit hash.
-   
+
  - Want to work fully offline? git lets you add a local directory as a remote.
    Run
 
@@ -921,6 +889,69 @@ that is, somewhere in the file (perhaps at the top) put in:
    {-@ LIQUID "--cabaldir"    @-}
 
 to have the relevant option be used for that file.
+
+Generating Performance Reports
+------------------------------
+
+We have set up infrastructure to generate performance reports using [Gipeda](https://github.com/nomeata/gipeda).
+
+Gipeda will generate a static webpage that tracks the peformance improvements
+and regressions between commits. To generate the site, first ensure you have the
+following dependencies available:
+
+* Git
+* Cabal >= 1.18
+* GHC
+* Make
+* Bash (installed at `/bin/bash`)
+
+After ensuring all dependencies are available, from the Liquid Haskell
+directory, execute:
+
+```
+cd scripts/performance
+./deploy-gipeda.bash
+```
+
+This will download and install all the relevant repositories and files. Next, to
+generate the performance report, use the `generate-site.bash` script. This script
+has a few options:
+
+* `-s [hash]`: Do not attempt to generate performance reports for any commit
+older than the commit specified by the entered git hash
+* `-e [hash]`: Do not attempt to generate performance reports for any commit
+newer than the commit specified by the entered git hash
+* `-f`: The default behavior of `generate-site.bash` is to first check if logs
+have been created for a given hash. If logs already exist, `generate-site.bash`
+will not recreate them. Specify this option to skip this check and regenerate
+all logs.
+
+You should expect this process to take a very long time. `generate-site.bash`
+will compile each commit, then run the entire test suite and benchmark suite
+for each commit. It is suggested to provide a managable range to `generate-site.bash`:
+
+```
+./generate-site.bash -s [starting hash] -e [ending hash]
+```
+
+...will generate reports for all commits between (inclusive) [starting hash]
+and [ending hash].
+
+```
+./generate-site.bash -s [starting hash]
+```
+
+... will generate reports for all commits newer than [starting hash]. This command
+can be the basis for some automated report generation process (i.e. a cron job).
+
+Finally, to remove the Gipeda infrastructure from your computer, you may execute:
+
+```
+./cleanup-gipeda.bash
+```
+
+...which will remove any files created by `deploy-gipeda.bash` and `generate-site.bash`
+from your computer.
 
 Configuration Management
 ------------------------
