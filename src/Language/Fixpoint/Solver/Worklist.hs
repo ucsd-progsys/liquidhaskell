@@ -20,7 +20,7 @@ module Language.Fixpoint.Solver.Worklist
        , unsatCandidates
 
          -- * Statistics
-       ,  stats, numSccs
+       , stats, numSccs
        )
        where
 

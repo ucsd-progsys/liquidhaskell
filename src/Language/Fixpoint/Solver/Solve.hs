@@ -30,24 +30,25 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
-    putStrLn $ "\n\n" ++ show ws
-    (r, s)  <- runSolverM cfg fi n $ solve_ fi s0 wkl
-    putStrLn $ "\n\n" ++ show s
+    (r, s)  <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
+    putStrLn $ "\n" ++ show s
+    putStrLn $ "\n" ++ show ws
     return r
   where
     wkl  = {- trace "W.init" $ -} W.init fi
     ws   = W.stats wkl
-    n    = fromIntegral $ W.numSccs ws 
+    n    = fromIntegral $ W.numSccs ws
+    act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
 ---------------------------------------------------------------------------
 solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
-  let s0' = {- trace "S.init" $ -} mappend s0 $ S.init fi
+  let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   lift $ donePhase Loud "Solution Initialize"
-  s <- refine s0' wkl
+  s   <- {-# SCC "sol-refine" #-} refine s0' wkl
   st  <- stats
-  res <- result fi wkl s
+  res <- {-# SCC "sol-result" #-} result fi wkl s
   return (res, st)
 
 ---------------------------------------------------------------------------

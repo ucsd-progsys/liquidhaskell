@@ -109,12 +109,12 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init fi = {- tracepp "init solution" -} s
+init fi = s
   where
-    s     = L.foldl' (refine fi qs) s0 ws
-    s0    = M.empty
-    qs    = F.quals fi
-    ws    = F.ws    fi
+    s   = L.foldl' (refine fi qs) s0 ws
+    s0  = M.empty
+    qs  = F.quals fi
+    ws  = F.ws    fi
 
 --------------------------------------------------------------------
 refine :: F.GInfo c a
@@ -137,13 +137,7 @@ refineK :: F.SEnv F.SortedReft
 refineK env qs s (v, t, k) = M.insert k eqs' s
   where
     eqs  = instK env v t qs
-    --OLD: eqs = fromMaybe (instK env v t qs) (M.lookup k s)
-    --OLD: --but the lookup should _always_ fail, right?
     eqs' = filter (okInst env v t) eqs
-
-    -- OLD eqs' = case M.lookup k s of
-    -- OLD Nothing  -> instK env v t qs
-    -- OLD Just eqs -> [eq | eq <- eqs, okInst env v t eq]
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
