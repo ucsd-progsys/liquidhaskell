@@ -148,7 +148,7 @@ sigVars ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
     ok        = not . isDiff ls
 
 globalDiff :: [Int] -> GhcSpec -> Bool
-globalDiff liness spec = measDiff || invsDiff || dconsDiff
+globalDiff lines spec = measDiff || invsDiff || dconsDiff
   where
     measDiff  = any (isDiff lines) (snd <$> meas spec)
     invsDiff  = any (isDiff lines) (invariants spec)
