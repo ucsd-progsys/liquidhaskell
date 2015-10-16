@@ -108,18 +108,18 @@ sliceSaved target savedFile coreBinds spec
        return    $ sliceSaved' is lm (DC coreBinds result spec)
 
 sliceSaved' :: [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
-sliceSaved' is lm (DC cbs res sp)
-  | globalDiff is sp = Nothing
-  | otherwise        = Just $ DC cbs' res' sp'
+sliceSaved' is lm (DC coreBinds result spec)
+  | globalDiff is spec = Nothing
+  | otherwise          = Just $ DC cbs' res' sp'
   where
-    cbs'             = thinWith sigs cbs $ diffVars is dfs
+    cbs'             = thinWith sigs coreBinds $ diffVars is dfs
     sigs             = S.fromList $ M.keys sigm
-    sigm             = sigVars is sp
-    res'             = adjustOutput lm cm res
+    sigm             = sigVars is spec
+    res'             = adjustOutput lm cm result
     cm               = checkedItv chDfs
-    dfs              = coreDefs cbs ++ specDefs sp
+    dfs              = coreDefs coreBinds ++ specDefs spec
     chDfs            = coreDefs cbs'
-    sp'              = assumeSpec sigm sp
+    sp'              = assumeSpec sigm spec
 
 -- Add the specified signatures for vars-with-preserved-sigs,
 -- whose bodies have been pruned from [CoreBind] into the "assumes"
@@ -148,17 +148,17 @@ sigVars ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
     ok        = not . isDiff ls
 
 globalDiff :: [Int] -> GhcSpec -> Bool
-globalDiff ls sp = measDiff || invsDiff || dconsDiff
+globalDiff liness spec = measDiff || invsDiff || dconsDiff
   where
-    measDiff  = any (isDiff ls) (snd  <$> meas sp)
-    invsDiff  = any (isDiff ls) (invariants   sp)
-    dconsDiff = any (isDiff ls) (dloc . snd <$> dconsP sp)
+    measDiff  = any (isDiff lines) (snd <$> meas spec)
+    invsDiff  = any (isDiff lines) (invariants spec)
+    dconsDiff = any (isDiff lines) (dloc . snd <$> dconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
 isDiff :: [Int] -> Located a -> Bool
-isDiff ls x = any hits ls
+isDiff lines x = any hits lines
   where
-    hits i  = line x <= i && i <= lineE x
+    hits i = line x <= i && i <= lineE x
 
 -------------------------------------------------------------------------
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
