@@ -16,7 +16,6 @@ import           Language.Fixpoint.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.Validate (isConcC)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 
 -- DEBUG
@@ -104,7 +103,7 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => F.SInfo a -> Worklist a -> S.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result fi wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
@@ -112,10 +111,10 @@ result fi wkl s = do
   return   $ F.Result (F.WrapC <$> stat) sol
 
 
-result_ :: F.SInfo a -> Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi w s = res <$> filterM (isUnsat s) cs
   where
-    cs         = unsatCands w -- fi -- M.elems $ F.cm fi
+    cs         = W.unsatCandidates w
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
 

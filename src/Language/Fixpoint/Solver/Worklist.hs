@@ -273,7 +273,11 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
 
 
 ---------------------------------------------------------------------------
-graphSlice :: CMap (F.SimpC a) -> Graph -> (Vertex -> DepEdge) -> (CId -> Maybe Vertex) -> Slice
+graphSlice :: CMap (F.SimpC a)
+           -> Graph
+           -> (Vertex -> DepEdge)
+           -> (CId -> Maybe Vertex)
+           -> Slice
 ---------------------------------------------------------------------------
 graphSlice cm g v2i i2v = graphSlice_ cm g' v2i' i2v'
   where
