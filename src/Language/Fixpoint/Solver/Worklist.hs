@@ -116,7 +116,7 @@ init fi    = WL { wCs    = items               -- Add all constraints to worklis
     rankm  = cRank cd
     items  = S.fromList wis
     wis    = workItemsAt rankm 0 <$> is
-    is     = iterCandidates fi
+    is     = error "FIXME: use the sliced-kvarCs" -- iterCandidates fi
 
 iterCandidates :: F.SInfo a -> [CId]
 iterCandidates fi = [ i | (i, c) <- M.toList $ F.cm fi, isKvarC c]
