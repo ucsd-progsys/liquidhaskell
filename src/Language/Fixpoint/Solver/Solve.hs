@@ -115,14 +115,9 @@ result fi wkl s = do
 result_ :: F.SInfo a -> Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_ fi w s = res <$> filterM (isUnsat s) cs
   where
-    cs         = unsatCandidates w -- fi -- M.elems $ F.cm fi
+    cs         = unsatCands w -- fi -- M.elems $ F.cm fi
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
-
-unsatCandidates :: F.Worklist a -> [F.SimpC a]
-unsatCandidates = filter isNontriv . filter isConcC . M.elems . F.cm
-  where
-    isNontriv   = not .  F.isTautoPred . F.crhs
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
