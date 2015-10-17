@@ -22,7 +22,8 @@ module Language.Fixpoint.Visitor (
   , envKVars
   , mapKVars, mapKVars', mapKVarSubsts
   , lhsKVars, rhsKVars
-  
+  , wfKvar
+
   -- * Predicates on Constraints
   , isConcC , isKvarC
 
@@ -40,6 +41,7 @@ import           Prelude                   hiding (mapM)
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
+import           Language.Fixpoint.Misc    (errorstar)
 import qualified Data.List    as L
 
 data Visitor acc ctx = Visitor {
@@ -234,6 +236,14 @@ isKvar _          = False
 
 isConc :: Pred -> Bool
 isConc = null . kvars
+
+-----------------------------------------------------------------------
+wfKvar :: WfC a -> (Symbol, Sort, KVar)
+-----------------------------------------------------------------------
+wfKvar w@(WfC {wrft = sr})
+  | Reft (v, Refa (PKVar k su)) <- sr_reft sr
+  , isEmptySubst su = (v, sr_sort sr, k)
+  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show (wid w)
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

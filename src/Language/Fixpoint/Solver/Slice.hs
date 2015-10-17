@@ -23,15 +23,9 @@ import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe (fromMaybe)
+import qualified Data.HashSet as S
 import           Data.Graph (transposeG, graphFromEdges, dfs, Graph, Vertex)
 import           Data.Tree (flatten)
-
--- import           Language.Fixpoint.PrettyPrint (PPrint (..))
--- import           Control.Arrow             (first)
--- import           Data.HashMap.Strict       ((!))
--- import qualified Data.Set                  as S
--- import qualified Data.List                 as L
--- import           Text.PrettyPrint.HughesPJ (text)
 
 ---------------------------------------------------------------------------
 -- | Compute constraints that transitively affect target constraints,
@@ -39,10 +33,19 @@ import           Data.Tree (flatten)
 ---------------------------------------------------------------------------
 slice :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
-slice fi = prune fi (mkSlice fi)
+slice fi = fi { F.cm = cm'
+              , F.ws = ws' }
+  where
+     cm' = M.filterWithKey inC (F.cm fi)
+     ws' = filter inW          (F.ws fi)
+     ks  = sliceKVars fi sl
+     is  = S.fromList (slKVarCs sl ++ slConcCs sl)
+     sl  = mkSlice fi
+     inC i _ = S.member i is
+     inW w   = S.member (thd3 $ wfKvar w) ks
 
-prune :: F.SInfo a -> Slice -> F.SInfo a
-prune = error "FIXME"
+sliceKVars :: F.SInfo a -> Slice -> S.Set KVar
+sliceKVars = error "FIXME"
 
 ---------------------------------------------------------------------------
 mkSlice :: F.SInfo a -> Slice
@@ -60,12 +63,12 @@ mkSlice fi        = mkSlice_ cm g' es v2i i2v
 
 
 mkSlice_ :: CMap (F.SimpC a) -> Graph -> [DepEdge] -> (Vertex -> CId) -> (CId -> Vertex) -> Slice
-mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = {- trace ("SLICE=" ++ show n) -} kvarCs
+mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
                                   , slConcCs = concCs
                                   , slEdges  = sliceEdges kvarCs es
                                   }
   where
-    n                  = length kvarCs
+    -- n                  = length kvarCs
     concCs             = [ i | (i, c) <- M.toList cm, isTarget c ]
     kvarCs             = v2i <$> reachVs
     rootVs             = i2v <$> concCs
@@ -116,5 +119,6 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
 ---------------------------------------------------------------------------
 isTarget :: F.SimpC a -> Bool
 ---------------------------------------------------------------------------
-isTarget c = isConcC c && isNonTriv c
-isNonTriv  = not .  F.isTautoPred . F.crhs
+isTarget c   = isConcC c && isNonTriv c
+  where
+   isNonTriv = not .  F.isTautoPred . F.crhs

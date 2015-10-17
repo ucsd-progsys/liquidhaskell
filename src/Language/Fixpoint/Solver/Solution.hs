@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards     #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
 
@@ -22,11 +21,10 @@ module Language.Fixpoint.Solver.Solution
         )
 where
 
-import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
-import           Data.Monoid                    ((<>), mempty)
+import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So
@@ -123,7 +121,7 @@ refine :: F.GInfo c a
        -> F.WfC a
        -> Solution
 --------------------------------------------------------------------
-refine fi qs s w = refineK env qs s (wfKvar w)
+refine fi qs s w = refineK env qs s (V.wfKvar w)
   where
     env          = wenv <> genv
     wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
@@ -180,14 +178,6 @@ candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 -----------------------------------------------------------------------
 candidates xts t'
   = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
-
------------------------------------------------------------------------
-wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.KVar)
------------------------------------------------------------------------
-wfKvar w@(F.WfC {F.wrft = sr})
-  | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr
-  , F.isEmptySubst su = (v, F.sr_sort sr, k)
-  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show (F.wid w)
 
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
