@@ -179,6 +179,7 @@ solveNativeWithFInfo !cfg !fi = do
   let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   rnf si `seq` donePhase Loud "Format Conversion"
+  -- SLICE HERE
   let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   rnf si' `seq` donePhase Loud "Validated Constraints"
