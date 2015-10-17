@@ -35,6 +35,7 @@ import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void)
 
+import           Language.Fixpoint.Solver.Slice     (slice)
 import           Language.Fixpoint.Solver.Validate  (validate)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
@@ -176,10 +177,10 @@ solveNativeWithFInfo !cfg !fi = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   rnf fi `seq` donePhase Loud "Read Constraints"
   let fi' = fi { quals = remakeQual <$> quals fi }
-  let si  = {-# SCC "convertFormat" #-} convertFormat fi'
+  let si_  = {-# SCC "convertFormat" #-} convertFormat fi'
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
-  rnf si `seq` donePhase Loud "Format Conversion"
-  -- SLICE HERE
+  rnf si_ `seq` donePhase Loud "Format Conversion"
+  let si = slice si_
   let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   rnf si' `seq` donePhase Loud "Validated Constraints"
