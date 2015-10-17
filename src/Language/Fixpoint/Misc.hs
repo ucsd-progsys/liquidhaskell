@@ -65,8 +65,10 @@ doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok " "
 
 donePhase c str
   = case lines str of
-      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
+      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "") >> hFlush stdout
       _      -> return ()
+
+putBlankLn = putStrLn "" >> hFlush stdout
 
 -----------------------------------------------------------------------------------
 

@@ -7,6 +7,7 @@ module Language.Fixpoint.Solver.Solve (solve) where
 
 import           Data.Maybe (fromMaybe)
 import           Data.Monoid (mappend)
+import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
@@ -30,9 +31,9 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
-    (r, s)  <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
-    putStrLn $ "\n" ++ show s
-    putStrLn $ "\n" ++ show ws
+    (r, s) <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
+    print  s
+    print  ws
     return r
   where
     wkl  = {- trace "W.init" $ -} W.init fi
@@ -40,15 +41,18 @@ solve cfg s0 fi = do
     n    = fromIntegral $ W.numSccs ws
     act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
+
 ---------------------------------------------------------------------------
 solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
-  lift $ donePhase Loud "Solution Initialize"
+  -- lift $ donePhase Loud "Solution: Initialize"
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
+  donePhase' "Solution: Fixpoint"
   st  <- stats
   res <- {-# SCC "sol-result" #-} result fi wkl s
+  donePhase' "Solution: Check"
   return (res, st)
 
 ---------------------------------------------------------------------------
@@ -114,11 +118,17 @@ result fi wkl s = do
 
 
 result_ :: F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_ fi w s = res <$> filterM (isUnsat s) cs
+result_ fi w s = do
+  pr  <- lift $ progressBar (fromIntegral $ length cs)
+  res <$> filterM (isUnsat' pr s) cs
   where
     cs         = W.unsatCandidates w
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
+
+isUnsat' pr s c = do
+  lift $ progressTick True pr
+  isUnsat s c
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
@@ -133,3 +143,13 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SimpC a -> F.Pred
 rhsPred s c = S.apply s $ F.crhs c
+
+
+
+---------------------------------------------------------------------------
+donePhase' :: String -> SolveM ()
+---------------------------------------------------------------------------
+donePhase' msg = lift $ do
+  threadDelay 25000
+  putBlankLn
+  donePhase Loud msg
