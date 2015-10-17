@@ -14,6 +14,10 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
+
+
+
+
 class PPrint a where
   pprint :: a -> Doc
   pprint = pprintPrec 0
@@ -212,3 +216,17 @@ instance PPrint SortedReft where
 
 instance PPrint a => PPrint (Located a) where
   pprint (Loc _ _ x) = pprint x
+
+---------------------------------------------------------------------------
+
+newtype DocTable = DocTable [(Doc, Doc)]
+
+instance Monoid DocTable where
+  mempty                              = DocTable []
+  mappend (DocTable t1) (DocTable t2) = DocTable (t1 ++ t2)
+
+class PTable a where
+  ptable :: a -> DocTable
+
+instance PPrint DocTable where
+  pprint (DocTable kvs) = error "FIXME"

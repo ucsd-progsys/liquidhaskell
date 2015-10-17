@@ -52,19 +52,20 @@ data Stats = Stats { numCstr :: !Int -- ^ # Horn Constraints
                    , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
                    , numChck :: !Int -- ^ # smtCheckUnsat calls
                    , numVald :: !Int -- ^ # times SMT said RHS Valid
-                   } -- deriving (Show)
+                   } deriving (Show)
 
 stats0    :: F.GInfo c b -> Stats
 stats0 fi = Stats nCs 0 0 0 0
   where
     nCs   = M.size $ F.cm fi
 
-instance Show Stats where
-  show s = unlines [ "# Constraints               : " ++ show (numCstr s)
-                   , "# Refine Iterations         : " ++ show (numIter s)
-                   , "# SMT Push & Pops           : " ++ show (numBrkt s)
-                   , "# SMT Queries (Valid/Total) : " ++ show (numVald s) ++ "/" ++ show (numChck s)
-                   ]
+instance PTable Stats where
+  ptable s = DocTable [ (text "# Constraints"         , pprint (numCstr s))
+                      , (text "# Refine Iterations"   , pprint (numIter s))
+                      , (text "# SMT Push & Pops"     , pprint (numBrkt s))
+                      , (text "# SMT Queries (Valid)" , pprint (numVald s))
+                      , (text "# SMT Queries (Total)" , pprint (numChck s))
+                      ]
 
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a

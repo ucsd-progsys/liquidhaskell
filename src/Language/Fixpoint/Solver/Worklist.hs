@@ -26,7 +26,7 @@ module Language.Fixpoint.Solver.Worklist
 
 import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.PrettyPrint (PPrint (..))
+import           Language.Fixpoint.PrettyPrint -- (PTable (..), PPrint (..))
 import           Language.Fixpoint.Misc (fst3)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
@@ -55,16 +55,13 @@ data Worklist a = WL { wCs     :: !WorkSet
 data Stats = Stats { numKvarCs  :: !Int
                    , numConcCs  :: !Int
                    , numSccs    :: !Int
-                   } deriving (Eq)
+                   } deriving (Eq, Show)
 
 
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
 
-instance Show Stats where
-  show s = unlines [ "# Sliced Constraints : " ++ show (numKvarCs s)
-                   , "# Target Constraints : " ++ show (numConcCs s)
-                   ]
+
 
 -- | WorkItems ------------------------------------------------------------
 

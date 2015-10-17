@@ -41,6 +41,10 @@ solve cfg s0 fi = do
     n    = fromIntegral $ W.numSccs ws
     act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
+printStats :: F.SInfo a -> Stats -> W.Stats -> IO ()
+printStats fi s ws = do
+
+
 
 ---------------------------------------------------------------------------
 solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
