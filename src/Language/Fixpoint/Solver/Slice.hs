@@ -17,8 +17,8 @@ module Language.Fixpoint.Solver.Slice (
 
 import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (envKVars, kvars, isConcC)
-import           Language.Fixpoint.Misc (errorstar, fst3, sortNub, group)
+import           Language.Fixpoint.Visitor (wfKvar, envKVars, kvars, isConcC)
+import           Language.Fixpoint.Misc (errorstar, fst3, thd3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import qualified Data.HashMap.Strict       as M
@@ -44,8 +44,15 @@ slice fi = fi { F.cm = cm'
      inC i _ = S.member i is
      inW w   = S.member (thd3 $ wfKvar w) ks
 
-sliceKVars :: F.SInfo a -> Slice -> S.Set KVar
-sliceKVars = error "FIXME"
+sliceKVars :: F.SInfo a -> Slice -> S.HashSet F.KVar
+sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs
+  where
+    cs           = lookupCMap cm <$> slKVarCs sl ++ slConcCs sl
+    be           = F.bs fi
+    cm           = F.cm fi
+
+subcKVars :: F.BindEnv -> F.SimpC a -> [F.KVar]
+subcKVars be c = envKVars be c ++ kvars (F.crhs c)
 
 ---------------------------------------------------------------------------
 mkSlice :: F.SInfo a -> Slice

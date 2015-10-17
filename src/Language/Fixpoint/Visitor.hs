@@ -23,7 +23,7 @@ module Language.Fixpoint.Visitor (
   , mapKVars, mapKVars', mapKVarSubsts
   , lhsKVars, rhsKVars
   , wfKvar
-
+  
   -- * Predicates on Constraints
   , isConcC , isKvarC
 
@@ -207,7 +207,6 @@ kvars                = fold kvVis () []
     kvVis            = defaultVisitor { accPred = kv' }
     kv' _ (PKVar k _) = [k]
     kv' _ _           = []
-
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
 envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
