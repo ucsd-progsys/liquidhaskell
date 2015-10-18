@@ -180,6 +180,7 @@ instKQ env v t q
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
 
+
 instCands :: F.SEnv F.SortedReft -> [(F.Sort, [F.Symbol])]
 instCands env = filter isOk tyss
   where
