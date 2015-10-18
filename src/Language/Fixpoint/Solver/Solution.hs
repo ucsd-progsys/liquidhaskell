@@ -17,6 +17,7 @@ module Language.Fixpoint.Solver.Solution
           -- * Lookup Solution
         , lookup
 
+          -- * RJ: What does this do ?
         , mkJVar
         )
 where
@@ -41,7 +42,12 @@ type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
 type Cand a   = [(F.Pred, a)]
 
+
+---------------------------------------------------------------------
+-- | Lookup Solution at KVar ----------------------------------------
+---------------------------------------------------------------------
 lookup :: Solution -> F.KVar -> KBind
+---------------------------------------------------------------------
 lookup s k = M.lookupDefault [] k s
 
 ---------------------------------------------------------------------
@@ -107,35 +113,34 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init fi = s
+init fi  = M.fromList keqs
   where
-    s   = L.foldl' (refine fi qs) s0 ws
-    s0  = M.empty
-    qs  = F.quals fi
-    ws  = F.ws    fi
+    keqs = refine  fi qs <$> ws
+    qs   = F.quals fi
+    ws   = F.ws    fi
+
 
 --------------------------------------------------------------------
 refine :: F.GInfo c a
        -> [F.Qualifier]
-       -> Solution
        -> F.WfC a
-       -> Solution
+       -> (F.KVar, KBind)
 --------------------------------------------------------------------
-refine fi qs s w = refineK env qs s (V.wfKvar w)
+refine fi qs w = refineK env qs w
   where
-    env          = wenv <> genv
-    wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-    genv         = (`F.RR` mempty) <$> F.lits fi
+    env        = wenv <> genv
+    wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
+    genv       = (`F.RR` mempty) <$> F.lits fi
 
 refineK :: F.SEnv F.SortedReft
         -> [F.Qualifier]
-        -> Solution
-        -> (F.Symbol, F.Sort, F.KVar)
-        -> Solution
-refineK env qs s (v, t, k) = M.insert k eqs' s
+        -> F.WfC a
+        -> (F.KVar, KBind)
+refineK env qs w = (k, eqs')
   where
-    eqs  = instK env v t qs
-    eqs' = filter (okInst env v t) eqs
+    eqs          = instK env v t qs
+    eqs'         = filter (okInst env v t) eqs
+    (v, t, k)    = V.wfKvar w
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
