@@ -23,7 +23,6 @@ import           Data.Functor ((<$>))
 import           Data.Monoid (mconcat, mempty)
 #endif
 
-
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M

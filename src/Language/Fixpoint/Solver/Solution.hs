@@ -27,8 +27,7 @@ where
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Control.Parallel.Strategies    -- (parMap)
--- import           Control.Seq                    (rdeepseq)
+import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -119,7 +118,6 @@ update1 s (k, qs) = (change, M.insert k qs s)
     oldQs         = lookup s k
     change        = length oldQs /= length qs
 
-
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
@@ -179,7 +177,6 @@ instKQ env v t q
     where
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
-
 
 instCands :: F.SEnv F.SortedReft -> [(F.Sort, [F.Symbol])]
 instCands env = filter isOk tyss
