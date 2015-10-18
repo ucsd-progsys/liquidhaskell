@@ -31,11 +31,11 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (thd3, traceShow)
-import Language.Fixpoint.Names (takeWhileSym, nilName, consName, dropModuleNames)
+import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
+import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId, dropModuleNames)
 import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types

@@ -41,7 +41,7 @@ import Language.Haskell.Liquid.GhcMisc (showPpr)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
+import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
 import Language.Haskell.Liquid.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types hiding (binders)
 import Language.Haskell.Liquid.Bounds
