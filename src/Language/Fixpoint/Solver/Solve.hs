@@ -112,22 +112,17 @@ result :: (F.Fixpoint a) => F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F
 ---------------------------------------------------------------------------
 result fi wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
-  stat    <- result_ fi wkl s
+  stat    <- result_ wkl s
   return   $ F.Result (F.WrapC <$> stat) sol
 
 
-result_ :: F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_ fi w s = do
-  pr  <- lift $ progressBar (fromIntegral $ length cs)
-  res <$> filterM (isUnsat' pr s) cs
+result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_  w s   = res <$> filterM isUnsat' cs
   where
     cs         = W.unsatCandidates w
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
-
-isUnsat' pr s c = do
-  lift $ progressTick True pr
-  isUnsat s c
+    isUnsat' c = lift progressTick >> isUnsat s c
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
@@ -142,8 +137,6 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SimpC a -> F.Pred
 rhsPred s c = S.apply s $ F.crhs c
-
-
 
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()

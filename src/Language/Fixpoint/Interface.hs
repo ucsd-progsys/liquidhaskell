@@ -61,28 +61,30 @@ type Solver a = Config -> FInfo a -> IO (Result a)
 
 -- | Solve an .fq file ----------------------------------------------------
 ---------------------------------------------------------------------------
-solveFQ :: Config -> IO ExitCode -- (Result ())
+solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg
-  | binary cfg    = saveBinary cfg
-  | otherwise     = exitCode <$> (sW s cfg =<< fi)
+solveFQ cfg = do fi    <- readFInfo file
+                 r     <- solve cfg fi
+                 return $ eCode r
   where
-    s             = configSolver cfg
-    sW            = configSW     cfg
-    fi            = readFInfo    file
-    file          = inFile       cfg
-    exitCode      = resultExit . resStatus
+    file    = inFile       cfg
+    eCode   = resultExit . resStatus
 
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
-solve :: (NFData a, Fixpoint a) => Solver a -- Config -> FInfo a -> IO (Result a)
+solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solve cfg fi      = do when (binary cfg) $ do
-                         putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
-                         saveBinaryFile cfg fi
-                       solve' cfg fi
+solve cfg fi
+  | parts cfg = partition  cfg $!! fi
+  | stats cfg = statistics cfg $!! fi
+  | otherwise = do saveBin cfg $!! fi
+                   sW s    cfg $!! fi
+  where
+    s         = configSolver cfg
+    sW        = configSW     cfg
 
-solve' :: (NFData a, Fixpoint a) => Solver a -- Config -> FInfo a -> IO (Result a)
+{-
+solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg fi
   | parts cfg     = partition      cfg $!! fi
   | stats cfg     = statistics     cfg $!! fi
@@ -90,6 +92,13 @@ solve' cfg fi
   | otherwise     =              s cfg $!! fi
   where
     s             = configSolver   cfg
+-}
+
+saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
+saveBin cfg fi = when (binary cfg) $ do
+  putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
+  saveBinaryFile cfg fi
+
 
 configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
 configSolver cfg
@@ -106,18 +115,6 @@ multicore cfg = mc || bin
   where
     mc        = cores cfg /= Just 1
     bin       = isBinary $ inFile cfg
-
----------------------------------------------------------------------------
--- | Sequential Solver ----------------------------------------------------
----------------------------------------------------------------------------
--- solveWith :: Solver a -> Config -> IO ExitCode
-solveWith :: (Fixpoint a) => Solver a -> Solver a
----------------------------------------------------------------------------
-solveWith s = s
--- exit (ExitFailure 2) $ do
-  -- fi    <- readFInfo (inFile cfg)
---  res   <- solver c fi
---   return res -- $ resultExit (resStatus res)
 
 ---------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo ())
