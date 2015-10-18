@@ -33,12 +33,9 @@ solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
     (r, s) <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
     printStats fi wkl s
-    -- print  s
-    -- print  ws
     return r
   where
-    wkl  = {- trace "W.init" $ -} W.init fi
-    -- ws   = W.stats wkl
+    wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
     act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
@@ -53,7 +50,6 @@ solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
-  -- lift $ donePhase Loud "Solution: Initialize"
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
   donePhase' "Solution: Fixpoint"
   st  <- stats
@@ -76,9 +72,6 @@ refine s w
 -- DEBUG
 refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
                     i (F.subcId c) (show b)
-  -- where
-    -- getId    = fromMaybe err . F.sid
-    -- err      = errorstar "Constraint without ID!"
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

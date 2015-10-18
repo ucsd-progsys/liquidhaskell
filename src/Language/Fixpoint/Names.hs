@@ -416,7 +416,7 @@ class Symbolic a where
   symbol :: a -> Symbol
 
 instance Symbolic T.Text where
-  symbol = textSymbol 
+  symbol = textSymbol
 
 instance Symbolic String where
   symbol = symbol . T.pack
@@ -482,7 +482,7 @@ prims = [ propConName
         , consName
         ]
 
-{- 
+{-
 -------------------------------------------------------------------------------
 -- | Memoized Decoding
 -------------------------------------------------------------------------------

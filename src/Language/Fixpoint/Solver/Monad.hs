@@ -20,7 +20,7 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
-import           Language.Fixpoint.Misc    (progressBar, progressTick, groupList)
+import           Language.Fixpoint.Misc    (progressTick, groupList)
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
@@ -45,7 +45,6 @@ type SolveM = StateT SolverState IO
 
 data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
                       , ssBinds   :: !F.BindEnv        -- ^ All variables and types
-                      , ssProgRef :: Maybe ProgressRef -- ^ Progress Bar
                       , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
@@ -74,11 +73,9 @@ runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
   ctx <-  makeContext (solver cfg) (inFile cfg)
-  pr  <- progressBar (fromIntegral t)
-  fst <$> runStateT (declare fi >> act) (SS ctx be pr $ stats0 fi)
+  fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
   where
-    be = F.bs fi
-
+    be = F.bs    fi
 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
@@ -169,6 +166,4 @@ tickIter :: Bool -> SolveM Int
 tickIter newScc = progIter newScc >> incIter >> getIter
 
 progIter :: Bool -> SolveM ()
-progIter newScc = do
-  pr  <- ssProgRef <$> get
-  lift $ progressTick newScc pr
+progIter newScc = lift $ when newScc progressTick

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -8,10 +7,12 @@
 
 module Language.Fixpoint.Misc where
 
+import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.Exception                (bracket_)
 import           Data.Hashable
+import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (forM_)
+import           Control.Monad                    (forM_, unless)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
@@ -24,7 +25,7 @@ import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
-import           System.ProgressBar -- ( percentage, exact, startProgress, incProgress )
+import           System.ProgressBar
 import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
 
 #ifdef MIN_VERSION_located_base
@@ -215,17 +216,23 @@ fM f = return . f
 -- | Progress Bar API
 ---------------------------------------------------------------------------
 
-progressTick :: Bool -> Maybe ProgressRef -> IO ()
-progressTick True (Just pr) = incProgress pr 1
-progressTick _         _    = return ()
+{-# NOINLINE progressBar_ #-}
+progressBar_ :: IORef (Maybe ProgressRef)
+progressBar_ = unsafePerformIO (newIORef Nothing) --  (newIORef M.empty)
 
-progressBar :: Integer -> IO (Maybe ProgressRef)
-progressBar n = do
+progressInit :: Integer -> IO ()
+progressInit n = do
   loud <- isLoud
-  if loud
-    then return Nothing
-    else mkPB n
+  unless loud $
+    (writeIORef progressBar_ . Just) =<< mkPB n
 
+mkPB   :: Integer -> IO ProgressRef
 mkPB n = do
   hSetBuffering stdout NoBuffering
-  Just . fst <$> startProgress percentage exact 80 n
+  fst <$> startProgress percentage exact 80 n
+
+progressTick :: IO ()
+progressTick    = go =<< readIORef progressBar_
+  where
+   go (Just pr) = incProgress pr 1
+   go _         = return ()

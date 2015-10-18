@@ -15,9 +15,9 @@ module Language.Fixpoint.Config (
   , defaultMaxPartSize
 ) where
 
+import           System.ProgressBar
 import           System.Console.CmdArgs
 import           Language.Fixpoint.Files
-
 
 class Command a  where
   command :: a -> String
@@ -37,26 +37,27 @@ defaultMaxPartSize = 700
 
 data Config
   = Config {
-      inFile      :: FilePath         -- ^ target fq-file
-    , outFile     :: FilePath         -- ^ output file
-    , srcFile     :: FilePath         -- ^ src file (*.hs, *.ts, *.c)
-    , cores       :: Maybe Int        -- ^ number of cores used to solve constraints
-    , minPartSize :: Int              -- ^ Minimum size of a partition
-    , maxPartSize :: Int              -- ^ Maximum size of a partition. Overrides minPartSize
-    , solver      :: SMTSolver        -- ^ which SMT solver to use
-    , genSorts    :: GenQualifierSort -- ^ generalize qualifier sorts
-    , ueqAllSorts :: UeqAllSorts      -- ^ use UEq on all sorts
-    , native      :: Bool             -- ^ use haskell solver
-    , real        :: Bool             -- ^ interpret div and mul in SMT
-    , newcheck    :: Bool             -- ^ new fixpoint sort check
-    , eliminate   :: Bool             -- ^ eliminate non-cut KVars
-    , elimStats   :: Bool             -- ^ print eliminate stats
-    , metadata    :: Bool             -- ^ print meta-data associated with constraints
-    , stats       :: Bool             -- ^ compute constraint statistics
-    , parts       :: Bool             -- ^ partition FInfo into separate fq files
-    , binary      :: Bool             -- ^ save FInfo as binary file
+      inFile      :: FilePath            -- ^ target fq-file
+    , outFile     :: FilePath            -- ^ output file
+    , srcFile     :: FilePath            -- ^ src file (*.hs, *.ts, *.c)
+    , cores       :: Maybe Int           -- ^ number of cores used to solve constraints
+    , minPartSize :: Int                 -- ^ Minimum size of a partition
+    , maxPartSize :: Int                 -- ^ Maximum size of a partition. Overrides minPartSize
+    , solver      :: SMTSolver           -- ^ which SMT solver to use
+    , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
+    , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
+    , native      :: Bool                -- ^ use haskell solver
+    , real        :: Bool                -- ^ interpret div and mul in SMT
+    , newcheck    :: Bool                -- ^ new fixpoint sort check
+    , eliminate   :: Bool                -- ^ eliminate non-cut KVars
+    , elimStats   :: Bool                -- ^ print eliminate stats
+    , metadata    :: Bool                -- ^ print meta-data associated with constraints
+    , stats       :: Bool                -- ^ compute constraint statistics
+    , parts       :: Bool                -- ^ partition FInfo into separate fq files
+    , binary      :: Bool                -- ^ save FInfo as binary file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
+
 
 instance Default Config where
   def = Config { inFile      = ""
