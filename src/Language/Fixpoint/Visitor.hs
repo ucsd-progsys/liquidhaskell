@@ -23,7 +23,7 @@ module Language.Fixpoint.Visitor (
   , mapKVars, mapKVars', mapKVarSubsts
   , lhsKVars, rhsKVars
   , wfKvar
-  
+
   -- * Predicates on Constraints
   , isConcC , isKvarC
 
@@ -119,8 +119,8 @@ instance Visitable BindEnv where
 --  check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do
-    rhs' <- visit v c (crhs x)
-    return x { crhs = rhs' }
+    rhs' <- visit v c (_crhs x)
+    return x { _crhs = rhs' }
 
 instance Visitable (SInfo a) where
   visit v c x = do
@@ -223,10 +223,10 @@ lhsKVars binds c = envKVs ++ lhsKVs
 rhsKVars :: SubC a -> [KVar]
 rhsKVars = kvars . rhsCs
 
-isKvarC :: SimpC a -> Bool
+isKvarC :: (TaggedC c a) => c a -> Bool
 isKvarC = all isKvar . conjuncts . crhs
 
-isConcC :: SimpC a -> Bool
+isConcC :: (TaggedC c a) => c a -> Bool
 isConcC = all isConc . conjuncts . crhs
 
 isKvar :: Pred -> Bool

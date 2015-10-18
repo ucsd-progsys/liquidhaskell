@@ -77,7 +77,7 @@ module Language.Fixpoint.Types (
   , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , SimpC (..)
   , Tag
-  , TaggedC, WrappedC (..)
+  , TaggedC, WrappedC (..), crhs
 
   -- * Accessing Constraints
   , envCs
@@ -925,7 +925,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
               deriving (Eq, Generic, Functor)
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
-                     , crhs  :: !Pred
+                     , _crhs  :: !Pred
                      , _cid   :: !(Maybe Integer)
                      , _ctag  :: !Tag
                      , _cinfo :: !a
@@ -937,18 +937,21 @@ class TaggedC c a where
   sid   :: (c a) -> Maybe Integer
   stag  :: (c a) -> Tag
   sinfo :: (c a) -> a
+  crhs  :: (c a) -> Pred
 
 instance TaggedC SimpC a where
   senv  = _cenv
   sid   = _cid
   stag  = _ctag
   sinfo = _cinfo
+  crhs  = _crhs
 
 instance TaggedC SubC a where
   senv  = _senv
   sid   = _sid
   stag  = _stag
   sinfo = _sinfo
+  crhs  = reftPred . sr_reft . srhs
 
 data WrappedC a where
   WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
@@ -957,10 +960,11 @@ instance Show (WrappedC a) where
   show (WrapC x) = show x
 
 instance TaggedC WrappedC a where
-  senv (WrapC x)  = senv x
-  sid (WrapC x)   = sid x
-  stag (WrapC x)  = stag x
+  senv  (WrapC x) = senv  x
+  sid   (WrapC x) = sid   x
+  stag  (WrapC x) = stag  x
   sinfo (WrapC x) = sinfo x
+  crhs  (WrapC x) = crhs  x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
@@ -1979,7 +1983,7 @@ convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
   { _cenv     = senv s
-  , crhs      = reftPred $ sr_reft $ srhs s
+  , _crhs     = reftPred $ sr_reft $ srhs s
   , _cid      = sid s
   , _ctag     = stag s
   , _cinfo    = sinfo s
