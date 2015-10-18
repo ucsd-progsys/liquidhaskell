@@ -11,10 +11,9 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
 import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
+import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-
-
 
 
 
@@ -212,7 +211,7 @@ instance PPrint Reft where
 instance PPrint SortedReft where
   pprint (RR so (Reft (v, ras)))
     = braces
-    $ (pprint v) <+> (text ":") <+> (toFix so) <+> (text "|") <+> pprint ras
+    $ pprint v <+> text ":" <+> toFix so <+> text "|" <+> pprint ras
 
 instance PPrint a => PPrint (Located a) where
   pprint (Loc _ _ x) = pprint x
@@ -229,4 +228,24 @@ class PTable a where
   ptable :: a -> DocTable
 
 instance PPrint DocTable where
-  pprint (DocTable kvs) = error "FIXME"
+  pprint (DocTable kvs) = boxDoc $ B.hsep 1 B.left [ks', cs', vs']
+    where
+      (ks, vs)          = unzip kvs
+      n                 = length kvs
+      ks'               = B.vcat B.left $ docBox <$> ks
+      vs'               = B.vcat B.left $ docBox <$> vs
+      cs'               = B.vcat B.left $ replicate n $ B.text ":"
+
+boxHSep :: Doc -> Doc -> Doc
+boxHSep d1 d2 = boxDoc $ B.hcat B.top [docBox d1, docBox d2]
+
+boxDoc :: B.Box -> Doc
+boxDoc = text . B.render
+
+docBox :: Doc -> B.Box
+docBox = B.text . render
+
+instance PTable (SInfo a) where
+  ptable fi = DocTable [ (text "# Sub Constraints", pprint $ length $ cm fi)
+                       , (text "# WF  Constraints", pprint $ length $ ws fi)
+                       ]

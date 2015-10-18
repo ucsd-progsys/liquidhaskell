@@ -5,7 +5,7 @@
 
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
-         Worklist
+         Worklist, Stats
 
          -- * Initialize
        , init
@@ -20,7 +20,8 @@ module Language.Fixpoint.Solver.Worklist
        , unsatCandidates
 
          -- * Statistics
-       , stats, numSccs
+       , wRanks
+       -- , stats, numSccs
        )
        where
 
@@ -61,6 +62,13 @@ data Stats = Stats { numKvarCs  :: !Int
 instance PPrint (Worklist a) where
   pprint = pprint . S.toList . wCs
 
+instance PTable Stats where
+  ptable s = DocTable [ (text "# Sliced Constraints", pprint (numKvarCs s))
+                      , (text "# Target Constraints", pprint (numConcCs s))
+                      ]
+
+instance PTable (Worklist a) where
+  ptable = ptable . stats
 
 
 -- | WorkItems ------------------------------------------------------------

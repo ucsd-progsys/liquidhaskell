@@ -1,5 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
@@ -22,6 +24,11 @@ module Language.Fixpoint.Solver.Solution
         )
 where
 
+import           Data.Generics             (Data)
+import           Data.Typeable             (Typeable)
+import           GHC.Generics              (Generic)
+import           Control.Parallel.Strategies    -- (parMap)
+-- import           Control.Seq                    (rdeepseq)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -63,10 +70,14 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
                  , eqArgs :: ![F.Expr]
                  }
-             deriving (Eq, Show)
+             deriving (Eq, Show, Data, Typeable, Generic)
 
 instance PPrint EQual where
   pprint = pprint . eqPred
+
+instance NFData EQual
+--  where
+  -- rnf (EQL q p _) = rnf q `seq` rnf p
 
 {- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
@@ -115,7 +126,9 @@ init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
 init fi  = M.fromList keqs
   where
-    keqs = refine  fi qs <$> ws
+    -- PARALLELIZE THIS!
+    -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
+    keqs = map (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
     qs   = F.quals fi
     ws   = F.ws    fi
 

@@ -32,18 +32,20 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 solve cfg s0 fi = do
     donePhase Loud "Worklist Initialize"
     (r, s) <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
-    print  s
-    print  ws
+    printStats fi wkl s
+    -- print  s
+    -- print  ws
     return r
   where
     wkl  = {- trace "W.init" $ -} W.init fi
-    ws   = W.stats wkl
-    n    = fromIntegral $ W.numSccs ws
+    -- ws   = W.stats wkl
+    n    = fromIntegral $ W.wRanks wkl
     act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
-printStats :: F.SInfo a -> Stats -> W.Stats -> IO ()
-printStats fi s ws = do
-
+printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
+printStats fi w s = ppTs [ ptable fi, ptable s, ptable w ]
+  where
+    ppTs          = putStrLn . showpp . mconcat
 
 
 ---------------------------------------------------------------------------

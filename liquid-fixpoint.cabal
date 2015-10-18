@@ -110,6 +110,8 @@ Executable fixpoint.native
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
@@ -140,6 +142,8 @@ Executable fixpoint
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
@@ -202,6 +206,8 @@ Library
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
