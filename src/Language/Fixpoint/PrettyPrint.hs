@@ -232,9 +232,9 @@ instance PPrint DocTable where
     where
       (ks, vs)          = unzip kvs
       n                 = length kvs
-      ks'               = B.vcat B.left $ docBox <$> ks
-      vs'               = B.vcat B.left $ docBox <$> vs
-      cs'               = B.vcat B.left $ replicate n $ B.text ":"
+      ks'               = B.vcat B.left  $ docBox <$> ks
+      vs'               = B.vcat B.right $ docBox <$> vs
+      cs'               = B.vcat B.left  $ replicate n $ B.text ":"
 
 boxHSep :: Doc -> Doc -> Doc
 boxHSep d1 d2 = boxDoc $ B.hcat B.top [docBox d1, docBox d2]
