@@ -934,7 +934,7 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
 
 class TaggedC c a where
   senv  :: (c a) -> IBindEnv
-  sid   :: (c a) -> (Maybe Integer)
+  sid   :: (c a) -> Maybe Integer
   stag  :: (c a) -> Tag
   sinfo :: (c a) -> a
 
@@ -1971,25 +1971,26 @@ mcInfo c = do
 ---------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 ---------------------------------------------------------------------------
-convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
+convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
   where
-    fi' = foldl blowOutVV fi (M.keys $ cm fi)
+    fi'          = foldl' blowOutVV fi is
+    is           = M.keys $ cm fi
 
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
-  { _cenv  = senv s
-  , crhs   = reftPred $ sr_reft $ srhs s
-  , _cid   = sid s
-  , _ctag  = stag s
-  , _cinfo = sinfo s
+  { _cenv     = senv s
+  , crhs      = reftPred $ sr_reft $ srhs s
+  , _cid      = sid s
+  , _ctag     = stag s
+  , _cinfo    = sinfo s
   }
 
 blowOutVV :: FInfo a -> Integer -> FInfo a
 blowOutVV fi scId = fi { bs = be', cm = cm' }
   where
-    subc = cm fi M.! scId
-    sr   = slhs subc
-    x    = reftBind $ sr_reft sr
+    subc          = cm fi M.! scId
+    sr            = slhs subc
+    x             = reftBind $ sr_reft sr
     (bindId, be') = insertBindEnv x sr $ bs fi
-    subc' = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
-    cm' = M.insert scId subc' $ cm fi
+    subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
+    cm'           = M.insert scId subc' $ cm fi

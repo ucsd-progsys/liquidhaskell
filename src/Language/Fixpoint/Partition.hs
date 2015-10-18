@@ -56,10 +56,10 @@ partition' mn fi  = case mn of
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
 -- amounts of work
-partitionN :: F.MCInfo -- ^ describes thresholds and partiton amounts
-              -> F.FInfo a -- ^ The originial FInfo
-              -> [F.CPart a] -- ^ A list of the smallest possible CParts
-              -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
+partitionN :: F.MCInfo    -- ^ describes thresholds and partiton amounts
+           -> F.FInfo a   -- ^ The originial FInfo
+           -> [F.CPart a] -- ^ A list of the smallest possible CParts
+           -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
 partitionN mi fi cp
    | cpartSize (finfoToCpart fi) <= minThresh = [fi]
    | otherwise = map (cpartToFinfo fi) $ toNParts sortedParts
@@ -79,11 +79,11 @@ partitionN mi fi cp
          | cpartSize lhs < cpartSize rhs = GT
          | cpartSize lhs > cpartSize rhs = LT
          | otherwise = EQ
-      insertSorted a [] = [a]
+      insertSorted a []     = [a]
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
-                              else a:x:xs
-      prts = F.mcCores mi
+                              else a : x : xs
+      prts      = F.mcCores mi
       minThresh = F.mcMinPartSize mi
       maxThresh = F.mcMaxPartSize mi
 
@@ -208,10 +208,9 @@ type KVGraph  = [(CVertex, CVertex, [CVertex])]
 type Comps a  = [[a]]
 type KVComps  = Comps CVertex
 
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
--------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 decompose kg = map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
@@ -230,7 +229,6 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
 
 fiKVars :: F.FInfo a -> [F.KVar]
 fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
-
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.lhsKVars bs c]

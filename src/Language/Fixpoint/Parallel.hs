@@ -36,11 +36,12 @@ displayException :: SomeException -> String
 displayException = show
 #endif
 
+-------------------------------------------------------------------------------
 -- | Solve a list of FInfos using the provided solver function in parallel
-inParallelUsing :: [FInfo a] -- ^ To solve in parallel
-                   -> (FInfo a -> IO (Result a)) -- ^ The solver function
-                   -> IO (Result a) -- ^ The combined results
-inParallelUsing finfos a = do
+-------------------------------------------------------------------------------
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing a finfos = do
    setNumCapabilities (length finfos)
    fw <- newChan
    let action i = do

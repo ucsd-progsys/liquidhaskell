@@ -140,17 +140,17 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 ---------------------------------------------------------------------------
 solveParWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
-solveParWith solver c fi = do
+solveParWith s c fi = do
    mci <- mcInfo c
    let (_, fis) = partition' (Just mci) fi
-   writeLoud $ "Number of partitions: " ++ show (length fis)
-   writeLoud $ "number of cores: "      ++ show (cores c)
-   writeLoud $ "minimum part size: "    ++ show (minPartSize c)
-   writeLoud $ "maximum part size: "    ++ show (maxPartSize c)
+   writeLoud $ "Number of partitions : " ++ show (length fis)
+   writeLoud $ "number of cores      : " ++ show (cores c)
+   writeLoud $ "minimum part size    : " ++ show (minPartSize c)
+   writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
    case fis of
       []        -> errorstar "partiton' returned empty list!"
-      [onePart] -> solver c onePart
-      _         -> inParallelUsing fis (solver c)
+      [onePart] -> s c onePart
+      _         -> inParallelUsing fis (s c)
 
 
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
