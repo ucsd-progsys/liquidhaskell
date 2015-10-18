@@ -19,6 +19,7 @@ module Language.Fixpoint.Sort  (
 
   -- * Unify
   , unify
+  , unifyFast
 
   -- * Apply Substitution
   , apply
@@ -29,6 +30,7 @@ module Language.Fixpoint.Sort  (
 
   -- * Predicates on Sorts
   , isFirstOrder
+  , isMono
   ) where
 
 
@@ -50,12 +52,29 @@ import           Text.Printf
 -- | Predicates on Sorts ------------------------------------------------
 -------------------------------------------------------------------------
 
+-------------------------------------------------------------------------
 isFirstOrder :: Sort -> Bool
+-------------------------------------------------------------------------
 isFirstOrder t      = foldSort f 0 t <= 1
   where
+    f :: Int -> Sort -> Int
     f n (FFunc _ _) = n + 1
     f n _           = n
 
+
+-------------------------------------------------------------------------
+isMono :: Sort -> Bool
+-------------------------------------------------------------------------
+isMono             = null . foldSort fv []
+  where
+    fv vs (FVar i) = i : vs
+    fv vs _        = vs
+
+-- NUKE  fVars :: Sort -> [Int]
+-- NUKE  fVars (FVar i)     = [i]
+-- NUKE  fVars (FFunc _ ts) = concatMap fVars ts
+-- NUKE  fVars (FApp t1 t2) = fVars t1 ++ fVars t2
+-- NUKE  fVars _            = []
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -63,21 +82,21 @@ isFirstOrder t      = foldSort f 0 t <= 1
 
 -- | Types used throughout checker
 
-type StateM = Int 
+type StateM = Int
 
 newtype CheckM a = CM {runCM :: StateM -> (StateM, Either String a)}
 type Env      = Symbol -> SESearch Sort
 
 instance Monad CheckM where
   return x     = CM $ \i -> (i, Right x)
-  (CM m) >>= f = CM $ \i -> case m i of 
+  (CM m) >>= f = CM $ \i -> case m i of
                              (j, Left s)  -> (j, Left s)
-                             (j, Right x) -> runCM (f x) j 
+                             (j, Right x) -> runCM (f x) j
 
 
 instance MonadError String CheckM where
-  throwError s = CM $ \i -> (i, Left s) 
-  (CM m) `catchError` f = CM $ \i -> case m i of 
+  throwError s = CM $ \i -> (i, Left s)
+  (CM m) `catchError` f = CM $ \i -> case m i of
                                       (j, Left s) -> runCM (f s) j
                                       (j, Right x) -> (j, Right x)
 
@@ -86,7 +105,7 @@ instance Functor CheckM where
 
 instance Applicative CheckM where
   pure x     = CM $ \i -> (i, Right x)
-  (CM f) <*> (CM m) = CM $ \i -> case m i of 
+  (CM f) <*> (CM m) = CM $ \i -> case m i of
                              (j, Left s)  -> (j, Left s)
                              (j, Right x) -> case f i of
                                  (k, Left s)  -> (k, Left s)
@@ -97,15 +116,15 @@ runCM0 act = snd $ runCM act initCM
 
 class Freshable a where
   fresh   :: CheckM a
-  refresh :: a -> CheckM a  
-  refresh _ = fresh 
+  refresh :: a -> CheckM a
+  refresh _ = fresh
 
 instance Freshable Int where
   fresh = CM (\n -> (n+1, Right n))
 
 instance Freshable [Int] where
   fresh   = mapM (\_ -> fresh) [0..]
-  refresh = mapM refresh  
+  refresh = mapM refresh
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -240,7 +259,7 @@ checkApp f to g es
 -- | Helper for checking uninterpreted function applications
 checkApp' f to g es
   = do gt           <- checkLocSym f g
-       gt'          <- generalize gt 
+       gt'          <- generalize gt
        (_, its, ot) <- sortFunction gt'
        unless (length its == length es) $ throwError (errArgArity g its es)
        ets          <- mapM (checkExpr f) es
@@ -357,24 +376,27 @@ isAppTy (FApp _ _) = True
 isAppTy _          = False
 
 
--- isPoly :: Sort -> Bool
--- isPoly = not . null . fVars
-
-fVars :: Sort -> [Int]
-fVars (FVar i)     = [i]
-fVars (FFunc _ ts) = concatMap fVars ts
-fVars (FApp t1 t2) = fVars t1 ++ fVars t2
-fVars _            = []
-
-
 -------------------------------------------------------------------------
--- | Unification of Sorts
+-- | Sort Unification
 -------------------------------------------------------------------------
 unify :: Sort -> Sort -> Maybe TVSubst
 -------------------------------------------------------------------------
 unify t1 t2 = case runCM0 $ unify1 emptySubst t1 t2 of
                 Left _   -> Nothing
                 Right su -> Just su
+
+
+-------------------------------------------------------------------------
+-- | Fast Unification; `unifyFast True` is just equality
+-------------------------------------------------------------------------
+unifyFast :: Bool -> Sort -> Sort -> Maybe TVSubst
+-------------------------------------------------------------------------
+unifyFast False  = unify
+unifyFast True   = uMono
+  where
+    uMono t1 t2
+     | t1 == t2  = Just emptySubst
+     | otherwise = Nothing
 
 -------------------------------------------------------------------------
 unifys :: [Sort] -> [Sort] -> CheckM TVSubst
@@ -391,14 +413,14 @@ unify1 θ (FVar i) t         = unifyVar θ i t
 unify1 θ t (FVar i)         = unifyVar θ i t
 unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
-unify1 θ (FTC l1) (FTC l2) 
-  | isListTC l1 && isListTC l2          = return θ 
+unify1 θ (FTC l1) (FTC l2)
+  | isListTC l1 && isListTC l2          = return θ
 unify1 θ t1@(FFunc _ _ ) t2@(FFunc _ _) = do FFunc _ ts1 <- generalize t1
-                                             FFunc _ ts2 <- generalize t2  
+                                             FFunc _ ts2 <- generalize t2
                                              unifyMany θ ts1 ts2
-unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1  
+unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1
                                              unifyMany θ [t1'] [t2]
-unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2 
+unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2
                                              unifyMany θ [t1] [t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
@@ -406,17 +428,17 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst su t@(FVar i)   = fromMaybe t (lookup i su) 
+subst su t@(FVar i)   = fromMaybe t (lookup i su)
 subst su (FApp t1 t2) = FApp (subst su t1) (subst su t2)
 subst _  (FTC l)      = FTC l
 subst su (FFunc i ts) = FFunc i (subst su <$> ts)
 subst _  s            = s
 
-generalize (FFunc n ts) 
+generalize (FFunc n ts)
   = do vs     <- refresh [0..n-1]
        let sub = zip [0..n-1] (FVar <$> vs)
        return $ FFunc 0 $ subst sub <$> ts
-generalize t 
+generalize t
   = return t
 
 unifyVar :: TVSubst -> Int -> Sort -> CheckM TVSubst
@@ -427,7 +449,7 @@ unifyVar θ i t@(FVar j)
 
 unifyVar θ i t
   = case lookupVar i θ of
-      Just (FVar j) -> return $ updateVar i t $ updateVar j t θ 
+      Just (FVar j) -> return $ updateVar i t $ updateVar j t θ
       Just t'       -> if t == t' then return θ else unify1 θ t t'
       Nothing       -> return $ updateVar i t θ
 

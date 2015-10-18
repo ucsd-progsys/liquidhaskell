@@ -173,30 +173,49 @@ instKQ :: F.SEnv F.SortedReft
        -> F.Qualifier
        -> [EQual]
 instKQ env v t q
-  = do (su0, v0) <- candidates [(v, t)] qt
-       xs        <- match xts [v0] (So.apply su0 <$> qts)
+  = do (su0, v0) <- candidates [(t, [v])] qt
+       xs        <- match tyss [v0] (So.apply su0 <$> qts)
        return     $ eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       xts        = instCands env
+       tyss       = instCands env
+
+instCands :: F.SEnv F.SortedReft -> [(F.Sort, [F.Symbol])]
+instCands env = filter isOk tyss
+  where
+    tyss      = groupList [(t, x) | (x, t) <- xts]
+    isOk      = isNothing . F.functionSort . fst
+    xts       = F.toListSEnv $ F.sr_sort <$> env
+
+match :: [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
+match tyss xs (t : ts)
+  = do (su, x) <- candidates tyss t
+       match tyss (x : xs) (So.apply su <$> ts)
+match _   xs []
+  = return xs
+
+{- OLD
 
 instCands :: F.SEnv F.SortedReft -> [(F.Symbol, F.Sort)]
 instCands = filter isOk . F.toListSEnv . fmap F.sr_sort
   where
     isOk  = isNothing . F.functionSort . snd
 
-match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
-match xts xs (t : ts)
-  = do (su, x) <- candidates xts t
-       match xts (x : xs) (So.apply su <$> ts)
-match _   xs []
-  = return xs
-
------------------------------------------------------------------------
 candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
------------------------------------------------------------------------
 candidates xts t'
   = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
+
+-}
+
+-----------------------------------------------------------------------
+candidates :: [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
+-----------------------------------------------------------------------
+candidates tyss tx
+  = [(su, y) | (t, ys) <- tyss
+             , su      <- maybeToList $ So.unifyFast mono tx t
+             , y       <- ys                                   ]
+  where
+    mono = So.isMono tx
 
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
