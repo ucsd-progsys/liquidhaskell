@@ -52,16 +52,54 @@ import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
+
 ---------------------------------------------------------------------------
--- | Solve .fq File -------------------------------------------------------
+-- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
-solveFQ :: Config -> IO ExitCode
+
+type Solver a = Config -> FInfo a -> IO (Result a)
+
+-- | Solve an .fq file ----------------------------------------------------
+---------------------------------------------------------------------------
+solveFQ :: Config -> IO ExitCode -- (Result ())
 ---------------------------------------------------------------------------
 solveFQ cfg
   | binary cfg    = saveBinary cfg
-  | native cfg    = solveWith cfg (solve    cfg)
-  | multicore cfg = solveWith cfg (solvePar cfg)
-  | otherwise     = solveFile cfg
+  | otherwise     = exitCode <$> (sW s cfg =<< fi)
+  where
+    s             = configSolver cfg
+    sW            = configSW     cfg
+    fi            = readFInfo    file
+    file          = inFile       cfg
+    exitCode      = resultExit . resStatus
+
+-- | Solve FInfo system of horn-clause constraints ------------------------
+---------------------------------------------------------------------------
+solve :: (NFData a, Fixpoint a) => Solver a -- Config -> FInfo a -> IO (Result a)
+---------------------------------------------------------------------------
+solve cfg fi      = do when (binary cfg) $ do
+                         putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
+                         saveBinaryFile cfg fi
+                       solve' cfg fi
+
+solve' :: (NFData a, Fixpoint a) => Solver a -- Config -> FInfo a -> IO (Result a)
+solve' cfg fi
+  | parts cfg     = partition      cfg $!! fi
+  | stats cfg     = statistics     cfg $!! fi
+  | multicore cfg = solveParWith s cfg $!! fi
+  | otherwise     =              s cfg $!! fi
+  where
+    s             = configSolver   cfg
+
+configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
+configSolver cfg
+  | native cfg = solveNative
+  | otherwise  = solveExt
+
+configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
+configSW cfg
+  | multicore cfg = solveParWith
+  | otherwise     = id
 
 multicore :: Config -> Bool
 multicore cfg = mc || bin
@@ -70,61 +108,20 @@ multicore cfg = mc || bin
     bin       = isBinary $ inFile cfg
 
 ---------------------------------------------------------------------------
--- | Solve FInfo system of horn-clause constraints ------------------------
+-- | Sequential Solver ----------------------------------------------------
 ---------------------------------------------------------------------------
-solve :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+-- solveWith :: Solver a -> Config -> IO ExitCode
+solveWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
-solve cfg fi      = do when (binary cfg) $ do
-                         putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
-                         saveBinaryFile cfg fi
-                       solve' cfg fi
-
-solve' :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solve' cfg fi
-  | parts cfg     = partition cfg  $!! fi
-  | stats cfg     = statistics cfg $!! fi
-  | native cfg    = {-# SCC "solveNative" #-} solveNativeWithFInfo cfg $!! fi
-  | multicore cfg = solvePar cfg $!! fi
-  | otherwise     = solveExt cfg $!! fi
+solveWith s = s
+-- exit (ExitFailure 2) $ do
+  -- fi    <- readFInfo (inFile cfg)
+--  res   <- solver c fi
+--   return res -- $ resultExit (resStatus res)
 
 ---------------------------------------------------------------------------
--- | Save Query to Binary File
----------------------------------------------------------------------------
-saveBinary :: Config -> IO ExitCode
-saveBinary cfg
-  | isBinary f = return ExitSuccess
-  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
-                                        saveBinaryFile cfg >>
-                                        return ExitSuccess
-  where
-    f          = inFile cfg
-
-saveBinaryFile :: Config -> FInfo a -> IO ()
-saveBinaryFile cfg fi = do
-  let fi'  = void fi
-  let file = binaryFile cfg
-  putStrLn $ "Saving Binary File: " ++ file ++ "\n"
-  ensurePath file
-  encodeFile file fi'
-
-binaryFile :: Config -> FilePath
-binaryFile cfg = extFileName BinFq f
-  where
-    f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
-
-isBinary :: FilePath -> Bool
-isBinary = isExtFile BinFq
-
----------------------------------------------------------------------------
--- | Native Haskell Solver
----------------------------------------------------------------------------
-solveWith :: Config -> (FInfo () -> IO (Result ())) -> IO ExitCode
-solveWith cfg s = exit (ExitFailure 2) $ do
-  fi    <- readFInfo (inFile cfg)
-  res   <- s fi
-  return $ resultExit (resStatus res)
-
 readFInfo :: FilePath -> IO (FInfo ())
+---------------------------------------------------------------------------
 readFInfo f        = fixFileName <$> act
   where
     fixFileName fi = fi {fileName = f}
@@ -140,6 +137,23 @@ readFq file = do
 
 readBinFq :: FilePath -> IO (FInfo ())
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
+
+---------------------------------------------------------------------------
+-- | Solve in parallel after partitioning an FInfo to indepdendant parts
+---------------------------------------------------------------------------
+solveParWith :: (Fixpoint a) => Solver a -> Solver a
+---------------------------------------------------------------------------
+solveParWith solver c fi = do
+   mci <- mcInfo c
+   let (_, fis) = partition' (Just mci) fi
+   writeLoud $ "Number of partitions: " ++ show (length fis)
+   writeLoud $ "number of cores: "      ++ show (cores c)
+   writeLoud $ "minimum part size: "    ++ show (minPartSize c)
+   writeLoud $ "maximum part size: "    ++ show (maxPartSize c)
+   case fis of
+      []        -> errorstar "partiton' returned empty list!"
+      [onePart] -> solver c onePart
+      _         -> inParallelUsing fis (solver c)
 
 
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
@@ -171,8 +185,12 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
     -- DEBUG litLength    = length . toListSEnv . lits
     -- DEBUG qLength      = length . quals
 
-solveNativeWithFInfo :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo !cfg !fi = do
+---------------------------------------------------------------------------
+-- | Native Haskell Solver ------------------------------------------------
+---------------------------------------------------------------------------
+solveNative :: (NFData a, Fixpoint a) => Solver a
+---------------------------------------------------------------------------
+solveNative !cfg !fi = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   rnf fi `seq` donePhase Loud "Read Constraints"
   let fi' = fi { quals = remakeQual <$> quals fi }
@@ -215,28 +233,13 @@ remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (
     msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
--- | External Ocaml Solver
+-- | External Ocaml Solver ------------------------------------------------
 ---------------------------------------------------------------------------
-solveExt :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
+solveExt :: (Fixpoint a) => Solver a
 solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
                 >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
   where
     fn          = fileName fi -- srcFile cfg
-
--- | Partitions an FInfo into 1 or more independent parts, then
---   calls solveExt on each in parallel
-solvePar :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solvePar c fi = do
-   mci <- mcInfo c
-   let (_, fis) = partition' (Just mci) fi
-   writeLoud $ "Number of partitions: " ++ show (length fis)
-   writeLoud $ "number of cores: "      ++ show (cores c)
-   writeLoud $ "minimum part size: "    ++ show (minPartSize c)
-   writeLoud $ "maximum part size: "    ++ show (maxPartSize c)
-   case fis of
-      [] -> errorstar "partiton' returned empty list!"
-      [onePart] -> solveExt c onePart
-      _ -> inParallelUsing fis (solveExt c)
 
 execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
 execFq cfg fn fi
@@ -290,6 +293,9 @@ chopAfter f xs
       Just n  -> take n xs
       Nothing -> xs
 
+
+---------------------------------------------------------------------------
+-- | Extract ExitCode from Solver Result ----------------------------------
 ---------------------------------------------------------------------------
 resultExit :: FixResult a -> ExitCode
 ---------------------------------------------------------------------------
@@ -311,3 +317,33 @@ parseFI f = do
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
                   , lits  = lits   fi }
+
+
+---------------------------------------------------------------------------
+-- | Save Query to Binary File
+---------------------------------------------------------------------------
+saveBinary :: Config -> IO ExitCode
+---------------------------------------------------------------------------
+saveBinary cfg
+  | isBinary f = return ExitSuccess
+  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
+                                        saveBinaryFile cfg >>
+                                        return ExitSuccess
+  where
+    f          = inFile cfg
+
+saveBinaryFile :: Config -> FInfo a -> IO ()
+saveBinaryFile cfg fi = do
+  let fi'  = void fi
+  let file = binaryFile cfg
+  putStrLn $ "Saving Binary File: " ++ file ++ "\n"
+  ensurePath file
+  encodeFile file fi'
+
+binaryFile :: Config -> FilePath
+binaryFile cfg = extFileName BinFq f
+  where
+    f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+
+isBinary :: FilePath -> Bool
+isBinary = isExtFile BinFq
