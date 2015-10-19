@@ -31,13 +31,13 @@ solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
-    (r, s) <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
+    (r, s) <- runSolverM cfg fi n act
     whenLoud $ printStats fi wkl s
     return r
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
-    act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
+    act  = solve_ fi s0 wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]

@@ -242,7 +242,7 @@ wfKvar :: WfC a -> (Symbol, Sort, KVar)
 wfKvar w@(WfC {wrft = sr})
   | Reft (v, Refa (PKVar k su)) <- sr_reft sr
   , isEmptySubst su = (v, sr_sort sr, k)
-  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show (wid w)
+  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show sr -- (wid w)
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
