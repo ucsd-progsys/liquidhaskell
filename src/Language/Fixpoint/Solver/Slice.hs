@@ -126,7 +126,7 @@ kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
     bs      = F.bs fi
 
 ---------------------------------------------------------------------------
-isTarget :: F.SubC a -> Bool
+isTarget :: (F.TaggedC c a) => c a -> Bool
 ---------------------------------------------------------------------------
 isTarget c   = isConcC c && isNonTriv c
   where
