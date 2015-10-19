@@ -118,6 +118,7 @@ solveCs cfg target cgi info dc
                        , FC.real        = real        cfg
                        , FC.newcheck    = newcheck    cfg
                        , FC.native      = native      cfg
+                       , FC.eliminate   = eliminate   cfg
                        , FC.binary      = native      cfg
                        , FC.srcFile     = target
                        , FC.cores       = cores       cfg

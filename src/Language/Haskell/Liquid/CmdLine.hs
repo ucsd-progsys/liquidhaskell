@@ -101,7 +101,7 @@ config = cmdArgsMode $ Config {
           &= help "Supports real number arithmetic"
 
  , exactDC 
-    = def &= help "Ecaxt Type for Data Constructors"
+    = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
  , native
