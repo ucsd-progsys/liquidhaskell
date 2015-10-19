@@ -13,6 +13,7 @@ import CoreSyn hiding (Expr)
 import HscTypes
 import Id
 import NameSet
+import Name 
 import TyCon
 import Var
 import TysWiredIn
@@ -29,12 +30,12 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (thd3)
+import Language.Fixpoint.Misc (thd3, traceShow)
 import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc (getSourcePosE, getSourcePos, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId, dropModuleNames)
 import Language.Haskell.Liquid.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Types
@@ -124,7 +125,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
        (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 cbs specs dcSs datacons cls embs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
-       syms                                    <- makeSymbols (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
+       syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        return (emptySpec cfg)
          >>= makeGhcSpec0 cfg defVars exports name
@@ -134,6 +135,33 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec4 defVars specs name su
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms cbs name specs
+         >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)  
+
+
+makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
+makeExactDataCons n flag vs spec 
+  | flag      = return $ spec {tySigs = (tySigs spec) ++ xts}
+  | otherwise = return spec 
+  where 
+    xts = makeExact <$> (filter isDataConId $ filter (varInModule n) vs) 
+
+varInModule n v = L.isPrefixOf (show n) $ show v
+
+makeExact :: Var -> (Var, Located SpecType)
+makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+  where 
+    t    :: SpecType
+    t    = ofType $ varType x 
+    trep = toRTypeRep t 
+    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+
+    res  = ty_res trep `strengthen` U ref mempty mempty
+    vv   = vv_
+    x'   = symbol x --  simpleSymbolVar x 
+    ref  = Reft (vv, Refa $ PAtom Eq (EVar vv) eq)
+    eq   | null (ty_vars trep) && null xs = EVar x'
+         | otherwise = EApp (dummyLoc x') (EVar <$> xs)
+
 
 makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec
 makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec
@@ -144,9 +172,9 @@ makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
 makeAxioms cbs spec sp 
   = do lmap          <- logicEnv <$> get
        (ms, tys, as) <- unzip3 <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)  
-       return $ spec { meas    = ms        ++  meas   spec 
-                     , asmSigs = tys       ++ asmSigs spec
-                     , axioms  = concat as ++ axioms spec } 
+       return $ spec { meas    = ms         ++  meas   spec 
+                     , asmSigs = concat tys ++ asmSigs spec
+                     , axioms  = concat as  ++ axioms spec } 
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty []

@@ -283,6 +283,7 @@ data Config = Config {
   , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate      :: Bool
+  , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   } deriving (Data, Typeable, Show, Eq)
 
 
