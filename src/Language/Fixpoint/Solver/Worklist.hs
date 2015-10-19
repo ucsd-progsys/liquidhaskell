@@ -20,7 +20,6 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Statistics
        , wRanks
-       -- , stats, numSccs
        )
        where
 

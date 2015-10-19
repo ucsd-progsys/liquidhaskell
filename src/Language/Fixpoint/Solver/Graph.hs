@@ -12,7 +12,7 @@ module Language.Fixpoint.Solver.Graph (
        , graphRanks
 
        -- * Compute Kvar dependencies
-       , cGraph, kvSucc
+       , cGraph, gSccs
 
        -- * Kvars written and read by a constraint
        , kvWriteBy, kvReadBy
@@ -36,7 +36,7 @@ import           Data.Tree (flatten)
 -- | Compute constraints that transitively affect target constraints,
 --   and delete everything else from F.SInfo a
 ---------------------------------------------------------------------------
-slice :: F.FInfo a -> F.FInfo a
+slice :: (F.TaggedC c a) => F.GInfo c a -> F.GInfo c a
 ---------------------------------------------------------------------------
 slice fi = fi { F.cm = cm'
               , F.ws = ws' }
@@ -49,34 +49,31 @@ slice fi = fi { F.cm = cm'
      inC i _ = S.member i is
      inW w   = S.member (thd3 $ wfKvar w) ks
 
-sliceKVars :: F.FInfo a -> Slice -> S.HashSet F.KVar
+sliceKVars :: (F.TaggedC c a) => F.GInfo c a -> Slice -> S.HashSet F.KVar
 sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs
   where
     cs           = lookupCMap cm <$> slKVarCs sl ++ slConcCs sl
     be           = F.bs fi
     cm           = F.cm fi
 
-subcKVars :: F.BindEnv -> F.SubC a -> [F.KVar]
+subcKVars :: (F.TaggedC c a) => F.BindEnv -> c a -> [F.KVar]
 subcKVars be c = envKVars be c ++ rhsKVars c
 
 -- subcKVars be c = envKVars be c ++ kvars (F.crhs c)
 
 ---------------------------------------------------------------------------
-mkSlice :: F.FInfo a -> Slice
+mkSlice :: (F.TaggedC c a) => F.GInfo c a -> Slice
 ---------------------------------------------------------------------------
-mkSlice fi        = mkSlice_ cm g' es v2i i2v
+mkSlice fi        = mkSlice_ (F.cm fi) g' es v2i i2v
   where
-    es            = [(i, i, next i) | i <- M.keys cm]
-    next          = kvSucc fi
-    cm            = F.cm   fi
+    g'            = transposeG g  -- "inverse" of g (reverse the dep-edges)
     (g, vf, cf)   = graphFromEdges es
+    es            = gEdges $ cGraph fi
     v2i           = fst3 . vf
     i2v i         = fromMaybe (errU i) $ cf i
     errU i        = errorstar $ "graphSlice: nknown constraint " ++ show i
-    g'            = transposeG g  -- "inverse" of g (reverse the dep-edges)
 
 
-mkSlice_ :: CMap (F.SubC a) -> Graph -> [DepEdge] -> (Vertex -> CId) -> (CId -> Vertex) -> Slice
 mkSlice_ cm g' es v2i i2v = Slice { slKVarCs = kvarCs
                                   , slConcCs = concCs
                                   , slEdges  = sliceEdges kvarCs es
@@ -141,7 +138,7 @@ isTarget c   = isConcC c && isNonTriv c
 ---------------------------------------------------------------------------
 -- | Constraint Graph -----------------------------------------------------
 ---------------------------------------------------------------------------
-cGraph :: F.SInfo a -> CGraph
+cGraph :: (F.TaggedC c a) => F.GInfo c a -> CGraph
 ---------------------------------------------------------------------------
 cGraph fi = CGraph { gEdges = es
                    , gRanks = outRs

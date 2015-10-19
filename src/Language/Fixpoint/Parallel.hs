@@ -13,13 +13,12 @@ parallel using the provided solving function
 -}
 
 module Language.Fixpoint.Parallel (
-
-    -- * parallel solver function
     inParallelUsing
-
-) where
+  , inParallelUsing'
+  ) where
 
 import Control.Concurrent
+import Control.Concurrent.Async
 import Language.Fixpoint.Types
 import Control.Exception
 
@@ -55,3 +54,29 @@ inParallelUsing a finfos = do
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w
+
+
+-------------------------------------------------------------------------------
+inParallelUsing' :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing' f xs = do
+   setNumCapabilities (length xs)
+   rs <- asyncMapM f xs
+   return $ mconcat rs
+
+asyncMapM :: (a -> IO b) -> [a] -> IO [b]
+asyncMapM f xs = mapM (async . f) xs >>= mapM wait
+
+{-
+newtype Async a = Async (MVar a)
+
+async :: IO a -> IO (Async a)
+async action = do
+  m <- newEmptyMVar
+  forkIO $ putMVar m =<< action
+  return (Async m)
+
+wait :: Async a -> IO a
+wait (Async m) = readMVar m
+
+-}

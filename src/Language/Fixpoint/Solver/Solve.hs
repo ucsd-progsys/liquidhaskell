@@ -30,7 +30,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
-    donePhase Loud "Worklist Initialize"
+    -- donePhase Loud "Worklist Initialize"
     (r, s) <- {-# SCC "runSolverM" #-} runSolverM cfg fi n act
     printStats fi wkl s
     return r
@@ -51,10 +51,10 @@ solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F
 solve_ fi s0 wkl = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
-  donePhase' "Solution: Fixpoint"
+  -- donePhase' "Solution: Fixpoint"
   st  <- stats
   res <- {-# SCC "sol-result" #-} result fi wkl s
-  donePhase' "Solution: Check"
+  -- donePhase' "Solution: Check"
   return (res, st)
 
 ---------------------------------------------------------------------------

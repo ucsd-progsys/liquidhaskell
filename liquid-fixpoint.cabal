@@ -96,6 +96,7 @@ Executable fixpoint.native
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , syb
                , cmdargs
                , ansi-terminal
@@ -127,6 +128,7 @@ Executable fixpoint
   ghc-options:   -threaded
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , syb
                , cmdargs
                , ansi-terminal
@@ -188,6 +190,7 @@ Library
 
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , attoparsec
                , syb
                , cmdargs
