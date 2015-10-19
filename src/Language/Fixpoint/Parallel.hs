@@ -14,7 +14,6 @@ parallel using the provided solving function
 
 module Language.Fixpoint.Parallel (
     inParallelUsing
-  , inParallelUsing'
   ) where
 
 import Control.Concurrent
@@ -35,8 +34,8 @@ displayException :: SomeException -> String
 displayException = show
 #endif
 
+{- OLD
 -------------------------------------------------------------------------------
--- | Solve a list of FInfos using the provided solver function in parallel
 -------------------------------------------------------------------------------
 inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
 -------------------------------------------------------------------------------
@@ -54,12 +53,14 @@ inParallelUsing a finfos = do
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w
-
+-}
 
 -------------------------------------------------------------------------------
-inParallelUsing' :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-- | Solve a list of FInfos using the provided solver function in parallel
 -------------------------------------------------------------------------------
-inParallelUsing' f xs = do
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing f xs = do
    setNumCapabilities (length xs)
    rs <- asyncMapM f xs
    return $ mconcat rs

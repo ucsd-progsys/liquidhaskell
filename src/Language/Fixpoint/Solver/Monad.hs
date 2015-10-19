@@ -72,11 +72,11 @@ instance PTable Stats where
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
-  ctx <-  makeContext (solver cfg) (inFile cfg)
+  ctx <-  makeContext (solver cfg) file
   fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
   where
-    be = F.bs    fi
-
+    be   = F.bs     fi
+    file = F.fileName fi -- (inFile cfg)
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------

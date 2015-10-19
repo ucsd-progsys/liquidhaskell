@@ -146,7 +146,7 @@ solveParWith s c fi0 = do
   case fis of
     []        -> errorstar "partiton' returned empty list!"
     [onePart] -> s c onePart
-    _         -> inParallelUsing' (s c) fis
+    _         -> inParallelUsing (s c) fis
 
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
 -- DEBUG debugDiff fi fi' = putStrLn msg

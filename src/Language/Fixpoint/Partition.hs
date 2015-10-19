@@ -6,6 +6,7 @@
 
 module Language.Fixpoint.Partition (partition, partition', partitionN) where
 
+import           Debug.Trace (trace)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
@@ -159,14 +160,14 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition fi icM iwM j
-  = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
-       , F.ws =              M.lookupDefault [] j iwM
+  = fi { F.cm       = M.fromList $ M.lookupDefault [] j icM
+       , F.ws       =              M.lookupDefault [] j iwM
        , F.fileName = partFile fi j
        }
 
 mkPartition' fi icM iwM j
-  = F.CPart { F.pcm = M.fromList $ M.lookupDefault [] j icM
-            , F.pws = M.lookupDefault [] j iwM
+  = F.CPart { F.pcm       = M.fromList $ M.lookupDefault [] j icM
+            , F.pws       = M.lookupDefault [] j iwM
             , F.cFileName = partFile fi j
             }
 
