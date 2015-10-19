@@ -5,7 +5,7 @@ CABAL=`which cabal`;
 GHC=`which ghc`;
 ALL_FOUND=true;
 
-SCRIPT_DIR=`dirname` $0;
+SCRIPT_DIR=`dirname $0`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 REL_SANDBOX_BIN=".cabal-sandbox/bin";
