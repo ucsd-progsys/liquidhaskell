@@ -5,7 +5,7 @@ MAKE=`which make`;
 CABAL=`which cabal`;
 ALL_FOUND=true;
 
-SCRIPT_DIR=`pwd`;
+SCRIPT_DIR=`dirname $0`;
 
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
@@ -164,6 +164,8 @@ else
     exit 1;
 fi
 
+
+
 $CABAL update;
 abort_if_failed "Couldn't perform cabal update...";
 
@@ -180,6 +182,15 @@ abort_if_failed "Couldn't change to $GIPEDA_REPO...";
 
 $GIT pull origin master;
 abort_if_failed "Couldn't pull Liquid Haskell from remote...";
+
+$GIT reset;
+abort_if_failed "Couldn't reset the the liquid-haskell repository...";
+
+$GIT checkout .;
+abort_if_failed "Couldn't discard changes to liquid-haskell...";
+
+$GIT submodule foreach 'git reset ; git checkout . ;';
+abort_if_failed "Couldn't reset and discard changes to submodules...";
 
 if [ $END = 0 ]
 then
