@@ -30,7 +30,7 @@ import           Language.Fixpoint.PrettyPrint -- (PTable (..), PPrint (..))
 import           Language.Fixpoint.Misc (fst3)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
-import           Language.Fixpoint.Solver.Slice
+import           Language.Fixpoint.Solver.Graph
 import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S

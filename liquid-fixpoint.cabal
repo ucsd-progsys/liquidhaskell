@@ -172,7 +172,7 @@ Library
                    Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Solver.Types,
-                   Language.Fixpoint.Solver.Slice,
+                   Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,

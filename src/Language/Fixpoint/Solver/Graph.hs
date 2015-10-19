@@ -1,7 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TupleSections         #-}
 
-module Language.Fixpoint.Solver.Slice (
+module Language.Fixpoint.Solver.Graph (
        -- * Remove Constraints that don't affect Targets
          slice
 
