@@ -761,8 +761,6 @@ functionSort (FFunc n ts) = Just (n, its, t)
 functionSort _            = Nothing
 
 
-
-
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not . isTauto
 

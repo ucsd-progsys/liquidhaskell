@@ -1,7 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE BangPatterns          #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE ImplicitParams        #-}
 
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
@@ -185,20 +184,18 @@ data CDeps = CDs { cSucc   :: CSucc
 ---------------------------------------------------------------------------
 cDeps :: F.SInfo a -> CDeps
 ---------------------------------------------------------------------------
-cDeps fi             = CDs { cSucc   = next
-                           , cRank   = M.fromList [(i, rf i) | i <- is ]
-                           , cNumScc = length sccs
-                           }
+cDeps fi  = CDs { cSucc   = gSucc cg
+                , cNumScc = gSccs cg
+                , cRank   = M.fromList [(i, rf i) | i <- is ]
+                }
   where
-    rf               = rankF (F.cm fi) outRs inRs
-    es               = [(i, i, next i) | i <- M.keys cm]
-    next             = kvSucc fi
-    (g, vf, _)       = graphFromEdges es
-    (outRs, sccs)    = graphRanks g vf
-    inRs             = inRanks fi es outRs
-    cm               = F.cm fi
-    is               = M.keys cm
-
+    rf    = rankF (F.cm fi) outRs inRs
+    inRs  = inRanks fi es outRs
+    outRs = gRanks cg
+    es    = gEdges cg
+    cg    = cGraph fi
+    cm    = F.cm fi
+    is    = M.keys cm
 
 rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
 rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
@@ -207,15 +204,7 @@ rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
     inScc         = lookupCMap inR
     tag           = F._ctag . lookupCMap cm
 
----------------------------------------------------------------------------
-graphRanks :: Graph -> (Vertex -> DepEdge) -> (CMap Int, [[Vertex]])
----------------------------------------------------------------------------
-graphRanks g vf = (M.fromList irs, sccs)
-  where
-    irs        = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
-    rvss       = zip [0..] sccs
-    sccs       = L.reverse $ map flatten $ scc g
-    v2i        = fst3 . vf
+
 
 ---------------------------------------------------------------------------
 inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int

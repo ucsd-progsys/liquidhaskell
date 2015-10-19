@@ -23,6 +23,12 @@ data Slice = Slice { slKVarCs :: [CId]     -- ^ CIds that transitively "reach" b
                    , slEdges  :: [DepEdge] -- ^ Dependencies between slKVarCs
                    } deriving (Eq, Show)
 
+data CGraph = CGraph { gEdges :: [DepEdge]
+                     , gRanks :: CMap Int
+                     , gSucc  :: CSucc
+                     , gSccs  :: Int
+                     }
+
 ---------------------------------------------------------------------------
 -- | CMap API -------------------------------------------------------------
 ---------------------------------------------------------------------------

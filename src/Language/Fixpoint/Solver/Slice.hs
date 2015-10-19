@@ -8,23 +8,28 @@ module Language.Fixpoint.Solver.Slice (
        -- * Predicate describing Targets
        , isTarget
 
+       -- * Compute Ranks / SCCs
+       , graphRanks
+
        -- * Compute Kvar dependencies
-       , kvSucc
+       , cGraph, kvSucc
 
        -- * Kvars written and read by a constraint
        , kvWriteBy, kvReadBy
        ) where
 
-import           Debug.Trace (trace)
+
+-- import           Debug.Trace (trace)
 import           Prelude hiding (init)
 import           Language.Fixpoint.Visitor (wfKvar, rhsKVars, envKVars, kvars, isConcC)
 import           Language.Fixpoint.Misc (errorstar, fst3, thd3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import qualified Data.HashMap.Strict       as M
+import qualified Data.List                 as L
 import           Data.Maybe (fromMaybe)
 import qualified Data.HashSet as S
-import           Data.Graph (transposeG, graphFromEdges, dfs, Graph, Vertex)
+import           Data.Graph (transposeG, graphFromEdges, dfs, scc, Graph, Vertex)
 import           Data.Tree (flatten)
 
 ---------------------------------------------------------------------------
@@ -131,3 +136,31 @@ isTarget :: (F.TaggedC c a) => c a -> Bool
 isTarget c   = isConcC c && isNonTriv c
   where
    isNonTriv = not .  F.isTautoPred . F.crhs
+
+
+---------------------------------------------------------------------------
+-- | Constraint Graph -----------------------------------------------------
+---------------------------------------------------------------------------
+cGraph :: F.SInfo a -> CGraph
+---------------------------------------------------------------------------
+cGraph fi = CGraph { gEdges = es
+                   , gRanks = outRs
+                   , gSucc  = next
+                   , gSccs  = length sccs }
+  where
+    es             = [(i, i, next i) | i <- M.keys $ F.cm fi]
+    next           = kvSucc fi
+    (g, vf, _)     = graphFromEdges es
+    (outRs, sccs)  = graphRanks g vf
+
+---------------------------------------------------------------------------
+-- | Ranks from Graph -----------------------------------------------------
+---------------------------------------------------------------------------
+graphRanks :: Graph -> (Vertex -> DepEdge) -> (CMap Int, [[Vertex]])
+---------------------------------------------------------------------------
+graphRanks g vf = (M.fromList irs, sccs)
+  where
+    irs        = [(v2i v, r) | (r, vs) <- rvss, v <- vs ]
+    rvss       = zip [0..] sccs
+    sccs       = L.reverse $ map flatten $ scc g
+    v2i        = fst3 . vf
