@@ -79,10 +79,16 @@ plugHoles tce tyi x f t (Loc l l' st)
     initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t (toType st)
 
     go :: SpecType -> SpecType -> BareM SpecType
-    go t                (RHole r)          = return $ (addHoles t') { rt_reft = f r }
+    go t                (RHole r)          = return $ (addHoles t')
       where
         t'       = everywhere (mkT $ addRefs tce tyi) t
-        addHoles = fmap (const $ f $ uReft ("v", Refa hole))
+        addHoles = everywhere (mkT $ addHole)
+        -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
+        addHole :: SpecType -> SpecType
+        addHole (RVar v r)       = RVar v (f (uReft ("v", Refa hole)))
+        addHole (RApp c ts ps r) = RApp c ts ps (f (uReft ("v", Refa hole)))
+        addHole t                = t
+
     go (RVar _ _)       v@(RVar _ _)       = return v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
@@ -128,5 +134,3 @@ killHoles ur = ur { ur_reft = tx $ ur_reft ur }
   where
     tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} mapPredReft dropHoles r
     dropHoles    = pAnd . filter (not . isHole) . conjuncts
-
-
