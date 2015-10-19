@@ -231,7 +231,7 @@ fiKVars :: F.FInfo a -> [F.KVar]
 fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
-subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.lhsKVars bs c]
+subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c

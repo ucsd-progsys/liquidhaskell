@@ -77,7 +77,7 @@ module Language.Fixpoint.Types (
   , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , SimpC (..)
   , Tag
-  , TaggedC, WrappedC (..), crhs
+  , TaggedC, WrappedC (..), clhs, crhs
 
   -- * Accessing Constraints
   , envCs
@@ -933,25 +933,37 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
               deriving (Generic, Functor)
 
 class TaggedC c a where
-  senv  :: (c a) -> IBindEnv
-  sid   :: (c a) -> Maybe Integer
-  stag  :: (c a) -> Tag
-  sinfo :: (c a) -> a
-  crhs  :: (c a) -> Pred
+  senv  :: c a -> IBindEnv
+  sid   :: c a -> Maybe Integer
+  stag  :: c a -> Tag
+  sinfo :: c a -> a
+  clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
+  crhs  :: c a -> Pred
 
 instance TaggedC SimpC a where
-  senv  = _cenv
-  sid   = _cid
-  stag  = _ctag
-  sinfo = _cinfo
-  crhs  = _crhs
+  senv      = _cenv
+  sid       = _cid
+  stag      = _ctag
+  sinfo     = _cinfo
+  crhs      = _crhs
+  clhs be c = envCs be (senv c)
 
 instance TaggedC SubC a where
-  senv  = _senv
-  sid   = _sid
-  stag  = _stag
-  sinfo = _sinfo
-  crhs  = reftPred . sr_reft . srhs
+  senv      = _senv
+  sid       = _sid
+  stag      = _stag
+  sinfo     = _sinfo
+  crhs      = reftPred . sr_reft . srhs
+  clhs be c = sortedReftBind (slhs c) : envCs be (senv c)
+
+sortedReftBind :: SortedReft -> (Symbol, SortedReft)
+sortedReftBind sr = (x, sr)
+  where
+    Reft (x, _)   = sr_reft sr
+
+-- lhsCs, rhsCs :: SubC a -> Reft
+-- lhsCs      = sr_reft . slhs
+-- rhsCs      = sr_reft . srhs
 
 data WrappedC a where
   WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
@@ -960,11 +972,12 @@ instance Show (WrappedC a) where
   show (WrapC x) = show x
 
 instance TaggedC WrappedC a where
-  senv  (WrapC x) = senv  x
-  sid   (WrapC x) = sid   x
-  stag  (WrapC x) = stag  x
-  sinfo (WrapC x) = sinfo x
-  crhs  (WrapC x) = crhs  x
+  senv  (WrapC x)   = senv  x
+  sid   (WrapC x)   = sid   x
+  stag  (WrapC x)   = stag  x
+  sinfo (WrapC x)   = sinfo x
+  crhs  (WrapC x)   = crhs  x
+  clhs  b (WrapC x) = clhs b x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft

@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Slice (
 
 import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (wfKvar, lhsKVars, rhsKVars, envKVars, kvars, isConcC)
+import           Language.Fixpoint.Visitor (wfKvar, rhsKVars, envKVars, kvars, isConcC)
 import           Language.Fixpoint.Misc (errorstar, fst3, thd3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
@@ -52,7 +52,7 @@ sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs
     cm           = F.cm fi
 
 subcKVars :: F.BindEnv -> F.SubC a -> [F.KVar]
-subcKVars be c = lhsKVars be c ++ rhsKVars c
+subcKVars be c = envKVars be c ++ rhsKVars c
 
 -- subcKVars be c = envKVars be c ++ kvars (F.crhs c)
 
@@ -98,29 +98,29 @@ sliceEdges is es = [ (i, i, filter inSlice js) | (i, _, js) <- es, inSlice i ]
 ---------------------------------------------------------------------------
 -- | Dependencies ---------------------------------------------------------
 ---------------------------------------------------------------------------
-kvSucc :: F.SInfo a -> CSucc
+kvSucc :: (F.TaggedC c a) => F.GInfo c a -> CSucc
 ---------------------------------------------------------------------------
 kvSucc fi = succs cm rdBy
   where
     rdBy  = kvReadBy fi
     cm    = F.cm     fi
 
-succs :: CMap (F.SimpC a) -> KVRead -> CSucc
+succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CSucc
 succs cm rdBy i = sortNub $ concatMap kvReads iKs
   where
     iKs         = kvWriteBy cm i
     kvReads k   = M.lookupDefault [] k rdBy
 
 ---------------------------------------------------------------------------
-kvWriteBy :: CMap (F.SimpC a) -> CId -> [F.KVar]
+kvWriteBy :: (F.TaggedC c a) => CMap (c a) -> CId -> [F.KVar]
 ---------------------------------------------------------------------------
 kvWriteBy cm = kvars . F.crhs . lookupCMap cm
 
 ---------------------------------------------------------------------------
-kvReadBy :: F.FInfo a -> KVRead
+kvReadBy :: (F.TaggedC c a) => F.GInfo c a -> KVRead
 ---------------------------------------------------------------------------
 kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- lhsKVars bs ci]
+                             , k       <- envKVars bs ci]
   where
     cm      = F.cm fi
     bs      = F.bs fi
@@ -130,4 +130,4 @@ isTarget :: F.SubC a -> Bool
 ---------------------------------------------------------------------------
 isTarget c   = isConcC c && isNonTriv c
   where
-   isNonTriv = not .  F.isTautoPred . F.srhs
+   isNonTriv = not .  F.isTautoPred . F.crhs

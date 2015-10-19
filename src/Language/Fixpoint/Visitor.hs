@@ -20,9 +20,9 @@ module Language.Fixpoint.Visitor (
   -- * Clients
   , kvars
   , envKVars
-  , mapKVars, mapKVars', mapKVarSubsts
-  , lhsKVars, rhsKVars
+  , rhsKVars
   , wfKvar
+  , mapKVars, mapKVars', mapKVarSubsts
 
   -- * Predicates on Constraints
   , isConcC , isKvarC
@@ -209,19 +209,19 @@ kvars                = fold kvVis () []
     kv' _ _           = []
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
-envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
+envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
-    squish = S.toList  . S.fromList . concat
-    kvs    = kvars . sr_reft
+    squish    = S.toList  . S.fromList . concat
+    kvs       = kvars . sr_reft
 
-lhsKVars :: BindEnv -> SubC a -> [KVar]
-lhsKVars binds c = envKVs ++ lhsKVs
-  where
-    envKVs       = envKVars binds         c
-    lhsKVs       = kvars          $ lhsCs c
+-- lhsKVars :: BindEnv -> SubC a -> [KVar]
+-- lhsKVars binds c = envKVs ++ lhsKVs
+  -- where
+    -- envKVs       = envKVars binds         c
+    -- lhsKVs       = kvars          $ lhsCs c
 
-rhsKVars :: SubC a -> [KVar]
-rhsKVars = kvars . rhsCs
+rhsKVars :: (TaggedC c a) => c a -> [KVar]
+rhsKVars = kvars . crhs -- rhsCs
 
 isKvarC :: (TaggedC c a) => c a -> Bool
 isKvarC = all isKvar . conjuncts . crhs
