@@ -5,7 +5,7 @@ MAKE=`which make`;
 CABAL=`which cabal`;
 ALL_FOUND=true;
 
-SCRIPT_DIR=`dirname` $0;
+SCRIPT_DIR=`dirname $0`;
 
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
