@@ -62,6 +62,8 @@ module Language.Haskell.Liquid.RefType (
   , strengthenRefTypeGen
   , strengthenDataConType
 
+  , isBaseTy
+
   ) where
 
 import WwLib
