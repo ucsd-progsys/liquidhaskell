@@ -13,6 +13,7 @@ module Language.Fixpoint.Config (
   , withTarget
   , defaultMinPartSize
   , defaultMaxPartSize
+  , multicore
 ) where
 
 import           System.ProgressBar
@@ -179,5 +180,12 @@ getOpts = do md <- cmdArgs config
              return md
 
 banner :: String
-banner =  "Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
+banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
+
+
+multicore :: Config -> Bool
+multicore cfg = mc -- || bin
+  where
+    mc        = cores cfg /= Just 1
+    -- bin    = isBinary $ inFile cfg

@@ -40,7 +40,7 @@ solve cfg s0 fi = do
     act  = {-# SCC "solve_" #-} solve_ fi s0 wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
-printStats fi w s = ppTs [ ptable fi, ptable s, ptable w ]
+printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
   where
     ppTs          = putStrLn . showpp . mconcat
 

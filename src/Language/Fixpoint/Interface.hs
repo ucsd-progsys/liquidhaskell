@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve     as S
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Config           (Config (..), command, withTarget)
+import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
 import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Statistics       (statistics)
@@ -98,12 +98,6 @@ configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
   | multicore cfg = solveParWith
   | otherwise     = solveSeqWith
-
-multicore :: Config -> Bool
-multicore cfg = mc -- || bin
-  where
-    mc        = cores cfg /= Just 1
-    -- bin    = isBinary $ inFile cfg
 
 ---------------------------------------------------------------------------
 readFInfo :: FilePath -> IO (FInfo ())
