@@ -50,7 +50,7 @@ import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
-import           Language.Fixpoint.Parallel         (inParallelUsing')
+import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -63,8 +63,11 @@ type Solver a = Config -> FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg = do fi    <- readFInfo file
-                 r     <- solve cfg fi
+solveFQ cfg = do fi      <- readFInfo file
+                 r       <- solve cfg fi
+                 let stat = resStatus r
+                 putStrLn "\n"
+                 colorStrLn (colorResult stat) (show stat)
                  return $ eCode r
   where
     file    = inFile       cfg
@@ -127,6 +130,7 @@ solveSeqWith s c fi0 = do
   let fi = slice fi0
   progressInitFI fi
   s c fi
+
 
 ---------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -201,7 +205,7 @@ solveNative !cfg !fi0 = do
   -- rnf soln `seq` donePhase Loud "Solve2"
   let stat' = sid <$> stat
   -- writeLoud $ "\nSolution:\n"  ++ showpp soln
-  colorStrLn (colorResult stat') (show stat')
+  -- colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . mlookup (cm fi0) . mfromJust "WAT" <$> stat') soln
 
 printElimStats :: Deps -> IO ()

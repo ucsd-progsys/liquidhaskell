@@ -230,7 +230,8 @@ progressInit n = do
 mkPB   :: Integer -> IO ProgressRef
 mkPB n = do
   hSetBuffering stdout NoBuffering
-  fst <$> startProgress percentage exact 80 n
+  -- fst <$> startProgress percentage exact 80 n
+  fst <$> startProgress noLabel percentage 80 n
 
 progressTick :: IO ()
 progressTick    = go =<< readIORef pbRef

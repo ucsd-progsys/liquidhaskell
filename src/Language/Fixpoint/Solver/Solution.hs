@@ -192,19 +192,6 @@ match tyss xs (t : ts)
 match _   xs []
   = return xs
 
-{- OLD
-
-instCands :: F.SEnv F.SortedReft -> [(F.Symbol, F.Sort)]
-instCands = filter isOk . F.toListSEnv . fmap F.sr_sort
-  where
-    isOk  = isNothing . F.functionSort . snd
-
-candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
-candidates xts t'
-  = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
-
--}
-
 -----------------------------------------------------------------------
 candidates :: [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 -----------------------------------------------------------------------
