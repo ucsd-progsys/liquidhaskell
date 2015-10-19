@@ -3,15 +3,17 @@
 {-# LANGUAGE TupleSections #-}
 
 module Language.Fixpoint.Solver.Validate
-       ( -- * Validate and Transform FInfo to enforce invariants
+       ( -- * Validate FInfo
          validate
+
+         -- * Transform FInfo to enforce invariants
+       , sanitize
 
          -- * Sorts for each Symbol
        , symbolSorts
        )
        where
 
-import           Language.Fixpoint.Config
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor (kvars, mapKVarSubsts)
 import           Language.Fixpoint.Sort (isFirstOrder)
@@ -25,14 +27,17 @@ import           Text.Printf
 type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
-validate :: Config -> F.SInfo a -> ValidateM (F.SInfo a)
+validate :: F.SInfo a -> ValidateM ()
+validate = error "TODO: validate input"
 ---------------------------------------------------------------------------
-validate _ = Right
-           . dropFunctionSubs
-           . dropFuncSortedShadowedBinders
-           . dropHigherOrderBinders
-           . removeExtraWfCs
-           -- . renameVV
+
+---------------------------------------------------------------------------
+sanitize :: F.SInfo a -> F.SInfo a
+---------------------------------------------------------------------------
+sanitize = dropFunctionSubs
+         . dropFuncSortedShadowedBinders
+         . dropHigherOrderBinders
+         . dropExtraWfCs
 
 ---------------------------------------------------------------------------
 -- | symbol |-> sort for EVERY variable in the FInfo
@@ -100,9 +105,9 @@ binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 ---------------------------------------------------------------------------
 -- | Drop WfCs that do not have a KVar (TODO - check well-sorted first?)
 ---------------------------------------------------------------------------
-removeExtraWfCs :: F.SInfo a -> F.SInfo a
+dropExtraWfCs :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
-removeExtraWfCs fi = fi { F.ws = filter hasKVar $ F.ws fi }
+dropExtraWfCs fi = fi { F.ws = filter hasKVar $ F.ws fi }
   where
     hasKVar = not . null . kvars . F.wrft
 
@@ -133,7 +138,7 @@ dropFunctionSubs :: F.SInfo a -> F.SInfo a
 dropFunctionSubs fi = mapKVarSubsts go fi
   where
     funcs = functionsInBindEnv $ F.bs fi --NOTE: assumes binders are unique
-    go (F.Su subs) = F.mkSubst $ filter nonFunction $ M.toList subs
+    go _ (F.Su subs) = F.mkSubst $ filter nonFunction $ M.toList subs
     nonFunction (sym, _) = sym `notElem` funcs
 
 functionsInBindEnv :: F.BindEnv -> [F.Symbol]

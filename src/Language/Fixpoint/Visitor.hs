@@ -161,31 +161,24 @@ visitPred v = vP
     step _ p@PTop          = return p
 
 
----------------------------------------------------------------------------------
--- reftKVars :: Reft -> [KVar]
----------------------------------------------------------------------------------
-
--- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
--- predKVars            :: Pred -> [Symbol]
-
 mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
 mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
-mapKVars' f             = trans kvVis () []
+mapKVars' f            = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
-mapKVarSubsts :: Visitable t => (Subst -> Subst) -> t -> t
-mapKVarSubsts f             = trans kvVis () []
+mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts f        = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
-    txK _ (PKVar k su) = PKVar k $ f su
+    txK _ (PKVar k su) = PKVar k $ f k su
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]
@@ -197,7 +190,7 @@ kvars                = fold kvVis () []
 
 
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
-envKVars be c = squish [ kvs sr |  (_, sr) <- envCs be (senv c)]
+envKVars be c = squish [ kvs sr | (_, sr) <- envCs be (senv c)]
   where
     squish = S.toList  . S.fromList . concat
     kvs    = kvars . sr_reft
@@ -215,7 +208,6 @@ rhsKVars = kvars . rhsCs
 -- | Visitors over @Sort@
 ---------------------------------------------------------------------------------
 foldSort :: (a -> Sort -> a) -> a -> Sort -> a
----------------------------------------------------------------------------------
 foldSort f = step
   where
     step b t          = go (f b t) t
@@ -223,10 +215,7 @@ foldSort f = step
     go b (FApp t1 t2) = L.foldl' step b [t1, t2]
     go b _            = b
 
-
----------------------------------------------------------------------------------
 mapSort :: (Sort -> Sort) -> Sort -> Sort
----------------------------------------------------------------------------------
 mapSort f = step
   where
     step            = go . f

@@ -26,7 +26,7 @@ import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void)
 
-import           Language.Fixpoint.Solver.Validate  (validate)
+import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
@@ -158,9 +158,9 @@ solveNativeWithFInfo !cfg !fi = do
   let si  = {-# SCC "convertFormat" #-} convertFormat fi'
   writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   rnf si `seq` donePhase Loud "Format Conversion"
-  let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
-  writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
-  rnf si' `seq` donePhase Loud "Validated Constraints"
+  let si' = {-# SCC "sanitize" #-} sanitize $!! si
+  writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si')
+  rnf si' `seq` donePhase Loud "Sanitized Constraints"
   when (elimStats cfg) $ printElimStats (deps si')
   let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
   writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
