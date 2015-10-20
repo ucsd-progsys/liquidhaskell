@@ -26,4 +26,3 @@ constraint:
 wf:
   env [ ]
   reft {v: int | $k0}
-

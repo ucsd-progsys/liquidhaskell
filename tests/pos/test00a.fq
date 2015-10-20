@@ -1,5 +1,4 @@
 // This qualifier saves the day; solve constraints WITHOUT IT
-
 qualif Zog(v:a) : (10 <= v)
 
 bind 0 x : {v : int | true}
@@ -27,4 +26,3 @@ constraint:
 wf:
   env [ ]
   reft {v: int | $k0}
-

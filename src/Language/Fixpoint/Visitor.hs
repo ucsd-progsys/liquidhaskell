@@ -2,7 +2,6 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE CPP #-}
 
 module Language.Fixpoint.Visitor (
   -- * Visitor
@@ -30,13 +29,6 @@ module Language.Fixpoint.Visitor (
   -- * Sorts
   , foldSort, mapSort
   ) where
-
-#if __GLASGOW_HASKELL__ < 710
-import           Control.Applicative       (Applicative, (<$>), (<*>))
-import           Data.Monoid
-import           Data.Traversable          (Traversable, traverse, mapM)
-import           Prelude                   hiding (mapM)
-#endif
 
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
@@ -174,31 +166,24 @@ visitPred v = vP
     step _ p@PTop          = return p
 
 
----------------------------------------------------------------------------------
--- reftKVars :: Reft -> [KVar]
----------------------------------------------------------------------------------
-
--- reftKVars (Reft (_, ra)) = predKVars $ raPred ra
--- predKVars            :: Pred -> [Symbol]
-
 mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
 mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
-mapKVars' f             = trans kvVis () []
+mapKVars' f            = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
-mapKVarSubsts :: Visitable t => (Subst -> Subst) -> t -> t
-mapKVarSubsts f             = trans kvVis () []
+mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
+mapKVarSubsts f        = trans kvVis () []
   where
     kvVis              = defaultVisitor { txPred = txK }
-    txK _ (PKVar k su) = PKVar k $ f su
+    txK _ (PKVar k su) = PKVar k $ f k su
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]
@@ -248,7 +233,6 @@ wfKvar w@(WfC {wrft = sr})
 -- | Visitors over @Sort@
 ---------------------------------------------------------------------------------
 foldSort :: (a -> Sort -> a) -> a -> Sort -> a
----------------------------------------------------------------------------------
 foldSort f = step
   where
     step b t          = go (f b t) t
@@ -256,10 +240,7 @@ foldSort f = step
     go b (FApp t1 t2) = L.foldl' step b [t1, t2]
     go b _            = b
 
-
----------------------------------------------------------------------------------
 mapSort :: (Sort -> Sort) -> Sort -> Sort
----------------------------------------------------------------------------------
 mapSort f = step
   where
     step            = go . f

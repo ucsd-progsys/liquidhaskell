@@ -17,12 +17,10 @@ import           Language.Fixpoint.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 -- DEBUG
 import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
-import           Text.PrettyPrint.HughesPJ          (render)
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 
 

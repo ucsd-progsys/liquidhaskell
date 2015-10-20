@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 {-# LANGUAGE BangPatterns               #-}
-{-# LANGUAGE CPP                        #-}
 
 
 -- | This module contains Haskell variables representing globally visible names.
@@ -86,32 +85,20 @@ module Language.Fixpoint.Names (
 
 ) where
 
-#if __GLASGOW_HASKELL__ < 710
-import           Control.Applicative ((<$>))
-import           Data.Monoid (Monoid (..))
-#endif
-
-import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
-import           Control.Monad               ((>=>))
-import           Data.IORef
 import           Data.Char                   (ord)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
-import qualified Data.HashMap.Strict         as M
 import           Data.Interned
 import           Data.Interned.Internal.Text
-import           Data.Maybe                  (fromMaybe)
 import           Data.String                 (IsString(..))
 import qualified Data.Text                   as T
 import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
-import           Language.Fixpoint.Misc      (safeLookup, errorstar)
-import Debug.Trace
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
