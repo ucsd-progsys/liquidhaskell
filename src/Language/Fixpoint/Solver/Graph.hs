@@ -42,12 +42,15 @@ slice fi = fi { F.cm = cm'
               , F.ws = ws' }
   where
      cm' = M.filterWithKey inC (F.cm fi)
-     ws' = filter inW          (F.ws fi)
+     ws' = filter (inW ks)     (F.ws fi)
      ks  = sliceKVars fi sl
      is  = S.fromList (slKVarCs sl ++ slConcCs sl)
      sl  = mkSlice fi
      inC i _ = S.member i is
-     inW w   = S.member (thd3 $ wfKvar w) ks
+
+inW ks w
+  | Just (_,_,k) <- wfKvar w = S.member k ks
+  | otherwise                = False
 
 sliceKVars :: (F.TaggedC c a) => F.GInfo c a -> Slice -> S.HashSet F.KVar
 sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs

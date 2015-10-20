@@ -222,12 +222,16 @@ isConc :: Pred -> Bool
 isConc = null . kvars
 
 -----------------------------------------------------------------------
-wfKvar :: WfC a -> (Symbol, Sort, KVar)
+wfKvar :: WfC a -> Maybe (Symbol, Sort, KVar)
 -----------------------------------------------------------------------
-wfKvar w@(WfC {wrft = sr})
-  | Reft (v, Refa (PKVar k su)) <- sr_reft sr
-  , isEmptySubst su = (v, sr_sort sr, k)
-  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show sr -- (wid w)
+wfKvar (WfC {wrft = sr})
+   | Reft (v, Refa (PKVar k su)) <- sr_reft sr
+               = if isEmptySubst su
+                   then Just (v, sr_sort sr, k)
+                   else err
+   | otherwise = Nothing
+   where
+     err       = errorstar $ "wfKvar: malformed wfC " ++ show sr
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

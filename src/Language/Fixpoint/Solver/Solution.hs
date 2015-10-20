@@ -30,7 +30,7 @@ import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (maybeToList, isNothing)
+import           Data.Maybe                     (mapMaybe, maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor      as V
@@ -127,7 +127,7 @@ init fi  = M.fromList keqs
   where
     -- PARALLELIZE THIS!
     -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
-    keqs = map (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
+    keqs = mapMaybe (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
     qs   = F.quals fi
     ws   = F.ws    fi
 
@@ -136,23 +136,19 @@ init fi  = M.fromList keqs
 refine :: F.GInfo c a
        -> [F.Qualifier]
        -> F.WfC a
-       -> (F.KVar, KBind)
+       -> Maybe (F.KVar, KBind)
 --------------------------------------------------------------------
-refine fi qs w = refineK env qs w
+refine fi qs w = refineK env qs <$> V.wfKvar w
   where
     env        = wenv <> genv
     wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
     genv       = (`F.RR` mempty) <$> F.lits fi
 
-refineK :: F.SEnv F.SortedReft
-        -> [F.Qualifier]
-        -> F.WfC a
-        -> (F.KVar, KBind)
-refineK env qs w = (k, eqs')
-  where
-    eqs          = instK env v t qs
-    eqs'         = filter (okInst env v t) eqs
-    (v, t, k)    = V.wfKvar w
+refineK :: F.SEnv F.SortedReft -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
+refineK env qs (v, t, k) = (k, eqs')
+   where
+    eqs                  = instK env v t qs
+    eqs'                 = filter (okInst env v t) eqs
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft

@@ -170,9 +170,6 @@ wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
                  _   -> Nothing
 
 
-wfKvars :: F.WfC a -> [F.KVar]
-wfKvars = V.kvars . F.sr_reft . F.wrft
-
 -- | Version of Misc's inserts that handles Maybe keys. If the key is
 -- Nothing, the value is not inserted
 maybeInserts Nothing _ m = m
@@ -224,6 +221,9 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
 
 fiKVars :: F.FInfo a -> [F.KVar]
 fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
+
+wfKvars :: F.WfC a -> [F.KVar]
+wfKvars = V.kvars . F.sr_reft . F.wrft
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
