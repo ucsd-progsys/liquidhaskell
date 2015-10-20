@@ -23,8 +23,6 @@ import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Text                as T
 import           Data.Text.Format         hiding (format)
-import           Control.Applicative      ((<$>))
--- import           Data.Text.Lazy (toStrict)
 
 
 --------------------------------------------------------------------------

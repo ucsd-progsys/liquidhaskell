@@ -5,8 +5,6 @@
 // But you may use this one
 qualif Pog(v:a): (0 <= v)
 
-
-
 bind 0 x: {v: int | v = 10}
 bind 1 a: {v: int | $k1    }
 bind 2 y: {v: int | v = 20}
@@ -23,7 +21,7 @@ constraint:
 
 
 constraint:
-  env [ 0; 1]
+  env [0; 1]
   lhs {v : int | v = x + a}
   rhs {v : int | $k0}
   id 1 tag []

@@ -22,11 +22,10 @@ module Language.Fixpoint.Solver.Solution
         )
 where
 
-import           Control.Applicative            ((<$>))
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
-import           Data.Monoid                    ((<>), mempty)
+import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Sort         as So

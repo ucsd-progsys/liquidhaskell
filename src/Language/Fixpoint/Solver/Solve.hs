@@ -5,7 +5,6 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
-import           Data.Monoid (mappend)
 import           Control.Monad (filterM)
 import           Control.Applicative ((<$>))
 import           Control.Monad.State.Strict (lift)
@@ -16,13 +15,11 @@ import           Language.Fixpoint.Config
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
-import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 
 -- DEBUG
 import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
-import           Text.PrettyPrint.HughesPJ          (render)
 
 
 ---------------------------------------------------------------------------

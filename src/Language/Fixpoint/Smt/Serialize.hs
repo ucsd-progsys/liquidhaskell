@@ -10,7 +10,6 @@
 
 module Language.Fixpoint.Smt.Serialize where
 
-import           Control.Applicative         ((<$>))
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy

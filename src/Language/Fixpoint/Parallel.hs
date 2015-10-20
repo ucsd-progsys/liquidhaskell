@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 {-|
 Module      : Language.Fixpoint.Parallel
 Description : Parallel constraint solving
@@ -23,18 +21,11 @@ import Control.Concurrent
 import Language.Fixpoint.Types
 import Control.Exception
 
-#if __GLASGOW_HASKELL__ < 710
-import Data.Monoid
-#endif
 
 -- | Throw an UnknownError exception
 unknownError :: String -> Result a
 unknownError e = Result (UnknownError e) mempty
 
-#if __GLASGOW_HASKELL__ < 710
-displayException :: SomeException -> String
-displayException = show
-#endif
 
 -- | Solve a list of FInfos using the provided solver function in parallel
 inParallelUsing :: [FInfo a] -- ^ To solve in parallel

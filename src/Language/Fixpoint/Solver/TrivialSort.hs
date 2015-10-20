@@ -15,7 +15,6 @@ import qualified Data.HashMap.Strict     as M
 import           Data.List (foldl')
 import qualified Data.Graph              as G
 import           Data.Maybe
-import           Data.Monoid
 import           Text.Printf
 import           Debug.Trace
 import           Language.Fixpoint.PrettyPrint

@@ -1,5 +1,5 @@
 
-// -n -e should be able to solve this WITHOUT the qualifier
+// --native --eliminate should be able to solve this WITHOUT the qualifier
 // qualif Zog(v:int) : (v /= 0)
 
 bind 0 n : {v: int | true }

@@ -32,7 +32,6 @@ module Language.Fixpoint.Sort  (
   ) where
 
 
-import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Error       (MonadError(..))
 import qualified Data.HashMap.Strict       as M

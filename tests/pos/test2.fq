@@ -19,7 +19,7 @@ constraint:
 
 
 constraint:
-  env [ 0; 1]
+  env [0; 1]
   lhs {v : int | v = x + a}
   rhs {v : int | $k0}
   id 1 tag []
