@@ -35,13 +35,14 @@ validate = error "TODO: validate input"
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
-sanitize :: F.SInfo a -> F.SInfo a
+sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
-validate _ = fM dropHigherOrderBinders
+sanitize   = fM dropHigherOrderBinders
          >=> fM dropFuncSortedShadowedBinders
          >=> fM dropFunctionSubs
-         >=> fM removeExtraWfCs
+         >=> fM dropExtraWfCs
          >=>    checkRhsCs
+
 
 ---------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]

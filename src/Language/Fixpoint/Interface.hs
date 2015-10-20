@@ -17,14 +17,6 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-<<<<<<< HEAD
-#if __GLASGOW_HASKELL__ < 710
-import           Data.Functor ((<$>))
-import           Data.Monoid (mconcat, mempty)
-#endif
-
-=======
->>>>>>> master
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M
@@ -36,12 +28,8 @@ import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void)
 
-<<<<<<< HEAD
 import           Language.Fixpoint.Solver.Graph     -- (slice)
-import           Language.Fixpoint.Solver.Validate  (validate)
-=======
 import           Language.Fixpoint.Solver.Validate  (sanitize)
->>>>>>> master
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
@@ -187,7 +175,6 @@ solveParWith s c fi0 = do
     -- DEBUG litLength    = length . toListSEnv . lits
     -- DEBUG qLength      = length . quals
 
-<<<<<<< HEAD
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver ------------------------------------------------
 ---------------------------------------------------------------------------
@@ -200,22 +187,9 @@ solveNative !cfg !fi0 = do
   let si   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   -- rnf si `seq` donePhase Loud "Format Conversion"
-  let Right si' = {-# SCC "validate" #-} validate cfg  $!! si
+  let Right si' = {-# SCC "validate" #-} sanitize $!! si
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
   -- rnf si' `seq` donePhase Loud "Validated Constraints"
-=======
-solveNativeWithFInfo :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-solveNativeWithFInfo !cfg !fi = do
-  writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
-  rnf fi `seq` donePhase Loud "Read Constraints"
-  let fi' = fi { quals = remakeQual <$> quals fi }
-  let si  = {-# SCC "convertFormat" #-} convertFormat fi'
-  writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
-  rnf si `seq` donePhase Loud "Format Conversion"
-  let si' = {-# SCC "sanitize" #-} sanitize $!! si
-  writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si')
-  rnf si' `seq` donePhase Loud "Sanitized Constraints"
->>>>>>> master
   when (elimStats cfg) $ printElimStats (deps si')
   let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
   -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
