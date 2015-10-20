@@ -14,21 +14,28 @@ module Language.Fixpoint.Solver.Monad
        , filterValid
 
          -- * Debug
+       , Stats
        , tickIter
-
+       , stats
        )
        where
 
-import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Misc    (progressTick, groupList)
 import           Language.Fixpoint.Config  (Config, inFile, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
+import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
+import           Text.Printf          (printf)
+import           Text.PrettyPrint.HughesPJ (text)
+import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
+import           System.ProgressBar (ProgressRef)
+import qualified Data.HashMap.Strict as M
 
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
@@ -36,20 +43,40 @@ import           Control.Monad.State.Strict
 
 type SolveM = StateT SolverState IO
 
-data SolverState = SS { ssCtx   :: !Context
-                      , ssBinds :: !F.BindEnv
-                      , ssIter  :: !Int
+data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
+                      , ssBinds   :: !F.BindEnv        -- ^ All variables and types
+                      , ssStats   :: !Stats            -- ^ Solver Statistics
                       }
 
----------------------------------------------------------------------------
-runSolverM :: Config -> F.GInfo c b -> SolveM a -> IO a
----------------------------------------------------------------------------
-runSolverM cfg fi act = do
-  ctx <-  makeContext (solver cfg) (inFile cfg)
-  fst <$> runStateT (declare fi >> act) (SS ctx be 0)
-  where
-    be = F.bs fi
+data Stats = Stats { numCstr :: !Int -- ^ # Horn Constraints
+                   , numIter :: !Int -- ^ # Refine Iterations
+                   , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
+                   , numChck :: !Int -- ^ # smtCheckUnsat calls
+                   , numVald :: !Int -- ^ # times SMT said RHS Valid
+                   } deriving (Show)
 
+stats0    :: F.GInfo c b -> Stats
+stats0 fi = Stats nCs 0 0 0 0
+  where
+    nCs   = M.size $ F.cm fi
+
+instance PTable Stats where
+  ptable s = DocTable [ (text "# Constraints"         , pprint (numCstr s))
+                      , (text "# Refine Iterations"   , pprint (numIter s))
+                      , (text "# SMT Push & Pops"     , pprint (numBrkt s))
+                      , (text "# SMT Queries (Valid)" , pprint (numVald s))
+                      , (text "# SMT Queries (Total)" , pprint (numChck s))
+                      ]
+
+---------------------------------------------------------------------------
+runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
+---------------------------------------------------------------------------
+runSolverM cfg fi t act = do
+  ctx <-  makeContext (solver cfg) file
+  fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+  where
+    be   = F.bs     fi
+    file = F.fileName fi -- (inFile cfg)
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
@@ -58,17 +85,19 @@ getBinds = ssBinds <$> get
 ---------------------------------------------------------------------------
 getIter :: SolveM Int
 ---------------------------------------------------------------------------
-getIter = ssIter <$> get
+getIter = numIter . ssStats <$> get
 
 ---------------------------------------------------------------------------
-incIter :: SolveM ()
+incIter, incBrkt :: SolveM ()
 ---------------------------------------------------------------------------
-incIter = modify $ \s -> s {ssIter = 1 + ssIter s}
+incIter   = modifyStats $ \s -> s {numIter = 1 + numIter s}
+incBrkt   = modifyStats $ \s -> s {numBrkt = 1 + numBrkt s}
 
 ---------------------------------------------------------------------------
-tickIter :: SolveM Int
+incChck, incVald :: Int -> SolveM ()
 ---------------------------------------------------------------------------
-tickIter = incIter >> getIter
+incChck n = modifyStats $ \s -> s {numChck = n + numChck s}
+incVald n = modifyStats $ \s -> s {numVald = n + numVald s}
 
 withContext :: (Context -> IO a) -> SolveM a
 withContext k = (lift . k) =<< getContext
@@ -76,16 +105,25 @@ withContext k = (lift . k) =<< getContext
 getContext :: SolveM Context
 getContext = ssCtx <$> get
 
+modifyStats :: (Stats -> Stats) -> SolveM ()
+modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
 filterValid :: F.Pred -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs =
-  withContext $ \me ->
-    smtBracket me $
-      filterValid_ p qs me
+filterValid p qs = do
+  qs' <- withContext $ \me ->
+           smtBracket me $
+             filterValid_ p qs me
+  -- stats
+  incBrkt
+  incChck (length qs)
+  incVald (length qs')
+  return qs'
+
+
 
 filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
@@ -115,4 +153,17 @@ declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where
     dropThy = filter (not . isThy . fst)
-    isThy   = isJust . Thy.smt2Symbol -- (`M.member` theorySymbols)
+    isThy   = isJust . Thy.smt2Symbol
+
+---------------------------------------------------------------------------
+stats :: SolveM Stats
+---------------------------------------------------------------------------
+stats = ssStats <$> get
+
+---------------------------------------------------------------------------
+tickIter :: Bool -> SolveM Int
+---------------------------------------------------------------------------
+tickIter newScc = progIter newScc >> incIter >> getIter
+
+progIter :: Bool -> SolveM ()
+progIter newScc = lift $ when newScc progressTick

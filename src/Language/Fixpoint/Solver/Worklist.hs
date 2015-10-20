@@ -1,6 +1,10 @@
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE TupleSections         #-}
+
 module Language.Fixpoint.Solver.Worklist
        ( -- * Worklist type is opaque
-         Worklist
+         Worklist, Stats
 
          -- * Initialize
        , init
@@ -10,126 +14,244 @@ module Language.Fixpoint.Solver.Worklist
 
          -- * Add a constraint and all its dependencies
        , push
+
+         -- * Constraints with Concrete RHS
+       , unsatCandidates
+
+         -- * Statistics
+       , wRanks
        )
        where
 
+import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (envKVars, kvars)
-import           Language.Fixpoint.PrettyPrint (PPrint (..))
-import           Language.Fixpoint.Misc (errorstar, fst3, sortNub, group)
+import           Language.Fixpoint.PrettyPrint -- (PTable (..), PPrint (..))
+import           Language.Fixpoint.Misc (fst3)
 import qualified Language.Fixpoint.Types   as F
+import           Language.Fixpoint.Solver.Types
+import           Language.Fixpoint.Solver.Graph
+import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
-import           Data.Maybe (fromMaybe)
-
-import           Data.Graph (graphFromEdges, scc, path, Graph, Vertex)
+import           Data.Graph (graphFromEdges, scc, Graph, Vertex)
 import           Data.Tree (flatten)
+import           Text.PrettyPrint.HughesPJ (text)
 
----------------------------------------------------------------------------
 -- | Worklist -------------------------------------------------------------
----------------------------------------------------------------------------
 
+data Worklist a = WL { wCs     :: !WorkSet
+                     , wPend   :: !(CMap ())
+                     , wDeps   :: CSucc
+                     , wCm     :: !(CMap (F.SimpC a))
+                     , wRankm  :: !(CMap Rank)
+                     , wLast   :: !(Maybe CId)
+                     , wRanks  :: !Int
+                     , wTime   :: !Int
+                     , wConcCs :: ![CId]
+                     }
+
+data Stats = Stats { numKvarCs  :: !Int
+                   , numConcCs  :: !Int
+                   , numSccs    :: !Int
+                   } deriving (Eq, Show)
+
+
+instance PPrint (Worklist a) where
+  pprint = pprint . S.toList . wCs
+
+instance PTable Stats where
+  ptable s = DocTable [ (text "# Sliced Constraints", pprint (numKvarCs s))
+                      , (text "# Target Constraints", pprint (numConcCs s))
+                      ]
+
+instance PTable (Worklist a) where
+  ptable = ptable . stats
+
+
+-- | WorkItems ------------------------------------------------------------
+
+type WorkSet  = S.Set WorkItem
+
+data WorkItem = WorkItem { wiCId  :: !CId   -- ^ Constraint Id
+                         , wiTime :: !Int   -- ^ Time at which inserted
+                         , wiRank :: !Rank  -- ^ Rank of constraint
+                         } deriving (Eq, Show)
+
+instance PPrint WorkItem where
+  pprint = text . show
+
+instance Ord WorkItem where
+  compare (WorkItem i1 t1 r1) (WorkItem i2 t2 r2)
+    = mconcat [ compare (rScc r1) (rScc r2)   -- SCC
+              , compare t1 t2                 -- TimeStamp
+              , compare (rIcc r1) (rIcc r2)   -- Inner SCC
+              , compare (rTag r1) (rTag r2)   -- Tag
+              , compare i1         i2         -- Otherwise Set drops items
+              ]
+
+-- | Ranks ----------------------------------------------------------------
+
+data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
+                 , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
+                 , rTag  :: !F.Tag  -- ^ The constraint's Tag
+                 } deriving (Eq, Show)
+
+---------------------------------------------------------------------------
+-- | Initialize worklist and slice out irrelevant constraints -------------
 ---------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
 ---------------------------------------------------------------------------
-init fi = WL roots (cSucc cd) (F.cm fi)
+init fi    = WL { wCs     = items
+                , wPend   = addPends M.empty kvarCs
+                , wDeps   = cSucc cd
+                , wCm     = cm
+                , wRankm  = rankm
+                , wLast   = Nothing
+                , wRanks  = cNumScc cd
+                , wTime   = 0
+                , wConcCs = concCs
+                }
   where
-    cd    = cDeps fi
-    roots = S.fromList $ cRoots cd
+    cm        = F.cm  fi
+    cd        = cDeps fi
+    rankm     = cRank cd
+    items     = S.fromList $ workItemsAt rankm 0 <$> kvarCs
+    concCs    = fst <$> ics
+    kvarCs    = fst <$> iks
+    (ics,iks) = L.partition (isTarget . snd) (M.toList cm)
 
 ---------------------------------------------------------------------------
-pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a)
+-- | Candidate Constraints to be checked AFTER computing Fixpoint ---------
+---------------------------------------------------------------------------
+unsatCandidates   :: Worklist a -> [F.SimpC a]
+---------------------------------------------------------------------------
+unsatCandidates w = [ lookupCMap (wCm w) i | i <- wConcCs w ]
+
+
+---------------------------------------------------------------------------
+pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
-  Just (getC (wCm w) i, w {wCs = is})
+  Just ( lookupCMap (wCm w) i
+       , popW w i is
+       , newSCC w i
+       )
 
-getC :: M.HashMap CId a -> CId -> a
-getC cm i = fromMaybe err $ M.lookup i cm
+popW :: Worklist a -> CId -> WorkSet -> Worklist a
+popW w i is = w { wCs   = is
+                , wLast = Just i
+                , wPend = remPend (wPend w) i }
+
+
+newSCC :: Worklist a -> CId -> Bool
+newSCC oldW i = oldRank /= newRank
   where
-    err  = errorstar "getC: bad CId i"
+    oldRank   = lookupCMap rankm <$> wLast oldW
+    newRank   = Just              $  lookupCMap rankm i
+    rankm     = wRankm oldW
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
 ---------------------------------------------------------------------------
-push c w = w {wCs = sAdds (wCs w) js}
+push c w = w { wCs   = sAdds (wCs w) wis'
+             , wTime = 1 + t
+             , wPend = addPends wp is'
+             }
   where
-    i    = sid' c
-    js   = {- tracepp ("PUSH: id = " ++ show i) $ -} wDeps w i
+    i    = F.subcId c
+    is'  = filter (not . isPend wp) $ wDeps w i
+    wis' = workItemsAt (wRankm w) t <$> is'
+    t    = wTime w
+    wp   = wPend w
 
-sid'    :: F.SimpC a -> Integer
-sid' c  = fromMaybe err $ F.sid c
-  where
-    err = errorstar "sid': SimpC without id"
-
----------------------------------------------------------------------------
--- | Worklist -------------------------------------------------------------
----------------------------------------------------------------------------
-
-type CId    = Integer
-type CSucc  = CId -> [CId]
-type KVRead = M.HashMap F.KVar [CId]
-
-data Worklist a = WL { wCs   :: S.Set CId
-                     , wDeps :: CSucc
-                     , wCm   :: M.HashMap CId (F.SimpC a)
-                     }
-
-instance PPrint (Worklist a) where
-  pprint = pprint . S.toList . wCs
+workItemsAt :: CMap Rank -> Int -> CId -> WorkItem
+workItemsAt !r !t !i = WorkItem { wiCId  = i
+                                , wiTime = t
+                                , wiRank = lookupCMap r i }
 
 ---------------------------------------------------------------------------
 -- | Constraint Dependencies ----------------------------------------------
 ---------------------------------------------------------------------------
 
-data CDeps = CDs { cRoots :: ![CId]
-                 , cSucc  :: CId -> [CId]
+data CDeps = CDs { cSucc   :: CSucc
+                 , cRank   :: CMap Rank
+                 , cNumScc :: Int
                  }
 
+---------------------------------------------------------------------------
 cDeps :: F.SInfo a -> CDeps
-cDeps fi = CDs (map (fst3 . foo) rs) next
+---------------------------------------------------------------------------
+cDeps fi  = CDs { cSucc   = gSucc cg
+                , cNumScc = gSccs cg
+                , cRank   = M.fromList [(i, rf i) | i <- is ]
+                }
   where
-    next = kvSucc fi
-    is   = M.keys $ F.cm fi
-    protoGraph = [(i,i,next i) | i <- is]
-    (graph,foo,_) = graphFromEdges protoGraph
-    sccs = L.reverse $ map flatten $ scc graph
-    rs = filterRoots graph sccs
+    rf    = rankF (F.cm fi) outRs inRs
+    inRs  = inRanks fi es outRs
+    outRs = gRanks cg
+    es    = gEdges cg
+    cg    = cGraph fi
+    cm    = F.cm fi
+    is    = M.keys cm
 
-filterRoots :: Graph -> [[Vertex]] -> [Vertex]
-filterRoots _ []         = []
-filterRoots g (scc:sccs) = scc ++ (filterRoots g rem)
+rankF :: CMap (F.SimpC a) -> CMap Int -> CMap Int -> CId -> Rank
+rankF cm outR inR = \i -> Rank (outScc i) (inScc i) (tag i)
   where
-    rem = filter (not . path g (head scc) . head) sccs
+    outScc        = lookupCMap outR
+    inScc         = lookupCMap inR
+    tag           = F._ctag . lookupCMap cm
 
-kvSucc :: F.SInfo a -> CSucc
-kvSucc fi = succs cm rdBy
+
+
+---------------------------------------------------------------------------
+inRanks :: F.SInfo a -> [DepEdge] -> CMap Int -> CMap Int
+---------------------------------------------------------------------------
+inRanks fi es outR
+  | ks == mempty      = outR
+  | otherwise         = fst $ graphRanks g' vf'
   where
-    rdBy  = kvReadBy fi
-    cm    = F.cm     fi
+    ks                = F.kuts fi
+    cm                = F.cm fi
+    (g', vf', _)      = graphFromEdges es'
+    es'               = [(i, i, filter (not . isCut i) js) | (i,_,js) <- es ]
+    isCut i j         = S.member i cutCIds && isEqOutRank i j
+    isEqOutRank i j   = lookupCMap outR i == lookupCMap outR j
+    cutCIds           = S.fromList [i | i <- M.keys cm, isKutWrite i ]
+    isKutWrite        = any (`F.ksMember` ks) . kvWriteBy cm
 
-succs :: M.HashMap CId (F.SimpC a) -> KVRead -> CSucc
-succs cm rdBy i = sortNub $ concatMap kvReads iKs
+
+---------------------------------------------------------------------------
+stats :: Worklist a -> Stats
+---------------------------------------------------------------------------
+stats w = Stats (kn w) (cn w) (wRanks w)
   where
-    ci          = getC cm i
-    iKs         = kvars $ F.crhs ci
-    kvReads k   = M.lookupDefault [] k rdBy
+    kn  = M.size . wCm
+    cn  = length . wConcCs
 
-kvReadBy :: F.SInfo a -> KVRead
-kvReadBy fi = group [ (k, i) | (i, ci) <- M.toList cm
-                             , k       <- envKVars bs ci]
-  where
-    cm      = F.cm fi
-    bs      = F.bs fi
+---------------------------------------------------------------------------
+-- | Pending API
+---------------------------------------------------------------------------
 
+addPends :: CMap () -> [CId] -> CMap ()
+addPends = L.foldl' addPend
+
+addPend :: CMap () -> CId -> CMap ()
+addPend m i = M.insert i () m
+
+remPend :: CMap () -> CId -> CMap ()
+remPend m i = M.delete i m
+
+isPend :: CMap () -> CId -> Bool
+isPend w i = M.member i w
 
 ---------------------------------------------------------------------------
 -- | Set API --------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-sAdds :: (Ord a) => S.Set a -> [a] -> S.Set a
+sAdds :: WorkSet -> [WorkItem] -> WorkSet
 sAdds = L.foldl' (flip S.insert)
 
-sPop :: S.Set a -> Maybe (a, S.Set a)
-sPop = S.minView
+sPop :: WorkSet -> Maybe (CId, WorkSet)
+sPop = fmap (first wiCId) . S.minView

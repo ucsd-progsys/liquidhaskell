@@ -77,7 +77,7 @@ module Language.Fixpoint.Types (
   , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
   , SimpC (..)
   , Tag
-  , TaggedC, WrappedC (..)
+  , TaggedC, WrappedC (..), clhs, crhs
 
   -- * Accessing Constraints
   , envCs
@@ -152,6 +152,7 @@ module Language.Fixpoint.Types (
   , Kuts (..)
   , ksEmpty
   , ksUnion
+  , ksMember
 
   -- * Qualifiers
   , Qualifier (..)
@@ -260,11 +261,13 @@ instance Fixpoint Kuts where
   toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
 
 ksEmpty :: Kuts
-ksEmpty             = KS S.empty
+ksEmpty = KS S.empty
 
 ksUnion :: [KVar] -> Kuts -> Kuts
 ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 
+ksMember :: KVar -> Kuts -> Bool
+ksMember k (KS s) = S.member k s
 ---------------------------------------------------------------
 ---------- Converting Constraints to Fixpoint Input -----------
 ---------------------------------------------------------------
@@ -523,7 +526,7 @@ instance Fixpoint Expr where
 
 data Pred = PTrue
           | PFalse
-          | PAnd   !(ListNE Pred) -- [Pred]
+          | PAnd   !(ListNE Pred)
           | POr    ![Pred]
           | PNot   !Pred
           | PImp   !Pred !Pred
@@ -614,6 +617,7 @@ isEVar _        = False
 
 isEq  :: Brel -> Bool
 isEq r          = r == Eq || r == Ueq
+
 
 isSingletonReft :: Reft -> Maybe Expr
 isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ raConjuncts ra
@@ -750,8 +754,6 @@ functionSort (FFunc n ts) = Just (n, its, t)
   where
     (its, t)              = safeUnsnoc "functionSort" ts
 functionSort _            = Nothing
-
-
 
 
 isNonTrivial :: Reftable r => r -> Bool
@@ -916,7 +918,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
               deriving (Eq, Generic, Functor)
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
-                     , crhs  :: !Pred
+                     , _crhs  :: !Pred
                      , _cid   :: !(Maybe Integer)
                      , _ctag  :: !Tag
                      , _cinfo :: !a
@@ -924,22 +926,37 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
               deriving (Generic, Functor)
 
 class TaggedC c a where
-  senv  :: (c a) -> IBindEnv
-  sid   :: (c a) -> (Maybe Integer)
-  stag  :: (c a) -> Tag
-  sinfo :: (c a) -> a
+  senv  :: c a -> IBindEnv
+  sid   :: c a -> Maybe Integer
+  stag  :: c a -> Tag
+  sinfo :: c a -> a
+  clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
+  crhs  :: c a -> Pred
 
 instance TaggedC SimpC a where
-  senv  = _cenv
-  sid   = _cid
-  stag  = _ctag
-  sinfo = _cinfo
+  senv      = _cenv
+  sid       = _cid
+  stag      = _ctag
+  sinfo     = _cinfo
+  crhs      = _crhs
+  clhs be c = envCs be (senv c)
 
 instance TaggedC SubC a where
-  senv  = _senv
-  sid   = _sid
-  stag  = _stag
-  sinfo = _sinfo
+  senv      = _senv
+  sid       = _sid
+  stag      = _stag
+  sinfo     = _sinfo
+  crhs      = reftPred . sr_reft . srhs
+  clhs be c = sortedReftBind (slhs c) : envCs be (senv c)
+
+sortedReftBind :: SortedReft -> (Symbol, SortedReft)
+sortedReftBind sr = (x, sr)
+  where
+    Reft (x, _)   = sr_reft sr
+
+-- lhsCs, rhsCs :: SubC a -> Reft
+-- lhsCs      = sr_reft . slhs
+-- rhsCs      = sr_reft . srhs
 
 data WrappedC a where
   WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
@@ -948,10 +965,12 @@ instance Show (WrappedC a) where
   show (WrapC x) = show x
 
 instance TaggedC WrappedC a where
-  senv (WrapC x)  = senv x
-  sid (WrapC x)   = sid x
-  stag (WrapC x)  = stag x
-  sinfo (WrapC x) = sinfo x
+  senv  (WrapC x)   = senv  x
+  sid   (WrapC x)   = sid   x
+  stag  (WrapC x)   = stag  x
+  sinfo (WrapC x)   = sinfo x
+  crhs  (WrapC x)   = crhs  x
+  clhs  b (WrapC x) = clhs b x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
@@ -960,7 +979,7 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    }
               deriving (Eq, Generic, Functor)
 
-subcId :: SubC a -> Integer
+subcId :: (TaggedC c a) => c a -> Integer
 subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
@@ -1962,25 +1981,26 @@ mcInfo c = do
 ---------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 ---------------------------------------------------------------------------
-convertFormat fi = fi' { cm = M.map subcToSimpc $ cm fi' }
+convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
   where
-    fi' = foldl blowOutVV fi (M.keys $ cm fi)
+    fi'          = foldl' blowOutVV fi is
+    is           = M.keys $ cm fi
 
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
-  { _cenv  = senv s
-  , crhs  = reftPred $ sr_reft $ srhs s
-  , _cid   = sid s
-  , _ctag  = stag s
-  , _cinfo = sinfo s
+  { _cenv     = senv s
+  , _crhs     = reftPred $ sr_reft $ srhs s
+  , _cid      = sid s
+  , _ctag     = stag s
+  , _cinfo    = sinfo s
   }
 
 blowOutVV :: FInfo a -> Integer -> FInfo a
 blowOutVV fi scId = fi { bs = be', cm = cm' }
   where
-    subc = cm fi M.! scId
-    sr   = slhs subc
-    x    = reftBind $ sr_reft sr
+    subc          = cm fi M.! scId
+    sr            = slhs subc
+    x             = reftBind $ sr_reft sr
     (bindId, be') = insertBindEnv x sr $ bs fi
-    subc' = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
-    cm' = M.insert scId subc' $ cm fi
+    subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
+    cm'           = M.insert scId subc' $ cm fi

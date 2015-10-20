@@ -1,0 +1,50 @@
+qualif Nat(v:int) : (0 <= v)
+qualif N10(v:int) : (10 = v)
+qualif N20(v:int) : (20 = v)
+
+bind 0 x0 : {v: int | [$k0]}
+
+bind 1 x1 : {v: int | [$k1]}
+
+cut $k0
+
+constraint:
+  env [ ]
+  lhs {v : int | [v = 10]}
+  rhs {v : int | [$k0]}
+  id 1 tag [0]
+
+constraint:
+  env [ ]
+  lhs {v : int | [v = 20]}
+  rhs {v : int | [$k0]}
+  id 2 tag [0]
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | [v = x0 + 7]}
+  rhs {v : int | [$k1]}
+  id 3 tag [0]
+
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | [v = x1 + 9]}
+  rhs {v : int | [$k0]}
+  id 4 tag [0]
+
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | [v = x1]}
+  rhs {v : int | [0 <= v]}
+  id 5 tag [0]
+
+wf:
+  env [ ]
+  reft {v: int | [$k0]}
+
+
+wf:
+  env [ ]
+  reft {v: int | [$k1]}

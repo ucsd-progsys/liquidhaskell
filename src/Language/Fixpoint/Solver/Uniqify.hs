@@ -113,7 +113,7 @@ applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
 
 applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
-    go c                = c { crhs = dsubst sub (crhs c) }
+    go c                = c { _crhs = dsubst sub (_crhs c) }
 --------------------------------------------------------------
 
 --------------------------------------------------------------

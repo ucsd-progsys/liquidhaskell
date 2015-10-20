@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -8,10 +7,12 @@
 
 module Language.Fixpoint.Misc where
 
+import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.Exception                (bracket_)
 import           Data.Hashable
+import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (forM_)
+import           Control.Monad                    (forM_, unless)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
@@ -19,10 +20,13 @@ import           Data.Maybe                       (fromMaybe)
 
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (isLoud, whenLoud)
 import           System.Process                   (system)
-
+import           System.Directory                 (createDirectoryIfMissing)
+import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
+import           System.ProgressBar
+import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -62,8 +66,10 @@ doneLine   c msg   = colorPhaseLn c "DONE:  " msg >> colorStrLn Ok " "
 
 donePhase c str
   = case lines str of
-      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "")
+      (l:ls) -> doneLine c l >> forM_ ls (colorPhaseLn c "") >> hFlush stdout
       _      -> return ()
+
+putBlankLn = putStrLn "" >> hFlush stdout
 
 -----------------------------------------------------------------------------------
 
@@ -197,4 +203,38 @@ tshow              = text . show
 
 -- | if loud, write a string to stdout
 writeLoud :: String -> IO ()
-writeLoud = whenLoud . putStrLn
+writeLoud s = whenLoud $ putStrLn s >> hFlush stdout
+
+
+ensurePath :: FilePath -> IO ()
+ensurePath = createDirectoryIfMissing True . takeDirectory
+
+fM :: (Monad m) => (a -> b) -> a -> m b
+fM f = return . f
+
+---------------------------------------------------------------------------
+-- | Progress Bar API
+---------------------------------------------------------------------------
+
+{-# NOINLINE pbRef #-}
+pbRef :: IORef (Maybe ProgressRef)
+pbRef = unsafePerformIO (newIORef Nothing)
+
+progressInit :: Integer -> IO ()
+progressInit n = do
+  loud <- isLoud
+  unless loud $ do
+    pr <- mkPB n
+    writeIORef pbRef (Just pr)
+
+mkPB   :: Integer -> IO ProgressRef
+mkPB n = do
+  hSetBuffering stdout NoBuffering
+  -- fst <$> startProgress percentage exact 80 n
+  fst <$> startProgress noLabel percentage 80 n
+
+progressTick :: IO ()
+progressTick    = go =<< readIORef pbRef
+  where
+   go (Just pr) = incProgress pr 1
+   go _         = return ()

@@ -22,6 +22,7 @@ module Language.Fixpoint.Errors (
   -- * Adding Insult to Injury
   , catMessage
   , catError
+  , catErrors
 
   -- * Fatal Exit
   , die
@@ -37,6 +38,7 @@ import           Data.Typeable
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -106,7 +108,6 @@ instance E.Error Error where
 dummySpan = SS l l
   where l = initialPos ""
 
-
 ---------------------------------------------------------------------
 catMessage :: Error -> String -> Error
 ---------------------------------------------------------------------
@@ -116,6 +117,12 @@ catMessage e msg = e {errMsg = msg ++ errMsg e}
 catError :: Error -> Error -> Error
 ---------------------------------------------------------------------
 catError e1 e2 = catMessage e1 $ show e2
+
+---------------------------------------------------------------------
+catErrors :: ListNE Error -> Error
+---------------------------------------------------------------------
+catErrors = foldr1 catError
+
 
 ---------------------------------------------------------------------
 err :: SrcSpan -> String -> Error

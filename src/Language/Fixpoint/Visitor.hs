@@ -19,8 +19,12 @@ module Language.Fixpoint.Visitor (
   -- * Clients
   , kvars
   , envKVars
+  , rhsKVars
+  , wfKvar
   , mapKVars, mapKVars', mapKVarSubsts
-  , lhsKVars, rhsKVars
+
+  -- * Predicates on Constraints
+  , isConcC , isKvarC
 
   -- * Sorts
   , foldSort, mapSort
@@ -29,6 +33,7 @@ module Language.Fixpoint.Visitor (
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
+import           Language.Fixpoint.Misc    (errorstar)
 import qualified Data.List    as L
 
 data Visitor acc ctx = Visitor {
@@ -102,12 +107,12 @@ instance Visitable BindEnv where
   visit v c = mapM (visit v c)
 
 ---------------------------------------------------------------------------------
--- Warning: these instances were written for mapKVars over SInfos only; 
+-- Warning: these instances were written for mapKVars over SInfos only;
 --  check that they behave as expected before using with other clients.
 instance Visitable (SimpC a) where
   visit v c x = do
-    rhs' <- visit v c (crhs x)
-    return x { crhs = rhs' }
+    rhs' <- visit v c (_crhs x)
+    return x { _crhs = rhs' }
 
 instance Visitable (SInfo a) where
   visit v c x = do
@@ -188,21 +193,41 @@ kvars                = fold kvVis () []
     kv' _ (PKVar k _) = [k]
     kv' _ _           = []
 
-
 envKVars :: (TaggedC c a) => BindEnv -> c a -> [KVar]
-envKVars be c = squish [ kvs sr | (_, sr) <- envCs be (senv c)]
+envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
   where
-    squish = S.toList  . S.fromList . concat
-    kvs    = kvars . sr_reft
+    squish    = S.toList  . S.fromList . concat
+    kvs       = kvars . sr_reft
 
-lhsKVars :: BindEnv -> SubC a -> [KVar]
-lhsKVars binds c = envKVs ++ lhsKVs
-  where
-    envKVs       = envKVars binds         c
-    lhsKVs       = kvars          $ lhsCs c
+-- lhsKVars :: BindEnv -> SubC a -> [KVar]
+-- lhsKVars binds c = envKVs ++ lhsKVs
+  -- where
+    -- envKVs       = envKVars binds         c
+    -- lhsKVs       = kvars          $ lhsCs c
 
-rhsKVars :: SubC a -> [KVar]
-rhsKVars = kvars . rhsCs
+rhsKVars :: (TaggedC c a) => c a -> [KVar]
+rhsKVars = kvars . crhs -- rhsCs
+
+isKvarC :: (TaggedC c a) => c a -> Bool
+isKvarC = all isKvar . conjuncts . crhs
+
+isConcC :: (TaggedC c a) => c a -> Bool
+isConcC = all isConc . conjuncts . crhs
+
+isKvar :: Pred -> Bool
+isKvar (PKVar {}) = True
+isKvar _          = False
+
+isConc :: Pred -> Bool
+isConc = null . kvars
+
+-----------------------------------------------------------------------
+wfKvar :: WfC a -> (Symbol, Sort, KVar)
+-----------------------------------------------------------------------
+wfKvar w@(WfC {wrft = sr})
+  | Reft (v, Refa (PKVar k su)) <- sr_reft sr
+  , isEmptySubst su = (v, sr_sort sr, k)
+  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show sr -- (wid w)
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

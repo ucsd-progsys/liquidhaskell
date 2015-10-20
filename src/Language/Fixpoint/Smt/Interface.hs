@@ -118,8 +118,7 @@ smtRead me = {-# SCC "smtRead" #-}
          Left e  -> error e
          Right r -> do
            maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
-           when (verbose me) $
-             TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+           -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
            return r
 
 responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
@@ -161,9 +160,7 @@ negativeP
 smtWriteRaw      :: Context -> T.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
-  when (verbose me) $ do
-    TIO.appendFile debugFile s
-    TIO.appendFile debugFile "\n"
+  whenLoud $ TIO.appendFile debugFile (s <> "\n")
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
@@ -200,7 +197,11 @@ makeProcess :: SMTSolver -> IO Context
 makeProcess s
   = do (hOut, hIn, _ ,pid) <- runInteractiveCommand $ smtCmd s
        loud <- isLoud
-       return $ Ctx pid hIn hOut Nothing loud
+       return Ctx { pId     = pid
+                  , cIn     = hIn
+                  , cOut    = hOut
+                  , cLog    = Nothing
+                  , verbose = loud    }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode

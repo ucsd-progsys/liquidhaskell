@@ -11,13 +11,11 @@ parallel using the provided solving function
 -}
 
 module Language.Fixpoint.Parallel (
-
-    -- * parallel solver function
     inParallelUsing
-
-) where
+  ) where
 
 import Control.Concurrent
+import Control.Concurrent.Async
 import Language.Fixpoint.Types
 import Control.Exception
 
@@ -27,11 +25,12 @@ unknownError :: String -> Result a
 unknownError e = Result (UnknownError e) mempty
 
 
--- | Solve a list of FInfos using the provided solver function in parallel
-inParallelUsing :: [FInfo a] -- ^ To solve in parallel
-                   -> (FInfo a -> IO (Result a)) -- ^ The solver function
-                   -> IO (Result a) -- ^ The combined results
-inParallelUsing finfos a = do
+{- OLD
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing a finfos = do
    setNumCapabilities (length finfos)
    fw <- newChan
    let action i = do
@@ -45,3 +44,31 @@ inParallelUsing finfos a = do
    where
       waitForAll 0 o _ = sequence o
       waitForAll n o w = waitForAll (n - 1) (readChan w : o) w
+-}
+
+-------------------------------------------------------------------------------
+-- | Solve a list of FInfos using the provided solver function in parallel
+-------------------------------------------------------------------------------
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing f xs = do
+   setNumCapabilities (length xs)
+   rs <- asyncMapM f xs
+   return $ mconcat rs
+
+asyncMapM :: (a -> IO b) -> [a] -> IO [b]
+asyncMapM f xs = mapM (async . f) xs >>= mapM wait
+
+{-
+newtype Async a = Async (MVar a)
+
+async :: IO a -> IO (Async a)
+async action = do
+  m <- newEmptyMVar
+  forkIO $ putMVar m =<< action
+  return (Async m)
+
+wait :: Async a -> IO a
+wait (Async m) = readMVar m
+
+-}

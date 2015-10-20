@@ -11,5 +11,5 @@ main = do
   cfg <- getOpts
   writeLoud $  "Options: " ++ show cfg
   e <- solveFQ cfg
-  putStrLn $ "EXIT: " ++ show e
+  -- putStrLn $ "EXIT: " ++ show e
   exitWith e

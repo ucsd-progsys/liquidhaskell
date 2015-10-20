@@ -1,6 +1,7 @@
-{-# LANGUAGE PatternGuards     #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
@@ -18,10 +19,15 @@ module Language.Fixpoint.Solver.Solution
           -- * Lookup Solution
         , lookup
 
+          -- * RJ: What does this do ?
         , mkJVar
         )
 where
 
+import           Data.Generics             (Data)
+import           Data.Typeable             (Typeable)
+import           GHC.Generics              (Generic)
+import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -42,8 +48,14 @@ type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
 type Cand a   = [(F.Pred, a)]
 
+
+---------------------------------------------------------------------
+-- | Lookup Solution at KVar ----------------------------------------
+---------------------------------------------------------------------
 lookup :: Solution -> F.KVar -> KBind
+---------------------------------------------------------------------
 lookup s k = M.lookupDefault [] k s
+
 
 ---------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier -----------------------------
@@ -58,10 +70,14 @@ data EQual = EQL { eqQual :: !F.Qualifier
                  , eqPred :: !F.Pred
                  , eqArgs :: ![F.Expr]
                  }
-             deriving (Eq, Show)
+             deriving (Eq, Show, Data, Typeable, Generic)
 
 instance PPrint EQual where
   pprint = pprint . eqPred
+
+instance NFData EQual
+--  where
+  -- rnf (EQL q p _) = rnf q `seq` rnf p
 
 {- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
@@ -102,47 +118,41 @@ update1 s (k, qs) = (change, M.insert k qs s)
     oldQs         = lookup s k
     change        = length oldQs /= length qs
 
-
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
 init :: F.GInfo c a -> Solution
 --------------------------------------------------------------------
-init fi = {- tracepp "init solution" -} s
+init fi  = M.fromList keqs
   where
-    s     = L.foldl' (refine fi qs) s0 ws
-    s0    = M.empty
-    qs    = F.quals fi
-    ws    = F.ws    fi
+    -- PARALLELIZE THIS!
+    -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
+    keqs = map (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
+    qs   = F.quals fi
+    ws   = F.ws    fi
+
 
 --------------------------------------------------------------------
 refine :: F.GInfo c a
        -> [F.Qualifier]
-       -> Solution
        -> F.WfC a
-       -> Solution
+       -> (F.KVar, KBind)
 --------------------------------------------------------------------
-refine fi qs s w = refineK env qs s (wfKvar w)
+refine fi qs w = refineK env qs w
   where
-    env          = wenv <> genv
-    wenv         = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-    genv         = (`F.RR` mempty) <$> F.lits fi
+    env        = wenv <> genv
+    wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
+    genv       = (`F.RR` mempty) <$> F.lits fi
 
 refineK :: F.SEnv F.SortedReft
         -> [F.Qualifier]
-        -> Solution
-        -> (F.Symbol, F.Sort, F.KVar)
-        -> Solution
-refineK env qs s (v, t, k) = M.insert k eqs' s
+        -> F.WfC a
+        -> (F.KVar, KBind)
+refineK env qs w = (k, eqs')
   where
-    eqs  = instK env v t qs 
-    --OLD: eqs = fromMaybe (instK env v t qs) (M.lookup k s)
-    --OLD: --but the lookup should _always_ fail, right?
-    eqs' = filter (okInst env v t) eqs
-
-    -- OLD eqs' = case M.lookup k s of
-              -- OLD Nothing  -> instK env v t qs
-              -- OLD Just eqs -> [eq | eq <- eqs, okInst env v t eq]
+    eqs          = instK env v t qs
+    eqs'         = filter (okInst env v t) eqs
+    (v, t, k)    = V.wfKvar w
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
@@ -161,38 +171,36 @@ instKQ :: F.SEnv F.SortedReft
        -> F.Qualifier
        -> [EQual]
 instKQ env v t q
-  = do (su0, v0) <- candidates [(v, t)] qt
-       xs        <- match xts [v0] (So.apply su0 <$> qts)
+  = do (su0, v0) <- candidates [(t, [v])] qt
+       xs        <- match tyss [v0] (So.apply su0 <$> qts)
        return     $ eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
-       xts        = instCands env
+       tyss       = instCands env
 
-instCands :: F.SEnv F.SortedReft -> [(F.Symbol, F.Sort)]
-instCands = filter isOk . F.toListSEnv . fmap F.sr_sort
+instCands :: F.SEnv F.SortedReft -> [(F.Sort, [F.Symbol])]
+instCands env = filter isOk tyss
   where
-    isOk  = isNothing . F.functionSort . snd
+    tyss      = groupList [(t, x) | (x, t) <- xts]
+    isOk      = isNothing . F.functionSort . fst
+    xts       = F.toListSEnv $ F.sr_sort <$> env
 
-match :: [(F.Symbol, F.Sort)] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
-match xts xs (t : ts)
-  = do (su, x) <- candidates xts t
-       match xts (x : xs) (So.apply su <$> ts)
+match :: [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
+match tyss xs (t : ts)
+  = do (su, x) <- candidates tyss t
+       match tyss (x : xs) (So.apply su <$> ts)
 match _   xs []
   = return xs
 
 -----------------------------------------------------------------------
-candidates :: [(F.Symbol, F.Sort)] -> F.Sort -> [(So.TVSubst, F.Symbol)]
+candidates :: [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
 -----------------------------------------------------------------------
-candidates xts t'
-  = [(su, x) | (x, t) <- xts, su <- maybeToList $ So.unify t' t]
-
------------------------------------------------------------------------
-wfKvar :: F.WfC a -> (F.Symbol, F.Sort, F.KVar)
------------------------------------------------------------------------
-wfKvar w@(F.WfC {F.wrft = sr})
-  | F.Reft (v, F.Refa (F.PKVar k su)) <- F.sr_reft sr
-  , F.isEmptySubst su = (v, F.sr_sort sr, k)
-  | otherwise         = errorstar $ "wfKvar: malformed wfC " ++ show (F.wid w)
+candidates tyss tx
+  = [(su, y) | (t, ys) <- tyss
+             , su      <- maybeToList $ So.unifyFast mono tx t
+             , y       <- ys                                   ]
+  where
+    mono = So.isMono tx
 
 -----------------------------------------------------------------------
 okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
@@ -213,7 +221,7 @@ class Solvable a where
 
 instance Solvable EQual where
   apply s = apply s . eqPred
-  --TODO: this used to be just eqPred, but Eliminate allows KVars to 
+  --TODO: this used to be just eqPred, but Eliminate allows KVars to
   -- have other KVars in their solutions. Does this extra 'apply s'
   -- make a significant difference?
 

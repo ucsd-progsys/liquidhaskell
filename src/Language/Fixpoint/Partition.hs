@@ -5,6 +5,7 @@
 
 module Language.Fixpoint.Partition (partition, partition', partitionN) where
 
+import           Debug.Trace (trace)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
@@ -25,16 +26,18 @@ partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
   = do dumpPartitions cfg fis
        dumpEdges      cfg es
-       -- writeLoud $ render $ ppGraph es
        return mempty
     where
        (es, fis) = partition' Nothing fi
 
+------------------------------------------------------------------------------
 -- | Partition an FInfo into multiple disjoint FInfos
+------------------------------------------------------------------------------
 partition' :: Maybe F.MCInfo -- ^ Nothing to produce the maximum possible
                              -- number of partitions. Or a MultiCore Info
                              -- to control the partitioning
            -> F.FInfo a -> (KVGraph, [F.FInfo a])
+------------------------------------------------------------------------------
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
    (Just mi) -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
@@ -42,18 +45,16 @@ partition' mn fi  = case mn of
     es             = kvEdges   fi
     g              = kvGraph   es
     css            = decompose g
-    fis partF ctor = applyNonNull [ctor fi]
-                                  (partitionByConstraints
-                                   partF
-                                   fi) css
+    fis partF ctor = applyNonNull [ctor fi] (pbc partF) css
+    pbc partF      = partitionByConstraints partF fi
 
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
 -- amounts of work
-partitionN :: F.MCInfo -- ^ describes thresholds and partiton amounts
-              -> F.FInfo a -- ^ The originial FInfo
-              -> [F.CPart a] -- ^ A list of the smallest possible CParts
-              -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
+partitionN :: F.MCInfo    -- ^ describes thresholds and partiton amounts
+           -> F.FInfo a   -- ^ The originial FInfo
+           -> [F.CPart a] -- ^ A list of the smallest possible CParts
+           -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
 partitionN mi fi cp
    | cpartSize (finfoToCpart fi) <= minThresh = [fi]
    | otherwise = map (cpartToFinfo fi) $ toNParts sortedParts
@@ -73,11 +74,11 @@ partitionN mi fi cp
          | cpartSize lhs < cpartSize rhs = GT
          | cpartSize lhs > cpartSize rhs = LT
          | otherwise = EQ
-      insertSorted a [] = [a]
+      insertSorted a []     = [a]
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
-                              else a:x:xs
-      prts = F.mcCores mi
+                              else a : x : xs
+      prts      = F.mcCores mi
       minThresh = F.mcMinPartSize mi
       maxThresh = F.mcMaxPartSize mi
 
@@ -153,14 +154,14 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     cM   = M.fromList [ (c, i) | (Cstr c, i) <- kvI ]
 
 mkPartition fi icM iwM j
-  = fi { F.cm = M.fromList $ M.lookupDefault [] j icM
-       , F.ws =              M.lookupDefault [] j iwM
+  = fi { F.cm       = M.fromList $ M.lookupDefault [] j icM
+       , F.ws       =              M.lookupDefault [] j iwM
        , F.fileName = partFile fi j
        }
 
 mkPartition' fi icM iwM j
-  = F.CPart { F.pcm = M.fromList $ M.lookupDefault [] j icM
-            , F.pws = M.lookupDefault [] j iwM
+  = F.CPart { F.pcm       = M.fromList $ M.lookupDefault [] j icM
+            , F.pws       = M.lookupDefault [] j iwM
             , F.cFileName = partFile fi j
             }
 
@@ -202,10 +203,9 @@ type KVGraph  = [(CVertex, CVertex, [CVertex])]
 type Comps a  = [[a]]
 type KVComps  = Comps CVertex
 
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
--------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 decompose kg = map (fst3 . f) <$> vss
   where
     (g,f,_)  = G.graphFromEdges kg
@@ -225,9 +225,8 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
 fiKVars :: F.FInfo a -> [F.KVar]
 fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
 
-
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
-subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.lhsKVars bs c]
+subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c

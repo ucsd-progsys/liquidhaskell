@@ -11,6 +11,7 @@ category:            Language
 build-type:          Custom
 cabal-version:       >=1.10
 
+
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types.
@@ -96,9 +97,11 @@ Executable fixpoint.native
   Main-is: Fixpoint.hs
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring
@@ -109,6 +112,8 @@ Executable fixpoint.native
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
@@ -124,9 +129,11 @@ Executable fixpoint
   ghc-options:   -threaded
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring
@@ -138,6 +145,8 @@ Executable fixpoint
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
@@ -165,6 +174,8 @@ Library
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Misc,
+                   Language.Fixpoint.Solver.Types,
+                   Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
@@ -180,10 +191,12 @@ Library
 
   Build-Depends: base >= 4.7 && < 5
                , array
+               , async
                , attoparsec
                , syb
                , cmdargs
                , ansi-terminal
+               , terminal-progress-bar
                , bifunctors
                , binary
                , bytestring
@@ -197,6 +210,8 @@ Library
                , mtl
                , parsec
                , pretty
+               , boxes
+               , parallel
                , process
                , syb
                , text
