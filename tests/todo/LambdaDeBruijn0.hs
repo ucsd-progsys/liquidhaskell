@@ -23,8 +23,10 @@ data Expr = EVar Var
           | EApp Expr Expr
 {-@ data Expr [elen] @-}
 
-
+-- THIS MAKES THE CODE UNSAFE
 {-@ type MEVar E SU = {e:Expr | if (isEVar E && isRenaming SU) then (isEVar e) else true } @-}
+
+-- If I switch the above to this [e -> v] my code is SAFE, as expected
 {- type MEVar E SU = {v:Expr | if (isEVar E && isRenaming SU) then (isEVar v) else true } @-}
 
 
