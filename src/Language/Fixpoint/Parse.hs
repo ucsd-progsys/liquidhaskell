@@ -418,10 +418,12 @@ refBindP :: Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
+      i  <- freshIntP
       t  <- kindP
       reserved "|"
       ra <- rp <* spaces
-      return $ t (Reft (x, ra))
+      let xi = intSymbol x i
+      return $ t (Reft (xi, subst1 ra (x, EVar xi)))
 
 -- bindP      = symbol    <$> (lowerIdP <* colon)
 bindP      = symbolP <* colon
