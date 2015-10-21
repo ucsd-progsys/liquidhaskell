@@ -48,6 +48,10 @@ prop_nil (C x xs) = toProof e1 $ ((
 -- | thus the user cannot directly access it.
 -- | use a function called `use_axiom` to apply these axioms.
 
+{-@ assume foo :: {v:Proof | false} @-}
+foo = Proof
+
+
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil N =  axiom_append_N N
 
