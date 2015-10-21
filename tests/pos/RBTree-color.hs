@@ -178,7 +178,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ predicate Invs V = ((Inv1 V) && (Inv2 V))               @-}
 {-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
-{-@ predicate Inv2 V = ((isRB v) => (isARB v))              @-}
+{-@ predicate Inv2 V = ((isRB V) => (isARB V))              @-}
 
 {-@ invariant {v: Color | (v = R || v = B)}                 @-}
 

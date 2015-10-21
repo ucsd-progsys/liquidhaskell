@@ -72,7 +72,7 @@ union xs ys = xs ++ ys
 diff  xs ys = xs \\ ys
 
 {-@ predicate Append XS YS V =
-  ((listElts (ddom v)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
+  ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
   @-}
 
 
