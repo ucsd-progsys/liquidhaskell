@@ -15,6 +15,11 @@ import Data.Maybe (fromMaybe)
 
 data Proof = Proof
 
+
+{- assume auto :: {v:Proof | false } @-}
+auto :: Proof
+auto = Proof
+
 axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q
                   let vts = [(x, t) | FunD x _ <- d, SigD y t <- d, x == y ]

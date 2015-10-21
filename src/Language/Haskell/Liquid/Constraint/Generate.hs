@@ -135,8 +135,8 @@ initEnv info
        let dcs   = filter isConLikeId ((snd <$> freeSyms sp))
        let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty    <- forM dcs   $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty'   <- forM dcs'  $ \x -> liftM (x,) (trueTy $ varType x)
+       dcsty    <- forM dcs   $ makeDataConTypes  
+       dcsty'   <- forM dcs'  $ makeDataConTypes 
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
@@ -147,7 +147,7 @@ initEnv info
        f40      <- refreshArgs' $ vals ctors sp              -- constructor refinements  (for measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (autosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (autosize sp) dcs'
-       let f4    = mergeDataConTypes f40 (f41 ++ f42)
+       let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
@@ -163,6 +163,8 @@ initEnv info
     mapSndM f (x,y) = (x,) <$> f y
     makedcs      = map strengthenDataConType
 
+makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+
 makeAutoDecrDataCons dcts specenv dcs
   = (simplify invs, tys)
   where
@@ -176,7 +178,7 @@ makeAutoDecrDataCons dcts specenv dcs
     idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
-    invariant = U (F.Reft (F.vv_, F.Refa $ F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+    invariant = U (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
@@ -185,8 +187,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       x      = dataConWorkId x'
       t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts
       trep   = toRTypeRep t
-      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.Refa
-                              $ F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
+      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
@@ -603,7 +604,7 @@ splitC (SubR γ o r)
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
     r1  = F.RR F.boolSort $ F.toReft r
-    r2  = F.RR F.boolSort $ F.Reft (vv, F.Refa $ F.PBexp $ F.EVar vv)
+    r2  = F.RR F.boolSort $ F.Reft (vv, F.PBexp $ F.EVar vv)
     vv  = "vvRec"
     -- s   = boolSort -- F.FApp F.boolFTyCon []
     ci  = Ci src err
@@ -627,7 +628,7 @@ bsplitC γ t1 t2
   = do checkStratum γ t1 t2
        pflag <- pruneRefs <$> get
        γ' <- γ ++= ("bsplitC", v, t1)
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol,  F.Refa $ constraintToLogic γ' (lcs γ'))}
+       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
        let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
        return $ bsplitC' γ' t1' t2 pflag
   where

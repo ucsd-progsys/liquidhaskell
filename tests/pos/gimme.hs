@@ -1,7 +1,8 @@
 module Blank () where
 
-{-@ qualif Gimme(v:List a, n:int, acc:List a): (len v == n + 1 + len acc) @-}
+{- qualif Gimme(v:[a], n:int, acc:[a]): (len v == n + 1 + len acc) -}
 
+{-@ gimme :: xs:[a] -> n:Int -> acc:[a] -> {v:[a] | len v = n + 1 + len acc} @-}
 gimme :: [a] -> Int -> [a] -> [a]
 gimme xs (-1) acc  = acc
 gimme (x:xs) n acc = gimme xs (n-1) (x : acc)

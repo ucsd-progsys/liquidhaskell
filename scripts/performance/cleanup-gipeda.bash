@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT_DIR=`pwd`;
+SCRIPT_DIR=`dirname $0`;
 GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 FAILURES_OCCURRED=false;
 
