@@ -107,7 +107,7 @@ updateLMap lmap x vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
            Left e -> e
            Right e -> error $ show e 
 
-    ref = F.Reft (F.vv_, F.Refa $ F.PAtom F.Eq llhs lrhs)
+    ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
@@ -138,7 +138,7 @@ makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
     lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of 
   		     Left e -> e
   		     Right e -> error $ show e 
-    ref = F.Reft (F.vv_, F.Refa $ F.PAtom F.Eq llhs lrhs)
+    ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
