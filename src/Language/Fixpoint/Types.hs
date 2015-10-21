@@ -327,7 +327,6 @@ fTyconSymbol (TC s) = s
 
 symbolFTycon :: LocSymbol -> FTycon
 symbolFTycon c
-  -- | val c == listConName
   | isListConName c
   = TC $ fmap (const listConName) c
   | otherwise

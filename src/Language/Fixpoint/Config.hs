@@ -183,9 +183,7 @@ banner :: String
 banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"
        ++ "All Rights Reserved.\n"
 
-
 multicore :: Config -> Bool
-multicore cfg = mc -- || bin
-  where
-    mc        = cores cfg /= Just 1
-    -- bin    = isBinary $ inFile cfg
+multicore cfg = cores cfg /= Just 1
+
+
