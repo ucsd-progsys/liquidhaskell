@@ -159,9 +159,9 @@ checkSorted γ t
       Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
-pruneUnsortedReft γ (RR s (Reft (v, Refa p))) = RR s (Reft (v, tx p))
+pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
   where
-    tx   = refa . mapMaybe (checkPred' f) . conjuncts
+    tx   = pAnd . mapMaybe (checkPred' f) . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
@@ -177,11 +177,6 @@ class Checkable a where
   checkSort :: SEnv Sort -> Sort -> a -> CheckM ()
 
   checkSort γ _ = check γ
-
-instance Checkable Refa where
-  check γ = checkRefa (`lookupSEnvWithDistance` γ)
-
-checkRefa f (Refa p) = checkPred f p
 
 instance Checkable Expr where
   check γ e = do {checkExpr f e; return ()}
