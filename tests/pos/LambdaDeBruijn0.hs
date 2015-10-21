@@ -23,12 +23,7 @@ data Expr = EVar Var
           | EApp Expr Expr
 {-@ data Expr [elen] @-}
 
--- THIS MAKES THE CODE UNSAFE
 {-@ type MEVar E SU = {e:Expr | if (isEVar E && isRenaming SU) then (isEVar e) else true } @-}
-
--- If I switch the above to this [e -> v] my code is SAFE, as expected
-{- type MEVar E SU = {v:Expr | if (isEVar E && isRenaming SU) then (isEVar v) else true } @-}
-
 
 {-@ sub :: su:Subst -> v:Var -> {v:Expr | if (isRenaming su) then (isEVar v) else true } @-}
 sub [] v                       = EVar v
@@ -37,7 +32,6 @@ sub ((vx, x):su) v | v == vx   = x
 
 
 {-@ subst :: e:Expr -> su:Subst -> MEVar e su / [if (isEVar e) then 0 else 1, if (isRenaming su) then 0 else 1, elen e] @-}
-
 subst EUnit        su = EUnit
 subst (EVar v)     su = sub su v
 subst (EApp e1 e2) su = EApp (subst e1 su) (subst e2 su)
