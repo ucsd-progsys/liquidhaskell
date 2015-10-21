@@ -87,7 +87,7 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
-{-@ qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) @-}
+{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (len v) = (olen xs) + (len ys) @-}
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
 fromOL a = go a []
