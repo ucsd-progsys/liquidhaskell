@@ -420,13 +420,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
-refaP :: Parser Refa
-refaP =  try (refa <$> brackets (sepBy predP semi))
-     <|> (Refa <$> predP)
+refaP :: Parser Pred
+refaP =  try (pAnd <$> brackets (sepBy predP semi))
+     <|> predP
 
 
 
-refBindP :: Parser Symbol -> Parser Refa -> Parser (Reft -> a) -> Parser a
+refBindP :: Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
@@ -682,13 +682,10 @@ instance Inputable Constant where
   rr' = doParse' constantP
 
 instance Inputable Pred where
-  rr' = doParse' predP
+  rr' = doParse' refaP
 
 instance Inputable Expr where
   rr' = doParse' exprP
-
-instance Inputable Refa where
-  rr' = doParse' refaP
 
 instance Inputable (FixResult Integer) where
   rr' = doParse' $ fixResultP integer

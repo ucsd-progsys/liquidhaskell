@@ -153,9 +153,6 @@ instance DSubable Pred where
   dsubst _  (PAll _ _)      = error "dsubst: FORALL"
   dsubst _  p               = p
 
-instance DSubable Refa where
-  dsubst su (Refa p)       = Refa $ dsubst su p
-
 instance DSubable Reft where
   dsubst su (Reft (v, ras))  = Reft (v, dsubst (substExcept su [v]) ras)
 

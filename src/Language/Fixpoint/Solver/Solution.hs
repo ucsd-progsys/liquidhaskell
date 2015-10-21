@@ -203,7 +203,7 @@ okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
 -----------------------------------------------------------------------
 okInst env v t eq = isNothing tc
   where
-    sr            = F.RR t (F.Reft (v, F.Refa p))
+    sr            = F.RR t (F.Reft (v, p))
     p             = eqPred eq
     tc            = {- tracepp msg $ -} So.checkSortedReftFull env sr
     msg           = "okInst [p := " ++ show p ++ " ]"
@@ -234,9 +234,6 @@ instance Solvable F.Pred where
     where
       tx _ (F.PKVar k su) = apply s (k, su)
       tx _ p              = p
-
-instance Solvable F.Refa where
-  apply s = apply s . F.raPred
 
 instance Solvable F.Reft where
   apply s = apply s . F.reftPred
