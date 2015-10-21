@@ -106,14 +106,11 @@ module Language.Fixpoint.Types (
   , unionIBindEnv
 
   -- * Refinements
-  , Refa (..), SortedReft (..), Reft(..), Reftable(..)
-  , raConjuncts
+  , SortedReft (..), Reft(..), Reftable(..)
 
   -- * Constructing Refinements
-  , refa
   , reft                    -- "smart
   , trueSortedReft          -- trivial reft
-  , trueRefa                -- trivial reft
   , trueReft                -- trivial reft
   , exprReft                -- singleton: v == e
   , notExprReft             -- singleton: v /= e
@@ -609,10 +606,7 @@ isEq r          = r == Eq || r == Ueq
 
 
 isSingletonReft :: Reft -> Maybe Expr
-isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ raConjuncts ra
-
-raConjuncts  :: Refa -> [Pred]
-raConjuncts  = conjuncts . raPred
+isSingletonReft (Reft (v, ra)) = firstMaybe (isSingletonExpr v) $ conjuncts ra
 
 firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 firstMaybe f = listToMaybe . mapMaybe f
@@ -634,17 +628,17 @@ pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
 
 mkProp        = PBexp . EApp (dummyLoc propConName) . (: [])
 
-pprReft (Reft (v, Refa p)) d
+pprReft (Reft (v, p)) d
   | isTautoPred p
   = d
   | otherwise
-  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [Refa p])
+  = braces (toFix v <+> colon <+> d <+> text "|" <+> ppRas [p])
 
-pprReftPred (Reft (_, Refa p))
+pprReftPred (Reft (_, p))
   | isTautoPred p
   = text "true"
   | otherwise
-  = ppRas [Refa p]
+  = ppRas [p]
 
 ppRas = cat . punctuate comma . map toFix . flattenRefas
 
@@ -699,7 +693,7 @@ eProp ::  Symbolic a => a -> Pred
 eProp = mkProp . eVar
 
 relReft :: (Expression a) => Brel -> a -> Reft
-relReft r e   = Reft (vv_, Refa $ PAtom r (eVar vv_)  (expr e))
+relReft r e   = Reft (vv_, PAtom r (eVar vv_)  (expr e))
 
 exprReft, notExprReft, uexprReft ::  (Expression a) => a -> Reft
 exprReft      = relReft Eq
@@ -707,26 +701,23 @@ notExprReft   = relReft Ne
 uexprReft     = relReft Ueq
 
 propReft      ::  (Predicate a) => a -> Reft
-propReft p    = Reft (vv_, Refa $ PIff (eProp vv_) (prop p))
+propReft p    = Reft (vv_, PIff (eProp vv_) (prop p))
 
 predReft      :: (Predicate a) => a -> Reft
-predReft p    = Reft (vv_, Refa $ prop p)
+predReft p    = Reft (vv_, prop p)
 
 reft :: Symbol -> Pred -> Reft
-reft v p = Reft (v, Refa p)
+reft v p = Reft (v, p)
 
 mapPredReft :: (Pred -> Pred) -> Reft -> Reft
-mapPredReft f (Reft (v, Refa p)) = Reft (v, Refa (f p))
+mapPredReft f (Reft (v, p)) = Reft (v, f p)
 
 
 ---------------------------------------------------------------
 ----------------- Refinements ---------------------------------
 ---------------------------------------------------------------
 
-newtype Refa = Refa { raPred :: Pred }
-               deriving (Eq, Show, Data, Typeable, Generic)
-
-newtype Reft = Reft (Symbol, Refa)
+newtype Reft = Reft (Symbol, Pred)
                deriving (Eq, Data, Typeable, Generic)
 
 instance Show Reft where
@@ -751,13 +742,10 @@ isNonTrivial = not . isTauto
 -- sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
 reftPred :: Reft -> Pred
-reftPred (Reft (_, Refa p)) = p
+reftPred (Reft (_, p)) = p
 
 reftBind :: Reft -> Symbol
 reftBind (Reft (x, _)) = x
-
-refa :: [Pred] -> Refa
-refa = Refa . pAnd
 
 
 ---------------------------------------------------------------
@@ -844,17 +832,13 @@ adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
 instance Functor SEnv where
   fmap = mapSEnv
 
-instance Fixpoint Refa where
-  toFix (Refa p)     = toFix $ conjuncts p
-  -- toFix (RPvar p)    = toFix p
-
 instance Fixpoint Reft where
   toFix = pprReftPred
 
 instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ra)))
     = braces
-    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix ra
+    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> (toFix $ conjuncts ra)
 
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
@@ -1170,13 +1154,6 @@ instance Subable Pred where
   subst su (PExist bs p)   = PExist bs $ subst (substExcept su (fst <$> bs)) p
   subst _  p               = p
 
-instance Subable Refa where
-  syms (Refa p)           = syms p
-  -- syms (RKvar k (Su su'))  = k : concatMap syms ({- M.elems -} su')
-  subst su (Refa p)       = Refa $ subst su p
-  substa f                 = substf (EVar . f)
-  substf f (Refa p)       = Refa (substf f p)
-
 instance (Subable a, Subable b) => Subable (a,b) where
   syms  (x, y)   = syms x ++ syms y
   subst su (x,y) = (subst su x, subst su y)
@@ -1286,18 +1263,14 @@ trueSortedReft :: Sort -> SortedReft
 trueSortedReft = (`RR` trueReft)
 
 trueReft, falseReft :: Reft
-trueReft  = Reft (vv_, trueRefa)
-falseReft = Reft (vv_, Refa PFalse)
+trueReft  = Reft (vv_, PTrue)
+falseReft = Reft (vv_, PFalse)
 
-trueRefa  :: Refa
-trueRefa  = Refa PTrue
-
-flattenRefas ::  [Refa] -> [Refa]
-flattenRefas         = concatMap flatRa
+flattenRefas :: [Pred] -> [Pred]
+flattenRefas        = concatMap flatP
   where
-    flatRa (Refa p)  = Refa <$> flatP p
-    flatP  (PAnd ps) = concatMap flatP ps
-    flatP  p         = [p]
+    flatP (PAnd ps) = concatMap flatP ps
+    flatP p         = [p]
 
 --squishRefas     :: [Refa] -> [Refa]
 --squishRefas ras =  [squish (raPred <$> ras)]
@@ -1342,7 +1315,6 @@ instance B.Binary Brel
 instance B.Binary Bop
 instance B.Binary Expr
 instance B.Binary Pred
-instance B.Binary Refa
 instance B.Binary Reft
 instance B.Binary SortedReft
 instance (B.Binary a) => B.Binary (SEnv a)
@@ -1385,7 +1357,6 @@ instance NFData Brel
 instance NFData Bop
 instance NFData Expr
 instance NFData Pred
-instance NFData Refa
 instance NFData Reft
 instance NFData SortedReft
 instance (NFData a) => NFData (SEnv a)
@@ -1456,9 +1427,6 @@ instance (NFData a) => NFData (Located a)
   -- rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
   -- rnf (_)              = ()
 --
--- instance NFData Refa where
-  -- rnf (Refa x)     = rnf x
---
 -- instance NFData Reft where
   -- rnf (Reft (v, ras)) = rnf v `seq` rnf ras
 
@@ -1503,8 +1471,8 @@ subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- refaConjuncts ra]
 
-refaConjuncts :: Refa -> [Refa]
-refaConjuncts (Refa p)       = [Refa p' | p' <- conjuncts p, not $ isTautoPred p']
+refaConjuncts :: Pred -> [Pred]
+refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 mkVV :: Maybe Integer -> Symbol
 mkVV (Just i)  = vv $ Just i
@@ -1517,9 +1485,6 @@ rhsCs      = sr_reft . srhs
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
-
---removeLhsKvars cs vs
---  = error "TODO:cutsolver: removeLhsKvars (why is this function needed?)"
 
 -- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
 -- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}
@@ -1672,10 +1637,6 @@ instance Monoid Pred where
   mappend p q = pAnd [p, q]
   mconcat     = pAnd
 
-instance Monoid Refa where
-  mempty          = Refa mempty
-  mappend ra1 ra2 = Refa $ mappend (raPred ra1) (raPred ra2)
-
 instance Monoid Reft where
   mempty  = trueReft
   mappend = meetReft
@@ -1738,11 +1699,8 @@ instance Falseable Pred where
   isFalse (PFalse) = True
   isFalse _        = False
 
-instance Falseable Refa where
-  isFalse (Refa p) = isFalse p
-
 instance Falseable Reft where
-  isFalse (Reft (_, ra)) = isFalse $ raPred ra
+  isFalse (Reft (_, ra)) = isFalse ra
 
 ---------------------------------------------------------------
 -- | String Constants -----------------------------------------
@@ -1789,9 +1747,6 @@ decodeSymConst = fmap (SL . symbolText) . stripPrefix litPrefix
 --
 -- instance SymConsts Reft where
   -- symConsts (Reft (_, ra)) = symConsts ra
---
--- instance SymConsts Refa where
-  -- symConsts (Refa p)           = symConsts p
 --
 -- instance SymConsts Expr where
   -- symConsts (ESym c)       = [c]

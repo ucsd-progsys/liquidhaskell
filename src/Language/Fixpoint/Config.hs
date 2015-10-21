@@ -186,4 +186,3 @@ banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of Ca
 multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
 
-

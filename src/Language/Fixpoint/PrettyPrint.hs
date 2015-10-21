@@ -196,9 +196,6 @@ orD    = text " ||"
 pprintBin _ b _ [] = b
 pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
-instance PPrint Refa where
-  pprintPrec z (Refa p)     = pprintPrec z p
-
 instance PPrint Reft where
   pprint r@(Reft (_,ra))
     | isTauto r        = text "true"
