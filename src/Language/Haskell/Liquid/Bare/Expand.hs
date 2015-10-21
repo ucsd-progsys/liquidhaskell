@@ -12,7 +12,7 @@ import Control.Monad.State hiding (forM)
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Pred(..), Refa(..), Reft(..), mkSubst, subst)
+import Language.Fixpoint.Types (Expr(..), Pred(..), Reft(..), mkSubst, subst)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
@@ -30,7 +30,7 @@ txPredReft :: (Pred -> BareM Pred) -> (Expr -> BareM Expr) -> RReft -> BareM RRe
 txPredReft f fe u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
   where
     txPredReft' (Reft (v, ra)) = Reft . (v,) <$> txPredRefa ra
-    txPredRefa  (Refa p)       = Refa        <$> (f <=< mapPredM fe) p
+    txPredRefa                 = (f <=< mapPredM fe)
 
 mapPredM :: (Expr -> BareM Expr) -> Pred -> BareM Pred
 mapPredM f = go

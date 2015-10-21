@@ -54,7 +54,8 @@ This requires that you have installed [stack][stack] (which we strongly recommen
 
 ## Troubleshooting
 
-If you're on Windows, please make sure the solver is installed
+
+1. If you're on Windows, please make sure the SMT solver is installed
 in the **same** directory as LiquidHaskell itself (i.e. wherever
 `cabal` or `stack` puts your binaries). That is, do:
 
@@ -65,5 +66,11 @@ in the **same** directory as LiquidHaskell itself (i.e. wherever
 and make sure that `z3` or `cvc4` or `mathsat` are in the `PATH`
 returned by the above.
 
+2. If you installed via `stack` and are experiencing path related woes, try:
+
+    ```
+    stack exec -- liquid path/to/file.hs
+    ```
+    
 
 [stack]: https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md

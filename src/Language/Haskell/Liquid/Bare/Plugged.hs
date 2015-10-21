@@ -25,7 +25,7 @@ import Data.Monoid
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Names (dummySymbol)
-import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, Refa (..), TCEmb)
+import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 
 import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
@@ -44,16 +44,16 @@ makePluggedSigs name embs tcEnv exports sigs
 makePluggedAsmSigs embs tcEnv sigs
   = forM sigs $ \(x,t) -> do
       let τ = expandTypeSynonyms $ varType x
-      let r = killHoles
+      let r = const killHoles
       (x,) <$> plugHoles embs tcEnv x r τ t
 
 makePluggedDataCons embs tcEnv dcs
   = forM dcs $ \(dc, Loc l l' dcp) -> do
        let (das, _, dts, dt) = dataConSig dc
        tyArgs <- zipWithM (\t1 (x,t2) ->
-                   (x,) . val <$> plugHoles embs tcEnv (dataConName dc) killHoles t1 (Loc l l' t2))
+                   (x,) . val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) t1 (Loc l l' t2))
                  dts (reverse $ tyArgs dcp)
-       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) killHoles dt (Loc l l' (tyRes dcp))
+       tyRes <- val <$> plugHoles embs tcEnv (dataConName dc) (const killHoles) dt (Loc l l' (tyRes dcp))
        return (dc, Loc l l' dcp { freeTyVars = map rTyVar das
                                 , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
                                 , tyArgs     = reverse tyArgs
@@ -79,10 +79,16 @@ plugHoles tce tyi x f t (Loc l l' st)
     initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t (toType st)
 
     go :: SpecType -> SpecType -> BareM SpecType
-    go t                (RHole r)          = return $ (addHoles t') { rt_reft = f r }
+    go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }
       where
         t'       = everywhere (mkT $ addRefs tce tyi) t
-        addHoles = fmap (const $ f $ uReft ("v", Refa hole))
+        addHoles = everywhere (mkT $ addHole)
+        -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
+        addHole :: SpecType -> SpecType
+        addHole t@(RVar v r)       = RVar v (f t (uReft ("v", hole)))
+        addHole t@(RApp c ts ps r) = RApp c ts ps (f t (uReft ("v", hole)))
+        addHole t                  = t
+
     go (RVar _ _)       v@(RVar _ _)       = return v
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a <$> go t t'
@@ -111,9 +117,9 @@ addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
 addRefs _ _ t  = t
 
 
-maybeTrue :: NamedThing a => a -> ModName -> NameSet -> RReft -> RReft
-maybeTrue x target exports r
-  | isInternalName name || inTarget && notExported
+maybeTrue :: NamedThing a => a -> ModName -> NameSet -> SpecType -> RReft -> RReft
+maybeTrue x target exports t r
+  | not (isFunTy t) && (isInternalName name || inTarget && notExported)
   = r
   | otherwise
   = killHoles r
@@ -128,5 +134,3 @@ killHoles ur = ur { ur_reft = tx $ ur_reft ur }
   where
     tx r = {- traceFix ("killholes: r = " ++ showFix r) $ -} mapPredReft dropHoles r
     dropHoles    = pAnd . filter (not . isHole) . conjuncts
-
-

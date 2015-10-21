@@ -100,7 +100,7 @@ splitRef f (U r p s) = (U r1 p1 s, U r2 p2 s)
                 (r1, r2) = splitReft f r
                 (p1, p2) = splitPred f p
 
-splitReft f (Reft (v, Refa xs)) = (Reft (v, Refa $ pAnd xs1), Reft (v, Refa $ pAnd xs2))
+splitReft f (Reft (v, xs)) = (Reft (v, pAnd xs1), Reft (v, pAnd xs2))
   where
     (xs1, xs2)       = partition (isFree f) (unPAnd xs)
 

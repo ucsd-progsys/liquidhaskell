@@ -6,16 +6,17 @@
 
 module Language.Haskell.Liquid.CoreToLogic (
 
-  coreToDef , coreToFun
-  , mkLit, runToLogic,
-  logicType,
+  coreToDef , coreToFun, coreToLogic,
+  mkLit, runToLogic,
+  logicType, 
   strengthenResult
 
   ) where
 
 import GHC hiding (Located)
-import Var
-import Type
+import Var 
+import Type 
+import TypeRep
 
 import qualified CoreSyn   as C
 import Literal
@@ -265,7 +266,17 @@ makeApp def lmap f es
 eVarWithMap :: Id -> LogicMap -> LogicM Expr
 eVarWithMap x lmap
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
-       return $ eAppWithMap lmap f' [] (EVar $ symbol x)
+       return $ eAppWithMap lmap f' [] (eVar x )
+  where
+    eVar x | isPolyCst $ varType x  = EApp (dummyLoc $ symbol x) []
+           | otherwise              = EVar $ symbol x 
+
+    isPolyCst (ForAllTy _ t) = isCst t 
+    isPolyCst _              = False 
+    isCst     (ForAllTy _ t) = isCst t 
+    isCst     (FunTy _ _)    = False 
+    isCst     _              = True 
+
 
 brels :: M.HashMap Symbol Brel
 brels = M.fromList [ (symbol ("==" :: String), Eq)

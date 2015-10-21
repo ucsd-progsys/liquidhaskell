@@ -103,8 +103,8 @@ dataConTy _ _
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, Refa rs)) (Pr ps) s)
-  = U (Reft (v, Refa rs'')) (Pr ps2) s
+replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s)
+  = U (Reft (v, rs'')) (Pr ps2) s
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1

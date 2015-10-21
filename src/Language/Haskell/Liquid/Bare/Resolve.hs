@@ -20,7 +20,6 @@ import Language.Fixpoint.Names (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Pred(..),
                                 Qualifier(..),
-                                Refa(..),
                                 Reft(..),
                                 Sort(..),
                                 Symbol,
@@ -107,9 +106,7 @@ instance Resolvable (UReft Reft) where
   resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s
 
 instance Resolvable Reft where
-  resolve l (Reft (s, ra)) = Reft . (s,) <$> resolveRefa ra
-    where
-      resolveRefa (Refa p) = Refa <$> resolve l p
+  resolve l (Reft (s, ra)) = Reft . (s,) <$> resolve l ra
 
 instance Resolvable Predicate where
   resolve l (Pr pvs) = Pr <$> resolve l pvs

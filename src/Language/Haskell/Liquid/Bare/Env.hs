@@ -17,6 +17,8 @@ module Language.Haskell.Liquid.Bare.Env (
   , setREAlias
 
   , execBare
+
+  , insertLogicEnv
   ) where
 
 import HscTypes
@@ -68,6 +70,7 @@ data BareEnv = BE { modName  :: !ModName
 
 
 
+insertLogicEnv x ys e = modify $ \be -> be {logicEnv = M.insert x (LMap x ys e) $ logicEnv be}
 
 setModule m b = b { modName = m }
 
