@@ -159,7 +159,7 @@ makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_re
     res  = ty_res trep `strengthen` U ref mempty mempty
     vv   = vv_
     x'   = symbol x --  simpleSymbolVar x 
-    ref  = Reft (vv, Refa $ PAtom Eq (EVar vv) eq)
+    ref  = Reft (vv, PAtom Eq (EVar vv) eq)
     eq   | null (ty_vars trep) && null xs = EVar x'
          | otherwise = EApp (dummyLoc x') (EVar <$> xs)
 
