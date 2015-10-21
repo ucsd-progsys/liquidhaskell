@@ -183,6 +183,8 @@ solveNative :: (NFData a, Fixpoint a) => Solver a
 solveNative !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
+  let qs   = quals fi0
+  whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
   let si   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
