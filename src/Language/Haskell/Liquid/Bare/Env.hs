@@ -70,7 +70,7 @@ data BareEnv = BE { modName  :: !ModName
 
 
 
-insertLogicEnv x ys e = modify $ \be -> be {logicEnv = M.insert (LMap x ys e) $ logicEnv be}
+insertLogicEnv x ys e = modify $ \be -> be {logicEnv = M.insert x (LMap x ys e) $ logicEnv be}
 
 setModule m b = b { modName = m }
 
