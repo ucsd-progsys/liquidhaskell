@@ -1,5 +1,5 @@
 module OrdList (
-    OrdList, 
+    OrdList,
         nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL, concatOL',
         mapOL, fromOL, toOL, foldrOL, foldlOL
 ) where
@@ -87,12 +87,12 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
-{- qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) -}
+{-@ qualif Go(v:List a, xs:OrdList a, ys:List a): (len v) = (olen xs) + (len ys) @-}
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | (len v) = (olen xs)} @-}
 fromOL a = go a []
   where
-    {-@ go :: xs:_ -> acc:_ -> {v:[a] | len v = olen xs + len acc } @-}
+    {- go :: xs:_ -> acc:_ -> {v:[a] | len v = olen xs + len acc } -}
     go None       acc = acc
     go (One a)    acc = a : acc
     go (Cons a b) acc = a : go b acc
@@ -127,6 +127,6 @@ foldlOL k z (Snoc xs x) = k (foldlOL k z xs) x
 foldlOL k z (Two b1 b2) = foldlOL k (foldlOL k z b1) b2
 foldlOL k z (Many xs)   = foldl k z xs
 
-{-@ toOL :: xs:[a] -> OrdListN a {(len xs)} @-}
+{-@ toOL :: xs:[a] -> OrdListN a {len xs} @-}
 toOL [] = None
 toOL xs = Many xs
