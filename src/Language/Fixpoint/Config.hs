@@ -185,7 +185,7 @@ banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of Ca
 
 
 multicore :: Config -> Bool
-multicore cfg = mc -- || bin
+multicore cfg = mc -- ORIG: mc || bin
   where
     mc        = cores cfg /= Just 1
     -- bin    = isBinary $ inFile cfg

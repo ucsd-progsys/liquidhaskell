@@ -119,9 +119,9 @@ trivR :: Reft -> Bool
 trivR = all trivP . conjuncts . reftPred
 
 trivOrSingR :: Reft -> Bool
-trivOrSingR (Reft (v, ra)) = all trivOrSingP $ conjuncts $ raPred ra
+trivOrSingR (Reft (v, p)) = all trivOrSingP $ conjuncts p
   where
-    trivOrSingP p          = trivP p || singP v p
+    trivOrSingP p         = trivP p || singP v p
 
 trivP :: Pred -> Bool
 trivP (PKVar {}) = True

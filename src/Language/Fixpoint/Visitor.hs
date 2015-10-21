@@ -91,9 +91,6 @@ instance Visitable Expr where
 instance Visitable Pred where
   visit = visitPred
 
-instance Visitable Refa where
-  visit v c (Refa p) = Refa <$> visit v c p
-
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
 
@@ -225,7 +222,7 @@ isConc = null . kvars
 wfKvar :: WfC a -> Maybe (Symbol, Sort, KVar)
 -----------------------------------------------------------------------
 wfKvar (WfC {wrft = sr})
-   | Reft (v, Refa (PKVar k su)) <- sr_reft sr
+   | Reft (v, PKVar k su) <- sr_reft sr
                = if isEmptySubst su
                    then Just (v, sr_sort sr, k)
                    else err
