@@ -139,7 +139,7 @@ uRTypeGen       = fmap $ const mempty
 uPVar           :: PVar t -> UsedPVar
 uPVar           = void
 
-uReft           :: (Symbol, Refa) -> UReft Reft
+uReft           :: (Symbol, Pred) -> UReft Reft
 uReft           = uTop . Reft
 
 uTop            ::  r -> UReft r
@@ -930,9 +930,9 @@ applySolution = fmap . fmap . mapReft . appSolRefa
 -- OLD    appSolRefa _ ra@(RConc _)        = ra
 -- OLD    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s
 
-appSolRefa s (Refa p) = Refa $ mapKVars f p
+appSolRefa s p = mapKVars f p
   where
-    f k               = Just $ M.lookupDefault PTop k s
+    f k        = Just $ M.lookupDefault PTop k s
 
 -------------------------------------------------------------------------------
 shiftVV :: SpecType -> Symbol -> SpecType
@@ -1065,7 +1065,7 @@ makeDecrType autoenv = mkDType autoenv [] []
 mkDType autoenv xvs acc [(v, (x, t))]
   = (x, ) $ t `strengthen` tr
   where
-    tr = uTop $ Reft (vv, Refa $ pOr (r:acc))
+    tr = uTop $ Reft (vv, pOr (r:acc))
     r  = cmpLexRef xvs (v', vv, f)
     v' = symbol v
     f  = mkDecrFun autoenv  t
@@ -1101,7 +1101,7 @@ cmpLexRef vxs (v, x, g)
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
 
-makeLexRefa es' es = uTop $ Reft (vv, Refa $ PIff (PBexp $ EVar vv) $ pOr rs)
+makeLexRefa es' es = uTop $ Reft (vv, PIff (PBexp $ EVar vv) $ pOr rs)
   where
     rs = makeLexReft [] [] es es'
     vv = "vvRec"

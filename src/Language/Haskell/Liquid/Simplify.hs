@@ -11,7 +11,7 @@ simplifyBounds = fmap go
   where
     go x       = x { ur_reft = go' $ ur_reft x }
     -- OLD go' (Reft (v, rs)) = Reft(v, filter (not . isBoundLike) rs)
-    go' (Reft (v, Refa p)) = Reft(v, Refa $ dropBoundLike p)
+    go' (Reft (v, p)) = Reft(v, dropBoundLike p)
 
 dropBoundLike :: Pred -> Pred
 dropBoundLike p
