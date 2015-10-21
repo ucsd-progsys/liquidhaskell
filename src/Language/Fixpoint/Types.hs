@@ -314,15 +314,21 @@ strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
+isListConName :: LocSymbol -> Bool
+isListConName x = c == listConName || c == listLConName --"List"
+  where
+    c           = val x
+
 isListTC :: FTycon -> Bool
-isListTC (TC (Loc _ _ c)) = c == listConName || c == "List"
+isListTC (TC z) = isListConName z
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s) = s
 
 symbolFTycon :: LocSymbol -> FTycon
 symbolFTycon c
-  | val c == listConName
+  -- | val c == listConName
+  | isListConName c
   = TC $ fmap (const listConName) c
   | otherwise
   = TC c
