@@ -75,7 +75,8 @@ solve cfg fi
   | parts cfg = partition  cfg $!! fi
   | stats cfg = statistics cfg $!! fi
   | otherwise = do saveBin cfg $!! fi
-                   sW s    cfg $!! fi
+                   res <- sW s    cfg $!! fi
+                   return      $  res {- FIXME make this $!! -}
   where
     s         = configSolver cfg
     sW        = configSW     cfg
@@ -183,8 +184,8 @@ solveNative :: (NFData a, Fixpoint a) => Solver a
 solveNative !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
-  let qs   = quals fi0
-  whenLoud $ print qs
+  -- let qs   = quals fi0
+  -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
   let si   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
@@ -200,7 +201,7 @@ solveNative !cfg !fi0 = do
   Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg s0 $!! si'''
   -- rnf soln `seq` donePhase Loud "Solve2"
   let stat' = sid <$> stat
-  -- writeLoud $ "\nSolution:\n"  ++ showpp soln
+  writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- colorStrLn (colorResult stat') (show stat')
   return    $ Result (WrapC . mlookup (cm fi0) . mfromJust "WAT" <$> stat') soln
 
