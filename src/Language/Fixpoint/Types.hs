@@ -311,16 +311,20 @@ strFTyCon  = TC $ dummyLoc strConName
 propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
+isListConName :: LocSymbol -> Bool
+isListConName x = c == listConName || c == listLConName --"List"
+  where
+    c           = val x
+
 isListTC :: FTycon -> Bool
-isListTC (TC (Loc _ _ c)) = c == listConName || c == "List"
---isTupTC  (TC (Loc _ _ c)) = c == tupConName
+isListTC (TC z) = isListConName z
 
 fTyconSymbol :: FTycon -> Located Symbol
 fTyconSymbol (TC s) = s
 
 symbolFTycon :: LocSymbol -> FTycon
 symbolFTycon c
-  | val c == listConName
+  | isListConName c
   = TC $ fmap (const listConName) c
   | otherwise
   = TC c
@@ -387,21 +391,6 @@ toFixFApp [t]        = toFixSort t
 toFixFApp [FTC c, t]
   | isListTC c       = brackets $ toFixSort t
 toFixFApp ts         = parens $ intersperse space (toFixSort <$> ts)
-
--- toFixArg             :: Sort -> Doc
--- toFixArg t@(FApp {}) = parens $ toFixSort t
--- toFixArg t           =          toFixSort t
-
---    fp s@(FApp _) = parens $ toFixSort s
---     fp s                = toFixSort s
-
--- toFixFApp :: FTycon -> [Sort] -> Doc
--- toFixFApp c [t]
---   | isListTC c            = brackets $ toFixSort t
--- toFixFApp c ts            = toFix c <+> intersperse space (fp <$> ts)
---   where
---     fp s@(FApp _ (_:_)) = parens $ toFixSort s
---     fp s                = toFixSort s
 
 instance Fixpoint FTycon where
   toFix (TC s)       = toFix s

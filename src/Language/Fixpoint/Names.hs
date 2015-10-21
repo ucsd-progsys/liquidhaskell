@@ -68,6 +68,7 @@ module Language.Fixpoint.Names (
   , boolConName
   , funConName
   , listConName
+  , listLConName
   , tupConName
   , propConName
   , hpropConName
@@ -415,14 +416,15 @@ instance Symbolic Symbol where
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
 
-preludeName, dummyName, boolConName, funConName, listConName :: Symbol
+preludeName, dummyName, boolConName, funConName :: Symbol
 preludeName  = "Prelude"
 dummyName    = "LIQUID$dummy"
 boolConName  = "Bool"
 funConName   = "->"
 
-tupConName, propConName, hpropConName, strConName, vvName :: Symbol
-listConName  = "[]" -- "List"
+listConName, listLConName, tupConName, propConName, hpropConName, strConName, vvName :: Symbol
+listConName  = "[]"
+listLConName = "List"
 tupConName   = "Tuple"
 propConName  = "Prop"
 hpropConName = "HProp"
@@ -447,6 +449,7 @@ prims = [ propConName
         , vvName
         , "Pred"
         , "List"
+        , "[]"
         , "Set_Set"
         , "Set_sng"
         , "Set_cup"
