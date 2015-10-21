@@ -132,10 +132,11 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
          >>= makeGhcSpec3 datacons tycons embs syms
-         >>= makeGhcSpec4 defVars specs name su
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms cbs name specs
          >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)  
+         -- This step need the updated logic map, ie should happen after makeGhcAxioms
+         >>= makeGhcSpec4 defVars specs name su                    
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
