@@ -1485,22 +1485,10 @@ rhsCs      = sr_reft . srhs
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
-
--- CUTSOLVER   = cs {slhs = goRR (slhs cs)}
--- CUTSOLVER  where goRR rr                     = rr{sr_reft = goReft (sr_reft rr)}
--- CUTSOLVER        goReft (Reft(v, rs))        = Reft(v, filter f rs)
--- CUTSOLVER        f (RKvar v _) | v `elem` vs = False
--- CUTSOLVER        f r                         = True
-
---trueSubCKvar k = subC emptyIBindEnv mempty rhs  Nothing [0]
---  where
---    rhs        = RR mempty (Reft (vv_, Refa $ PKVar k mempty))
-
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
-
 
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
