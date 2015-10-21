@@ -50,9 +50,9 @@ instance Transformable RReft where
   tx s m = fmap (tx s m)
 
 instance Transformable Reft where
-  tx s m (Reft (v, Refa p)) = if v == s
-                              then errorstar "Transformable: this should not happen"
-                              else Reft(v, Refa $ tx s m p)
+  tx s m (Reft (v, p)) = if v == s
+                         then errorstar "Transformable: this should not happen"
+                         else Reft(v, tx s m p)
 
 -- OLD instance Transformable Refa where
 -- OLD   tx s m (RConc p)     = RConc $ tx s m p

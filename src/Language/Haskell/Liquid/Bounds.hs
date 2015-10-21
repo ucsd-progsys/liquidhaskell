@@ -104,7 +104,7 @@ makeBoundType penv (q:qs) xts = go xts
 
     mkt t x = ofRSort t `strengthen` ofUReft (U (Reft (val x, mempty))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft (val x, refa rs))
+    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft (val x, pAnd rs))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
@@ -149,7 +149,7 @@ envToSub = go []
 -- thus it can contain both concrete and abstract refinements
 
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v (PAnd rs) = ofUReft (U (Reft (val v, refa rrs)) r mempty)
+makeRef penv v (PAnd rs) = ofUReft (U (Reft (val v, pAnd rrs)) r mempty)
   where
     r                    = Pr  (toUsedPVar penv <$> pps)
     (pps, rrs)           = partition (isPApp penv) rs
@@ -159,4 +159,4 @@ makeRef penv v rr
   where
     r                    = Pr [toUsedPVar penv rr]
 
-makeRef _    v p         = ofReft (Reft(val v, Refa p))
+makeRef _    v p         = ofReft (Reft(val v, p))

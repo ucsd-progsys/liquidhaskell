@@ -38,8 +38,8 @@ subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where
         (rs , su) = foldl go ([], []) xts
         ([r], _ ) = go ([], su) (x', (x, t))
-        go (acc, su) (x', (x, t)) = let (Reft(v, Refa p)) = toReft (fromMaybe mempty (stripRTypeBase t))
-                                        su'               = (x', EVar x):(v, EVar x) : su
+        go (acc, su) (x', (x, t)) = let (Reft(v, p)) = toReft (fromMaybe mempty (stripRTypeBase t))
+                                        su'          = (x', EVar x):(v, EVar x) : su
                                     in
                                      (subst (mkSubst su') p : acc, su')
 

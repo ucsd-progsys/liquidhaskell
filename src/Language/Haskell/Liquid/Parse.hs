@@ -190,10 +190,10 @@ bareAtomP ref
  <|> try (dummyP (bbaseP <* spaces))
 
 
-holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", Refa hole))
+holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)
 refasHoleP  = try refaP
-           <|> (reserved "_" >> return (Refa hole))
+           <|> (reserved "_" >> return hole)
 
 -- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
 -- to avoid parsing:
