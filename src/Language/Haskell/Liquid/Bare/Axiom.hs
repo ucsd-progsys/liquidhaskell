@@ -63,11 +63,11 @@ makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
     (NonRec v def:_)   -> return $ traceShow ("makeAxiom NonRec" ++ show def) 
                                    ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
-    (Rec [(v, def)]:_) -> return $ traceShow ("makeAxiom Rec   " ++ show def 
-    	                                       ++ showpp (coreToDef' x v def) ++ "\n\n" ++ show (defAxioms v def) 
-    	                                       ++ "\n\nAxiom names \n\n"++ showpp (map (\x -> (x, varType x)) $ findAxiomNames x cbs)) 
-                                   ((val x, makeType v), traceShow ("\n\nTYPES\n\n") 
-                                   	  ((v, makeAssumeType v):zipWith (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)), defAxioms v def)
+    (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                             updateLMap lmap x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                             return ((val x, makeType v), 
+                                     ((v, makeAssumeType v): vts), 
+                                     defAxioms v def)
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
 
@@ -84,40 +84,76 @@ makeAxiom lmap cbs _ _ x
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
 
-makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> (Var, Located SpecType)
+
+updateLMap :: LogicMap -> LocSymbol -> Var -> BareM ()
+updateLMap lmap x vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
+  = insertLogicEnv (val x) ys runFun
+  where
+    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+
+    ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2]
+
+{-
+
+    t   = fromRTypeRep $ tr{ty_res = res, ty_binds = symbol <$> xs}  
+    tr  = toRTypeRep $ ofType $ varType v 
+    res = ty_res tr `strengthen` U ref mempty mempty
+
+    llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of 
+           Left e -> e 
+           Right e -> error $ show e 
+    lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of 
+           Left e -> e
+           Right e -> error $ show e 
+
+    ref = F.Reft (F.vv_, F.Refa $ F.PAtom F.Eq llhs lrhs)
+
+
+    lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
+
+
+    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
+
+    -- mkBinds [] [] = []
+    mkBinds (x:xs) (v:vs) = v:mkBinds xs vs
+    mkBinds _ _ = []
+
+    v' = val x -- symbol $ showPpr $ getName vv
+
+-}
+
+
+makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = traceShow ("\n\nTYPESSSS\n\n"  ++ showpp (llhs, lrhs)) (v, x{val = t})
-  where 
-  	t   = fromRTypeRep $ tr{ty_res = res, ty_binds = symbol <$> xs}  
-  	tr  = toRTypeRep $ ofType $ varType v 
-  	res = ty_res tr `strengthen` U ref mempty mempty
+  = return $ traceShow ("\n\nTYPESSSS\n\n"  ++ showpp (llhs, lrhs)) (v, x{val = t})
+  where
+    t   = fromRTypeRep $ tr{ty_res = res, ty_binds = symbol <$> xs}  
+    tr  = toRTypeRep $ ofType $ varType v 
+    res = ty_res tr `strengthen` U ref mempty mempty
 
-
-  	llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of 
+    llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of 
   		     Left e -> e 
   		     Right e -> error $ show e 
-  	lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of 
+    lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of 
   		     Left e -> e
   		     Right e -> error $ show e 
+    ref = F.Reft (F.vv_, F.Refa $ F.PAtom F.Eq llhs lrhs)
 
-  	ref = F.Reft (F.vv_, F.Refa $ F.PAtom F.Eq llhs lrhs)
+    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
-  	nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+    ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
+    lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
 
-  	ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2]
 
-  	lmap' = M.insert v' (LMap v' ys runFun) lmap
+    mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
 
-  	runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2]
+    mkBinds (x:xs) (v:vs) = v:mkBinds xs vs
+    mkBinds _ _ = []
 
-  	mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
-
-  	-- mkBinds [] [] = []
-  	mkBinds (x:xs) (v:vs) = v:mkBinds xs vs
-  	mkBinds _ _ = []
-
-  	v' = symbol $ showPpr $ getName vv
+    v' = val x -- symbol $ showPpr $ getName vv
 
 
 
@@ -152,37 +188,37 @@ class Simplifiable a where
 	simplify :: a -> a
 
 instance Simplifiable CoreExpr where
-	simplify (Tick _ e) = simplify e
-	simplify (Lam x e) | isTyVar x = simplify e 
-	simplify (Lam x e) | isClassPred (varType x) = simplify e 
-	simplify (Lam x e) = Lam x $ simplify e 
-	simplify (Let b e) = unANF (simplify b) (simplify e)
-	simplify (Case e v t alts) = Case e v t alts 
-	simplify (Cast e _) = simplify e 
-	simplify (App e (Type _)) = simplify e 
-	simplify (App e (Var x)) | isClassPred (varType x) = simplify e 
-	simplify (App f e) = App (simplify f) (simplify e)
-	simplify e@(Var _) = e 
-	simplify e = error ("TODO simplify" ++ show e)
+  simplify (Tick _ e) = simplify e
+  simplify (Lam x e) | isTyVar x = simplify e 
+  simplify (Lam x e) | isClassPred (varType x) = simplify e 
+  simplify (Lam x e) = Lam x $ simplify e 
+  simplify (Let b e) = unANF (simplify b) (simplify e)
+  simplify (Case e v t alts) = Case e v t alts 
+  simplify (Cast e _) = simplify e 
+  simplify (App e (Type _)) = simplify e 
+  simplify (App e (Var x)) | isClassPred (varType x) = simplify e 
+  simplify (App f e) = App (simplify f) (simplify e)
+  simplify e@(Var _) = e 
+  simplify e = error ("TODO simplify" ++ show e)
 
 unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
   = subst (x, ex) e 
 unANF b e = Let b e
 
-instance Simplifiable CoreBind where
-	simplify (NonRec x e) = NonRec x $ simplify e 
-	simplify (Rec xes)    = Rec (second simplify <$> xes) 
+instance Simplifiable CoreBind where 
+  simplify (NonRec x e) = NonRec x $ simplify e 
+  simplify (Rec xes)    = Rec (second simplify <$> xes) 
 
 
 class Subable a where
-	subst :: (Var, CoreExpr) -> a -> a 
+  subst :: (Var, CoreExpr) -> a -> a 
 
 instance Subable CoreExpr where
-	subst (x, ex) (Var y) | x == y    = ex 
-	                      | otherwise = Var y
-	subst su (App f e) = App (subst su f) (subst su e)  
-	subst su (Lam x e) = Lam x (subst su e)
-	subst _ _          = error "TODO Subable"
+  subst (x, ex) (Var y) | x == y    = ex 
+                        | otherwise = Var y
+  subst su (App f e) = App (subst su f) (subst su e)  
+  subst su (Lam x e) = Lam x (subst su e)
+  subst _ _          = error "TODO Subable"
 
 -- | Specification for Haskell function 
 axiomType :: LocSymbol -> Type -> SpecType
@@ -197,7 +233,7 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     ref = F.Reft (x, F.Refa $ F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
-    mkApp = foldl runFun (F.EVar $ val s)
+    mkApp = F.EApp s . map F.EVar -- foldl runFun (F.EVar $ val s)
 
     runFun e x = F.EApp (dummyLoc runFunName) [e, F.EVar x]
 
