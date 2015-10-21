@@ -447,6 +447,7 @@ prims = [ propConName
         , vvName
         , "Pred"
         , "List"
+        , "[]"
         , "Set_Set"
         , "Set_sng"
         , "Set_cup"
