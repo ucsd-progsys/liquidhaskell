@@ -8,6 +8,7 @@ import           Debug.Trace               (trace)
 import qualified Data.Text                 as T
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names   (symbolString)
 import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.PrettyPrint.Boxes as B
