@@ -145,12 +145,12 @@ refine fi qs w = refineK env qs <$> V.wfKvar w
     genv       = (`F.RR` mempty) <$> F.lits fi
 
 refineK :: F.SEnv F.SortedReft -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
-refineK env qs (v, t, k) = (k, tracepp msg eqs')
+refineK env qs (v, t, k) = (k, eqs')
    where
     eqs                  = instK env v t qs
     eqs'                 = filter (okInst env v t) eqs
-    msg                  = "refineK: " ++ show k
-    
+    -- msg                  = "refineK: " ++ show k
+
 --------------------------------------------------------------------
 instK :: F.SEnv F.SortedReft
       -> F.Symbol
