@@ -61,8 +61,9 @@ makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> return $ traceShow ("makeAxiom NonRec" ++ show def) 
-                                   ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
+    (NonRec v def:_)   -> do updateLMap lmap x v
+                             return $ traceShow ("makeAxiom NonRec" ++ show def) 
+                                      ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              return ((val x, makeType v), 
