@@ -4,10 +4,8 @@
 
 module DataBase (values) where
 
-import qualified Data.Set as Set
-
 {-@ values :: forall <range :: key -> val -> Prop>.
-  k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
+  k:key -> [Dict <range> key val]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map go
   where
@@ -15,15 +13,15 @@ values k = map go
 
 data Dict key val = D {ddom :: [key], dfun :: key -> val}
 {-@ ddom :: forall <range :: key -> val -> Prop>.
-           x:Dict <range> key val  -> {v:[key] | v = ddom x}
+           x:Dict <range> key val  -> [key]
   @-}
 
 {-@ dfun :: forall <range :: key -> val -> Prop>.
                x:Dict <range> key val
-            -> i:{v:key | Set_mem v (listElts (ddom x))} -> val<range i>
+            -> i:key -> val<range i>
   @-}
 
 {-@ data Dict key val <range :: key -> val -> Prop>
   = D ( ddom :: [key])
-      ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
+      ( dfun :: i:key -> val<range i>)
   @-}
