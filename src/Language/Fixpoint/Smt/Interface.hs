@@ -86,6 +86,29 @@ runCommands cmds
        mapM_ (T.putStrLn . smt2) cmds
        zs   <- mapM (command me) cmds
        return zs
+
+-- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
+-- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
+checkValid :: [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValid xts p q
+  = do me <- makeContext Z3
+       smtDecl xts
+       smtAssert $ pAnd [p, PNot q]
+       smtCheckUnsat
+
+Alternatively, if you already HAVE a context, where all the
+variables have declared types (e.g. if you want to make MANY
+repeated Queries)
+
+-- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
+checkValids :: [(Symbol, Sort)] -> [Pred] -> IO [Bool]
+checkValids xts ps
+  = do me <- makeContext Z3
+       smtDecl xts
+       forM ps $ \p ->
+          smtBracket $
+            smtAssert (PNot p) >> smtCheckUnsat
+
 -}
 
 debugFile :: FilePath
