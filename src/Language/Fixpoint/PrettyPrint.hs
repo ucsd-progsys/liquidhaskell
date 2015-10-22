@@ -93,7 +93,7 @@ instance PPrint Sort where
   pprint = toFix
 
 instance PPrint Symbol where
-  pprint = text . symbolSafeString
+  pprint = text . symbolString
 
 instance PPrint KVar where
   pprint (KV x) = text "$" <> pprint x
