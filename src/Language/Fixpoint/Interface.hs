@@ -72,19 +72,18 @@ solveFQ cfg = do fi      <- readFInfo file
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg fi
-  | parts cfg = partition  cfg $!! fi
-  | stats cfg = statistics cfg $!! fi
-  | otherwise = do saveBin cfg $!! fi
-                   res <- sW s    cfg $!! fi
-                   return      $  res {- FIXME make this $!! -}
+  | parts cfg = partition  cfg     $!! fi
+  | stats cfg = statistics cfg     $!! fi
+  | otherwise = do saveBin cfg     $!! fi
+                   res <- sW s cfg $!! fi
+                   return          $!! res {- FIXME make this $!! -}
   where
     s         = configSolver cfg
     sW        = configSW     cfg
 
 saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
-saveBin cfg fi = when (binary cfg) $ do
-  putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
-  saveBinaryFile cfg fi
+saveBin cfg fi = when (binary cfg) $ saveBinaryFile cfg fi
+  -- putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
 
 
 configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
@@ -327,7 +326,7 @@ saveBinaryFile :: Config -> FInfo a -> IO ()
 saveBinaryFile cfg fi = do
   let fi'  = void fi
   let file = binaryFile cfg
-  putStrLn $ "Saving Binary File: " ++ file ++ "\n"
+  -- putStrLn $ "Saving Binary File: " ++ file ++ "\n"
   ensurePath file
   encodeFile file fi'
 

@@ -622,6 +622,7 @@ isSingletonExpr v (PAtom r e1 e2)
   | e2 == EVar v && isEq r = Just e1
 isSingletonExpr _ _        = Nothing
 
+pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
@@ -933,6 +934,7 @@ sortedReftBind sr = (x, sr)
 
 data WrappedC a where
   WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
+
 
 instance Show (WrappedC a) where
   show (WrapC x) = show x
@@ -1366,84 +1368,11 @@ instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Located a)
-
--- instance NFData Kuts where
---   rnf (KS s) = rnf s
-
--- instance NFData Qualifier where
---   rnf (Q x1 x2 x3 _) = rnf x1 `seq` rnf x2 `seq` rnf x3
-
--- instance NFData FTycon where
---   rnf (TC c)       = rnf c
---
--- instance NFData Sort where
-  -- rnf (FVar x)     = rnf x
-  -- rnf (FFunc n ts) = rnf n `seq` (rnf <$> ts) `seq` ()
-  -- rnf (FApp t1 t2) = rnf t1 `seq` rnf t2 `seq` ()
-  -- rnf (z)          = z `seq` ()
---
--- instance NFData Sub where
---  rnf (Sub x) = rnf x
-
--- instance NFData Subst where
---  rnf (Su x) = rnf x
-
--- instance NFData IBindEnv where
---  rnf (FB x) = rnf x
-
--- instance NFData BindEnv where
---  rnf (BE x m) = rnf x `seq` rnf m
-
--- instance NFData Constant where
-  -- rnf (I x)     = rnf x
-  -- rnf (R x)     = rnf x
-  -- rnf (L s t) = rnf s `seq` rnf t
-
--- instance NFData SymConst where
---  rnf (SL x) = rnf x
+instance (NFData a) => NFData (Result a)
+instance (NFData a) => NFData (WrappedC a) where
+  rnf (WrapC _) = ()
 
 
-
--- instance NFData Expr where
-  -- rnf (ESym x)        = rnf x
-  -- rnf (ECon x)        = rnf x
-  -- rnf (EVar x)        = rnf x
--- --   rnf (ELit x1 x2)    = rnf x1 `seq` rnf x2
-  -- rnf (EApp x1 x2)    = rnf x1 `seq` rnf x2
-  -- rnf (ENeg x1)       = rnf x1
-  -- rnf (EBin x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  -- rnf (EIte x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  -- rnf (ECst x1 x2)    = rnf x1 `seq` rnf x2
-  -- rnf (_)             = ()
---
--- instance NFData Pred where
-  -- rnf (PAnd x)         = rnf x
-  -- rnf (POr  x)         = rnf x
-  -- rnf (PNot x)         = rnf x
-  -- rnf (PBexp x)        = rnf x
-  -- rnf (PImp x1 x2)     = rnf x1 `seq` rnf x2
-  -- rnf (PIff x1 x2)     = rnf x1 `seq` rnf x2
-  -- rnf (PAll x1 x2)     = rnf x1 `seq` rnf x2
-  -- rnf (PAtom x1 x2 x3) = rnf x1 `seq` rnf x2 `seq` rnf x3
-  -- rnf (_)              = ()
---
--- instance NFData Reft where
-  -- rnf (Reft (v, ras)) = rnf v `seq` rnf ras
-
--- instance NFData SortedReft where
---  rnf (RR so r) = rnf so `seq` rnf r
-
--- instance (NFData a) => NFData (SubC a) where
-  -- rnf (SubC x1 x2 x3 x4 x5 x6)
-    -- = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4 `seq` rnf x5 `seq` rnf x6
---
--- instance (NFData a) => NFData (WfC a) where
-  -- rnf (WfC x1 x2 x3 x4)
-    -- = rnf x1 `seq` rnf x2 `seq` rnf x3 `seq` rnf x4
-
--- instance (NFData a) => NFData (Located a) where
-  -- FIXME: no instance NFData SrcSpan
-  -- rnf (Loc _ _  x) = rnf x
 
 ----------------------------------------------------------------------------
 -------------- Hashable Instances -----------------------------------------
