@@ -16,8 +16,6 @@
 
 module Language.Haskell.Liquid.Constraint.Axioms (expandProofs) where 
 
-
-{-
 import CoreUtils     (exprType)
 import MkCore
 import Coercion
@@ -78,26 +76,89 @@ import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                , symbolFastString)
-import Language.Haskell.Liquid.Misc
+                                                , symbolFastString, dropModuleNames)
+import Language.Haskell.Liquid.Misc             hiding (mapSndM)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
 import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Constraint
--}
+
+
+import Language.Haskell.Liquid.CoreToLogic
 
 import CoreSyn 
 
 import Language.Haskell.Liquid.Constraint.Types
 
 
+data Actions = Auto 
+
+data AEnv = AE { ae_axioms :: [HAxiom] 
+               , ae_binds  :: [CoreBind]
+               , ae_lmap   :: LogicMap 
+               }
+
+
+addBind b = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
+
+type Pr = State AEnv
+
+
+isAuto v = isPrefixOfSym "auto" $ dropModuleNames $ F.symbol v 
+
+
+mapSndM act xys = mapM (\(x, y) -> (x,) <$> act y) xys
+
 class Provable a where 
+
   expandProofs :: a -> CG a 
-  expandProofs = return 
+  expandProofs x = do as    <- haxioms  <$> get 
+                      lmap  <- lmap <$> get
+                      return $ evalState (expProofs x) (AE as [] lmap) 
+
+  expProofs :: a -> Pr a 
+  expProofs = return  
 
 instance Provable CoreBind where
+  expProofs (NonRec x e) = NonRec x <$> expProofs e 
+  expProofs (Rec xes)    = Rec <$> mapSndM expProofs xes 
 
+
+instance Provable CoreExpr where
+  expProofs ee@(App (Tick _ (Var f)) e) | isAuto f = expandAutoProof ee e
+  expProofs ee@(App (Var f) e)          | isAuto f = expandAutoProof ee e
+
+  expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
+  expProofs (Lam x e)   = liftM  (Lam x) (expProofs e)
+  expProofs (Let b e)   = do b' <- expProofs b 
+                             addBind b' 
+                             liftM (Let b') (expProofs e)
+  expProofs (Case e v t alts) = liftM2 (\e -> Case e v t) (expProofs e) (mapM expProofs alts)
+  expProofs (Cast e c)   = liftM (`Cast` c) (expProofs e)
+  expProofs (Tick t e)   = liftM (Tick t) (expProofs e)
+
+  expProofs (Var v)      = return $ Var v
+  expProofs (Lit l)      = return $ Lit l
+  expProofs (Type t)     = return $ Type t
+  expProofs (Coercion c) = return $ Coercion c 
+
+
+instance Provable CoreAlt where 
+  expProofs (c, xs, e) = liftM (c,xs,) (expProofs e)
+
+expandAutoProof :: CoreExpr -> CoreExpr -> Pr CoreExpr
+expandAutoProof inite e 
+  =  do ams <- ae_axioms <$> get  
+        bds <- ae_binds  <$> get
+        lm  <- ae_lmap   <$> get 
+        let le = case runToLogic lm (errOther . text) (coreToPred $ foldl (flip Let) e bds) of 
+                  Left e  -> e
+                  Right (ErrOther _ e) -> error $ show e  
+        return $ traceShow ("\n\nI now have to prove this " ++ show e
+                            ++ "\n\n With axioms \n\n" ++ show ams
+                            ++ "\n\n With binds  \n\n" ++ showPpr bds    
+                            ++ "\n\n In logic    \n\n" ++ show (showpp le)) $ inite
 
 {-
 class Provable a where
