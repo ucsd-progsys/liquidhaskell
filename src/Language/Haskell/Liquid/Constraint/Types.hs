@@ -32,6 +32,7 @@ import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 
+
 type CG = State CGInfo
 
 data CGEnv
@@ -133,6 +134,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
                      , haxioms    :: [HAxiom]                     -- ^ Axioms 
+                     , lmap       :: LogicMap 
                      }
 
 instance PPrint CGInfo where
