@@ -27,7 +27,3 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
   = D ( ddom :: [key])
       ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
   @-}
-
-{-@ qual' :: forall <range :: key -> val -> Prop>. k:key -> val<range k> @-}
-qual' :: key -> val
-qual' = undefined
