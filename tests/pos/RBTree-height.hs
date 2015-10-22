@@ -167,7 +167,7 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ invariant {v: RBTree a | (Invs v)}        @-}
 {-@ predicate Invs V = (Inv3 V)               @-}
-{-@ predicate Inv3 V = 0 <= (bh v)            @-}
+{-@ predicate Inv3 V = 0 <= (bh V)            @-}
 
 {-@ invariant {v: Color | (v = R || v = B)}   @-}
 
