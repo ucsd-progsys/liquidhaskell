@@ -414,14 +414,17 @@ refaP =  try (pAnd <$> brackets (sepBy predP semi))
 
 
 
-refBindP :: Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
+refBindP :: Subable a => Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
+      i  <- freshIntP
       t  <- kindP
       reserved "|"
       ra <- rp <* spaces
-      return $ t (Reft (x, ra))
+      let xi = intSymbol x i
+      let su = mkSubst [(x, EVar xi)]
+      return $ subst su $ t (Reft (xi, subst su ra))
 
 -- bindP      = symbol    <$> (lowerIdP <* colon)
 bindP      = symbolP <* colon
