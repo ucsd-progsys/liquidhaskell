@@ -706,6 +706,7 @@ initCGI cfg info = CGInfo {
   , bindSpans  = M.empty
   , autoSize   = autosize spc
   , haxioms    = axioms spc 
+  , lmap       = logicMap spc 
   }
   where
     tce        = tcEmbeds spc

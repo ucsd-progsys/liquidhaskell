@@ -378,9 +378,14 @@ data GhcSpec = SP {
   , tyconEnv   :: M.HashMap TyCon RTyCon
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
   , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
+  , logicMap   :: LogicMap  
   }
 
 type LogicMap = M.HashMap Symbol LMap
+
+instance Monoid LogicMap where
+  mempty  = M.empty
+  mappend = M.union   
 
 data LMap = LMap { lvar  :: Symbol
                  , largs :: [Symbol]
