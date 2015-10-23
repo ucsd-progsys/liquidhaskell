@@ -374,7 +374,7 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
 
 bsplitW' γ t pflag
-  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
+  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' ci]
   | otherwise         = []
   where
     r'                = rTypeSortedReft' pflag γ t
@@ -599,7 +599,7 @@ splitC (SubC _ t1 t2)
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
        let r1' = if fg then pruneUnsortedReft γ'' r1 else r1
-       return $ F.subC γ' r1' r2 Nothing tag ci
+       return $ F.niSubC γ' r1' r2 tag ci
   where
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
@@ -643,9 +643,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
-  = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+  = F.niSubC γ' (r1' {F.sr_reft = mempty}) r2' tag ci
   | F.isNonTrivial r2'
-  = F.subC γ' r1'  r2' Nothing tag ci
+  = F.niSubC γ' r1'  r2' tag ci
   | otherwise
   = []
   where
