@@ -37,7 +37,7 @@ import NameSet
 import TypeRep
 import Unique 
 
-import Text.PrettyPrint.HughesPJ hiding (first)
+import Text.PrettyPrint.HughesPJ hiding (first, sep)
 
 import Control.Monad.State
 
@@ -58,7 +58,7 @@ import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
 import Language.Fixpoint.Sort (pruneUnsortedReft)
-import Language.Fixpoint.Visitor
+import Language.Fixpoint.Visitor hiding (freeVars)
 import Language.Fixpoint.Names
 
 import Language.Haskell.Liquid.Fresh
@@ -72,7 +72,7 @@ import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyV
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
@@ -84,6 +84,8 @@ import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Constraint
 
+import Language.Fixpoint.Smt.Interface
+
 
 import Language.Haskell.Liquid.CoreToLogic
 
@@ -94,18 +96,31 @@ import Language.Haskell.Liquid.Constraint.Types
 
 data Actions = Auto 
 
-data AEnv = AE { ae_axioms :: [HAxiom] 
-               , ae_binds  :: [CoreBind]
-               , ae_lmap   :: LogicMap 
+data AEnv = AE { ae_axioms  :: [HAxiom] 
+               , ae_binds   :: [CoreBind]
+               , ae_lmap    :: LogicMap
+               , ae_consts  :: [Var]  -- Data constructors and imported variables
+               , ae_globals :: [Var]  -- Global definitions, like axioms
+               , ae_vars    :: [Var]
                }
 
 
 addBind b = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
+addVar  x | canIgnore x = return ()
+          | otherwise   =  modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
+addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
+  where 
+    x' = filter (not . canIgnore) x 
+
+
+canIgnore v = isInternal v || isTyVar v 
+
 
 type Pr = State AEnv
 
 
-isAuto v = isPrefixOfSym "auto" $ dropModuleNames $ F.symbol v 
+isAuto  v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v 
+isProof v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v 
 
 
 mapSndM act xys = mapM (\(x, y) -> (x,) <$> act y) xys
@@ -113,9 +128,12 @@ mapSndM act xys = mapM (\(x, y) -> (x,) <$> act y) xys
 class Provable a where 
 
   expandProofs :: a -> CG a 
-  expandProofs x = do as    <- haxioms  <$> get 
-                      lmap  <- lmap <$> get
-                      return $ evalState (expProofs x) (AE as [] lmap) 
+  expandProofs x = do as       <- haxioms  <$> get 
+                      lmap      <- lmap     <$> get
+                      (vs, tp)  <- (filter2 (not . canIgnore) . globalVars) <$> get 
+                      return $ evalState (expProofs x) (AE as [] lmap (L.nub vs) (L.nub tp) []) 
+    where
+      filter2 p (xs, ys) = (filter p xs, filter p ys)
 
   expProofs :: a -> Pr a 
   expProofs = return  
@@ -130,7 +148,7 @@ instance Provable CoreExpr where
   expProofs ee@(App (Var f) e)          | isAuto f = expandAutoProof ee e
 
   expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
-  expProofs (Lam x e)   = liftM  (Lam x) (expProofs e)
+  expProofs (Lam x e)   = addVar x >> liftM  (Lam x) (expProofs e)
   expProofs (Let b e)   = do b' <- expProofs b 
                              addBind b' 
                              liftM (Let b') (expProofs e)
@@ -145,20 +163,205 @@ instance Provable CoreExpr where
 
 
 instance Provable CoreAlt where 
-  expProofs (c, xs, e) = liftM (c,xs,) (expProofs e)
+  expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
 
 expandAutoProof :: CoreExpr -> CoreExpr -> Pr CoreExpr
 expandAutoProof inite e 
-  =  do ams <- ae_axioms <$> get  
-        bds <- ae_binds  <$> get
-        lm  <- ae_lmap   <$> get 
+  =  do ams <- ae_axioms  <$> get  
+        bds <- ae_binds   <$> get
+        lm  <- ae_lmap    <$> get 
+        vs  <- ae_vars    <$> get 
+        gs  <- ae_globals <$> get 
+        cts <- ae_consts  <$> get 
         let le = case runToLogic lm (errOther . text) (coreToPred $ foldl (flip Let) e bds) of 
                   Left e  -> e
                   Right (ErrOther _ e) -> error $ show e  
         return $ traceShow ("\n\nI now have to prove this " ++ show e
-                            ++ "\n\n With axioms \n\n" ++ show ams
-                            ++ "\n\n With binds  \n\n" ++ showPpr bds    
-                            ++ "\n\n In logic    \n\n" ++ show (showpp le)) $ inite
+                            ++ "\n\n With axioms     \n\n" ++ show ams
+                            ++ "\n\n With variables  \n\n" ++ showPpr ((\v -> (v, varType v)) <$>vs)   
+                            ++ "\n\n With constants  \n\n" ++ showPpr cts   
+                            ++ "\n\n Knowledge Data Base \n\n" ++ show (runStep (cts ++ vs) $ initKnowledgeBase gs)   
+                            ++ "\n\n In logic        \n\n" ++ show (showpp le)) $ inite
+
+
+
+-- |  Knowledge: things in scope that return a Proof. 
+-- | TODO: Be careful to only apply inductive hypothesis on less things.
+
+-- type Knowledge = [CoreExpr]
+
+newtype Instance = Inst (Var, [Var], [TemplateArgument])
+
+data TemplateArgument = TA {ta_type :: Type, ta_instance :: TArg}
+
+data TArg = TDone CoreExpr | TTmp Var [TemplateArgument] | THole
+
+class HasHoles a where
+  hasHoles :: a -> Bool 
+
+instance HasHoles Instance where
+  hasHoles (Inst (_, _, ts)) = any hasHoles ts 
+
+instance HasHoles TemplateArgument where
+  hasHoles (TA _ t) = hasHoles t 
+
+instance HasHoles TArg where
+    hasHoles (TDone _) = False
+    hasHoles THole     = True 
+    hasHoles (TTmp _ ts) = any hasHoles ts    
+
+
+isTDone (TDone _) = True 
+isTDone _         = False
+
+instance Show TArg where
+  show (TDone e) = "TDone : " ++ showPpr e 
+  show THole     = "THole"
+  show (TTmp v ts) = "TTmp for " ++ showPpr v ++ tab (show ts)
+
+tab str = concat $ map ('\t':) (lines str) 
+
+
+instance Show TemplateArgument where
+  show (TA t tmp) = "\n \t\t\t\tType = " ++ showPpr t ++ 
+                     "\n \t\t\t\t\tConstructors = " ++ show tmp
+
+
+instance Show Instance where
+  show (Inst (v, tvs, ls)) = "\nAxiom\t" ++ showPpr v ++ par (sep ", " (showShortTemplate <$> ls))
+
+sep :: String -> [String] -> String
+sep _ []     = []
+sep _ [x]    = x
+sep c (x:xs) = x ++ c ++ sep c xs
+
+par :: String -> String 
+par str = " ( " ++ str ++ " )"
+
+showShortTArg :: TArg -> String
+showShortTemplate :: TemplateArgument -> String 
+showShortTemplate ta = showShortTArg $ ta_instance ta
+showShortTArg (TDone e) = showPpr e 
+showShortTArg THole     = "HOLE"
+showShortTArg (TTmp v ls) = showPpr v ++ par (sep ", " (showShortTemplate <$> ls))
+
+{-
+instance Show Instance where
+  show (Inst (v, tvs, ls)) = "\nInstance:\t" ++ "Axiom Name = " ++ showPpr v ++ 
+                        "\n\t\t\tFree Ty Vars: " ++ showPpr tvs ++
+                        "\n\t\t\tArguments: " ++ concatMap show ls
+-}
+
+
+runStep cds is = go iter [] is 
+  where
+    iter = 3
+    go 0 acc is = acc
+    go i acc is = let (h, noh) = L.partition hasHoles is in 
+                  let is'      = runStepOne cds h in 
+                  go (i-1) (acc ++ noh) is' 
+
+
+-- Then split ready and runStep for the rest
+runStepOne :: [Var] -> [Instance] -> [Instance]
+runStepOne cds is =  concatMap go is
+  where
+    go (Inst (ax, vs, targs)) = [Inst (ax, vs, tas) | tas <- expandOneHole vs cds targs] 
+
+
+expandHole :: [Var] -> [Var] -> TemplateArgument -> [TemplateArgument]
+expandHole tvs cds (TA t THole)       = TA t <$> instantiateHole tvs cds t 
+expandHole tvs cds (TA t (TDone e))   = [TA t $ TDone e]
+expandHole tvs cds (TA t (TTmp v ts)) = (\ts' -> TA t (TTmp v ts')) <$> expandOneHole tvs cds ts 
+
+
+expandOneHole :: [Var] -> [Var] -> [TemplateArgument] -> [[TemplateArgument]]
+expandOneHole tvs cds ts = go [] ts 
+  where
+    go acc [] 
+      = [reverse acc]
+    go acc (TA t THole:tas)      
+      = map (\ta -> (reverse acc) ++ [TA t ta] ++ tas) (instantiateHole tvs cds t)
+    go acc (TA t (TDone e):tas)   
+      = go (TA t (TDone e):acc) tas
+    go acc (TA t (TTmp v tts):tas) 
+      = map (\xs -> (reverse acc) ++ [TA t (TTmp v xs)] ++ tas) (expandOneHole (L.nub (forallTyVars (varType v) ++ tvs)) cds tts)
+
+instantiateHole :: [Var] -> [Var] -> Type -> [TArg]
+instantiateHole tvs cds t = instantiate cds <$> cvs 
+   where
+      cvs = filter ((isInstanceOf tvs t). resultType . varType) cds
+
+instantiate :: [Var] -> Var -> TArg
+instantiate cds v 
+  | null ts
+  = TDone $ Var v 
+  | otherwise 
+  = TTmp v (makeTemplate <$> ts)
+  where
+    t = varType v 
+    ts = argumentTypes t
+
+
+initKnowledgeBase :: [Var] -> [Instance] 
+initKnowledgeBase cts = initKB <$> axioms
+  where 
+    axioms = filter returnsProof cts 
+
+initKB :: Var -> Instance 
+initKB v = Inst (v, tvs, makeTemplate <$> ts)
+  where
+    ts  = argumentTypes t 
+    t   = varType v 
+    tvs = forallTyVars t
+
+makeTemplate t = TA t THole
+
+{-
+instantiateHole tvs cds (TA t Hole) = instantiate cds <$> cvs 
+   where
+      cvs = filter ((isInstanceOf tvs t). resultType . varType) cds
+-}
+
+returnsProof :: Var -> Bool 
+returnsProof = isProof' . resultType . varType
+  where
+    isProof' (TyConApp tc _) = isProof tc
+    isProof' _               = False 
+
+
+forallTyVars (ForAllTy v t) = v : forallTyVars t 
+forallTyVars  _             = []
+
+argumentTypes = go 
+  where 
+    go (ForAllTy _ t) = go t 
+    go (FunTy tx t)   | isClassPred tx = go t
+                      | otherwise      = tx:go t
+    go _              = []
+
+resultType (ForAllTy _ t) = resultType t
+resultType (FunTy _ t)    = resultType t 
+resultType  t             = t 
+
+isInstanceOf tvs t (ForAllTy v t')
+  = isInstanceOf tvs t t'
+isInstanceOf tvs (ForAllTy v t) t'
+  = isInstanceOf (v:tvs) t t' 
+isInstanceOf tvs (TyVarTy v) (TyVarTy _) -- If I replace the second type with anything, too much freedom
+  | v `elem` tvs = True  
+isInstanceOf tvs (FunTy t1 t2) (FunTy t1' t2')
+  = isInstanceOf tvs t1 t1' && isInstanceOf tvs t2 t2'
+isInstanceOf tvs (AppTy t1 t2) (AppTy t1' t2')
+  = isInstanceOf tvs t1 t1' && isInstanceOf tvs t2 t2'
+isInstanceOf tvs (TyConApp c ts) (TyConApp c' ts')
+  = c == c' && and (zipWith (isInstanceOf tvs) ts ts') 
+isInstanceOf _ (LitTy l) (LitTy l')
+  = l == l'
+isInstanceOf _ (TyVarTy v) (TyVarTy v')
+  = v == v'
+isInstanceOf _ _ _
+  = False 
 
 {-
 class Provable a where
