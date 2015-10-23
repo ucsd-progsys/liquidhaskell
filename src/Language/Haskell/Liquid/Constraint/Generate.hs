@@ -78,7 +78,7 @@ import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyV
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
@@ -707,11 +707,16 @@ initCGI cfg info = CGInfo {
   , autoSize   = autosize spc
   , haxioms    = axioms spc 
   , lmap       = logicMap spc 
+  , globalVars = (freeVs, topVs) 
   }
   where
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
+    freeVs     = (snd <$> freeSyms spc)
+    topVs      = filter (flip elemNameSet (exports $ spec info) . getName) (defVars info)
+
+
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
@@ -719,7 +724,8 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
+    dcons        = filter isDCon freeVs
+    freeVs       = impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
