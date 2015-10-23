@@ -84,7 +84,7 @@ data SubC     = SubC { senv  :: !CGEnv
 data WfC      = WfC  !CGEnv !SpecType
               -- deriving (Data, Typeable)
 
-type FixSubC  = F.SubC Cinfo
+type FixSubC  = F.NISubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance PPrint SubC where
