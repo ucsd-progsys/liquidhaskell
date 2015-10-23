@@ -74,7 +74,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, subcId, sid, senv, slhs, srhs, subC, lhsCs, rhsCs, wfC
+  , SubC, NISubC, sid, senv, slhs, srhs, subC, niSubC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, WrappedC (..), clhs, crhs
@@ -181,10 +181,9 @@ import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           GHC.Conc                  (getNumProcessors)
-import           Control.DeepSeq           -- (NFData (..))
+import           Control.DeepSeq
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
--- import           Text.Parsec.Pos           (newPos, SourcePos (..))
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Names
@@ -740,8 +739,6 @@ functionSort _            = Nothing
 isNonTrivial :: Reftable r => r -> Bool
 isNonTrivial = not . isTauto
 
--- sortedReftValueVariable (RR _ (Reft (v,_))) = v
-
 reftPred :: Reft -> Pred
 reftPred (Reft (_, p)) = p
 
@@ -752,9 +749,6 @@ reftBind (Reft (x, _)) = x
 ---------------------------------------------------------------
 -- | Environments ---------------------------------------------
 ---------------------------------------------------------------
-
--- unionSEnv :: SEnv a -> SEnv a -> SEnv a
--- unionSEnv (SE e1) (SE e2) = SE (M.union e1 e2)
 
 toListSEnv              ::  SEnv a -> [(Symbol, a)]
 toListSEnv (SE env)     = M.toList env
@@ -882,10 +876,18 @@ data SizedEnv a    = BE { beSize  :: Int
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
+data NISubC a = NISubC { nenv  :: !IBindEnv
+                   , nlhs  :: !SortedReft
+                   , nrhs  :: !SortedReft
+                   , ntag  :: !Tag
+                   , ninfo :: !a
+                   }
+              deriving (Eq, Generic, Functor)
+
 data SubC a = SubC { _senv  :: !IBindEnv
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , _sid   :: !(Maybe Integer)
+                   , _sid   :: !Integer
                    , _stag  :: !Tag
                    , _sinfo :: !a
                    }
@@ -893,7 +895,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _crhs  :: !Pred
-                     , _cid   :: !(Maybe Integer)
+                     , _cid   :: !Integer
                      , _ctag  :: !Tag
                      , _cinfo :: !a
                      }
@@ -901,7 +903,7 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
-  sid   :: c a -> Maybe Integer
+  sid   :: c a -> Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
   clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
@@ -949,13 +951,9 @@ instance TaggedC WrappedC a where
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
                    , wrft  :: !SortedReft
-                   , wid   :: !(Maybe Integer)
                    , winfo :: !a
                    }
               deriving (Eq, Generic, Functor)
-
-subcId :: (TaggedC c a) => c a -> Integer
-subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver
@@ -1044,16 +1042,16 @@ instance Fixpoint a => Fixpoint (SubC a) where
                   toFix (senv c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
-              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
-              $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
+              $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
+              $+$ toFixMeta (text "constraint" <+> text "id" <+> tshow (sid c)) (toFix (sinfo c))
 
 instance Fixpoint a => Fixpoint (SimpC a) where
   toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
      where bd =   -- text "env" <+> toFix (senv c)
                   toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
-              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
-              $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
+              $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
+              $+$ toFixMeta (text "simpleConstraint" <+> text "id" <+> tshow (sid c)) (toFix (sinfo c))
 
 
 instance Fixpoint a => Fixpoint (WfC a) where
@@ -1061,15 +1059,11 @@ instance Fixpoint a => Fixpoint (WfC a) where
     where bd  =   -- text "env"  <+> toFix (wenv w)
                   toFix (wenv w)
               $+$ text "reft" <+> toFix (wrft w)
-              $+$ pprId (wid w)
-              $+$ toFixMeta (text "wf" <+> pprId (wid w)) (toFix (winfo w))
+              $+$ toFixMeta (text "wf") (toFix (winfo w))
 
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
              --  $+$ text "\n"
-
-pprId (Just i)  = text "id" <+> tshow i
-pprId _         = text ""
 
 instance Fixpoint Int where
   toFix = tshow
@@ -1364,6 +1358,7 @@ instance NFData SortedReft
 instance (NFData a) => NFData (SEnv a)
 instance (NFData a) => NFData (FixResult a)
 instance (NFData a) => NFData (SubC a)
+instance (NFData a) => NFData (NISubC a)
 instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
@@ -1385,17 +1380,26 @@ instance Hashable FTycon where
 -------- Constraint Constructor Wrappers ----------------------------------
 ---------------------------------------------------------------------------
 
-wfC  :: IBindEnv -> SortedReft -> Maybe Integer -> a -> WfC a
+wfC  :: IBindEnv -> SortedReft -> a -> WfC a
 wfC  = WfC
 
-subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
+niSubC :: IBindEnv -> SortedReft -> SortedReft -> Tag -> a -> [NISubC a]
+niSubC γ sr1 sr2 y z = [NISubC γ sr1' (sr2' r2') y z | r2' <- reftConjuncts r2]
+   where
+     RR t1 r1          = sr1
+     RR t2 r2          = sr2
+     sr1'              = RR t1 $ shiftVV r1  vv'
+     sr2' r2'          = RR t2 $ shiftVV r2' vv'
+     vv'               = vv Nothing
+
+subC :: IBindEnv -> SortedReft -> SortedReft -> Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
      RR t2 r2          = sr2
      sr1'              = RR t1 $ shiftVV r1  vv'
      sr2' r2'          = RR t2 $ shiftVV r2' vv'
-     vv'               = mkVV i
+     vv'               = vv $ Just i
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- refaConjuncts ra]
@@ -1407,10 +1411,6 @@ mkVV :: Maybe Integer -> Symbol
 mkVV (Just i)  = vv $ Just i
 mkVV Nothing   = vvCon
 
-lhsCs, rhsCs :: SubC a -> Reft
-lhsCs      = sr_reft . slhs
-rhsCs      = sr_reft . srhs
-
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
@@ -1419,7 +1419,8 @@ shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
-addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
+addIds :: [NISubC a] -> [(Integer, SubC a)]
+addIds = zipWith (\i c -> (i, shiftId i $ SubC (nenv c) (nlhs c) (nrhs c) i (ntag c) (ninfo c))) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }

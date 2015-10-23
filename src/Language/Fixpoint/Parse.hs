@@ -518,7 +518,7 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          return $ wfC env r Nothing ()
+          return $ wfC env r ()
 
 subCP :: Parser (SubC ())
 subCP = do pos <- getPosition
@@ -540,7 +540,7 @@ subC' env lhs rhs i tag l l'
       [c] -> c
       _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
     where
-       cs = subC env lhs rhs (Just i) tag ()
+       cs = subC env lhs rhs i tag ()
 
 -- idVV :: Integer -> SortedReft -> SortedReft
 -- idVV i sr = sr {sr_reft = ri }
@@ -563,13 +563,12 @@ intP = fromInteger <$> integer
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
-    cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
+    cm     = M.fromList       [(sid c, c)       | Cst c       <- defs]
     ws     =                  [w                | Wfc w       <- defs]
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [q                | Qul q       <- defs]
-    cid    = fromJust . sid
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------

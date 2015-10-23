@@ -160,7 +160,7 @@ push c w = w { wCs   = sAdds (wCs w) wis'
              , wPend = addPends wp is'
              }
   where
-    i    = F.subcId c
+    i    = F.sid c
     is'  = filter (not . isPend wp) $ wDeps w i
     wis' = workItemsAt (wRankm w) t <$> is'
     t    = wTime w

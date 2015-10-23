@@ -216,7 +216,7 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
     bs     = F.bs fi
     cs     = M.elems (F.cm fi)
-    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c] ++
+    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.sid c] ++
              [(KVar k, KVar k) | k <- fiKVars fi]
 
 fiKVars :: F.FInfo a -> [F.KVar]
@@ -229,4 +229,4 @@ subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
-    i          = F.subcId c
+    i          = F.sid c

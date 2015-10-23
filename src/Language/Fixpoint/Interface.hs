@@ -202,7 +202,7 @@ solveNative !cfg !fi0 = do
   let stat' = sid <$> stat
   writeLoud $ "\nSolution:\n"  ++ showpp soln
   -- colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC . mlookup (cm fi0) . mfromJust "WAT" <$> stat') soln
+  return    $ Result (WrapC . mlookup (cm fi0) <$> stat') soln
 
 printElimStats :: Deps -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
