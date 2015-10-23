@@ -140,11 +140,11 @@ refine :: F.GInfo c a
 --------------------------------------------------------------------
 refine fi qs w = refineK env qs <$> V.wfKvar w
   where
-    env        = wenv <> genv
+    env        = F.sr_sort <$> (wenv <> genv)
     wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
     genv       = (`F.RR` mempty) <$> F.lits fi
 
-refineK :: F.SEnv F.SortedReft -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
+refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
 refineK env qs (v, t, k) = (k, eqs')
    where
     eqs                  = instK env v t qs
@@ -152,7 +152,7 @@ refineK env qs (v, t, k) = (k, eqs')
     -- msg                  = "refineK: " ++ show k
 
 --------------------------------------------------------------------
-instK :: F.SEnv F.SortedReft
+instK :: F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
@@ -162,7 +162,7 @@ instK env v t = unique . concatMap (instKQ env v t)
   where
     unique = L.nubBy ((. eqPred) . (==) . eqPred)
 
-instKQ :: F.SEnv F.SortedReft
+instKQ :: F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
@@ -175,12 +175,12 @@ instKQ env v t q
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
 
-instCands :: F.SEnv F.SortedReft -> [(F.Sort, [F.Symbol])]
+instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands env = filter isOk tyss
   where
     tyss      = groupList [(t, x) | (x, t) <- xts]
     isOk      = isNothing . F.functionSort . fst
-    xts       = F.toListSEnv $ F.sr_sort <$> env
+    xts       = F.toListSEnv env
 
 match :: [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
 match tyss xs (t : ts)
@@ -200,13 +200,13 @@ candidates tyss tx
     mono = So.isMono tx
 
 -----------------------------------------------------------------------
-okInst :: F.SEnv F.SortedReft -> F.Symbol -> F.Sort -> EQual -> Bool
+okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> EQual -> Bool
 -----------------------------------------------------------------------
 okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = eqPred eq
-    tc            = {- tracepp msg $ -} So.checkSortedReftFull env sr
+    tc            = {- tracepp msg $ -} So.checkSorted env sr
     msg           = "okInst [p := " ++ show p ++ " ]"
 
 ---------------------------------------------------------------------
