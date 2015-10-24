@@ -79,7 +79,7 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower, toUpper)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      (sortNub)
+import           Language.Fixpoint.Misc      (sortNub, thd3)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Names     (headSym)
@@ -518,7 +518,7 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          let [w] = wfC env r ()
+          let [w] = wfC env r () --TODO error handling?
           return w
 
 subCP :: Parser (SubC ())
@@ -565,7 +565,7 @@ defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(sid c, c)       | Cst c       <- defs]
-    ws     = M.fromList       [(k, w)           | Wfc w       <- defs, let (_, _, k) = wrft w] --TODO simplify
+    ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]

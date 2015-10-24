@@ -7,7 +7,7 @@ module Language.Fixpoint.Solver.Deps (
 import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor (kvars, envKVars)
-import           Data.HashMap.Strict       (elems)
+import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.Graph                as G
 import           Control.Monad.State       (get, put, execState)
@@ -24,9 +24,9 @@ data Deps = Deps { depCuts    :: ![KVar]
 deps :: SInfo a -> Deps
 deps fi = sccsToDeps sccs (kuts fi)
   where
-    subCs = elems (cm fi)
+    subCs = M.elems (cm fi)
     edges = concatMap (subcEdges $ bs fi) subCs
-    extraEdges = [(k2, KV nonSymbol) | k2 <- kvars fi]
+    extraEdges = [(k2, KV nonSymbol) | k2 <- M.keys $ ws fi]
     -- this nonSymbol hack prevents nodes with potential outdegree 0
     -- from getting pruned by groupList (and then stronglyConnCompR)
     graph = [(k,k,ks) | (k, ks) <- groupList (edges ++ extraEdges)]

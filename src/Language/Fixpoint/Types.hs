@@ -863,7 +863,7 @@ instance Fixpoint (SEnv a) => Show (SEnv a) where
 type Tag           = [Int]
 
 type BindId        = Int
-type BindMap a     = M.HashMap BindId a -- (Symbol, SortedReft)
+type BindMap a     = M.HashMap BindId a
 
 newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
 
@@ -1039,8 +1039,7 @@ instance Fixpoint (IBindEnv) where
 
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
-     where bd =   -- text "env" <+> toFix (senv c)
-                  toFix (senv c)
+     where bd =   toFix (senv c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
               $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
@@ -1048,17 +1047,15 @@ instance Fixpoint a => Fixpoint (SubC a) where
 
 instance Fixpoint a => Fixpoint (SimpC a) where
   toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
-     where bd =   -- text "env" <+> toFix (senv c)
-                  toFix (senv c)
+     where bd =   toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
               $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
               $+$ toFixMeta (text "simpleConstraint" <+> text "id" <+> tshow (sid c)) (toFix (sinfo c))
 
-
 instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
-    where bd  =   -- text "env"  <+> toFix (wenv w)
-                  toFix (wenv w)
+    where bd  =   toFix (wenv w)
+              -- NOTE: this next line is printed this way for compatability with the OCAML solver
               $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k emptySubst)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
           (v, t, k) = wrft w
@@ -1445,14 +1442,9 @@ addIds = zipWith (\i c -> (i, shiftId i $ SubC (nenv c) (nlhs c) (nrhs c) i (nta
 data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
                    , q_body   :: Pred             -- ^ Predicate
-                   , q_pos    :: !SourcePos          -- ^ Source Location
+                   , q_pos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
-
-{-
-instance Show Qualifier where
-  show = render . toFix
--}
 
 instance Fixpoint Qualifier where
   toFix = pprQual
