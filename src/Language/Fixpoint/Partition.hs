@@ -131,7 +131,7 @@ ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 -- mkPartition' are the two primary functions that conform to this interface
 type PartitionCtor a b = F.FInfo a
                          -> M.HashMap Int [(Integer, F.SubC a)]
-                         -> M.HashMap Int [F.WfC a]
+                         -> M.HashMap Int [(F.KVar, F.WfC a)]
                          -> Int
                          -> b -- ^ typically a F.FInfo a or F.CPart a
 
@@ -145,8 +145,8 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
     gc   = groupFun cM                                 -- (i, ci) |-> j
     gk   = groupFun kM                                 -- k       |-> j
 
-    iwM  = maybeGroupMap (wfGroup gk) (F.ws fi)             -- j |-> [w]
-    icM  = groupMap (gc . fst)   (M.toList (F.cm fi))  -- j |-> [(i, ci)]
+    iwM  = groupMap (gk . fst) (M.toList (F.ws fi))             -- j |-> [w]
+    icM  = groupMap (gc . fst) (M.toList (F.cm fi))  -- j |-> [(i, ci)]
 
     jkvs = zip [1..] kvss
     kvI  = [ (x, j) | (j, kvs) <- jkvs, x <- kvs ]
@@ -155,27 +155,16 @@ partitionByConstraints f fi kvss = f fi icM iwM <$> js
 
 mkPartition fi icM iwM j
   = fi { F.cm       = M.fromList $ M.lookupDefault [] j icM
-       , F.ws       =              M.lookupDefault [] j iwM
+       , F.ws       = M.fromList $ M.lookupDefault [] j iwM
        , F.fileName = partFile fi j
        }
 
 mkPartition' fi icM iwM j
   = F.CPart { F.pcm       = M.fromList $ M.lookupDefault [] j icM
-            , F.pws       = M.lookupDefault [] j iwM
+            , F.pws       = M.fromList $ M.lookupDefault [] j iwM
             , F.cFileName = partFile fi j
             }
 
-wfGroup gk w = case sortNub [gk k | k <- wfKvars w ] of
-                 [i] -> Just i
-                 _   -> Nothing
-
-
--- | Version of Misc's inserts that handles Maybe keys. If the key is
--- Nothing, the value is not inserted
-maybeInserts Nothing _ m = m
-maybeInserts (Just k) v m = inserts k v m
-
-maybeGroupMap f = L.foldl' (\m x -> maybeInserts (f x) x m) M.empty
 
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
 groupFun m k = safeLookup ("groupFun: " ++ show k) k m

@@ -146,8 +146,8 @@ simplifyFInfo tm fi = fi {
 simplifyBindEnv :: NonTrivSorts -> BindEnv -> BindEnv
 simplifyBindEnv = mapBindEnv . second . simplifySortedReft
 
-simplifyWfCs :: NonTrivSorts -> [WfC a] -> [WfC a]
-simplifyWfCs tm = filter (isNonTrivialSort tm . sr_sort . wrft)
+simplifyWfCs :: NonTrivSorts -> M.HashMap KVar (WfC a) -> M.HashMap KVar (WfC a)
+simplifyWfCs tm = M.filter (isNonTrivialSort tm . sr_sort . wrft)
 
 simplifySubCs ti cm = trace msg cm'
   where

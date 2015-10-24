@@ -1463,7 +1463,7 @@ type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 data GInfo c a =
   FI { cm       :: M.HashMap Integer (c a)
-     , ws       :: ![WfC a]
+     , ws       :: M.HashMap KVar (WfC a)
      , bs       :: !BindEnv
      , lits     :: !(SEnv Sort)
      , kuts     :: Kuts
@@ -1514,7 +1514,7 @@ toFixpoint cfg x' =    qualsDoc x'
   where
     conDoc        = vcat     . map toFixConstant . toListSEnv . lits
     csDoc         = vcat     . map toFix . M.elems . cm
-    wsDoc         = vcat     . map toFix . ws
+    wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
@@ -1808,7 +1808,7 @@ fTyconSort c
 -------------------------------------------------------------------------
 
 
-data CPart a = CPart { pws :: [WfC a]
+data CPart a = CPart { pws :: M.HashMap KVar (WfC a)
                      , pcm :: M.HashMap Integer (SubC a)
                      , cFileName :: FilePath
                      }

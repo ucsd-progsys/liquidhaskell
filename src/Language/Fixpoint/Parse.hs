@@ -84,7 +84,7 @@ import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor   (foldSort, mapSort)
+import           Language.Fixpoint.Visitor   (foldSort, mapSort, wfKvar)
 
 import           Data.Maybe                  (fromJust)
 
@@ -564,7 +564,7 @@ defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(sid c, c)       | Cst c       <- defs]
-    ws     =                  [w                | Wfc w       <- defs]
+    ws     = M.fromList       [(k, w)           | Wfc w       <- defs, let Just (_, _, k) = wfKvar w] --TODO simplify
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]

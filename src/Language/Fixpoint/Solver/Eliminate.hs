@@ -3,12 +3,12 @@
 {-# LANGUAGE BangPatterns         #-}
 
 module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll, findWfC) where
+       (eliminateAll) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
 import           Language.Fixpoint.Visitor         (kvars)
-import           Language.Fixpoint.Misc            (errorstar)
+import           Language.Fixpoint.Misc            (errorstar, fst3)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
@@ -25,21 +25,14 @@ eliminateAll !fi = foldl' eliminate (M.empty, fi) nonCuts
 --------------------------------------------------------------
 
 eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
-eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , ws = remainingWs})
+eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , ws = M.delete k $ ws fi })
   where
     relevantCs  = M.filter (   elem k . kvars . crhs) (cm fi)
     remainingCs = M.filter (notElem k . kvars . crhs) (cm fi)
-    (kvWfC, remainingWs) = findWfC k (ws fi)
+    kvWfC = ws fi M.! k
     be = bs fi
     kDom = domain be kvWfC
     orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
-
-findWfC :: KVar -> [WfC a] -> (WfC a, [WfC a])
-findWfC k ws = (w', ws')
-  where
-    (w, ws') = partition (elem k . kvars . sr_reft . wrft) ws
-    w' | [x] <- w  = x
-       | otherwise = errorstar $ show k ++ " needs exactly one wf constraint"
 
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Pred
 extractPred kDom be sc = projectNonWFVars binds kDom $ PAnd (lhsPreds ++ suPreds)
@@ -71,7 +64,9 @@ functionsInBindEnv :: BindEnv -> [Symbol]
 functionsInBindEnv be = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
 
 domain :: BindEnv -> WfC a -> [Symbol]
-domain be wfc = reftBind (sr_reft $ wrft wfc) : map fst (envCs be $ wenv wfc)
+domain be wfc = (sortedReftValueVariable $ wrft wfc) : map fst (envCs be $ wenv wfc)
+
+sortedReftValueVariable (RR _ (Reft (v,_))) = v
 
 projectNonWFVars :: [(Symbol,Sort)] -> [Symbol] -> Pred -> Pred
 projectNonWFVars binds kDom pr = PExist [v | v <- binds, notElem (fst v) kDom] pr

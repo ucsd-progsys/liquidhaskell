@@ -129,7 +129,7 @@ init fi  = M.fromList keqs
     -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
     keqs = mapMaybe (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
     qs   = F.quals fi
-    ws   = F.ws    fi
+    ws   = M.elems $ F.ws fi
 
 
 --------------------------------------------------------------------
