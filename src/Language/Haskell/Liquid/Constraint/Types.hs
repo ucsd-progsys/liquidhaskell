@@ -25,7 +25,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
 import Language.Haskell.Liquid.RefType  (shiftVV)
-import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
+import Language.Haskell.Liquid.WiredIn  (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc
@@ -84,7 +84,7 @@ data SubC     = SubC { senv  :: !CGEnv
 data WfC      = WfC  !CGEnv !SpecType
               -- deriving (Data, Typeable)
 
-type FixSubC  = F.SubC Cinfo
+type FixSubC  = F.NISubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance PPrint SubC where
@@ -135,6 +135,7 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
                      , haxioms    :: [HAxiom]                     -- ^ Axioms 
                      , lmap       :: LogicMap 
+                     , globalVars :: ([Var], [Var])               -- ^ (free Variables, top Variables)
                      }
 
 instance PPrint CGInfo where

@@ -78,7 +78,7 @@ import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyV
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
@@ -374,7 +374,7 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
 
 bsplitW' γ t pflag
-  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' Nothing ci]
+  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' ci]
   | otherwise         = []
   where
     r'                = rTypeSortedReft' pflag γ t
@@ -599,7 +599,7 @@ splitC (SubC _ t1 t2)
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
        let r1' = if fg then pruneUnsortedReft γ'' r1 else r1
-       return $ F.subC γ' r1' r2 Nothing tag ci
+       return $ F.niSubC γ' r1' r2 tag ci
   where
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
@@ -643,9 +643,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
-  = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+  = F.niSubC γ' (r1' {F.sr_reft = mempty}) r2' tag ci
   | F.isNonTrivial r2'
-  = F.subC γ' r1'  r2' Nothing tag ci
+  = F.niSubC γ' r1'  r2' tag ci
   | otherwise
   = []
   where
@@ -707,11 +707,16 @@ initCGI cfg info = CGInfo {
   , autoSize   = autosize spc
   , haxioms    = axioms spc 
   , lmap       = logicMap spc 
+  , globalVars = (freeVs, topVs) 
   }
   where
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
+    freeVs     = (snd <$> freeSyms spc)
+    topVs      = filter (flip elemNameSet (exports $ spec info) . getName) (defVars info)
+
+
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
@@ -719,12 +724,13 @@ coreBindLits tce info
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
     lconsts      = literalConst tce <$> literals (cbs info)
-    dcons        = filter isDCon $ impVars info ++ (snd <$> freeSyms (spec info))
+    dcons        = filter isDCon freeVs
+    freeVs       = impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
-extendEnvWithTrueVV γ t
+_extendEnvWithTrueVV γ t
   = true t >>= extendEnvWithVV γ 
 
 extendEnvWithVV γ t
@@ -1688,11 +1694,11 @@ refreshVVRef (RHProp _ _)
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ0 x _   (DataAlt c) ys
+caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ0 ??= x'
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
        let xt            = shiftVV xt0 x' 
-       γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt] 
+--        γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt] 
        tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
