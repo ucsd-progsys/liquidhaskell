@@ -37,7 +37,7 @@ eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , w
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Pred
 extractPred kDom be sc = projectNonWFVars binds kDom $ PAnd (lhsPreds ++ suPreds)
   where
-    env = envCs be (senv sc)
+    env = clhs be sc
     binds = second sr_sort <$> env
     lhsPreds = bindPred <$> env
     suPreds = substPreds (usableDomain be kDom) $ crhs sc

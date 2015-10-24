@@ -12,10 +12,10 @@ import qualified Data.HashSet              as S
 import qualified Data.Graph                as G
 import           Control.Monad.State       (get, put, execState)
 
-data Deps = Deps { depCuts    :: ![KVar]
-                 , depNonCuts :: ![KVar]
+data Deps = Deps { depCuts    :: !(S.HashSet KVar)
+                 , depNonCuts :: !(S.HashSet KVar)
                  }
-            deriving (Eq, Ord, Show)
+            deriving (Show)
 
 --------------------------------------------------------------
 -- | Compute Dependencies and Cuts ---------------------------
@@ -33,13 +33,13 @@ deps fi = sccsToDeps sccs (kuts fi)
     sccs  = G.stronglyConnCompR graph
 
 sccsToDeps :: [G.SCC (KVar,KVar,[KVar])] -> Kuts -> Deps
-sccsToDeps xs ks = execState (mapM_ go xs) (Deps [] [])
+sccsToDeps xs ks = execState (mapM_ go xs) (Deps S.empty S.empty)
   where
     go (G.AcyclicSCC (v,_,_)) = do ds <- get
-                                   put ds {depNonCuts = v : depNonCuts ds}
+                                   put ds {depNonCuts = S.insert v $ depNonCuts ds}
     go (G.CyclicSCC vs)       = do let (v,vs') = chooseCut vs ks
                                    ds <- get
-                                   put ds {depCuts = v : depCuts ds}
+                                   put ds {depCuts = S.insert v $ depCuts ds}
                                    mapM_ go (G.stronglyConnCompR vs')
 
 chooseCut :: [(KVar,KVar,[KVar])] -> Kuts -> (KVar, [(KVar,KVar,[KVar])])
@@ -51,5 +51,3 @@ chooseCut vs (KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
 
 subcEdges :: BindEnv -> SimpC a -> [(KVar, KVar)]
 subcEdges be c = [(k1, k2) | k1 <- envKVars be c , k2 <- kvars $ crhs c]
-
----------------------------------------------------------------
