@@ -10,6 +10,7 @@ import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Types hiding     ( binds )
 import Language.Haskell.Liquid.Misc             ( mapSnd )
 import Language.Fixpoint.Interface              ( parseFInfo )
+import Language.Fixpoint.Visitor                ( wfKvar )
 
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict            as M
@@ -27,7 +28,7 @@ cgInfoFInfo info cgi fi = do
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
 targetFInfo info cgi fn
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
-         , F.ws       = fixWfs cgi
+         , F.ws       = M.fromList $ [(k, w) | w <- fixWfs cgi, let Just (_, _, k) = wfKvar w]
          , F.bs       = binds cgi
          , F.lits     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
          , F.kuts     = kuts cgi
