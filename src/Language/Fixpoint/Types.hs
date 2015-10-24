@@ -11,6 +11,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE PatternGuards              #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -1380,8 +1381,15 @@ instance Hashable FTycon where
 -------- Constraint Constructor Wrappers ----------------------------------
 ---------------------------------------------------------------------------
 
-wfC  :: IBindEnv -> SortedReft -> a -> WfC a
-wfC  = WfC
+wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
+wfC be sr x
+  | Reft (v, PKVar k su) <- sr_reft sr
+              = if isEmptySubst su
+                   then [WfC be sr x] -- Just (v, sr_sort sr, k)
+                   else err
+  | otherwise = []
+  where
+    err       = errorstar $ "wfKvar: malformed wfC " ++ show sr
 
 niSubC :: IBindEnv -> SortedReft -> SortedReft -> Tag -> a -> [NISubC a]
 niSubC γ sr1 sr2 y z = [NISubC γ sr1' (sr2' r2') y z | r2' <- reftConjuncts r2]

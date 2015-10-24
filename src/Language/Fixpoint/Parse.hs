@@ -518,7 +518,7 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          return $ wfC env r ()
+          return $ WfC env r ()
 
 subCP :: Parser (SubC ())
 subCP = do pos <- getPosition
