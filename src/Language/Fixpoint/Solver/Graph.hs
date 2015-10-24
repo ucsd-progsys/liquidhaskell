@@ -22,7 +22,7 @@ module Language.Fixpoint.Solver.Graph (
 
 -- import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (wfKvar, rhsKVars, envKVars, kvars, isConcC)
+import           Language.Fixpoint.Visitor (rhsKVars, envKVars, kvars, isConcC)
 import           Language.Fixpoint.Misc (errorstar, fst3, thd3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
@@ -42,16 +42,14 @@ slice :: (F.TaggedC c a) => F.GInfo c a -> F.GInfo c a
 slice fi = fi { F.cm = cm'
               , F.ws = ws' }
   where
-     cm' = M.filterWithKey inC (F.cm fi)
-     ws' = filter (inW ks)     (F.ws fi)
+     cm' = M.filterWithKey inC      (F.cm fi)
+     ws' = M.filterWithKey (inW ks) (F.ws fi)
      ks  = sliceKVars fi sl
      is  = S.fromList (slKVarCs sl ++ slConcCs sl)
      sl  = mkSlice fi
      inC i _ = S.member i is
 
-inW ks w
-  | Just (_,_,k) <- wfKvar w = S.member k ks
-  | otherwise                = False
+inW ks k _ = S.member k ks
 
 sliceKVars :: (F.TaggedC c a) => F.GInfo c a -> Slice -> S.HashSet F.KVar
 sliceKVars fi sl = S.fromList $ concatMap (subcKVars be) cs

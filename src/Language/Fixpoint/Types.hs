@@ -11,6 +11,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE PatternGuards              #-}
 
 -- | This module contains the data types, operations and
 --   serialization functions for representing Fixpoint's
@@ -950,7 +951,7 @@ instance TaggedC WrappedC a where
   clhs  b (WrapC x) = clhs b x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
-                   , wrft  :: !SortedReft
+                   , wrft  :: (Symbol, Sort, KVar)
                    , winfo :: !a
                    }
               deriving (Eq, Generic, Functor)
@@ -1058,8 +1059,9 @@ instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   -- text "env"  <+> toFix (wenv w)
                   toFix (wenv w)
-              $+$ text "reft" <+> toFix (wrft w)
+              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k emptySubst)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
+          (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
@@ -1380,8 +1382,15 @@ instance Hashable FTycon where
 -------- Constraint Constructor Wrappers ----------------------------------
 ---------------------------------------------------------------------------
 
-wfC  :: IBindEnv -> SortedReft -> a -> WfC a
-wfC  = WfC
+wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
+wfC be sr x
+  | Reft (v, PKVar k su) <- sr_reft sr
+              = if isEmptySubst su
+                   then [WfC be (v, sr_sort sr, k) x]
+                   else err
+  | otherwise = []
+  where
+    err       = errorstar $ "wfKvar: malformed wfC " ++ show sr
 
 niSubC :: IBindEnv -> SortedReft -> SortedReft -> Tag -> a -> [NISubC a]
 niSubC γ sr1 sr2 y z = [NISubC γ sr1' (sr2' r2') y z | r2' <- reftConjuncts r2]
@@ -1463,7 +1472,7 @@ type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 data GInfo c a =
   FI { cm       :: M.HashMap Integer (c a)
-     , ws       :: ![WfC a]
+     , ws       :: M.HashMap KVar (WfC a)
      , bs       :: !BindEnv
      , lits     :: !(SEnv Sort)
      , kuts     :: Kuts
@@ -1514,7 +1523,7 @@ toFixpoint cfg x' =    qualsDoc x'
   where
     conDoc        = vcat     . map toFixConstant . toListSEnv . lits
     csDoc         = vcat     . map toFix . M.elems . cm
-    wsDoc         = vcat     . map toFix . ws
+    wsDoc         = vcat     . map toFix . M.elems . ws
     kutsDoc       = toFix    . kuts
     bindsDoc      = toFix    . bs
     qualsDoc      = vcat     . map toFix . quals
@@ -1808,7 +1817,7 @@ fTyconSort c
 -------------------------------------------------------------------------
 
 
-data CPart a = CPart { pws :: [WfC a]
+data CPart a = CPart { pws :: M.HashMap KVar (WfC a)
                      , pcm :: M.HashMap Integer (SubC a)
                      , cFileName :: FilePath
                      }

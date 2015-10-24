@@ -20,7 +20,6 @@ module Language.Fixpoint.Visitor (
   , kvars
   , envKVars
   , rhsKVars
-  , wfKvar
   , mapKVars, mapKVars', mapKVarSubsts
 
   -- * Predicates on Constraints
@@ -217,18 +216,6 @@ isKvar _          = False
 
 isConc :: Pred -> Bool
 isConc = null . kvars
-
------------------------------------------------------------------------
-wfKvar :: WfC a -> Maybe (Symbol, Sort, KVar)
------------------------------------------------------------------------
-wfKvar (WfC {wrft = sr})
-   | Reft (v, PKVar k su) <- sr_reft sr
-               = if isEmptySubst su
-                   then Just (v, sr_sort sr, k)
-                   else err
-   | otherwise = Nothing
-   where
-     err       = errorstar $ "wfKvar: malformed wfC " ++ show sr
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@

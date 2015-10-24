@@ -40,7 +40,6 @@ sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 sanitize   = fM dropHigherOrderBinders
          >=> fM dropFuncSortedShadowedBinders
          >=> fM dropFunctionSubs
-         >=> fM dropExtraWfCs
          >=>    checkRhsCs
 
 
@@ -128,16 +127,6 @@ type SymBinds = (F.Symbol, [(F.Sort, [F.BindId])])
 
 binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
-
-
----------------------------------------------------------------------------
--- | Drop WfCs that do not have a KVar (TODO - check well-sorted first?)
----------------------------------------------------------------------------
-dropExtraWfCs :: F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
-dropExtraWfCs fi = fi { F.ws = filter hasKVar $ F.ws fi }
-  where
-    hasKVar = not . null . kvars . F.wrft
 
 
 ---------------------------------------------------------------------------
