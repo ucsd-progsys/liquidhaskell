@@ -951,7 +951,7 @@ instance TaggedC WrappedC a where
   clhs  b (WrapC x) = clhs b x
 
 data WfC a  = WfC  { wenv  :: !IBindEnv
-                   , wrft  :: !SortedReft
+                   , wrft  :: (Symbol, Sort, KVar)
                    , winfo :: !a
                    }
               deriving (Eq, Generic, Functor)
@@ -1059,8 +1059,9 @@ instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
     where bd  =   -- text "env"  <+> toFix (wenv w)
                   toFix (wenv w)
-              $+$ text "reft" <+> toFix (wrft w)
+              $+$ text "reft" <+> toFix (RR t (Reft (v, PKVar k emptySubst)))
               $+$ toFixMeta (text "wf") (toFix (winfo w))
+          (v, t, k) = wrft w
 
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
@@ -1385,7 +1386,7 @@ wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
 wfC be sr x
   | Reft (v, PKVar k su) <- sr_reft sr
               = if isEmptySubst su
-                   then [WfC be sr x] -- Just (v, sr_sort sr, k)
+                   then [WfC be (v, sr_sort sr, k) x]
                    else err
   | otherwise = []
   where

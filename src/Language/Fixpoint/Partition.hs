@@ -209,10 +209,7 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
              [(KVar k, KVar k) | k <- fiKVars fi]
 
 fiKVars :: F.FInfo a -> [F.KVar]
-fiKVars fi = sortNub $ concatMap wfKvars (F.ws fi)
-
-wfKvars :: F.WfC a -> [F.KVar]
-wfKvars = V.kvars . F.sr_reft . F.wrft
+fiKVars = M.keys . F.ws
 
 subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]

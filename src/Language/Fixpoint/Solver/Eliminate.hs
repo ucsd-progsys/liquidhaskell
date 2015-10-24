@@ -64,9 +64,7 @@ functionsInBindEnv :: BindEnv -> [Symbol]
 functionsInBindEnv be = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
 
 domain :: BindEnv -> WfC a -> [Symbol]
-domain be wfc = (sortedReftValueVariable $ wrft wfc) : map fst (envCs be $ wenv wfc)
-
-sortedReftValueVariable (RR _ (Reft (v,_))) = v
+domain be wfc = (fst3 $ wrft wfc) : map fst (envCs be $ wenv wfc)
 
 projectNonWFVars :: [(Symbol,Sort)] -> [Symbol] -> Pred -> Pred
 projectNonWFVars binds kDom pr = PExist [v | v <- binds, notElem (fst v) kDom] pr

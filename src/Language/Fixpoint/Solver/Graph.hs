@@ -22,7 +22,7 @@ module Language.Fixpoint.Solver.Graph (
 
 -- import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.Visitor (wfKvar, rhsKVars, envKVars, kvars, isConcC)
+import           Language.Fixpoint.Visitor (rhsKVars, envKVars, kvars, isConcC)
 import           Language.Fixpoint.Misc (errorstar, fst3, thd3, sortNub, group)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types

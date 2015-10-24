@@ -121,24 +121,24 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 -- | Initial Solution (from Qualifiers and WF constraints) ---------
 --------------------------------------------------------------------
-init :: F.GInfo c a -> Solution
+init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
 init fi  = M.fromList keqs
   where
     -- PARALLELIZE THIS!
     -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
-    keqs = mapMaybe (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
+    keqs = map (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
     qs   = F.quals fi
     ws   = M.elems $ F.ws fi
 
 
 --------------------------------------------------------------------
-refine :: F.GInfo c a
+refine :: F.SInfo a
        -> [F.Qualifier]
        -> F.WfC a
-       -> Maybe (F.KVar, KBind)
+       -> (F.KVar, KBind)
 --------------------------------------------------------------------
-refine fi qs w = refineK env qs <$> V.wfKvar w
+refine fi qs w = refineK env qs $ F.wrft w
   where
     env        = F.sr_sort <$> (wenv <> genv)
     wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)

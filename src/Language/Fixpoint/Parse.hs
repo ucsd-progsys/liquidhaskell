@@ -84,7 +84,7 @@ import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor   (foldSort, mapSort, wfKvar)
+import           Language.Fixpoint.Visitor   (foldSort, mapSort)
 
 import           Data.Maybe                  (fromJust)
 
@@ -518,7 +518,8 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          return $ WfC env r ()
+          let [w] = wfC env r ()
+          return w
 
 subCP :: Parser (SubC ())
 subCP = do pos <- getPosition
@@ -564,7 +565,7 @@ defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
   where
     cm     = M.fromList       [(sid c, c)       | Cst c       <- defs]
-    ws     = M.fromList       [(k, w)           | Wfc w       <- defs, let Just (_, _, k) = wfKvar w] --TODO simplify
+    ws     = M.fromList       [(k, w)           | Wfc w       <- defs, let (_, _, k) = wrft w] --TODO simplify
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
     lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
