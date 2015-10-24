@@ -30,7 +30,7 @@ import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (mapMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor      as V

@@ -76,7 +76,7 @@ import qualified Text.Parsec.Token           as Token
 import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
-import           Data.Char                   (isLower, toUpper)
+import           Data.Char                   (isLower)
 import           Language.Fixpoint.Bitvector
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      (sortNub, thd3)
@@ -85,10 +85,6 @@ import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Visitor   (foldSort, mapSort)
-
-import           Data.Maybe                  (fromJust)
-
-import           Data.Monoid                 (mempty)
 
 type Parser = Parsec String Integer
 

@@ -21,7 +21,7 @@ module Language.Fixpoint.Solver.Monad
        where
 
 import           Language.Fixpoint.Misc    (progressTick, groupList)
-import           Language.Fixpoint.Config  (Config, inFile, solver)
+import           Language.Fixpoint.Config  (Config, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -30,11 +30,8 @@ import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
-import           Text.Printf          (printf)
 import           Text.PrettyPrint.HughesPJ (text)
-import           Control.Applicative  ((<$>))
 import           Control.Monad.State.Strict
-import           System.ProgressBar (ProgressRef)
 import qualified Data.HashMap.Strict as M
 
 ---------------------------------------------------------------------------

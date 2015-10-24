@@ -16,7 +16,6 @@ module Language.Fixpoint.Config (
   , multicore
 ) where
 
-import           System.ProgressBar
 import           System.Console.CmdArgs
 import           Language.Fixpoint.Files
 

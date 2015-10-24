@@ -17,7 +17,6 @@ module Language.Fixpoint.Parallel (
 import Control.Concurrent
 import Control.Concurrent.Async
 import Language.Fixpoint.Types
-import Control.Exception
 
 
 -- | Throw an UnknownError exception

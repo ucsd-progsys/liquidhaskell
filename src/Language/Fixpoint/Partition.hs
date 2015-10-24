@@ -15,7 +15,6 @@ import           Language.Fixpoint.PrettyPrint
 import qualified Language.Fixpoint.Visitor      as V
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
-import qualified Data.List                      as L
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
 import           Data.Hashable

@@ -26,7 +26,6 @@ module Language.Fixpoint.Solver.Worklist
 import           Debug.Trace (trace)
 import           Prelude hiding (init)
 import           Language.Fixpoint.PrettyPrint -- (PTable (..), PPrint (..))
-import           Language.Fixpoint.Misc (fst3)
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import           Language.Fixpoint.Solver.Graph
@@ -34,8 +33,7 @@ import           Control.Arrow             (first)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.Set                  as S
 import qualified Data.List                 as L
-import           Data.Graph (graphFromEdges, scc, Graph, Vertex)
-import           Data.Tree (flatten)
+import           Data.Graph (graphFromEdges)
 import           Text.PrettyPrint.HughesPJ (text)
 
 -- | Worklist -------------------------------------------------------------

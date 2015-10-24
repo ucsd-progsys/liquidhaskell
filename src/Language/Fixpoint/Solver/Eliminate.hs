@@ -1,4 +1,3 @@
-{-# LANGUAGE PatternGuards        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE BangPatterns         #-}
 
@@ -8,11 +7,11 @@ module Language.Fixpoint.Solver.Eliminate
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
 import           Language.Fixpoint.Visitor         (kvars)
-import           Language.Fixpoint.Misc            (errorstar, fst3)
+import           Language.Fixpoint.Misc            (fst3)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
-import           Data.List           (partition, foldl')
+import           Data.List           (foldl')
 import           Control.Arrow       (second)
 import           Control.DeepSeq     (($!!))
 

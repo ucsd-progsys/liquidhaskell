@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Validate
        where
 
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor     (isConcC, isKvarC, kvars, mapKVarSubsts)
+import           Language.Fixpoint.Visitor     (isConcC, isKvarC, mapKVarSubsts)
 import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM)

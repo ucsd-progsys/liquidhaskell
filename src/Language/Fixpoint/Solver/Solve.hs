@@ -5,8 +5,6 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
-import           Data.Maybe (fromMaybe)
-import           Data.Monoid (mappend)
 import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)

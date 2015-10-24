@@ -32,7 +32,6 @@ module Language.Fixpoint.Visitor (
 import           Control.Monad.Trans.State (State, modify, runState)
 import           Language.Fixpoint.Types
 import qualified Data.HashSet as S
-import           Language.Fixpoint.Misc    (errorstar)
 import qualified Data.List    as L
 
 data Visitor acc ctx = Visitor {
