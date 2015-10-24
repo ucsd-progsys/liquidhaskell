@@ -45,6 +45,10 @@ module Language.Fixpoint.Smt.Interface (
     -- , theorySymbols
       -- smt_set_funs
 
+    -- * Check Validity 
+    , checkValid
+    , checkValids
+
     ) where
 
 import           Language.Fixpoint.Config (SMTSolver (..))
@@ -74,7 +78,7 @@ import           System.IO                (IOMode (..), hClose, hFlush, openFile
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 
-{- Usage:
+{-
 runFile f
   = readFile f >>= runString
 
@@ -86,30 +90,29 @@ runCommands cmds
        mapM_ (T.putStrLn . smt2) cmds
        zs   <- mapM (command me) cmds
        return zs
+-}
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
-checkValid xts p q
-  = do me <- makeContext Z3
-       smtDecl xts
-       smtAssert $ pAnd [p, PNot q]
-       smtCheckUnsat
+checkValid :: FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValid f xts p q
+  = do me <- makeContext Z3 f
+       smtDecls me xts
+       smtAssert me $ pAnd [p, PNot q]
+       smtCheckUnsat me 
 
-Alternatively, if you already HAVE a context, where all the
-variables have declared types (e.g. if you want to make MANY
-repeated Queries)
+-- | Alternatively, if you already HAVE a context, where all the
+--   variables have declared types (e.g. if you want to make MANY
+---  repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: [(Symbol, Sort)] -> [Pred] -> IO [Bool]
-checkValids xts ps
-  = do me <- makeContext Z3
-       smtDecl xts
+checkValids :: FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
+checkValids f xts ps
+  = do me <- makeContext Z3 f
+       smtDecls me xts
        forM ps $ \p ->
-          smtBracket $
-            smtAssert (PNot p) >> smtCheckUnsat
-
--}
+          smtBracket me $
+            smtAssert me (PNot p) >> smtCheckUnsat me 
 
 debugFile :: FilePath
 debugFile = "DEBUG.smt2"
@@ -270,6 +273,9 @@ smtPush, smtPop   :: Context -> IO ()
 smtPush me        = interact' me Push
 smtPop me         = interact' me Pop
 
+
+smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
+smtDecls me xts = forM_ xts (\(x,t) -> smtDecl me x t)
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
 smtDecl me x t = interact' me (Declare x ins out)
