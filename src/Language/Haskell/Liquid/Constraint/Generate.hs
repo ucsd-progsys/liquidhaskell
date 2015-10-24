@@ -374,7 +374,7 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
 
 bsplitW' γ t pflag
-  | F.isNonTrivial r' = [F.wfC (fe_binds $ fenv γ) r' ci]
+  | F.isNonTrivial r' = F.wfC (fe_binds $ fenv γ) r' ci
   | otherwise         = []
   where
     r'                = rTypeSortedReft' pflag γ t
