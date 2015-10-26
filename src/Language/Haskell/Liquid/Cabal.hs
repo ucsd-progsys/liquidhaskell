@@ -10,7 +10,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE CPP                  #-}
 
 module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
 
@@ -237,11 +236,7 @@ cabalConfiguration cabalFile distDir desc =
   case finalizePackageDescription []
                                   (const True)
                                   buildPlatform
--- if MIN_VERSION_Cabal(1,22,0)
                                   (unknownCompilerInfo buildCompiler NoAbiTag)
--- else
---                                  buildCompiler
--- endif
                                   []
                                   desc of
        Right (pkgDesc,_) -> dumpPackageDescription pkgDesc cabalFile distDir
