@@ -33,7 +33,6 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.hs
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
-          , include/708/Control/*.spec
           , include/710/Data/*.spec
           , syntax/liquid.css
 
@@ -179,26 +178,6 @@ Library
                     Language.Haskell.Liquid.Bare.SymSort
                     Language.Haskell.Liquid.Bare.Spec
 
-   if impl(ghc < 7.10)
-     exposed-modules:
-                    --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    Language.Haskell.Liquid.Desugar.Check,
-                    Language.Haskell.Liquid.Desugar.Coverage,
-                    Language.Haskell.Liquid.Desugar.Desugar,
-                    Language.Haskell.Liquid.Desugar.DsArrows,
-                    Language.Haskell.Liquid.Desugar.DsBinds,
-                    Language.Haskell.Liquid.Desugar.DsExpr,
-                    Language.Haskell.Liquid.Desugar.DsForeign,
-                    Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar.DsListComp,
-                    Language.Haskell.Liquid.Desugar.DsMeta,
-                    Language.Haskell.Liquid.Desugar.DsUtils,
-                    Language.Haskell.Liquid.Desugar.HscMain,
-                    Language.Haskell.Liquid.Desugar.Match,
-                    Language.Haskell.Liquid.Desugar.MatchCon,
-                    Language.Haskell.Liquid.Desugar.MatchLit
-   else
-     exposed-modules:
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,
                     Language.Haskell.Liquid.Desugar710.Coverage,
