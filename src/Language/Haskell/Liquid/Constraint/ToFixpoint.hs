@@ -33,7 +33,7 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
    ls     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
    ks     = kuts cgi
    qs     = targetQuals info
-   bi     = F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
+   bi     = (`Ci` Nothing) <$> bindSpans cgi
    spc    = spec info
    tce    = tcEmbeds spc
    mkSort = mapSnd (rTypeSortedReft tce . val)
