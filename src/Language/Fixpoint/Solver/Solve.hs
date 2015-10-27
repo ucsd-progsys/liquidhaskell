@@ -67,7 +67,7 @@ refine s w
 
 -- DEBUG
 refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
-                    i (F.sid c) (show b)
+                    i (F.subcId c) (show b)
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------

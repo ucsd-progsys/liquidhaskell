@@ -76,7 +76,7 @@ module Language.Fixpoint.Types (
 
   -- * Constraints
   , WfC (..)
-  , SubC, NISubC, sid, senv, slhs, srhs, subC, niSubC, wfC
+  , SubC, subcId, sid, senv, slhs, srhs, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, WrappedC (..), clhs, crhs
@@ -878,18 +878,10 @@ data SizedEnv a    = BE { beSize  :: Int
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
-data NISubC a = NISubC { nenv  :: !IBindEnv
-                       , nlhs  :: !SortedReft
-                       , nrhs  :: !SortedReft
-                       , ntag  :: !Tag
-                       , ninfo :: !a
-                       }
-              deriving (Eq, Generic, Functor)
-
 data SubC a = SubC { _senv  :: !IBindEnv
                    , slhs  :: !SortedReft
                    , srhs  :: !SortedReft
-                   , _sid   :: !Integer
+                   , _sid   :: !(Maybe Integer)
                    , _stag  :: !Tag
                    , _sinfo :: !a
                    }
@@ -897,7 +889,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
                      , _crhs  :: !Pred
-                     , _cid   :: !Integer
+                     , _cid   :: !(Maybe Integer)
                      , _ctag  :: !Tag
                      , _cinfo :: !a
                      }
@@ -905,7 +897,7 @@ data SimpC a = SimpC { _cenv  :: !IBindEnv
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
-  sid   :: c a -> Integer
+  sid   :: c a -> Maybe Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
   clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
@@ -956,6 +948,9 @@ data WfC a  = WfC  { wenv  :: !IBindEnv
                    , winfo :: !a
                    }
               deriving (Eq, Generic, Functor)
+
+subcId :: (TaggedC c a) => c a -> Integer
+subcId = mfromJust "subCId" . sid
 
 ---------------------------------------------------------------------------
 -- | The output of the Solver
@@ -1043,15 +1038,15 @@ instance Fixpoint a => Fixpoint (SubC a) where
      where bd =   toFix (senv c)
               $+$ text "lhs" <+> toFix (slhs c)
               $+$ text "rhs" <+> toFix (srhs c)
-              $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
-              $+$ toFixMeta (text "constraint" <+> text "id" <+> tshow (sid c)) (toFix (sinfo c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
+              $+$ toFixMeta (text "constraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 instance Fixpoint a => Fixpoint (SimpC a) where
   toFix c     = hang (text "\n\nsimpleConstraint:") 2 bd
      where bd =   toFix (senv c)
               $+$ text "rhs" <+> toFix (crhs c)
-              $+$ (text "id" <+> tshow (sid c) <+> text "tag" <+> toFix (stag c))
-              $+$ toFixMeta (text "simpleConstraint" <+> text "id" <+> tshow (sid c)) (toFix (sinfo c))
+              $+$ (pprId (sid c) <+> text "tag" <+> toFix (stag c))
+              $+$ toFixMeta (text "simpleConstraint" <+> pprId (sid c)) (toFix (sinfo c))
 
 instance Fixpoint a => Fixpoint (WfC a) where
   toFix w     = hang (text "\n\nwf:") 2 bd
@@ -1064,6 +1059,9 @@ instance Fixpoint a => Fixpoint (WfC a) where
 toFixMeta :: Doc -> Doc -> Doc
 toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
              --  $+$ text "\n"
+
+pprId (Just i)  = text "id" <+> tshow i
+pprId _         = text ""
 
 instance Fixpoint Int where
   toFix = tshow
@@ -1358,7 +1356,6 @@ instance NFData SortedReft
 instance (NFData a) => NFData (SEnv a)
 instance (NFData a) => NFData (FixResult a)
 instance (NFData a) => NFData (SubC a)
-instance (NFData a) => NFData (NISubC a)
 instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
@@ -1390,23 +1387,14 @@ wfC be sr x
   where
     err       = errorstar $ "wfKvar: malformed wfC " ++ show sr
 
-niSubC :: IBindEnv -> SortedReft -> SortedReft -> Tag -> a -> [NISubC a]
-niSubC γ sr1 sr2 y z = [NISubC γ sr1' (sr2' r2') y z | r2' <- reftConjuncts r2]
-   where
-     RR t1 r1          = sr1
-     RR t2 r2          = sr2
-     sr1'              = RR t1 $ shiftVV r1  vv'
-     sr2' r2'          = RR t2 $ shiftVV r2' vv'
-     vv'               = vv Nothing
-
-subC :: IBindEnv -> SortedReft -> SortedReft -> Integer -> Tag -> a -> [SubC a]
+subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
    where
      RR t1 r1          = sr1
      RR t2 r2          = sr2
      sr1'              = RR t1 $ shiftVV r1  vv'
      sr2' r2'          = RR t2 $ shiftVV r2' vv'
-     vv'               = vv $ Just i
+     vv'               = mkVV i
 
 reftConjuncts :: Reft -> [Reft]
 reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- refaConjuncts ra]
@@ -1426,8 +1414,7 @@ shiftVV r@(Reft (v, ras)) v'
    | v == v'   = r
    | otherwise = Reft (v', subst1 ras (v, EVar v'))
 
-addIds :: [NISubC a] -> [(Integer, SubC a)]
-addIds = zipWith (\i c -> (i, shiftId i $ SubC (nenv c) (nlhs c) (nrhs c) i (ntag c) (ninfo c))) [1..]
+addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
   where -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
