@@ -111,6 +111,8 @@ consAct info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
+       -- NV: the below line is temporal.
+       modify $ \s -> s{tysigs = case (grtys γ,  assms γ, renv γ) of {(REnv g1, REnv g2, REnv g3) -> (M.toList g1) ++ (M.toList g2) ++ (M.toList g3)}}
        cbs'  <- mapM expandProofs $ cbs info 
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
@@ -691,7 +693,7 @@ initCGI cfg info = CGInfo {
   , tyConInfo  = tyi
   , tyConEmbed = tce
   , kuts       = F.ksEmpty
-  , lits       = coreBindLits tce info
+  , lits       = coreBindLits tce info ++  (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
@@ -708,6 +710,7 @@ initCGI cfg info = CGInfo {
   , haxioms    = axioms spc 
   , lmap       = logicMap spc 
   , globalVars = (freeVs, topVs) 
+  , tysigs     = []
   }
   where
     tce        = tcEmbeds spc
@@ -716,6 +719,7 @@ initCGI cfg info = CGInfo {
     freeVs     = (snd <$> freeSyms spc)
     topVs      = filter (flip elemNameSet (exports $ spec info) . getName) (defVars info)
 
+    mkSort = mapSnd (rTypeSortedReft tce . val)
 
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
