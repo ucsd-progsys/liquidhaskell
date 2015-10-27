@@ -27,7 +27,7 @@ cgInfoFInfo info cgi fi = do
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
 targetFInfo info cgi fn
   = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
-         , F.ws       = fixWfs cgi
+         , F.ws       = M.fromList $ [(k, w) | w <- fixWfs cgi, let (_, _, k) = F.wrft w]
          , F.bs       = binds cgi
          , F.lits     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
          , F.kuts     = kuts cgi
