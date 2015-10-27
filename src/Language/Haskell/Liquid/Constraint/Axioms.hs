@@ -239,7 +239,7 @@ expandAutoProof inite e it
                                  cts ++ vs) $ initKnowledgeBase gs
         ps <- mapM instanceToLogic knowledge
         axiom <- findValid env F.PTrue [] le knowledge
-        return {-$ traceShow ("\n\nI now have to prove this " ++ show e
+        return $ traceShow ("\n\nI now have to prove this " ++ show e
                             ++ "\n\n Check SMT      \n\n" ++ show (isValid i env le le)
                             ++ "\n\n With axioms     \n\n" ++ show ams
                             ++ "\n\n Valid axiom     \n\n" ++ show axiom
@@ -247,7 +247,7 @@ expandAutoProof inite e it
                             ++ "\n\n With variables  \n\n" ++ showPpr ((\v -> (v, varType v)) <$>vs)   
                             ++ "\n\n With constants  \n\n" ++ showPpr cts   
                             ++ "\n\n Knowledge Data Base \n\n" ++ show knowledge   
-                            ++ "\n\n In logic        \n\n" ++ show (showpp le) ) $ -} inite
+                            ++ "\n\n In logic        \n\n" ++ show (showpp le) ) $ inite
 
 
 
