@@ -27,6 +27,7 @@ module Language.Fixpoint.Types (
   , toFixpoint
   , writeFInfo
   , FInfo, SInfo, GInfo (..)
+  , fi
 
   -- * Rendering
   , showFix
@@ -878,11 +879,11 @@ type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
 data NISubC a = NISubC { nenv  :: !IBindEnv
-                   , nlhs  :: !SortedReft
-                   , nrhs  :: !SortedReft
-                   , ntag  :: !Tag
-                   , ninfo :: !a
-                   }
+                       , nlhs  :: !SortedReft
+                       , nrhs  :: !SortedReft
+                       , ntag  :: !Tag
+                       , ninfo :: !a
+                       }
               deriving (Eq, Generic, Functor)
 
 data SubC a = SubC { _senv  :: !IBindEnv
@@ -1459,6 +1460,20 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ------------------------------------------------------------------------
 ----------------- Top-Level Constraint System --------------------------
 ------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+-- | Constructing an FInfo
+------------------------------------------------------------------------
+fi cs ws binds ls ks qs bi fn
+  = FI { cm       = M.fromList $ addIds cs
+       , ws       = M.fromList [(k, w) | w <- ws, let (_, _, k) = wrft w]
+       , bs       = binds
+       , lits     = ls
+       , kuts     = ks
+       , quals    = qs
+       , bindInfo = bi
+       , fileName = fn
+       }
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
