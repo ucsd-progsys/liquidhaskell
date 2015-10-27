@@ -173,10 +173,11 @@ makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
 makeAxioms cbs spec sp 
   = do lmap          <- logicEnv <$> get
        (ms, tys, as) <- unzip3 <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)  
-       return $ spec { meas    = ms         ++  meas   spec 
-                     , asmSigs = concat tys ++ asmSigs spec
-                     , axioms  = concat as  ++ axioms spec 
-                     , logicMap = lmap } 
+       lmap'         <- logicEnv <$> get
+       return $ spec { meas     = ms         ++  meas   spec 
+                     , asmSigs  = concat tys ++ asmSigs spec
+                     , axioms   = concat as  ++ axioms spec 
+                     , logicMap = lmap' } 
 
 emptySpec     :: Config -> GhcSpec
 emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty

@@ -133,9 +133,11 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+                     -- NV: remove all these from CGInfo, pass GhcSpec to axiom expansion instead
                      , haxioms    :: [HAxiom]                     -- ^ Axioms 
                      , lmap       :: LogicMap 
                      , globalVars :: ([Var], [Var])               -- ^ (free Variables, top Variables)
+                     , tysigs     :: [(F.Symbol, SpecType)]
                      }
 
 instance PPrint CGInfo where
