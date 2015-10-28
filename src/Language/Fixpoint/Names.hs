@@ -61,6 +61,7 @@ module Language.Fixpoint.Names (
   , intSymbol
   , tempSymbol
   , renameSymbol
+  , kArgSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -376,7 +377,7 @@ vvCon       = vvName `mappend` symbol [symSepName] `mappend` "F"
 dummySymbol = dummyName
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i       = x `mappend` symbol ('_' : show i)
+intSymbol x i = x `mappend` symbol ('_' : show i)
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
@@ -384,11 +385,15 @@ tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
 renameSymbol :: Symbol -> Int -> Symbol
 renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix :: Symbol
+kArgSymbol :: Symbol -> Symbol
+kArgSymbol x = kArgPrefix `mappend` x
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix :: Symbol
 tempPrefix   = "lq_tmp_"
 anfPrefix    = "lq_anf_"
 renamePrefix = "lq_rnm_"
 litPrefix    = "lit$"
+kArgPrefix   = "lq_karg_"
 
 nonSymbol :: Symbol
 nonSymbol = ""
