@@ -33,7 +33,6 @@ data-files: include/*.hquals
           , include/Language/Haskell/Liquid/*.hs
           , include/Language/Haskell/Liquid/*.pred
           , include/System/*.spec
-          , include/708/Control/*.spec
           , include/710/Data/*.spec
           , syntax/liquid.css
 
@@ -60,39 +59,12 @@ Flag include
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
-               , ghc == 7.8.3 || == 7.8.4 || == 7.10.2
+               , ghc == 7.10.2
                , cmdargs >= 0.10 && < 0.11
                , deepseq >= 1.3 && < 1.5
                , pretty >= 1.1 && < 1.2
                , liquid-fixpoint >= 0.5 && < 0.6
                , liquidhaskell
-
-               --, ansi-terminal
-               --, template-haskell
-               --, time
-               --, array
-               --, hpc
-               --, bifunctors
-               --, containers
-               --, cpphs
-               --, data-default
-               --, directory
-               --, Diff
-               --, filemanip
-               --, filepath
-               --, ghc-paths
-               --, hscolour
-               --, mtl
-               --, parsec
-               --, process
-               --, syb
-               --, text
-               --, vector
-               --, hashable
-               --, unordered-containers
-               --, aeson
-               --, bytestring
-               --, fingertree
 
 
   Main-is: Liquid.hs
@@ -103,7 +75,7 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base >= 4 && < 5
-                , ghc == 7.8.3 || == 7.8.4 || == 7.10.2
+                , ghc == 7.10.2
                 , template-haskell >= 2.9 && < 2.11
                 , time >= 1.4 && < 1.6
                 , array >= 0.5 && < 0.6
@@ -206,26 +178,6 @@ Library
                     Language.Haskell.Liquid.Bare.SymSort
                     Language.Haskell.Liquid.Bare.Spec
 
-   if impl(ghc < 7.10)
-     exposed-modules:
-                    --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    Language.Haskell.Liquid.Desugar.Check,
-                    Language.Haskell.Liquid.Desugar.Coverage,
-                    Language.Haskell.Liquid.Desugar.Desugar,
-                    Language.Haskell.Liquid.Desugar.DsArrows,
-                    Language.Haskell.Liquid.Desugar.DsBinds,
-                    Language.Haskell.Liquid.Desugar.DsExpr,
-                    Language.Haskell.Liquid.Desugar.DsForeign,
-                    Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar.DsListComp,
-                    Language.Haskell.Liquid.Desugar.DsMeta,
-                    Language.Haskell.Liquid.Desugar.DsUtils,
-                    Language.Haskell.Liquid.Desugar.HscMain,
-                    Language.Haskell.Liquid.Desugar.Match,
-                    Language.Haskell.Liquid.Desugar.MatchCon,
-                    Language.Haskell.Liquid.Desugar.MatchLit
-   else
-     exposed-modules:
                     --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,
                     Language.Haskell.Liquid.Desugar710.Coverage,
@@ -264,7 +216,7 @@ test-suite test
                      filepath >= 1.3 && < 1.5,
                      mtl >= 2.1 && < 2.3,
                      process >= 1.2 && < 1.3,
-                     optparse-applicative >= 0.11 && < 0.12,
+                     optparse-applicative >= 0.11 && < 0.13,
                      stm >= 2.4 && < 2.5,
                      tagged >= 0.7.3 && < 0.9,
                      tasty >= 0.10 && < 0.12,
