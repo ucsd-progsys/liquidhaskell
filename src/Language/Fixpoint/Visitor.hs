@@ -255,9 +255,12 @@ class SymConsts a where
 instance  SymConsts (FInfo a) where
   symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
     where
-      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
-      bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
-      qsLits   = concatMap symConsts $                   q_body  <$> quals fi
+      csLits   = concatMap symConsts $ M.elems  $  cm    fi
+      bsLits   = symConsts           $ bs                fi
+      qsLits   = concatMap symConsts $ q_body  <$> quals fi
+
+instance SymConsts BindEnv where
+  symConsts    = concatMap (symConsts . snd) . M.elems . beBinds
 
 instance SymConsts (SubC a) where
   symConsts c  = symConsts (slhs c) ++
