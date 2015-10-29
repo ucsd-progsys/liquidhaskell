@@ -1,0 +1,342 @@
+qualif Bot(v : a): (0 = 1) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Bot(v : obj): (0 = 1) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Bot(v : Boolean): (0 = 1) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Bot(v : int): (0 = 1) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v < 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v <= 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v > 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v >= 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v = 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif CmpZ(v : int): (v != 0) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : int, x : int): (v < x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : int, x : int): (v <= x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : int, x : int): (v > x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : int, x : int): (v >= x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : a, x : a): (v ~~ x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Cmp(v : a, x : a): (v != x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif True1(v : Boolean): (? Prop([v])) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif False1(v : Boolean): (~ ((? Prop([v])))) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Tag(v : a, x : Str): (ttag([v]) = x) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+qualif Len(v : b, w : a): (v < len([w])) // "/Users/rjhala/research/stack/liquid/refscript/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/share/x86_64-osx-ghc-7.10.2/refscript-0.1.0.0/include/prelude.ts" (line 1, column 1)
+
+
+
+
+constant lit$36$Array : (Str)
+constant lit$36$PI : (Str)
+constant lit$36$documentElement : (Str)
+constant extends_class : (func(1, [@(0); Str; bool]))
+constant numeric_min_value : (int)
+constant numeric_positive_infinity : (int)
+constant lit$36$Document : (Str)
+constant lit$36$Console : (Str)
+constant lit$36$LOG10E : (Str)
+constant lit$36$MAX_VALUE : (Str)
+constant lit$36$Error : (Str)
+constant numeric_nan : (int)
+constant lit$36$Math : (Str)
+constant lit$36$LN2 : (Str)
+constant offset : (func(2, [@(0); Str; @(1)]))
+constant hasDirectProperty : (func(1, [Str; @(0); bool]))
+constant lit$36$Object : (Str)
+constant lit$36$StringConstructor : (Str)
+constant lit$36$object : (Str)
+constant lit$36$NEGATIVE_INFINITY : (Str)
+constant lit$36$BUBBLING_PHASE : (Str)
+constant ttag : (func(1, [@(0); Str]))
+constant lit$36$AT_TARGET : (Str)
+constant lit$36$LN10 : (Str)
+constant lit$36$Event : (Str)
+constant numeric_max_value : (int)
+constant lit$36$CAPTURING_PHASE : (Str)
+constant lit$36$NaN : (Str)
+constant lit$36$undefined : (Str)
+constant lit$36$Function : (Str)
+constant len : (func(2, [(Array  @(0)  @(1)); int]))
+constant extends_interface : (func(1, [@(0); Str; bool]))
+constant numeric_negative_infinity : (int)
+constant lit$36$SQRT1_2 : (Str)
+constant Prop : (func(1, [@(0); bool]))
+constant hasProperty : (func(1, [Str; @(0); bool]))
+constant lit$36$String : (Str)
+constant lit$36$E : (Str)
+constant lit$36$POSITIVE_INFINITY : (Str)
+constant lit$36$MIN_VALUE : (Str)
+constant lit$36$prototype : (Str)
+constant lit$36$SQRT2 : (Str)
+constant lit$36$LOG2E : (Str)
+constant lit$36$Number : (Str)
+constant lit$36$HTMLElement : (Str)
+constant lit$36$number : (Str)
+constant enumProp : (func(1, [Str; @(0); bool]))
+constant lit$36$boolean : (Str)
+constant lit$36$Window : (Str)
+
+
+bind 0 undefined : {v : Undefined | [(ttag([v]) = lit$36$undefined);
+                                     (~ ((? Prop([v]))))]}
+bind 1 Object : {VV$35$285 : Object | [(? Prop([VV$35$285]));
+                                       (ttag([VV$35$285]) = lit$36$object)]}
+bind 2 Object.prototype : {VV : (Object  Immutable) | [(? extends_interface([VV;
+                                                                             lit$36$Object]));
+                                                       (? Prop([VV]));
+                                                       (ttag([VV]) = lit$36$object);
+                                                       (VV ~~ offset([Object; lit$36$prototype]))]}
+bind 3 NaN : {v : int | [(ttag([v]) = lit$36$number);
+                         ((? Prop([v])) <=> (v != 0));
+                         (v = numeric_nan)]}
+bind 4 Number : {VV$35$325 : Object | [(? Prop([VV$35$325]));
+                                       (ttag([VV$35$325]) = lit$36$object)]}
+bind 5 Number.POSITIVE_INFINITY : {v : int | [(ttag([v]) = lit$36$number);
+                                              ((? Prop([v])) <=> (v != 0));
+                                              (v ~~ offset([Number; lit$36$POSITIVE_INFINITY]))]}
+bind 6 Number.MIN_VALUE : {v : int | [(ttag([v]) = lit$36$number);
+                                      ((? Prop([v])) <=> (v != 0));
+                                      (v ~~ offset([Number; lit$36$MIN_VALUE]))]}
+bind 7 Number.prototype : {VV : (Number  Immutable) | [(? extends_interface([VV;
+                                                                             lit$36$Number]));
+                                                       (? Prop([VV]));
+                                                       (ttag([VV]) = lit$36$object);
+                                                       (VV ~~ offset([Number; lit$36$prototype]))]}
+bind 8 Number.NaN : {v : int | [(ttag([v]) = lit$36$number);
+                                ((? Prop([v])) <=> (v != 0));
+                                (v ~~ offset([Number; lit$36$NaN]))]}
+bind 9 Number.NEGATIVE_INFINITY : {v : int | [(ttag([v]) = lit$36$number);
+                                              ((? Prop([v])) <=> (v != 0));
+                                              (v ~~ offset([Number; lit$36$NEGATIVE_INFINITY]))]}
+bind 10 Number.MAX_VALUE : {v : int | [(ttag([v]) = lit$36$number);
+                                       ((? Prop([v])) <=> (v != 0));
+                                       (v ~~ offset([Number; lit$36$MAX_VALUE]))]}
+bind 11 Math : {VV$35$387 : (Math  Immutable) | [(? extends_interface([VV$35$387;
+                                                                       lit$36$Math]));
+                                                 (? Prop([VV$35$387]));
+                                                 (ttag([VV$35$387]) = lit$36$object)]}
+bind 12 Math.SQRT2 : {v : int | [(ttag([v]) = lit$36$number);
+                                 ((? Prop([v])) <=> (v != 0));
+                                 (v ~~ offset([Math; lit$36$SQRT2]))]}
+bind 13 Math.LN2 : {v : int | [(ttag([v]) = lit$36$number);
+                               ((? Prop([v])) <=> (v != 0));
+                               (v ~~ offset([Math; lit$36$LN2]))]}
+bind 14 Math.PI : {v : int | [(ttag([v]) = lit$36$number);
+                              ((? Prop([v])) <=> (v != 0));
+                              (v ~~ offset([Math; lit$36$PI]))]}
+bind 15 Math.LOG10E : {v : int | [(ttag([v]) = lit$36$number);
+                                  ((? Prop([v])) <=> (v != 0));
+                                  (v ~~ offset([Math; lit$36$LOG10E]))]}
+bind 16 Math.LOG2E : {v : int | [(ttag([v]) = lit$36$number);
+                                 ((? Prop([v])) <=> (v != 0));
+                                 (v ~~ offset([Math; lit$36$LOG2E]))]}
+bind 17 Math.E : {v : int | [(ttag([v]) = lit$36$number);
+                             ((? Prop([v])) <=> (v != 0));
+                             (v ~~ offset([Math; lit$36$E]))]}
+bind 18 Math.SQRT1_2 : {v : int | [(ttag([v]) = lit$36$number);
+                                   ((? Prop([v])) <=> (v != 0));
+                                   (v ~~ offset([Math; lit$36$SQRT1_2]))]}
+bind 19 Math.LN10 : {v : int | [(ttag([v]) = lit$36$number);
+                                ((? Prop([v])) <=> (v != 0));
+                                (v ~~ offset([Math; lit$36$LN10]))]}
+bind 20 String : {VV$35$469 : (StringConstructor  Immutable) | [(? extends_interface([VV$35$469;
+                                                                                      lit$36$StringConstructor]));
+                                                                (? Prop([VV$35$469]));
+                                                                (ttag([VV$35$469]) = lit$36$object)]}
+bind 21 String.prototype : {VV : (String  Immutable) | [(? extends_interface([VV;
+                                                                              lit$36$String]));
+                                                        (? Prop([VV]));
+                                                        (ttag([VV]) = lit$36$object);
+                                                        (VV ~~ offset([String; lit$36$prototype]))]}
+bind 22 Array : {VV$35$727 : Object | [(? Prop([VV$35$727]));
+                                       (ttag([VV$35$727]) = lit$36$object)]}
+bind 23 Array.prototype : {VV : (Array  Mutable  Top) | [(? extends_interface([VV;
+                                                                               lit$36$Array]));
+                                                         (? Prop([VV]));
+                                                         (ttag([VV]) = lit$36$object);
+                                                         (VV ~~ offset([Array; lit$36$prototype]))]}
+bind 24 Function : {VV$35$762 : Object | [(? Prop([VV$35$762]));
+                                          (ttag([VV$35$762]) = lit$36$object)]}
+bind 25 Function.prototype : {VV : (Function  Immutable) | [(? extends_interface([VV;
+                                                                                  lit$36$Function]));
+                                                            (? Prop([VV]));
+                                                            (ttag([VV]) = lit$36$object);
+                                                            (VV ~~ offset([Function;
+                                                                           lit$36$prototype]))]}
+bind 26 Console : {VV$35$891 : Object | [(? Prop([VV$35$891]));
+                                         (ttag([VV$35$891]) = lit$36$object)]}
+bind 27 Console.prototype : {VV : (Console  Immutable) | [(? extends_interface([VV;
+                                                                                lit$36$Console]));
+                                                          (? Prop([VV]));
+                                                          (ttag([VV]) = lit$36$object);
+                                                          (VV ~~ offset([Console;
+                                                                         lit$36$prototype]))]}
+bind 28 console : {VV$35$893 : (Console  Immutable) | [(? extends_interface([VV$35$893;
+                                                                             lit$36$Console]));
+                                                       (? Prop([VV$35$893]));
+                                                       (ttag([VV$35$893]) = lit$36$object)]}
+bind 29 Error : {VV$35$983 : Object | [(? Prop([VV$35$983]));
+                                       (ttag([VV$35$983]) = lit$36$object)]}
+bind 30 Error.prototype : {VV : (Error  Immutable) | [(? extends_interface([VV;
+                                                                            lit$36$Error]));
+                                                      (? Prop([VV]));
+                                                      (ttag([VV]) = lit$36$object);
+                                                      (VV ~~ offset([Error; lit$36$prototype]))]}
+bind 31 Event : {VV$35$1025 : Object | [(? Prop([VV$35$1025]));
+                                        (ttag([VV$35$1025]) = lit$36$object)]}
+bind 32 Event.CAPTURING_PHASE : {v : int | [(ttag([v]) = lit$36$number);
+                                            ((? Prop([v])) <=> (v != 0));
+                                            (v ~~ offset([Event; lit$36$CAPTURING_PHASE]))]}
+bind 33 Event.AT_TARGET : {v : int | [(ttag([v]) = lit$36$number);
+                                      ((? Prop([v])) <=> (v != 0));
+                                      (v ~~ offset([Event; lit$36$AT_TARGET]))]}
+bind 34 Event.prototype : {VV : (Event  Immutable) | [(? extends_interface([VV;
+                                                                            lit$36$Event]));
+                                                      (? Prop([VV]));
+                                                      (ttag([VV]) = lit$36$object);
+                                                      (VV ~~ offset([Event; lit$36$prototype]))]}
+bind 35 Event.BUBBLING_PHASE : {v : int | [(ttag([v]) = lit$36$number);
+                                           ((? Prop([v])) <=> (v != 0));
+                                           (v ~~ offset([Event; lit$36$BUBBLING_PHASE]))]}
+bind 36 document : {VV$35$1027 : (Document  Immutable) | [(? extends_interface([VV$35$1027;
+                                                                                lit$36$Document]));
+                                                          (? Prop([VV$35$1027]));
+                                                          (ttag([VV$35$1027]) = lit$36$object)]}
+bind 37 document.documentElement : {VV : (HTMLElement  Immutable) | [(? extends_interface([VV;
+                                                                                           lit$36$HTMLElement]));
+                                                                     (? Prop([VV]));
+                                                                     (ttag([VV]) = lit$36$object);
+                                                                     (VV ~~ offset([document;
+                                                                                    lit$36$documentElement]))]}
+bind 38 window : {VV$35$1031 : (Window  Immutable) | [(? extends_interface([VV$35$1031;
+                                                                            lit$36$Window]));
+                                                      (? Prop([VV$35$1031]));
+                                                      (ttag([VV$35$1031]) = lit$36$object)]}
+bind 39 lq_tmp_nano_1 : {VV : (BitVec  Size32) | [(VV = (lit "#x00000008" (BitVec  Size32)))]}
+bind 40 a_SSA_0 : {VV : (BitVec  Size32) | [(VV ~~ lq_tmp_nano_1);
+                                            (VV = (lit "#x00000008" (BitVec  Size32)))]}
+bind 41 lq_tmp_nano_2 : {VV : (BitVec  Size32) | [(VV = (lit "#x00000008" (BitVec  Size32)))]}
+bind 42 b_SSA_1 : {VV : (BitVec  Size32) | [(VV ~~ lq_tmp_nano_2);
+                                            (VV = (lit "#x00000008" (BitVec  Size32)))]}
+bind 43 lq_tmp_nano_3 : {v : (BitVec  Size32) | [(v = bvor([a_SSA_0;
+                                                            a_SSA_0]))]}
+bind 44 lq_tmp_nano_6 : {v : Boolean | [(ttag([v]) = lit$36$boolean);
+                                        ((? Prop([v])) <=> (b_SSA_1 ~~ lq_tmp_nano_3))]}
+bind 45 lq_tmp_nano_9 : {VV$35$4 : Void | []}
+
+
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  lhs {VV$35$F1 : Boolean | [(ttag([VV$35$F1]) = lit$36$boolean);
+                             (VV$35$F1 ~~ lq_tmp_nano_6);
+                             (ttag([VV$35$F1]) = lit$36$boolean);
+                             ((? Prop([VV$35$F1])) <=> (b_SSA_1 ~~ lq_tmp_nano_3))]}
+  rhs {VV$35$F1 : Boolean | [(? Prop([VV$35$F1]))]}
+  id 1 tag [1]
+  // META constraint id 1 : /Users/rjhala/research/stack/liquid/refscript/tests/pos/simple/hex.ts:7:1-7:22
+
+
+constraint:
+  env [0;
+       16;
+       32;
+       1;
+       17;
+       33;
+       2;
+       18;
+       34;
+       3;
+       19;
+       35;
+       4;
+       20;
+       36;
+       5;
+       21;
+       37;
+       6;
+       22;
+       38;
+       7;
+       23;
+       39;
+       8;
+       24;
+       40;
+       9;
+       25;
+       41;
+       10;
+       26;
+       42;
+       11;
+       27;
+       43;
+       12;
+       28;
+       44;
+       13;
+       29;
+       14;
+       30;
+       15;
+       31]
+  lhs {VV$35$F2 : Boolean | [(ttag([VV$35$F2]) = lit$36$boolean);
+                             (VV$35$F2 ~~ lq_tmp_nano_6);
+                             (ttag([VV$35$F2]) = lit$36$boolean);
+                             ((? Prop([VV$35$F2])) <=> (b_SSA_1 ~~ lq_tmp_nano_3))]}
+  rhs {VV$35$F2 : Boolean | [(? Prop([VV$35$F2]))]}
+  id 2 tag [1]
+  // META constraint id 2 : /Users/rjhala/research/stack/liquid/refscript/tests/pos/simple/hex.ts:7:1-7:22
+
+
+
+
+
+
+
+
+
