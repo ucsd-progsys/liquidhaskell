@@ -1627,9 +1627,6 @@ instance Falseable Reft where
 -- | String Constants -----------------------------------------
 ---------------------------------------------------------------
 
---symConstLits    :: (SymConsts (c a)) => GInfo c a -> [(Symbol, Sort)]
---symConstLits fi = [(encodeSymConst c, sortSymConst c) | c <- symConsts fi]
-
 -- | Replace all symbol-representations-of-string-literals with string-literal
 --   Used to transform parsed output from fixpoint back into fq.
 
@@ -1640,56 +1637,8 @@ instance Symbolic SymConst where
 encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = litPrefix `mappend` symbol s
 
-sortSymConst          :: SymConst -> Sort
-sortSymConst (SL _)   = strSort
-
 decodeSymConst :: Symbol -> Maybe SymConst
 decodeSymConst = fmap (SL . symbolText) . stripPrefix litPrefix
-
--- class SymConsts a where
-  -- symConsts :: a -> [SymConst]
---
--- instance (SymConsts (c a)) => SymConsts (GInfo c a) where
-  -- symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
-    -- where
-      -- csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
-      -- bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
-      -- qsLits   = concatMap symConsts $                   q_body  <$> quals fi
---
--- instance SymConsts (SubC a) where
-  -- symConsts c  = symConsts (slhs c) ++
-                 -- symConsts (srhs c)
---
--- instance SymConsts (SimpC a) where
-  -- symConsts c  = symConsts (crhs c)
---
--- instance SymConsts SortedReft where
-  -- symConsts = symConsts . sr_reft
---
--- instance SymConsts Reft where
-  -- symConsts (Reft (_, ra)) = symConsts ra
---
--- instance SymConsts Expr where
-  -- symConsts (ESym c)       = [c]
-  -- symConsts (EApp _ es)    = concatMap symConsts es
-  -- symConsts (ENeg e)       = symConsts e
-  -- symConsts (EBin _ e e')  = concatMap symConsts [e, e']
-  -- symConsts (EIte p e e')  = symConsts p ++ concatMap symConsts [e, e']
-  -- symConsts (ECst e _)     = symConsts e
-  -- symConsts _              = []
---
--- instance SymConsts Pred where
-  -- symConsts (PNot p)           = symConsts p
-  -- symConsts (PAnd ps)          = concatMap symConsts ps
-  -- symConsts (POr ps)           = concatMap symConsts ps
-  -- symConsts (PImp p q)         = concatMap symConsts [p, q]
-  -- symConsts (PIff p q)         = concatMap symConsts [p, q]
-  -- symConsts (PAll _ p)         = symConsts p
-  -- symConsts (PBexp e)          = symConsts e
-  -- symConsts (PAtom _ e e')     = concatMap symConsts [e, e']
-  -- symConsts (PKVar _ (Su xes)) = concatMap symConsts $ M.elems xes
-  -- symConsts _                  = []
---
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------

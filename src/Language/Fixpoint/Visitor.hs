@@ -7,6 +7,9 @@ module Language.Fixpoint.Visitor (
   -- * Visitor
      Visitor (..)
 
+  -- * Extracting Symbolic Constants (String Literals)
+  ,  SymConsts (..)
+
   -- * Default Visitor
   , defaultVisitor
 
@@ -27,12 +30,16 @@ module Language.Fixpoint.Visitor (
 
   -- * Sorts
   , foldSort, mapSort
+
+
   ) where
 
 import           Control.Monad.Trans.State (State, modify, runState)
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
+import           Language.Fixpoint.Misc (sortNub)
 import           Language.Fixpoint.Types
-import qualified Data.HashSet as S
-import qualified Data.List    as L
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -234,3 +241,48 @@ mapSort f = step
     go (FFunc n ts) = FFunc n $ step <$> ts
     go (FApp t1 t2) = FApp (step t1) (step t2)
     go t            = t
+
+---------------------------------------------------------------
+-- | String Constants -----------------------------------------
+---------------------------------------------------------------
+
+-- symConstLits    :: FInfo a -> [(Symbol, Sort)]
+-- symConstLits fi = [(symbol c, strSort) | c <- symConsts fi]
+
+class SymConsts a where
+  symConsts :: a -> [SymConst]
+
+instance  SymConsts (FInfo a) where
+  symConsts fi = sortNub $ csLits ++ bsLits ++ qsLits
+    where
+      csLits   = concatMap symConsts                   $ M.elems  $  cm    fi
+      bsLits   = concatMap (symConsts . snd) $ M.elems $ beBinds $  bs    fi
+      qsLits   = concatMap symConsts $                   q_body  <$> quals fi
+
+instance SymConsts (SubC a) where
+  symConsts c  = symConsts (slhs c) ++
+                 symConsts (srhs c)
+
+instance SymConsts SortedReft where
+  symConsts = symConsts . sr_reft
+
+instance SymConsts Reft where
+  symConsts (Reft (_, ra)) = getSymConsts ra
+
+instance SymConsts Pred where
+  symConsts = getSymConsts
+
+getSymConsts :: Visitable t => t -> [SymConst]
+getSymConsts         = fold scVis () []
+  where
+    scVis            = defaultVisitor { accExpr = sc }
+    sc _ (ESym c)    = [c]
+    sc _ _           = []
+
+
+{-
+
+instance SymConsts (SimpC a) where
+  symConsts c  = symConsts (crhs c)
+
+-}
