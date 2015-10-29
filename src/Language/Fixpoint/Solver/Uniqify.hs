@@ -4,7 +4,8 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names            (renameSymbol)
+import           Language.Fixpoint.Visitor          (mapKVarSubsts)
+import           Language.Fixpoint.Names            (renameSymbol, kArgSymbol)
 import           Language.Fixpoint.Misc             (fst3, mlookup)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
@@ -18,12 +19,14 @@ import           Control.DeepSeq                    (NFData, ($!!))
 
 --------------------------------------------------------------
 renameAll    :: SInfo a -> SInfo a
-renameAll fi = fi''
+renameAll fi0 = fi4
   where
-    fi''     = {-# SCC "renameBinds" #-} renameBinds fi' $!! rnm
-    fi'      = {-# SCC "renameVars"  #-} renameVars fi rnm $!! idm
-    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi
-    idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi
+    fi4      = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
+    fi3      = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
+    rnm      = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
+    idm      = {-# SCC "mkIdMap"     #-} mkIdMap fi2
+    fi2      = {-# SCC "updateWfcs"  #-} updateWfcs fi1
+    fi1      = {-# SCC "remakeSubsts" #-} remakeSubsts fi0
 --------------------------------------------------------------
 
 data Ref = RB BindId | RI Integer deriving (Eq, Generic)
@@ -109,11 +112,11 @@ mkSubUsing m (sym, t) = do
 applySub :: Subst -> SInfo a -> Ref -> SInfo a
 applySub sub fi (RB i) = fi { bs = adjustBindEnv go i (bs fi) }
   where
-    go (sym, sr)        = (sym, dsubst sub sr)
+    go (sym, sr)        = (sym, subst sub sr)
 
 applySub sub fi (RI i) = fi { cm = M.adjust go i (cm fi) }
   where
-    go c                = c { _crhs = dsubst sub (_crhs c) }
+    go c                = c { _crhs = subst sub (_crhs c) }
 --------------------------------------------------------------
 
 --------------------------------------------------------------
@@ -132,32 +135,71 @@ renameBind m (i, sym, sr)
     mnewSym = fromJust $ L.lookup t $ mlookup m sym
 --------------------------------------------------------------
 
+--------------------------------------------------------------
+remakeSubsts :: SInfo a -> SInfo a
+--------------------------------------------------------------
+remakeSubsts fi = mapKVarSubsts (remakeSubstIfWfcExists fi) fi
 
--- This class mirrors Subable exactly except when applying a Subst to a KVar.
--- In that case, it applies the Subst to both left and right hand sides of the
--- old subst rather than (telescopically) concatenating them, e.g.
--- dsubst [x:=y] k[x:=z] = k[y:=z]
--- subst  [x:=y] k[x:=z] = k[x:=z][x:=y] = k[x:=z]
-class DSubable a where
-  dsubst  :: Subst -> a -> a
+--TODO: why are there kvars with no WfC?
+remakeSubstIfWfcExists :: SInfo a -> KVar -> Subst -> Subst
+remakeSubstIfWfcExists fi k su
+  | k `M.member` ws fi = remakeSubst fi k su
+  | otherwise          = Su M.empty
 
-instance DSubable Pred where
-  dsubst su (PAnd ps)       = PAnd $ map (dsubst su) ps
-  dsubst su (POr  ps)       = POr  $ map (dsubst su) ps
-  dsubst su (PNot p)        = PNot $ dsubst su p
-  dsubst su (PImp p1 p2)    = PImp (dsubst su p1) (dsubst su p2)
-  dsubst su (PIff p1 p2)    = PIff (dsubst su p1) (dsubst su p2)
-  dsubst su (PBexp e)       = PBexp $ subst su e
-  dsubst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
-  dsubst su (PKVar k su')   = PKVar k $ dsubst su su'
-  dsubst _  (PAll _ _)      = error "dsubst: FORALL"
-  dsubst _  p               = p
+remakeSubst :: SInfo a -> KVar -> Subst -> Subst
+remakeSubst fi k su = foldl' (updateSubst k) su names
+  where
+    w = (ws fi) M.! k
+    names = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
 
-instance DSubable Reft where
-  dsubst su (Reft (v, ras))  = Reft (v, dsubst (substExcept su [v]) ras)
+updateSubst :: KVar -> Subst -> Symbol -> Subst
+updateSubst k (Su su) sym 
+  | sym `M.member` su = Su $ M.delete sym $ M.insert (kArgSymbol' sym k) (su M.! sym) su
+  | otherwise = Su $ M.insert (kArgSymbol' sym k) (eVar sym) su
+--------------------------------------------------------------
 
-instance DSubable SortedReft where
-  dsubst su (RR so r) = RR so $ dsubst su r
+--------------------------------------------------------------
+updateWfcs :: SInfo a -> SInfo a
+--------------------------------------------------------------
+updateWfcs fi = M.foldl' (updateWfc $ bs fi) fi (ws fi)
 
-instance DSubable Subst where
-  dsubst su (Su m) = Su $ M.fromList $ subst su $ M.toList m
+updateWfc :: BindEnv -> SInfo a -> WfC a -> SInfo a
+updateWfc be fi w = fi' { ws = M.insert k w' (ws fi) }
+  where
+    (v, t, k) = wrft w
+    (fi', newIds) = insertNewBinds w fi k
+    env' = insertsIBindEnv newIds emptyIBindEnv
+    w' = w { wenv = env', wrft = (kArgSymbol' v k, t, k) }
+
+insertNewBinds :: WfC a -> SInfo a -> KVar -> (SInfo a, [BindId])
+insertNewBinds w fi k = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
+
+accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
+accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)
+  where
+    --TODO: is ignoring the old SortedReft ok? what would it mean if it were non-trivial in a wf environment?
+    (oldSym, sr) = lookupBindEnv i (bs fi)
+    renamable = isValidInRefinements $ sr_sort sr
+
+accumBinds :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
+accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)
+  where
+    --TODO: is ignoring the old SortedReft ok? what would it mean if it were non-trivial in a wf environment?
+    (oldSym, sr) = lookupBindEnv i (bs fi)
+    newSym = kArgSymbol' oldSym k
+    (i', be') = insertBindEnv newSym sr (bs fi)
+--------------------------------------------------------------
+
+kArgSymbol' :: Symbol -> KVar -> Symbol
+kArgSymbol' sym k = (kArgSymbol sym) `mappend` (symbol "_") `mappend` (kv k)
+
+isValidInRefinements :: Sort -> Bool
+isValidInRefinements FInt        = True
+isValidInRefinements FReal       = True
+isValidInRefinements FNum        = False
+isValidInRefinements FFrac       = False
+isValidInRefinements (FObj _)    = True
+isValidInRefinements (FVar _)    = True
+isValidInRefinements (FFunc _ _) = False
+isValidInRefinements (FTC _)     = True --TODO is this true? seems to be required for e.g. ResolvePred.hs
+isValidInRefinements (FApp _ _)  = True
