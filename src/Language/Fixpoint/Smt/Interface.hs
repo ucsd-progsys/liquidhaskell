@@ -45,7 +45,7 @@ module Language.Fixpoint.Smt.Interface (
     -- , theorySymbols
       -- smt_set_funs
 
-    -- * Check Validity 
+    -- * Check Validity
     , checkValid
     , checkValids
 
@@ -99,7 +99,7 @@ checkValid f xts p q
   = do me <- makeContext Z3 f
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
-       smtCheckUnsat me 
+       smtCheckUnsat me
 
 -- | Alternatively, if you already HAVE a context, where all the
 --   variables have declared types (e.g. if you want to make MANY
@@ -112,7 +112,7 @@ checkValids f xts ps
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
-            smtAssert me (PNot p) >> smtCheckUnsat me 
+            smtAssert me (PNot p) >> smtCheckUnsat me
 
 debugFile :: FilePath
 debugFile = "DEBUG.smt2"
@@ -186,7 +186,7 @@ negativeP
 smtWriteRaw      :: Context -> T.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
-  -- whenLoud $ TIO.appendFile debugFile (s <> "\n")
+  whenLoud $ TIO.appendFile debugFile (s <> "\n")
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw

@@ -330,7 +330,7 @@ bvSortP
   = mkSort <$> (bvSizeP "Size32" S32 <|> bvSizeP "Size64" S64)
 
 bvSizeP ss s = do
-  parens (reserved "BitVec" >> parens (reserved ss >> reserved "obj"))
+  parens (reserved "BitVec" >> reserved ss)
   return s
 
 keyWordSyms = ["if", "then", "else", "mod"]

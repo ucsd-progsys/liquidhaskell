@@ -34,8 +34,6 @@ module Language.Fixpoint.Names (
   , isNontrivialVV
 
   -- * Destructors
-  -- , stripParensSym
-  -- , stripParens
   , stripPrefix
   , consSym
   , unconsSym
@@ -177,34 +175,6 @@ instance Monoid Symbol where
       s1'       = symbolText s1
       s2'       = symbolText s2
 
-{-  OLD
-newtype Symbol = S InternedText deriving (Eq, Ord, Data, Typeable, Generic)
-
-instance IsString Symbol where
-  fromString = symbol
-
-
-instance Hashable InternedText where
-  hashWithSalt s (InternedText i _) = hashWithSalt s i
-
-instance NFData InternedText where
-  rnf (InternedText i t) = rnf i `seq` rnf t `seq` ()
-
-instance Show Symbol where
-  show (S x) = show x
-
-instance NFData Symbol where
-  rnf (S x)  = rnf x
-
-instance Hashable Symbol where
-  hashWithSalt i (S x) = hashWithSalt i x
-
-instance Binary Symbol where
-  get = textSymbol <$> get
-  put = put . symbolText
-
--}
-
 ---------------------------------------------------------------------------
 -- | Decoding Symbols -----------------------------------------------------
 ---------------------------------------------------------------------------
@@ -221,29 +191,11 @@ symbolSafeText = symbolEncoded
 symbolSafeString :: Symbol -> String
 symbolSafeString = T.unpack . symbolSafeText
 
--- symbolText :: Symbol -> T.Text
--- symbolText = decode
-
--- decode :: Symbol -> T.Text
--- decode x
---  Just i <- encId s = memoDecode i
---  otherwise         = s
--- where
--- s                 = symbolSafeText x
--- encId :: T.Text -> Maybe Int
--- encId = fmap t2i . T.stripPrefix encPrefix
-
--- t2i :: T.Text -> Int
--- t2i = read . T.unpack
-
-
 ---------------------------------------------------------------------------
 -- | Encoding Symbols -----------------------------------------------------
 ---------------------------------------------------------------------------
 
 -- INVARIANT: All strings *must* be built from here
--- textSymbol :: T.Text -> Symbol
--- textSymbol = S . intern . encode
 
 textSymbol :: T.Text -> Symbol
 textSymbol = intern
@@ -252,11 +204,7 @@ encode :: T.Text -> SafeText
 encode t
   | isFixKey t     = T.append "key$" t
   | otherwise      = encodeUnsafe t
---  --   isUnsafe t     = encodeUnsafe t
-  --  otherwise      = t
-  -- where
-  --   isUnsafe       = T.any isUnsafeChar
-  -- encodeUnsafe = T.intercalate "$" . T.split isUnsafeChar
+
 
 encodeUnsafe :: T.Text -> T.Text
 encodeUnsafe = joinChunks . splitChunks
@@ -298,7 +246,9 @@ keywords   = S.fromList [ "env"
                         , "bind"
                         , "constraint"
                         , "lhs"
-                        , "rhs"]
+                        , "rhs"
+                        , "NaN"
+                        ]
 
 
 safeChars :: [Char]
@@ -345,28 +295,10 @@ dropSym n (symbolText -> t) = symbol $ T.drop n t
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
-
--- encPrefix :: SafeText
--- encPrefix = "enc$"
-
--- safeCat :: SafeText -> SafeText -> SafeText
--- safeCat = mappend
-
--- isSafeText :: T.Text -> Bool
--- isSafeText t = T.all (`S.member` okSymChars) t && not (isFixKey t)
-
--- stripParens :: T.Text -> T.Text
--- stripParens t = fromMaybe t (strip t)
---  where
---    strip = T.stripPrefix "(" >=> T.stripSuffix ")"
-
--- stripParensSym :: Symbol -> Symbol
--- stripParensSym (symbolText -> t) = symbol $ stripParens t
-
 ---------------------------------------------------------------------
 
 vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i) --  S (vvName ++ [symSepName] ++ show i)
+vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
 vv Nothing          = vvName
 
 isNontrivialVV      :: Symbol -> Bool

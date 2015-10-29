@@ -16,6 +16,8 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
+import           Language.Fixpoint.Misc (errorstar)
+
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -57,23 +59,13 @@ instance SMTLIB2 Symbol where
 instance SMTLIB2 (Symbol, Sort) where
   smt2 (sym, t) = format "({} {})"  (smt2 sym, smt2 t)
 
--- FIXME: this is probably too slow.
--- RJ: Yes it is!
--- encode :: T.Text -> T.Text
--- encode t = {-# SCC "smt2-encode" #-}
-  -- foldr (uncurry T.replace) t [("[", "ZM"), ("]", "ZN"), (":", "ZC")
-                              -- ,("(", "ZL"), (")", "ZR"), (",", "ZT")
-                              -- ,("|", "zb"), ("#", "zh"), ("\\","zr")
-                              -- ,("z", "zz"), ("Z", "ZZ"), ("%","zv")
-                              -- ,(" ", "_") , ("'", "ZT")
-                              -- ]
-
 instance SMTLIB2 SymConst where
   smt2 = smt2 . symbol
 
 instance SMTLIB2 Constant where
   smt2 (I n)   = format "{}" (Only n)
   smt2 (R d)   = format "{}" (Only d)
+  smt2 (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
   smt2 = smt2 . val

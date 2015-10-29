@@ -215,7 +215,6 @@ exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
     go (EVar x)        = [x]
---     go (ELit x _)      = [val x]
     go (EApp f es)     = val f : concatMap go es
     go (ENeg e)        = go e
     go (EBin _ e1 e2)  = go e1 ++ go e2

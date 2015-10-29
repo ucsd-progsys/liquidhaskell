@@ -19,6 +19,7 @@ module Language.Fixpoint.Smt.Theories
 import           Prelude hiding (map)
 import           Language.Fixpoint.Config
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Text                as T
@@ -33,9 +34,9 @@ elt, set, map, bit, sz32, sz64 :: Raw
 elt  = "Elt"
 set  = "Set"
 map  = "Map"
-bit  = "BitVec"
-sz32 = "Size32"
-sz64 = "Size64"
+bit  = symbolText bitVecName -- "BitVec"
+sz32 = symbolText size32Name -- "Size32"
+sz64 = symbolText size64Name -- "Size64"
 
 
 emp, add, cup, cap, mem, dif, sub, com, sel, sto :: Raw
@@ -151,11 +152,25 @@ smt2Symbol :: Symbol -> Maybe T.Text
 smt2Symbol x = tsRaw <$> M.lookup x theorySymbols
 
 smt2Sort :: Sort -> Maybe T.Text
-smt2Sort (FApp (FTC c) t)
+smt2Sort (FApp (FTC c) _)
   | fTyconSymbol c == "Set_Set" = Just $ format "{}" (Only set)
-smt2Sort (FApp (FApp (FTC c) t1) t2)
+smt2Sort (FApp (FApp (FTC c) _) _)
   | fTyconSymbol c == "Map_t"   = Just $ format "{}" (Only map)
+smt2Sort (FApp (FTC bv) (FTC s))
+  | isBv bv
+  , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
+
+isBv :: FTycon -> Bool
+isBv = (bitVecName ==) . val . fTyconSymbol
+
+sizeBv :: FTycon -> Maybe Int
+sizeBv tc
+  | s == size32Name = Just 32
+  | s == size64Name = Just 64
+  | otherwise       = Nothing
+  where
+    s               = val $ fTyconSymbol tc
 
 smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
 smt2App f [d]
