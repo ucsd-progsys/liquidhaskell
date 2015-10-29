@@ -240,7 +240,6 @@ expandAutoProof inite e it
         ps <- mapM instanceToLogic knowledge
         axiom <- findValid env F.PTrue [] le knowledge
         return $ traceShow ("\n\nI now have to prove this " ++ show e
-                            ++ "\n\n Check SMT      \n\n" ++ show (isValid i env le le)
                             ++ "\n\n With axioms     \n\n" ++ show ams
                             ++ "\n\n Valid axiom     \n\n" ++ show axiom
                             ++ "\n\n Logical Axioms axiom     \n\n" ++ concatMap showppp (zip knowledge ps)

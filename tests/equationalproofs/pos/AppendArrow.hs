@@ -22,8 +22,6 @@ data L a = N |  C a (L a)
 
 instance Eq a => Eq (L a) where
 
-
-
 {-@ axiomatize append @-}
 $(axiomatize
   [d| append :: L a -> L a -> L a
@@ -66,6 +64,23 @@ prop_app_nil (C x xs)
       `by` (prop_app_nil xs)
 -}                                      -- == C x xs
 
+
+-- autoEq ::x:a -> y:a -> {v:a | v == y && x == y }
+
+{-
+
+step e (e1 == e2)
+
+<==>
+
+autoEq e1 e2
+
+<==>
+
+auto (e1 == e && e == e2)
+-}
+
+
 -- | Proof 2: append is associative
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -80,8 +95,8 @@ prop_assoc N ys zs        = auto 4 (append (append N ys) zs == append N (append 
 -}
 prop_assoc (C x xs) ys zs
 -- NV HERE: this takes too long
---  = auto 7 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
-  = refl e1
+--   = auto 7 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
+   = refl e1
     `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
