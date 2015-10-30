@@ -211,6 +211,16 @@ isFixKey x = S.member x keywords
 encodeUnsafe :: T.Text -> T.Text
 encodeUnsafe = joinChunks . splitChunks . (T.append "fix_")
 
+alphaPrefix :: T.Text -> T.Text
+alphaPrefix t
+  | not (isAlpha0 t) = T.append "fix$" t
+  | otherwise        = t
+
+isAlpha0 :: T.Text -> Bool
+isAlpha0 t = case T.uncons t of
+               Just (c, _) -> S.member c alphaChars
+               Nothing     -> False
+
 joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
 joinChunks (t, [] ) = t
 joinChunks (t, cts) = T.concat $ padNull t : (tx <$> cts)
