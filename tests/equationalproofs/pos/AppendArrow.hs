@@ -1,5 +1,7 @@
 
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
+
 -- |   A first example in equalional reasoning.
 -- |  From the definition of append we should be able to
 -- |  semi-automatically prove the two axioms.
@@ -8,7 +10,7 @@
 -- | totallity: all the cases should be covered
 -- | termination: we cannot have diverging things into proofs
 
-{-@ LIQUID "--totality" @-}
+{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 module Append where
 
@@ -16,7 +18,10 @@ import Axiomatize
 import Equational
 
 
-data L a = N |  C a (L a) deriving (Eq)
+data L a = N |  C a (L a)
+
+instance Eq a => Eq (L a) where
+
 
 
 {-@ axiomatize append @-}
@@ -48,20 +53,18 @@ prop_nil (C x xs) = toProof e1 $ ((
 -- | thus the user cannot directly access it.
 -- | use a function called `use_axiom` to apply these axioms.
 
-{-@ assume foo :: {v:Proof | false} @-}
-foo = Proof
-
-
+-- prop_app_nil :: Eq a => L a -> Proof
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
-prop_app_nil N =  axiom_append_N N
-
+prop_app_nil N        =  auto (append N N        == N     ) -- axiom_append_N N
+prop_app_nil (C x xs) =  auto (append (C x xs) N == C x xs)
+{-
 prop_app_nil (C x xs)
   = refl (append (C x xs) N)
                                       -- (C x xs) ++ N
       `by` (axiom_append_C N x xs)
                                       -- == C x (xs ++ N)
       `by` (prop_app_nil xs)
-                                      -- == C x xs
+-}                                      -- == C x xs
 
 -- | Proof 2: append is associative
 

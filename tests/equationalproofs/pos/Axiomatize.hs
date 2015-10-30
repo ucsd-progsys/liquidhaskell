@@ -16,9 +16,14 @@ import Data.Maybe (fromMaybe)
 data Proof = Proof
 
 
-{- assume auto :: {v:Proof | false } @-}
-auto :: Proof
-auto = Proof
+{-@ assume magic :: {v:Proof | false } @-}
+magic :: Proof
+magic = Proof
+
+
+{-@ assume auto :: b:Bool -> {v:Proof | Prop b } @-}
+auto :: Bool -> Proof
+auto _ = Proof
 
 axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q

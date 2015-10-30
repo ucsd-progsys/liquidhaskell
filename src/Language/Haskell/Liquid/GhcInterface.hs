@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
@@ -158,9 +157,7 @@ updateDynFlags cfg
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
                       `gopt_set` Opt_PIC
-#if __GLASGOW_HASKELL__ >= 710
                       `gopt_set` Opt_Debug
-#endif
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
 
