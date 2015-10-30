@@ -205,9 +205,11 @@ encode t
   | isFixKey t     = T.append "key$" t
   | otherwise      = encodeUnsafe t
 
+isFixKey :: T.Text -> Bool
+isFixKey x = S.member x keywords
 
 encodeUnsafe :: T.Text -> T.Text
-encodeUnsafe = joinChunks . splitChunks
+encodeUnsafe = joinChunks . splitChunks . (T.append "fix_")
 
 joinChunks :: (T.Text, [(Char, SafeText)]) -> SafeText
 joinChunks (t, [] ) = t
@@ -233,8 +235,6 @@ splitChunks t = (h, go tl)
 isUnsafeChar :: Char -> Bool
 isUnsafeChar = not . (`S.member` okSymChars)
 
-isFixKey :: T.Text -> Bool
-isFixKey x = S.member x keywords
 
 keywords :: S.HashSet T.Text
 keywords   = S.fromList [ "env"
@@ -250,20 +250,28 @@ keywords   = S.fromList [ "env"
                         , "NaN"
                         ]
 
-
-safeChars :: [Char]
-safeChars = ['a' .. 'z'] ++ ['A' .. 'Z'] ++ ['0' .. '9'] ++ ['_', '.'  ]
-
 -- | RJ: We allow the extra 'unsafeChars' to allow parsing encoded symbols.
 --   e.g. the raw string "This#is%$inval!d" may get encoded as "enc%12"
 --   and serialized as such in the fq/bfq file. We want to allow the parser
 --   to then be able to read the above back in.
 
+alphaChars :: S.HashSet Char
+alphaChars = S.fromList $ ['a' .. 'z'] ++ ['A' .. 'Z']
+
+numChars :: S.HashSet Char
+numChars = S.fromList ['0' .. '9']
+
+safeChars :: S.HashSet Char
+safeChars = alphaChars `mappend`
+            numChars   `mappend`
+            S.fromList ['_', '.'  ]
+
 symChars :: S.HashSet Char
-symChars =  S.fromList $ ['%', '#', '$'] ++ safeChars
+symChars =  safeChars `mappend`
+            S.fromList ['%', '#', '$']
 
 okSymChars :: S.HashSet Char
-okSymChars = S.fromList safeChars
+okSymChars = safeChars
 
 isPrefixOfSym :: Symbol -> Symbol -> Bool
 isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x

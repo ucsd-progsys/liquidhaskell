@@ -121,7 +121,6 @@ mkSetCap _ s t = format "({} {} {})" (cap, s, t)
 mkSetDif _ s t = format "({} {} {})" (dif, s, t)
 mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 
-
 -- smt_set_funs :: M.HashMap Symbol Raw
 -- smt_set_funs = M.fromList [ (setEmp, emp), (setAdd, add), (setCup, cup)
 --                           , (setCap, cap), (setMem, mem), (setDif, dif)
@@ -144,6 +143,19 @@ theorySymbols = M.fromList
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)
 
+
+isBv :: FTycon -> Bool
+isBv = (bitVecName ==) . val . fTyconSymbol
+
+sizeBv :: FTycon -> Maybe Int
+sizeBv tc
+  | s == size32Name = Just 32
+  | s == size64Name = Just 64
+  | otherwise       = Nothing
+  where
+    s               = val $ fTyconSymbol tc
+
+
 -------------------------------------------------------------------------------
 -- | Exported API -------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -161,23 +173,13 @@ smt2Sort (FApp (FTC bv) (FTC s))
   , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-isBv :: FTycon -> Bool
-isBv = (bitVecName ==) . val . fTyconSymbol
-
-sizeBv :: FTycon -> Maybe Int
-sizeBv tc
-  | s == size32Name = Just 32
-  | s == size64Name = Just 64
-  | otherwise       = Nothing
-  where
-    s               = val $ fTyconSymbol tc
-
 smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
 smt2App f [d]
   | val f == setEmpty = Just $ format "{}"             (Only emp)
   | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
   | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
+
 
 preamble :: SMTSolver -> [T.Text]
 preamble Z3 = z3Preamble
