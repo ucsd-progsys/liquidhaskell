@@ -209,12 +209,12 @@ isFixKey :: T.Text -> Bool
 isFixKey x = S.member x keywords
 
 encodeUnsafe :: T.Text -> T.Text
-encodeUnsafe = joinChunks . splitChunks . (T.append "fix_")
+encodeUnsafe = joinChunks . splitChunks . prefixAlpha
 
-alphaPrefix :: T.Text -> T.Text
-alphaPrefix t
-  | not (isAlpha0 t) = T.append "fix$" t
-  | otherwise        = t
+prefixAlpha :: T.Text -> T.Text
+prefixAlpha t
+  | isAlpha0 t = t
+  | otherwise  = T.append "fix$" t
 
 isAlpha0 :: T.Text -> Bool
 isAlpha0 t = case T.uncons t of
