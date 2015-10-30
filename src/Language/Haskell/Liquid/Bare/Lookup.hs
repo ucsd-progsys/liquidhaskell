@@ -61,6 +61,7 @@ instance GhcLookup Name where
   srcSpan        = nameSrcSpan
 
 
+
 -- lookupGhcThing :: (GhcLookup a) => String -> (TyThing -> Maybe b) -> a -> BareM b
 lookupGhcThing name f x
   = do zs <- lookupGhcThing' name f x

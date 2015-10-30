@@ -44,7 +44,7 @@ import Language.Haskell.Liquid.Bounds
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc (safeLast, errorstar)
-import Language.Fixpoint.Parse hiding (angles)
+import Language.Fixpoint.Parse hiding (angles, refBindP, refP, refDefP)
 
 ----------------------------------------------------------------------------
 -- Top Level Parsing API ---------------------------------------------------
@@ -189,6 +189,22 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
+refBindP :: Subable a => Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
+refBindP bp rp kindP
+  = braces $ do
+      x  <- bp
+      i  <- freshIntP
+      t  <- kindP
+      reserved "|"
+      ra <- rp <* spaces
+      let xi = intSymbol x i
+      let su v = if v == x then xi else v
+      return $ substa su $ t (Reft (x, ra))
+
+refP       = refBindP bindP refaP
+refDefP x  = refBindP (optBindP x)
+
+optBindP x = try bindP <|> return x
 
 holeP       = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
 holeRefP    = reserved "_" >> spaces >> return (RHole . uTop)

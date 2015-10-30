@@ -199,8 +199,8 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ predicate Invs V = Inv1 V && Inv2 V && Inv3 V   @-}
 {-@ predicate Inv1 V = (isARB V && IsB V) => isRB V @-}
-{-@ predicate Inv2 V = isRB v => isARB v            @-}
-{-@ predicate Inv3 V = 0 <= bh v                    @-}
+{-@ predicate Inv2 V = isRB V => isARB V            @-}
+{-@ predicate Inv3 V = 0 <= bh V                    @-}
 {-@ invariant {v: Color | v = R || v = B}           @-}
 {-@ invariant {v: RBTree a | Invs v}                @-}
 

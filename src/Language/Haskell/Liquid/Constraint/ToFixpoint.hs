@@ -25,20 +25,18 @@ cgInfoFInfo info cgi fi = do
   return    $ tgtFI <> impFI
 
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
-targetFInfo info cgi fn
-  = F.FI { F.cm       = M.fromList $ F.addIds $ fixCs cgi
-         , F.ws       = fixWfs cgi
-         , F.bs       = binds cgi
-         , F.lits     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
-         , F.kuts     = kuts cgi
-         , F.quals    = targetQuals info
-         , F.bindInfo = (`Ci` Nothing) <$> bindSpans cgi
-         , F.fileName = fn
-         }
-   where
-    spc    = spec info
-    tce    = tcEmbeds spc
-    mkSort = mapSnd (rTypeSortedReft tce . val)
+targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
+  where 
+   cs     = fixCs  cgi
+   ws     = fixWfs cgi
+   bs     = binds  cgi
+   ls     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
+   ks     = kuts cgi
+   qs     = targetQuals info
+   bi     = (`Ci` Nothing) <$> bindSpans cgi
+   spc    = spec info
+   tce    = tcEmbeds spc
+   mkSort = mapSnd (rTypeSortedReft tce . val)
 
 targetQuals :: GhcInfo -> [F.Qualifier]
 targetQuals info = spcQs ++ genQs
