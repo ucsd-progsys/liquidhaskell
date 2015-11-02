@@ -112,8 +112,8 @@ consAct info
        tflag <- trustghc <$> get
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        -- NV: the below line is temporal.
-       modify $ \s -> s{tysigs = case (grtys γ,  assms γ, renv γ) of {(REnv g1, REnv g2, REnv g3) -> (M.toList g1) ++ (M.toList g2) ++ (M.toList g3)}}
-       cbs'  <- mapM expandProofs $ cbs info 
+       let sigs = mkSigs γ 
+       cbs'  <- mapM (expandProofs info sigs) $ cbs info 
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
        hws   <- hsWfs <$> get
@@ -127,6 +127,10 @@ consAct info
        fws <- concat <$> mapM splitW hws
        let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
+  where 
+    mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
+                (REnv g1, REnv g2, REnv g3) -> (M.toList g1) ++ (M.toList g2) ++ (M.toList g3)
+       
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
@@ -707,17 +711,11 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
-  , haxioms    = axioms spc 
-  , lmap       = logicMap spc 
-  , globalVars = (freeVs, topVs) 
-  , tysigs     = []
   }
   where
     tce        = tcEmbeds spc
     spc        = spec info
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-    freeVs     = (snd <$> freeSyms spc)
-    topVs      = filter (flip elemNameSet (exports $ spec info) . getName) (defVars info)
 
     mkSort = mapSnd (rTypeSortedReft tce . val)
 

@@ -156,17 +156,31 @@ mapSndM act xys = mapM (\(x, y) -> (x,) <$> act y) xys
 
 class Provable a where 
 
-  expandProofs :: a -> CG a 
-  expandProofs x = do as       <- haxioms  <$> get 
-                      lmap     <- lmap     <$> get
-                      (vs, tp) <- (filter2 (not . canIgnore) . globalVars) <$> get 
-                      tce      <- tyConEmbed <$> get 
-                      lts      <- lits <$> get 
-                      sigs     <- tysigs <$> get 
-                      return $ evalState (expProofs x) 
-                        (AE as [] lmap (L.nub vs) (L.nub tp) [] tce (wiredSortedSyms ++ lts) 0 sigs) 
+  expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a 
+  expandProofs info sigs x 
+    = do tce      <- tyConEmbed <$> get 
+         lts      <- lits <$> get 
+         return $ evalState (expProofs x) 
+                        AE { ae_axioms  = axioms spc 
+                           , ae_binds   = []
+                           , ae_lmap    = logicMap spc 
+                           , ae_consts  = L.nub vs
+                           , ae_globals = L.nub tp
+                           , ae_vars    = []
+                           , ae_emb     = tce 
+                           , ae_lits    = wiredSortedSyms ++ lts 
+                           , ae_index   = 0 
+                           , ae_sigs    = sigs   
+                           }
     where
-      filter2 p (xs, ys) = (filter p xs, filter p ys)
+      spc        = spec info
+      vs         = filter validVar (snd <$> freeSyms spc)
+      tp         = filter validExp (defVars info)
+
+      isExported = flip elemNameSet (exports $ spec info) . getName
+      validVar   = not . canIgnore
+      validExp x = validVar x && isExported x 
+
 
   expProofs :: a -> Pr a 
   expProofs = return  
