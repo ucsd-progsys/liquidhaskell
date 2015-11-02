@@ -47,10 +47,8 @@ specificationQualifiers k info
 --     isPred _                 = False
 
 
-refTypeQuals l tce t  = refTypeQuals' l tce t
-
 -- refTypeQuals :: SpecType -> [Qualifier]
-refTypeQuals' l tce t0        = go emptySEnv t0
+refTypeQuals l tce t0        = go emptySEnv t0
   where
     go γ t@(RVar _ _)         = refTopQuals l tce t0 γ t
     go γ (RAllT _ t)          = go γ t
