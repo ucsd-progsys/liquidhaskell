@@ -47,39 +47,14 @@ specificationQualifiers k info
 --     isPred _                 = False
 
 
-refTypeQuals l tce t  = quals ++ pAppQuals l tce preds quals
-  where
-    quals             = refTypeQuals' l tce t
-    preds             = filter isPropPV $ ty_preds $ toRTypeRep t
-
-pAppQuals l tce ps qs = [ pAppQual l tce p xs (v, e) | p <- ps, (s, v, _) <- pargs p, (xs, e) <- mkE s ]
-  where
-    mkE s             = concatMap (expressionsOfSort (rTypeSort tce s)) qs
-
-expressionsOfSort sort (Q _ pars (PAtom Eq (EVar v) e2) _)
-  | (v, sort) `elem` pars
-  = [(filter (/=(v, sort)) pars, e2)]
-
-expressionsOfSort _ _
-  = []
-
-pAppQual l tce p args (v, expr) =  Q "Auto" freeVars pred l
-  where
-    freeVars                  = (vv, tyvv) : (predv, typred) : args
-    pred                      = pApp predv $ EVar vv:predArgs
-    vv                        = "v"
-    predv                     = "~P"
-    tyvv                      = rTypeSort tce $ pvType p
-    typred                    = rTypeSort tce (pvarRType p :: RSort)
-    predArgs                  = mkexpr <$> (snd3 <$> pargs p)
-    mkexpr x                  = if x == v then expr else EVar x
+refTypeQuals l tce t  = refTypeQuals' l tce t
 
 -- refTypeQuals :: SpecType -> [Qualifier]
 refTypeQuals' l tce t0        = go emptySEnv t0
   where
     go γ t@(RVar _ _)         = refTopQuals l tce t0 γ t
     go γ (RAllT _ t)          = go γ t
-    go γ (RAllP _ t)          = go γ t
+    go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
     go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ refTopQuals l tce t0 γ t
     go γ (RFun x t t' _)      = (go γ t)
                                 ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
