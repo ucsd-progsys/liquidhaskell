@@ -1,15 +1,9 @@
 {-# LANGUAGE TupleSections  #-}
-{-# LANGUAGE CPP #-}
 
 {-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
 module Language.Haskell.Liquid.Liquid (liquid) where
-
-#if __GLASGOW_HASKELL__ < 710
-import           Data.Monoid      (mconcat, mempty)
-import           Control.Applicative ((<$>))
-#endif
 
 import           Data.Maybe
 import           System.Exit
