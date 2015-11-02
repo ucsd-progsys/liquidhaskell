@@ -110,10 +110,7 @@ consAct info
   = do γ     <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
-       let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
-       -- NV: the below line is temporal.
-       let sigs = mkSigs γ 
-       cbs'  <- mapM (expandProofs info sigs) $ cbs info 
+       cbs'  <- mapM (expandProofs info (mkSigs γ)) $ cbs info 
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
        hws   <- hsWfs <$> get
