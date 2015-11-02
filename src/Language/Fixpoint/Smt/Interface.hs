@@ -113,8 +113,8 @@ checkValids f xts ps
           smtBracket me $
             smtAssert me (PNot p) >> smtCheckUnsat me
 
-debugFile :: FilePath
-debugFile = "DEBUG.smt2"
+-- debugFile :: FilePath
+-- debugFile = "DEBUG.smt2"
 
 --------------------------------------------------------------------------
 -- | SMT IO --------------------------------------------------------------
@@ -185,7 +185,7 @@ negativeP
 smtWriteRaw      :: Context -> T.Text -> IO ()
 smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
   hPutStrLnNow (cOut me) s
-  whenLoud $ TIO.appendFile debugFile (s <> "\n")
+  -- whenLoud $ TIO.appendFile debugFile (s <> "\n")
   maybe (return ()) (`hPutStrLnNow` s) (cLog me)
 
 smtReadRaw       :: Context -> IO Raw
