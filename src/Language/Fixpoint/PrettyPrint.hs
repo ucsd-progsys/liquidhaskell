@@ -135,7 +135,6 @@ instance PPrint Expr where
   pprintPrec _ (ESym c)        = pprint c
   pprintPrec _ (ECon c)        = pprint c
   pprintPrec _ (EVar s)        = pprint s
---   pprintPrec _ (ELit s _)      = pprint s
   pprintPrec _ (EBot)          = text "_|_"
   pprintPrec z (ENeg e)        = parensIf (z > zn) $
                                    text "-" <> pprintPrec (zn+1) e

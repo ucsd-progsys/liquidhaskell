@@ -440,7 +440,6 @@ data Bop  = Plus | Minus | Times | Div | Mod
 data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
---           | ELit !LocSymbol !Sort
           | EApp !LocSymbol ![Expr]
           | ENeg !Expr
           | EBin !Bop !Expr !Expr
@@ -497,7 +496,6 @@ instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
---   toFix (ELit s _)     = toFix s
   toFix (EApp f es)    = toFix f <> parens (toFix es)
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
@@ -1452,7 +1450,7 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
 ------------------------------------------------------------------------
 fi cs ws binds ls ks qs bi fn
   = FI { cm       = M.fromList $ addIds cs
-       , ws       = M.fromList [(k, w) | w <- ws, let (_, _, k) = wrft w]
+       , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
        , lits     = ls
        , kuts     = ks
@@ -1460,6 +1458,8 @@ fi cs ws binds ls ks qs bi fn
        , bindInfo = bi
        , fileName = fn
        }
+  where
+    err = errorstar "multiple WfCs with same kvar"
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a

@@ -140,9 +140,9 @@ refine :: F.SInfo a
 --------------------------------------------------------------------
 refine fi qs w = refineK env qs $ F.wrft w
   where
-    env        = F.sr_sort <$> (wenv <> genv)
-    wenv       = F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w)
-    genv       = (`F.RR` mempty) <$> F.lits fi
+    env        = wenv <> genv
+    wenv       = F.sr_sort <$> (F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w))
+    genv       = F.lits fi
 
 refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
 refineK env qs (v, t, k) = (k, eqs')

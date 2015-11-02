@@ -219,7 +219,6 @@ checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
 checkExpr f (EApp g es)    = checkApp f Nothing g es
--- checkExpr f (ELit _ t)     = return t
 
 -- | Helper for checking symbol occurrences
 

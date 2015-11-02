@@ -147,15 +147,15 @@ remakeSubstIfWfcExists fi k su
   | otherwise          = Su M.empty
 
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
-remakeSubst fi k su = foldl' (updateSubst k) su names
+remakeSubst fi k su = foldl' (updateSubst k) su kDom
   where
-    w = (ws fi) M.! k
-    names = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
+    w    = (ws fi) M.! k
+    kDom = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym 
   | sym `M.member` su = Su $ M.delete sym $ M.insert (kArgSymbol' sym k) (su M.! sym) su
-  | otherwise = Su $ M.insert (kArgSymbol' sym k) (eVar sym) su
+  | otherwise         = Su $ M.insert (kArgSymbol' sym k) (eVar sym) su
 --------------------------------------------------------------
 
 --------------------------------------------------------------

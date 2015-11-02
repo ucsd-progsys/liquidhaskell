@@ -136,7 +136,6 @@ visitExpr v = vE
     step _ e@EBot         = return e
     step _ e@(ESym _)     = return e
     step _ e@(ECon _)     = return e
---     step _ e@(ELit _ _)   = return e
     step _ e@(EVar _)     = return e
     step c (EApp f es)    = EApp f     <$> (vE c <$$> es)
     step c (ENeg e)       = ENeg       <$> vE c e
