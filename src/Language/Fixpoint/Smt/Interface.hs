@@ -101,9 +101,8 @@ checkValid f xts p q
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
 
--- | Alternatively, if you already HAVE a context, where all the
---   variables have declared types (e.g. if you want to make MANY
----  repeated Queries)
+-- | If you already HAVE a context, where all the variables have declared types 
+--   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
 checkValids :: FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
