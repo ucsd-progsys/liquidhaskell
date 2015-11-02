@@ -11,7 +11,7 @@ values k = map (go k)
   where
     {-@ go :: forall <rr1 :: k -> v -> Prop>. 
               i:k -> Dict <rr1> k v -> v<rr1 i>  @-}
-    go k e@(D _ f) = f k
+    go k (D _ f) = f k
 
 data Dict key val = D {ddom :: [key], dfun :: key -> val}
 
