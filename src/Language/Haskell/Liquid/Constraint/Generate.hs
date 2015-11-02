@@ -111,6 +111,7 @@ consAct info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
        cbs'  <- mapM (expandProofs info (mkSigs γ)) $ cbs info 
+       let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
        hws   <- hsWfs <$> get
