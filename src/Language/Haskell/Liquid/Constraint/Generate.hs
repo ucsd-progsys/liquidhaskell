@@ -599,7 +599,7 @@ splitC (SubC _ t1 t2)
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
        let r1' = if fg then pruneUnsortedReft γ'' r1 else r1
-       return $ F.niSubC γ' r1' r2 tag ci
+       return $ F.subC γ' r1' r2 Nothing tag ci
   where
     γ'' = fe_env $ fenv γ
     γ'  = fe_binds $ fenv γ
@@ -643,9 +643,9 @@ checkStratum γ t1 t2
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
-  = F.niSubC γ' (r1' {F.sr_reft = mempty}) r2' tag ci
+  = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
   | F.isNonTrivial r2'
-  = F.niSubC γ' r1'  r2' tag ci
+  = F.subC γ' r1'  r2' Nothing tag ci
   | otherwise
   = []
   where
