@@ -1187,6 +1187,7 @@ emapRef  _ _ (RHProp _ _)         = error "TODO: PHProp empaReft"
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
+-- same as GhcMisc isBaseType
 
 -- isBase :: RType a -> Bool
 isBase (RAllT _ t)      = isBase t

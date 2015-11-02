@@ -141,10 +141,13 @@ stringTyConWithKind k c n s = TC.mkKindTyCon name k
 hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
+isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
-isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
+isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2 
+isBaseType (FunTy _ _)     = False -- isBaseType t1 && isBaseType t2
 isBaseType _               = False
+
 validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
