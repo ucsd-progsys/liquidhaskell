@@ -2,7 +2,6 @@ Equational Reasoning
 --------------------
 
 Easy: 
-  - Pass info from static CG environment. Now I move all required info to dynamic env
   - Simplify sufficient axioms 
   - Print the SMT files in the .liquid
 
