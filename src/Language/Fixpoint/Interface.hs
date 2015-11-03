@@ -38,6 +38,7 @@ import           Language.Fixpoint.Solver.Solution  (Solution)
 import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
 import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Progress
 import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
@@ -46,6 +47,7 @@ import           Language.Fixpoint.Errors           (exit)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
+
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
@@ -59,9 +61,10 @@ solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
 solveFQ cfg = do fi      <- readFInfo file
                  r       <- solve cfg fi
-                 let stat = resStatus r
-                 putStrLn "\n"
-                 colorStrLn (colorResult stat) (show stat)
+                 let stat = resStatus $!! r
+                 let str  = show $!! stat
+                 -- putStrLn "\n"
+                 colorStrLn (colorResult stat) str
                  return $ eCode r
   where
     file    = inFile       cfg
