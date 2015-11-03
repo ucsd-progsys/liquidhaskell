@@ -23,7 +23,7 @@ unitTests
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"  []  ExitSuccess
     , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"  []  (ExitFailure 1)
     --Given all the changes in LH, Ben doesn't trust test000 anymore until he can reproduce the failure using a current LH test
-    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  ["test000.hs.fq"]  ExitSuccess 
+    , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"  ["test000.hs.fq"]  ExitSuccess
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim" []  ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"  []  (ExitFailure 1)
    ]
@@ -60,19 +60,19 @@ mkTest testCmd code dir file
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
 
-binPath pkgName = do 
+binPath pkgName = do
   testPath <- getExecutablePath
-  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName 
+  return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
 
 knownToFail = []
 ---------------------------------------------------------------------------
 type TestCmd = FilePath -> FilePath -> FilePath -> String
 
 nativeCmd :: TestCmd
-nativeCmd bin dir file = printf "cd %s && %s --native %s" dir bin file
+nativeCmd bin dir file = printf "cd %s && %s %s" dir bin file
 
 elimCmd :: TestCmd
-elimCmd bin dir file = printf "cd %s && %s --native --eliminate %s" dir bin file
+elimCmd bin dir file = printf "cd %s && %s --eliminate %s" dir bin file
 
 
 

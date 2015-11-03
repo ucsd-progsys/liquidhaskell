@@ -24,9 +24,10 @@ progressInit n = do
     writeIORef pbRef (Just pr)
 
 mkPB   :: Int -> IO ProgressBar
-mkPB n = newProgressBar def { pgWidth = 80
-                            , pgTotal = n
-                            , pgFormat = "Working :percent [:bar]"
+mkPB n = newProgressBar def { pgWidth       = 80
+                            , pgTotal       = n
+                            , pgFormat      = "Working :percent [:bar]"
+                            , pgPendingChar = '.'
                             }
 
 progressTick :: IO ()

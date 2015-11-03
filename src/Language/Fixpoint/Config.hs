@@ -46,7 +46,6 @@ data Config
     , solver      :: SMTSolver           -- ^ which SMT solver to use
     , genSorts    :: GenQualifierSort    -- ^ generalize qualifier sorts
     , ueqAllSorts :: UeqAllSorts         -- ^ use UEq on all sorts
-    , native      :: Bool                -- ^ use haskell solver
     , real        :: Bool                -- ^ interpret div and mul in SMT
     , newcheck    :: Bool                -- ^ new fixpoint sort check
     , eliminate   :: Bool                -- ^ eliminate non-cut KVars
@@ -55,6 +54,7 @@ data Config
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , binary      :: Bool                -- ^ save FInfo as binary file
+    , extSolver   :: Bool                -- ^ use external (ocaml) solver
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -69,7 +69,6 @@ instance Default Config where
                , solver      = def
                , genSorts    = def
                , ueqAllSorts = def
-               , native      = def
                , real        = def
                , newcheck    = False
                , eliminate   = def
@@ -78,6 +77,7 @@ instance Default Config where
                , stats       = def
                , parts       = def
                , binary      = def
+               , extSolver   = def
                }
 
 instance Command Config where
@@ -150,7 +150,6 @@ config = Config {
   , solver      = def   &= help "Name of SMT Solver"
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "Use UEq on all sorts"
-  , native      = False &= help "(alpha) Haskell Solver"
   , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
@@ -162,6 +161,7 @@ config = Config {
   , cores       = def   &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
+  , extSolver   = False &= help "Use external (Ocaml) Solver"
   }
   &= verbosity
   &= program "fixpoint"
@@ -184,4 +184,3 @@ banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of Ca
 
 multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
-

@@ -91,8 +91,8 @@ saveBin cfg fi = when (binary cfg) $ saveBinaryFile cfg fi
 
 configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
 configSolver cfg
-  | native cfg = solveNative
-  | otherwise  = solveExt
+  | extSolver cfg = solveExt
+  | otherwise     = solveNative
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
