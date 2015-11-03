@@ -122,11 +122,9 @@ readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
 ---------------------------------------------------------------------------
 solveSeqWith :: (Fixpoint a) => Solver a -> Solver a
-solveSeqWith s c fi0 = do
-  putStrLn "Using Sequential Solver \n"
-  let fi = slice fi0
-  progressInitFI fi
-  s c fi
+solveSeqWith s c fi0 = withProgressFI fi $ s c fi
+  where
+    fi               = slice fi0
 
 
 ---------------------------------------------------------------------------
@@ -135,19 +133,19 @@ solveSeqWith s c fi0 = do
 solveParWith :: (Fixpoint a) => Solver a -> Solver a
 ---------------------------------------------------------------------------
 solveParWith s c fi0 = do
-  putStrLn "Using Parallel Solver \n"
+  -- putStrLn "Using Parallel Solver \n"
   let fi       = slice fi0
-  progressInitFI fi
-  mci <- mcInfo c
-  let (_, fis) = partition' (Just mci) fi
-  writeLoud $ "Number of partitions : " ++ show (length fis)
-  writeLoud $ "number of cores      : " ++ show (cores c)
-  writeLoud $ "minimum part size    : " ++ show (minPartSize c)
-  writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
-  case fis of
-    []        -> errorstar "partiton' returned empty list!"
-    [onePart] -> s c onePart
-    _         -> inParallelUsing (s c) fis
+  withProgressFI fi $ do --progressInitFI fi
+    mci <- mcInfo c
+    let (_, fis) = partition' (Just mci) fi
+    writeLoud $ "Number of partitions : " ++ show (length fis)
+    writeLoud $ "number of cores      : " ++ show (cores c)
+    writeLoud $ "minimum part size    : " ++ show (minPartSize c)
+    writeLoud $ "maximum part size    : " ++ show (maxPartSize c)
+    case fis of
+      []        -> errorstar "partiton' returned empty list!"
+      [onePart] -> s c onePart
+      _         -> inParallelUsing (s c) fis
 
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
 -- DEBUG debugDiff fi fi' = putStrLn msg
@@ -345,6 +343,11 @@ isBinary = isExtFile BinFq
 ---------------------------------------------------------------------------
 -- | Initialize Progress Bar
 ---------------------------------------------------------------------------
-progressInitFI :: FInfo a -> IO ()
+-- progressInitFI :: FInfo a -> IO ()
 ---------------------------------------------------------------------------
-progressInitFI = progressInit . fromIntegral . gSccs . cGraph
+-- progressInitFI = progressInit . fromIntegral . gSccs . cGraph
+
+---------------------------------------------------------------------------
+withProgressFI :: FInfo a -> IO b -> IO b
+---------------------------------------------------------------------------
+withProgressFI = withProgress . fromIntegral . gSccs . cGraph

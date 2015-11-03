@@ -1,7 +1,8 @@
 -- | Progress Bar API
 
 module Language.Fixpoint.Progress (
-      progressInit
+      withProgress
+    , progressInit
     , progressTick
     , progressClose
     ) where
@@ -15,6 +16,14 @@ import           System.Console.AsciiProgress -- (ProgressBar(..), Options(..), 
 {-# NOINLINE pbRef #-}
 pbRef :: IORef (Maybe ProgressBar)
 pbRef = unsafePerformIO (newIORef Nothing)
+
+withProgress :: Int -> IO a -> IO a
+withProgress n act = do
+  progressInit n
+  r <- act
+  progressClose
+  return r
+
 
 progressInit :: Int -> IO ()
 progressInit n = do
