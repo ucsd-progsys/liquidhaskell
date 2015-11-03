@@ -101,6 +101,7 @@ instance Fixpoint Error where
   toFix = pprint
 
 instance Exception Error
+instance Exception (FixResult Error)
 
 instance E.Error Error where
   strMsg = Error dummySpan
