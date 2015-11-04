@@ -9,6 +9,7 @@ import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
+import           Language.Fixpoint.Progress
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Config hiding (stats)
@@ -20,16 +21,17 @@ import           Text.Printf
 import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
 import           System.Console.CmdArgs.Verbosity (whenLoud)
-
+import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
-solve :: (F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
+solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 ---------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
-    (r, s) <- runSolverM cfg fi n act
-    whenLoud $ printStats fi wkl s
-    return r
+    (res, stat) <- runSolverM cfg fi n act
+    whenLoud $ printStats fi wkl stat
+    -- print (numIter stat)
+    return res
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
@@ -42,16 +44,17 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
 
 
 ---------------------------------------------------------------------------
-solve_ :: (F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
+solve_ :: (NFData a, F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
 ---------------------------------------------------------------------------
 solve_ fi s0 wkl = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
   -- donePhase' "Solution: Fixpoint"
   st  <- stats
-  res <- {-# SCC "sol-result" #-} result fi wkl s
+  res <- {-# SCC "sol-result" #-} result wkl s
   -- donePhase' "Solution: Check"
-  return (res, st)
+  return $!! (res, st)
+
 
 ---------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
@@ -104,9 +107,9 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => F.SInfo a -> W.Worklist a -> S.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
-result fi wkl s = do
+result wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ wkl s
   return   $ F.Result (F.WrapC <$> stat) sol

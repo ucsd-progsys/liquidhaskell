@@ -25,7 +25,7 @@ import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
-import           System.ProgressBar
+-- import           System.ProgressBar
 import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
 
 #ifdef MIN_VERSION_located_base
@@ -212,29 +212,10 @@ ensurePath = createDirectoryIfMissing True . takeDirectory
 fM :: (Monad m) => (a -> b) -> a -> m b
 fM f = return . f
 
----------------------------------------------------------------------------
--- | Progress Bar API
----------------------------------------------------------------------------
-
-{-# NOINLINE pbRef #-}
-pbRef :: IORef (Maybe ProgressRef)
-pbRef = unsafePerformIO (newIORef Nothing)
-
-progressInit :: Integer -> IO ()
-progressInit n = do
-  loud <- isLoud
-  unless loud $ do
-    pr <- mkPB n
-    writeIORef pbRef (Just pr)
-
-mkPB   :: Integer -> IO ProgressRef
-mkPB n = do
-  hSetBuffering stdout NoBuffering
-  -- fst <$> startProgress percentage exact 80 n
-  fst <$> startProgress noLabel percentage 80 n
-
-progressTick :: IO ()
-progressTick    = go =<< readIORef pbRef
-  where
-   go (Just pr) = incProgress pr 1
-   go _         = return ()
+{-
+exitColorStrLn :: Moods -> String -> IO ()
+exitColorStrLn c s = do
+  writeIORef pbRef Nothing --(Just pr)
+  putStrLn "\n"
+  colorStrLn c s
+-}

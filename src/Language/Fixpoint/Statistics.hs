@@ -1,7 +1,11 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- | This module implements functions that print out
 --   statistics about the constraints.
 module Language.Fixpoint.Statistics (statistics) where
 
+import           Control.DeepSeq
+import           GHC.Generics
 import           Control.Arrow ((&&&))
 
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
@@ -37,7 +41,9 @@ data Stats = Stats { cSizes  :: [Float]
                    , cMean   :: Float
                    , cMax    :: Float
                    , cSpeed  :: Float
-                   } deriving (Show)
+                   } deriving (Show, Generic)
+
+instance NFData Stats
 
 instance PPrint Stats where
   pprint s = vcat [ text "STAT: max/total = " <+> pprint (cMax   s) <+> text "/" <+> pprint (cTotal s)

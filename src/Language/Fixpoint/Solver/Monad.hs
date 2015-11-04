@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- | This is a wrapper around IO that permits SMT queries
 
 module Language.Fixpoint.Solver.Monad
@@ -17,10 +19,14 @@ module Language.Fixpoint.Solver.Monad
        , Stats
        , tickIter
        , stats
+       , numIter
        )
        where
 
-import           Language.Fixpoint.Misc    (progressTick, groupList)
+import           Control.DeepSeq
+import           GHC.Generics
+import           Language.Fixpoint.Progress
+import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Config  (Config, solver)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
@@ -50,7 +56,9 @@ data Stats = Stats { numCstr :: !Int -- ^ # Horn Constraints
                    , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
                    , numChck :: !Int -- ^ # smtCheckUnsat calls
                    , numVald :: !Int -- ^ # times SMT said RHS Valid
-                   } deriving (Show)
+                   } deriving (Show, Generic)
+
+instance NFData Stats
 
 stats0    :: F.GInfo c b -> Stats
 stats0 fi = Stats nCs 0 0 0 0

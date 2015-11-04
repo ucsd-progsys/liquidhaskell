@@ -125,9 +125,7 @@ init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
 init fi  = M.fromList keqs
   where
-    -- PARALLELIZE THIS!
-    -- keqs = parMap rdeepseq (refine fi qs) ws -- How to make this parallel?
-    keqs = map (refine fi qs) ws `using` parList rdeepseq -- How to make this parallel?
+    keqs = map (refine fi qs) ws `using` parList rdeepseq 
     qs   = F.quals fi
     ws   = M.elems $ F.ws fi
 

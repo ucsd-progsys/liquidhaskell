@@ -101,7 +101,8 @@ Executable fixpoint.native
                , syb
                , cmdargs
                , ansi-terminal
-               , terminal-progress-bar
+               -- , terminal-progress-bar
+               , ascii-progress
                , bifunctors
                , binary
                , bytestring
@@ -133,7 +134,8 @@ Executable fixpoint
                , syb
                , cmdargs
                , ansi-terminal
-               , terminal-progress-bar
+               -- , terminal-progress-bar
+               , ascii-progress
                , bifunctors
                , binary
                , bytestring
@@ -174,6 +176,7 @@ Library
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Misc,
+                   Language.Fixpoint.Progress,
                    Language.Fixpoint.Solver.Types,
                    Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
@@ -196,7 +199,8 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               , terminal-progress-bar
+               -- , terminal-progress-bar
+               , ascii-progress
                , bifunctors
                , binary
                , bytestring
