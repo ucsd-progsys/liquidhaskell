@@ -21,9 +21,9 @@ magic :: Proof
 magic = Proof
 
 
-{-@ assume auto :: b:Bool -> {v:Proof | Prop b } @-}
-auto :: Bool -> Proof
-auto _ = Proof
+{-@ assume auto :: Int -> b:Bool -> {v:Proof | Prop b } @-}
+auto :: Int -> Bool -> Proof
+auto _ _ = Proof
 
 axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q

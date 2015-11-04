@@ -133,9 +133,6 @@ data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping
                      , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
                      , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
                      , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
-                     , haxioms    :: [HAxiom]                     -- ^ Axioms 
-                     , lmap       :: LogicMap 
-                     , globalVars :: ([Var], [Var])               -- ^ (free Variables, top Variables)
                      }
 
 instance PPrint CGInfo where
