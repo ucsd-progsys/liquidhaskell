@@ -16,13 +16,16 @@
 
 module Language.Haskell.Liquid.Constraint.Axioms (expandProofs) where 
 
+
+import Literal 
+
 import CoreUtils     (exprType)
 import MkCore
 import Coercion
 import DataCon
 import Pair
 import CoreSyn
-import SrcLoc
+import SrcLoc hiding (Located)
 import Type
 import TyCon
 import PrelNames
@@ -84,6 +87,8 @@ import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Constraint
 
+import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
+
 import Language.Fixpoint.Smt.Interface
 
 
@@ -93,6 +98,7 @@ import CoreSyn
 
 import Language.Haskell.Liquid.Constraint.Types
 
+import System.IO.Unsafe
 
 data Actions = Auto 
 
@@ -102,7 +108,12 @@ data AEnv = AE { ae_axioms  :: [HAxiom]
                , ae_consts  :: [Var]  -- Data constructors and imported variables
                , ae_globals :: [Var]  -- Global definitions, like axioms
                , ae_vars    :: [Var]
+               , ae_emb     :: F.TCEmb TyCon  
+               , ae_lits    :: [(Symbol, F.Sort)]
+               , ae_index   :: Integer 
+               , ae_sigs    :: [(Symbol, SpecType)]
                }
+
 
 
 addBind b = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
@@ -113,8 +124,14 @@ addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
     x' = filter (not . canIgnore) x 
 
 
+getUniq :: Pr Integer 
+getUniq
+  =  modify (\s -> s{ae_index = 1 + (ae_index s)}) >> ae_index <$> get 
+
 canIgnore v = isInternal v || isTyVar v 
 
+
+hasBaseType = isBaseTy . varType
 
 type Pr = State AEnv
 
@@ -123,17 +140,47 @@ isAuto  v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v
 isProof v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v 
 
 
+normalize xts = filter hasBaseSort $ L.nub xts -- only keep isBasic things
+  where
+    hasBaseSort (x, s) = isBaseSort s 
+
+isBaseSort (F.FFunc _ ss) = and $ map notFFunc ss 
+isBaseSort (F.FApp s1 s2) = isBaseSort s1 && isBaseSort s2 
+isBaseSort  _             = True 
+
+notFFunc (F.FFunc _ _) = False
+notFFunc _ = True 
+
+
 mapSndM act xys = mapM (\(x, y) -> (x,) <$> act y) xys
 
 class Provable a where 
 
-  expandProofs :: a -> CG a 
-  expandProofs x = do as       <- haxioms  <$> get 
-                      lmap      <- lmap     <$> get
-                      (vs, tp)  <- (filter2 (not . canIgnore) . globalVars) <$> get 
-                      return $ evalState (expProofs x) (AE as [] lmap (L.nub vs) (L.nub tp) []) 
+  expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a 
+  expandProofs info sigs x 
+    = do tce      <- tyConEmbed <$> get 
+         lts      <- lits <$> get 
+         return $ evalState (expProofs x) 
+                        AE { ae_axioms  = axioms spc 
+                           , ae_binds   = []
+                           , ae_lmap    = logicMap spc 
+                           , ae_consts  = L.nub vs
+                           , ae_globals = L.nub tp
+                           , ae_vars    = []
+                           , ae_emb     = tce 
+                           , ae_lits    = wiredSortedSyms ++ lts 
+                           , ae_index   = 0 
+                           , ae_sigs    = sigs   
+                           }
     where
-      filter2 p (xs, ys) = (filter p xs, filter p ys)
+      spc        = spec info
+      vs         = filter validVar (snd <$> freeSyms spc)
+      tp         = filter validExp (defVars info)
+
+      isExported = flip elemNameSet (exports $ spec info) . getName
+      validVar   = not . canIgnore
+      validExp x = validVar x && isExported x 
+
 
   expProofs :: a -> Pr a 
   expProofs = return  
@@ -144,8 +191,10 @@ instance Provable CoreBind where
 
 
 instance Provable CoreExpr where
-  expProofs ee@(App (Tick _ (Var f)) e) | isAuto f = expandAutoProof ee e
-  expProofs ee@(App (Var f) e)          | isAuto f = expandAutoProof ee e
+  expProofs ee@(App (App (Tick _ (Var f)) i) e) | isAuto f = grapInt i >>= expandAutoProof ee e 
+  expProofs ee@(App (App (Var f) i) e)          | isAuto f = grapInt i >>= expandAutoProof ee e
+  expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isAuto f = grapInt i >>= expandAutoProof ee e
+  expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isAuto f = grapInt i >>= expandAutoProof ee e
 
   expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
   expProofs (Lam x e)   = addVar x >> liftM  (Lam x) (expProofs e)
@@ -162,26 +211,209 @@ instance Provable CoreExpr where
   expProofs (Coercion c) = return $ Coercion c 
 
 
+
+grapInt (Var v) 
+  = do bs <- ae_binds <$> get 
+       let (e:_) = [ex | NonRec x ex <- bs, x == v]
+       return $ go e 
+  where 
+    go (Tick _ e) = go e
+    go (App _ l)  = go l
+    go (Lit l)    = litToInt l 
+
+    litToInt (MachInt i) = i 
+    litToInt (MachInt64 i) = i 
+    litToInt _             = error "litToInt: non integer literal"
+
+grapInt (Tick _ e) =  grapInt e 
+grapInt i = return 2
+
+
+
+
 instance Provable CoreAlt where 
   expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
 
-expandAutoProof :: CoreExpr -> CoreExpr -> Pr CoreExpr
-expandAutoProof inite e 
+expandAutoProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
+expandAutoProof inite e it  
   =  do ams <- ae_axioms  <$> get  
         bds <- ae_binds   <$> get
         lm  <- ae_lmap    <$> get 
         vs  <- ae_vars    <$> get 
         gs  <- ae_globals <$> get 
         cts <- ae_consts  <$> get 
+        tce <- ae_emb     <$> get 
+        lts <- ae_lits    <$> get 
+        i   <- getUniq
+        let env = normalize (lts ++ ((\v -> (F.symbol v, typeSort tce $ varType v)) <$> vs )) -- (filter hasBaseType vs))) --  ++ gs ++ cts))
         let le = case runToLogic lm (errOther . text) (coreToPred $ foldl (flip Let) e bds) of 
                   Left e  -> e
-                  Right (ErrOther _ e) -> error $ show e  
+                  Right (ErrOther _ e) -> error $ show e
+        let knowledge = runStep it ( (fst . aname <$> ams) ++ 
+                                 cts ++ vs) $ initKnowledgeBase gs
+        ps <- mapM instanceToLogic knowledge
+        axiom <- findValid env F.PTrue [] le knowledge
         return $ traceShow ("\n\nI now have to prove this " ++ show e
                             ++ "\n\n With axioms     \n\n" ++ show ams
+                            ++ "\n\n Valid axiom     \n\n" ++ show axiom
+                            ++ "\n\n Logical Axioms axiom     \n\n" ++ concatMap showppp (zip knowledge ps)
                             ++ "\n\n With variables  \n\n" ++ showPpr ((\v -> (v, varType v)) <$>vs)   
                             ++ "\n\n With constants  \n\n" ++ showPpr cts   
-                            ++ "\n\n Knowledge Data Base \n\n" ++ show (runStep (cts ++ vs) $ initKnowledgeBase gs)   
-                            ++ "\n\n In logic        \n\n" ++ show (showpp le)) $ inite
+                            ++ "\n\n Knowledge Data Base \n\n" ++ show knowledge   
+                            ++ "\n\n In logic        \n\n" ++ show (showpp le) ) $ inite
+
+
+
+showppp (a, (_, (_, p)))
+  = "\nAXIOM TO LOGIC\t" ++ show a ++ "\n\t" ++ showpp p ++ "\n\n"
+
+
+findValid env p used q (i:is) 
+  = do (e, (x, px)) <- instanceToLogic i
+       n <- getUniq  
+       if isValid n env p q 
+         then return $ Just used 
+         else findValid  (env ++ e) (F.pAnd [p, px]) (i:used) q is 
+findValid _ _ _ _ _ = return Nothing
+
+
+findValid' :: [(Symbol, F.Sort)] -> F.Pred -> [Instance] -> Pr Bool 
+findValid' env q (i:is) = 
+  do uq <- getUniq
+     (e, (x, p)) <- instanceToLogic i  
+     n <- getUniq
+     return $ isValid n (env ++ e) p q
+
+isValid :: Integer -> [(Symbol, F.Sort)] -> F.Pred -> F.Pred -> Bool
+isValid i env p q = unsafePerformIO (checkValid ("AxiomSMTQueries."  ++ show i) env p q)
+
+instanceToLogic :: Instance -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
+instanceToLogic i@(Inst (f, xs, es))
+  = do t  <- lookup (F.symbol f) . ae_sigs <$> get  
+       sigs  <- ae_sigs <$> get  
+       pp <- mapM rargToLogic es
+       asubst' t (resultType $ varType f) pp 
+
+
+
+
+rargToLogic :: TemplateArgument -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
+rargToLogic (TA _ i) = targToLogic i 
+
+targToLogic :: TArg -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
+targToLogic (TDone e) 
+  = do (ps, (z, t)) <- coreExprToLogic e
+       let (en, (x, p)) = ([(x, s) | (x, s, _)<- ps] , (z, F.pAnd $ (map (\(_, _, p) -> p) ps)))
+       return (en, (x, p))
+targToLogic (THole)
+  = error "targToLogic on Hole"
+targToLogic (TTmp f es)
+  = do t  <- lookup (F.symbol f) . ae_sigs <$> get
+       pp <- mapM rargToLogic es
+       asubst' t (resultType $ varType f) pp 
+
+asubst' :: Maybe SpecType -> Type -> [([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))] -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
+asubst' Nothing ht pp
+  = do let ss = concatMap fst pp 
+       x <- freshSymbol 
+       tce <- ae_emb <$> get 
+       return ((x,typeSort tce ht):ss, (x, F.PTrue))
+
+asubst' (Just t) ht es 
+  = do let t' = go t 
+       let ss = concatMap fst es 
+       (x, p) <- mysub t' $ (map (fst . snd) es)
+       tce <- ae_emb <$> get 
+       return ((x, typeSort tce ht):ss, (x, (F.pAnd (p:(map (snd . snd) es)) )))
+  where
+    t' = go t 
+
+    go (RAllT _ t) = go t
+    go (RAllP _ t) = go t
+    go t           = t 
+
+
+mysub t xs = case stripRTypeBase t' of 
+              Nothing -> (,F.PTrue) <$> freshSymbol
+              Just t  -> do let (F.Reft (vv, pp)) = F.toReft t
+                            x <- freshSymbol
+                            let su = (vv, F.EVar x): zipWith (\y e -> (y, F.EVar e)) xs' xs
+                            return (x, F.subst (F.mkSubst su) pp)
+  where rep = toRTypeRep t 
+        t' = (F.mkSubst (zipWith (\x y -> (x, F.EVar y)) (ty_binds rep) (xs))) `F.subst` (ty_res rep)
+        xs' =  snd <$> (dropWhile (isClassType . fst) $ zip (ty_args rep) (ty_binds rep))
+
+
+
+asubst acc (RAllT _ t) es = asubst acc t es 
+asubst acc (RAllP _ t) es = asubst acc t es
+asubst acc (RFun _ tx t _) es | isClassType tx = asubst acc t es 
+asubst acc (RFun x tx t _) ((y, p):es) = asubst ((y,p):acc) (F.subst1 t (x, F.EVar y)) es 
+asubst acc t               []          = case stripRTypeBase t of 
+                                          Just x -> let (F.Reft (xx, pp)) = F.toReft x in (xx,pp):acc
+                                          Nothing -> acc 
+asubst _ t x = error ("asubst with " ++ show (t, x))
+
+alogicType (RAllT _ t) = alogicType t
+alogicType (RAllP _ t) = alogicType t
+alogicType t           = t 
+
+
+typeToReft :: Maybe SpecType -> Pr (F.Symbol, F.Pred)
+typeToReft Nothing 
+  = (, F.PTrue) <$> freshSymbol
+
+typeToReft (Just t')
+  = case stripRTypeBase t of 
+      Nothing -> (, F.PTrue) <$> freshSymbol
+      Just g -> do x <- freshSymbol
+                   let (F.Reft (v, p)) = F.toReft g
+                   return (x, F.subst1 p (v, F.EVar x))
+  where t = simpl t'
+        simpl (RAllP _ t) = simpl t
+        simpl (RAllT _ t) = simpl t 
+        simpl t           = t 
+
+
+coreExprToLogic :: CoreExpr -> Pr ([(F.Symbol, F.Sort, F.Pred)], (Symbol, Maybe SpecType))
+coreExprToLogic (Var v) 
+  = do t <- lookup (F.symbol v) . ae_sigs <$> get  
+       tce <- ae_emb <$> get 
+       (x, p) <- typeToReft t 
+       return ([(x, typeSort tce $ varType v, F.pAnd [p, F.PAtom F.Eq (F.EVar $ F.symbol v) (F.EVar x)] )], (x, t))
+
+coreExprToLogic (App f e)
+  = do (e1, (y, _)) <- coreExprToLogic e 
+       (e2, (_, Just (RFun x tx t _))) <- mkFun <$> coreExprToLogic f 
+       tce <- ae_emb <$> get 
+       (z, pz) <- typeToReft (Just $ F.subst1 t (x, F.EVar y))
+       return $ ((z, rTypeSort tce t, pz):(e1 ++ e2), (z, Just t))
+
+mkFun (e, (x, Just t)) = (e, (x, Just $ go t))
+  where 
+    go (RAllT _ t) = go t
+    go (RAllP _ t) = go t
+    go t           = t 
+
+
+
+freshSymbol 
+  = tempSymbol "axiom_" <$> getUniq       
+
+
+app e [] = e 
+app e (x:xs) = app (App e x) xs 
+
+rargToCoreExpr (TA _ targ) = go targ 
+  where 
+    go (TDone e)   = e
+    go THole       = error "rargToCoreExpr: THole"
+    go (TTmp f es) = app (Var f) (rargToCoreExpr <$> es)
+
+
+
+
+
 
 
 
@@ -253,9 +485,8 @@ instance Show Instance where
 -}
 
 
-runStep cds is = go iter [] is 
+runStep iter cds is = go iter [] is 
   where
-    iter = 3
     go 0 acc is = acc
     go i acc is = let (h, noh) = L.partition hasHoles is in 
                   let is'      = runStepOne cds h in 
@@ -266,17 +497,17 @@ runStep cds is = go iter [] is
 runStepOne :: [Var] -> [Instance] -> [Instance]
 runStepOne cds is =  concatMap go is
   where
-    go (Inst (ax, vs, targs)) = [Inst (ax, vs, tas) | tas <- expandOneHole vs cds targs] 
+    go (Inst (ax, vs, targs)) = [Inst (ax, vs, tas) | tas <- expandOneHole 0 vs cds targs] 
 
 
 expandHole :: [Var] -> [Var] -> TemplateArgument -> [TemplateArgument]
 expandHole tvs cds (TA t THole)       = TA t <$> instantiateHole tvs cds t 
 expandHole tvs cds (TA t (TDone e))   = [TA t $ TDone e]
-expandHole tvs cds (TA t (TTmp v ts)) = (\ts' -> TA t (TTmp v ts')) <$> expandOneHole tvs cds ts 
+expandHole tvs cds (TA t (TTmp v ts)) = (\ts' -> TA t (TTmp v ts')) <$> expandOneHole 1 tvs cds ts 
 
 
-expandOneHole :: [Var] -> [Var] -> [TemplateArgument] -> [[TemplateArgument]]
-expandOneHole tvs cds ts = go [] ts 
+expandOneHole :: Int -> [Var] -> [Var] -> [TemplateArgument] -> [[TemplateArgument]]
+expandOneHole n tvs cds ts = go [] ts 
   where
     go acc [] 
       = [reverse acc]
@@ -284,8 +515,10 @@ expandOneHole tvs cds ts = go [] ts
       = map (\ta -> (reverse acc) ++ [TA t ta] ++ tas) (instantiateHole tvs cds t)
     go acc (TA t (TDone e):tas)   
       = go (TA t (TDone e):acc) tas
-    go acc (TA t (TTmp v tts):tas) 
-      = map (\xs -> (reverse acc) ++ [TA t (TTmp v xs)] ++ tas) (expandOneHole (L.nub (forallTyVars (varType v) ++ tvs)) cds tts)
+    go acc (TA t (TTmp v tts):tas) | n < 2 -- hole nesting 
+      = map (\xs -> (reverse acc) ++ [TA t (TTmp v xs)] ++ tas) (expandOneHole (n+1) (L.nub (forallTyVars (varType v) ++ tvs)) cds tts)
+    go acc (TA t (TTmp v tts):tas)  
+      = []
 
 instantiateHole :: [Var] -> [Var] -> Type -> [TArg]
 instantiateHole tvs cds t = instantiate cds <$> cvs 
@@ -362,204 +595,3 @@ isInstanceOf _ (TyVarTy v) (TyVarTy v')
   = v == v'
 isInstanceOf _ _ _
   = False 
-
-{-
-class Provable a where
-  expandProofs :: a -> CG a
-  isProof      :: a -> Bool  
-  simplify     :: a -> a 
-  simplifyP    :: Int -> a -> a 
-
-  simplify = simplifyP 2 
-
-
-instance Provable CoreBind where
-  expandProofs (NonRec x e) = NonRec x <$> expandProofs e 
-  expandProofs (Rec xes)    = return $ Rec xes
-
-  simplifyP i (NonRec x e) = NonRec x $ simplifyP i e 
-  simplifyP i (Rec xes )   = Rec (second (simplifyP i) <$> xes)
-
-
-instance Provable CoreExpr where
-  expandProofs ee@(Let (NonRec x ex) e') = if isProof e then go [(x, ex)] e else return ee
-    where
-      go :: [(Var, CoreExpr)] -> CoreExpr -> CG CoreExpr
-      go bs e = do let ee = substeMany (second simplify <$> bs) e 
-                   ams <- haxioms <$> get  
-                   return $ proveTheorem ams $ makeTheorem ee
-      e = simplify e' 
-  expandProofs e = return e  
-
-  isProof e@(App (App (Var x) (Type _)) _) = traceShow ("isProof1 " ++ show (dropModuleNames $ F.symbol x) ++ "\t\t" ++ show e ) (isPrefixOfSym "prove" (dropModuleNames $ F.symbol x))
-  isProof e@(App (Var x) _) = traceShow ("isProof1 " ++ show (dropModuleNames $ F.symbol x) ++ "\t\t" ++ show e ) (isPrefixOfSym "prove" (dropModuleNames $ F.symbol x))
-  isProof e = traceShow ("isProof2 " ++ show e) False 
-
-
-  simplifyP i (Tick _ e) = simplifyP i e 
-  simplifyP i (App e (Type _)) | i >= 2 = simplifyP i e 
-  simplifyP i (App e (Var x))  | i >= 2 &&  isClassPred (varType x) = simplifyP i e 
-  simplifyP i (App f e) = App (simplifyP i f) (simplifyP i e)
-  simplifyP i (Lam x e) | i >= 2 && isClassPred (varType x) = simplifyP i e 
-  simplifyP i (Lam x e) = Lam x $ simplifyP i e 
-  simplifyP i (Let bs e) = unANF (simplifyP i bs) (simplifyP i e)
-  simplifyP _ e = e 
-
-
-unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
-  = subst (x, ex) e 
-unANF b e = Let b e
-
-data Theorem = Thm {thm_args :: [Var], thm_lhs :: CoreExpr, thm_rhs :: CoreExpr}
-  deriving (Show )
-
-makeTheorem (App _ e) = Thm bs lhs rhs 
-  where 
-    (bs, lhs, rhs) = grapBs [] e 
-    grapBs acc (Lam x e) = grapBs (x:acc) e
-    grapBs acc (App (App v lhs) rhs) | isEquality v = (acc, lhs, rhs)
-
-isEquality _ = True 
-
-data PStep = PSInit | PSCase PNId Var CoreExpr | PSAxiom PNId 
-  deriving (Show)
-
-data Proof = Proof { pthm :: Theorem
-                   , ptr  :: PFTree 
-                   }
-type PNId = Int 
-
-type PFTree = [PNode]
-data PNode = PNode { pn_id   :: PNId
-                   , pn_vars :: [Var]
-                   , pn_expr :: CoreExpr
-                   , pn_step :: PStep
-                   , pn_goal :: CoreExpr
-                   } 
-            | PMany [PNode]
-
-
-instance Show PNode where
-  show pn@(PNode _ _ _ _ _) = "\n(" ++ show (pn_id pn) ++  ") Vars = " ++ show (pn_vars pn) ++  
-                             "\n\t" ++ show (pn_expr pn) ++ "=?=" ++ show (pn_goal pn)  
-  show (PMany ns)           = "\n\nSTART\n" ++ show ns ++ "\nEND\n\n" 
-
-proveTheorem :: [HAxiom] -> Theorem -> CoreExpr
-proveTheorem axs thm@(Thm c lhs rhs) 
-  = let pf = evalState (makeProofTree axs thm) (PST 0) in 
-    traceShow ("\n\nProve \n" ++ show thm ++ "\nGIVEN\n" ++ show axs ++ 
-               "\n\nProof Tree \n" ++ show pf 
-              ) rhs
-
-makeProofTree :: [HAxiom] -> Theorem ->  PM ([PNode], [PNode])
-makeProofTree axs thm 
-  = do (i1, i2) <- freshPM
-       t1 <- go [PNode i1 (thm_args thm) (thm_lhs thm) PSInit (thm_rhs thm)]
-       t2 <- go [PNode i2 (thm_args thm) (thm_rhs thm) PSInit (thm_lhs thm)]
-       return (t1, t2)
-  where
-    go (x:xs) = do cs   <- caseSplit x 
-                   axms <- mapM (applyAxiom x) (axs ++ (flipSides <$> axs)) 
-                   ys   <- go xs 
-                   return $ cs ++ axms ++ ys
-    go [] = return []  
-
-flipSides ax = ax {alhs = arhs ax, arhs = alhs ax}
-
--- NV TODO: do it for the rest of the variables 
-caseSplit :: PNode -> PM [PNode]
-caseSplit (PNode j (x:xs) lhs _ rhs) | (TyConApp ty ts) <- varType x 
-  = do is <- refreshPM ((const 0) <$> ds)
-       vs <- mapM (dArgs ts) ds 
-       return $ [PMany (L.zipWith3 mkNode ds vs is)]
-  where 
-    TyConApp ty ts = varType x 
-    ds = TyCon.tyConDataCons ty 
-
-    mkNode d vs i = 
-        let e = mkConApp d (Var <$> vs) in
-        PNode i (vs++xs) (subst (x, e) lhs) (PSCase j x e) (subst (x,e) rhs)
-
-caseSplit pn@(PNode _ _ _ _ _) = return [pn]
-caseSplit (PMany nds) = ((:[]) . PMany . concat) <$> mapM caseSplit nds
-
-
-applyAxiom pn@(PNode j xs lhs st rhs) ax@(Axiom aid vs ts alhs lrhs) 
-  = 
-
-    return $ traceShow ("\nApply ax: " ++ show ax ++ "\n\n In \t" ++ show pn ) $ pn
-  where
-    θ = unifier xs vs lhs alhs 
-
-
-unifier = go []
-  where
-    go xs vs su (Var x) (Var v) | x == v || (x, v) `elem` su = su
-                                | x `elem` xs && v `elem` vs = (x,v):su
-    go xs vs su (App f1 e1) (App f2 e2) = let su1 = go xs vs su f1 e1 
-                                              su2 = go xs vs su f2 e2 
-                                          in  L.nub (su1 ++ su2)
-
-{-
-data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon) 
-                         , abinds :: [b] 
-                         , atypes :: [s]
-                         , alhs   :: e 
-                         , arhs   :: e  
-                         }
--}
-
-dArgs ts d = go ts t  
-  where
-    t = dataConUserType d 
-    go (ta:tas) (ForAllTy _ t) = {- (Type ta :) <$> -} go tas t
-    go tas      (FunTy tx t)   = liftM2 (:) (freshVar tx) (go tas t)
-    go _        t              = return []
-
-data PST = PST {st_index :: Int}
-
-type PM = State PST 
-
-class Fresh a where
-  freshPM :: PM a 
-  refreshPM :: a -> PM a 
-
-  refreshPM _ = freshPM
-
-instance Fresh a => Fresh [a] where
-  refreshPM [] = return [] 
-  refreshPM (x:xs) = do y  <- refreshPM x
-                        ys <- refreshPM xs
-                        return (y:ys)
-
-instance Fresh Int where
-  freshPM = do (PST i) <- get
-               put (PST (i+1))
-               return i 
-instance (Fresh a, Fresh b) => Fresh (a, b) where
-  freshPM = do x <- freshPM
-               y <- freshPM
-               return (x, y)
-
-instance Fresh Unique where
-  freshPM = mkUniqueGrimily <$> freshPM 
-
-freshVar :: Type -> PM Var 
-freshVar t = do uniq <- freshPM 
-                return $ mkSysLocal (symbolFastString $ "pv") uniq t 
-
-class SubableE a where
-  subst :: (Var, CoreExpr) -> a -> a 
-  substeMany :: [(Var, CoreExpr)] -> a -> a 
-  substeMany xs e = foldr subst e xs 
-
-instance SubableE CoreExpr where
-  subst (x, ex) (Var y) | x == y    = ex 
-                        | otherwise = Var y
-  subst su (App f e) = App (subst su f) (subst su e)  
-  subst su (Lam x e) = Lam x (subst su e)
-  subst _ _          = error "TODO Subable"
-
-
--}
-

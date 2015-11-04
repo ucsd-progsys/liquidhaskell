@@ -261,7 +261,7 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , real           :: Bool       -- ^ supports real number arithmetic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
-  , native         :: Bool       -- ^ use native (Haskell) fixpoint constraint solver
+  , extSolver      :: Bool       -- ^ use external (Ocaml) fixpoint constraint solver
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
@@ -378,14 +378,14 @@ data GhcSpec = SP {
   , tyconEnv   :: M.HashMap TyCon RTyCon
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
   , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
-  , logicMap   :: LogicMap  
+  , logicMap   :: LogicMap
   }
 
 type LogicMap = M.HashMap Symbol LMap
 
 instance Monoid LogicMap where
   mempty  = M.empty
-  mappend = M.union   
+  mappend = M.union
 
 data LMap = LMap { lvar  :: Symbol
                  , largs :: [Symbol]
@@ -870,25 +870,25 @@ instance Functor RInstance where
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
 
-data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon) 
-                         , abinds :: [b] 
+data Axiom b s e = Axiom { aname  :: (Var, Maybe DataCon)
+                         , abinds :: [b]
                          , atypes :: [s]
-                         , alhs   :: e 
-                         , arhs   :: e  
+                         , alhs   :: e
+                         , arhs   :: e
                          }
 type HAxiom = Axiom Var Type CoreExpr
-type LAxiom = Axiom Symbol Sort Expr 
+type LAxiom = Axiom Symbol Sort Expr
 
 
 instance Show (Axiom Var Type CoreExpr) where
-  show (Axiom (n, c) bs _ts lhs rhs) = "Axiom : " ++ 
-                                       "\nFun Name: " ++ (showPpr n) ++ 
-                                       "\nData Con: " ++ (showPpr c) ++ 
+  show (Axiom (n, c) bs _ts lhs rhs) = "Axiom : " ++
+                                       "\nFun Name: " ++ (showPpr n) ++
+                                       "\nData Con: " ++ (showPpr c) ++
                                        "\nArguments:" ++ (showPpr bs)  ++
                                        -- "\nTypes    :" ++ (showPpr ts)  ++
                                        "\nLHS      :" ++ (showPpr lhs) ++
                                        "\nRHS      :" ++ (showPpr rhs)
-  
+
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
 --------------------------------------------------------------------------
@@ -1187,6 +1187,7 @@ emapRef  _ _ (RHProp _ _)         = error "TODO: PHProp empaReft"
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
+-- same as GhcMisc isBaseType
 
 -- isBase :: RType a -> Bool
 isBase (RAllT _ t)      = isBase t

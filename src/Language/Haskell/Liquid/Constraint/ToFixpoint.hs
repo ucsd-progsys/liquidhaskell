@@ -30,13 +30,10 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
    cs     = fixCs  cgi
    ws     = fixWfs cgi
    bs     = binds  cgi
-   ls     = F.fromListSEnv $ lits cgi ++ (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
+   ls     = F.fromListSEnv $ lits cgi
    ks     = kuts cgi
    qs     = targetQuals info
    bi     = (`Ci` Nothing) <$> bindSpans cgi
-   spc    = spec info
-   tce    = tcEmbeds spc
-   mkSort = mapSnd (rTypeSortedReft tce . val)
 
 targetQuals :: GhcInfo -> [F.Qualifier]
 targetQuals info = spcQs ++ genQs
