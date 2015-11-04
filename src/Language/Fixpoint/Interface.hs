@@ -187,6 +187,7 @@ solveNative !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
+  whenLoud $ print (quals fi1) 
   let si   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   -- rnf si `seq` donePhase Loud "Format Conversion"
