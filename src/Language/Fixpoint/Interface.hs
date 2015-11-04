@@ -221,7 +221,7 @@ elim cfg fi
   | otherwise     = return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
-remakeQual q = traceShow msg $ mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
   where
     msg      = "REMAKEQUAL: " ++ show q
 
