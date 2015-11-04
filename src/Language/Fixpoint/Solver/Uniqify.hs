@@ -4,6 +4,7 @@
 module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Solver.Types     (CId)
 import           Language.Fixpoint.Visitor          (mapKVarSubsts)
 import           Language.Fixpoint.Names            (renameSymbol, kArgSymbol)
 import           Language.Fixpoint.Misc             (fst3, mlookup)
@@ -29,7 +30,7 @@ renameAll fi0 = fi4
     fi1      = {-# SCC "remakeSubsts" #-} remakeSubsts fi0
 --------------------------------------------------------------
 
-data Ref = RB BindId | RI Integer deriving (Eq, Generic)
+data Ref = RB BindId | RI CId deriving (Eq, Generic)
 
 instance NFData   Ref
 instance Hashable Ref
@@ -47,7 +48,7 @@ mkIdMap :: SInfo a -> IdMap
 --------------------------------------------------------------
 mkIdMap fi = M.foldlWithKey' (updateIdMap $ bs fi) M.empty $ cm fi
 
-updateIdMap :: BindEnv -> IdMap -> Integer -> SimpC a -> IdMap
+updateIdMap :: BindEnv -> IdMap -> CId -> SimpC a -> IdMap
 updateIdMap be m scId s = M.insertWith S.union (RI scId) refSet m'
   where
     ids = elemsIBindEnv $ senv s
@@ -177,14 +178,13 @@ insertNewBinds w fi k = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ w
 accumBindsIfValid :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBindsIfValid k (fi, ids) i = if renamable then accumBinds k (fi, ids) i else (fi, i : ids)
   where
-    --TODO: is ignoring the old SortedReft ok? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
     renamable = isValidInRefinements $ sr_sort sr
 
 accumBinds :: KVar -> (SInfo a, [BindId]) -> BindId -> (SInfo a, [BindId])
 accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)
   where
-    --TODO: is ignoring the old SortedReft ok? what would it mean if it were non-trivial in a wf environment?
+    --TODO: could we ignore the old SortedReft? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
     newSym = kArgSymbol' oldSym k
     (i', be') = insertBindEnv newSym sr (bs fi)

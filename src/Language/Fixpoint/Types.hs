@@ -1459,6 +1459,7 @@ fi cs ws binds ls ks qs bi fn
        , fileName = fn
        }
   where
+    --TODO handle duplicates gracefully instead (merge envs by intersect?)
     err = errorstar "multiple WfCs with same kvar"
 
 type FInfo a   = GInfo SubC a

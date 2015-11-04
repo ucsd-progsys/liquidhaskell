@@ -2,6 +2,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE PatternGuards             #-}
 
 module Language.Fixpoint.Smt.Theories
      (

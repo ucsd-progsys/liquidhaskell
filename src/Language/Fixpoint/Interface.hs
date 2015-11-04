@@ -20,6 +20,7 @@ module Language.Fixpoint.Interface (
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M
+import qualified Data.HashSet                       as S
 import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
 
@@ -33,7 +34,7 @@ import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
 import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
-import qualified Language.Fixpoint.Solver.Solve     as S
+import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
 import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
 import           Language.Fixpoint.Files            hiding (Result)
@@ -199,7 +200,7 @@ solveNative !cfg !fi0 = do
   -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
   -- rnf si'' `seq` donePhase Loud "Uniqify"
   (s0, si''') <- {-# SCC "elim" #-} elim cfg $!! si''
-  Result stat soln <- {-# SCC "S.solve" #-} S.solve cfg s0 $!! si'''
+  Result stat soln <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si'''
   -- rnf soln `seq` donePhase Loud "Solve2"
   let stat' = sid <$> stat
   writeLoud $ "\nSolution:\n"  ++ showpp soln
@@ -209,8 +210,8 @@ solveNative !cfg !fi0 = do
 printElimStats :: Deps -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
   where
-    total        = postElims + length (depNonCuts d)
-    postElims    = length $ depCuts d
+    total        = postElims + S.size (depNonCuts d)
+    postElims    = S.size $ depCuts d
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
