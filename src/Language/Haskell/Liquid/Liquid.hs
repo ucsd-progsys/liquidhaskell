@@ -111,9 +111,9 @@ solveCs cfg target cgi info dc
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.real        = real        cfg
                        , FC.newcheck    = newcheck    cfg
-                       , FC.native      = native      cfg
+                       , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
-                       , FC.binary      = native      cfg
+                       , FC.binary      = not (extSolver cfg)
                        , FC.srcFile     = target
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
