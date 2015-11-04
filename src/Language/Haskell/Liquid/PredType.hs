@@ -214,12 +214,15 @@ substPred _   _  t              = t
 substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
-    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
-    rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
+    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2  `subst1` (s1, EVar s2) 
+    rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2' `subst1` (s1, EVar s2)
     -- TODO: REMOVE `pad` just use rs2 ?
     (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
+
+    Reft(s1,_) = toReft r1 
+    Reft(s2,_) = toReft r2'
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 

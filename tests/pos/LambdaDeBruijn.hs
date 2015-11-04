@@ -6,7 +6,6 @@ module LambdaDeBruijn where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ LIQUID "--native"   @-}
 {-@ LIQUID "--totality" @-}
 
 type Var = Int
