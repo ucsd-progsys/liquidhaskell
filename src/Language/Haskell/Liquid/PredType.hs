@@ -299,12 +299,15 @@ meetListWithPSub ss r1 r2 π
 
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = RProp s1 $ r2 `meet` r1
+  = RProp s1 $ (subst su' r2) `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
-  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+  where 
+    su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+    su' = mkSubst [(x, EVar y) | (x, y) <- zip (fst <$> s2) (fst <$> s1)]
+
 meetListWithPSubRef _ _ _ _
   = errorstar "PredType.meetListWithPSubRef called with invalid input"
 
