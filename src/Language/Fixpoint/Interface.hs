@@ -187,7 +187,7 @@ solveNative !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
-  whenLoud $ putStrLn $ showFix (quals fi1) 
+  whenLoud $ putStrLn $ showFix (quals fi1)
   let si   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
   -- rnf si `seq` donePhase Loud "Format Conversion"
@@ -221,7 +221,7 @@ elim cfg fi
   | otherwise     = return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
-remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
+remakeQual q = traceShow msg $ mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
   where
     msg      = "REMAKEQUAL: " ++ show q
 
