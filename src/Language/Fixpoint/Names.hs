@@ -259,6 +259,7 @@ keywords   = S.fromList [ "env"
                         , "rhs"
                         , "NaN"
                         , "min"
+                        , "map"
                         ]
 
 -- | RJ: We allow the extra 'unsafeChars' to allow parsing encoded symbols.
