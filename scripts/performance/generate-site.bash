@@ -25,6 +25,23 @@ FORCE=false;
 START_FOUND=false;
 END_FOUND=false;
 
+function refresh_repo {
+    cd $GIPEDA_REPO;
+    abort_if_failed "Couldn't change to $GIPEDA_REPO...";
+
+    $GIT pull origin master;
+    abort_if_failed "Couldn't pull Liquid Haskell from remote...";
+
+    $GIT reset;
+    abort_if_failed "Couldn't reset the the liquid-haskell repository...";
+
+    $GIT checkout .;
+    abort_if_failed "Couldn't discard changes to liquid-haskell...";
+
+    $GIT submodule foreach 'git reset ; git checkout . ;';
+    abort_if_failed "Couldn't reset and discard changes to submodules...";
+}
+
 function generate_log {
     local HASH=$1;
     local RESULT=$GIPEDA_LOGS/$HASH.log;
@@ -179,20 +196,8 @@ then
     abort_if_failed "$GIPEDA_LOGS doesn't exist and couldn't be created...";
 fi
 
-cd $GIPEDA_REPO;
-abort_if_failed "Couldn't change to $GIPEDA_REPO...";
-
-$GIT pull origin master;
-abort_if_failed "Couldn't pull Liquid Haskell from remote...";
-
-$GIT reset;
-abort_if_failed "Couldn't reset the the liquid-haskell repository...";
-
-$GIT checkout .;
-abort_if_failed "Couldn't discard changes to liquid-haskell...";
-
-$GIT submodule foreach 'git reset ; git checkout . ;';
-abort_if_failed "Couldn't reset and discard changes to submodules...";
+# Refresh the repo prior to working
+refresh_repo;
 
 if [ $END = 0 ]
 then
@@ -231,6 +236,9 @@ do
     fi
 
 done
+
+# refresh the repo prior to attempting to generate the site
+refresh_repo;
 
 # generate site
 
