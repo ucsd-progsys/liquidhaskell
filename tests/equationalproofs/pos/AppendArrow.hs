@@ -95,8 +95,8 @@ prop_assoc N ys zs        = auto 4 (append (append N ys) zs == append N (append 
 -}
 prop_assoc (C x xs) ys zs
 -- NV HERE: this takes too long
---   = auto 7 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
-   = refl e1
+   = auto 5 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
+--    = refl e1
     `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
