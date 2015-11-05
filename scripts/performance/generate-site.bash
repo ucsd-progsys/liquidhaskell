@@ -36,6 +36,8 @@ function generate_log {
         then
             SHOULD_GEN=false;
         fi
+    else
+        touch $RESULT;
     fi
 
     if [ $SHOULD_GEN = true ]
