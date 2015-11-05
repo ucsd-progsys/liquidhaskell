@@ -88,7 +88,7 @@ function generate_log {
             return 1;
         fi
 
-        $CABAL configure -fdevel --enable-tests --disable-library-profiling -O2;
+        $CABAL configure --enable-tests --disable-library-profiling -O2;
         if [ $? != 0 ]
         then
             return 1;
