@@ -63,6 +63,7 @@ import qualified Language.Haskell.Liquid.CTags      as Tg
 import Language.Fixpoint.Sort (pruneUnsortedReft)
 import Language.Fixpoint.Visitor hiding (freeVars)
 import Language.Fixpoint.Names
+import Language.Fixpoint.Files 
 
 import Language.Haskell.Liquid.Fresh
 
@@ -100,8 +101,6 @@ import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe
 
-data Actions = Auto 
-
 data AEnv = AE { ae_axioms  :: [HAxiom] 
                , ae_binds   :: [CoreBind]
                , ae_lmap    :: LogicMap
@@ -112,6 +111,7 @@ data AEnv = AE { ae_axioms  :: [HAxiom]
                , ae_lits    :: [(Symbol, F.Sort)]
                , ae_index   :: Integer 
                , ae_sigs    :: [(Symbol, SpecType)]
+               , ae_target  :: FilePath
                }
 
 
@@ -170,7 +170,8 @@ class Provable a where
                            , ae_emb     = tce 
                            , ae_lits    = wiredSortedSyms ++ lts 
                            , ae_index   = 0 
-                           , ae_sigs    = sigs   
+                           , ae_sigs    = sigs
+                           , ae_target  = target info  
                            }
     where
       spc        = spec info
@@ -267,25 +268,27 @@ expandAutoProof inite e it
 showppp (a, (_, (_, p)))
   = "\nAXIOM TO LOGIC\t" ++ show a ++ "\n\t" ++ showpp p ++ "\n\n"
 
+freshFilePath :: Pr FilePath 
+freshFilePath = 
+  do fn <- ae_target <$> get  
+     n  <- getUniq
+     return $ (extFileName (Auto $ fromInteger n) fn)
 
-findValid env p used q (i:is) 
+findValid :: [(Symbol, F.Sort)] -> F.Pred -> [Instance] -> F.Pred -> [Instance] -> Pr (Maybe [Instance])
+findValid env p used q is
+  = do fn  <- freshFilePath
+       let cxt = unsafePerformIO $ makeZ3Context fn env 
+       findValid' cxt [] p used q is 
+
+findValid' cxt env p used q (i:is) 
   = do (e, (x, px)) <- instanceToLogic i
-       n <- getUniq  
-       if isValid n env p q 
+       if isValid cxt env p q 
          then return $ Just used 
-         else findValid  (env ++ e) (F.pAnd [p, px]) (i:used) q is 
-findValid _ _ _ _ _ = return Nothing
+         else findValid' cxt (env ++ e) (F.pAnd [p, px]) (i:used) q is 
+findValid' _ _ _ _ _ _ = return Nothing
 
-
-findValid' :: [(Symbol, F.Sort)] -> F.Pred -> [Instance] -> Pr Bool 
-findValid' env q (i:is) = 
-  do uq <- getUniq
-     (e, (x, p)) <- instanceToLogic i  
-     n <- getUniq
-     return $ isValid n (env ++ e) p q
-
-isValid :: Integer -> [(Symbol, F.Sort)] -> F.Pred -> F.Pred -> Bool
-isValid i env p q = unsafePerformIO (checkValid ("AxiomSMTQueries."  ++ show i) env p q)
+isValid :: Context -> [(Symbol, F.Sort)] -> F.Pred -> F.Pred -> Bool
+isValid cxt env p q = unsafePerformIO (checkValidWithContext  cxt env p q)
 
 instanceToLogic :: Instance -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
 instanceToLogic i@(Inst (f, xs, es))

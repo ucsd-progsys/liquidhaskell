@@ -330,7 +330,8 @@ ppEnvShort pp   = pp { ppShort = True }
 ------------------------------------------------------------------
 
 data GhcInfo = GI {
-    env      :: !HscEnv
+    target   :: !FilePath
+  , env      :: !HscEnv
   , cbs      :: ![CoreBind]
   , derVars  :: ![Var]
   , impVars  :: ![Var]
