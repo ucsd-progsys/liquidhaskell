@@ -95,9 +95,9 @@ prop_assoc N ys zs        = auto 4 (append (append N ys) zs == append N (append 
 -}
 prop_assoc (C x xs) ys zs
 -- NV HERE: this takes too long
-   = auto 5 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
+   = auto 4 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
 --    = refl e1
-    `by` pr1 `by` pr2 `by` pr3 `by` pr4
+{-    `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
     pr1 = axiom_append_C ys x xs
@@ -108,7 +108,7 @@ prop_assoc (C x xs) ys zs
     e4  = C x (append xs (append ys zs))
     pr4 = axiom_append_C (append ys zs) x xs
     e5  = append (C x xs) (append ys zs)
-
+-}
 {-@ data L [llen] @-}
 {-@ invariant {v: L a | llen v >= 0} @-}
 
