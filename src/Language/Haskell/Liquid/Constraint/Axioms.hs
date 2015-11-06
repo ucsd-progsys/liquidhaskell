@@ -256,10 +256,11 @@ expandAutoProof inite e it
         axiom <- findValid env F.PTrue [] le knowledge
         return $ traceShow ("\n\nI now have to prove this " ++ show e
                             ++ "\n\n With axioms     \n\n" ++ show ams
-                            ++ "\n\n Valid axiom     \n\n" ++ show axiom
-                            ++ "\n\n Logical Axioms axiom     \n\n" ++ concatMap showppp (zip knowledge ps)
+                            ++ "\n\n Init Knowledge  \n\n" ++ show (initKnowledgeBase gs)
                             ++ "\n\n With variables  \n\n" ++ showPpr ((\v -> (v, varType v)) <$>vs)   
                             ++ "\n\n With constants  \n\n" ++ showPpr cts   
+                            ++ "\n\n Valid axiom     \n\n" ++ show axiom
+                            ++ "\n\n Logical Axioms axiom     \n\n" ++ concatMap showppp (zip knowledge ps)
                             ++ "\n\n Knowledge Data Base \n\n" ++ show knowledge   
                             ++ "\n\n In logic        \n\n" ++ show (showpp le) ) $ inite
 
@@ -491,7 +492,7 @@ instance Show Instance where
 runStep iter cds is = go iter [] is 
   where
     go 0 acc is = acc
-    go i acc is = let (h, noh) = L.partition hasHoles is in 
+    go i acc is = let (h, noh) = traceShow ("\n\nSTEP " ++ show i ++ "\n\n") $ L.partition hasHoles is in 
                   let is'      = runStepOne cds h in 
                   go (i-1) (acc ++ noh) is' 
 
