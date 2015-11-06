@@ -32,20 +32,6 @@ $(axiomatize
 
 -- | Proof 1: N is neutral element
 
-{-@ prop_nil :: xs:L a -> {v:Proof | append xs N == xs } @-}
-prop_nil     :: Eq a => L a -> Proof
-prop_nil N
-  =  axiom_append_N N
-
-prop_nil (C x xs) = toProof e1 $ ((
-  e1 === e2) pr1
-     === e3) pr2
-   where
-   	e1  = append (C x xs) N
-   	pr1 = axiom_append_C N x xs
-   	e2  = C x (append xs N)
-   	pr2 = prop_nil xs
-   	e3  = C x xs
 
 -- | axiomatixation of append will not be a haskell function anymore,
 -- | thus the user cannot directly access it.
@@ -87,16 +73,18 @@ auto (e1 == e && e == e2)
                -> {v:Proof | append (append xs ys) zs == append xs (append ys zs) } @-}
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
 
-prop_assoc N ys zs        = -- auto 2 (append (append N ys) zs == append N (append ys zs))
-
+prop_assoc N ys zs        = auto 2 (append (append N ys) zs == append N (append ys zs))
+{-
   refl (append (append N ys) zs)
   `by` axiom_append_N ys             -- == append ys zs
   `by` axiom_append_N (append ys zs) -- == append N (append ys zs)
+-}
+
 prop_assoc (C x xs) ys zs
 -- NV HERE: this takes too long
---    = auto 2 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
-   = refl e1
-    `by` pr1 `by` pr2 `by` pr3 `by` pr4
+   = auto 2 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
+--    = refl e1
+--     `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
     pr1 = axiom_append_C ys x xs

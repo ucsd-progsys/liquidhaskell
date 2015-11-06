@@ -296,12 +296,8 @@ instanceToLogic i@(Inst (f, xs, es))
   = do t  <- lookup (F.symbol f) . ae_sigs <$> get  
        sigs  <- ae_sigs <$> get  
        pp <- mapM rargToLogic es
-       rr <- asubst' t (resultType $ varType f) pp 
-       return $ traceShow ("\n\ninstanceToLogic\n\n" ++ show i ++ "\n\n") rr
-
-
-
-
+       asubst' t (resultType $ varType f) pp  
+       
 rargToLogic :: TemplateArgument -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
 rargToLogic (TA _ _ i) = targToLogic i 
 
@@ -381,18 +377,24 @@ typeToReft (Just t')
 
 
 coreExprToLogic :: CoreExpr -> Pr ([(F.Symbol, F.Sort, F.Pred)], (Symbol, Maybe SpecType))
-coreExprToLogic (Var v) 
+coreExprToLogic ee@(Var v) | isBaseTy $ varType v 
   = do t <- lookup (F.symbol v) . ae_sigs <$> get  
        tce <- ae_emb <$> get 
        (x, p) <- typeToReft t 
        return ([(x, typeSort tce $ varType v, F.pAnd [p, F.PAtom F.Eq (F.EVar $ F.symbol v) (F.EVar x)] )], (x, t))
 
-coreExprToLogic (App f e)
+coreExprToLogic ee@(Var v) 
+  = do t <- lookup (F.symbol v) . ae_sigs <$> get  
+       tce <- ae_emb <$> get 
+       (x, p) <- typeToReft t 
+       return ([(x, typeSort tce $ varType v, p)], (x, t))
+
+coreExprToLogic ee@(App f e)
   = do (e1, (y, _)) <- coreExprToLogic e 
        (e2, (_, Just (RFun x tx t _))) <- mkFun <$> coreExprToLogic f 
        tce <- ae_emb <$> get 
        (z, pz) <- typeToReft (Just $ F.subst1 t (x, F.EVar y))
-       return $ ((z, rTypeSort tce t, pz):(e1 ++ e2), (z, Just t))
+       return ((z, rTypeSort tce t, pz):(e1 ++ e2), (z, Just $ F.subst1 t (x, F.EVar y)))
 
 mkFun (e, (x, Just t)) = (e, (x, Just $ go t))
   where 
@@ -495,19 +497,16 @@ runStep :: Integer -> [Var] -> [Instance] -> Pr [Instance]
 runStep iter cds is 
   = return $ go 0 [] argExprs  
   where
-    go i acc _ | i == (fromInteger iter) = traceShow ("FINISH with it = " ++ show iter) acc
+    go i acc _ | i == (fromInteger iter) = acc
     go i acc as   = go (i+1) (acc ++ concatMap (instantiateIst as) is) (makeNewArgs argTypes as)
     argTypes = validArgumentTypes is cs 
-    argExprs = traceShow ("\n\nINIT ARGS\n\n") $ basicExprs argTypes bs
+    argExprs = basicExprs argTypes bs
 
     (cs, bs) = L.partition (isFunctionType . varType) cds
 --     inst1 = concatMap (instantiateIst argExprs)is 
 
 makeNewArgs :: [([Var], Type, [Var])] -> [(([Var], Type), [CoreExpr])] -> [(([Var], Type), [CoreExpr])]
-makeNewArgs ts as = traceShow ("\n\nMake New Arguments \n\n" ++ show ts ++ 
-                                  "\n\nAS = \n\n" ++ show as ++ 
-                                  "\n\n" ) $ 
-                    [((avs, t), concatMap (instantiateConst as) vs) | (avs, t, vs) <- ts]  
+makeNewArgs ts as = [((avs, t), concatMap (instantiateConst as) vs) | (avs, t, vs) <- ts]  
                           
 
 
@@ -536,12 +535,7 @@ instantiateConst aes v = if any null ess then [] else mkApp <$> go [] (reverse $
 
 
 instantiateIst :: [(([Var], Type), [CoreExpr])] -> Instance -> [Instance]
-instantiateIst aes i@(Inst (a, tvs, as)) = 
-    traceShow 
-          ("\n\ninstantiateInst \n\n" ++ show i ++ "\n\nWITH\n\n" ++ show aes ++ "\n\nESS = \n\n" ++ show ess 
-             ++ "\n\nAS = \n\n" ++ show as ++ "\n\nRES = \n\n" ++ show ((go [] (reverse ess) (reverse as))) ++ 
-             "\n\n") 
-      $ if any null ess then [] else (((\ts -> Inst (a, tvs, ts)) <$> (go [] (reverse ess) (reverse as))))
+instantiateIst aes i@(Inst (a, tvs, as)) = if any null ess then [] else (((\ts -> Inst (a, tvs, ts)) <$> (go [] (reverse ess) (reverse as))))
     where
       ess = (\ti -> (snd $ head $ filter (\((tvs', te), e) -> isInstanceOf (tvs' ++ tvs) ti te) aes)) <$> (ta_type <$> as)
 
