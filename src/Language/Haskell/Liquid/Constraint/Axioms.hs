@@ -296,7 +296,8 @@ instanceToLogic i@(Inst (f, xs, es))
   = do t  <- lookup (F.symbol f) . ae_sigs <$> get  
        sigs  <- ae_sigs <$> get  
        pp <- mapM rargToLogic es
-       asubst' t (resultType $ varType f) pp 
+       rr <- asubst' t (resultType $ varType f) pp 
+       return $ traceShow ("\n\ninstanceToLogic\n\n" ++ show i ++ "\n\n") rr
 
 
 
@@ -515,7 +516,7 @@ isFunctionType (ForAllTy _ t) = isFunctionType t
 isFunctionType _              = False  
 
 instantiateConst :: [(([Var], Type), [CoreExpr])] -> Var -> [CoreExpr]
-instantiateConst aes v = mkApp <$> go [] (reverse $ ess)
+instantiateConst aes v = if any null ess then [] else mkApp <$> go [] (reverse $ ess)
     where
       ess = (\ti -> (snd $ head $ filter (\((_, te), e) -> isInstanceOf (fv $ varType v) ti te) aes)) <$> (argumentTypes $ varType v)
 
@@ -540,7 +541,7 @@ instantiateIst aes i@(Inst (a, tvs, as)) =
           ("\n\ninstantiateInst \n\n" ++ show i ++ "\n\nWITH\n\n" ++ show aes ++ "\n\nESS = \n\n" ++ show ess 
              ++ "\n\nAS = \n\n" ++ show as ++ "\n\nRES = \n\n" ++ show ((go [] (reverse ess) (reverse as))) ++ 
              "\n\n") 
-         ((\ts -> Inst (a, tvs, ts)) <$> (go [] (reverse ess) (reverse as)))
+      $ if any null ess then [] else (((\ts -> Inst (a, tvs, ts)) <$> (go [] (reverse ess) (reverse as))))
     where
       ess = (\ti -> (snd $ head $ filter (\((tvs', te), e) -> isInstanceOf (tvs' ++ tvs) ti te) aes)) <$> (ta_type <$> as)
 
