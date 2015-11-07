@@ -46,8 +46,9 @@ module Language.Fixpoint.Smt.Interface (
       -- smt_set_funs
 
     -- * Check Validity
-    , checkValid
+    , checkValid, checkValidWithContext
     , checkValids
+    , makeZ3Context
 
     ) where
 
@@ -91,6 +92,20 @@ runCommands cmds
        zs   <- mapM (command me) cmds
        return zs
 -}
+
+
+makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
+makeZ3Context f xts 
+  = do me <- makeContext Z3 f 
+       smtDecls me xts 
+       return me 
+
+checkValidWithContext :: Context -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValidWithContext me xts p q
+  = smtBracket me $ do smtDecls me xts
+                       smtAssert me $ pAnd [p, PNot q]
+                       smtCheckUnsat me
+
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool

@@ -79,6 +79,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Cache    -- ^ Previous output (for incremental checking)
          | Dot      -- ^ Constraint Graph
          | Part Int -- ^ Partition
+         | Auto Int -- ^ SMTLIB2 queries for automatically created proofs
          | Pred
          | PAss
          | Dat
@@ -110,6 +111,7 @@ extMap          = go
     go Saved    = ".bak"
     go Cache    = ".err"
     go Smt2     = ".smt2"
+    go (Auto n) = ".auto." ++ show n
     go Dot      = ".dot"
     go BinFq    = ".bfq"
     go (Part n) = "." ++ show n
