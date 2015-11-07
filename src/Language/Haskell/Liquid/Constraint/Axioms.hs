@@ -158,8 +158,10 @@ class Provable a where
 
   expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a 
   expandProofs info sigs x 
-    = do tce      <- tyConEmbed <$> get 
-         lts      <- lits <$> get 
+    = do tce    <- tyConEmbed  <$> get 
+         lts    <- lits        <$> get 
+         i      <- freshIndex  <$> get 
+         modify $ \s -> s{freshIndex = i + 1}
          return $ evalState (expProofs x) 
                         AE { ae_axioms  = axioms spc 
                            , ae_binds   = []
@@ -169,7 +171,7 @@ class Provable a where
                            , ae_vars    = []
                            , ae_emb     = tce 
                            , ae_lits    = wiredSortedSyms ++ lts 
-                           , ae_index   = 0 
+                           , ae_index   = i
                            , ae_sigs    = sigs
                            , ae_target  = target info  
                            }
@@ -250,10 +252,15 @@ expandAutoProof inite e it
         let le = case runToLogic lm (errOther . text) (coreToPred $ foldl (flip Let) e bds) of 
                   Left e  -> e
                   Right (ErrOther _ e) -> error $ show e
-        knowledge <-  runStep it ( (fst . aname <$> ams) ++ 
-                                 cts ++ vs) $ initKnowledgeBase gs
-        ps <- mapM instanceToLogic knowledge
-        axiom <- findValid env F.PTrue [] le knowledge
+--         knowledge = runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs
+        axiom <- findValid env F.PTrue [] le (runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs)
+        return $ traceShow (
+            "\n\nTo prove\n" ++ show (showpp le) ++ 
+            "\n\nWe need \n" ++ show axiom       ++
+            "\n\n"
+           ) inite
+
+{-        
         return $ traceShow ("\n\nI now have to prove this " ++ show e
                             ++ "\n\n With axioms     \n\n" ++ show ams
                             ++ "\n\n Init Knowledge  \n\n" ++ show (initKnowledgeBase gs)
@@ -263,7 +270,7 @@ expandAutoProof inite e it
                             ++ "\n\n Logical Axioms axiom     \n\n" ++ concatMap showppp (zip knowledge ps)
                             ++ "\n\n Knowledge Data Base \n\n" ++ show knowledge   
                             ++ "\n\n In logic        \n\n" ++ show (showpp le) ) $ inite
-
+-}
 
 
 showppp (a, (_, (_, p)))
@@ -493,9 +500,9 @@ instance Show Instance where
 -}
 
 
-runStep :: Integer -> [Var] -> [Instance] -> Pr [Instance]
+runStep :: Integer -> [Var] -> [Instance] -> [Instance]
 runStep iter cds is 
-  = return $ go 0 [] argExprs  
+  = go 0 [] argExprs  
   where
     go i acc _ | i == (fromInteger iter) = acc
     go i acc as   = go (i+1) (acc ++ concatMap (instantiateIst as) is) (makeNewArgs argTypes as)
@@ -503,7 +510,6 @@ runStep iter cds is
     argExprs = basicExprs argTypes bs
 
     (cs, bs) = L.partition (isFunctionType . varType) cds
---     inst1 = concatMap (instantiateIst argExprs)is 
 
 makeNewArgs :: [([Var], Type, [Var])] -> [(([Var], Type), [CoreExpr])] -> [(([Var], Type), [CoreExpr])]
 makeNewArgs ts as = [((avs, t), concatMap (instantiateConst as) vs) | (avs, t, vs) <- ts]  
