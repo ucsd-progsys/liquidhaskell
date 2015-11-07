@@ -53,6 +53,7 @@ module Language.Fixpoint.Names (
   , tempPrefix
   , vv
   , symChars
+  , kArgPrefix
 
   -- * Creating Symbols
   , dummySymbol
@@ -346,6 +347,9 @@ anfPrefix    = "lq_anf_"
 renamePrefix = "lq_rnm_"
 litPrefix    = "lit$"
 kArgPrefix   = "lq_karg_"
+
+
+
 
 nonSymbol :: Symbol
 nonSymbol = ""
