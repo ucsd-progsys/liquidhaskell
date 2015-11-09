@@ -47,7 +47,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, native,
+import Language.Fixpoint.Config            hiding (Config, real, extSolver,
                                                    getOpts, cores, minPartSize,
                                                    maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Files
@@ -100,12 +100,12 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Supports real number arithmetic"
 
- , exactDC 
+ , exactDC
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
- , native
-    = def &= help "Use native (Haskell) fixpoint constraint solver"
+ , extSolver
+    = def &= help "Use external (Ocaml) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -188,7 +188,8 @@ config = cmdArgsMode $ Config {
 
  , eliminate
     = def &= name "eliminate"
-          &= help "Use experimental 'eliminate' feature (requires --native)"
+          &= help "Use experimental 'eliminate' feature"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -332,7 +333,7 @@ defConfig = Config { files          = def
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
-                   , native         = def
+                   , extSolver      = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
@@ -343,7 +344,7 @@ defConfig = Config { files          = def
                    , notruetypes    = def
                    , totality       = def
                    , noPrune        = def
-                   , exactDC        = def 
+                   , exactDC        = def
                    , cores          = def
                    , minPartSize    = defaultMinPartSize
                    , maxPartSize    = defaultMaxPartSize

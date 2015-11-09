@@ -1,35 +1,30 @@
 module TestRec where
 
-import Prelude hiding (map, foldl)
+import Prelude hiding (foldl)
 
-data L a = N | C a (L a)
-{-@ 
-data L [llen] a = N | C (x::a) (xs::(L a))
-  @-}
+data L a = N | C { hd :: a
+                 , tl :: L a }
 
-{-@ measure llen :: (L a) -> Int
-    llen(N) = 0
-    llen(C x xs) = 1 + (llen xs)
+{-@ data L [llen] a = N | C { hd :: a
+                            , tl :: L a }
   @-}
 
 
-{-@map :: (a -> b) -> [a] -> [b]@-}
-map f []     = []
-map f (x:xs) = f x : map f xs
- 
-bar = map id [1, 2]
+{-@ invariant {v:L a | 0 <= llen v} @-}
 
-{-@ Decrease go 2 @-}
-rev xs = go [] xs
-  where go ack  []    = ack
-        go ack (x:xs) = go (x:ack) xs
+{-@ measure llen @-}
+llen :: L a -> Int
+llen N        = 0
+llen (C x xs) = 1 + llen xs
 
-{-@ invariant {v:(L a) | ((llen v) >= 0)}@-}
+reverse :: L a -> L a
+reverse xs = go N xs
+  where 
+    {-@ go :: acc:_ -> xs:_ -> _ / [llen xs] @-}
+    go acc N        = acc
+    go acc (C x xs) = go (C x acc) xs
 
 mapL f N = N
 mapL f (C x xs) = C (f x) (mapL f xs)
 
-
-foldl f z [] = z
-foldl f z (x:xs) = x `f` foldl f z xs
 

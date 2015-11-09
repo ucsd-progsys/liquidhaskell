@@ -1,10 +1,10 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
 --   they are rendered, e.g. in error messages or annoations.
 ---------------------------------------------------------------------
-
 
 module Language.Haskell.Liquid.Tidy (
 
@@ -21,8 +21,9 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
+import           Data.Maybe                 (fromMaybe)
 
-import Language.Fixpoint.Names              (symSepName, isPrefixOfSym, takeWhileSym)
+import Language.Fixpoint.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar)
 import Language.Haskell.Liquid.Types
@@ -31,8 +32,10 @@ import Language.Haskell.Liquid.RefType hiding (shiftVV)
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = takeWhileSym (/= symSepName)
+tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
 
+
+dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
 
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool

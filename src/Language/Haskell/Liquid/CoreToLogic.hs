@@ -171,7 +171,7 @@ instance Show C.CoreExpr where
   show = showPpr
 
 coreToPred :: C.CoreExpr -> LogicM Pred
-coreToPred = coreToPd . normalize
+coreToPred e = coreToPd $ normalize e
 
 
 coreToPd :: C.CoreExpr -> LogicM Pred
@@ -345,7 +345,8 @@ ignoreVar i = simpleSymbolVar i `elem` ["I#"]
 simpleSymbolVar  = dropModuleNames . symbol . showPpr . getName
 simpleSymbolVar' = symbol . showPpr . getName
 
-isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
+isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 
 isDead     = isDeadOcc . occInfo . idInfo
 
@@ -353,11 +354,12 @@ class Simplify a where
   simplify :: a -> a
   inline   :: (Id -> Bool) -> a -> a
 
+
   normalize :: a -> a
-  normalize = inline_preds . simplify
+  normalize = inline_preds . inline_anf . simplify
    where 
     inline_preds = inline (eqType boolTy . varType)
-
+    inline_anf   = inline isANF
 
 instance Simplify C.CoreExpr where
   simplify e@(C.Var _)

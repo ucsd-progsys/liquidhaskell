@@ -211,15 +211,19 @@ substPred _   _  t              = t
 -- | Requires: @not $ null πs@
 -- substRCon :: String -> (RPVar, SpecType) -> SpecType -> SpecType
 
-substRCon msg (_, RProp ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
+substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
-    ts                     = safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
-    rs                     = safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
-    -- TODO: REMOVE `pad` just use rs2 ?
+    ts                     = subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2   
+    rs                     = subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2' 
     (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
+
+    su = mkSubst $ zipWith (\s1 s2 -> (s1, EVar s2)) (rvs t1) (rvs t2)
+
+    rvs      = foldReft (\r acc -> rvReft r:acc) []
+    rvReft r = let Reft(s,_) = toReft r in s
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
@@ -299,12 +303,15 @@ meetListWithPSub ss r1 r2 π
 
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = RProp s1 $ r2 `meet` r1
+  = RProp s1 $ (subst su' r2) `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
-  where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+  where 
+    su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
+    su' = mkSubst [(x, EVar y) | (x, y) <- zip (fst <$> s2) (fst <$> s1)]
+
 meetListWithPSubRef _ _ _ _
   = errorstar "PredType.meetListWithPSubRef called with invalid input"
 
