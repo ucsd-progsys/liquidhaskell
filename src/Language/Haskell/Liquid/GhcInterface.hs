@@ -70,7 +70,7 @@ getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
   where
     handle            = return . Left . result
 
-
+getGhcInfo' :: Config -> FilePath -> IO GhcInfo
 getGhcInfo' cfg0 target
   = runGhc (Just libdir) $ do
       liftIO              $ cleanFiles target
@@ -106,7 +106,7 @@ getGhcInfo' cfg0 target
       (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec
+      return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec
 
 
 makeLogicMap

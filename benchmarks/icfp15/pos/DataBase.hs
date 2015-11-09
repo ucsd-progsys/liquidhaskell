@@ -150,9 +150,12 @@ select prop xs = filter prop xs
 {-@ values :: forall <range :: key -> val -> Prop>.
   k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
-values k = map go
+values k = map (go k)
   where
-    go (D _ f) = f k
+    go :: key -> Dict key val -> val 
+    {-@ go :: forall <rr :: key -> val -> Prop>. 
+              k:key -> {v:Dict <rr> key val | Set_mem k (listElts (ddom v))} -> val<rr k>  @-}
+    go k (D _ f) = f k
 
 
 {-@ empty :: {v:Dict <{\k v -> false}> key val | Set_emp (listElts (ddom v))} @-}

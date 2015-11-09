@@ -61,13 +61,15 @@ makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
-    (NonRec v def:_)   -> do updateLMap lmap x v
-                             return $ traceShow ("makeAxiom NonRec" ++ show def)
+    (NonRec v def:_)   -> do updateLMap lmap x x v
+                             updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
+                             return $ traceShow ("makeAxiom NonRec" ++ show def) 
                                       ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                             updateLMap lmap x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
-                             return ((val x, makeType v),
-                                     ((v, makeAssumeType v): vts),
+                             updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                             updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
+                             return ((val x, makeType v), 
+                                     ((v, makeAssumeType v): vts), 
                                      defAxioms v def)
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
@@ -86,14 +88,14 @@ binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
 
 
-updateLMap :: LogicMap -> LocSymbol -> Var -> BareM ()
-updateLMap lmap x vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
+updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
+updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
   = insertLogicEnv (val x) ys runFun
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
     ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
-    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2]
+    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val y, F.EVar x1], F.EVar x2]
 
 {-
 
