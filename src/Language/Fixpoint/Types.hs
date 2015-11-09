@@ -1805,8 +1805,7 @@ convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
 ---------------------------------------------------------------------------
 convertFormat fi = fi' { cm = subcToSimpc <$> cm fi' }
   where
-    fi'          = foldl' blowOutVV fi is
-    is           = M.keys $ cm fi
+    fi'          = M.foldlWithKey' blowOutVV fi $ cm fi
 
 subcToSimpc :: SubC a -> SimpC a
 subcToSimpc s = SimpC
@@ -1817,12 +1816,11 @@ subcToSimpc s = SimpC
   , _cinfo    = sinfo s
   }
 
-blowOutVV :: FInfo a -> Integer -> FInfo a
-blowOutVV fi scId = fi { bs = be', cm = cm' }
+blowOutVV :: FInfo a -> Integer -> SubC a -> FInfo a
+blowOutVV fi i subc = fi { bs = be', cm = cm' }
   where
-    subc          = cm fi M.! scId
     sr            = slhs subc
     x             = reftBind $ sr_reft sr
     (bindId, be') = insertBindEnv x sr $ bs fi
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
-    cm'           = M.insert scId subc' $ cm fi
+    cm'           = M.insert i subc' $ cm fi

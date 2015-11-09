@@ -331,7 +331,7 @@ vvCon       = vvName `mappend` symbol [symSepName] `mappend` "F"
 dummySymbol = dummyName
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `mappend` symbol ('_' : show i)
+intSymbol x i = x `mappend` symbol ('#' : show i)
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
@@ -346,12 +346,12 @@ existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappend` prefix)
 
 tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
-tempPrefix   = "lq_tmp_"
-anfPrefix    = "lq_anf_"
-renamePrefix = "lq_rnm_"
+tempPrefix   = "lq_tmp$"
+anfPrefix    = "lq_anf$"
+renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
-kArgPrefix   = "lq_karg_"
-existPrefix  = "lq_ext_"
+kArgPrefix   = "lq_karg$"
+existPrefix  = "lq_ext$"
 
 
 
