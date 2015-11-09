@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Validate
        where
 
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor     (isConcC, isKvarC, mapKVarSubsts)
+import           Language.Fixpoint.Visitor     (isConcC, isKvarC)
 import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM)
@@ -24,6 +24,7 @@ import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.List as L
+import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
 import           Text.Printf
 
@@ -39,7 +40,7 @@ sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 sanitize   = fM dropHigherOrderBinders
          >=> fM dropFuncSortedShadowedBinders
-         >=> fM dropFunctionSubs
+         >=> fM dropWfcFunctions
          >=>    checkRhsCs
 
 
@@ -148,23 +149,15 @@ dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
 
 
 ---------------------------------------------------------------------------
--- | Drop substitutions of functions from all KVars
+-- | Drop functions from WfC environments
 ---------------------------------------------------------------------------
-dropFunctionSubs :: F.SInfo a -> F.SInfo a
+dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
-dropFunctionSubs fi = mapKVarSubsts go fi
+dropWfcFunctions fi = fi { F.ws = ws' }
   where
-    funcs = functionsInBindEnv $ F.bs fi --NOTE: assumes binders are unique
-    go _ (F.Su subs) = F.mkSubst $ filter nonFunction $ M.toList subs
-    nonFunction (sym, _) = sym `notElem` funcs
-
-functionsInBindEnv :: F.BindEnv -> [F.Symbol]
-functionsInBindEnv be = map Misc.snd3 fList
-  where
-    fList = filter (F.isFunctionSortedReft . Misc.thd3) $ F.bindEnvToList be
----------------------------------------------------------------------------
-
-
+    nonFunction   = isNothing . F.functionSort
+    (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
+    ws'           = deleteWfCBinds discards          <$> F.ws fi
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo

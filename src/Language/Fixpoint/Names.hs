@@ -61,6 +61,7 @@ module Language.Fixpoint.Names (
   , tempSymbol
   , renameSymbol
   , kArgSymbol
+  , existSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -341,12 +342,16 @@ renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
 kArgSymbol :: Symbol -> Symbol
 kArgSymbol x = kArgPrefix `mappend` x
 
-tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix :: Symbol
+existSymbol :: Symbol -> Integer -> Symbol
+existSymbol prefix = intSymbol (existPrefix `mappend` prefix)
+
+tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
 tempPrefix   = "lq_tmp_"
 anfPrefix    = "lq_anf_"
 renamePrefix = "lq_rnm_"
 litPrefix    = "lit$"
 kArgPrefix   = "lq_karg_"
+existPrefix  = "lq_ext_"
 
 
 

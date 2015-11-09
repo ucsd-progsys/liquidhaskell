@@ -5,6 +5,7 @@ module Language.Fixpoint.Solver.Eliminate
        (eliminateAll) where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names           (existSymbol)
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
 import           Language.Fixpoint.Visitor         (kvars)
 import           Language.Fixpoint.Misc            (fst3)
@@ -12,7 +13,7 @@ import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (foldl')
-import           Control.Arrow       (second)
+import           Control.Arrow       (first, second)
 import           Control.DeepSeq     (($!!))
 
 
@@ -34,12 +35,15 @@ eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , w
     orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
 
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Pred
-extractPred kDom be sc = projectNonWFVars binds kDom $ PAnd (lhsPreds ++ suPreds)
+extractPred kDom be sc = renameQuantified i $ PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
   where
+    i = subcId sc
     env = clhs be sc
     binds = second sr_sort <$> env
+    nonFuncBinds = filter (fst . (first $ nonFunction be)) binds
     lhsPreds = bindPred <$> env
-    suPreds = substPreds (usableDomain be kDom) $ crhs sc
+    -- TODO: filtering out functions like this is a temporary hack
+    suPreds = substPreds (filter (nonFunction be) kDom) $ crhs sc
 
 -- x:{v:int|v=10} -> (x=10)
 bindPred :: (Symbol, SortedReft) -> Pred
@@ -52,18 +56,20 @@ bindPred (sym, sr) = subst1 (reftPred rft) sub
 substPreds :: [Symbol] -> Pred -> [Pred]
 substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
 
--- TODO: filtering out functions like this is a temporary hack - we shouldn't
--- have function substitutions to begin with
-usableDomain :: BindEnv -> [Symbol] -> [Symbol]
-usableDomain be = filter nonFunction
+nonFunction :: BindEnv -> Symbol -> Bool
+nonFunction be sym = sym `notElem` funcs
   where
-    nonFunction sym = sym `notElem` functionsInBindEnv be
-
-functionsInBindEnv :: BindEnv -> [Symbol]
-functionsInBindEnv be = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
+    funcs = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
 
 domain :: BindEnv -> WfC a -> [Symbol]
 domain be wfc = (fst3 $ wrft wfc) : map fst (envCs be $ wenv wfc)
 
-projectNonWFVars :: [(Symbol,Sort)] -> [Symbol] -> Pred -> Pred
-projectNonWFVars binds kDom pr = PExist [v | v <- binds, notElem (fst v) kDom] pr
+renameQuantified :: Integer -> Pred -> Pred
+renameQuantified i (PExist bs p) = PExist bs' p'
+  where
+    su  = substFromQBinds i bs
+    bs' = (first $ subst su) <$> bs
+    p'  = subst su p
+
+substFromQBinds :: Integer -> [(Symbol, Sort)] -> Subst
+substFromQBinds i bs = Su $ M.fromList [(s, EVar $ existSymbol s i) | s <- fst <$> bs]

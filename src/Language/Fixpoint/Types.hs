@@ -1142,8 +1142,16 @@ instance Subable Pred where
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
   subst _  (PAll _ _)      = errorstar "subst: FORALL"
-  subst su (PExist bs p)   = PExist bs $ subst (substExcept su (fst <$> bs)) p
+  subst su (PExist bs p)
+          | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
+          | otherwise      = errorstar "subst: EXISTS (without disjoint binds)"
   subst _  p               = p
+
+disjoint :: Subst -> [(Symbol, Sort)] -> Bool
+disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
+  where
+    suSyms = S.fromList $ (syms $ M.elems su) ++ (syms $ M.keys su)
+    bsSyms = S.fromList $ syms $ fst <$> bs
 
 instance (Subable a, Subable b) => Subable (a,b) where
   syms  (x, y)   = syms x ++ syms y

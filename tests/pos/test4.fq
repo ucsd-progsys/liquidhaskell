@@ -1,0 +1,19 @@
+qualif Auto(v_2 : a_ax6, A0 : a_ax6): (v_2 = A0)
+
+bind 20 ds_dxx : {VV263 : a_ax6 | []}
+
+constraint:
+  env [20]
+  lhs {VVF4 : a_ax6 | [$k__511[VV510:=VVF4]]}
+  rhs {VVF4 : a_ax6 | [(VVF4 = ds_dxx)]}
+  id 4 tag [3]
+
+constraint:
+  env [20]
+  lhs {VVF9 : a_ax6 | [(VVF9 = ds_dxx)]}
+  rhs {VVF9 : a_ax6 | [$k__511[VV510:=VVF9]]}
+  id 9 tag [3]
+
+wf:
+  env [20]
+  reft {VV510 : a_ax6 | [$k__511]}
