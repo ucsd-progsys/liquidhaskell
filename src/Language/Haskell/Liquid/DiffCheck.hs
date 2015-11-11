@@ -172,7 +172,7 @@ thinWith sigs cbs xs = filterBinds cbs ys
   where
      ys       = calls `S.union` calledBy
      calls    = txClosure (coreDeps cbs) sigs (S.fromList xs)
-     calledBy = dependsOn (coreDeps cbs) sigs xs
+     calledBy = dependsOn (coreDeps cbs) xs
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -182,8 +182,8 @@ coreDeps bs = mkGraph $ calls ++ calls'
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b]
 
-dependsOn :: Deps -> S.HashSet Var -> [Var] -> S.HashSet Var
-dependsOn cg sigs vars = S.fromList results
+dependsOn :: Deps -> [Var] -> S.HashSet Var
+dependsOn cg vars = S.fromList results
    where
       preds = map S.member vars
       filteredMaps = M.filter <$> preds <*> pure cg
