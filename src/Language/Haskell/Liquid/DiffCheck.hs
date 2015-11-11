@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.DiffCheck (
    )
    where
 
--- import            Debug.Trace (trace)
+import            Debug.Trace (trace)
 import            Control.Applicative          ((<$>), (<*>))
 import            Data.Aeson
 import qualified  Data.Text as T
@@ -50,7 +50,6 @@ import            Language.Haskell.Liquid.Visitors
 import            Language.Haskell.Liquid.Errors   ()
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
-
 
 import qualified  Data.ByteString               as B
 import qualified  Data.ByteString.Lazy          as LB
@@ -171,7 +170,9 @@ thin = thinWith S.empty
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs ys
   where
-    ys               = txClosure (coreDeps cbs) sigs (S.fromList xs)
+     ys       = calls `S.union` calledBy
+     calls    = txClosure (coreDeps cbs) sigs (S.fromList xs)
+     calledBy = dependsOn (coreDeps cbs) sigs xs
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -181,7 +182,12 @@ coreDeps bs = mkGraph $ calls ++ calls'
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b]
 
-
+dependsOn :: Deps -> S.HashSet Var -> [Var] -> S.HashSet Var
+dependsOn cg sigs vars = S.fromList results
+   where
+      preds = map S.member vars
+      filteredMaps = M.filter <$> preds <*> pure cg
+      results = map fst $ M.toList $ M.unions filteredMaps
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
 txClosure d sigs xs = go S.empty xs

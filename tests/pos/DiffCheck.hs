@@ -44,3 +44,13 @@ badDep _ = False
 
 amazingAlgorithm :: (Bool, Bool)
 amazingAlgorithm = (goodFn 1, badFn 0)
+
+{-@ innocentBystander :: One -> Bool @-}
+innocentBystander :: Int -> Bool
+innocentBystander 1 = goodSamaritan 1
+innocentBystander _ = True
+
+{-@ goodSamaritan :: One -> Bool @-}
+goodSamaritan :: Int -> Bool
+goodSamaritan 1 = True
+goodSamaritan _ = False
