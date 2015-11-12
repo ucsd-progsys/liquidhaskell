@@ -19,7 +19,7 @@ import           Control.DeepSeq     (($!!))
 
 --------------------------------------------------------------
 eliminateAll :: SInfo a -> (Solution, SInfo a)
-eliminateAll !fi = foldl' eliminate (M.empty, fi) nonCuts
+eliminateAll !fi = {-# SCC "eliminateAll" #-} foldl' eliminate (M.empty, fi) nonCuts
   where
     nonCuts = depNonCuts $ deps fi
 --------------------------------------------------------------
@@ -35,15 +35,14 @@ eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , w
     orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
 
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Pred
-extractPred kDom be sc = renameQuantified i $ PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
+extractPred kDom be sc = renameQuantified (subcId sc) kSol
   where
-    i = subcId sc
     env = clhs be sc
     binds = second sr_sort <$> env
     nonFuncBinds = filter (fst . (first $ nonFunction be)) binds
     lhsPreds = bindPred <$> env
-    -- TODO: filtering out functions like this is a temporary hack
-    suPreds = substPreds (filter (nonFunction be) kDom) $ crhs sc
+    suPreds = substPreds kDom $ crhs sc
+    kSol = PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
 
 -- x:{v:int|v=10} -> (x=10)
 bindPred :: (Symbol, SortedReft) -> Pred

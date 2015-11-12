@@ -189,18 +189,18 @@ solveNative !cfg !fi0 = do
   -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
   whenLoud $ putStrLn $ showFix (quals fi1)
-  let si   = {-# SCC "convertFormat" #-} convertFormat fi1
-  -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si)
-  -- rnf si `seq` donePhase Loud "Format Conversion"
-  let Right si' = {-# SCC "validate" #-} sanitize $!! si
-  -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si')
-  -- rnf si' `seq` donePhase Loud "Validated Constraints"
-  when (elimStats cfg) $ printElimStats (deps si')
-  let si''  = {-# SCC "renameAll" #-} renameAll $!! si'
-  -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si'')
-  -- rnf si'' `seq` donePhase Loud "Uniqify"
-  (s0, si''') <- {-# SCC "elim" #-} elim cfg $!! si''
-  Result stat soln <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si'''
+  let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
+  -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
+  -- rnf si0 `seq` donePhase Loud "Format Conversion"
+  let Right si1 = {-# SCC "validate" #-} sanitize $!! si0
+  -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
+  -- rnf si1 `seq` donePhase Loud "Validated Constraints"
+  when (elimStats cfg) $ printElimStats (deps si1)
+  let si2  = {-# SCC "renameAll" #-} renameAll $!! si1
+  -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si2)
+  -- rnf si2 `seq` donePhase Loud "Uniqify"
+  (s0, si3) <- {-# SCC "elim" #-} elim cfg $!! si2
+  Result stat soln <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si3
   -- rnf soln `seq` donePhase Loud "Solve2"
   let stat' = sid <$> stat
   writeLoud $ "\nSolution:\n"  ++ showpp soln
