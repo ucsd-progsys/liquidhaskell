@@ -14,6 +14,15 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+
+
+{-
+
+NV TODO: I am not adding all the axioms!!!
+
+-}
+
+
 module Language.Haskell.Liquid.Constraint.Axioms (expandProofs) where 
 
 
@@ -100,6 +109,10 @@ import CoreSyn
 import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe
+
+import Prover.Types (Axiom(..), Query(..))
+import qualified Prover.Types as P 
+import Prover.Solve (solve)
 
 data AEnv = AE { ae_axioms  :: [HAxiom] 
                , ae_binds   :: [CoreBind]
@@ -239,26 +252,73 @@ instance Provable CoreAlt where
 
 expandAutoProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
 expandAutoProof inite e it  
-  =  do ams <- ae_axioms  <$> get  
-        bds <- ae_binds   <$> get
-        lm  <- ae_lmap    <$> get 
-        vs  <- ae_vars    <$> get 
-        gs  <- ae_globals <$> get 
-        cts <- ae_consts  <$> get 
-        tce <- ae_emb     <$> get 
-        lts <- ae_lits    <$> get 
+  =  do ams  <- ae_axioms  <$> get  
+        bds  <- ae_binds   <$> get
+        lm   <- ae_lmap    <$> get 
+        vs'  <- ae_vars    <$> get 
+        gs   <- ae_globals <$> get 
+        cts  <- ae_consts  <$> get 
+        tce  <- ae_emb     <$> get 
+        lts  <- ae_lits    <$> get 
+        sigs <- ae_sigs    <$> get 
         i   <- getUniq
-        let env = normalize (lts ++ ((\v -> (F.symbol v, typeSort tce $ varType v)) <$> vs )) -- (filter hasBaseType vs))) --  ++ gs ++ cts))
-        let le = case runToLogic lm (errOther . text) (coreToPred $ foldl (flip Let) e bds) of 
+        let e' = foldl (flip Let) e bds
+        let env = normalize (lts ++ ((\v -> (F.symbol v, typeSort tce $ varType v)) <$> vs' )) -- (filter hasBaseType vs))) --  ++ gs ++ cts))
+        let le = case runToLogic lm (errOther . text) (coreToPred e') of 
                   Left e  -> e
                   Right (ErrOther _ e) -> error $ show e
---         knowledge = runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs
-        axiom <- findValid env F.PTrue [] le (runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs)
+        let vs    =  filter hasBaseType $ L.nub $ L.intersect (readVars e') vs'
+        fn <- freshFilePath
+        let (cts', vcts) = L.partition (isFunctionType . varType) $ L.nub $ {-filter hasBaseType $  L.filter (isFunctionType . varType) -} ((fst . aname <$> ams) ++ cts ++ vs)
+        let lts'   = filter (\(x,_) -> not (x `elem` (F.symbol <$> (cts' ++ vcts)))) (normalize lts)
+        let sol    = unsafePerformIO (solve $ makeQuery fn tce lm it le (L.nub (vs++vcts)) lts' cts' ams sigs)
+--         cxt       <- initContext env 
+--         knowledge <- runStep cxt it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs
+--         axiom     <- findValid cxt F.PTrue [] le knowledge -- (runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs)
         return $ traceShow (
-            "\n\nTo prove\n" ++ show (showpp le) ++ 
-            "\n\nWe need \n" ++ show axiom       ++
+            "\n\nTo prove\n" ++ show (showpp le) ++  
+            "\n\nWe need \n" ++ show sol         ++
             "\n\n"
            ) inite
+
+makeQuery :: FilePath -> F.TCEmb TyCon -> LogicMap -> Integer -> F.Pred -> [Var] -> [(F.Symbol, F.Sort)] -> [Var] -> [HAxiom] -> [(Symbol, SpecType)] -> Query ()
+makeQuery fn tce lm i p vs lts cts axioms sigs
+ = Query   { q_depth  = fromInteger i
+           , q_goal   = P.Pred p 
+           , q_vars   = mkVar tce <$> vs
+           , q_env    = [P.Var x s () | (x, s) <- lts]
+           , q_fname  = fn 
+           , q_ctors  = [P.Ctor (mkVar tce v) [] (P.Pred F.PTrue) | v <- cts ] -- NV TODO: add ctors axioms 
+           , q_axioms = haxiomToPAxiom lm tce sigs <$> axioms
+           } 
+
+mkVar :: F.TCEmb TyCon -> Var -> P.Var ()
+mkVar tce v = P.Var (F.symbol v) (typeSort tce $ varType v) () 
+
+
+haxiomToPAxiom :: LogicMap -> F.TCEmb TyCon -> [(Symbol, SpecType)] -> HAxiom -> P.Axiom ()
+haxiomToPAxiom lm tce sigs a
+  = P.Axiom { axiom_name = x
+            , axiom_vars = mkVar tce <$> abinds a 
+            , axiom_body = P.Pred $ F.PAtom F.Eq lhs rhs
+            }
+  where 
+    x = F.symbol $ fst $ aname a
+    lhs = case runToLogic lm (errOther . text) (coreToLogic $ alhs a) of 
+           Left e  -> e
+           Right (ErrOther _ e) -> error $ show e
+    rhs = case runToLogic lm (errOther . text) (coreToLogic $ arhs a) of 
+           Left e  -> e
+           Right (ErrOther _ e) -> error $ show e
+ 
+    (vs, bd) = case L.lookup x sigs of 
+                Nothing -> error ("haxiomToPAxiom: " ++ show x ++ " not found")
+                Just t -> let trep = toRTypeRep t
+                              bd'  = case stripRTypeBase $ ty_res trep of 
+                                       Nothing -> F.PTrue
+                                       Just r  -> let (F.Reft(_, p)) = F.toReft r in p 
+                              vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep)]
+                          in  (vs', bd')
 
 {-        
         return $ traceShow ("\n\nI now have to prove this " ++ show e
@@ -282,18 +342,46 @@ freshFilePath =
      n  <- getUniq
      return $ (extFileName (Auto $ fromInteger n) fn)
 
-findValid :: [(Symbol, F.Sort)] -> F.Pred -> [Instance] -> F.Pred -> [Instance] -> Pr (Maybe [Instance])
-findValid env p used q is
+initContext :: [(Symbol, F.Sort)] -> Pr Context
+initContext env 
   = do fn  <- freshFilePath
-       let cxt = unsafePerformIO $ makeZ3Context fn env 
-       findValid' cxt [] p used q is 
+       return $ unsafePerformIO $ makeZ3Context fn env 
 
-findValid' cxt env p used q (i:is) 
-  = do (e, (x, px)) <- instanceToLogic i
-       if isValid cxt env p q 
+
+
+findValid :: Context -> F.Pred -> [Instance] -> F.Pred -> [Instance] -> Pr (Maybe [Instance])
+findValid cxt p used q is
+  = findValid' cxt [] p used q is 
+
+
+findValid' cxt env p used q is
+  = do exs <- mapM instanceToLogic is
+       let (env', p') = foldl (\(env, p) (e, (_, px)) -> ((env ++ e), F.pAnd [p, px])) (env, p) exs
+       if traceShow ("\n\nCheck Valid\n\n" ++ show is ++ "\n\nSize of DB = "++ show (length is) ++ "\n\n") $ 
+               isValid cxt env' p' $ traceShow "\n\nStarting Query\n\n" q 
+         then return $ Just (used ++ is) 
+         else return Nothing  
+
+{-
+
+validityStep = 1000
+
+findValid' cxt env p used q is | not (null is) 
+  = do exs <- mapM instanceToLogic is1
+       if traceShow ("\n\nCheck Valid\n\n" ++ show is1 ++ "\n\nSize of DB = "++ show (length is2) ++ "\n\n") $ isValid cxt env p q 
          then return $ Just used 
-         else findValid' cxt (env ++ e) (F.pAnd [p, px]) (i:used) q is 
-findValid' _ _ _ _ _ _ = return Nothing
+         else do let (env', p') = foldl (\(env, p) (e, (_, px)) -> ((env ++ e), F.pAnd [p, px])) (env, p) exs
+                 findValid' cxt env' p' (is1++used) q is2 
+
+  where 
+    (is1, is2) = splitAt validityStep is 
+
+findValid' cxt env p used q _
+  = if isValid cxt env p q 
+        then return $ Just used 
+        else return Nothing 
+-}
+
 
 isValid :: Context -> [(Symbol, F.Sort)] -> F.Pred -> F.Pred -> Bool
 isValid cxt env p q = unsafePerformIO (checkValidWithContext  cxt env p q)
@@ -303,8 +391,10 @@ instanceToLogic i@(Inst (f, xs, es))
   = do t  <- lookup (F.symbol f) . ae_sigs <$> get  
        sigs  <- ae_sigs <$> get  
        pp <- mapM rargToLogic es
-       asubst' t (resultType $ varType f) pp  
-       
+       res <- asubst' t (resultType $ varType f) pp
+       return $ traceShow ("\n\nInstanceToLogic for\n\n" ++ show i ++ "\n\n") res  
+      
+
 rargToLogic :: TemplateArgument -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
 rargToLogic (TA _ _ i) = targToLogic i 
 
@@ -315,10 +405,6 @@ targToLogic (TDone e)
        return (en, (x, p))
 targToLogic (THole)
   = error "targToLogic on Hole"
-targToLogic (TTmp f es)
-  = do t  <- lookup (F.symbol f) . ae_sigs <$> get
-       pp <- mapM rargToLogic es
-       asubst' t (resultType $ varType f) pp 
 
 asubst' :: Maybe SpecType -> Type -> [([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))] -> Pr ([(F.Symbol, F.Sort)], (F.Symbol, F.Pred))
 asubst' Nothing ht pp
@@ -422,7 +508,6 @@ rargToCoreExpr (TA _ _ targ) = go targ
   where 
     go (TDone e)   = e
     go THole       = error "rargToCoreExpr: THole"
-    go (TTmp f es) = app (Var f) (rargToCoreExpr <$> es)
 
 
 
@@ -440,22 +525,7 @@ newtype Instance = Inst (Var, [Var], [TemplateArgument])
 
 data TemplateArgument = TA {ta_type :: Type, ta_id :: Int, ta_instance :: TArg}
 
-data TArg = TDone CoreExpr | TTmp Var [TemplateArgument] | THole
-
-class HasHoles a where
-  hasHoles :: a -> Bool 
-
-instance HasHoles Instance where
-  hasHoles (Inst (_, _, ts)) = any hasHoles ts 
-
-instance HasHoles TemplateArgument where
-  hasHoles (TA _ _ t) = hasHoles t 
-
-instance HasHoles TArg where
-    hasHoles (TDone _) = False
-    hasHoles THole     = True 
-    hasHoles (TTmp _ ts) = any hasHoles ts    
-
+data TArg = TDone CoreExpr  | THole
 
 isTDone (TDone _) = True 
 isTDone _         = False
@@ -463,7 +533,6 @@ isTDone _         = False
 instance Show TArg where
   show (TDone e) = "TDone : " ++ showPpr e 
   show THole     = "THole"
-  show (TTmp v ts) = "TTmp for " ++ showPpr v ++ tab (show ts)
 
 tab str = concat $ map ('\t':) (lines str) 
 
@@ -490,7 +559,6 @@ showShortTemplate :: TemplateArgument -> String
 showShortTemplate ta = showShortTArg $ ta_instance ta
 showShortTArg (TDone e) = showPpr e 
 showShortTArg THole     = "HOLE"
-showShortTArg (TTmp v ls) = showPpr v ++ par (sep ", " (showShortTemplate <$> ls))
 
 {-
 instance Show Instance where
@@ -500,30 +568,53 @@ instance Show Instance where
 -}
 
 
-runStep :: Integer -> [Var] -> [Instance] -> [Instance]
-runStep iter cds is 
+runStep :: Context -> Integer -> [Var] -> [Instance] -> Pr [Instance]
+runStep cxt iter cds is 
   = go 0 [] argExprs  
   where
-    go i acc _ | i == (fromInteger iter) = acc
-    go i acc as   = go (i+1) (acc ++ concatMap (instantiateIst as) is) (makeNewArgs argTypes as)
+    go i _ _  | i == 0 = do let newis = concatMap (instantiateIst argExprs) is 
+                            (newis ++) <$>  (go (i+1) newis argExprs)
+    go i _ _  | i == (fromInteger iter) = return []
+    go i acc as = do newargs  <- makeNewArgs cxt acc as 
+                     let newis = concatMap (instantiateIst (newargs ++ as)) is 
+                     (newis ++) <$> (go (i+1) (acc ++ newis) (newargs++as))
     argTypes = validArgumentTypes is cs 
     argExprs = basicExprs argTypes bs
 
     (cs, bs) = L.partition (isFunctionType . varType) cds
 
-makeNewArgs :: [([Var], Type, [Var])] -> [(([Var], Type), [CoreExpr])] -> [(([Var], Type), [CoreExpr])]
-makeNewArgs ts as = [((avs, t), concatMap (instantiateConst as) vs) | (avs, t, vs) <- ts]  
-                          
+makeNewArgs :: Context -> [Instance] -> [(([Var], Type, [Var]), [CoreExpr])] -> Pr [(([Var], Type, [Var]), [CoreExpr])]
+makeNewArgs cxt is as = 
+  do mm <- mapM (filterEq cxt is) $ zip as [((avs, t, vs), concatMap (instantiateConst as) vs) | ((avs, t, vs), _) <- as]  
+     return $ traceShow ("\n\nmakeNewArgs" ++ show mm ++ "\n\n" ++ show as ++ "\n\n") $ mm                      
 
+filterEq :: Context -> [Instance] -> ((([Var], Type, [Var]), [CoreExpr]), (([Var], Type, [Var]), [CoreExpr])) -> Pr (([Var], Type, [Var]), [CoreExpr])
+filterEq cxt is ((_, es), (i, es')) = (i,) <$> go es'
+  where
+    go []      = return []
+    go (e:es') = do b <- existsEqual cxt is es e 
+                    if b then go es' else (e:) <$> go es'    
+
+
+existsEqual :: Context -> [Instance] -> [CoreExpr] -> CoreExpr -> Pr Bool 
+existsEqual cxt is es e 
+  = do ((env0, (x,_)):envxs) <- mapM coreExprToLogic (e:es)
+       pis <- mapM instanceToLogic is 
+       let env = ((\(x, t, _) -> (x, t)) <$> (concat (env0:(fst <$> envxs)))) ++ (concatMap fst pis)
+       let lhs = F.pAnd (((\(_, _, p) -> p) <$> (concat (env0:(fst <$> envxs)))) ++ (snd . snd <$> pis) )
+       let rhs = F.POr [F.PAtom F.Eq (F.EVar x) (F.EVar y) | (_, (y,_)) <- envxs]
+       return $ traceShow ("\n\nExistsEqual\n\n" ++ showPpr e ++ "\n\nWithin\n\n" 
+        ++ showPpr es ++ "\n\nLHS = \n\n" ++ show lhs ++ "\n\nRHS = \n\n" ++ show rhs ++ "\n\nEXPR = "++ showPpr e ++ "\n\n")  
+        $ isValid cxt env lhs rhs 
 
 isFunctionType (FunTy _ _)    = True
 isFunctionType (ForAllTy _ t) = isFunctionType t 
 isFunctionType _              = False  
 
-instantiateConst :: [(([Var], Type), [CoreExpr])] -> Var -> [CoreExpr]
+instantiateConst :: [(([Var], Type, [Var]), [CoreExpr])] -> Var -> [CoreExpr]
 instantiateConst aes v = if any null ess then [] else mkApp <$> go [] (reverse $ ess)
     where
-      ess = (\ti -> (snd $ head $ filter (\((_, te), e) -> isInstanceOf (fv $ varType v) ti te) aes)) <$> (argumentTypes $ varType v)
+      ess = (\ti -> (snd $ head $ filter (\((_, te, _), e) -> isInstanceOf (fv $ varType v) ti te) aes)) <$> (argumentTypes $ varType v)
 
       go acc (es:ess) = go (combine acc es) ess 
       go acc []       = acc 
@@ -540,10 +631,10 @@ instantiateConst aes v = if any null ess then [] else mkApp <$> go [] (reverse $
 
 
 
-instantiateIst :: [(([Var], Type), [CoreExpr])] -> Instance -> [Instance]
+instantiateIst :: [(([Var], Type, [Var]), [CoreExpr])] -> Instance -> [Instance]
 instantiateIst aes i@(Inst (a, tvs, as)) = if any null ess then [] else (((\ts -> Inst (a, tvs, ts)) <$> (go [] (reverse ess) (reverse as))))
     where
-      ess = (\ti -> (snd $ head $ filter (\((tvs', te), e) -> isInstanceOf (tvs' ++ tvs) ti te) aes)) <$> (ta_type <$> as)
+      ess = (\ti -> (snd $ head $ filter (\((tvs', te, _), e) -> isInstanceOf (tvs' ++ tvs) ti te) aes)) <$> (ta_type <$> as)
 
 
 
@@ -555,50 +646,10 @@ instantiateIst aes i@(Inst (a, tvs, as)) = if any null ess then [] else (((\ts -
       combine ti ii acc (e:es) = (map (((TA ti ii (TDone e))):) acc) ++ combine ti ii acc es
 
 
-{-
-
-
-runStep :: Integer -> [Var] -> [Instance] -> Pr [Instance]
-runStep iter cds is 
-  = return $ go 1 [] is 
+basicExprs :: [([Var], Type, [Var])]  -> [Var] -> [(([Var], Type, [Var]), [CoreExpr])]
+basicExprs vts  cds = (go <$> vts)
   where
-    go i acc is | i == (fromInteger iter) = acc
-    go i acc is = let (h, noh) = traceShow ("\n\nVARS = \n" ++ show cds ++ "\n\nSTEP " ++ show i ++ "\n\n"
-                                            ++ "\n\nARGUMENT TYPES\n\n" ++ show argTypes ++ "\n\n"
-                                            ++ "\n\nARGUMENT EXPRESSIONS\n\n" ++ show argExprs ++ "\n\n"
-                                            ++ "\n\nINSTANTIATE ONCE\n\n"     ++ show inst1 ++ "\n\n"
-                                            ++ "\n\nINSTANTIATE TWICE\n\n"     ++ show inst2 ++ "\n\n"
-                                           ) $ 
-                                     L.partition hasHoles is in 
-                  let is'      = runStepOne i cds h in 
-                  go (i+1) (acc ++ noh) is' 
-    argTypes = validArgumentTypes is 
-    argExprs = validExprs argTypes cds
-    inst1 = instantiate3 argExprs <$> is 
-    inst2 = ['c'] 
-
-instantiate3 :: [(([Var], Type), [CoreExpr])] -> Instance -> [CoreExpr]
-instantiate3 aes (Inst (a, tvs, [])) = [Var a] 
-instantiate3 aes (Inst (a, tvs, [(TA t _ _)]))
-   = App (Var a) <$> (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t te) aes) 
-instantiate3 aes (Inst (a, tvs, [(TA t1 _ _), (TA t2 _ _)]))
-   = [App (App (Var a) a1) a2 | a1 <- e1, a2 <- e2]
-   where 
-    e1 = (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t1 te) aes) 
-    e2 = (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t2 te) aes) 
-instantiate3 aes (Inst (a, tvs, [(TA t1 _ _), (TA t2 _ _), (TA t3 _ _)]))
-   = [App (App (App (Var a) a1) a2) a3 | a1 <- e1, a2 <- e2, a3 <- e3]
-   where 
-    e1 = (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t1 te) aes) 
-    e2 = (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t2 te) aes) 
-    e3 = (snd $ head $ filter (\((_, te), e) -> isInstanceOf tvs t3 te) aes) 
-instantiate3 aes (Inst (a, tvs, xs)) = [] 
--}
-
-basicExprs :: [([Var], Type, [Var])] -> [Var] -> [(([Var], Type), [CoreExpr])]
-basicExprs vts cds = go <$> vts
-  where
-    go (vs, t, _) = ((vs, t), Var <$> filter (isInstanceOf vs t . varType) cds)
+    go (vs, t, cs) = ((vs, t, cs), Var <$> filter (isInstanceOf vs t . varType) cds)
 
 
 validArgumentTypes :: [Instance] -> [Var] -> [([Var], Type, [Var])]
@@ -618,71 +669,6 @@ validArgumentTypes is cs = addConstructors <$> (combineTypes [] $ (concatMap go 
 
 instance Show Type where
   show = showPpr 
-
--- Then split ready and runStep for the rest
-runStepOne :: Int -> [Var] -> [Instance] -> [Instance]
-runStepOne i cds is =  concatMap go is
-  where
-    go (Inst (ax, vs, targs)) = [Inst (ax, vs, tas) | tas <- expandOneHole 0 vs cds targs] 
-
-{-
-append
-C
-
-N, 
-
--}
-{-
-runStep :: Integer -> [Var] -> [Instance] -> [Instance]
-runStep iter cds is = go 1 [] is 
-  where
-    go i acc is | i == (fromInteger iter) = acc
-    go i acc is = let (h, noh) = traceShow ("\n\nSTEP " ++ show i ++ "\n\n") $ L.partition hasHoles is in 
-                  let is'      = runStepOne i cds h in 
-                  go (i+1) (acc ++ noh) is' 
-
-
--- Then split ready and runStep for the rest
-runStepOne :: Int -> [Var] -> [Instance] -> [Instance]
-runStepOne i cds is =  concatMap go is
-  where
-    go (Inst (ax, vs, targs)) = [Inst (ax, vs, tas) | tas <- expandOneHole 0 vs cds targs] 
--}
-
-expandHole :: [Var] -> [Var] -> TemplateArgument -> [TemplateArgument]
-expandHole tvs cds (TA t i THole)       = TA t i <$> instantiateHole tvs cds t 
-expandHole tvs cds (TA t i (TDone e))   = [TA t i $ TDone e]
-expandHole tvs cds (TA t i (TTmp v ts)) = (\ts' -> TA t i (TTmp v ts')) <$> expandOneHole 1 tvs cds ts 
-
-
-expandOneHole :: Int -> [Var] -> [Var] -> [TemplateArgument] -> [[TemplateArgument]]
-expandOneHole n tvs cds ts = go [] ts 
-  where
-    go acc [] 
-      = [reverse acc]
-    go acc (TA t i THole:tas)      
-      = map (\ta -> (reverse acc) ++ [TA t i ta] ++ tas) (instantiateHole tvs cds t)
-    go acc (TA t i (TDone e):tas)   
-      = go (TA t i (TDone e):acc) tas
-    go acc (TA t i (TTmp v tts):tas) | n < 2 -- hole nesting 
-      = map (\xs -> (reverse acc) ++ [TA t i (TTmp v xs)] ++ tas) (expandOneHole (n+1) (L.nub (forallTyVars (varType v) ++ tvs)) cds tts)
-    go acc (TA t i (TTmp v tts):tas)  
-      = []
-
-instantiateHole :: [Var] -> [Var] -> Type -> [TArg]
-instantiateHole tvs cds t = instantiate cds <$> cvs 
-   where
-      cvs = filter ((isInstanceOf tvs t). resultType . varType) cds
-
-instantiate :: [Var] -> Var -> TArg
-instantiate cds v 
-  | null ts
-  = TDone $ Var v 
-  | otherwise 
-  = TTmp v (makeTemplate <$> ts)
-  where
-    t = varType v 
-    ts = argumentTypes t
 
 
 initKnowledgeBase :: [Var] -> [Instance] 
