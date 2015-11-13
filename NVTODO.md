@@ -1,6 +1,13 @@
 Equational Reasoning 
 --------------------
 
+- HERE 
+Do more careful instantiation of axioms: 
+Now for each term I create a fresh variable to curry the refinements. 
+Create one and reuse it. 
+
+
+
 Easy: 
   - Simplify sufficient axioms 
 
@@ -11,3 +18,9 @@ Other:
 
 Efficiency: 
   - reuse all the SMT/logic info
+
+
+
+- DONE  
+Reduce terms because for example, term append N N appears. 
+Check uniqueness of terms
