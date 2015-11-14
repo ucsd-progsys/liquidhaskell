@@ -12,7 +12,7 @@ GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 GIPEDA_FIXPOINT="$GIPEDA_REPO/liquid-fixpoint";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
-REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
+REPO_TEST="$GIPEDA_REPO/dist/build/test/test --timeout 10m";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
 
 ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40";
