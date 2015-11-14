@@ -73,13 +73,9 @@ import           Data.Monoid                  (mempty, mappend)
 import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
 import           Language.Fixpoint.Names
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
-
-#if __GLASGOW_HASKELL__ < 710
-import Language.Haskell.Liquid.Desugar.HscMain
-#else
-import Language.Haskell.Liquid.Desugar710.HscMain
+import           Language.Haskell.Liquid.Desugar710.HscMain
 --import qualified HscMain as GHC
-#endif
+
 
 
 -----------------------------------------------------------------------
@@ -120,9 +116,7 @@ srcSpanTick m loc
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-#if __GLASGOW_HASKELL__ >= 710
 tickSrcSpan (SourceNote ss _) = RealSrcSpan ss
-#endif
 tickSrcSpan _                 = noSrcSpan
 
 -----------------------------------------------------------------------
@@ -147,10 +141,13 @@ stringTyConWithKind k c n s = TC.mkKindTyCon name k
 hasBaseTypeVar = isBaseType . varType
 
 -- same as Constraint isBase
+isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
-isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
+isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2 
+isBaseType (FunTy _ _)     = False -- isBaseType t1 && isBaseType t2
 isBaseType _               = False
+
 validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
@@ -481,33 +478,6 @@ desugarModule tcm = do
   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
   return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
-#if __GLASGOW_HASKELL__ < 710
-
--- desugarModule tcm = do
---   let ms = pm_mod_summary $ tm_parsed_module tcm
---   -- let ms = modSummary tcm
---   let (tcg, _) = tm_internals_ tcm
---   hsc_env <- getSession
---   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
---   guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
---   return $ DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
-
-symbolFastString = T.unsafeDupablePerformIO
-                 . mkFastStringByteString
-                 . T.encodeUtf8
-                 . symbolText
-
-lintCoreBindings = CoreLint.lintCoreBindings
-
-synTyConRhs_maybe t
-  | Just (TC.SynonymTyCon rhs) <- TC.synTyConRhs_maybe t
-  = Just rhs
-synTyConRhs_maybe _                     = Nothing
-
-tcRnLookupRdrName env rn = TcRnDriver.tcRnLookupRdrName env (unLoc rn)
-
-#else
-
 -- desugarModule = GHC.desugarModule
 
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
@@ -520,7 +490,6 @@ synTyConRhs_maybe = TC.synTyConRhs_maybe
 
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
-#endif
 
 ------------------------------------------------------------------------
 -- | Manipulating Symbols ----------------------------------------------

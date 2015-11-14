@@ -4,7 +4,7 @@ ghc: 7.8 # Only used for Cabal
 branches:
   only:
     - master
-    - multiparams
+    - unknown_syms
 
 sudo: false
 
