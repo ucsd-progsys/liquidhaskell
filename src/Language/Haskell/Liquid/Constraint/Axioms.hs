@@ -114,6 +114,8 @@ import Prover.Types (Axiom(..), Query(..))
 import qualified Prover.Types as P 
 import Prover.Solve (solve)
 
+import Debug.Trace (trace) 
+
 data AEnv = AE { ae_axioms  :: [HAxiom] 
                , ae_binds   :: [CoreBind]
                , ae_lmap    :: LogicMap
@@ -125,11 +127,28 @@ data AEnv = AE { ae_axioms  :: [HAxiom]
                , ae_index   :: Integer 
                , ae_sigs    :: [(Symbol, SpecType)]
                , ae_target  :: FilePath
+               , ae_recs    :: [(Var, [Var])] 
+               , ae_decls   :: [F.Pred]
                }
 
 
 
-addBind b = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
+addBind b  = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
+addDecl p  = modify $ \ae -> ae{ae_decls  = p:ae_decls  ae}
+rmDecl     = modify $ \ae -> ae{ae_decls  = tail $ ae_decls  ae}
+addRec  (x,e) = modify $ \ae -> ae{ae_recs  = (x, grapArgs e):ae_recs  ae}
+addRecs xes = modify $ \ae -> ae{ae_recs  = [(x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
+
+
+
+
+grapArgs (Lam x e) | isTyVar x  = grapArgs e 
+grapArgs (Lam x e) | isClassPred $ varType x = grapArgs e 
+grapArgs (Lam x e) = x : grapArgs e 
+grapArgs (Let _ e) = grapArgs e 
+grapArgs _         = [] 
+
+
 addVar  x | canIgnore x = return ()
           | otherwise   =  modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
 addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
@@ -187,6 +206,8 @@ class Provable a where
                            , ae_index   = i
                            , ae_sigs    = sigs
                            , ae_target  = target info  
+                           , ae_recs    = []
+                           , ae_decls   = []
                            }
     where
       spc        = spec info
@@ -202,9 +223,9 @@ class Provable a where
   expProofs = return  
 
 instance Provable CoreBind where
-  expProofs (NonRec x e) = NonRec x <$> expProofs e 
-  expProofs (Rec xes)    = Rec <$> mapSndM expProofs xes 
-
+  expProofs (NonRec x e) = NonRec x <$> (addRec (x,e) >> expProofs e) 
+  expProofs (Rec xes)    = Rec      <$> (addRecs xes  >> mapSndM expProofs xes )
+  
 
 instance Provable CoreExpr where
   expProofs ee@(App (App (Tick _ (Var f)) i) e) | isAuto f = grapInt i >>= expandAutoProof ee e 
@@ -217,7 +238,7 @@ instance Provable CoreExpr where
   expProofs (Let b e)   = do b' <- expProofs b 
                              addBind b' 
                              liftM (Let b') (expProofs e)
-  expProofs (Case e v t alts) = liftM2 (\e -> Case e v t) (expProofs e) (mapM expProofs alts)
+  expProofs (Case e v t alts) = liftM2 (\e -> Case e v t) (expProofs e) (mapM (expProofsCase e) alts)
   expProofs (Cast e c)   = liftM (`Cast` c) (expProofs e)
   expProofs (Tick t e)   = liftM (Tick t) (expProofs e)
 
@@ -227,6 +248,38 @@ instance Provable CoreExpr where
   expProofs (Coercion c) = return $ Coercion c 
 
 
+expProofsCase :: CoreExpr -> CoreAlt -> Pr CoreAlt
+expProofsCase (Var x) (DataAlt c, xs, e) 
+  = do addVars xs 
+       t <- L.lookup (dataConSymbol c) . ae_sigs <$> get
+       addDecl $ makeRefinement t (x:xs) 
+       res <- liftM (DataAlt c,xs,) (expProofs e)
+       rmDecl
+       return res 
+
+expProofsCase ec (c, xs, e) 
+  = addVars xs >> liftM (c,xs,) (expProofs e)
+
+
+makeRefinement :: Maybe SpecType -> [Var] -> F.Pred 
+makeRefinement Nothing  xs = F.PTrue
+makeRefinement (Just t) xs = rr
+  where trep = toRTypeRep t 
+        ys   = [x | (x, t') <- zip (ty_binds trep) (ty_args trep), not (isClassType t')]
+        rr   = case stripRTypeBase $ ty_res trep of 
+                 Nothing  -> F.PTrue
+                 Just ref -> let F.Reft(v, r) = F.toReft ref
+                                 su = F.mkSubst $ zip (v:ys) (F.EVar . F.symbol <$> xs)
+                             in F.subst su r 
+
+
+{- NV HERE HERE adding info at unfolding. 
+   the following is not traced due to laziness
+ -}
+addDeclCase :: Var -> DataCon -> [Var] -> Pr ()
+addDeclCase x c xs 
+  = do t <- L.lookup (dataConSymbol c) . ae_sigs <$> get
+       return $ traceShow ("\n\naddDeclCase\n" ++ show (c, t) ++ "\n\nVARS=\n\n" ++ show (x, xs) ++ "\n\n") ()
 
 grapInt (Var v) 
   = do bs <- ae_binds <$> get 
@@ -261,17 +314,19 @@ expandAutoProof inite e it
         tce  <- ae_emb     <$> get 
         lts  <- ae_lits    <$> get 
         sigs <- ae_sigs    <$> get 
+        recs <- ae_recs    <$> get 
+        ds   <- ae_decls   <$> get 
         i   <- getUniq
         let e' = foldl (flip Let) e bds
         let env = normalize (lts ++ ((\v -> (F.symbol v, typeSort tce $ varType v)) <$> vs' )) -- (filter hasBaseType vs))) --  ++ gs ++ cts))
         let le = case runToLogic lm (errOther . text) (coreToPred e') of 
                   Left e  -> e
                   Right (ErrOther _ e) -> error $ show e
-        let vs    =  filter hasBaseType $ L.nub $ L.intersect (readVars e') vs'
+        let (vs, vlits) = L.partition (`elem` readVars e') $ filter hasBaseType $ L.nub vs'
         fn <- freshFilePath
         let (cts', vcts) = L.partition (isFunctionType . varType) $ L.nub $ {-filter hasBaseType $  L.filter (isFunctionType . varType) -} ((fst . aname <$> ams) ++ cts ++ vs)
         let lts'   = filter (\(x,_) -> not (x `elem` (F.symbol <$> (cts' ++ vcts)))) (normalize lts)
-        let sol    = unsafePerformIO (solve $ makeQuery fn tce lm it le (L.nub (vs++vcts)) lts' cts' ams sigs)
+        let sol    = unsafePerformIO (solve $ makeQuery fn tce lm it le (L.nub (vs++vcts)) lts' cts' ams sigs gs recs vlits ds)
 --         cxt       <- initContext env 
 --         knowledge <- runStep cxt it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs
 --         axiom     <- findValid cxt F.PTrue [] le knowledge -- (runStep it ( (fst . aname <$> ams) ++ cts ++ vs) $ initKnowledgeBase gs)
@@ -281,19 +336,97 @@ expandAutoProof inite e it
             "\n\n"
            ) inite
 
-makeQuery :: FilePath -> F.TCEmb TyCon -> LogicMap -> Integer -> F.Pred -> [Var] -> [(F.Symbol, F.Sort)] -> [Var] -> [HAxiom] -> [(Symbol, SpecType)] -> Query ()
-makeQuery fn tce lm i p vs lts cts axioms sigs
+makeQuery :: FilePath -> F.TCEmb TyCon -> LogicMap -> Integer -> F.Pred -> [Var] -> [(F.Symbol, F.Sort)] -> [Var] -> [HAxiom] -> [(Symbol, SpecType)] -> [Var] -> [(Var, [Var])] -> [Var] -> [F.Pred] -> Query ()
+makeQuery fn tce lm i p vs lts cts axioms sigs gs recs unusedvs ds
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p 
-           , q_vars   = mkVar tce <$> vs
-           , q_env    = [P.Var x s () | (x, s) <- lts]
+           , q_vars   = (mkVar tce <$> vs)
+           , q_env    = [P.Var x s () | (x, s) <- lts] ++ (mkVar tce <$> ((L.\\) unusedvs vs))
            , q_fname  = fn 
-           , q_ctors  = [P.Ctor (mkVar tce v) [] (P.Pred F.PTrue) | v <- cts ] -- NV TODO: add ctors axioms 
-           , q_axioms = haxiomToPAxiom lm tce sigs <$> axioms
+           , q_ctors  = makeCtor tce sigs <$> cts 
+           , q_axioms = as1 ++ as2
+           , q_decls  = (P.Pred <$> ds)
            } 
+  where
+    -- as = haxiomToPAxiom lm tce sigs <$> axioms
+    (rgs, gs') = L.partition (`elem` (fst <$> recs)) $ filter returnsProof gs
+    as1 = varToPAxiom lm tce sigs          <$> gs'
+    as2 = varToPAxiomWithGuard lm tce sigs recs <$> rgs
+
+
+makeCtor :: F.TCEmb TyCon -> [(F.Symbol, SpecType)] -> Var -> P.Ctor ()
+makeCtor tce sigs c = P.Ctor (P.Var x (typeSort tce $ varType c) ()) vs r 
+  where
+    x    = F.symbol c 
+    (vs, r) = case L.lookup x sigs of 
+                Nothing -> ([], P.Pred F.PTrue)
+                Just t  -> let trep = toRTypeRep t
+                           in case stripRTypeBase $ ty_res trep of 
+                               Nothing -> ([], P.Pred F.PTrue)
+                               Just r  -> let (F.Reft(v, p)) = F.toReft r
+                                              xts = [(x,t) | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
+                                              e  = F.EApp (dummyLoc x) (F.EVar . fst  <$> xts)
+                                          in ([P.Var x (rTypeSort tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
+
+
+
+
+
+
+
 
 mkVar :: F.TCEmb TyCon -> Var -> P.Var ()
 mkVar tce v = P.Var (F.symbol v) (typeSort tce $ varType v) () 
+
+
+varToPAxiomWithGuard :: LogicMap -> F.TCEmb TyCon -> [(Symbol, SpecType)] -> [(Var, [Var])] -> Var -> P.Axiom ()
+varToPAxiomWithGuard lm tce sigs recs v
+  = P.Axiom { axiom_name = x
+            , axiom_vars = vs
+            , axiom_body = P.Pred $ F.PImp q bd 
+            }
+  where 
+    q = makeGuard $ zip (symbol <$> args) xts
+    args = fromJust $ L.lookup v recs 
+    x = F.symbol v
+    (vs, xts, bd) = case L.lookup x sigs of 
+                     Nothing -> error ("haxiomToPAxiom: " ++ show x ++ " not found")
+                     Just t -> let trep = toRTypeRep t
+                                   bd'  = case stripRTypeBase $ ty_res trep of 
+                                            Nothing -> F.PTrue
+                                            Just r  -> let (F.Reft(_, p)) = F.toReft r in p 
+                                   xts   = filter (not . isClassType . snd) $ zip (ty_binds trep) (ty_args trep)
+                                   vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- xts]
+                               in  (vs', xts, bd')
+
+makeGuard :: [(F.Symbol, (F.Symbol, SpecType))] -> F.Pred
+makeGuard xs = F.POr $ go [] xs
+  where
+    go _ [] 
+      = []
+    go acc ((x, (x', RApp c _ _ _)):xxs)
+     | Just f <- sizeFunction $ rtc_info c
+     = (F.PAnd (F.PAtom F.Lt (f x') (f x):acc)) : go (F.PAtom F.Le (f x') (f x):acc) xxs
+    go acc (_:xxs)
+     = go acc xxs
+
+
+varToPAxiom :: LogicMap -> F.TCEmb TyCon -> [(Symbol, SpecType)] -> Var -> P.Axiom ()
+varToPAxiom lm tce sigs v
+  = P.Axiom { axiom_name = x
+            , axiom_vars = vs
+            , axiom_body = P.Pred bd 
+            }
+  where 
+    x = F.symbol v
+    (vs, bd) = case L.lookup x sigs of 
+                Nothing -> error ("haxiomToPAxiom: " ++ show x ++ " not found")
+                Just t -> let trep = toRTypeRep t
+                              bd'  = case stripRTypeBase $ ty_res trep of 
+                                       Nothing -> F.PTrue
+                                       Just r  -> let (F.Reft(_, p)) = F.toReft r in p 
+                              vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
+                          in  (vs', bd')
 
 
 haxiomToPAxiom :: LogicMap -> F.TCEmb TyCon -> [(Symbol, SpecType)] -> HAxiom -> P.Axiom ()
