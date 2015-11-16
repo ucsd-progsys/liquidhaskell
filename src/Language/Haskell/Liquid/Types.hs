@@ -261,7 +261,7 @@ data Config = Config {
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , real           :: Bool       -- ^ supports real number arithmetic
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
-  , extSolver      :: Bool       -- ^ use external (Ocaml) fixpoint constraint solver
+  , extSolver      :: Bool       -- ^ use external (OCaml) fixpoint constraint solver
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
