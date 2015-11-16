@@ -97,7 +97,7 @@ Rust
 
 Scala
 
-Ocaml
+OCaml
 
 **Haskell**
 
