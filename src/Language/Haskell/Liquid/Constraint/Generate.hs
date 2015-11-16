@@ -127,7 +127,7 @@ consAct info
        modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where 
     mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
-                (REnv g1, REnv g2, REnv g3) -> (M.toList g1) ++ (M.toList g2) ++ (M.toList g3)
+                (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
        
 
 ------------------------------------------------------------------------------------

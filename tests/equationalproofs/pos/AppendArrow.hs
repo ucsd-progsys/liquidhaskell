@@ -74,18 +74,18 @@ auto (e1 == e && e == e2)
                -> {v:Proof | append (append xs ys) zs == append xs (append ys zs) } @-}
 prop_assoc :: Eq a => L a -> L a -> L a -> Proof
 
-prop_assoc N ys zs        = undefined -- auto 2 (append (append N ys) zs == append N (append ys zs))
-{-
-  refl (append (append N ys) zs)
-  `by` axiom_append_N ys             -- == append ys zs
-  `by` axiom_append_N (append ys zs) -- == append N (append ys zs)
--}
+prop_assoc N ys zs        = auto 2 (append (append N ys) zs == append N (append ys zs))
+
+--   refl (append (append N ys) zs)
+--   `by` axiom_append_N ys             -- == append ys zs
+--   `by` axiom_append_N (append ys zs) -- == append N (append ys zs)
+
 
 prop_assoc (C x xs) ys zs
 -- NV HERE: this takes too long
---    = auto 2 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
-    = refl e1
-      `by` pr1 `by` pr2 `by` pr3 `by` pr4
+    = auto 2 (append (append (C x xs) ys) zs == append (C x xs) (append ys zs))
+--     = refl e1
+--       `by` pr1 `by` pr2 `by` pr3 `by` pr4
   where
     e1  = append (append (C x xs) ys) zs
     pr1 = axiom_append_C ys x xs
@@ -96,6 +96,7 @@ prop_assoc (C x xs) ys zs
     e4  = C x (append xs (append ys zs))
     pr4 = axiom_append_C (append ys zs) x xs
     e5  = append (C x xs) (append ys zs)
+
 
 {-@ data L [llen] @-}
 {-@ invariant {v: L a | llen v >= 0} @-}
