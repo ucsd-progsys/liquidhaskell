@@ -361,7 +361,7 @@ initAEEnv info sigs
                      , ae_vars    = []
                      , ae_emb     = tce 
                      , ae_lits    = wiredSortedSyms ++ lts 
-                     , ae_index   = i + 40 
+                     , ae_index   = i
                      , ae_sigs    = sigs
                      , ae_target  = target info  
                      , ae_recs    = []
@@ -392,9 +392,13 @@ addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
     x' = filter (not . canIgnore) x 
 
 
+-- NV check get unique, there is a bug and single increase is not good
+
 getUniq :: Pr Integer 
 getUniq
-  =  modify (\s -> s{ae_index = 1 + (ae_index s)}) >> ae_index <$> get 
+  = do modify (\s -> s{ae_index = 1 + (ae_index s)}) 
+       modify (\s -> s{ae_index = 1 + (ae_index s)}) 
+       ae_index <$> get
 
 
 freshFilePath :: Pr FilePath 

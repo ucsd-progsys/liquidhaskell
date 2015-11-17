@@ -7,3 +7,6 @@
 [submodule "liquid-fixpoint"]
 	path = liquid-fixpoint
 	url = https://github.com/ucsd-progsys/liquid-fixpoint.git
+[submodule "prover"]
+	path = prover
+	url = https://github.com/nikivazou/prover.git
