@@ -102,7 +102,7 @@ Executable fixpoint.native
                , cmdargs
                , ansi-terminal
                -- , terminal-progress-bar
-               , ascii-progress
+               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
@@ -135,7 +135,7 @@ Executable fixpoint
                , cmdargs
                , ansi-terminal
                -- , terminal-progress-bar
-               , ascii-progress
+               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
@@ -200,7 +200,7 @@ Library
                , cmdargs
                , ansi-terminal
                -- , terminal-progress-bar
-               , ascii-progress
+               , ascii-progress >= 0.3
                , bifunctors
                , binary
                , bytestring
