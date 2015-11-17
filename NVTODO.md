@@ -1,16 +1,5 @@
 Equational Reasoning 
 --------------------
-
-- HERE 
-Do more careful instantiation of axioms: 
-Now for each term I create a fresh variable to curry the refinements. 
-Create one and reuse it. 
-
-
-
-Easy: 
-  - Simplify sufficient axioms 
-
 Other: 
   - Create Haskell expression that is equivalent to the sufficient axioms and 
       - replace the call to auto
@@ -22,5 +11,7 @@ Efficiency:
 
 
 - DONE  
-Reduce terms because for example, term append N N appears. 
-Check uniqueness of terms
+  - Reduce terms because for example, term append N N appears. 
+  - add constructor info in unfolding (used for the followng)
+  - make sure recursive calls happen only to smaller inputs
+
