@@ -5,6 +5,7 @@ resolver: nightly-2015-09-24
 # resolver: lts-2.22
 
 packages:
+- ./prover
 - ./liquid-fixpoint
 - .
 
