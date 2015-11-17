@@ -105,7 +105,7 @@ config = cmdArgsMode $ Config {
           &= name "exact-data-cons"
 
  , extSolver
-    = def &= help "Use external (Ocaml) fixpoint constraint solver"
+    = def &= help "Use external (OCaml) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -124,7 +124,7 @@ config = cmdArgsMode $ Config {
 
  , trustinternals
     = def &= help "Trust all ghc auto generated code"
-          &= name "trust-interals"
+          &= name "trust-internals"
 
  , nocaseexpand
     = def &= help "Disable Termination Check"
@@ -137,7 +137,7 @@ config = cmdArgsMode $ Config {
           &= name "no-true-types"
 
  , totality
-    = def &= help "Check tota`lity"
+    = def &= help "Check totality"
 
  , cores
     = def &= help "Use m cores to solve logical constraints"

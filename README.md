@@ -708,6 +708,11 @@ See `benchmarks/icfp15/pos/Overview.lhs` for exaples on how to use bounds.
 
 Invariants
 ==========
+
+
+**WARNING:** Do not use this mechanism -- it is *unsound* and about to be
+replaced with something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
+
 There are two ways of specifying invariants in LiquidHaskell.
 First, there are *global* invariants that always hold for a data-type. For
 example,  the length of a list cannot be negative
