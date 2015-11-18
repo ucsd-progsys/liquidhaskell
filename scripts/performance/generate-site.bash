@@ -11,6 +11,7 @@ GIPEDA_DIR="$SCRIPT_DIR/gipeda";
 GIPEDA_SITE="$GIPEDA_DIR/site";
 GIPEDA_REPO="$GIPEDA_DIR/repository";
 GIPEDA_FIXPOINT="$GIPEDA_REPO/liquid-fixpoint";
+GIPEDA_PROVER="$GIPEDA_REPO/prover";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
 REPO_TEST="$GIPEDA_REPO/dist/build/test/test --timeout 10m";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
@@ -76,11 +77,8 @@ function generate_log {
             return 1;
         fi
 
-        $CABAL sandbox add-source $GIPEDA_FIXPOINT
-        if [ $? != 0 ]
-        then
-            return 1;
-        fi
+        $CABAL sandbox add-source $GIPEDA_FIXPOINT;
+        $CABAL sandbox add-source $GIPEDA_PROVER;
 
         $CABAL install --enable-tests;
         if [ $? != 0 ]
