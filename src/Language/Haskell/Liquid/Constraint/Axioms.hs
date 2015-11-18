@@ -73,7 +73,8 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
+import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def, HAxiom)
+import qualified Language.Haskell.Liquid.Types as T
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Bounds
 import Language.Haskell.Liquid.RefType
@@ -88,6 +89,7 @@ import Language.Haskell.Liquid.Literals
 import Language.Haskell.Liquid.RefSplit
 import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Constraint
+import Language.Haskell.Liquid.Constraint.ProofToCore
 
 import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
 
@@ -185,8 +187,9 @@ expandAutoProof inite e it
         return $ traceShow (
             "\n\nTo prove\n" ++ show (showpp le) ++  
             "\n\nWe need \n" ++ show sol         ++
+            "\n\nExpr =  \n" ++ show (toCore inite sol)         ++
             "\n\n"
-           ) inite
+           ) $ inite  
 
 
 -------------------------------------------------------------------------------
@@ -194,16 +197,18 @@ expandAutoProof inite e it
 -------------------------------------------------------------------------------
 
 
+
+makeEnvironment :: [Var] -> [Var] -> Pr [P.LVar]
 makeEnvironment avs vs 
   = do lits <- ae_lits <$> get
        let lts'  = filter (\(x,_) -> not (x `elem` (F.symbol <$> avs))) (normalize lits)
        let lts1  = [P.Var x s () | (x, s) <- lts']
-       lts2  <- mapM makeVar vs
+       lts2  <- mapM makeLVar vs
        return (lts1 ++ lts2)
 
 
 
-makeQuery :: FilePath -> Integer -> F.Pred -> [P.Axiom ()] -> [P.Ctor ()] -> [F.Pred] -> [P.Var ()] ->  [P.Var ()] -> Query ()
+makeQuery :: FilePath -> Integer -> F.Pred -> [HAxiom] -> [HCtor] -> [F.Pred] -> [P.LVar] ->  [HVar] -> HQuery
 makeQuery fn i p axioms cts ds env vs 
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p 
@@ -251,14 +256,14 @@ makeRefinement (Just t) xs = rr
 
 
 
-makeCtor :: Var -> Pr (P.Ctor ())
+makeCtor :: Var -> Pr HCtor
 makeCtor c 
   = do tce  <- ae_emb     <$> get 
        sigs <- ae_sigs    <$> get 
        return $ makeCtor' tce sigs c 
 
-makeCtor' :: F.TCEmb TyCon -> [(F.Symbol, SpecType)] -> Var -> P.Ctor ()
-makeCtor' tce sigs c = P.Ctor (P.Var x (typeSort tce $ varType c) ()) vs r 
+makeCtor' :: F.TCEmb TyCon -> [(F.Symbol, SpecType)] -> Var -> HCtor
+makeCtor' tce sigs c = P.Ctor (makeVar' tce c) vs r 
   where
     x    = F.symbol c 
     (vs, r) = case L.lookup x sigs of 
@@ -271,13 +276,22 @@ makeCtor' tce sigs c = P.Ctor (P.Var x (typeSort tce $ varType c) ()) vs r
                                               e  = F.EApp (dummyLoc x) (F.EVar . fst  <$> xts)
                                           in ([P.Var x (rTypeSort tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
 
-makeVar :: Var -> Pr (P.Var ())
-makeVar v = do {tce <- ae_emb <$> get; return $ P.Var (F.symbol v) (typeSort tce $ varType v) ()}
+makeVar :: Var -> Pr HVar
+makeVar v = do {tce <- ae_emb <$> get; return $ makeVar' tce v}
+
+makeVar' tce v = P.Var (F.symbol v) (typeSort tce $ varType v) v
 
 
-varToPAxiomWithGuard :: F.TCEmb TyCon -> [(Symbol, SpecType)] -> [(Var, [Var])] -> Var -> P.Axiom ()
+makeLVar :: Var -> Pr P.LVar
+makeLVar v = do {tce <- ae_emb <$> get; return $ makeLVar' tce v}
+
+makeLVar' tce v = P.Var (F.symbol v) (typeSort tce $ varType v) ()
+
+
+
+varToPAxiomWithGuard :: F.TCEmb TyCon -> [(Symbol, SpecType)] -> [(Var, [Var])] -> Var -> HAxiom
 varToPAxiomWithGuard tce sigs recs v
-  = P.Axiom { axiom_name = x
+  = P.Axiom { axiom_name = makeVar' tce v 
             , axiom_vars = vs
             , axiom_body = P.Pred $ F.PImp q bd 
             }
@@ -307,9 +321,9 @@ makeGuard xs = F.POr $ go [] xs
      = go acc xxs
 
 
-varToPAxiom :: F.TCEmb TyCon -> [(Symbol, SpecType)] -> Var -> P.Axiom ()
+varToPAxiom :: F.TCEmb TyCon -> [(Symbol, SpecType)] -> Var -> HAxiom
 varToPAxiom tce sigs v
-  = P.Axiom { axiom_name = x
+  = P.Axiom { axiom_name = makeVar' tce v 
             , axiom_vars = vs
             , axiom_body = P.Pred bd 
             }
@@ -331,7 +345,7 @@ varToPAxiom tce sigs v
 
 type Pr = State AEnv
 
-data AEnv = AE { ae_axioms  :: [HAxiom]              -- axiomatized functions 
+data AEnv = AE { ae_axioms  :: [T.HAxiom]              -- axiomatized functions 
                , ae_binds   :: [CoreBind]            -- local bindings, tracked st they are expanded in logic 
                , ae_lmap    :: LogicMap              -- logical mapping 
                , ae_consts  :: [Var]                 -- Data constructors and imported variables

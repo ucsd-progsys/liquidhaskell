@@ -123,6 +123,7 @@ Library
                     Language.Haskell.Liquid.Constraint.Constraint,
                     Language.Haskell.Liquid.Constraint.Types,
                     Language.Haskell.Liquid.Constraint.Axioms,
+                    Language.Haskell.Liquid.Constraint.ProofToCore,
                     Language.Haskell.Liquid.Constraint.Generate,
                     Language.Haskell.Liquid.Constraint.ToFixpoint,
                     Language.Haskell.Liquid.Measure,
