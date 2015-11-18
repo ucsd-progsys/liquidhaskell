@@ -1,4 +1,13 @@
-{- Test diffcheck. Has been rigged with a saved diff in .liquid in the
+{- TODO: We need an automated test for DiffCheck. That said, our current
+   testing infrastructure isn't set up to test internals, so I'd have to
+   jimmy-rig it to work. Meanwhile, it has been decided (rightfully) that
+   the mechanism I had planned on using was an affront to all that is good,
+   and was fixed as a bug. So this test is now pointless. That said, it
+   should serve as the basis for a good test in the future, so I think we
+   should perserve it for posterity. What follows is my original plan for
+   this test.
+
+   Test diffcheck. Has been rigged with a saved diff in .liquid in the
    following ways:
 
    1) goodFn has changed from the saved diff.
@@ -44,6 +53,9 @@ badDep _ = False
 
 amazingAlgorithm :: (Bool, Bool)
 amazingAlgorithm = (goodFn 1, badFn 0)
+
+-- These guys aren't involved in the above, and should be ignored
+-- by DiffCheck
 
 {-@ innocentBystander :: One -> Bool @-}
 innocentBystander :: Int -> Bool

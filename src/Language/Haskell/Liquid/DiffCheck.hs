@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.DiffCheck (
    )
    where
 
-import            Debug.Trace (trace)
+--import            Debug.Trace (trace)
 import            Control.Applicative          ((<$>), (<*>))
 import            Data.Aeson
 import qualified  Data.Text as T
@@ -181,7 +181,9 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b]
-
+-- Given a call graph, and a list of vars, this function checks all functions
+-- to see if they call any of the functions in the vars list. If any do, then
+-- they must also be rechecked.
 dependsOn :: Deps -> [Var] -> S.HashSet Var
 dependsOn cg vars = S.fromList results
    where
