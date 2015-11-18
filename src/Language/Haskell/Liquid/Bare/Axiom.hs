@@ -63,8 +63,7 @@ makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
     (NonRec v def:_)   -> do updateLMap lmap x x v
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return $ traceShow ("makeAxiom NonRec" ++ show def) 
-                                      ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
+                             return ((val x, makeType v), [(v, makeAssumeType v)], defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
@@ -202,7 +201,7 @@ instance Simplifiable CoreExpr where
   simplify (App e (Var x)) | isClassPred (varType x) = simplify e
   simplify (App f e) = App (simplify f) (simplify e)
   simplify e@(Var _) = e
-  simplify e = error ("TODO simplify" ++ show e)
+  simplify e = error ("TODO simplify" ++ showPpr e)
 
 unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
   = subst (x, ex) e
