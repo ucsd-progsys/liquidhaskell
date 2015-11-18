@@ -128,7 +128,7 @@ updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = return $ traceShow ("\n\nTYPESSSS\n\n"  ++ showpp (llhs, lrhs)) (v, x{val = t})
+  = return (v, x{val = t})
   where
     t   = fromRTypeRep $ tr{ty_res = res, ty_binds = symbol <$> xs}
     tr  = toRTypeRep $ ofType $ varType v

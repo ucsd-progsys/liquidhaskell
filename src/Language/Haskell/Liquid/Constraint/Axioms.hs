@@ -189,7 +189,7 @@ expandAutoProof inite e it
             "\n\nWe need \n" ++ show sol         ++
             "\n\nExpr =  \n" ++ show (toCore inite sol)         ++
             "\n\n"
-           ) $ inite  
+           ) $ toCore inite sol  
 
 
 -------------------------------------------------------------------------------

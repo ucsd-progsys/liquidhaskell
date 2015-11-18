@@ -39,7 +39,7 @@ import           Text.Parsec.Pos              (sourceName, sourceLine, sourceCol
 
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
-import           OccName                      (mkTyVarOcc, mkTcOcc, occNameFS)
+import           OccName                      (mkTyVarOcc, mkVarOcc, mkTcOcc, occNameFS)
 import           Unique
 import           Finder                       (findImportedModule, cannotFindModule)
 import           Panic                        (throwGhcException)
@@ -128,6 +128,11 @@ stringTyVar s = mkTyVar name liftedTypeKind
   where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
         occ  = mkTyVarOcc s
 
+stringVar :: String -> Type -> Var
+stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
+   where 
+      name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
+      occ  = mkVarOcc s 
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind superKind
