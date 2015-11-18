@@ -616,7 +616,6 @@ splitC (SubR γ o r)
     tag = getTag γ
     src = loc γ
 
-
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 

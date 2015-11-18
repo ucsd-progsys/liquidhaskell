@@ -149,7 +149,7 @@ makeExactDataCons n flag vs spec
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
-makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where 
     t    :: SpecType
     t    = ofType $ varType x 
