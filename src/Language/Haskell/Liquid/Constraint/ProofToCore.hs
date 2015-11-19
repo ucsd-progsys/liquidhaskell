@@ -136,6 +136,8 @@ instance Show Type where
 
 -- NV HERE: How do we combine proofs?
 combineProofs :: CoreExpr -> [CoreExpr] -> CoreExpr
-combineProofs _ (x:_) = x 
+combineProofs _ (e:es) = foldl (flip Let) e bs   
+   where bs = [NonRec (stringVar ("proof_anf_bind" ++ show i) (exprType e)) e 
+                   | (e, i) <- zip es [1..] ]
 combineProofs e []  =  e
 
