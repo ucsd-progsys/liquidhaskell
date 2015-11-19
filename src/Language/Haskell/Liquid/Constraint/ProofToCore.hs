@@ -30,28 +30,30 @@ type HInstance = Instance HId
 type HProof    = Proof    HId 
 type HExpr     = Expr     HId 
 
+type CmbExpr = CoreExpr -> CoreExpr -> CoreExpr
+
 class ToCore a where
-  toCore :: CoreExpr -> a -> CoreExpr 
+  toCore :: CmbExpr -> CoreExpr -> a -> CoreExpr 
 
 instance ToCore HInstance where
-  toCore e i = mkApp (toCore e $ inst_axiom i) (toCore e <$> inst_args i) 
+  toCore c e i = mkApp (toCore c e $ inst_axiom i) (toCore c e <$> inst_args i) 
 
 instance ToCore HProof where
-  toCore e Invalid = e
-  toCore e p       = combineProofs e $ (toCore e <$> p_evidence p)
+  toCore _ e Invalid = e
+  toCore c e p       = combineProofs c e $ (toCore c e <$> p_evidence p)
 
 instance ToCore HAxiom where
-  toCore e a = toCore e $ axiom_name a 
+  toCore c e a = toCore c e $ axiom_name a 
  
 instance ToCore HExpr  where
-  toCore e (EVar v)    = toCore e v 
-  toCore e (EApp c es) = mkApp (toCore e c) (toCore e <$> es) 
+  toCore c e (EVar v)    = toCore c e v 
+  toCore c' e (EApp c es) = mkApp (toCore c' e c) (toCore c' e <$> es) 
 
 instance ToCore HCtor where
-  toCore e c =  toCore e $ ctor_var c 
+  toCore c' e c =  toCore c' e $ ctor_var c 
 
 instance ToCore HVar where
-  toCore _ v = H.Var $ var_info v 
+  toCore _ _ v = H.Var $ var_info v 
 
 mkApp f es = traceShow ("\n\nmkApp " ++ show (exprType f) ++ "\n\nARGS \n\n" ++ (sep "\n" (showTy . exprType <$> es)) ++ "\n\nResolved Vars " ++ sep ", " (map showPair vts) ) $ 
                 foldl (flip Let) (foldl App f' (reverse es')) bs  
@@ -135,9 +137,9 @@ instance Show Type where
   show = showPpr 
 
 -- NV HERE: How do we combine proofs?
-combineProofs :: CoreExpr -> [CoreExpr] -> CoreExpr
-combineProofs _ (e:es) = foldl (flip Let) e bs   
-   where bs = [NonRec (stringVar ("proof_anf_bind" ++ show i) (exprType e)) e 
-                   | (e, i) <- zip es [1..] ]
-combineProofs e []  =  e
+combineProofs :: CmbExpr -> CoreExpr -> [CoreExpr] -> CoreExpr
+combineProofs _ e []  =  e
+combineProofs c _ es = foldl (flip Let) (foldl c (H.Var v) (H.Var <$> vs)) bs 
+    where (v:vs, bs) = unzip [let v = (stringVar ("proof_anf_bind" ++ show i) (exprType e)) in (v, NonRec v e) 
+                              | (e, i) <- zip es [1..] ]
 

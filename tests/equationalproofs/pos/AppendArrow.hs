@@ -41,14 +41,13 @@ $(axiomatize
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil :: (Eq a) => L a -> Proof
-prop_app_nil N        =   auto 1 (append N N        == N     ) -- axiom_append_N N
+prop_app_nil N        = auto 1 (append N N        == N     ) -- axiom_append_N N
 prop_app_nil (C x xs) = auto 1 (append (C x xs) N == C x xs)
-
 {-
 prop_app_nil (C x xs)
-    = refl (append (C x xs) N)
+    = 
                                       -- (C x xs) ++ N
-      `by` (axiom_append_C N x xs)
+           (axiom_append_C N x xs)
                                       -- == C x (xs ++ N)
       `by` (prop_app_nil xs)
                                       -- == C x xs
@@ -109,3 +108,5 @@ prop_assoc (C x xs) ys zs
 llen :: L a -> Int
 llen N = 0
 llen (C x xs) = 1 + llen xs
+
+foo = by 

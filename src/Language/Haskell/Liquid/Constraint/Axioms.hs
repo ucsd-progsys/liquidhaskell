@@ -122,7 +122,12 @@ class Provable a where
 
 
 instance Provable CoreBind where
-  expProofs (NonRec x e) = NonRec x <$> (addRec (x,e) >> expProofs e) 
+  -- expProofs (NonRec x e) | returnsProof x =  (\e -> Rec [(traceShow ("\n\nMake it Rec\n\n" ++ show (F.symbol x)) x,e)]) <$> (addRec (x,e) >> expProofs e) 
+  expProofs (NonRec x e) = 
+     do e' <- addRec (x,e) >> expProofs e 
+        if x `elem` readVars e'
+          then return $ Rec [(x, e')]
+          else return $ NonRec x e' 
   expProofs (Rec xes)    = Rec      <$> (addRecs xes  >> mapSndM expProofs xes)
   
 
@@ -170,7 +175,8 @@ expandAutoProof inite e it
         vs'  <- ae_vars    <$> get 
         cts  <- ae_consts  <$> get 
         ds   <- ae_assert  <$> get 
-        e'     <- unANFExpr e 
+        cmb  <- ae_cmb     <$> get 
+        e'   <- unANFExpr e 
 
         let (vs, vlits)  = L.partition (`elem` readVars e') $ filter hasBaseType $ L.nub vs'
         let allvs        = L.nub  ((fst . aname <$> ams) ++ cts ++ vs)
@@ -187,9 +193,9 @@ expandAutoProof inite e it
         return $ traceShow (
             "\n\nTo prove\n" ++ show (showpp le) ++  
             "\n\nWe need \n" ++ show sol         ++
-            "\n\nExpr =  \n" ++ show (toCore inite sol)         ++
+            "\n\nExpr =  \n" ++ show (toCore cmb inite sol)         ++
             "\n\n"
-           ) $ toCore inite sol  
+           ) $ toCore cmb inite sol  
 
 
 -------------------------------------------------------------------------------
@@ -359,6 +365,7 @@ data AEnv = AE { ae_axioms  :: [T.HAxiom]              -- axiomatized functions
                , ae_recs    :: [(Var, [Var])]        -- axioms that are used recursively: 
                                                      -- these axioms are guarded to used only with "smaller" arguments
                , ae_assert  :: [F.Pred]              -- 
+               , ae_cmb     :: CoreExpr -> CoreExpr -> CoreExpr  -- how to combine proofs 
                }
 
 
@@ -380,6 +387,7 @@ initAEEnv info sigs
                      , ae_target  = target info  
                      , ae_recs    = []
                      , ae_assert  = []
+                     , ae_cmb     = \x y -> (App (App (Var by) x) y)
                      }
     where
       spc        = spec info
@@ -389,6 +397,7 @@ initAEEnv info sigs
       isExported = flip elemNameSet (exports $ spec info) . getName
       validVar   = not . canIgnore
       validExp x = validVar x && isExported x 
+      (by:_)     = traceShow "\n\nBY\n\n" $ filter isBy $ impVars info 
 
 
 
@@ -396,7 +405,7 @@ addBind b     = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
 addAssert p   = modify $ \ae -> ae{ae_assert = p:ae_assert  ae}
 rmAssert      = modify $ \ae -> ae{ae_assert = tail $ ae_assert ae}
 addRec  (x,e) = modify $ \ae -> ae{ae_recs  = (x, grapArgs e):ae_recs  ae}
-addRecs xes   = modify $ \ae -> ae{ae_recs  = [(x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
+addRecs xes   = modify $ \ae -> ae{ae_recs  = [(traceShow "\n\nAlready Rec\n\n" x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
 
 addVar  x | canIgnore x = return ()
           | otherwise   =  modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
@@ -484,6 +493,7 @@ grapInt _          = return 2
 canIgnore v = isInternal v || isTyVar v 
 isAuto    v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v 
 isProof   v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v 
+isBy      v = isPrefixOfSym "by"    $ dropModuleNames $ F.symbol v 
 
 
 returnsProof :: Var -> Bool 
