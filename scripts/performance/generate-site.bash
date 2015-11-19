@@ -31,6 +31,13 @@ function refresh_repo {
     abort_if_failed "Couldn't change to $GIPEDA_REPO...";
 
     $GIT pull origin master;
+
+    if [ $END != 0 ]
+    then
+        $GIT checkout $HASH;
+        $GIT submodule update;
+    fi
+
     abort_if_failed "Couldn't pull Liquid Haskell from remote...";
 
     $GIT reset;
@@ -60,7 +67,7 @@ function generate_log {
 
     if [ $SHOULD_GEN = true ]
     then
-        $GIT checkout $HASH
+        $GIT checkout $HASH;
         $GIT submodule update;
         $MAKE clean;
         if [ $? != 0 ]
