@@ -13,7 +13,8 @@ GIPEDA_REPO="$GIPEDA_DIR/repository";
 GIPEDA_FIXPOINT="$GIPEDA_REPO/liquid-fixpoint";
 GIPEDA_PROVER="$GIPEDA_REPO/prover";
 GIPEDA_LOGS="$GIPEDA_DIR/logs";
-REPO_TEST="$GIPEDA_REPO/dist/build/test/test --timeout 10m";
+REPO_TEST="$GIPEDA_REPO/dist/build/test/test";
+REPO_TEST_ARGS=" --timeout 10m";
 REPO_LOG="$GIPEDA_REPO/tests/logs/cur/summary.csv";
 
 ALL_GIT_TAGS="$GIT show-ref --tags | grep liquidhaskell | cut -c -40";
@@ -105,7 +106,7 @@ function generate_log {
             return 1;
         fi
 
-        $CABAL exec $REPO_TEST;
+        $CABAL exec $REPO_TEST -- $REPO_TEST_ARGS;
         # Not testing for failure; failed tests shouldn't prevent the site from
         # being generated.
 
