@@ -71,6 +71,7 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
@@ -82,7 +83,7 @@ import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                , symbolFastString)
+                                                , symbolFastString, stringVar, stringTyVar)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -698,7 +699,7 @@ initCGI cfg info = CGInfo {
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
-  , specLazy   = lazy spc
+  , specLazy   = dictionaryVar `S.insert` lazy spc
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
@@ -715,7 +716,6 @@ initCGI cfg info = CGInfo {
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
 
     mkSort = mapSnd (rTypeSortedReft tce . val)
-
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
