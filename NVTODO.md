@@ -2,7 +2,9 @@ Equational Reasoning
 --------------------
 Other: 
   - Combine proofs in a robust way, now I use the imported `by`
+  - make flag to run expProofs
   - Go to next example!
+
 
 Efficiency: 
   - reuse all the SMT/logic info
