@@ -61,8 +61,7 @@ import qualified Data.Traversable as T
 import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-import Language.Fixpoint.Sort (pruneUnsortedReft)
-import Language.Fixpoint.Visitor hiding (freeVars)
+import Language.Fixpoint.Sort     (pruneUnsortedReft)
 import Language.Fixpoint.Names
 import Language.Fixpoint.Files 
 
@@ -70,6 +69,7 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.Visitors (freeVars)
 import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
@@ -109,6 +109,7 @@ import qualified Prover.Types as P
 import Prover.Solve (solve)
 
 import Debug.Trace (trace) 
+import qualified Data.HashSet        as S
 
 
 
@@ -125,7 +126,7 @@ instance Provable CoreBind where
   -- expProofs (NonRec x e) | returnsProof x =  (\e -> Rec [(traceShow ("\n\nMake it Rec\n\n" ++ show (F.symbol x)) x,e)]) <$> (addRec (x,e) >> expProofs e) 
   expProofs (NonRec x e) = 
      do e' <- addRec (x,e) >> expProofs e 
-        if x `elem` readVars e'
+        if x `elem` freeVars S.empty e'
           then return $ Rec [(x, e')]
           else return $ NonRec x e' 
   expProofs (Rec xes)    = Rec      <$> (addRecs xes  >> mapSndM expProofs xes)
