@@ -190,13 +190,18 @@ expandAutoProof inite e it
         fn     <- freshFilePath
         axioms <- makeAxioms
         let sol = unsafePerformIO (solve $ makeQuery fn it le axioms ctors ds env pvs)
-        return $ traceShow (
+        return $ {- 
+          traceShow (
             "\n\nTo prove\n" ++ show (showpp le) ++  
             "\n\nWe need \n" ++ show sol         ++
             "\n\nExpr =  \n" ++ show (toCore cmb inite sol)         ++
             "\n\n"
-           ) $ toCore cmb inite sol  
+           ) $ -}
+          toCore cmb inite sol  
 
+
+instance Show CoreExpr where
+  show = showPpr 
 
 -------------------------------------------------------------------------------
 ----------------   From Haskell to Prover  ------------------------------------
@@ -397,7 +402,8 @@ initAEEnv info sigs
       isExported = flip elemNameSet (exports $ spec info) . getName
       validVar   = not . canIgnore
       validExp x = validVar x && isExported x 
-      (by:_)     = traceShow "\n\nBY\n\n" $ filter isBy $ impVars info 
+      -- NV: TODO combine proofs in a more robust way
+      (by:_)     = filter isBy $ impVars info 
 
 
 
@@ -405,7 +411,7 @@ addBind b     = modify $ \ae -> ae{ae_binds = b:ae_binds ae}
 addAssert p   = modify $ \ae -> ae{ae_assert = p:ae_assert  ae}
 rmAssert      = modify $ \ae -> ae{ae_assert = tail $ ae_assert ae}
 addRec  (x,e) = modify $ \ae -> ae{ae_recs  = (x, grapArgs e):ae_recs  ae}
-addRecs xes   = modify $ \ae -> ae{ae_recs  = [(traceShow "\n\nAlready Rec\n\n" x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
+addRecs xes   = modify $ \ae -> ae{ae_recs  = [(x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
 
 addVar  x | canIgnore x = return ()
           | otherwise   =  modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
