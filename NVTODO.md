@@ -1,6 +1,7 @@
 Equational Reasoning 
 --------------------
 Other: 
+  - lists: reverse with and without accumulator are the same
   - Combine proofs in a robust way, now I use the imported `by`
   - make flag to run expProofs
   - Go to next example!
