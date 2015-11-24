@@ -26,3 +26,22 @@ examples:
   - solver
   - hlint
   - pipes
+
+
+
+  
+  
+-- autoEq ::x:a -> y:a -> {v:a | v == y && x == y }
+
+{-
+
+step e (e1 == e2)
+
+<==>
+
+autoEq e1 e2
+
+<==>
+
+auto (e1 == e && e == e2)
+-}

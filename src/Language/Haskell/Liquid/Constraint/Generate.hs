@@ -111,7 +111,7 @@ consAct info
   = do γ     <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
-       cbs'  <- mapM (expandProofs info (mkSigs γ)) $ cbs info 
+       cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
@@ -129,6 +129,7 @@ consAct info
   where 
     mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
                 (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
+    expandProofsMode = autoproofs $ config $ spec info 
        
 
 ------------------------------------------------------------------------------------

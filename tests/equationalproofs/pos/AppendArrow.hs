@@ -10,6 +10,7 @@
 -- | totallity: all the cases should be covered
 -- | termination: we cannot have diverging things into proofs
 
+{-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 module Append where
@@ -52,20 +53,6 @@ prop_app_nil (C x xs)
                                       -- == C x xs
 -}
 
--- autoEq ::x:a -> y:a -> {v:a | v == y && x == y }
-
-{-
-
-step e (e1 == e2)
-
-<==>
-
-autoEq e1 e2
-
-<==>
-
-auto (e1 == e && e == e2)
--}
 
 
 -- | Proof 2: append is associative
