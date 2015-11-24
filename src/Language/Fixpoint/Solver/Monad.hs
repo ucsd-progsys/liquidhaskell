@@ -27,7 +27,7 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Progress
 import           Language.Fixpoint.Misc    (groupList)
-import           Language.Fixpoint.Config  (Config, solver)
+import           Language.Fixpoint.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -77,7 +77,7 @@ instance PTable Stats where
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi t act = do
-  ctx <-  makeContext (solver cfg) file
+  ctx <-  makeContext (not $ real cfg) (solver cfg) file
   fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
   where
     be   = F.bs     fi
