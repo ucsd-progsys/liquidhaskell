@@ -26,7 +26,7 @@ axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q
                   let vts = [(x, t) | FunD x _ <- d, SigD y t <- d, x == y ]
                   ds <- mapM (axiomatizeOne vts) d
-                  return $ trace (show ds) $ concat ds
+                  return $ concat ds
 
 axiomatizeOne :: [(Name, Type)] -> Dec -> Q [Dec]
 axiomatizeOne env f@(FunD name cs)
