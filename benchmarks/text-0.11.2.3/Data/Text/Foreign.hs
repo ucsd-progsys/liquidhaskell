@@ -13,6 +13,7 @@
 -- Support for using 'Text' data with native code via the Haskell
 -- foreign function interface.
 
+{-@ LIQUID "--real" @-}
 module Data.Text.Foreign
     (
     -- * Interoperability with native code

@@ -37,6 +37,7 @@
 -- Polished and extended by Don Stewart.
 --
 
+{-@ LIQUID "--real" @-}
 module Data.ByteString (
 
         -- * The @ByteString@ type
