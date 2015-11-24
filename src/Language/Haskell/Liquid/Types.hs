@@ -381,6 +381,7 @@ data GhcSpec = SP {
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
   , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
   , logicMap   :: LogicMap
+  , proofType  :: Maybe Type 
   }
 
 type LogicMap = M.HashMap Symbol LMap

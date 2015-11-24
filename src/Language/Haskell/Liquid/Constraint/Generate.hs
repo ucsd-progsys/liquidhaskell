@@ -108,9 +108,10 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: GhcInfo -> CG ()
 consAct info
-  = do γ     <- initEnv      info
+  = do γ'    <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
+       γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
        cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ cbs'
@@ -130,7 +131,17 @@ consAct info
     mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
                 (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info 
+    τProof           = proofType $ spec info 
        
+addCombine τ γ 
+  = do t <- trueTy combineType 
+       γ ++= ("combineProofs", combineSymbol, t)
+  where
+    combineType   = makeCombineType τ
+    combineVar    = makeCombineVar  combineType  
+    combineSymbol = F.symbol combineVar
+       
+
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv

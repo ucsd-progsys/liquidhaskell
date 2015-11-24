@@ -1,9 +1,7 @@
 Equational Reasoning 
 --------------------
 Other: 
-  - lists: reverse with and without accumulator are the same
-  - Combine proofs in a robust way, now I use the imported `by`
-  - make flag to run expProofs
+  - when I cannot prove stuff I need a time out
   - Go to next example!
 
 
@@ -18,6 +16,8 @@ Efficiency:
   - make sure recursive calls happen only to smaller inputs
   - Create Haskell expression that is equivalent to the sufficient axioms and 
       - replace the call to auto
+  - I create a combineproofs variable that combines proofs. Right now its type is true 
+    and everything works. Add abstract refinements to make a more concrete type if something breaks!
  
 examples:
   - map reduce
@@ -26,11 +26,11 @@ examples:
   - solver
   - hlint
   - pipes
-
+  - list reversing?
 
 
   
-  
+
 -- autoEq ::x:a -> y:a -> {v:a | v == y && x == y }
 
 {-
