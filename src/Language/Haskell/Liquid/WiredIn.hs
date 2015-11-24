@@ -10,6 +10,10 @@ module Language.Haskell.Liquid.WiredIn
        , pdVarReft
        , wiredTyCons, wiredDataCons
        , wiredSortedSyms
+
+       -- | Constants for automatic proofs 
+       , dictionaryVar, dictionaryTyVar, dictionaryBind 
+       , proofTyConName, combineProofsName
        ) where
 
 import Language.Haskell.Liquid.Types
@@ -28,15 +32,38 @@ import TyCon
 import TysWiredIn
 import Kind 
 
+import Var 
+import TypeRep
+import CoreSyn
+
 import Data.Monoid
 import Control.Applicative
 
 wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
+-----------------------------------------------------------------------
+-- | LH Primitive TyCons ----------------------------------------------
+-----------------------------------------------------------------------
+
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar) 
+dictionaryTyVar = stringTyVar "da"
+dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
+  where 
+   v = dictionaryVar 
+   a = dictionaryTyVar
+
+
 
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
+
+
+combineProofsName :: String 
+combineProofsName = "combineProofs"
+
+proofTyConName :: Symbol
+proofTyConName = "Proof"
 
 arrowConName, runFunName :: Symbol
 arrowConName = "Arrow"

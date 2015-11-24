@@ -25,6 +25,9 @@ import Data.Bifunctor
 import Data.Maybe
 import Data.Monoid
 
+import Control.Monad.Error (catchError)
+import TypeRep (Type(TyConApp))
+
 import qualified Control.Exception   as Ex
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
@@ -136,7 +139,14 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcAxioms cbs name specs
          >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)  
          -- This step need the updated logic map, ie should happen after makeGhcAxioms
-         >>= makeGhcSpec4 defVars specs name su                    
+         >>= makeGhcSpec4 defVars specs name su               
+         >>= addProofType
+
+
+addProofType :: GhcSpec -> BareM GhcSpec
+addProofType spec
+  = do tycon <- (Just <$> (lookupGhcTyCon $ dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
+       return $ spec {proofType = (`TyConApp` []) <$> tycon}     
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
@@ -149,7 +159,7 @@ makeExactDataCons n flag vs spec
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
-makeExact x = traceShow "DATACON TYPES" (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where 
     t    :: SpecType
     t    = ofType $ varType x 
@@ -180,7 +190,7 @@ makeAxioms cbs spec sp
                      , logicMap = lmap' } 
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing 
 
 
 makeGhcSpec0 cfg defVars exports name sp

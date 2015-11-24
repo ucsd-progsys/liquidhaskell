@@ -265,6 +265,7 @@ data Config = Config {
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms 
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , trustinternals :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
@@ -380,6 +381,7 @@ data GhcSpec = SP {
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
   , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
   , logicMap   :: LogicMap
+  , proofType  :: Maybe Type 
   }
 
 type LogicMap = M.HashMap Symbol LMap
@@ -953,12 +955,12 @@ data RTypeRep c tv r
              , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
-             }
+             } 
 
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds ty_labels arrs ty_res
   where
-    arrs = safeZip3WithError "fromRTypeRep" ty_binds ty_args ty_refts
+    arrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_args ty_refts
 
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''

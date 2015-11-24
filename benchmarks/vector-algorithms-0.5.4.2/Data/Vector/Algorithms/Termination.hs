@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--real" @-}
 module Term where
 
 import Data.Vector.Algorithms.Common (shiftRI)

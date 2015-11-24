@@ -118,6 +118,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , autoproofs
+    = def &= help "Automatically construct proofs from axioms"
+          &= name "auto-proofs"
+
  , nowarnings
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
@@ -337,6 +341,7 @@ defConfig = Config { files          = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
+                   , autoproofs     = def
                    , nowarnings     = def
                    , trustinternals = def
                    , nocaseexpand   = def
