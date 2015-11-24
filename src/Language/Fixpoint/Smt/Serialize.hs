@@ -11,6 +11,7 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
@@ -92,13 +93,19 @@ instance SMTLIB2 Expr where
   smt2 (EVar x)         = smt2 x
   smt2 (EApp f es)      = smt2App f es
   smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
-  smt2 (EBin o e1 e2)   = format "({} {} {})"     (smt2 o, smt2 e1, smt2 e2)
+  smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
   smt2 (ECst e _)       = smt2 e
   smt2 e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
 
-smt2App :: LocSymbol -> [Expr] -> T.Text
+smt2Bop o e1 e2 
+  | o == Times || o == Div = smt2App (uOp o) [e1, e2]
+  | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
 
+uOp o | o == Times = dummyLoc mulFuncName
+      | o == Div   = dummyLoc divFuncName
+
+smt2App :: LocSymbol -> [Expr] -> T.Text
 smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
   where
    ds        = smt2 <$> es

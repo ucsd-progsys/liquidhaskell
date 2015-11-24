@@ -94,9 +94,10 @@ runCommands cmds
 -}
 
 
+-- TODO take makeContext's Bool from caller instead of always using False?
 makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
 makeZ3Context f xts 
-  = do me <- makeContext Z3 f 
+  = do me <- makeContext False Z3 f
        smtDecls me xts 
        return me 
 
@@ -109,9 +110,9 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
-checkValid f xts p q
-  = do me <- makeContext Z3 f
+checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValid u f xts p q
+  = do me <- makeContext u Z3 f
        smtDecls me xts
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
@@ -120,9 +121,9 @@ checkValid f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
-checkValids f xts ps
-  = do me <- makeContext Z3 f
+checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
+checkValids u f xts ps
+  = do me <- makeContext u Z3 f
        smtDecls me xts
        forM ps $ \p ->
           smtBracket me $
@@ -213,11 +214,11 @@ hPutStrLnNow h !s   = TIO.hPutStrLn h s >> hFlush h
 --------------------------------------------------------------------------
 
 --------------------------------------------------------------------------
-makeContext   :: SMTSolver -> FilePath -> IO Context
+makeContext   :: Bool -> SMTSolver -> FilePath -> IO Context
 --------------------------------------------------------------------------
-makeContext s f
+makeContext u s f
   = do me   <- makeProcess s
-       pre  <- smtPreamble s me
+       pre  <- smtPreamble u s me
        createDirectoryIfMissing True $ takeDirectory smtFile
        hLog <- openFile smtFile WriteMode
        let me' = me { cLog = Just hLog }
@@ -226,10 +227,10 @@ makeContext s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextNoLog :: SMTSolver -> IO Context
-makeContextNoLog s
+makeContextNoLog :: Bool -> SMTSolver -> IO Context
+makeContextNoLog u s
   = do me  <- makeProcess s
-       pre <- smtPreamble s me
+       pre <- smtPreamble u s me
        mapM_ (smtWrite me) pre
        return me
 
@@ -263,14 +264,14 @@ smtCmd Mathsat = "mathsat -input=smt2"
 smtCmd Cvc4    = "cvc4 --incremental -L smtlib2"
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
-smtPreamble Z3 me
+smtPreamble u Z3 me
   = do smtWrite me "(get-info :version)"
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        if T.splitOn "." v `versionGreater` ["4", "3", "2"]
-         then return $ z3_432_options ++ preamble Z3
-         else return $ z3_options     ++ preamble Z3
-smtPreamble s  _
-  = return $ preamble s
+         then return $ z3_432_options ++ preamble u Z3
+         else return $ z3_options     ++ preamble u Z3
+smtPreamble u s _
+  = return $ preamble u s
 
 versionGreater (x:xs) (y:ys)
   | x >  y = True

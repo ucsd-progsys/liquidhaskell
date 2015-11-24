@@ -84,6 +84,8 @@ module Language.Fixpoint.Names (
   , bvAndName
   , bvOrName
   , prims
+  , mulFuncName
+  , divFuncName
 
 ) where
 
@@ -408,6 +410,10 @@ size64Name   = "Size64"
 bitVecName   = "BitVec"
 bvOrName     = "bvor"
 bvAndName    = "bvAnd"
+
+mulFuncName, divFuncName :: Symbol
+mulFuncName  = "Z3_OP_MUL"
+divFuncName  = "Z3_OP_DIV"
 
 prims :: [Symbol]
 prims = [ propConName
