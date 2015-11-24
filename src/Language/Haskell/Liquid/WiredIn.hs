@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.WiredIn
 
        -- | Constants for automatic proofs 
        , dictionaryVar, dictionaryTyVar, dictionaryBind 
+       , proofTyConName, combineProofsName
        ) where
 
 import Language.Haskell.Liquid.Types
@@ -56,6 +57,13 @@ dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
 -----------------------------------------------------------------------
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
+
+
+combineProofsName :: String 
+combineProofsName = "combineProofs"
+
+proofTyConName :: Symbol
+proofTyConName = "Proof"
 
 arrowConName, runFunName :: Symbol
 arrowConName = "Arrow"

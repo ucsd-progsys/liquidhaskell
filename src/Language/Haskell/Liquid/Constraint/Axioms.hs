@@ -14,7 +14,14 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Language.Haskell.Liquid.Constraint.Axioms (expandProofs) where 
+module Language.Haskell.Liquid.Constraint.Axioms (
+
+    expandProofs
+
+    -- | Combining proofs
+  , makeCombineType, makeCombineVar
+
+  ) where 
 
 
 import Literal 
@@ -77,12 +84,11 @@ import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyV
 import qualified Language.Haskell.Liquid.Types as T
 import Language.Haskell.Liquid.Strata
 import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.RefType
 import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
-import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
-                                                , hasBaseTypeVar, showPpr, isDataConId
-                                                , symbolFastString, dropModuleNames)
+import Language.Haskell.Liquid.GhcMisc          
 import Language.Haskell.Liquid.Misc             hiding (mapSndM)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -198,7 +204,7 @@ expandAutoProof inite e it
             "\n\nExpr =  \n" ++ show (toCore cmb inite sol)         ++
             "\n\n"
            ) $ -}
-          toCore cmb inite sol  
+          traceShow "\nexpandedExpr\n" $ toCore cmb inite sol  
 
 
 instance Show CoreExpr where
@@ -357,7 +363,7 @@ varToPAxiom tce sigs v
 
 type Pr = State AEnv
 
-data AEnv = AE { ae_axioms  :: [T.HAxiom]              -- axiomatized functions 
+data AEnv = AE { ae_axioms  :: [T.HAxiom]            -- axiomatized functions 
                , ae_binds   :: [CoreBind]            -- local bindings, tracked st they are expanded in logic 
                , ae_lmap    :: LogicMap              -- logical mapping 
                , ae_consts  :: [Var]                 -- Data constructors and imported variables
@@ -403,8 +409,9 @@ initAEEnv info sigs
       isExported = flip elemNameSet (exports $ spec info) . getName
       validVar   = not . canIgnore
       validExp x = validVar x && isExported x 
-      -- NV: TODO combine proofs in a more robust way
-      (by:_)     = filter isBy $ impVars info 
+      by         = makeCombineVar $ makeCombineType τProof 
+      τProof     = proofType $ spec info 
+
 
 
 
@@ -493,6 +500,18 @@ grapInt (Var v)
 grapInt (Tick _ e) = grapInt e 
 grapInt _          = return 2
 
+
+-------------------------------------------------------------------------------
+---------------------  Combine Proofs  ----------------------------------------
+-------------------------------------------------------------------------------
+
+makeCombineType Nothing 
+  = error "proofType not found" 
+makeCombineType (Just τ)
+  = FunTy τ (FunTy τ τ)
+
+
+makeCombineVar τ =  stringVar combineProofsName τ
 -------------------------------------------------------------------------------
 -------------------  Helper Functions  ----------------------------------------
 -------------------------------------------------------------------------------
@@ -500,7 +519,6 @@ grapInt _          = return 2
 canIgnore v = isInternal v || isTyVar v 
 isAuto    v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v 
 isProof   v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v 
-isBy      v = isPrefixOfSym "by"    $ dropModuleNames $ F.symbol v 
 
 
 returnsProof :: Var -> Bool 

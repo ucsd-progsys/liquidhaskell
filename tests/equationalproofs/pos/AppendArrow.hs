@@ -91,8 +91,3 @@ prop_assoc (C x xs) ys zs
 llen :: L a -> Int
 llen N = 0
 llen (C x xs) = 1 + llen xs
-
-
--- NV TODO: I need to use something like `by` to combine proofs
--- hard wire it, but for now I grap it from imported vars
-foo = by 
