@@ -12,6 +12,7 @@
 -- This module implements several methods of searching for indicies to insert
 -- elements into a sorted vector.
 
+{-@ LIQUID "--real" @-}
 module Data.Vector.Algorithms.Search
        ( binarySearch
        , binarySearchBy
