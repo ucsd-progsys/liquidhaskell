@@ -167,9 +167,6 @@ coreToFun _ v e = go [] $ normalize e
 
     rty = snd $ splitFunTys $ snd $ splitForAllTys $ varType v
 
-instance Show C.CoreExpr where
-  show = showPpr
-
 coreToPred :: C.CoreExpr -> LogicM Pred
 coreToPred e = coreToPd $ normalize e
 

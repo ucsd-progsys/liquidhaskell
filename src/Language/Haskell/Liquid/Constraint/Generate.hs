@@ -71,6 +71,7 @@ import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Names
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.Variance
@@ -82,7 +83,7 @@ import Language.Haskell.Liquid.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GhcMisc          ( isInternal, collectArguments, tickSrcSpan
                                                 , hasBaseTypeVar, showPpr, isDataConId
-                                                , symbolFastString)
+                                                , symbolFastString, stringVar, stringTyVar)
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Literals
@@ -107,10 +108,11 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: GhcInfo -> CG ()
 consAct info
-  = do γ     <- initEnv      info
+  = do γ'    <- initEnv      info
        sflag <- scheck   <$> get
        tflag <- trustghc <$> get
-       cbs'  <- mapM (expandProofs info (mkSigs γ)) $ cbs info 
+       γ     <- if expandProofsMode then addCombine τProof γ' else return γ'
+       cbs'  <- if expandProofsMode then mapM (expandProofs info (mkSigs γ)) $ cbs info else return $ cbs info
        let trustBinding x = tflag && (x `elem` derVars info || isInternal x)
        foldM_ (consCBTop trustBinding) γ cbs'
        hcs   <- hsCs  <$> get
@@ -127,8 +129,19 @@ consAct info
        modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where 
     mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
-                (REnv g1, REnv g2, REnv g3) -> (M.toList g1) ++ (M.toList g2) ++ (M.toList g3)
+                (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
+    expandProofsMode = autoproofs $ config $ spec info 
+    τProof           = proofType $ spec info 
        
+addCombine τ γ 
+  = do t <- trueTy combineType 
+       γ ++= ("combineProofs", combineSymbol, t)
+  where
+    combineType   = makeCombineType τ
+    combineVar    = makeCombineVar  combineType  
+    combineSymbol = F.symbol combineVar
+       
+
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
@@ -616,7 +629,6 @@ splitC (SubR γ o r)
     tag = getTag γ
     src = loc γ
 
-
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
@@ -699,7 +711,7 @@ initCGI cfg info = CGInfo {
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
   , specLVars  = lvars spc
-  , specLazy   = lazy spc
+  , specLazy   = dictionaryVar `S.insert` lazy spc
   , tcheck     = not $ notermination cfg
   , scheck     = strata cfg
   , trustghc   = trustinternals cfg
@@ -716,7 +728,6 @@ initCGI cfg info = CGInfo {
     tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
 
     mkSort = mapSnd (rTypeSortedReft tce . val)
-
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
