@@ -11,6 +11,7 @@
 --
 -- Common operations and utility functions for all sorts
 
+{-@ LIQUID "--real" @-}
 module Data.Vector.Algorithms.Common where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
