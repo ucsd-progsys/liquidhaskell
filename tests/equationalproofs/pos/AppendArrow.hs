@@ -16,11 +16,12 @@
 module Append where
 
 import Axiomatize
-import Equational
 
 data L a = N |  C a (L a)
 
 instance Eq a => Eq (L a) where
+  N == N                 = True
+  (C x xs) == (C x' xs') = x == x' && xs == xs'
 
 {-@ axiomatize append @-}
 
