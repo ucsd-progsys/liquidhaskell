@@ -18,3 +18,10 @@ Efficiency:
   - Create Haskell expression that is equivalent to the sufficient axioms and 
       - replace the call to auto
  
+examples:
+  - map reduce
+  - monadic laws
+  - interpreter
+  - solver
+  - hlint
+  - pipes
