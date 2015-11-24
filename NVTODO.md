@@ -1,5 +1,9 @@
 Equational Reasoning 
 --------------------
+
+HERE HERE: started mapFusion: the argument function is not interpreted correctly,  i.e., as runFun
+
+
 Other: 
   - when I cannot prove stuff I need a time out
   - Go to next example!

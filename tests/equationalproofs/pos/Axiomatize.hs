@@ -26,7 +26,7 @@ axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q
                   let vts = [(x, t) | FunD x _ <- d, SigD y t <- d, x == y ]
                   ds <- mapM (axiomatizeOne vts) d
-                  return $ trace (show d) $ concat ds
+                  return $ trace (show ds) $ concat ds
 
 axiomatizeOne :: [(Name, Type)] -> Dec -> Q [Dec]
 axiomatizeOne env f@(FunD name cs)
@@ -64,7 +64,7 @@ makeSigT (Just t) f ps
   = do r <- [t|Proof|]
        ifs <- mapM reify (fst . snd <$> ds)
        let ts2 = concat $ zipWith makePTys ds ifs
-       return $ [SigD f $ mkUnivArrow (as, ts1 ++ ts2, r)]
+       return [SigD f $ mkUnivArrow (as, ts1 ++ ts2, r)]
   where
     (as, ts, _) = bkUnivFun t
     ts1 = [t | (t, VarP _) <- zip ts ps]
