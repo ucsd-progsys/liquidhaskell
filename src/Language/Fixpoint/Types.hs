@@ -178,7 +178,7 @@ import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
 import           Data.Hashable
-import           Data.List                 (foldl', sort, sortBy)
+import           Data.List                 (partition, foldl', sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -581,6 +581,8 @@ isContraPred z = eqC z || (z `elem` contras)
 isTautoPred   :: Pred -> Bool
 isTautoPred z  = z == PTop || z == PTrue || eqT z
   where
+    eqT (PAnd [])
+               = True
     eqT (PAtom Le x y)
                = x == y
     eqT (PAtom Ge x y)
@@ -1402,7 +1404,15 @@ subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2
      vv'               = mkVV i
 
 reftConjuncts :: Reft -> [Reft]
-reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- refaConjuncts ra]
+reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
+  where
+    ras'                     = if null ps then ks else ((pAnd ps) : ks)
+    (ks, ps)                 = partition isKvar $ refaConjuncts ra
+
+isKvar :: Pred -> Bool
+isKvar (PKVar _ _) = True
+isKvar _           = False
+
 
 refaConjuncts :: Pred -> [Pred]
 refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
