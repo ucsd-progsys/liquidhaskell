@@ -531,7 +531,6 @@ subCP = do pos <- getPosition
            i   <- integer <* spaces
            tag <- tagP
            pos' <- getPosition
-           -- ORIG return $ safeHead "subCP" $ subC env lhs rhs (Just i) tag ()
            return $ subC' env lhs rhs i tag pos pos'
 
 subC' env lhs rhs i tag l l'
