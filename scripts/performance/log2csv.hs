@@ -36,7 +36,7 @@ main = do
    i' <- BS.readFile i
    if i' == BS.empty
       then
-      putStr ""
+      exitSuccess
       else
       do
          logF <- return $ readLog i'

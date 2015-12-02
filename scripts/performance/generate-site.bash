@@ -35,7 +35,7 @@ function refresh_repo {
 
     if [ $END != 0 ]
     then
-        $GIT checkout $HASH;
+        $GIT checkout master;
         $GIT submodule update;
     fi
 
