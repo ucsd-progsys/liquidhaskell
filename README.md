@@ -135,7 +135,7 @@ See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 Options
 -------
 
-`--native` runs the **highly experimental** native solver.
+`--extsolver` runs the **deprecated** external solver.
 
 `--parts` Partitions an `FInfo` into a `[FInfo]` and emits a bunch of files. So:
 
