@@ -24,7 +24,7 @@ module Language.Haskell.Liquid.DiffCheck (
    )
    where
 
--- import            Debug.Trace (trace)
+--import            Debug.Trace (trace)
 import            Control.Applicative          ((<$>), (<*>))
 import            Data.Aeson
 import qualified  Data.Text as T
@@ -50,7 +50,6 @@ import            Language.Haskell.Liquid.Visitors
 import            Language.Haskell.Liquid.Errors   ()
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
-
 
 import qualified  Data.ByteString               as B
 import qualified  Data.ByteString.Lazy          as LB
@@ -94,30 +93,32 @@ instance Show Def where
 -------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
 -------------------------------------------------------------------------
-slice target cbs sp = ifM (doesFileExist saved) dc (return Nothing)
+slice target cbs sp = ifM (doesFileExist savedFile)
+                          doDiffCheck
+                          (return Nothing)
   where
-    saved           = extFileName Saved target
-    dc              = sliceSaved target saved cbs sp
+    savedFile       = extFileName Saved target
+    doDiffCheck     = sliceSaved target savedFile cbs sp
 
 sliceSaved :: FilePath -> FilePath -> [CoreBind] -> GhcSpec -> IO (Maybe DiffCheck)
-sliceSaved target saved cbs sp
-  = do (is, lm) <- lineDiff target saved
-       res      <- loadResult target
-       return    $ sliceSaved' is lm (DC cbs res sp)
+sliceSaved target savedFile coreBinds spec
+  = do (is, lm) <- lineDiff target savedFile
+       result   <- loadResult target
+       return    $ sliceSaved' is lm (DC coreBinds result spec)
 
 sliceSaved' :: [Int] -> LMap -> DiffCheck -> Maybe DiffCheck
-sliceSaved' is lm (DC cbs res sp)
-  | globalDiff is sp = Nothing
-  | otherwise        = Just $ DC cbs' res' sp'
+sliceSaved' is lm (DC coreBinds result spec)
+  | globalDiff is spec = Nothing
+  | otherwise          = Just $ DC cbs' res' sp'
   where
-    cbs'             = thinWith sigs cbs $ diffVars is dfs
+    cbs'             = thinWith sigs coreBinds $ diffVars is dfs
     sigs             = S.fromList $ M.keys sigm
-    sigm             = sigVars is sp
-    res'             = adjustOutput lm cm res
+    sigm             = sigVars is spec
+    res'             = adjustOutput lm cm result
     cm               = checkedItv chDfs
-    dfs              = coreDefs cbs ++ specDefs sp
+    dfs              = coreDefs coreBinds ++ specDefs spec
     chDfs            = coreDefs cbs'
-    sp'              = assumeSpec sigm sp
+    sp'              = assumeSpec sigm spec
 
 -- Add the specified signatures for vars-with-preserved-sigs,
 -- whose bodies have been pruned from [CoreBind] into the "assumes"
@@ -146,17 +147,17 @@ sigVars ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
     ok        = not . isDiff ls
 
 globalDiff :: [Int] -> GhcSpec -> Bool
-globalDiff ls sp = measDiff || invsDiff || dconsDiff
+globalDiff lines spec = measDiff || invsDiff || dconsDiff
   where
-    measDiff  = any (isDiff ls) (snd  <$> meas sp)
-    invsDiff  = any (isDiff ls) (invariants   sp)
-    dconsDiff = any (isDiff ls) (dloc . snd <$> dconsP sp)
+    measDiff  = any (isDiff lines) (snd <$> meas spec)
+    invsDiff  = any (isDiff lines) (invariants spec)
+    dconsDiff = any (isDiff lines) (dloc . snd <$> dconsP spec)
     dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
 isDiff :: [Int] -> Located a -> Bool
-isDiff ls x = any hits ls
+isDiff lines x = any hits lines
   where
-    hits i  = line x <= i && i <= lineE x
+    hits i = line x <= i && i <= lineE x
 
 -------------------------------------------------------------------------
 -- | @thin@ returns a subset of the @[CoreBind]@ given which correspond
@@ -169,7 +170,9 @@ thin = thinWith S.empty
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs ys
   where
-    ys               = txClosure (coreDeps cbs) sigs (S.fromList xs)
+     ys       = calls `S.union` calledBy
+     calls    = txClosure (coreDeps cbs) sigs (S.fromList xs)
+     calledBy = dependsOn (coreDeps cbs) xs
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -178,8 +181,15 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
                       , y <- freeVars S.empty b]
-
-
+-- Given a call graph, and a list of vars, this function checks all functions
+-- to see if they call any of the functions in the vars list. If any do, then
+-- they must also be rechecked.
+dependsOn :: Deps -> [Var] -> S.HashSet Var
+dependsOn cg vars = S.fromList results
+   where
+      preds = map S.member vars
+      filteredMaps = M.filter <$> preds <*> pure cg
+      results = map fst $ M.toList $ M.unions filteredMaps
 
 txClosure :: Deps -> S.HashSet Var -> S.HashSet Var -> S.HashSet Var
 txClosure d sigs xs = go S.empty xs
@@ -297,25 +307,33 @@ lineDiff new old  = lineDiff' <$> getLines new <*> getLines old
   where
     getLines      = fmap lines . readFile
 
-lineDiff'         :: [String] -> [String] -> ([Int], LMap)
-lineDiff' new old = (ns, lm)
+lineDiff' :: [String] -> [String] -> ([Int], LMap)
+lineDiff' new old = (changedLines, lm)
   where
-    ns            = diffLines 1 diff
-    lm            = foldr setShift IM.empty $ diffShifts diff
-    diff          = fmap length <$> getGroupedDiff new old
+    changedLines  = diffLines 1 diffLineCount
+    lm            = foldr setShift IM.empty $ diffShifts diffLineCount
+    diffLineCount = fmap length <$> getGroupedDiff new old
 
-diffLines _ []                  = []
-diffLines n (Both i _ : d)      = diffLines n' d                         where n' = n + i -- length ls
-diffLines n (First i : d)       = [n .. (n' - 1)] ++ diffLines n' d      where n' = n + i -- length ls
-diffLines n (Second _ : d)      = diffLines n d
+-- | Identifies lines that have changed
+diffLines :: Int -- ^ Starting line
+             -> [Diff Int] -- ^ List of lengths of diffs
+             -> [Int] -- ^ List of changed line numbers
+diffLines _ []                        = []
+diffLines curr (Both lnsUnchgd _ : d) = diffLines toSkip d
+   where toSkip = curr + lnsUnchgd
+diffLines curr (First lnsChgd : d)    = [curr..(toTake-1)] ++ diffLines toTake d
+   where toTake = curr + lnsChgd
+diffLines curr (_ : d)                = diffLines curr d
 
-diffShifts                      :: [Diff Int] -> [(Int, Int, Int)]
-diffShifts                      = go 1 1
+diffShifts :: [Diff Int] -> [(Int, Int, Int)]
+diffShifts = go 1 1
   where
-    go old new (Both n _ : d)   = (old, old + n - 1, new - old) : go (old + n) (new + n) d
-    go old new (Second n : d)   = go (old + n) new d
-    go old new (First n  : d)   = go old (new + n) d
-    go _   _   []               = []
+    go old new (Both n _ : d) = (old, old + n - 1, new - old) : go (old + n)
+                                                                   (new + n)
+                                                                   d
+    go old new (Second n : d) = go (old + n) new d
+    go old new (First n  : d) = go old (new + n) d
+    go _   _   []             = []
 
 instance Functor Diff where
   fmap f (First x)  = First (f x)
@@ -406,8 +424,6 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
     is            = [IM.Interval l1 l2 | D l1 l2 _ <- chDefs]
 
 
-ifM b x y    = b >>= \z -> if z then x else y
-
 -------------------------------------------------------------------------
 -- | Aeson instances ----------------------------------------------------
 -------------------------------------------------------------------------
@@ -457,3 +473,10 @@ line  = sourceLine . loc
 
 lineE :: Located a -> Int
 lineE = sourceLine . locE
+
+-------------------------------------------------------------------------
+---- Helper functions ---------------------------------------------------
+-------------------------------------------------------------------------
+
+ifM :: (Monad m) => m Bool -> m b -> m b -> m b
+ifM b x y = b >>= \z -> if z then x else y

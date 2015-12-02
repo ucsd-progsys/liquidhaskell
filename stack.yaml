@@ -1,10 +1,8 @@
 # GHC 7.10
 resolver: nightly-2015-09-24
 
-# GHC 7.8
-# resolver: lts-2.22
-
 packages:
+- ./prover
 - ./liquid-fixpoint
 - .
 
@@ -15,4 +13,5 @@ flags:
 extra-deps:
 - intern-0.9.1.4
 - located-base-0.1.0.0
-- ascii-progress-0.2.1.2
+- ascii-progress-0.3.2.0
+- concurrent-output-1.7.1

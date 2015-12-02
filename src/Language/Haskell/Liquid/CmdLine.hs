@@ -105,7 +105,7 @@ config = cmdArgsMode $ Config {
           &= name "exact-data-cons"
 
  , extSolver
-    = def &= help "Use external (Ocaml) fixpoint constraint solver"
+    = def &= help "Use external (OCaml) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -118,13 +118,17 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , autoproofs
+    = def &= help "Automatically construct proofs from axioms"
+          &= name "auto-proofs"
+
  , nowarnings
     = def &= help "Don't display warnings, only show errors"
           &= name "no-warnings"
 
  , trustinternals
     = def &= help "Trust all ghc auto generated code"
-          &= name "trust-interals"
+          &= name "trust-internals"
 
  , nocaseexpand
     = def &= help "Disable Termination Check"
@@ -137,7 +141,7 @@ config = cmdArgsMode $ Config {
           &= name "no-true-types"
 
  , totality
-    = def &= help "Check tota`lity"
+    = def &= help "Check totality"
 
  , cores
     = def &= help "Use m cores to solve logical constraints"
@@ -337,6 +341,7 @@ defConfig = Config { files          = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
+                   , autoproofs     = def
                    , nowarnings     = def
                    , trustinternals = def
                    , nocaseexpand   = def
