@@ -42,7 +42,7 @@ instance Monad RIO where
                , q2 :: World -> b -> World -> Prop
                , q :: World -> b -> World -> Prop>.
        {x::a, w::World<p>|- World<q1 w x> <: World<p2>}
-       {w::World<p>, w2::World<p2>, x::b, y::a |- World<q2 w2 x> <: World<q w x>}     
+       {w::World<p>, w2::World<p2>, y::a, w3:: {v:World<q1 w y> | v == w2}, x::b |- World<q2 w2 x> <: World<q w x>}     
        RIO <p, q1> a
     -> RIO <p2, q2> b
     -> RIO <p, q> b  ;
