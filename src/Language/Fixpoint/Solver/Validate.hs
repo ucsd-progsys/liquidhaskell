@@ -23,6 +23,7 @@ import           Language.Fixpoint.Misc        (fM)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
+import qualified Data.HashSet             as S
 import qualified Data.List as L
 import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
@@ -42,7 +43,32 @@ sanitize   = fM dropHigherOrderBinders
          >=> fM dropFuncSortedShadowedBinders
          >=> fM dropWfcFunctions
          >=>    checkRhsCs
+         >=>    banQualifFreeVars
 
+
+---------------------------------------------------------------------------
+-- | check that no qualifier has free variables
+---------------------------------------------------------------------------
+banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+---------------------------------------------------------------------------
+banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
+  where
+    bads = [q | q <- F.quals fi, not $ isOk q]
+    lits = fst <$> (F.toListSEnv $ F.lits fi)
+    isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
+
+badQuals :: Misc.ListNE F.Qualifier -> E.Error
+badQuals = E.catErrors . map badQual
+
+badQual :: F.Qualifier -> E.Error
+badQual q = E.err E.dummySpan $ printf "Qualifier with free vars : %s \n"
+              (showpp $ F.q_name q)
+
+-- True if first is a subset of second
+isSubset a b = S.null $ a' `S.difference` b'
+  where
+    a' = S.fromList a
+    b' = S.fromList b
 
 ---------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]

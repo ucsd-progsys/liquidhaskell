@@ -44,7 +44,7 @@ import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors           (exit)
+import           Language.Fixpoint.Errors           (exit, die)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
@@ -192,7 +192,7 @@ solveNative !cfg !fi0 = do
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let Right si1 = {-# SCC "validate" #-} sanitize $!! si0
+  let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   when (elimStats cfg) $ printElimStats (deps si1)
