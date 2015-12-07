@@ -15,7 +15,7 @@ import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict            as M
 import           Data.Monoid
 
-import Language.Haskell.Liquid.Qualifier
+import Language.Haskell.Liquid.Constraint.Qualifier
 import Language.Haskell.Liquid.RefType          ( rTypeSortedReft )
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
@@ -26,19 +26,20 @@ cgInfoFInfo info cgi fi = do
 
 targetFInfo :: GhcInfo -> CGInfo -> FilePath -> F.FInfo Cinfo
 targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
-  where 
+  where
    cs     = fixCs  cgi
    ws     = fixWfs cgi
    bs     = binds  cgi
    ls     = F.fromListSEnv $ lits cgi
    ks     = kuts cgi
-   qs     = targetQuals info
+   qs     = targetQuals info cgi
    bi     = (`Ci` Nothing) <$> bindSpans cgi
 
-targetQuals :: GhcInfo -> [F.Qualifier]
-targetQuals info = spcQs ++ genQs
+targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
+targetQuals info cgi = spcQs ++ genQs
   where
     spcQs     = qualifiers spc
-    genQs     = specificationQualifiers n info
+    genQs     = specificationQualifiers n info lEnv
     n         = maxParams $ config spc
     spc       = spec info
+    lEnv      = F.fromListSEnv $ lits cgi 
