@@ -98,7 +98,7 @@ module Language.Haskell.Liquid.Types (
   , isTrivial
 
   -- * Traversing `RType`
-  , efoldReft, foldReft
+  , efoldReft, foldReft, foldReft'
   , mapReft, mapReftM
   , mapBot, mapBind
 
@@ -1239,7 +1239,17 @@ mapRefM  _ (RHProp _ _)       = error "TODO PHProp.mapRefM"
 --------------------------------------------------------------------------------
 foldReft :: (Reftable r, TyConable c) => (SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft f = efoldReft (\_ _ -> []) id (\γ _ r z -> f γ r z) (\_ γ -> γ) emptySEnv
+foldReft f = foldReft' id (\γ _ -> f γ)
+
+--------------------------------------------------------------------------------
+foldReft' :: (Reftable r, TyConable c)
+          => (RType c tv r -> b)
+          -> (SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
+          -> a -> RType c tv r -> a
+--------------------------------------------------------------------------------
+foldReft' g f = efoldReft (\_ _ -> []) g (\γ t r z -> f γ t r z) (\_ γ -> γ) emptySEnv
+
+
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft cb g f fp = go

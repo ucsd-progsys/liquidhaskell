@@ -50,6 +50,7 @@ specificationQualifiers k info
 --     isPred _                 = False
 
 
+-- TODO: rewrite using foldReft'
 -- refTypeQuals :: SpecType -> [Qualifier]
 refTypeQuals :: _ -> _ -> SpecType -> [Qualifier]
 refTypeQuals l tce t0        = go emptySEnv t0
@@ -95,16 +96,24 @@ mkPQual l tce t0 γ t e = mkQual l t0 γ' v so pa
 
 mkQual l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
   where
-    yts                = [(y, lookupSort t0 x γ) | (x, y) <- xys ]
-    p'                 = subst (mkSubst (second EVar <$> xys)) p
-    xys                = zipWith (\x i -> (x, symbol ("~A" ++ show i))) xs [0..]
-    xs                 = delete v $ orderedFreeVars γ p
+    yts                = [(y, lookupSort γ i x) | (x, i, y) <- xys ]
+    p'                 = subst su p
+    su                 = mkSubst [(x, EVar y) | (x, _, y) <- xys]
+    xys                = zipWith (\x i -> (x, i, symbol ("~A" ++ show i))) xs [0..]
+    -- xs                 = delete v $ orderedFreeVars γ p
+    xs                 = delete v $ syms p
 
-lookupSort t0 x γ  = fromMaybe (errorstar msg) $ lookupSEnv x γ
+lookupSort γ i x = fromMaybe ai $ lookupSEnv x γ
   where
-    msg            = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
+    ai           = FVar i
 
-orderedFreeVars γ = nub . filter (`memberSEnv` γ) . syms
+    -- orderedFreeVars γ = nub . filter (`memberSEnv` γ) . syms
+
+-- HEREHEREHERE
+-- lookupSort γ i x = fromMaybe (errorstar msg) $ lookupSEnv x γ
+--  where
+--     msg          = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
+
 
 -- atoms (PAnd ps)   = concatMap atoms ps
 -- atoms p           = [p]
