@@ -265,7 +265,7 @@ data Config = Config {
   , binders        :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
-  , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms 
+  , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , trustinternals :: Bool       -- ^ type all internal variables with true
   , nocaseexpand   :: Bool       -- ^ disable case expand
@@ -381,7 +381,7 @@ data GhcSpec = SP {
   , dicts      :: DEnv Var SpecType              -- ^ Dictionary Environment
   , axioms     :: [HAxiom]                       -- Axioms from axiomatized functions
   , logicMap   :: LogicMap
-  , proofType  :: Maybe Type 
+  , proofType  :: Maybe Type
   }
 
 type LogicMap = M.HashMap Symbol LMap
@@ -955,7 +955,7 @@ data RTypeRep c tv r
              , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
-             } 
+             }
 
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds ty_labels arrs ty_res
@@ -1118,7 +1118,7 @@ instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
   substa _ (RHProp _  _) = error "TODO PHProp.substa"
 
 instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
-  syms        = foldReft (\r acc -> syms r ++ acc) []
+  syms        = foldReft (\_ r acc -> syms r ++ acc) []
   substa f    = mapReft (substa f)
   substf f    = emapReft (substf . substfExcept f) []
   subst su    = emapReft (subst  . substExcept su) []
@@ -1154,7 +1154,7 @@ pappSym n  = symbol $ "papp" ++ show n
 --------------------------- Visitors --------------------------
 ---------------------------------------------------------------
 
-isTrivial t = foldReft (\r b -> isTauto r && b) True t
+isTrivial t = foldReft (\_ r b -> isTauto r && b) True t
 
 instance Functor UReft where
   fmap f (U r p s) = U (f r) p s
@@ -1230,8 +1230,16 @@ mapRefM  f (RPropP s r)       = liftM   (RPropP s)     (f r)
 mapRefM  f (RProp  s t)       = liftM   (RProp s)      (mapReftM f t)
 mapRefM  _ (RHProp _ _)       = error "TODO PHProp.mapRefM"
 
--- foldReft :: (r -> a -> a) -> a -> RType c tv r -> a
-foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv
+
+--------------------------------------------------------------------------------
+-- foldReft :: (Reftable r, TyConable c) => (r -> a -> a) -> a -> RType c tv r -> a
+--------------------------------------------------------------------------------
+-- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptySEnv
+
+--------------------------------------------------------------------------------
+foldReft :: (Reftable r, TyConable c) => (SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+--------------------------------------------------------------------------------
+foldReft f = efoldReft (\_ _ -> []) id (\γ _ r z -> f γ r z) (\_ γ -> γ) emptySEnv
 
 -- efoldReft :: Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft cb g f fp = go

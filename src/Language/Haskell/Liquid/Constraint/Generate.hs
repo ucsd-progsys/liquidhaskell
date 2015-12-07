@@ -42,7 +42,7 @@ import IdInfo
 import Name
 import NameSet
 import TypeRep
-import Unique 
+import Unique
 
 import Text.PrettyPrint.HughesPJ hiding (first)
 
@@ -127,20 +127,20 @@ consAct info
        fws <- concat <$> mapM splitW hws
        let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
-  where 
-    mkSigs γ = case (grtys γ,  assms γ, renv γ) of 
+  where
+    mkSigs γ = case (grtys γ,  assms γ, renv γ) of
                 (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
-    expandProofsMode = autoproofs $ config $ spec info 
-    τProof           = proofType $ spec info 
-       
-addCombine τ γ 
-  = do t <- trueTy combineType 
+    expandProofsMode = autoproofs $ config $ spec info
+    τProof           = proofType $ spec info
+
+addCombine τ γ
+  = do t <- trueTy combineType
        γ ++= ("combineProofs", combineSymbol, t)
   where
     combineType   = makeCombineType τ
-    combineVar    = makeCombineVar  combineType  
+    combineVar    = makeCombineVar  combineType
     combineSymbol = F.symbol combineVar
-       
+
 
 
 ------------------------------------------------------------------------------------
@@ -152,8 +152,8 @@ initEnv info
        let dcs   = filter isConLikeId ((snd <$> freeSyms sp))
        let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty    <- forM dcs   $ makeDataConTypes  
-       dcsty'   <- forM dcs'  $ makeDataConTypes 
+       dcsty    <- forM dcs   $ makeDataConTypes
+       dcsty'   <- forM dcs'  $ makeDataConTypes
        (hs,f0)  <- refreshHoles $ grty info                  -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info             -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ config sp then [] else f0''
@@ -222,7 +222,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)
-  | noHoles t = return (Nothing,x,t)
+  | noHoles t = return (Nothing, x, t)
   | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
   where
     tx r | hasHole r = refresh r
@@ -742,7 +742,7 @@ coreBindLits tce info
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 _extendEnvWithTrueVV γ t
-  = true t >>= extendEnvWithVV γ 
+  = true t >>= extendEnvWithVV γ
 
 extendEnvWithVV γ t
   | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
@@ -956,7 +956,7 @@ isKut RecBindE = True
 isKut _        = False
 
 specTypeKVars :: SpecType -> [F.KVar]
-specTypeKVars = foldReft ((++) . (kvars . ur_reft)) []
+specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
 
 trueTy  :: Type -> CG SpecType
 trueTy = ofType' >=> true
@@ -1309,7 +1309,7 @@ consBind isRec γ (x, e, Unknown)
        addIdA x (defAnn isRec t)
        return $ Asserted t
 
-noHoles = and . foldReft (\r bs -> not (hasHole r) : bs) []
+noHoles = and . foldReft (\_ r bs -> not (hasHole r) : bs) []
 
 killSubst :: RReft -> RReft
 killSubst = fmap killSubstReft
@@ -1708,8 +1708,8 @@ caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
-       let xt            = shiftVV xt0 x' 
---        γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt] 
+       let xt            = shiftVV xt0 x'
+--        γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt]
        tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'

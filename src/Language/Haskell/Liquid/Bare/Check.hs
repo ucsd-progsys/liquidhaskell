@@ -227,13 +227,15 @@ errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType
 checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType (UReft r) -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 
-checkRType emb env t         = checkAppTys t <|> checkFunRefs t <|> checkAbstractRefs t <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
+checkRType emb env t   =  checkAppTys t
+                      <|> checkFunRefs t
+                      <|> checkAbstractRefs t
+                      <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
-    cb c ts                  = classBinds (rRCls c ts)
-    f env me r err           = err <|> checkReft env emb me r
-    insertPEnv p γ           = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
-    pbinds p                 = (pname p, pvarRType p :: RSort)
-                              : [(x, t) | (t, x, _) <- pargs p]
+    cb c ts            = classBinds (rRCls c ts)
+    f env me r err     = err <|> checkReft env emb me r
+    insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
+    pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
 checkAppTys = go
   where

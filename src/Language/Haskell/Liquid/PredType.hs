@@ -1,4 +1,10 @@
-{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, FlexibleContexts, UndecidableInstances, TupleSections, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module Language.Haskell.Liquid.PredType (
     PrType
   , TyConP (..), DataConP (..)
@@ -21,29 +27,29 @@ module Language.Haskell.Liquid.PredType (
   , pappSort, pappArity
   ) where
 
-import Type
-import TypeRep
-import qualified TyCon as TC
-import Text.PrettyPrint.HughesPJ
-import DataCon
+import           DataCon
+import           Text.PrettyPrint.HughesPJ
+import qualified TyCon                           as TC
+import           Type
+import           TypeRep
 
-import qualified Data.HashMap.Strict as M
-import Data.List        (partition, foldl')
-import Data.Monoid      (mempty, mappend, mconcat)
+import qualified Data.HashMap.Strict             as M
+import           Data.List                       (foldl', partition)
+import           Data.Monoid                     (mappend, mconcat, mempty)
 
-import Language.Fixpoint.Names (symbolString)
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (Predicate, Expr)
-import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType  hiding (generalize)
-import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Misc
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Names         (symbolString)
+import           Language.Fixpoint.Types         hiding (Expr, Predicate)
+import qualified Language.Fixpoint.Types         as F
+import           Language.Haskell.Liquid.GhcMisc
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.RefType hiding (generalize)
+import           Language.Haskell.Liquid.Types
 
-import Control.Applicative  ((<$>))
-import Data.List (nub)
+import           Control.Applicative             ((<$>))
+import           Data.List                       (nub)
 
-import Data.Default
+import           Data.Default
 
 makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
 
@@ -214,15 +220,15 @@ substPred _   _  t              = t
 substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r2'
   | rtc_tc c1 == rtc_tc c2 = RApp c1 ts rs $ meetListWithPSubs πs ss r1 r2'
   where
-    ts                     = subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2   
-    rs                     = subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2' 
+    ts                     = subst su $ safeZipWith (msg ++ ": substRCon")  strSub  ts1  ts2
+    rs                     = subst su $ safeZipWith (msg ++ ": substRCon2") strSubR rs1' rs2'
     (rs1', rs2')           = pad "substRCon" top rs1 rs2
     strSub r1 r2           = meetListWithPSubs πs ss r1 r2
     strSubR r1 r2          = meetListWithPSubsRef πs ss r1 r2
 
     su = mkSubst $ zipWith (\s1 s2 -> (s1, EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft (\r acc -> rvReft r:acc) []
+    rvs      = foldReft (\_ r acc -> rvReft r : acc) []
     rvReft r = let Reft(s,_) = toReft r in s
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
@@ -256,6 +262,7 @@ splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
   where
     (epvs, pvs')               = partition (uPVar pv ==) pvs
 
+-- TODO: rewrite using foldReft
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
 freeArgsPs p (RFun _ t1 t2 r)
@@ -308,7 +315,7 @@ meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
-  where 
+  where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
     su' = mkSubst [(x, EVar y) | (x, y) <- zip (fst <$> s2) (fst <$> s1)]
 

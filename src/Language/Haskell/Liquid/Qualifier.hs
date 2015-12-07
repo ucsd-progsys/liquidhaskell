@@ -1,5 +1,7 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns      #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+
 module Language.Haskell.Liquid.Qualifier (
   specificationQualifiers
   ) where
@@ -11,6 +13,7 @@ import Language.Haskell.Liquid.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
+
 
 import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
@@ -48,6 +51,7 @@ specificationQualifiers k info
 
 
 -- refTypeQuals :: SpecType -> [Qualifier]
+refTypeQuals :: _ -> _ -> SpecType -> [Qualifier]
 refTypeQuals l tce t0        = go emptySEnv t0
   where
     go γ t@(RVar _ _)         = refTopQuals l tce t0 γ t
