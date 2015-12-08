@@ -18,26 +18,35 @@ pbRef :: IORef (Maybe ProgressBar)
 pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
-withProgress n act = do
+withProgress n act = displayConsoleRegions $ do
   progressInit n
   r <- act
   progressClose
   return r
 
-
 progressInit :: Int -> IO ()
 progressInit n = do
   loud <- isLoud
+  -- putStrLn $ "progressInit: loud = " ++ show loud
   unless loud $ do
     pr <- mkPB n
     writeIORef pbRef (Just pr)
 
 mkPB   :: Int -> IO ProgressBar
-mkPB n = newProgressBar def { pgWidth       = 80
+
+mkPB n = newProgressBar def { pgWidth       = 100 
                             , pgTotal       = toInteger n
                             , pgFormat      = "Working :percent [:bar]"
                             , pgPendingChar = '.'
+                            -- , pgOnCompletion = Just "Done :percent after :elapsed seconds"
+                            , pgOnCompletion = Just "Done solving :percent."
                             }
+
+{-
+mkPB n = newProgressBar def { pgWidth = 100
+                            , pgOnCompletion = Just "Done :percent after :elapsed seconds"
+                            }
+ -}
 
 progressTick :: IO ()
 progressTick    = go =<< readIORef pbRef

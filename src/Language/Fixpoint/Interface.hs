@@ -17,6 +17,7 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
+
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M
@@ -353,3 +354,4 @@ isBinary = isExtFile BinFq
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
 withProgressFI = withProgress . fromIntegral . gSccs . cGraph
+
