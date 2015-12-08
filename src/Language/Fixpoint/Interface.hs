@@ -63,13 +63,14 @@ type Solver a = Config -> FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg = do fi      <- readFInfo file
-                 r       <- solve cfg fi
-                 let stat = resStatus $!! r
-                 -- let str  = render $ resultDoc $!! (const () <$> stat)
-                 -- putStrLn "\n"
-                 colorStrLn (colorResult stat) (statStr stat)
-                 return $ eCode r
+solveFQ cfg = do
+    fi      <- readFInfo file
+    r       <- solve cfg fi
+    let stat = resStatus $!! r
+    -- let str  = render $ resultDoc $!! (const () <$> stat)
+    -- putStrLn "\n"
+    colorStrLn (colorResult stat) (statStr stat)
+    return $ eCode r
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
