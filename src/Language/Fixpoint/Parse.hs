@@ -65,6 +65,9 @@ module Language.Fixpoint.Parse (
   , doParse'
   , parseFromFile
   , remainderP
+
+  -- * Utilities
+  , isSmall
   ) where
 
 import qualified Data.HashMap.Strict         as M
@@ -177,16 +180,19 @@ locParserP p = do l1 <- getPosition
 -- whitespace, in order to avoid some parsers spanning multiple lines..
 condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP chars f
-  = do c  <- letter
+  = do c  <- letter <|> char '_'
        cs <- many (satisfy (`S.member` chars))
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
 
 upperIdP :: Parser Symbol
-upperIdP = condIdP symChars (not . isLower . head)
+upperIdP = condIdP symChars (not . isSmall . head)
 
 lowerIdP :: Parser Symbol
-lowerIdP = condIdP symChars (isLower . head)
+lowerIdP = condIdP symChars (isSmall . head)
+
+isSmall :: Char -> Bool
+isSmall c = isLower c || c == '_'
 
 symCharsP :: Parser Symbol
 symCharsP = condIdP symChars (`notElem` keyWordSyms)
@@ -215,7 +221,7 @@ expr0P
  <|> (charsExpr <$> symCharsP)
 
 charsExpr cs
-  | isLower (headSym cs) = expr cs
+  | isSmall (headSym cs) = expr cs
   | otherwise            = EVar cs
 
 fastIfP f bodyP

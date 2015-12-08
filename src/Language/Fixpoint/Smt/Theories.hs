@@ -103,7 +103,7 @@ uifDef u f op | u         = format "(declare-fun {} (Real Real) Real)" (Only f)
               | otherwise = format "(define-fun {} ((x Real) (y Real)) Real ({} x y))" (f, op)
 
 smtlibPreamble :: Bool -> [T.Text]
-smtlibPreamble u --TODO use u (see z3Preamble)
+smtlibPreamble u --TODO use uif flag u (see z3Preamble)
   = [        "(set-logic QF_UFLIA)"
     , format "(define-sort {} () Int)"       (Only elt)
     , format "(define-sort {} () Int)"       (Only set)
