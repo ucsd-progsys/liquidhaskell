@@ -180,7 +180,7 @@ locParserP p = do l1 <- getPosition
 -- whitespace, in order to avoid some parsers spanning multiple lines..
 condIdP  :: S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP chars f
-  = do c  <- letter
+  = do c  <- letter <|> char '_'
        cs <- many (satisfy (`S.member` chars))
        blanks
        if f (c:cs) then return (symbol $ c:cs) else parserZero
