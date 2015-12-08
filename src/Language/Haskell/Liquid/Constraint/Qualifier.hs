@@ -15,7 +15,7 @@ import Language.Fixpoint.Types
 import Language.Fixpoint.Misc
 
 
-import Control.Applicative      ((<$>))
+-- import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
 import Data.Maybe               (catMaybes, fromMaybe)
 import qualified Data.HashSet as S
