@@ -522,7 +522,7 @@ wfCP = do reserved "env"
           env <- envP
           reserved "reft"
           r   <- sortedReftP
-          let [w] = wfC env r () --TODO error handling?
+          let [w] = wfC env r ()
           return w
 
 subCP :: Parser (SubC ())

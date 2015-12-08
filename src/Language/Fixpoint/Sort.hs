@@ -130,9 +130,9 @@ instance Freshable [Int] where
 -------------------------------------------------------------------------
 
 checkSortedReft :: SEnv SortedReft -> [Symbol] -> SortedReft -> Maybe Doc
-checkSortedReft env xs sr = applyNonNull Nothing error unknowns
+checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
   where
-    error                 = Just . (text "Unknown symbols:" <+>) . toFix
+    oops                  = Just . (text "Unknown symbols:" <+>) . toFix
     unknowns              = [ x | x <- syms sr, x `notElem` v : xs, not (x `memberSEnv` env)]
     Reft (v,_)            = sr_reft sr
 

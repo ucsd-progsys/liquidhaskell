@@ -18,6 +18,7 @@ module Language.Fixpoint.Errors (
   -- * Accessors
   , errLoc
   , errMsg
+  , result
 
   -- * Adding Insult to Injury
   , catMessage
@@ -28,6 +29,8 @@ module Language.Fixpoint.Errors (
   , die
   , exit
 
+  -- * Some popular errors
+  , errFreeVarInQual
   ) where
 
 import           Control.Exception
@@ -42,12 +45,13 @@ import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-
+import           Debug.Trace
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
 
-data SrcSpan = SS { sp_start :: !SourcePos, sp_stop :: !SourcePos}
+data SrcSpan = SS { sp_start :: !SourcePos
+                  , sp_stop  :: !SourcePos}
                  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance PPrint SrcSpan where
@@ -95,7 +99,6 @@ data Error = Error { errLoc :: SrcSpan, errMsg :: String }
 
 instance PPrint Error where
   pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
-                         -- text $ printf "%s\n  %s\n" (showpp l) msg
 
 instance Fixpoint Error where
   toFix = pprint
@@ -136,8 +139,27 @@ die :: Error -> a
 die = throw
 
 ---------------------------------------------------------------------
+result :: Error -> Result a
+---------------------------------------------------------------------
+result e = Result (Crash [] msg) mempty
+  where
+    msg  = {- trace "HITTING RESULT" $ -} showpp e
+
+---------------------------------------------------------------------
 exit :: a -> IO a -> IO a
 ---------------------------------------------------------------------
 exit def act = catch act $ \(e :: Error) -> do
   putStrLn $ "Unexpected Error: " ++ showpp e
   return def
+
+
+---------------------------------------------------------------------
+-- | Catalogue of Errors --------------------------------------------
+---------------------------------------------------------------------
+
+errFreeVarInQual  :: Qualifier -> Error
+errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
+-- errFreeVarInQual q = err dummySpan $ printf "Qualifier with free vars" --  : %s \n" (showFix q)
+  where
+    sp             = SS l l
+    l              = q_pos q

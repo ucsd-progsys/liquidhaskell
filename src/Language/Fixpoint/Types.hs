@@ -1005,11 +1005,11 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
+
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
 pprSinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
-
-resultDoc :: (Ord a, Fixpoint a) => FixResult a -> Doc
+resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc Safe             = text "Safe"
 resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
@@ -1627,7 +1627,7 @@ instance Reftable SortedReft where
   isTauto  = isTauto . toReft
   ppTy     = ppTy . toReft
   toReft   = sr_reft
-  ofReft   = error "No instance of ofReft for SortedReft"
+  ofReft   = errorstar "No instance of ofReft for SortedReft"
   params _ = []
   bot s    = s { sr_reft = falseReft }
 

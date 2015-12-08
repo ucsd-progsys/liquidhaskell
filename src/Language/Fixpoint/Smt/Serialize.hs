@@ -42,7 +42,7 @@ import           Language.Fixpoint.Misc (errorstar)
 
 -}
 instance SMTLIB2 Sort where
-  smt2 s@(FFunc _ _)           = error $ "smt2 FFunc: " ++ show s
+  smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
   smt2 FInt                    = "Int"
   smt2 FReal                   = "Real"
   smt2 t
@@ -85,7 +85,7 @@ instance SMTLIB2 Brel where
   smt2 Ge    = ">="
   smt2 Lt    = "<"
   smt2 Le    = "<="
-  smt2 _     = error "SMTLIB2 Brel"
+  smt2 _     = errorstar "SMTLIB2 Brel"
 
 instance SMTLIB2 Expr where
   smt2 (ESym z)         = smt2 (symbol z)
@@ -96,9 +96,9 @@ instance SMTLIB2 Expr where
   smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
   smt2 (ECst e _)       = smt2 e
-  smt2 e                = error  $ "TODO: SMTLIB2 Expr: " ++ show e
+  smt2 e                = errorstar  $ "TODO: SMTLIB2 Expr: " ++ show e
 
-smt2Bop o e1 e2 
+smt2Bop o e1 e2
   | o == Times || o == Div = smt2App (uOp o) [e1, e2]
   | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
 
@@ -126,7 +126,7 @@ instance SMTLIB2 Pred where
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PBexp e)        = smt2 e
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 _                = error "smtlib2 Pred"
+  smt2 _                = errorstar "smtlib2 Pred"
 
 
 mkRel Ne  e1 e2         = mkNe e1 e2

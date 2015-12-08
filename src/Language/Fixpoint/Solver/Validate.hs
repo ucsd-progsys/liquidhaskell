@@ -19,7 +19,7 @@ import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor     (isConcC, isKvarC)
 import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
-import           Language.Fixpoint.Misc        (fM)
+import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
@@ -33,7 +33,7 @@ type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
 validate :: F.SInfo a -> ValidateM ()
-validate = error "TODO: validate input"
+validate = errorstar "TODO: validate input"
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
@@ -58,11 +58,7 @@ banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
     isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
 
 badQuals :: Misc.ListNE F.Qualifier -> E.Error
-badQuals = E.catErrors . map badQual
-
-badQual :: F.Qualifier -> E.Error
-badQual q = E.err E.dummySpan $ printf "Qualifier with free vars : %s \n"
-              (showpp $ F.q_name q)
+badQuals = E.catErrors . map E.errFreeVarInQual
 
 -- True if first is a subset of second
 isSubset a b = S.null $ a' `S.difference` b'

@@ -16,8 +16,9 @@ module Language.Fixpoint.Config (
   , multicore
 ) where
 
-import           System.Console.CmdArgs
-import           Language.Fixpoint.Files
+import System.Console.CmdArgs
+import Language.Fixpoint.Files
+import Language.Fixpoint.Misc (errorstar)
 
 class Command a  where
   command :: a -> String
@@ -135,7 +136,7 @@ smtSolver "z3"      = Z3
 smtSolver "cvc4"    = Cvc4
 smtSolver "mathsat" = Mathsat
 smtSolver "z3mem"   = Z3mem
-smtSolver other     = error $ "ERROR: unsupported SMT Solver = " ++ other
+smtSolver other     = errorstar $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3

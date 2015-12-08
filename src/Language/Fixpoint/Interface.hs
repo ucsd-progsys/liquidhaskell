@@ -1,7 +1,8 @@
 -- | This module implements the top-level API for interfacing with Fixpoint
 --   In particular it exports the functions that solve constraints supplied
 --   either as .fq files or as FInfo.
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Language.Fixpoint.Interface (
     -- * Invoke Solver on an FInfo
@@ -29,6 +30,7 @@ import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void)
+import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
@@ -45,7 +47,7 @@ import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors           (exit, die)
+import           Language.Fixpoint.Errors           (exit, die, result)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
@@ -61,16 +63,18 @@ type Solver a = Config -> FInfo a -> IO (Result a)
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
 ---------------------------------------------------------------------------
-solveFQ cfg = do fi      <- readFInfo file
-                 r       <- solve cfg fi
-                 let stat = resStatus $!! r
-                 let str  = show $!! stat
-                 -- putStrLn "\n"
-                 colorStrLn (colorResult stat) str
-                 return $ eCode r
+solveFQ cfg = do
+    fi      <- readFInfo file
+    r       <- solve cfg fi
+    let stat = resStatus $!! r
+    -- let str  = render $ resultDoc $!! (const () <$> stat)
+    -- putStrLn "\n"
+    colorStrLn (colorResult stat) (statStr stat)
+    return $ eCode r
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
+    statStr = render . resultDoc . fmap (const ())
 
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
@@ -178,12 +182,16 @@ solveParWith s c fi0 = do
     -- DEBUG litLength    = length . toListSEnv . lits
     -- DEBUG qLength      = length . quals
 
+
+
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver ------------------------------------------------
 ---------------------------------------------------------------------------
-solveNative :: (NFData a, Fixpoint a) => Solver a
+solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solveNative !cfg !fi0 = do
+solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
+
+solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
   -- rnf fi0 `seq` donePhase Loud "Read Constraints"
   -- let qs   = quals fi0
@@ -354,4 +362,3 @@ isBinary = isExtFile BinFq
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
 withProgressFI = withProgress . fromIntegral . gSccs . cGraph
-
