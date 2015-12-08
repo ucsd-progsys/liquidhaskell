@@ -45,7 +45,7 @@ import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-
+import           Debug.Trace
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
@@ -141,9 +141,9 @@ die = throw
 ---------------------------------------------------------------------
 result :: Error -> Result a
 ---------------------------------------------------------------------
-result e = Result (Crash [] "msg") mempty
+result e = Result (Crash [] msg) mempty
   where
-    msg  = showpp e
+    msg  = trace "HITTING RESULT" $ showpp e
 
 ---------------------------------------------------------------------
 exit :: a -> IO a -> IO a
@@ -158,8 +158,8 @@ exit def act = catch act $ \(e :: Error) -> do
 ---------------------------------------------------------------------
 
 errFreeVarInQual  :: Qualifier -> Error
--- errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
-errFreeVarInQual q = err dummySpan $ printf "Qualifier with free vars" --  : %s \n" (showFix q)
+errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
+-- errFreeVarInQual q = err dummySpan $ printf "Qualifier with free vars" --  : %s \n" (showFix q)
   where
     sp             = SS l l
     l              = q_pos q

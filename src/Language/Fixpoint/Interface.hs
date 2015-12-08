@@ -187,7 +187,7 @@ solveParWith s c fi0 = do
 ---------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solveNative !cfg !fi0 = (solveNative cfg fi0) -- `catch` (return . result)
+solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
 
 solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)

@@ -53,6 +53,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Config (SMTSolver (..))
+import           Language.Fixpoint.Misc   (errorstar)
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Files
 import           Language.Fixpoint.Types
@@ -96,10 +97,10 @@ runCommands cmds
 
 -- TODO take makeContext's Bool from caller instead of always using False?
 makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
-makeZ3Context f xts 
+makeZ3Context f xts
   = do me <- makeContext False Z3 f
-       smtDecls me xts 
-       return me 
+       smtDecls me xts
+       return me
 
 checkValidWithContext :: Context -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
 checkValidWithContext me xts p q
@@ -117,7 +118,7 @@ checkValid u f xts p q
        smtAssert me $ pAnd [p, PNot q]
        smtCheckUnsat me
 
--- | If you already HAVE a context, where all the variables have declared types 
+-- | If you already HAVE a context, where all the variables have declared types
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
@@ -156,7 +157,7 @@ smtRead me = {-# SCC "smtRead" #-}
     do ln  <- smtReadRaw me
        res <- A.parseWith (smtReadRaw me) responseP ln
        case A.eitherResult res of
-         Left e  -> error e
+         Left e  -> errorstar $ "SMTREAD:" ++ e
          Right r -> do
            maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (cLog me)
            -- when (verbose me) $ TIO.putStrLn $ format "SMT Says: {}" (Only $ show r)

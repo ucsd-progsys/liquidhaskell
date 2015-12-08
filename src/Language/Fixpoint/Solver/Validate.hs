@@ -33,7 +33,7 @@ type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
 validate :: F.SInfo a -> ValidateM ()
-validate = error "TODO: validate input"
+validate = errorstar "TODO: validate input"
 ---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------

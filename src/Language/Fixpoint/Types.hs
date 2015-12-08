@@ -1627,7 +1627,7 @@ instance Reftable SortedReft where
   isTauto  = isTauto . toReft
   ppTy     = ppTy . toReft
   toReft   = sr_reft
-  ofReft   = error "No instance of ofReft for SortedReft"
+  ofReft   = errorstar "No instance of ofReft for SortedReft"
   params _ = []
   bot s    = s { sr_reft = falseReft }
 
