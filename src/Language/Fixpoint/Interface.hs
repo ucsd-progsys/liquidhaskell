@@ -66,13 +66,14 @@ solveFQ :: Config -> IO ExitCode
 solveFQ cfg = do fi      <- readFInfo file
                  r       <- solve cfg fi
                  let stat = resStatus $!! r
-                 let str  = show $!! stat
+                 -- let str  = render $ resultDoc $!! (const () <$> stat)
                  -- putStrLn "\n"
-                 colorStrLn (colorResult stat) str
+                 colorStrLn (colorResult stat) (statStr stat)
                  return $ eCode r
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
+    statStr = render . resultDoc . fmap (const ())
 
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------

@@ -143,7 +143,7 @@ result :: Error -> Result a
 ---------------------------------------------------------------------
 result e = Result (Crash [] msg) mempty
   where
-    msg  = trace "HITTING RESULT" $ showpp e
+    msg  = {- trace "HITTING RESULT" $ -} showpp e
 
 ---------------------------------------------------------------------
 exit :: a -> IO a -> IO a

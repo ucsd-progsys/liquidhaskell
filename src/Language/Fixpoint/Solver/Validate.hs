@@ -19,7 +19,7 @@ import           Language.Fixpoint.PrettyPrint
 import           Language.Fixpoint.Visitor     (isConcC, isKvarC)
 import           Language.Fixpoint.Sort        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
-import           Language.Fixpoint.Misc        (fM)
+import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Errors as E
 import qualified Data.HashMap.Strict      as M
