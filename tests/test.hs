@@ -89,13 +89,13 @@ unitTests
 
 benchTests
   = group "Benchmarks" [
-      testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored  ExitSuccess
-    , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []           ExitSuccess
-    , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"] ExitSuccess
-    , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []           ExitSuccess
-    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         []           ExitSuccess
-    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []           ExitSuccess
-    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"]           (ExitFailure 1)
+      testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
+    , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
+    , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       ["Base0.hs"]              ExitSuccess
+    , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
+    , testGroup "hscolour"    <$> dirTests "benchmarks/hscolour-1.20.0.0"         ["HsColour.hs"]           ExitSuccess
+    , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                []                        ExitSuccess
+    , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
     ]
 
 ---------------------------------------------------------------------------
