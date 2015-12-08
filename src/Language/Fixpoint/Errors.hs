@@ -99,7 +99,6 @@ data Error = Error { errLoc :: SrcSpan, errMsg :: String }
 
 instance PPrint Error where
   pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
-                         -- text $ printf "%s\n  %s\n" (showpp l) msg
 
 instance Fixpoint Error where
   toFix = pprint
@@ -142,7 +141,7 @@ die = throw
 ---------------------------------------------------------------------
 result :: Error -> Result a
 ---------------------------------------------------------------------
-result e = Result (Crash [] msg) mempty
+result e = Result (Crash [] "msg") mempty
   where
     msg  = showpp e
 
@@ -159,7 +158,8 @@ exit def act = catch act $ \(e :: Error) -> do
 ---------------------------------------------------------------------
 
 errFreeVarInQual  :: Qualifier -> Error
-errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
+-- errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
+errFreeVarInQual q = err dummySpan $ printf "Qualifier with free vars" --  : %s \n" (showFix q)
   where
     sp             = SS l l
     l              = q_pos q
