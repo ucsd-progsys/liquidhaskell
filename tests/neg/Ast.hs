@@ -1,3 +1,6 @@
+-- FAILING TEST: see tests/neg/AbsApp.hs
+
+
 {-# LANGUAGE DeriveFunctor #-}
 module Main where
 

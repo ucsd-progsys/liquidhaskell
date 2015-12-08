@@ -126,12 +126,13 @@ consAct info
        fcs <- concat <$> mapM splitC (subsS smap hcs')
        fws <- concat <$> mapM splitW hws
        let annot' = if sflag then subsS smap <$> annot else annot
-       modify $ \st -> st { fixCs = fcs , fixWfs = fws , annotMap = annot'}
+       modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
     mkSigs γ = case (grtys γ,  assms γ, renv γ) of
                 (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
+    fixEnv   = fe_env . fenv
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -695,7 +696,8 @@ rsplitC _ _ _
   = errorstar "rsplit Rpoly - RPropP"
 
 initCGI cfg info = CGInfo {
-    hsCs       = []
+    fEnv       = F.emptySEnv
+  , hsCs       = []
   , sCs        = []
   , hsWfs      = []
   , fixCs      = []
@@ -1114,7 +1116,8 @@ consCBLet γ cb
        strict    <- specLazy <$> get
        let tflag  = oldtcheck
        let isStr  = tcond cb strict
-       modify $ \s -> s{tcheck = tflag && isStr}
+       -- TODO: yuck.
+       modify $ \s -> s { tcheck = tflag && isStr }
        γ' <- consCB (tflag && isStr) isStr γ cb
        modify $ \s -> s{tcheck = oldtcheck}
        return γ'

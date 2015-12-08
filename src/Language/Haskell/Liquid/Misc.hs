@@ -45,7 +45,9 @@ replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
 fourth4 (_,_,_,x) = x
 third4  (_,_,x,_) = x
 
-mapSndM f (x, y) = return . (x,) =<< f y
+mapSndM :: (Applicative m) => (b -> m c) -> (a, b) -> m (a, c)
+-- mapSndM f (x, y) = return . (x,) =<< f y
+mapSndM f (x, y) = (x, ) <$> f y
 
 firstM  f (a,b) = (,b) <$> f a
 secondM f (a,b) = (a,) <$> f b

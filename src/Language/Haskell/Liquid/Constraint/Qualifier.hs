@@ -17,9 +17,10 @@ import Language.Fixpoint.Misc
 
 import Control.Applicative      ((<$>))
 import Data.List                (delete, nub)
-import Data.Maybe               (fromMaybe)
+import Data.Maybe               (catMaybes, fromMaybe)
 import qualified Data.HashSet as S
-import Data.Bifunctor           (second)
+-- import Data.Bifunctor           (second)
+import Debug.Trace
 
 -----------------------------------------------------------------------------------
 specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
@@ -32,6 +33,7 @@ specificationQualifiers k info lEnv
         , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
         , length (q_params q) <= k + 1
     ]
+    -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
@@ -56,19 +58,17 @@ refTypeQuals :: SEnv Sort -> _ -> _ -> SpecType -> [Qualifier]
 refTypeQuals lEnv l tce t0    = go emptySEnv t0
   where
     scrape                    = refTopQuals lEnv l tce t0
+    add x t γ                 = insertSEnv x (rTypeSort tce t) γ
+    goBind x t γ t'           = go (add x t γ) t'
     go γ t@(RVar _ _)         = scrape γ t
     go γ (RAllT _ t)          = go γ t
     go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
     go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ scrape γ t
-    go γ (RFun x t t' _)      = (go γ t)
-                                ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
-    go γ t@(RApp c ts rs _)   = (scrape γ t)
-                                ++ concatMap (go (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ)) ts
-                                ++ goRefs c (insertSEnv (rTypeValueVar t) (rTypeSort tce t) γ) rs
-    go γ (RAllE x t t')       = (go γ t)
-                                ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
-    go γ (REx x t t')         = (go γ t)
-                                ++ (go (insertSEnv x (rTypeSort tce t) γ) t')
+    go γ (RFun x t t' _)      = go γ t ++ goBind x t γ t'
+    go γ t@(RApp c ts rs _)   = scrape γ t ++ concatMap (go γ') ts ++ goRefs c γ' rs
+                                where γ' = add (rTypeValueVar t) t γ
+    go γ (RAllE x t t')       = go γ t ++ goBind x t γ t'
+    go γ (REx x t t')         = go γ t ++ goBind x t γ t'
     go _ _                    = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
     goRef g (RProp  s t)  _   = go (insertsSEnv g s) t
@@ -87,7 +87,7 @@ refTopQuals lEnv l tce t0 γ t
                              , (s, _, e) <- pargs p
     ]
     where
-      mkQ   = mkQual lEnv l t0 γ
+      mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showpp t
 
@@ -98,28 +98,43 @@ mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
     γ'                 = insertSEnv v so γ
     pa                 = PAtom Eq (EVar v) e
 
-mkQual lEnv l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
+mkQual = mkQualNEW
+
+mkQualNEW lEnv l t0 γ v so p   = Q "Auto" ((v, so) : xts) p l
+  where
+    xs   = delete v $ nub $ syms p
+    xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+    -- xts  = Language.Fixpoint.Misc.traceShow msg $ xts'
+    -- msg  = "Free Vars in: " ++ showFix p ++ " in " ++ show t0
+
+-- OLD
+mkQualOLD lEnv l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
   where
     yts                = [(y, lookupSort l γ i x) | (x, i, y) <- xys ]
     p'                 = subst su p
     su                 = mkSubst [(x, EVar y) | (x, _, y) <- xys]
     xys                = zipWith (\x i -> (x, i, symbol ("~A" ++ show i))) xs [0..]
     -- xs                 = delete v $ orderedFreeVars γ p
-    xs                 = delete v $ orderedFreeVars lEnv p
+    xs                 = {- Language.Fixpoint.Misc.traceShow msg $ -} delete v $ orderedFreeVarsOLD γ p
+    msg                = "Free Vars in: " ++ showFix p ++ " in " ++ show t0
+
+orderedFreeVarsOLD :: SEnv Sort -> Pred -> [Symbol]
+orderedFreeVarsOLD γ = nub . filter (`memberSEnv` γ) . syms
+
 
 orderedFreeVars :: SEnv Sort -> Pred -> [Symbol]
 orderedFreeVars lEnv = nub . filter (not . (`memberSEnv` lEnv)) . syms
 
+envSort :: _ -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
+envSort l lEnv tEnv x i
+  | Just t <- lookupSEnv x tEnv = Just (x, t)
+  | Just t <- lookupSEnv x lEnv = Nothing
+  | otherwise                   = Just (x, ai)
+  where
+    ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
+    msg            = "unknown symbol in qualifier: " ++ show x
+
 lookupSort l γ i x = fromMaybe ai $ lookupSEnv x γ
   where
-    ai           = fObj $ Loc l l $ tempSymbol "LHTV" i
-
-
--- HEREHEREHERE
--- lookupSort γ i x = fromMaybe (errorstar msg) $ lookupSEnv x γ
---  where
---     msg          = "Unknown freeVar " ++ show x ++ " in specification " ++ show t0
-
-
--- atoms (PAnd ps)   = concatMap atoms ps
--- atoms p           = [p]
+    ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
+    msg            = "unknown symbol in qualifier: " ++ show x

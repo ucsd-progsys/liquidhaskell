@@ -107,33 +107,35 @@ instance SubStratum SubC where
 -------------------- Generation: Types --------------------
 -----------------------------------------------------------
 
-data CGInfo = CGInfo { hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
-                     , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
-                     , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
-                     , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-                     , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings
-                     , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
-                     , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
-                     , binds      :: !F.BindEnv                   -- ^ set of environment binders
-                     , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
-                     , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
-                     , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
-                     , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
-                     , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
-                     , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
-                     , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
-                     , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
-                     , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
-                     , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
-                     , tcheck     :: !Bool                        -- ^ Check Termination (?)
-                     , scheck     :: !Bool                        -- ^ Check Strata (?)
-                     , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
-                     , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-                     , logErrors  :: ![TError SpecType]           -- ^ Errors during constraint generation
-                     , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
-                     , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
-                     , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
-                     }
+data CGInfo = CGInfo {
+    fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
+  , hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
+  , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
+  , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
+  , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
+  , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings
+  , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
+  , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
+  , binds      :: !F.BindEnv                   -- ^ set of environment binders
+  , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
+  , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
+  , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
+  , termExprs  :: !(M.HashMap Var [F.Expr])    -- ^ Terminating Metrics for Recursive functions
+  , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
+  , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
+  , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
+  , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
+  , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+  , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
+  , tcheck     :: !Bool                        -- ^ Check Termination (?)
+  , scheck     :: !Bool                        -- ^ Check Strata (?)
+  , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
+  , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
+  , logErrors  :: ![TError SpecType]           -- ^ Errors during constraint generation
+  , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
+  , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
+  , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+  }
 
 instance PPrint CGInfo where
   pprint cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
