@@ -24,7 +24,7 @@ import qualified Data.HashSet        as S
 import Data.Monoid
 
 import Control.Applicative ((<$>), (<*), (<*>))
-import Data.Char (isLower, isSpace, isAlpha, isUpper, isAlphaNum)
+import Data.Char (isSpace, isAlpha, isUpper, isAlphaNum)
 import Data.List (foldl', partition)
 
 import GHC (mkModuleName)
@@ -299,7 +299,7 @@ bareAllP
        return $ foldr RAllT (foldr RAllP t ps) as
 
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP alphanums (isLower . head)
+tyVarIdP = symbol <$> condIdP alphanums (isSmall . head)
            where
              alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
@@ -713,7 +713,7 @@ rtAliasP f bodyP
        whiteSpace >> reservedOp "=" >> whiteSpace
        body <- bodyP
        posE <- getPosition
-       let (tArgs, vArgs) = partition (isLower . headSym) args
+       let (tArgs, vArgs) = partition (isSmall . headSym) args
        return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
 
 aliasIdP :: Parser Symbol
