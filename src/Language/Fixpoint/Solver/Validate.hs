@@ -58,11 +58,7 @@ banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
     isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
 
 badQuals :: Misc.ListNE F.Qualifier -> E.Error
-badQuals = E.catErrors . map badQual
-
-badQual :: F.Qualifier -> E.Error
-badQual q = E.err E.dummySpan $ printf "Qualifier with free vars : %s \n"
-              (showpp $ F.q_name q)
+badQuals = E.catErrors . map E.errFreeVarInQual
 
 -- True if first is a subset of second
 isSubset a b = S.null $ a' `S.difference` b'
