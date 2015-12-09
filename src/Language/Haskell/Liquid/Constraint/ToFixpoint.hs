@@ -14,7 +14,7 @@ import Language.Fixpoint.Interface              ( parseFInfo )
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict            as M
 import           Data.Monoid
-
+import           Debug.Trace
 import Language.Haskell.Liquid.Constraint.Qualifier
 import Language.Haskell.Liquid.RefType          ( rTypeSortedReft )
 
@@ -30,10 +30,13 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
    cs     = fixCs  cgi
    ws     = fixWfs cgi
    bs     = binds  cgi
-   ls     = F.fromListSEnv $ lits cgi
+   ls     = fEnv cgi
    ks     = kuts cgi
    qs     = targetQuals info cgi
    bi     = (`Ci` Nothing) <$> bindSpans cgi
+   -- msg    = (show ls') ++ show (fEnv cgi)
+   -- ls     = trace msg ls' -- $ F.fromListSEnv $ lits cgi
+   -- ls'    = F.fromListSEnv $ lits cgi
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs
