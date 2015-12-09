@@ -34,9 +34,6 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
    ks     = kuts cgi
    qs     = targetQuals info cgi
    bi     = (`Ci` Nothing) <$> bindSpans cgi
-   -- msg    = (show ls') ++ show (fEnv cgi)
-   -- ls     = trace msg ls' -- $ F.fromListSEnv $ lits cgi
-   -- ls'    = F.fromListSEnv $ lits cgi
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs
