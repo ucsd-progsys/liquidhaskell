@@ -1,6 +1,6 @@
 import System.Environment             (getArgs)
 
-main :: IO a
-main = liquid =<< getArgs
+main :: IO ()
+main = lhi =<< getArgs
 
-lhi _ = putStrLn "Hello!"
+lhi _ = putStrLn "Hello, world!"
