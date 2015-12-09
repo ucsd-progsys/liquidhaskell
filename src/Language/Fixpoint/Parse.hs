@@ -70,6 +70,8 @@ module Language.Fixpoint.Parse (
   , isSmall
   ) where
 
+import Debug.Trace (trace)
+
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
