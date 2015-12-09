@@ -570,10 +570,13 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]
     bs     = bindEnvFromList  [(n, x, r)        | IBind n x r <- defs]
-    lts    = fromListSEnv     [(x, t)           | Con x t     <- defs]
+    lts    = trace msg $ fromListSEnv     consts  
+    consts =                  [(x, t)           | Con x t     <- defs]
     kts    = KS $ S.fromList  [k                | Kut k       <- defs]
     qs     =                  [q                | Qul q       <- defs]
     cid    = fromJust . sid
+    msg    = show $ "#Lits = " ++ (show $ length consts)
+
 ---------------------------------------------------------------------
 -- | Interacting with Fixpoint --------------------------------------
 ---------------------------------------------------------------------
