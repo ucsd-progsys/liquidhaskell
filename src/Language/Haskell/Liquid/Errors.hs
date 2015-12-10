@@ -20,7 +20,7 @@ import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              (dcolon)
-import           Language.Fixpoint.Types             hiding (shiftVV)
+import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.PrettyPrint
 import           Language.Haskell.Liquid.RefType
 import           Language.Haskell.Liquid.Simplify
@@ -289,7 +289,6 @@ ppError' _ _ (ErrOther _ s)
 
 
 ppVar v = text "`" <> pprint v <> text "'"
-
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (errSpan e)

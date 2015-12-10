@@ -1748,10 +1748,12 @@ newtype KVProf = KVP (M.HashMap KVKind Int)
 emptyKVProf :: KVProf
 emptyKVProf = KVP M.empty
 
-updKVProf :: KVKind -> [KVar] -> KVProf -> KVProf
-updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + length kvs) m
+updKVProf :: KVKind -> Kuts -> KVProf -> KVProf
+updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + n) m
   where
     kn                  = M.lookupDefault 0 k m
+    n                   = S.size $ ksVars kvs
+
 
 instance NFData KVKind where
   rnf z = z `seq` ()

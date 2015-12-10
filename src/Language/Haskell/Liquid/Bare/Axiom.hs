@@ -32,7 +32,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
--- import Language.Fixpoint.Types (Expr(..))
+import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc (showPpr)

@@ -41,7 +41,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (mlookup, sortNub)
-import Language.Fixpoint.Types (Expr(..))
+import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..))
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
@@ -254,7 +254,7 @@ capitalizeBound = fmap (symbol . toUpperHead . symbolString)
     toUpperHead (x:xs) = toUpper x:xs
 
 --------------------------------------------------------------------------------
--- Expand Measures -------------------------------------------------------------
+-- | Expand Measures -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 expandMeasure m
