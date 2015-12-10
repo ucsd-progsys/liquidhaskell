@@ -106,6 +106,7 @@ Executable fixpoint
   Build-Depends: base >= 4.7 && < 5
                , array
                , async
+               , attoparsec
                , syb
                , cmdargs
                , ansi-terminal
@@ -117,6 +118,8 @@ Executable fixpoint
                , deepseq
                , directory
                , filepath
+               , ghc-prim
+               , intern
                , mtl
                , parsec
                , pretty
@@ -125,11 +128,15 @@ Executable fixpoint
                , process
                , syb
                , text
+               , transformers
                , hashable
                , unordered-containers
                , text-format
                , cereal
                , liquid-fixpoint
+  if impl(ghc >= 7.10.2)
+    Build-Depends: located-base
+
 
 Library
   default-language: Haskell98
@@ -177,7 +184,6 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               -- , terminal-progress-bar
                , ascii-progress >= 0.3
                , bifunctors
                , binary
