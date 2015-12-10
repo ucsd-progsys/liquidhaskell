@@ -6,7 +6,6 @@
 module Language.Fixpoint.Types (
 
     module Language.Fixpoint.Types.PrettyPrint
-  , module Language.Fixpoint.Types.Config
   , module Language.Fixpoint.Types.Spans
   , module Language.Fixpoint.Types.Errors
   , module Language.Fixpoint.Types.Names
@@ -18,7 +17,6 @@ module Language.Fixpoint.Types (
 
   ) where
 
-import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors

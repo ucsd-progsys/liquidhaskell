@@ -94,36 +94,9 @@ Source-Repository head
 -- asked.
 Executable fixpoint.native
   default-language: Haskell98
-  Main-is: Fixpoint.hs
+  Main-is: Ocaml.hs
   hs-source-dirs:  src
   Build-Depends: base >= 4.7 && < 5
-               , array
-               , async
-               , syb
-               , cmdargs
-               , ansi-terminal
-               , ascii-progress >= 0.3
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filepath
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , hashable
-               , unordered-containers
-               , text-format
-               , cereal
-               , liquid-fixpoint
-
 
 Executable fixpoint
   default-language: Haskell98
@@ -136,7 +109,6 @@ Executable fixpoint
                , syb
                , cmdargs
                , ansi-terminal
-               -- , terminal-progress-bar
                , ascii-progress >= 0.3
                , bifunctors
                , binary
@@ -144,7 +116,6 @@ Executable fixpoint
                , containers
                , deepseq
                , directory
-               -- , filemanip
                , filepath
                , mtl
                , parsec
