@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Config (
    ) where
 
 import Data.Serialize ( Serialize )
-import Language.Fixpoint.Config hiding (Config)
+import Language.Fixpoint.Types.Config hiding (Config)
 import Data.Typeable  (Typeable)
 import Data.Generics  (Data)
 import GHC.Generics

@@ -25,8 +25,8 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
 
-import qualified Data.HashMap.Strict as M 
-import qualified Data.HashSet        as S 
+import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet        as S
 import Data.List (foldl')
 
 import Data.Monoid hiding ((<>))
@@ -35,7 +35,7 @@ import Control.Applicative      ((<$>))
 
 import Data.Maybe (fromMaybe)
 
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Utils.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
@@ -69,7 +69,7 @@ data Spec ty bndr  = Spec {
   , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
-  , autosize   :: !(S.HashSet LocSymbol)        -- ^ Type Constructors that get automatically sizing info 
+  , autosize   :: !(S.HashSet LocSymbol)        -- ^ Type Constructors that get automatically sizing info
   , pragmas    :: ![Located String]             -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]              -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]            -- ^ Mappings from (measure,type) -> measure
@@ -82,7 +82,7 @@ data Spec ty bndr  = Spec {
 
 
 -- MOVE TO TYPES
-data MSpec ty ctor = MSpec { 
+data MSpec ty ctor = MSpec {
     ctorMap  :: M.HashMap Symbol [Def ty ctor]
   , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
   , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
@@ -119,7 +119,7 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
     tx = fmap (qualifySymbol name)
 
 mkM ::  LocSymbol -> ty -> [Def ty bndr] -> Measure ty bndr
-mkM name typ eqns 
+mkM name typ eqns
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
@@ -300,7 +300,7 @@ instance PPrint Body where
 
 -- MOVE TO TYPES
 instance PPrint a => PPrint (Def t a) where
-  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body   
+  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body
     where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
 
 -- MOVE TO TYPES
@@ -324,7 +324,7 @@ instance PPrint (CMeasure t) => Show (CMeasure t) where
 
 -- MOVE TO TYPES
 mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
-mapTy = first 
+mapTy = first
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
@@ -336,26 +336,26 @@ dataConTypes  s = (ctorTys, measTys)
     defsTy ds@(d:_) = foldl' strengthenRefTypeGen (ofType $ dataConUserType $ ctor d) (defRefType <$> ds)
     defsTy []       = errorstar "Measure.defsTy: This cannot happen"
 
-    defsVar     = ctor . safeHead "defsVar" 
+    defsVar     = ctor . safeHead "defsVar"
 
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
 defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
-  where 
+  where
     t   = fromMaybe (ofType $ dataConOrigResTy dc) mt
     xts = safeZipWith msg g xs $ ofType `fmap` dataConOrigArgTys dc
-    g (x, Nothing) t = (x, t, mempty) 
+    g (x, Nothing) t = (x, t, mempty)
     g (x, Just t)  _ = (x, t, mempty)
-    t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t 
-    msg = "defRefType dc = " ++ showPpr dc 
+    t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
+    msg = "defRefType dc = " ++ showPpr dc
 
     mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
 
 refineWithCtorBody dc f as body t =
-  case stripRTypeBase t of 
+  case stripRTypeBase t of
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, bodyPred (EApp f (eVar <$> (as ++ [v]))) body)
-    Nothing -> 
+    Nothing ->
       errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 

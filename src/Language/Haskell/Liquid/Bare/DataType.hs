@@ -20,7 +20,7 @@ import Data.Monoid
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
+import Language.Fixpoint.Utils.Misc (errorstar)
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
 import Language.Haskell.Liquid.GhcMisc (symbolTyVar)

@@ -29,17 +29,17 @@ import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
-import           Language.Fixpoint.Types (anfPrefix)
+import           Language.Fixpoint.Utils.Misc     (fst3, errorstar)
+import           Language.Fixpoint.Types          (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.TransformRec
-import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Control.Applicative
 
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
 anormalize expandFlag hscEnv modGuts
-  = do -- putStrLn "***************************** GHC CoreBinds ***************************" 
+  = do -- putStrLn "***************************** GHC CoreBinds ***************************"
        -- putStrLn $ showPpr orig_cbs
        liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act
     where m        = mgi_module modGuts
@@ -58,7 +58,7 @@ modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
 ----------------- Actual Normalizing Functions -------------------
 ------------------------------------------------------------------
 
--- Can't make the below default for normalizeBind as it 
+-- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
 normalizeTopBind :: Bool -> VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
@@ -122,7 +122,7 @@ normalizeBind γ (Rec xes)
 normalizeName :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------
 
--- normalizeNameDebug γ e 
+-- normalizeNameDebug γ e
 --   = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
 
 normalizeName _ e@(Lit l)
@@ -183,8 +183,8 @@ normalize γ (Lam x e)
 normalize γ (Let b e)
   = do normalizeBind γ b
        normalize γ e
-       -- Need to float bindings all the way up to the top 
-       -- Due to GHCs odd let-bindings (see tests/pos/lets.hs) 
+       -- Need to float bindings all the way up to the top
+       -- Due to GHCs odd let-bindings (see tests/pos/lets.hs)
 
 normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
@@ -192,7 +192,7 @@ normalize γ (Case e x t as)
        let γ' = extendVarEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
        flag  <- st_expandflag <$> get
-       as''  <- lift $ expandDefaultCase flag τx as' 
+       as''  <- lift $ expandDefaultCase flag τx as'
        return $ Case n x' t as''
     where τx = varType x
 
@@ -218,10 +218,10 @@ normalize γ (Tick n e)
   = do e' <- normalize γ e
        return $ Tick n e'
 
-normalize _ (Coercion c) 
+normalize _ (Coercion c)
   = return $ Coercion c
 
-stitch :: VarEnv Id -> CoreExpr -> DsMW CoreExpr 
+stitch :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
 stitch γ e
   = do bs'   <- get
        modify $ \s -> s {st_binds = []}
@@ -239,9 +239,9 @@ expandDefaultCase flag tyapp zs@((DEFAULT, _ ,_) : _) | flag
 
 expandDefaultCase _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
   = case tyConDataCons_maybe tc of
-       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
-                     if (length ds') == 1 
-                      then expandDefaultCase' tyapp z 
+       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
+                     if (length ds') == 1
+                      then expandDefaultCase' tyapp z
                       else return z
        Nothing -> return z --
 
@@ -250,16 +250,15 @@ expandDefaultCase _ _ z
 
 expandDefaultCase' (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
   = case tyConDataCons_maybe tc of
-       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs] 
+       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
                      dcs'   <- forM ds' $ cloneCase argτs e
                      return $ sortCases $ dcs' ++ dcs
        Nothing -> return z --
 expandDefaultCase' _ z
    = return z
 
-cloneCase argτs e d 
+cloneCase argτs e d
   = do xs  <- mapM freshNormalVar $ dataConInstArgTys d argτs
        return (DataAlt d, xs, e)
 
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
-
