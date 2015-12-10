@@ -20,35 +20,10 @@
 --   solving is done by the `fixpoint.native` which
 --   is written in Ocaml.
 
-module Language.Fixpoint.Types (
-
-  -- * Top level serialization
-    Fixpoint (..)
-  , toFixpoint
-  , writeFInfo
-  , FInfo, SInfo, GInfo (..)
-  , fi
-
-  -- * Rendering
-  , showFix
-  , traceFix
-  , resultDoc
-
-  -- * Symbols
-  , Symbol
-  , KVar (..)
-  , anfPrefix, tempPrefix, vv, vv_, intKvar
-  , symChars, isNonSymbol, nonSymbol
-  , isNontrivialVV
-  , symbolSafeText, symbolSafeString
-
-  -- * Creating Symbols
-  , dummySymbol
-  , intSymbol
-  , tempSymbol
+module Language.Fixpoint.Types.Sorts (
 
   -- * Embedding to Fixpoint Types
-  , Sort (..), FTycon, TCEmb
+     Sort (..), FTycon, TCEmb
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
@@ -59,115 +34,6 @@ module Language.Fixpoint.Types (
   , fApp, fAppTC
   , fObj
 
-  -- * Expressions and Predicates
-  , SymConst (..)
-  , Constant (..)
-  , Bop (..), Brel (..)
-  , Expr (..), Pred (..)
-  , eVar, elit
-  , eProp
-  , pAnd, pOr, pIte
-  , isTautoPred
-
-  -- * Generalizing Embedding with Typeclasses
-  , Symbolic (..)
-  , Expression (..)
-  , Predicate (..)
-
-  -- * Constraints
-  , WfC (..)
-  , SubC, subcId, sid, senv, slhs, srhs, subC, wfC
-  , SimpC (..)
-  , Tag
-  , TaggedC, WrappedC (..), clhs, crhs
-
-  -- * Accessing Constraints
-  , envCs
-  , addIds, sinfo
-
-  -- * Solutions
-  , Result (..)
-  , FixResult (..)
-  , FixSolution
-
-  -- * Environments
-  , SEnv, SESearch(..)
-  , emptySEnv, toListSEnv, fromListSEnv
-  , mapSEnvWithKey
-  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
-  , intersectWithSEnv
-  , filterSEnv
-  , lookupSEnvWithDistance
-
-  , IBindEnv, BindId, BindMap
-  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
-
-  , BindEnv, beBinds
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
-  , bindEnvFromList, bindEnvToList
-  , unionIBindEnv
-
-  -- * Refinements
-  , SortedReft (..), Reft(..), Reftable(..)
-
-  -- * Constructing Refinements
-  , reft                    -- "smart
-  , trueSortedReft          -- trivial reft
-  , trueReft                -- trivial reft
-  , exprReft                -- singleton: v == e
-  , notExprReft             -- singleton: v /= e
-  , uexprReft               -- singleton: v ~~ e
-  , symbolReft              -- singleton: v == x
-  , usymbolReft             -- singleton: v ~~ x
-  , propReft                -- singleton: Prop(v) <=> p
-  , predReft                -- any pred : p
-  , reftPred, reftBind
-  , isFunctionSortedReft, functionSort
-  , isNonTrivial
-  , isSingletonReft
-  , isEVar
-  , isFalse
-  , flattenRefas, conjuncts
-  , shiftVV
-  , mapPredReft
-
-  -- * Substitutions
-  , Subst (..)
-  , Subable (..)
-  , mkSubst
-  , isEmptySubst
-  -- , emptySubst
-  -- , catSubst
-  , substExcept
-  , substfExcept
-  , subst1Except
-  , sortSubst
-  , targetSubstSyms
-
-  -- * Functions on @Result@
-  , colorResult
-
-  -- * Cut KVars
-  , Kuts (..)
-  , ksEmpty
-  , ksUnion
-  , ksMember
-
-  -- * Qualifiers
-  , Qualifier (..)
-
-  -- * Located Values
-  , Located (..)
-  , LocSymbol, LocText
-  , locAt, dummyLoc, dummyPos, dummyName, isDummy
-
-  -- * Partitions
-  , CPart (..)
-  , MCInfo (..)
-  , mcInfo
-
-  -- * FInfo to SInfo format conversion
-  , convertFormat
   ) where
 
 import           Debug.Trace               (trace)
@@ -199,36 +65,10 @@ import           Data.Array                hiding (indices)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 
-
 traceFix     ::  (Fixpoint a) => String -> a -> a
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
 
 type TCEmb a    = M.HashMap a FTycon
-
-exprSymbols :: Expr -> [Symbol]
-exprSymbols = go
-  where
-    go (EVar x)        = [x]
-    go (EApp f es)     = val f : concatMap go es
-    go (ENeg e)        = go e
-    go (EBin _ e1 e2)  = go e1 ++ go e2
-    go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2
-    go (ECst e _)      = go e
-    go _               = []
-
-predSymbols :: Pred -> [Symbol]
-predSymbols = go
-  where
-    go (PAnd ps)          = concatMap go ps
-    go (POr ps)           = concatMap go ps
-    go (PNot p)           = go p
-    go (PIff p1 p2)       = go p1 ++ go p2
-    go (PImp p1 p2)       = go p1 ++ go p2
-    go (PBexp e)          = exprSymbols e
-    go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
-    go (PAll xts p)       = (fst <$> xts) ++ go p
-    go _                  = []
 
 ---------------------------------------------------------------
 ---------- (Kut) Sets of Kvars --------------------------------

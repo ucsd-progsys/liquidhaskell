@@ -11,7 +11,9 @@ import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import           Language.Fixpoint.Utils.Misc
+import           Data.Hashable
 
+------------------------------------------------------------------
 class Fixpoint a where
   toFix    :: a -> Doc
   simplify :: a -> a
@@ -20,6 +22,33 @@ class Fixpoint a where
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
 
+instance (Eq a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
+  toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> S.toList xs)
+  simplify = S.fromList . map simplify . S.toList
+
+instance Fixpoint a => Fixpoint (Maybe a) where
+  toFix    = maybe (text "Nothing") ((text "Just" <+>) . toFix)
+  simplify = fmap simplify
+
+instance Fixpoint a => Fixpoint [a] where
+  toFix xs = brackets $ sep $ punctuate (text ";") (fmap toFix xs)
+  simplify = map simplify
+
+instance (Fixpoint a, Fixpoint b) => Fixpoint (a,b) where
+  toFix   (x,y)  = toFix x <+> text ":" <+> toFix y
+  simplify (x,y) = (simplify x, simplify y)
+
+instance (Fixpoint a, Fixpoint b, Fixpoint c) => Fixpoint (a,b,c) where
+  toFix   (x,y,z)  = toFix x <+> text ":" <+> toFix y <+> text ":" <+> toFix  z
+  simplify (x,y,z) = (simplify x, simplify y,simplify z)
+
+instance Fixpoint Bool where
+  toFix True  = text "True"
+  toFix False = text "False"
+  simplify z  = z
+
+
+------------------------------------------------------------------
 
 class PPrint a where
   pprint :: a -> Doc
