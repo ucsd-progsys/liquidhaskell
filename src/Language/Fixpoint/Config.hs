@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE DeriveGeneric             #-}
 
 module Language.Fixpoint.Config (
     Config  (..)
@@ -117,7 +118,7 @@ instance Command UeqAllSorts where
 ---------------------------------------------------------------------------------------
 
 data SMTSolver = Z3 | Cvc4 | Mathsat | Z3mem
-                 deriving (Eq,Data,Typeable)
+                 deriving (Eq, Data, Typeable, Generic)
 
 instance Command SMTSolver where
   command s = " -smtsolver " ++ show s
