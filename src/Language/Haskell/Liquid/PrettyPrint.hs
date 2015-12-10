@@ -31,7 +31,7 @@ import GHC                              (Name, Class)
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GhcMisc
 import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Types hiding (Predicate)
+import Language.Fixpoint.Types hiding (SrcSpan, Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
 -- import Language.Fixpoint.Types.Names (symbolString, propConName, hpropConName)
@@ -53,8 +53,8 @@ pprintSymbol x = char '‘' <> pprint x <> char '’'
 instance PPrint SrcSpan where
   pprint = pprDoc
 
-instance PPrint Doc where
-  pprint x = x
+-- instance PPrint Doc where
+--   pprint x = x
 
 instance PPrint ErrMsg where
   pprint = text . show
@@ -323,8 +323,9 @@ pprXOT (x, v) = (xd, pprint v)
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
 
-instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
-  pprint = ppTable
+
+-- instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
+--   pprint = ppTable
 
 ppTable m = vcat $ pprxt <$> xts
   where
