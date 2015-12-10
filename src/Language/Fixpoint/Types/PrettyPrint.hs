@@ -13,6 +13,9 @@ import qualified Data.HashSet        as S
 import           Language.Fixpoint.Utils.Misc
 import           Data.Hashable
 
+traceFix     ::  (Fixpoint a) => String -> a -> a
+traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
+
 ------------------------------------------------------------------
 class Fixpoint a where
   toFix    :: a -> Doc

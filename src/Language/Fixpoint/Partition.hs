@@ -4,7 +4,9 @@
 --   statistics about the constraints.
 
 module Language.Fixpoint.Partition (
-    partition
+    CPart (..)
+  , MCInfo (..)
+  , partition
   , partition'
   , partitionN
   ) where
@@ -24,6 +26,42 @@ import qualified Data.Tree                      as T
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
+
+-------------------------------------------------------------------------
+-- | Constraint Partition Container -------------------------------------
+-------------------------------------------------------------------------
+
+data CPart a = CPart { pws :: M.HashMap KVar (WfC a)
+                     , pcm :: M.HashMap Integer (SubC a)
+                     , cFileName :: FilePath
+                     }
+
+instance Monoid (CPart a) where
+   mempty = CPart mempty mempty mempty
+   mappend l r = CPart { pws = pws l `mappend` pws r
+                       , pcm = pcm l `mappend` pcm r
+                       , cFileName = cFileName l
+                       }
+
+-------------------------------------------------------------------------
+-- | Multicore info -----------------------------------------------------
+-------------------------------------------------------------------------
+
+data MCInfo = MCInfo { mcCores :: Int
+                     , mcMinPartSize :: Int
+                     , mcMaxPartSize :: Int
+                     } deriving (Show)
+
+mcInfo :: Config -> IO MCInfo
+mcInfo c = do
+   np <- getNumProcessors
+   let nc = fromMaybe np (cores c)
+   return MCInfo { mcCores = nc
+                 , mcMinPartSize = minPartSize c
+                 , mcMaxPartSize = maxPartSize c
+                 }
+
+
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi

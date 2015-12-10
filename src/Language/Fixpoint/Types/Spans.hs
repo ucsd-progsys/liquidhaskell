@@ -15,6 +15,11 @@ module Language.Fixpoint.Types.Spans (
 
   -- * Constructing spans
   , dummySpan
+  , locAt
+  , dummyLoc
+  , dummyPos
+  -- , dummyName
+  -- , isDummy
 
   -- * Destructing spans
   , sourcePosElts
@@ -27,6 +32,7 @@ import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Hashable
 import           Data.Typeable
+import           Data.String
 import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
@@ -42,13 +48,6 @@ import           Text.Printf
 
 class Loc a where
   srcSpan :: a -> SrcSpan
-
-data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
-                     , locE :: !SourcePos -- ^ End Position
-                     , val  :: a
-                     } deriving (Data, Typeable, Generic)
-
-instance (NFData a) => NFData (Located a)
 
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------
@@ -87,6 +86,47 @@ sourcePosElts s = (src, line, col)
     line        = sourceLine   s
     col         = sourceColumn s
 
+instance Fixpoint SourcePos where
+  toFix = text . show
+
+
+data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
+                     , locE :: !SourcePos -- ^ End Position
+                     , val  :: a
+                     } deriving (Data, Typeable, Generic)
+
+instance (NFData a) => NFData (Located a)
+
+instance Fixpoint a => Fixpoint (Located a) where
+  toFix = toFix . val
+
+instance Functor Located where
+  fmap f (Loc l l' x) =  Loc l l' (f x)
+
+
+instance Foldable Located where
+  foldMap f (Loc _ _ x) = f x
+
+instance Traversable Located where
+  traverse f (Loc l l' x) = Loc l l' <$> f x
+
+instance Show a => Show (Located a) where
+  show (Loc l l' x) = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
+
+instance Eq a => Eq (Located a) where
+  (Loc _ _ x) == (Loc _ _ y) = x == y
+
+instance Ord a => Ord (Located a) where
+  compare x y = compare (val x) (val y)
+
+
+instance Hashable a => Hashable (Located a) where
+  hashWithSalt i = hashWithSalt i . val
+
+instance (IsString a) => IsString (Located a) where
+  fromString = dummyLoc . fromString
+
+
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
@@ -119,3 +159,16 @@ instance Hashable SrcSpan where
 
 dummySpan = SS l l
   where l = initialPos ""
+
+locAt :: String -> a -> Located a
+locAt s  = Loc l l
+  where
+    l    = dummyPos s
+
+dummyLoc :: a -> Located a
+dummyLoc = Loc l l
+  where
+    l    = dummyPos "Fixpoint.Types.dummyLoc"
+
+dummyPos   :: String -> SourcePos
+dummyPos s = newPos s 0 0

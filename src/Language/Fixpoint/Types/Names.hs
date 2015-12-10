@@ -20,6 +20,8 @@ module Language.Fixpoint.Types.Names (
   -- * Symbols
     Symbol
   , Symbolic (..)
+  , LocSymbol
+  , LocText
 
   -- * Conversion to/from Text
   , symbolSafeText
@@ -32,6 +34,7 @@ module Language.Fixpoint.Types.Names (
   , isSuffixOfSym
   , isNonSymbol
   , isNontrivialVV
+  , isDummy
 
   -- * Destructors
   , stripPrefix
@@ -105,6 +108,7 @@ import           GHC.Generics                (Generic)
 
 import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint (PPrint (..))
+import           Language.Fixpoint.Types.Spans
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -183,6 +187,20 @@ instance Monoid Symbol where
 
 instance PPrint Symbol where
   pprint = text . symbolString
+
+
+---------------------------------------------------------------------------
+-- | Located Symbols -----------------------------------------------------
+---------------------------------------------------------------------------
+
+type LocSymbol = Located Symbol
+type LocText   = Located T.Text
+
+isDummy :: (Symbolic a) => a -> Bool
+isDummy a = symbol a == symbol dummyName
+
+instance Symbolic a => Symbolic (Located a) where
+  symbol = symbol . val
 
 ---------------------------------------------------------------------------
 -- | Decoding Symbols -----------------------------------------------------
