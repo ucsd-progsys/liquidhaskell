@@ -72,7 +72,7 @@ Executable liquid
   ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
   Default-Extensions: PatternGuards
 
-Executable lhi 
+Executable lhi
   default-language: Haskell98
   Build-Depends: base >= 4 && < 5
                , ghc == 7.10.2
@@ -82,7 +82,14 @@ Executable lhi
                , liquid-fixpoint >= 0.5 && < 0.6
                , prover
                , liquidhaskell
-
+               , network
+               , directory
+               , unix
+               , daemons
+               , bytestring
+               , data-default
+               , unordered-containers
+               , cereal
   Main-is: src/LHi.hs
   ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
   Default-Extensions: PatternGuards
@@ -122,13 +129,8 @@ Library
                 , bytestring >= 0.10 && < 0.11
                 , fingertree >= 0.1 && < 0.2
                 , Cabal >= 1.18
-
                 , bifunctors >= 4.2.1 && < 5.1
-                --, process >= 1.2 && < 1.4
-                --, intern
-                --, process >= 1.2
-                --, filemanip
-                --, ansi-terminal
+                , cereal
 
    hs-source-dirs:  src, include
 
@@ -180,25 +182,27 @@ Library
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
-                    Language.Haskell.Liquid.Bare.RefToLogic
-                    Language.Haskell.Liquid.Bare.Check
-                    Language.Haskell.Liquid.Bare.DataType
-                    Language.Haskell.Liquid.Bare.Env
-                    Language.Haskell.Liquid.Bare.Expand
-                    Language.Haskell.Liquid.Bare.Existential
-                    Language.Haskell.Liquid.Bare.GhcSpec
-                    Language.Haskell.Liquid.Bare.Lookup
-                    Language.Haskell.Liquid.Bare.Axiom
-                    Language.Haskell.Liquid.Bare.Measure
-                    Language.Haskell.Liquid.Bare.Misc
-                    Language.Haskell.Liquid.Bare.OfType
-                    Language.Haskell.Liquid.Bare.Plugged
-                    Language.Haskell.Liquid.Bare.Resolve
-                    Language.Haskell.Liquid.Bare.RTEnv
-                    Language.Haskell.Liquid.Bare.SymSort
-                    Language.Haskell.Liquid.Bare.Spec
+                    Language.Haskell.Liquid.Bare.RefToLogic,
+                    Language.Haskell.Liquid.Bare.Check,
+                    Language.Haskell.Liquid.Bare.DataType,
+                    Language.Haskell.Liquid.Bare.Env,
+                    Language.Haskell.Liquid.Bare.Expand,
+                    Language.Haskell.Liquid.Bare.Existential,
+                    Language.Haskell.Liquid.Bare.GhcSpec,
+                    Language.Haskell.Liquid.Bare.Lookup,
+                    Language.Haskell.Liquid.Bare.Axiom,
+                    Language.Haskell.Liquid.Bare.Measure,
+                    Language.Haskell.Liquid.Bare.Misc,
+                    Language.Haskell.Liquid.Bare.OfType,
+                    Language.Haskell.Liquid.Bare.Plugged,
+                    Language.Haskell.Liquid.Bare.Resolve,
+                    Language.Haskell.Liquid.Bare.RTEnv,
+                    Language.Haskell.Liquid.Bare.SymSort,
+                    Language.Haskell.Liquid.Bare.Spec,
+                    Language.Haskell.Liquid.Interactive.Types,
+                    Language.Haskell.Liquid.Interactive.Handler,
 
-                    --NOTE: these need to be exposed so GHC generates .dyn_o files for them..
+                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,
                     Language.Haskell.Liquid.Desugar710.Coverage,
                     Language.Haskell.Liquid.Desugar710.Desugar,

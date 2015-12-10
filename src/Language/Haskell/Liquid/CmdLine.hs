@@ -206,7 +206,6 @@ config = cmdArgsMode $ Config {
 
 getOpts :: [String] -> IO Config
 getOpts as = do
-  --  as     <- getArgs
   cfg0   <- envCfg
   cfg1   <- mkOpts =<< cmdArgsRun'
                          config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }

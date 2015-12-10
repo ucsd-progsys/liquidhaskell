@@ -225,6 +225,7 @@ import Control.Applicative                      ((<$>))
 import Data.Typeable                            (Typeable)
 import Data.Generics                            (Data)
 import Data.Monoid                              hiding ((<>))
+import Data.Serialize                           ( Serialize )
 import qualified  Data.Foldable as F
 import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
@@ -285,8 +286,10 @@ data Config = Config {
   , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
   , eliminate      :: Bool
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
-  } deriving (Data, Typeable, Show, Eq)
+  } deriving (Generic, Data, Typeable, Show, Eq)
 
+instance Serialize SMTSolver 
+instance Serialize Config
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
