@@ -141,7 +141,6 @@ module Language.Fixpoint.Types (
   , substExcept
   , substfExcept
   , subst1Except
-  , sortSubst
   , targetSubstSyms
 
   -- * Functions on @Result@
@@ -162,9 +161,9 @@ module Language.Fixpoint.Types (
   , locAt, dummyLoc, dummyPos, dummyName, isDummy
 
   -- * Partitions
-  , CPart (..)
-  , MCInfo (..)
-  , mcInfo
+  -- , CPart (..)
+  -- , MCInfo (..)
+  -- , mcInfo
 
   -- * FInfo to SInfo format conversion
   , convertFormat
@@ -191,6 +190,7 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
+import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Utils.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
@@ -308,15 +308,6 @@ data Expr = ESym !SymConst
 elit :: Located Symbol -> Sort -> Expr
 elit l s = ECon $ L (symbolText $ val l) s
 
-instance Fixpoint Int where
-  toFix = tshow
-
-instance Fixpoint Integer where
-  toFix = integer
-
-instance Fixpoint Double where
-  toFix = double
-
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
@@ -325,15 +316,8 @@ instance Fixpoint Constant where
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
-instance Fixpoint Symbol where
-  toFix = toFix . symbolSafeText
-
 instance Fixpoint KVar where
   toFix (KV k) = text "$" <> toFix k
-
-instance Fixpoint Text where
-  toFix = text . T.unpack
-
 
 instance Fixpoint Brel where
   toFix Eq  = text "="
@@ -1233,7 +1217,6 @@ conjuncts p
 ----------------------------------------------------------------
 
 
-instance B.Binary KVar
 
 instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
   put = B.put . S.toList
@@ -1243,11 +1226,11 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
+instance B.Binary KVar
 instance B.Binary Kuts
 instance B.Binary Qualifier
-instance B.Binary FTycon
-instance B.Binary Sort
-instance B.Binary Sub
+
+
 instance B.Binary Subst
 instance B.Binary IBindEnv
 instance B.Binary BindEnv
@@ -1265,7 +1248,6 @@ instance (B.Binary a) => B.Binary (SubC a)
 instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
 instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
-instance (B.Binary a) => B.Binary (Located a)
 
 ----------------------------------------------------------------
 -- | Strictness ------------------------------------------------
@@ -1296,15 +1278,6 @@ instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
 instance (NFData a) => NFData (WrappedC a) where
   rnf (WrapC _) = ()
-
-
-
-----------------------------------------------------------------------------
--------------- Hashable Instances -----------------------------------------
----------------------------------------------------------------------------
-
-instance Hashable FTycon where
-  hashWithSalt i (TC s) = hashWithSalt i s
 
 ---------------------------------------------------------------------------
 -------- Constraint Constructor Wrappers ----------------------------------

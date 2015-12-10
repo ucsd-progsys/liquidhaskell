@@ -119,6 +119,7 @@ instance Eq a => Eq (Located a) where
 instance Ord a => Ord (Located a) where
   compare x y = compare (val x) (val y)
 
+instance (B.Binary a) => B.Binary (Located a)
 
 instance Hashable a => Hashable (Located a) where
   hashWithSalt i = hashWithSalt i . val

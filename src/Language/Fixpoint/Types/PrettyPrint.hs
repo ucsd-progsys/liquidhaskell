@@ -50,6 +50,14 @@ instance Fixpoint Bool where
   toFix False = text "False"
   simplify z  = z
 
+instance Fixpoint Int where
+  toFix = tshow
+
+instance Fixpoint Integer where
+  toFix = integer
+
+instance Fixpoint Double where
+  toFix = double
 
 ------------------------------------------------------------------
 

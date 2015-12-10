@@ -23,7 +23,9 @@
 module Language.Fixpoint.Types.Sorts (
 
   -- * Embedding to Fixpoint Types
-     Sort (..), FTycon, TCEmb
+    Sort (..)
+  , Sub (..)
+  , FTycon, TCEmb
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
@@ -34,6 +36,7 @@ module Language.Fixpoint.Types.Sorts (
   , fApp, fAppTC
   , fObj
 
+  , sortSubst
   ) where
 
 import           Debug.Trace               (trace)
@@ -135,6 +138,9 @@ data Sort = FInt
 
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
+instance Hashable FTycon where
+  hashWithSalt i (TC s) = hashWithSalt i s
+
 instance Hashable Sort
 
 newtype Sub = Sub [(Int, Sort)] deriving (Generic)
@@ -189,3 +195,8 @@ sortSubst θ t@(FObj x)   = fromMaybe t (M.lookup x θ)
 sortSubst θ (FFunc n ts) = FFunc n (sortSubst θ <$> ts)
 sortSubst θ (FApp t1 t2) = FApp (sortSubst θ t1) (sortSubst θ t2)
 sortSubst _  t           = t
+
+
+instance B.Binary FTycon
+instance B.Binary Sort
+instance B.Binary Sub

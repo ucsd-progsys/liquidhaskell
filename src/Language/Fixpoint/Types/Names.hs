@@ -107,7 +107,7 @@ import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
 import           Text.PrettyPrint.HughesPJ   (text)
-import           Language.Fixpoint.Types.PrettyPrint (PPrint (..))
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 
 ---------------------------------------------------------------
@@ -188,6 +188,11 @@ instance Monoid Symbol where
 instance PPrint Symbol where
   pprint = text . symbolString
 
+instance Fixpoint T.Text where
+  toFix = text . T.unpack
+
+instance Fixpoint Symbol where
+  toFix = toFix . symbolSafeText
 
 ---------------------------------------------------------------------------
 -- | Located Symbols -----------------------------------------------------
