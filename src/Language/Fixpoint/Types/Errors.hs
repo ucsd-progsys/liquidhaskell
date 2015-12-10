@@ -43,9 +43,8 @@ import           Data.Hashable
 import           Data.Typeable
 import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
-import           Language.Fixpoint.PrettyPrint
--- import           Language.Fixpoint.Types
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Utils.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf

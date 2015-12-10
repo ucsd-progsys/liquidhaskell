@@ -15,13 +15,13 @@ module Language.Fixpoint.Solver.Validate
        )
        where
 
-import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor     (isConcC, isKvarC)
-import           Language.Fixpoint.Sort        (isFirstOrder)
-import qualified Language.Fixpoint.Misc   as Misc
-import           Language.Fixpoint.Misc        (fM, errorstar)
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
+import           Language.Fixpoint.Types.SortCheck        (isFirstOrder)
+import qualified Language.Fixpoint.Utils.Misc   as Misc
+import           Language.Fixpoint.Utils.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
-import qualified Language.Fixpoint.Errors as E
+import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L

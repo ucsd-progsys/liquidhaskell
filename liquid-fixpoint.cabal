@@ -162,23 +162,24 @@ Executable fixpoint
 Library
   default-language: Haskell98
   hs-source-dirs:  src
-  Exposed-Modules: Language.Fixpoint.Names,
-                   Language.Fixpoint.Files,
-                   Language.Fixpoint.Errors,
-                   Language.Fixpoint.Config,
+  Exposed-Modules: Language.Fixpoint.Types.Names,
+                   Language.Fixpoint.Types.Errors,
+                   Language.Fixpoint.Types.Config,
+                   Language.Fixpoint.Types.Visitor,
+                   Language.Fixpoint.Types.SortCheck,
+                   Language.Fixpoint.Types.PrettyPrint,
                    Language.Fixpoint.Types,
-                   Language.Fixpoint.Bitvector,
-                   Language.Fixpoint.Visitor,
-                   Language.Fixpoint.Sort,
-                   Language.Fixpoint.Interface,
-                   Language.Fixpoint.Parse,
-                   Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.Smt.Types,
+                   Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
-                   Language.Fixpoint.Misc,
-                   Language.Fixpoint.Progress,
+                   Language.Fixpoint.Partition,
+                   Language.Fixpoint.Interface,
+                   Language.Fixpoint.Parse,
+                   Language.Fixpoint.Utils.Misc,
+                   Language.Fixpoint.Utils.Progress,
+                   Language.Fixpoint.Utils.Files,
                    Language.Fixpoint.Solver.Types,
                    Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
@@ -189,10 +190,8 @@ Library
                    Language.Fixpoint.Solver.Uniqify,
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Validate,
-                   Language.Fixpoint.Partition,
-                   Language.Fixpoint.Statistics,
+                   Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
-                   Language.Fixpoint.Parallel
 
   Build-Depends: base >= 4.7 && < 5
                , array

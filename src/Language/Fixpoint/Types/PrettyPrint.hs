@@ -5,12 +5,12 @@
 module Language.Fixpoint.Types.PrettyPrint where
 
 import           Debug.Trace               (trace)
-import           Language.Fixpoint.Misc
 import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import           Language.Fixpoint.Utils.Misc
 
 class Fixpoint a where
   toFix    :: a -> Doc

@@ -54,8 +54,8 @@ module Language.Fixpoint.Smt.Interface (
 
 import           Language.Fixpoint.Config (SMTSolver (..))
 import           Language.Fixpoint.Misc   (errorstar)
-import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Files
+import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 import           Language.Fixpoint.Smt.Theories (preamble)

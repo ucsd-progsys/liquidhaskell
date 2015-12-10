@@ -186,10 +186,10 @@ import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)
-import           Language.Fixpoint.Config
-import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Names
-import           Language.Fixpoint.Errors
+import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Utils.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 

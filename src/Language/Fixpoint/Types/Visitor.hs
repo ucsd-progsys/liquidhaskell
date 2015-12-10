@@ -1,5 +1,4 @@
-{
-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -39,7 +38,7 @@ import           Control.Monad.Trans.State (State, modify, runState)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import           Language.Fixpoint.Misc (sortNub)
+import           Language.Fixpoint.Utils.Misc (sortNub)
 import           Language.Fixpoint.Types
 
 data Visitor acc ctx = Visitor {

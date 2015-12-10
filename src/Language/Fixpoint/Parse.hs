@@ -84,14 +84,14 @@ import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
 import           Data.Char                   (isLower)
-import           Language.Fixpoint.Bitvector
+import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Errors
 import           Language.Fixpoint.Misc      (sortNub, thd3)
 import           Language.Fixpoint.Smt.Types
 
 import           Language.Fixpoint.Names     (headSym)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor   (foldSort, mapSort)
+import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 
 type Parser = Parsec String Integer
 

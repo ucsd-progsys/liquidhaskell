@@ -18,9 +18,9 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names
+import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Smt.Types
 import qualified Data.HashMap.Strict      as M
 import qualified Data.Text                as T

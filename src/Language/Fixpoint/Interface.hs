@@ -42,14 +42,13 @@ import           Language.Fixpoint.Solver.Solution  (Solution)
 import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
 import           Language.Fixpoint.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Progress
-import           Language.Fixpoint.Statistics       (statistics)
+import           Language.Fixpoint.Utils.Progress
+import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors           (exit, die)
-import           Language.Fixpoint.PrettyPrint      (showpp)
-import           Language.Fixpoint.Parallel         (inParallelUsing)
+import           Language.Fixpoint.Types.Errors           (exit, die)
+import           Language.Fixpoint.Types.PrettyPrint      (showpp)
 import           Control.DeepSeq
 
 
