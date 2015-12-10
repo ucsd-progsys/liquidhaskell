@@ -65,6 +65,7 @@ module Language.Fixpoint.Types.Refinements (
   , pprintReft
   , reftConjuncts
   , intKvar
+  , vv_
   ) where
 
 import           Debug.Trace               (trace)

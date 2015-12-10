@@ -37,7 +37,9 @@ module Language.Fixpoint.Types.Constraints (
   , TaggedC, WrappedC (..), clhs, crhs
 
   -- * Accessing Constraints
-  , addIds, sinfo
+  , addIds
+  , sinfo
+  , shiftVV
 
   -- * Solutions
   , FixSolution
