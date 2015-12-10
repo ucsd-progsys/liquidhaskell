@@ -35,7 +35,7 @@ import Control.Applicative      ((<$>))
 
 import Data.Maybe (fromMaybe)
 
-import Language.Fixpoint.Utils.Misc
+import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))

@@ -29,7 +29,7 @@ import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
-import           Language.Fixpoint.Utils.Misc     (fst3, errorstar)
+import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Language.Fixpoint.Types          (anfPrefix)
 import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.TransformRec
