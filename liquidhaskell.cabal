@@ -158,6 +158,7 @@ Library
                     Language.Haskell.Liquid.ANFTransform,
                     Language.Haskell.Liquid.Annotate,
                     Language.Haskell.Liquid.CTags,
+                    Language.Haskell.Liquid.Config,
                     Language.Haskell.Liquid.CmdLine,
                     Language.Haskell.Liquid.Cabal,
                     Language.Haskell.Liquid.GhcMisc,
