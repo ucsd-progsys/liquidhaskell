@@ -3,7 +3,7 @@
 {-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
-module Language.Haskell.Liquid.Liquid (liquid) where
+module Language.Haskell.Liquid.Liquid (liquid, runLiquid) where
 
 import           Data.Maybe
 import           System.Exit
@@ -18,7 +18,7 @@ import qualified Language.Fixpoint.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Interface
-import           Language.Fixpoint.Types (sinfo, Result (..))
+import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Errors
 import           Language.Haskell.Liquid.CmdLine
@@ -29,23 +29,21 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
 
-
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid as = runLiquid =<< getOpts as
-
+liquid args = runLiquid args >>= bye
+  where
+    bye     = exitWith . resultExit
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
 ------------------------------------------------------------------------------
-
-runLiquid :: Config -> IO b
-runLiquid cfg0 = do
-  res      <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
-  let ecode = resultExit $ o_result res
-  exitWith ecode
-
+runLiquid :: [String] -> IO (FixResult Error)
+runLiquid args = do
+  cfg0  <- getOpts args
+  res   <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
+  return $ o_result res
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
@@ -57,7 +55,7 @@ checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)
     errOut r    = exitWithResult cfg0 t $ mempty { o_result = r}
 
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
-liquidOne target info =
+liquidOne tgt info =
   do donePhase Loud "Extracted Core using GHC"
      let cfg   = config $ spec info
      whenLoud  $ do putStrLn "**** Config **************************************************"
@@ -70,16 +68,16 @@ liquidOne target info =
                     putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                     putStrLn $ showpp cbs'
                     putStrLn "*************** Slicing Out Unchanged CoreBinds *****************"
-     dc <- prune cfg cbs' target info
+     dc <- prune cfg cbs' tgt info
      let cbs'' = maybe cbs' DC.newBinds dc
      let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
      let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
      cgi `deepseq` donePhase Loud "generateConstraints"
-     out      <- solveCs cfg target cgi info' dc
+     out      <- solveCs cfg tgt cgi info' dc
      donePhase Loud "solve"
      let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
-     DC.saveResult target out'
-     exitWithResult cfg target out'
+     DC.saveResult tgt out'
+     exitWithResult cfg tgt out'
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
@@ -89,17 +87,17 @@ checkedNames dc          = concatMap names . DC.newBinds <$> dc
      shvar               = showpp . varName
 
 prune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Maybe DC.DiffCheck)
-prune cfg cbinds target info
+prune cfg cbinds tgt info
   | not (null vs) = return . Just $ DC.DC (DC.thin cbinds vs) mempty sp
-  | diffcheck cfg = DC.slice target cbinds sp
+  | diffcheck cfg = DC.slice tgt cbinds sp
   | otherwise     = return Nothing
   where
     vs            = tgtVars sp
     sp            = spec info
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
-solveCs cfg target cgi info dc
-  = do finfo    <- cgInfoFInfo info cgi target
+solveCs cfg tgt cgi info dc
+  = do finfo    <- cgInfoFInfo info cgi tgt
        Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
@@ -114,7 +112,7 @@ solveCs cfg target cgi info dc
                        , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
                        , FC.binary      = not (extSolver cfg)
-                       , FC.srcFile     = target
+                       , FC.srcFile     = tgt
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
