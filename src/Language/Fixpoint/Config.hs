@@ -17,6 +17,7 @@ module Language.Fixpoint.Config (
   , multicore
 ) where
 
+import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Files
 import Language.Fixpoint.Misc (errorstar)
