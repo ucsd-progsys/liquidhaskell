@@ -64,6 +64,7 @@ module Language.Fixpoint.Types.Refinements (
   , mapPredReft
   , pprintReft
   , reftConjuncts
+  , intKvar
   ) where
 
 import           Debug.Trace               (trace)
@@ -142,8 +143,8 @@ newtype KVar = KV {kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
 
--- intKvar :: Integer -> KVar
--- intKvar = KV . intSymbol "k_"
+intKvar :: Integer -> KVar
+intKvar = KV . intSymbol "k_"
 
 instance Show KVar where
   show (KV x) = "$" ++ show x
