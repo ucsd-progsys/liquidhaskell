@@ -19,7 +19,6 @@ module Language.Fixpoint.Types.Errors (
   -- * Accessors
   , errLoc
   , errMsg
-  , result
 
   -- * Adding Insult to Injury
   , catMessage
@@ -35,95 +34,23 @@ module Language.Fixpoint.Types.Errors (
   ) where
 
 import           Control.Exception
-import           Control.DeepSeq
+-- import           Control.DeepSeq
 import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
-import           Data.Hashable
+-- import           Data.Hashable
 import           Data.Typeable
-import qualified Data.Binary                   as B
+-- import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Misc
-import           Text.Parsec.Pos
+-- import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
-import           Debug.Trace
+-- import           Debug.Trace
 
-
--- | Throw an UnknownError exception
--- unknownError :: String -> Result a
--- unknownError e = Result (UnknownError e) mempty
-
------------------------------------------------------------------------
--- | Retrofitting instances to SourcePos ------------------------------
------------------------------------------------------------------------
-
-instance NFData SourcePos where
-  rnf = rnf . ofSourcePos
-
-instance B.Binary SourcePos where
-  put = B.put . ofSourcePos
-  get = toSourcePos <$> B.get
-
-instance Serialize SourcePos where
-  put = undefined
-  get = undefined
-
-instance PPrint SourcePos where
-  pprint = text . show
-
-ofSourcePos :: SourcePos -> (SourceName, Line, Column)
-ofSourcePos p = (f, l, c)
-  where
-   f = sourceName   p
-   l = sourceLine   p
-   c = sourceColumn p
-
-toSourcePos :: (SourceName, Line, Column) -> SourcePos
-toSourcePos (f, l, c) = newPos f l c
-
------------------------------------------------------------------------
--- | A Reusable SrcSpan Type ------------------------------------------
------------------------------------------------------------------------
-
-data SrcSpan = SS { sp_start :: !SourcePos
-                  , sp_stop  :: !SourcePos}
-                 deriving (Eq, Ord, Show, Data, Typeable, Generic)
-
-instance Serialize SrcSpan
 instance Serialize Error
-
-instance PPrint SrcSpan where
-  pprint = ppSrcSpan
-
--- ppSrcSpan_short z = parens
---                   $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')
---   where
---     (f,l ,c )     = sourcePosElts $ sp_start z
---     (_,l',c')     = sourcePosElts $ sp_stop  z
-
-
-ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')
-                -- parens $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')
-  where
-    (f,l ,c )     = sourcePosElts $ sp_start z
-    (_,l',c')     = sourcePosElts $ sp_stop  z
-
-sourcePosElts s = (src, line, col)
-  where
-    src         = sourceName   s
-    line        = sourceLine   s
-    col         = sourceColumn s
-
-
-instance Hashable SourcePos where
-  hashWithSalt i   = hashWithSalt i . sourcePosElts
-
-instance Hashable SrcSpan where
-  hashWithSalt i z = hashWithSalt i (sp_start z, sp_stop z)
-
-
 
 ---------------------------------------------------------------------------
 -- errorInfo :: Error -> (SrcSpan, String)
@@ -135,11 +62,12 @@ instance Hashable SrcSpan where
 -- | A BareBones Error Type -------------------------------------------
 -----------------------------------------------------------------------
 
-data Error = Error { errLoc :: SrcSpan, errMsg :: String }
+data Error = Error { errLoc :: SrcSpan
+                   , errMsg :: String }
                deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance PPrint Error where
-  pprint (Error l msg) = ppSrcSpan l <> text (": Error: " ++ msg)
+  pprint (Error l msg) = pprint l <> text (": Error: " ++ msg)
 
 instance Fixpoint Error where
   toFix = pprint
@@ -149,9 +77,6 @@ instance Exception (FixResult Error)
 
 instance E.Error Error where
   strMsg = Error dummySpan
-
-dummySpan = SS l l
-  where l = initialPos ""
 
 ---------------------------------------------------------------------
 catMessage :: Error -> String -> Error
@@ -199,8 +124,8 @@ data FixResult a = Crash [a] String
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
 ---------------------------------------------------------------------
-errFreeVarInQual  :: _ -> Error
+
+errFreeVarInQual  :: (Fixpoint a, Loc a) => a -> Error
 errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
   where
-    sp             = SS l l
-    l              = q_pos q
+    sp             = srcSpan q
