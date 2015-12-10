@@ -973,7 +973,7 @@ data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
                  | UnknownError !String
-                   deriving (Show, Generic)
+                   deriving (Data, Typeable, Show, Generic)
 
 type FixSolution = M.HashMap KVar Pred
 
