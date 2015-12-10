@@ -47,13 +47,13 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config            hiding (Config, real, extSolver,
-                                                   getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate)
+import Language.Fixpoint.Types.Config      hiding (Config, real, extSolver,
+                                              getOpts, cores, minPartSize,
+                                              maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Result)
+import Language.Fixpoint.Types             hiding (Error, Result)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
@@ -406,7 +406,7 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
 resDocs _ Safe             = [text "RESULT: SAFE"]
 resDocs k (Crash xs s)     = text ("RESULT: ERROR") : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
-resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
+-- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
 
 reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 
@@ -415,5 +415,6 @@ addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
+
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs Full
