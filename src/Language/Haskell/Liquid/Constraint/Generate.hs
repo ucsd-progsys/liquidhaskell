@@ -708,7 +708,7 @@ initCGI cfg info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
   , tyConEmbed = tce
-  , kuts       = F.ksEmpty
+  , kuts       = mempty -- F.ksEmpty
   , lits       = coreBindLits tce info ++  (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
@@ -949,9 +949,9 @@ freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = F.ksUnion kvars   (kuts s)   }
+                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   kvars   (kuts s)   }
   where
-     kvars      = sortNub $ specTypeKVars t
+     kvars      = F.KS $ S.fromList $ specTypeKVars t
 
 isKut          :: KVKind -> Bool
 isKut RecBindE = True

@@ -294,13 +294,14 @@ instance (PPrint r, Reftable r) => PPrint (UReft r) where
 pprintLongList :: PPrint a => [a] -> Doc
 pprintLongList = brackets . vcat . map pprint
 
-
-
 instance (PPrint t) => PPrint (Annot t) where
   pprint (AnnUse t) = text "AnnUse" <+> pprint t
   pprint (AnnDef t) = text "AnnDef" <+> pprint t
   pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
   pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+
+instance PPrint a => PPrint (AnnInfo a) where
+  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
 
 pprAnnInfoBinds (l, xvs)
   = vcat $ map (pprAnnInfoBind . (l,)) xvs
@@ -319,13 +320,6 @@ pprAnnInfoBind (_, _)
 pprXOT (x, v) = (xd, pprint v)
   where
     xd = maybe (text "unknown") pprint x
-
-instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
-
-
--- instance (Ord k, PPrint k, PPrint v) => PPrint (M.HashMap k v) where
---   pprint = ppTable
 
 ppTable m = vcat $ pprxt <$> xts
   where
