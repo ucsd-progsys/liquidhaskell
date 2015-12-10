@@ -32,17 +32,16 @@ import           Language.Haskell.Liquid.Annotate (mkOutput)
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid args = runLiquid args >>= bye
+liquid args = getOpts args >>= runLiquid >>= bye
   where
     bye     = exitWith . resultExit
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
 ------------------------------------------------------------------------------
-runLiquid :: [String] -> IO (FixResult Error)
-runLiquid args = do
-  cfg0  <- getOpts args
-  res   <- mconcat <$> mapM (checkOne cfg0) (files cfg0)
+runLiquid :: Config -> IO (FixResult Error)
+runLiquid cfg = do
+  res   <- mconcat <$> mapM (checkOne cfg) (files cfg)
   return $ o_result res
 
 ------------------------------------------------------------------------------
