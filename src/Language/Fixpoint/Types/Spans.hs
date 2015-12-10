@@ -36,6 +36,9 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
 
+-----------------------------------------------------------------------
+-- | Located Values ---------------------------------------------------
+-----------------------------------------------------------------------
 
 class Loc a where
   srcSpan :: a -> SrcSpan
@@ -44,6 +47,8 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , locE :: !SourcePos -- ^ End Position
                      , val  :: a
                      } deriving (Data, Typeable, Generic)
+
+instance (NFData a) => NFData (Located a)
 
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------

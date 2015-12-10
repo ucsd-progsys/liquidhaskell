@@ -1136,17 +1136,6 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
 pprSinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
-resultDoc :: (Fixpoint a) => FixResult a -> Doc
-resultDoc Safe             = text "Safe"
--- resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
-resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
-resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : (((text "WARNING:" <+>) . toFix) <$> xs)
-
-colorResult :: FixResult a -> Moods
-colorResult (Safe)      = Happy
-colorResult (Unsafe _)  = Angry
-colorResult (_)         = Sad
-
 instance Fixpoint a => Show (WfC a) where
   show = showFix
 
@@ -1437,12 +1426,10 @@ instance NFData Pred
 instance NFData Reft
 instance NFData SortedReft
 instance (NFData a) => NFData (SEnv a)
-instance (NFData a) => NFData (FixResult a)
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
-instance (NFData a) => NFData (Located a)
 instance (NFData a) => NFData (Result a)
 instance (NFData a) => NFData (WrappedC a) where
   rnf (WrapC _) = ()

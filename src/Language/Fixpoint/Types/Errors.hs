@@ -13,6 +13,8 @@ module Language.Fixpoint.Types.Errors (
   -- * Result
 
   , FixResult (..)
+  , colorResult
+  , resultDoc
 
   -- * Abstract Error Type
   , Error
@@ -42,7 +44,7 @@ import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Typeable
--- import           Control.DeepSeq
+import           Control.DeepSeq
 -- import           Data.Hashable
 -- import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
@@ -115,6 +117,18 @@ data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
                    deriving (Data, Typeable, Show, Generic)
+
+instance (NFData a) => NFData (FixResult a)
+
+resultDoc :: (Fixpoint a) => FixResult a -> Doc
+resultDoc Safe             = text "Safe"
+resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
+resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : (((text "WARNING:" <+>) . toFix) <$> xs)
+
+colorResult :: FixResult a -> Moods
+colorResult (Safe)      = Happy
+colorResult (Unsafe _)  = Angry
+colorResult (_)         = Sad
 
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
