@@ -29,6 +29,9 @@ instance (Eq a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
   toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> S.toList xs)
   simplify = S.fromList . map simplify . S.toList
 
+instance Fixpoint () where
+  toFix _ = text "()"
+
 instance Fixpoint a => Fixpoint (Maybe a) where
   toFix    = maybe (text "Nothing") ((text "Just" <+>) . toFix)
   simplify = fmap simplify

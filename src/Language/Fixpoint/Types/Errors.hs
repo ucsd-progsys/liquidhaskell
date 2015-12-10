@@ -121,6 +121,24 @@ data FixResult a = Crash [a] String
 
 instance (NFData a) => NFData (FixResult a)
 
+instance Eq a => Eq (FixResult a) where
+  Crash xs _ == Crash ys _        = xs == ys
+  Unsafe xs == Unsafe ys          = xs == ys
+  Safe      == Safe               = True
+  _         == _                  = False
+
+instance Monoid (FixResult a) where
+  mempty                          = Safe
+  mappend Safe x                  = x
+  mappend x Safe                  = x
+  mappend _ c@(Crash _ _)         = c
+  mappend c@(Crash _ _) _         = c
+  mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
+
+instance Functor FixResult where
+  fmap f (Crash xs msg)   = Crash (f <$> xs) msg
+  fmap f (Unsafe xs)      = Unsafe (f <$> xs)
+  fmap _ Safe             = Safe
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc Safe             = text "Safe"
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)

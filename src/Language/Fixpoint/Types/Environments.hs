@@ -35,14 +35,17 @@ module Language.Fixpoint.Types.Environments (
 
   ) where
 
+-- import qualified Data.Binary as B
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
+import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
+import           Control.DeepSeq
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
@@ -171,3 +174,16 @@ envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
 instance Fixpoint (IBindEnv) where
   toFix (FB ids) = text "env" <+> toFix ids
+
+--------------------------------------------------------------------------------
+
+instance NFData IBindEnv
+instance NFData BindEnv
+instance (NFData a) => NFData (SEnv a)
+
+instance B.Binary IBindEnv
+instance B.Binary BindEnv
+instance (B.Binary a) => B.Binary (SEnv a)
+instance (Hashable a, Eq a, B.Binary a) => B.Binary (S.HashSet a) where
+  put = B.put . S.toList
+  get = S.fromList <$> B.get

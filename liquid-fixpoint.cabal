@@ -95,13 +95,13 @@ Source-Repository head
 Executable fixpoint.native
   default-language: Haskell98
   Main-is: Fixpoint.hs
+  hs-source-dirs:  src
   Build-Depends: base >= 4.7 && < 5
                , array
                , async
                , syb
                , cmdargs
                , ansi-terminal
-               -- , terminal-progress-bar
                , ascii-progress >= 0.3
                , bifunctors
                , binary
