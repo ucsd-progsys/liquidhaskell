@@ -63,6 +63,7 @@ module Language.Fixpoint.Types.Refinements (
   , flattenRefas, conjuncts
   , mapPredReft
   , pprintReft
+  , reftConjuncts
   ) where
 
 import           Debug.Trace               (trace)
@@ -71,7 +72,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
--- import           Data.List                 (partition, foldl', sort, sortBy)
+import           Data.List                 (partition) -- , foldl', sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -116,6 +117,22 @@ instance B.Binary Expr
 instance B.Binary Pred
 instance B.Binary Reft
 instance B.Binary SortedReft
+
+
+
+reftConjuncts :: Reft -> [Reft]
+reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
+  where
+    ras'                     = if null ps then ks else ((pAnd ps) : ks)
+    (ks, ps)                 = partition isKvar $ refaConjuncts ra
+
+isKvar :: Pred -> Bool
+isKvar (PKVar _ _) = True
+isKvar _           = False
+
+refaConjuncts :: Pred -> [Pred]
+refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
+
 
 --------------------------------------------------------------------------------
 -- | Kvars ---------------------------------------------------------------------

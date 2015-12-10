@@ -212,7 +212,7 @@ instance Symbolic a => Symbolic (Located a) where
 ---------------------------------------------------------------------------
 
 symbolText :: Symbol -> T.Text
-symbolText = symbolRaw -- decode
+symbolText = symbolRaw
 
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText

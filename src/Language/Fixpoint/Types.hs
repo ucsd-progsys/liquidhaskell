@@ -27,12 +27,12 @@ module Language.Fixpoint.Types (
   , module Language.Fixpoint.Types.Sorts
   , module Language.Fixpoint.Types.Refinements
   , module Language.Fixpoint.Types.Substitutions
+  , module Language.Fixpoint.Types.Environments
 
   , toFixpoint
   , writeFInfo
   , FInfo, SInfo, GInfo (..)
   , fi
-
 
   -- * Constraints
   , WfC (..)
@@ -42,30 +42,12 @@ module Language.Fixpoint.Types (
   , TaggedC, WrappedC (..), clhs, crhs
 
   -- * Accessing Constraints
-  , envCs
   , addIds, sinfo
 
   -- * Solutions
   , Result (..)
   , FixResult (..)
   , FixSolution
-
-  -- * Environments
-  , SEnv, SESearch(..)
-  , emptySEnv, toListSEnv, fromListSEnv
-  , mapSEnvWithKey
-  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
-  , intersectWithSEnv
-  , filterSEnv
-  , lookupSEnvWithDistance
-
-  , IBindEnv, BindId, BindMap
-  , emptyIBindEnv, insertsIBindEnv, deleteIBindEnv, elemsIBindEnv
-
-  , BindEnv, beBinds
-  , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
-  , bindEnvFromList, bindEnvToList
-  , unionIBindEnv
 
   -- * Qualifiers
   , Qualifier (..)
@@ -80,34 +62,35 @@ module Language.Fixpoint.Types (
   , convertFormat
   ) where
 
--- import           Debug.Trace               (trace)
-
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import           Data.Hashable
-import           Data.List                 (partition, sort)
--- import           Data.String
+import           Data.List                 (sort)
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
 import           Control.DeepSeq
-import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
+import           Data.Maybe
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
-import           Language.Fixpoint.Utils.Misc
--- import           Text.Parsec.Pos
-import           Text.PrettyPrint.HughesPJ
+import           Language.Fixpoint.Types.Environments
 
--- import           Data.Array                hiding (indices)
+import           Language.Fixpoint.Utils.Misc
+import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+
+
+--------------------------------------------------------------------------------
+-- | Constraint Cut Sets -------------------------------------------------------
+--------------------------------------------------------------------------------
 
 newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
@@ -124,133 +107,12 @@ ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
 
---------------------------------------------------------------------------------
--- | Type Constructors ---------------------------------------------------------
---------------------------------------------------------------------------------
-
-instance PTable (SInfo a) where
-  ptable fi = DocTable [ (text "# Sub Constraints", pprint $ length $ cm fi)
-                       , (text "# WF  Constraints", pprint $ length $ ws fi)
-                       ]
-
----------------------------------------------------------------
--- | Environments ---------------------------------------------
----------------------------------------------------------------
-
-toListSEnv              ::  SEnv a -> [(Symbol, a)]
-toListSEnv (SE env)     = M.toList env
-
-fromListSEnv            ::  [(Symbol, a)] -> SEnv a
-fromListSEnv            = SE . M.fromList
-
-mapSEnv f (SE env)      = SE (fmap f env)
-mapSEnvWithKey f        = fromListSEnv . fmap f . toListSEnv
-deleteSEnv x (SE env)   = SE (M.delete x env)
-insertSEnv x y (SE env) = SE (M.insert x y env)
-lookupSEnv x (SE env)   = M.lookup x env
-emptySEnv               = SE M.empty
-memberSEnv x (SE env)   = M.member x env
-intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
-filterSEnv f (SE m)     = SE (M.filter f m)
-lookupSEnvWithDistance x (SE env)
-  = case M.lookup x env of
-     Just z  -> Found z
-     Nothing -> Alts $ symbol . T.pack <$> alts
-  where
-    alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = T.unpack . symbolText <$> fst <$> M.toList env
-    x'         = T.unpack $ symbolText x
-    takeMin xs = [z | (d, z) <- xs, d == getMin xs]
-    getMin     = minimum . (fst <$>)
-
-data SESearch a = Found a | Alts [Symbol]
-
--- | Functions for Indexed Bind Environment
-
-emptyIBindEnv :: IBindEnv
-emptyIBindEnv = FB S.empty
-
-deleteIBindEnv :: BindId -> IBindEnv -> IBindEnv
-deleteIBindEnv i (FB s) = FB (S.delete i s)
-
-insertsIBindEnv :: [BindId] -> IBindEnv -> IBindEnv
-insertsIBindEnv is (FB s) = FB (foldr S.insert s is)
-
-elemsIBindEnv :: IBindEnv -> [BindId]
-elemsIBindEnv (FB s) = S.toList s
-
-
--- | Functions for Global Binder Environment
-insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
-insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
-
-emptyBindEnv :: BindEnv
-emptyBindEnv = BE 0 M.empty
-
-bindEnvFromList :: [(BindId, Symbol, SortedReft)] -> BindEnv
-bindEnvFromList [] = emptyBindEnv
-bindEnvFromList bs = BE (1 + maxId) be
-  where
-    maxId          = maximum $ fst3 <$> bs
-    be             = M.fromList [(n, (x, r)) | (n, x, r) <- bs]
-
-bindEnvToList :: BindEnv -> [(BindId, Symbol, SortedReft)]
-bindEnvToList (BE _ be) = [(n, x, r) | (n, (x, r)) <- M.toList be]
-
-mapBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindEnv -> BindEnv
-mapBindEnv f (BE n m) = BE n $ M.map f m
-
-lookupBindEnv :: BindId -> BindEnv -> (Symbol, SortedReft)
-lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
-  where
-    err                  = errorstar $ "lookupBindEnv: cannot find binder" ++ show k
-
-unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
-unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
-
-adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
-adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
-
-instance Functor SEnv where
-  fmap = mapSEnv
-
-instance Fixpoint BindEnv where
-  toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m
-
-toFixBind (i, (x, r)) = text "bind" <+> toFix i <+> toFix x <+> text ":" <+> toFix r
-
--- instance (Fixpoint a) => Fixpoint (SEnv a) where
---   toFix (SE e)    = vcat $ map pprxt $ hashMapToAscList e
---     where
---       pprxt (x,t) = toFix x <+> colon <> colon  <+> toFix t
-
-instance (Fixpoint a) => Fixpoint (SEnv a) where
-   toFix (SE m)   = toFix (hashMapToAscList m)
-
-instance Fixpoint (SEnv a) => Show (SEnv a) where
-  show = render . toFix
-
 -----------------------------------------------------------------------------
 -- | Constraints --------------------------------------------------------------
 -----------------------------------------------------------------------------
 
 {-@ type Tag = { v : [Int] | len(v) = 1 } @-}
 type Tag           = [Int]
-
-type BindId        = Int
-type BindMap a     = M.HashMap BindId a
-
-newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic)
-
-newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
-                     deriving (Eq, Data, Typeable, Generic, Foldable, Traversable)
-
-data SizedEnv a    = BE { beSize  :: Int
-                        , beBinds :: BindMap a
-                        } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
-
-type BindEnv       = SizedEnv (Symbol, SortedReft)
--- Invariant: All BindIds in the map are less than beSize
 
 data SubC a = SubC { _senv  :: !IBindEnv
                    , slhs  :: !SortedReft
@@ -387,9 +249,6 @@ instance Fixpoint a => Show (SubC a) where
 instance Fixpoint a => Show (SimpC a) where
   show = showFix
 
-instance Fixpoint (IBindEnv) where
-  toFix (FB ids) = text "env" <+> toFix ids
-
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   toFix (senv c)
@@ -450,8 +309,6 @@ instance NFData Kuts
 instance NFData IBindEnv
 instance NFData BindEnv
 
-
-
 instance (NFData a) => NFData (SEnv a)
 instance (NFData a) => NFData (SubC a)
 instance (NFData a) => NFData (WfC a)
@@ -484,26 +341,9 @@ subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2
      sr2' r2'          = RR t2 $ shiftVV r2' vv'
      vv'               = mkVV i
 
-reftConjuncts :: Reft -> [Reft]
-reftConjuncts (Reft (v, ra)) = [Reft (v, ra') | ra' <- ras']
-  where
-    ras'                     = if null ps then ks else ((pAnd ps) : ks)
-    (ks, ps)                 = partition isKvar $ refaConjuncts ra
-
-isKvar :: Pred -> Bool
-isKvar (PKVar _ _) = True
-isKvar _           = False
-
-
-refaConjuncts :: Pred -> [Pred]
-refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
-
 mkVV :: Maybe Integer -> Symbol
 mkVV (Just i)  = vv $ Just i
 mkVV Nothing   = vvCon
-
-envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
-envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
 
 shiftVV :: Reft -> Symbol -> Reft
 shiftVV r@(Reft (v, ras)) v'
@@ -518,10 +358,9 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
     shiftR i r@(Reft (v, _)) = shiftVV r (v `mappend` symbol (show i))
 
 
-------------------------------------------------------------------------
------------------ Qualifiers -------------------------------------------
-------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Qualifiers ----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
@@ -545,9 +384,9 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
   where
     args              = intersperse comma (toFix <$> xts)
 
-------------------------------------------------------------------------
------------------ Top-Level Constraint System --------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Top-Level Constraint System -----------------------------------------------
+--------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 -- | Constructing an FInfo
@@ -584,15 +423,6 @@ instance Monoid Kuts where
   mempty        = KS S.empty
   mappend k1 k2 = KS $ S.union (ksVars k1) (ksVars k2)
 
-instance Monoid (SEnv a) where
-  mempty        = SE M.empty
-  mappend s1 s2 = SE $ M.union (seBinds s1) (seBinds s2)
-
-instance Monoid BindEnv where
-  mempty = BE 0 M.empty
-  mappend (BE 0 _) b = b
-  mappend b (BE 0 _) = b
-  mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid (GInfo c a) where
   mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
@@ -637,10 +467,13 @@ toFixConstant (c, so)
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
 writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
 
--------------------------------------------------------------------------
--- | Class Predicates for Valid Refinements -----------------------------
--------------------------------------------------------------------------
----------------------------------------------------------------------------
+
+instance PTable (SInfo a) where
+  ptable z = DocTable [ (text "# Sub Constraints", pprint $ length $ cm z)
+                      , (text "# WF  Constraints", pprint $ length $ ws z)
+                      ]
+
+--------------------------------------------------------------------------
 -- | FInfo to SInfo conversion
 ---------------------------------------------------------------------------
 convertFormat :: (Fixpoint a) => FInfo a -> SInfo a
