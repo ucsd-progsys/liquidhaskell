@@ -168,6 +168,7 @@ Library
                    Language.Fixpoint.Types.Visitor,
                    Language.Fixpoint.Types.SortCheck,
                    Language.Fixpoint.Types.PrettyPrint,
+                   Language.Fixpoint.Types.Spans,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,

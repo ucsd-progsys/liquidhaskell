@@ -1,7 +1,7 @@
 import Language.Fixpoint.Interface     (solveFQ)
-import Language.Fixpoint.Config        (getOpts)
+import Language.Fixpoint.Types.Config  (getOpts)
 import System.Exit
-import Language.Fixpoint.Misc (writeLoud)
+import Language.Fixpoint.Utils.Misc    (writeLoud)
 
 main = do
   cfg <- getOpts
