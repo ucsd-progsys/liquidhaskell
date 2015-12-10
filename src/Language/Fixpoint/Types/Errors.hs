@@ -10,6 +10,10 @@ module Language.Fixpoint.Types.Errors (
   , dummySpan
   , sourcePosElts
 
+  -- * Result
+
+  , FixResult (..)
+  
   -- * Abstract Error Type
   , Error
 
@@ -74,7 +78,6 @@ instance Fixpoint Error where
 
 instance Exception Error
 instance Exception (FixResult Error)
-
 instance E.Error Error where
   strMsg = Error dummySpan
 

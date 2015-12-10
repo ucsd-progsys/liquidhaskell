@@ -188,7 +188,9 @@ import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromM
 import           Text.Printf               (printf)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
@@ -287,9 +289,9 @@ instance Fixpoint Bool where
   simplify z  = z
 
 
-----------------------------------------------------------------------
------------------------- Type Constructors ---------------------------
-----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Type Constructors ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -408,9 +410,9 @@ targetSubstSyms :: Subst -> [Symbol]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
 
----------------------------------------------------------------
-------------------------- Expressions -------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Expressions ---------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Uninterpreted constants that are embedded as  "constant symbol : Str"
 
@@ -1115,18 +1117,18 @@ instance Monoid (FixResult a) where
   mappend _ c@(Crash _ _)         = c
   mappend c@(Crash _ _) _         = c
   mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
-  mappend u@(UnknownError _) _    = u
-  mappend _ u@(UnknownError _)    = u
+  -- mappend u@(UnknownError _) _    = u
+  -- mappend _ u@(UnknownError _)    = u
 
 instance Functor FixResult where
   fmap f (Crash xs msg)   = Crash (f <$> xs) msg
   fmap f (Unsafe xs)      = Unsafe (f <$> xs)
   fmap _ Safe             = Safe
-  fmap _ (UnknownError d) = UnknownError d
+  -- fmap _ (UnknownError d) = UnknownError d
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix Safe             = text "Safe"
-  toFix (UnknownError d) = text $ "Unknown Error: " ++ d
+  -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
@@ -1136,7 +1138,7 @@ pprSinfos msg = map ((text msg <>) . toFix) . sort . fmap sinfo
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc Safe             = text "Safe"
-resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
+-- resultDoc (UnknownError d) = text $ "Unknown Error: " ++ d
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
 resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : (((text "WARNING:" <+>) . toFix) <$> xs)
 
@@ -1187,9 +1189,9 @@ toFixMeta k v = text "// META" <+> k <+> text ":" <+> v
 pprId (Just i)  = text "id" <+> tshow i
 pprId _         = text ""
 
--------------------------------------------------------
-------------------- Substitutions ---------------------
--------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Substitutions -------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 class Subable a where
   syms   :: a -> [Symbol]
@@ -1332,38 +1334,6 @@ unsafeMkSubst  = Su
 unsafeCatSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
   where
     s1'                           = subst θ2 <$> s1
-
--- TODO: this is **not used**, because of degenerate substitutions.
--- e.g. consider: s1 = [v := v], s2 = [v := x].
--- We want s1 `cat` s2 to be [v := x] and not [v := v] ...
-
---unsafeCatSubstIgnoringDead (Su s1) (Su s2) = Su $ s1' ++ s2'
---  where
---    s1' = second (subst (Su s2')) <$> s1
---    s2' = filter (\(x,_) -> (x `notElem` (fst <$> s1))) s2
-
--- TODO: nano-js throws all sorts of issues, will look into this later...
--- but also, the check is too conservative, because of degenerate substitutions,
--- see above.
---safeCatSubst θ1@(Su s1) θ2@(Su s2)
---  | null $ intersect xs1 xs2
---  = unsafeCatSubst θ1 θ2
---  | otherwise
---  = errorstar msg
---  where
---    s1' = second (subst (Su s2)) <$> s1
---    xs1 = fst <$> s1
---    xs2 = fst <$> s2
---    msg = printf "Fixpoint.Types catSubst on overlapping substitutions θ1 = %s, θ2 = %s" (showFix θ1) (showFix θ2)
-
-
---safeMkSubst θ
---  | nub θ == θ
---  = Su θ
---  | otherwise
---  = errorstar msg
---  where
---    msg = printf "Fixpoint.Types mkSubst on overlapping substitution θ = %s" (showFix θ)
 
 instance Monoid Subst where
   mempty  = emptySubst
@@ -1554,6 +1524,11 @@ data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_pos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)
+
+instance Loc Qualifier where
+  srcSpan q = SS l l
+    where
+      l     = q_pos q
 
 instance Fixpoint Qualifier where
   toFix = pprQual
@@ -1789,6 +1764,7 @@ editDistance xs ys = table ! (m,n)
 -----------------------------------------------------------------------------
 -- | Located Values ---------------------------------------------------------
 -----------------------------------------------------------------------------
+
 instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
 

@@ -103,6 +103,7 @@ import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
+import           Text.PrettyPrint.HughesPJ   (text)
 import           Language.Fixpoint.Types.PrettyPrint (PPrint (..))
 
 ---------------------------------------------------------------
