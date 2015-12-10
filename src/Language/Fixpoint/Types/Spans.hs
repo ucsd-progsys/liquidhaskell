@@ -57,8 +57,8 @@ instance B.Binary SourcePos where
   get = toSourcePos <$> B.get
 
 instance Serialize SourcePos where
-  put = error "Serialize: SourcePos"
-  get = error "Serialize: SourcePos"
+  put = put . ofSourcePos
+  get = toSourcePos <$> get
 
 instance PPrint SourcePos where
   pprint = text . show

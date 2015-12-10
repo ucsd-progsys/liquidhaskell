@@ -13,7 +13,7 @@ module Language.Fixpoint.Types.Errors (
   -- * Result
 
   , FixResult (..)
-  
+
   -- * Abstract Error Type
   , Error
 
@@ -38,29 +38,22 @@ module Language.Fixpoint.Types.Errors (
   ) where
 
 import           Control.Exception
--- import           Control.DeepSeq
 import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
--- import           Data.Hashable
 import           Data.Typeable
+-- import           Control.DeepSeq
+-- import           Data.Hashable
 -- import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Utils.Misc
--- import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
 
 instance Serialize Error
-
----------------------------------------------------------------------------
--- errorInfo :: Error -> (SrcSpan, String)
--- ------------------------------------------------------------------------
--- errorInfo (Error l msg) = (l, msg)
-
 
 -----------------------------------------------------------------------
 -- | A BareBones Error Type -------------------------------------------
@@ -121,7 +114,6 @@ exit def act = catch act $ \(e :: Error) -> do
 data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
-                 -- | UnknownError !String
                    deriving (Data, Typeable, Show, Generic)
 
 ---------------------------------------------------------------------
