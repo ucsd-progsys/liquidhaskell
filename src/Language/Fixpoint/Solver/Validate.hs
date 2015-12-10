@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
-import           Language.Fixpoint.Types.SortCheck        (isFirstOrder)
+import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Utils.Misc   as Misc
 import           Language.Fixpoint.Utils.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F

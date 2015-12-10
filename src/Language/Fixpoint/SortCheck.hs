@@ -6,7 +6,7 @@
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
 
-module Language.Fixpoint.Types.SortCheck  (
+module Language.Fixpoint.SortCheck  (
   -- * Sort Substitutions
     TVSubst
 
