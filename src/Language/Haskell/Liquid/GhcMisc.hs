@@ -35,7 +35,7 @@ import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
-import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import           Text.Parsec.Pos              (sourceName, sourceLine, sourceColumn, newPos)
 
 import           Name                         (mkInternalName, getSrcSpan, nameModule_maybe)
 import           Module                       (moduleNameFS)
@@ -70,8 +70,8 @@ import qualified Outputable                   as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 import           Data.Monoid                  (mempty, mappend)
-import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
-import           Language.Fixpoint.Types.Names
+import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
+-- import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
 --import qualified HscMain as GHC
@@ -130,9 +130,9 @@ stringTyVar s = mkTyVar name liftedTypeKind
 
 stringVar :: String -> Type -> Var
 stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
-   where 
+   where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
-      occ  = mkVarOcc s 
+      occ  = mkVarOcc s
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind superKind
@@ -149,7 +149,7 @@ hasBaseTypeVar = isBaseType . varType
 isBaseType (ForAllTy _ t)  = isBaseType t
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
-isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2 
+isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType (FunTy _ _)     = False -- isBaseType t1 && isBaseType t2
 isBaseType _               = False
 

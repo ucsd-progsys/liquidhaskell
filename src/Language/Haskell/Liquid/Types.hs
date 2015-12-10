@@ -259,7 +259,7 @@ data Tidy = Lossy | Full deriving (Eq, Ord)
 
 class PPrint a where
   pprint     :: a -> Doc
-
+  
   pprintTidy :: Tidy -> a -> Doc
   pprintTidy _ = pprint
 
