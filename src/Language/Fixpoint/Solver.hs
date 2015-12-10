@@ -52,7 +52,6 @@ import           Language.Fixpoint.Types.Errors           (exit, die)
 import           Language.Fixpoint.Types.PrettyPrint      (showpp)
 import           Control.DeepSeq
 
-
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
 ---------------------------------------------------------------------------
