@@ -131,7 +131,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Printer Configuration
   , PPEnv (..)
-  , Tidy  (..)
   , ppEnv
   , ppEnvShort
 
@@ -241,7 +240,7 @@ import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types.Config     hiding (Config)
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
+import Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
 import Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
 import qualified Language.Fixpoint.Types.PrettyPrint as F
 import CoreSyn (CoreBind, CoreExpr)
@@ -255,26 +254,6 @@ import Data.Default
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
-data Tidy = Lossy | Full deriving (Eq, Ord)
-
-class PPrint a where
-  pprint     :: a -> Doc
-  
-  pprintTidy :: Tidy -> a -> Doc
-  pprintTidy _ = pprint
-
-showpp :: (PPrint a) => a -> String
-showpp = render . pprint
-
-instance PPrint a => PPrint (Maybe a) where
-  pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
-
-instance PPrint a => PPrint [a] where
-  pprint = brackets . intersperse comma . map pprint
-
-instance (PPrint a, PPrint b) => PPrint (a,b) where
-  pprint (x, y)  = pprint x <+> text ":" <+> pprint y
-
 data PPEnv
   = PP { ppPs    :: Bool
        , ppTyVar :: Bool -- TODO if set to True all Bare fails
@@ -283,7 +262,7 @@ data PPEnv
        }
 
 ppEnv           = ppEnvPrintPreds
-_ppEnvCurrent    = PP False False False False
+_ppEnvCurrent   = PP False False False False
 ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
@@ -1359,51 +1338,6 @@ instance PPrint Strata where
   pprint [] = empty
   pprint ss = hsep (pprint <$> nub ss)
 
-instance PPrint SourcePos where
-  pprint = text . show
-
-instance PPrint () where
-  pprint = text . show
-
-instance PPrint String where
-  pprint = text
-
-instance PPrint Text where
-  pprint = text . T.unpack
-
-instance PPrint a => PPrint (Located a) where
-  pprint = pprint . val
-
-instance PPrint Int where
-  pprint = F.pprint
-
-instance PPrint Integer where
-  pprint = F.pprint
-
-instance PPrint Constant where
-  pprint = F.pprint
-
-instance PPrint Brel where
-  pprint = F.pprint
-
-instance PPrint Bop where
-  pprint = F.pprint
-
-instance PPrint Sort where
-  pprint = F.pprint
-
-instance PPrint Symbol where
-  pprint = pprint . symbolText
-
-instance PPrint Expr where
-  pprint = F.pprint
-
-instance PPrint SymConst where
-  pprint = F.pprint
-
-instance PPrint Pred where
-  pprint = F.pprint
-
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
     where
@@ -1412,12 +1346,6 @@ instance PPrint a => PPrint (PVar a) where
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
-
-instance PPrint Reft where
-  pprint = F.pprint
-
-instance PPrint SortedReft where
-  pprint = F.pprint
 
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
@@ -1572,18 +1500,12 @@ data TError t =
                 } -- ^ Unexpected PANIC
   deriving (Typeable, Functor)
 
--- data LParseError = LPE !SourcePos [String]
---                    deriving (Data, Typeable, Generic)
-
-
-
 
 errToFCrash :: Error -> Error
 errToFCrash (ErrSubType l m g t1 t2)
   = ErrFCrash l m g t1 t2
 errToFCrash e
   = e
-
 
 instance Eq Error where
   e1 == e2 = pos e1 == pos e2
@@ -1592,7 +1514,7 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = errOther . pprint
+  strMsg = errOther . text
 
 errSpan :: TError a -> SrcSpan
 errSpan = pos
@@ -1624,7 +1546,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther _ d) = UnknownError $ render d
+  result (ErrOther _ d) = Crash [] $ render d
   result e              = result [e]
 
 instance Result (FixResult Cinfo) where
