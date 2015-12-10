@@ -20,7 +20,7 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf               (printf)
 

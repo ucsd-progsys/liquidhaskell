@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
-import           Language.Fixpoint.Utils.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar)
 
 {-
     (* (L t1 t2 t3) is now encoded as

@@ -162,7 +162,7 @@ Library
                    Language.Fixpoint.Solver,
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.SortCheck,
-                   Language.Fixpoint.Utils.Misc,
+                   Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
                    Language.Fixpoint.Solver.Types,

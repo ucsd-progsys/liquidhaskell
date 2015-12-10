@@ -42,7 +42,7 @@ import           Language.Fixpoint.Solver.Solution  (Solution)
 import           Language.Fixpoint.Types.Config           (multicore, Config (..), command, withTarget)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        (mcInfo, partition, partition')

@@ -18,8 +18,8 @@ module Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
 import           Language.Fixpoint.SortCheck        (isFirstOrder)
-import qualified Language.Fixpoint.Utils.Misc   as Misc
-import           Language.Fixpoint.Utils.Misc        (fM, errorstar)
+import qualified Language.Fixpoint.Misc   as Misc
+import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
 import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M

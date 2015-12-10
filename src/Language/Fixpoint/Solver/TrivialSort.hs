@@ -9,7 +9,7 @@ import           Language.Fixpoint.Types.Visitor
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import qualified Data.HashSet            as S
 import           Data.Hashable
 import qualified Data.HashMap.Strict     as M

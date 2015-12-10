@@ -40,7 +40,7 @@ import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (subst)
 import           Language.Fixpoint.Types.Visitor (foldSort)
 

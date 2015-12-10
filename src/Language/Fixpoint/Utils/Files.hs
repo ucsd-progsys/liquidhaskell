@@ -34,7 +34,7 @@ import           Data.List              hiding (find)
 import           Data.Maybe             (fromMaybe)
 import           System.Directory
 import           System.FilePath
-import           Language.Fixpoint.Utils.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar)
 
 ------------------------------------------------------------
 -- | Hardwired Paths and Files -----------------------------

@@ -37,7 +37,7 @@ import           Data.String
 import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
--- import           Language.Fixpoint.Utils.Misc
+-- import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf

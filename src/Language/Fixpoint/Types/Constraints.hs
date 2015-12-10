@@ -68,7 +68,7 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S

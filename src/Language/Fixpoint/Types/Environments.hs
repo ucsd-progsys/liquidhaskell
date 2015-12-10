@@ -51,7 +51,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 
 type BindId        = Int
 type BindMap a     = M.HashMap BindId a

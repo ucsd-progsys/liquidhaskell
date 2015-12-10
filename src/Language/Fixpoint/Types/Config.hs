@@ -20,7 +20,7 @@ module Language.Fixpoint.Types.Config (
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
-import Language.Fixpoint.Utils.Misc (errorstar)
+import Language.Fixpoint.Misc (errorstar)
 
 class Command a  where
   command :: a -> String

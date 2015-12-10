@@ -10,7 +10,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Data.Hashable
 
 traceFix     ::  (Fixpoint a) => String -> a -> a

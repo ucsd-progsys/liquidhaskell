@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ImplicitParams            #-}
 
-module Language.Fixpoint.Utils.Misc where
+module Language.Fixpoint.Misc where
 
 -- import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.Exception                (bracket_)

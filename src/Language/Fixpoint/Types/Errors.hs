@@ -50,7 +50,7 @@ import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace

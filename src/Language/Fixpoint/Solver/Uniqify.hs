@@ -7,7 +7,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Types     (CId)
 import           Language.Fixpoint.Types.Visitor    (mapKVarSubsts)
 import           Language.Fixpoint.Types.Names      (renameSymbol, kArgSymbol)
-import           Language.Fixpoint.Utils.Misc       (fst3, mlookup)
+import           Language.Fixpoint.Misc       (fst3, mlookup)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
 import qualified Data.List                          as L

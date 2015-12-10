@@ -85,7 +85,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 -- import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
-import           Language.Fixpoint.Utils.Misc
+import           Language.Fixpoint.Misc
 -- import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 -- import           Data.Array                hiding (indices)

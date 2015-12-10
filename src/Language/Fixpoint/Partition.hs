@@ -19,7 +19,7 @@ import           GHC.Conc                  (getNumProcessors)
 import           Debug.Trace (trace)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
-import           Language.Fixpoint.Utils.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
+import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint

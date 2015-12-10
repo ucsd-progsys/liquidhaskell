@@ -53,7 +53,7 @@ module Language.Fixpoint.Smt.Interface (
     ) where
 
 import           Language.Fixpoint.Types.Config (SMTSolver (..))
-import           Language.Fixpoint.Utils.Misc   (errorstar)
+import           Language.Fixpoint.Misc   (errorstar)
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types

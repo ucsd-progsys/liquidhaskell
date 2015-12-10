@@ -26,7 +26,7 @@ module Language.Fixpoint.Solver.Monad
 import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
-import           Language.Fixpoint.Utils.Misc    (groupList)
+import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Types.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E

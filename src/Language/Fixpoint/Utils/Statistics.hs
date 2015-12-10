@@ -8,7 +8,7 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Control.Arrow ((&&&))
 
-import           Language.Fixpoint.Utils.Misc                (donePhase, Moods(..), applyNonNull)
+import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Partition           (partition')
