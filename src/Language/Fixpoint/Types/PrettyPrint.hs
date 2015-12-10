@@ -64,6 +64,8 @@ instance Fixpoint Double where
 
 ------------------------------------------------------------------
 
+data Tidy = Lossy | Full deriving (Eq, Ord)
+
 class PPrint a where
   pprint :: a -> Doc
   pprint = pprintPrec 0
@@ -71,6 +73,10 @@ class PPrint a where
   -- | Pretty-print something with a specific precedence.
   pprintPrec :: Int -> a -> Doc
   pprintPrec _ = pprint
+
+  pprintTidy :: Tidy -> a -> Doc
+  pprintTidy _ = pprint
+
 
 showpp :: (PPrint a) => a -> String
 showpp = render . pprint
