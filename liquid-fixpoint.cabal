@@ -150,6 +150,7 @@ Library
                    Language.Fixpoint.Types.Sorts,
                    Language.Fixpoint.Types.Refinements,
                    Language.Fixpoint.Types.Substitutions,
+                   Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Smt.Types,
