@@ -7,7 +7,7 @@ module Language.Fixpoint.Types (
 
     module Language.Fixpoint.Types.PrettyPrint
   , module Language.Fixpoint.Types.Spans
-  , module Language.Fixpoint.Types.Errors
+  -- , module Language.Fixpoint.Types.Errors
   , module Language.Fixpoint.Types.Names
   , module Language.Fixpoint.Types.Sorts
   , module Language.Fixpoint.Types.Refinements
@@ -19,7 +19,7 @@ module Language.Fixpoint.Types (
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Types.Errors
+-- import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
