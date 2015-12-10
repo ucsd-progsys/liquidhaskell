@@ -64,9 +64,9 @@ import qualified Data.Traversable as T
 import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-import Language.Fixpoint.Sort (pruneUnsortedReft)
-import Language.Fixpoint.Visitor
-import Language.Fixpoint.Names (symbolString)
+import Language.Fixpoint.SortCheck (pruneUnsortedReft)
+import Language.Fixpoint.Types.Visitor
+import Language.Fixpoint.Types.Names (symbolString)
 import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F

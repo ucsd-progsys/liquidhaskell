@@ -43,9 +43,8 @@ import qualified Data.Text              as T
 import qualified Data.HashMap.Strict    as M
 import qualified Language.Haskell.Liquid.ACSS as ACSS
 import           Language.Haskell.HsColour.Classify
-import           Language.Fixpoint.Files
-import           Language.Fixpoint.Names
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Utils.Misc
 import           Language.Haskell.Liquid.GhcMisc
 import           Language.Fixpoint.Types hiding (Def (..), Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc

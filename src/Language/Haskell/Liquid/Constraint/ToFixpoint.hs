@@ -9,7 +9,7 @@ import Language.Haskell.Liquid.Constraint.Types
 
 import Language.Haskell.Liquid.Types hiding     ( binds )
 import Language.Haskell.Liquid.Misc             ( mapSnd )
-import Language.Fixpoint.Interface              ( parseFInfo )
+import Language.Fixpoint.Solver                 ( parseFInfo )
 
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict            as M
