@@ -181,7 +181,6 @@ import           Data.List                 (partition, foldl', sort, sortBy)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import           GHC.Conc                  (getNumProcessors)
 import           Control.DeepSeq
 import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Text.Printf               (printf)

@@ -45,7 +45,7 @@ import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Utils.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        (partition, partition')
+import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Errors           (exit, die)

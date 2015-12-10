@@ -5,12 +5,17 @@
 
 module Language.Fixpoint.Partition (
     CPart (..)
+
+  -- * Split constraints
+  , partition, partition', partitionN
+
+  -- * Information about cores
   , MCInfo (..)
-  , partition
-  , partition'
-  , partitionN
+  , mcInfo
+
   ) where
 
+import           GHC.Conc                  (getNumProcessors)
 import           Debug.Trace (trace)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
@@ -23,6 +28,7 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
+import           Data.Maybe                     (isJust, mapMaybe, listToMaybe, fromMaybe)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
@@ -31,8 +37,8 @@ import           Data.List (sortBy)
 -- | Constraint Partition Container -------------------------------------
 -------------------------------------------------------------------------
 
-data CPart a = CPart { pws :: M.HashMap KVar (WfC a)
-                     , pcm :: M.HashMap Integer (SubC a)
+data CPart a = CPart { pws :: M.HashMap F.KVar (F.WfC a)
+                     , pcm :: M.HashMap Integer (F.SubC a)
                      , cFileName :: FilePath
                      }
 
@@ -74,7 +80,7 @@ partition cfg fi
 ------------------------------------------------------------------------------
 -- | Partition an FInfo into multiple disjoint FInfos
 ------------------------------------------------------------------------------
-partition' :: Maybe F.MCInfo -- ^ Nothing to produce the maximum possible
+partition' :: Maybe MCInfo -- ^ Nothing to produce the maximum possible
                              -- number of partitions. Or a MultiCore Info
                              -- to control the partitioning
            -> F.FInfo a -> (KVGraph, [F.FInfo a])
@@ -92,9 +98,9 @@ partition' mn fi  = case mn of
 
 -- | Partition an FInfo into a specific number of partitions of roughly equal
 -- amounts of work
-partitionN :: F.MCInfo    -- ^ describes thresholds and partiton amounts
+partitionN :: MCInfo    -- ^ describes thresholds and partiton amounts
            -> F.FInfo a   -- ^ The originial FInfo
-           -> [F.CPart a] -- ^ A list of the smallest possible CParts
+           -> [CPart a] -- ^ A list of the smallest possible CParts
            -> [F.FInfo a] -- ^ At most N partitions of at least thresh work
 partitionN mi fi cp
    | cpartSize (finfoToCpart fi) <= minThresh = [fi]
@@ -119,29 +125,29 @@ partitionN mi fi cp
       insertSorted a (x:xs) = if sortPredicate a x == LT
                               then x : insertSorted a xs
                               else a : x : xs
-      prts      = F.mcCores mi
-      minThresh = F.mcMinPartSize mi
-      maxThresh = F.mcMaxPartSize mi
+      prts      = mcCores mi
+      minThresh = mcMinPartSize mi
+      maxThresh = mcMaxPartSize mi
 
 
 -- | Return the "size" of a CPart. Used to determine if it's
 -- substantial enough to be worth parallelizing.
-cpartSize :: F.CPart a -> Int
-cpartSize c = (M.size . F.pcm) c + (length . F.pws) c
+cpartSize :: CPart a -> Int
+cpartSize c = (M.size . pcm) c + (length . pws) c
 
 -- | Convert a CPart to an FInfo
-cpartToFinfo :: F.FInfo a -> F.CPart a -> F.FInfo a
-cpartToFinfo fi p = fi { F.cm = F.pcm p
-                       , F.ws = F.pws p
-                       , F.fileName = F.cFileName p
+cpartToFinfo :: F.FInfo a -> CPart a -> F.FInfo a
+cpartToFinfo fi p = fi { F.cm = pcm p
+                       , F.ws = pws p
+                       , F.fileName = cFileName p
                        }
 
 -- | Convert an FInfo to a CPart
-finfoToCpart :: F.FInfo a -> F.CPart a
-finfoToCpart fi = F.CPart { F.pcm = F.cm fi
-                          , F.pws = F.ws fi
-                          , F.cFileName = F.fileName fi
-                          }
+finfoToCpart :: F.FInfo a -> CPart a
+finfoToCpart fi = CPart { pcm = F.cm fi
+                        , pws = F.ws fi
+                        , cFileName = F.fileName fi
+                        }
 
 -------------------------------------------------------------------------------------
 dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
@@ -201,11 +207,10 @@ mkPartition fi icM iwM j
        }
 
 mkPartition' fi icM iwM j
-  = F.CPart { F.pcm       = M.fromList $ M.lookupDefault [] j icM
-            , F.pws       = M.fromList $ M.lookupDefault [] j iwM
-            , F.cFileName = partFile fi j
-            }
-
+  = CPart { pcm       = M.fromList $ M.lookupDefault [] j icM
+          , pws       = M.fromList $ M.lookupDefault [] j iwM
+          , cFileName = partFile fi j
+          }
 
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
 groupFun m k = safeLookup ("groupFun: " ++ show k) k m
