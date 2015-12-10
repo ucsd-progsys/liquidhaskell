@@ -14,7 +14,7 @@ daemonName = "lhi"
 
 main :: IO ()
 main = do
-  st  <- newMVar H.init
+  st  <- newMVar H.initial
   cmd <- command
   ensureDaemonRunning daemonName (options cmd) (H.handler st)
   res <- client cmd
