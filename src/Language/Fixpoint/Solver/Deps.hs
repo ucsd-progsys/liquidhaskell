@@ -4,9 +4,9 @@ module Language.Fixpoint.Solver.Deps (
     deps, Deps (..)
 ) where
 
-import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Utils.Misc    (groupList)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Visitor (kvars, envKVars)
+import           Language.Fixpoint.Types.Visitor (kvars, envKVars)
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import qualified Data.Graph                as G

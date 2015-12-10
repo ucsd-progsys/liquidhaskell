@@ -8,9 +8,9 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Control.Arrow ((&&&))
 
-import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
-import           Language.Fixpoint.Config
-import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Utils.Misc                (donePhase, Moods(..), applyNonNull)
+import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Partition           (partition')
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M

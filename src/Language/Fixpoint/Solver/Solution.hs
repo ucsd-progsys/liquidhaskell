@@ -35,7 +35,7 @@ import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.Types.SortCheck    as So
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Utils.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
 

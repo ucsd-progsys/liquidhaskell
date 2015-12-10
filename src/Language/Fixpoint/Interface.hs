@@ -39,9 +39,9 @@ import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
-import           Language.Fixpoint.Files            hiding (Result)
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types.Config           (multicore, Config (..), command, withTarget)
+import           Language.Fixpoint.Utils.Files            hiding (Result)
+import           Language.Fixpoint.Utils.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')

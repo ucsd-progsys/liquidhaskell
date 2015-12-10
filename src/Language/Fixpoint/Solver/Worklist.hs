@@ -25,7 +25,7 @@ module Language.Fixpoint.Solver.Worklist
 
 import           Debug.Trace (trace)
 import           Prelude hiding (init)
-import           Language.Fixpoint.PrettyPrint -- (PTable (..), PPrint (..))
+import           Language.Fixpoint.Types.PrettyPrint -- (PTable (..), PPrint (..))
 import qualified Language.Fixpoint.Types   as F
 import           Language.Fixpoint.Solver.Types
 import           Language.Fixpoint.Solver.Graph

@@ -4,11 +4,12 @@ module Language.Fixpoint.Solver.TrivialSort (nontrivsorts) where
 
 import           GHC.Generics        (Generic)
 import           Control.Arrow       (second)
-import           Language.Fixpoint.Visitor
-import           Language.Fixpoint.Config
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Visitor
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types hiding (simplify)
-import           Language.Fixpoint.Files
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Utils.Misc
 import qualified Data.HashSet            as S
 import           Data.Hashable
 import qualified Data.HashMap.Strict     as M
@@ -17,7 +18,6 @@ import qualified Data.Graph              as G
 import           Data.Maybe
 import           Text.Printf
 import           Debug.Trace
-import           Language.Fixpoint.PrettyPrint
 
 -------------------------------------------------------------------------
 nontrivsorts :: (Fixpoint a) => Config -> FInfo a -> IO (Result a)

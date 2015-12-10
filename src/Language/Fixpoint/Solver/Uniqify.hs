@@ -5,9 +5,9 @@ module Language.Fixpoint.Solver.Uniqify (renameAll) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Solver.Types     (CId)
-import           Language.Fixpoint.Visitor          (mapKVarSubsts)
-import           Language.Fixpoint.Names            (renameSymbol, kArgSymbol)
-import           Language.Fixpoint.Misc             (fst3, mlookup)
+import           Language.Fixpoint.Types.Visitor    (mapKVarSubsts)
+import           Language.Fixpoint.Types.Names      (renameSymbol, kArgSymbol)
+import           Language.Fixpoint.Utils.Misc       (fst3, mlookup)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
 import qualified Data.List                          as L
@@ -154,7 +154,7 @@ remakeSubst fi k su = foldl' (updateSubst k) su kDom
     kDom = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
-updateSubst k (Su su) sym 
+updateSubst k (Su su) sym
   | sym `M.member` su = Su $ M.delete sym $ M.insert (kArgSymbol' sym k) (su M.! sym) su
   | otherwise         = Su $ M.insert (kArgSymbol' sym k) (eVar sym) su
 --------------------------------------------------------------

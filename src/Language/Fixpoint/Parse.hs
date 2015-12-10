@@ -85,13 +85,12 @@ import           GHC.Generics                (Generic)
 
 import           Data.Char                   (isLower)
 import           Language.Fixpoint.Smt.Bitvector
-import           Language.Fixpoint.Errors
-import           Language.Fixpoint.Misc      (sortNub, thd3)
+import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Utils.Misc      (sortNub, thd3)
 import           Language.Fixpoint.Smt.Types
-
-import           Language.Fixpoint.Names     (headSym)
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types.Names     (headSym)
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
+import           Language.Fixpoint.Types
 
 type Parser = Parsec String Integer
 

@@ -11,13 +11,13 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names (mulFuncName, divFuncName)
+import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Utils.Misc (errorstar)
 
 {-
     (* (L t1 t2 t3) is now encoded as

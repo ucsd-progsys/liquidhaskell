@@ -50,9 +50,10 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           Debug.Trace
 
+
 -- | Throw an UnknownError exception
-unknownError :: String -> Result a
-unknownError e = Result (UnknownError e) mempty
+-- unknownError :: String -> Result a
+-- unknownError e = Result (UnknownError e) mempty
 
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------

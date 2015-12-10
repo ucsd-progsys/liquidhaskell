@@ -4,7 +4,7 @@
 module Language.Fixpoint.Solver.Types where
 
 
-import           Language.Fixpoint.Misc (safeLookup)
+import           Language.Fixpoint.Utils.Misc (safeLookup)
 import qualified Language.Fixpoint.Types   as F
 import qualified Data.HashMap.Strict       as M
 import GHC.Stack

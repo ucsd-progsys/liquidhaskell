@@ -5,10 +5,10 @@ module Language.Fixpoint.Solver.Eliminate
        (eliminateAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Names           (existSymbol)
+import           Language.Fixpoint.Types.Names           (existSymbol)
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
-import           Language.Fixpoint.Visitor         (kvars)
-import           Language.Fixpoint.Misc            (fst3)
+import           Language.Fixpoint.Types.Visitor         (kvars)
+import           Language.Fixpoint.Utils.Misc            (fst3)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
