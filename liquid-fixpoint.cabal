@@ -121,6 +121,7 @@ Executable fixpoint.native
                , hashable
                , unordered-containers
                , text-format
+               , cereal
                , liquid-fixpoint
 
 
@@ -155,6 +156,7 @@ Executable fixpoint
                , hashable
                , unordered-containers
                , text-format
+               , cereal
                , liquid-fixpoint
 
 Library
@@ -222,6 +224,7 @@ Library
                , transformers
                , hashable
                , unordered-containers
+               , cereal
                , text-format
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base

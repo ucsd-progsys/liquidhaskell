@@ -35,6 +35,7 @@ module Language.Fixpoint.Errors (
 
 import           Control.Exception
 import qualified Control.Monad.Error           as E
+import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Hashable
 import           Data.Typeable
@@ -46,6 +47,32 @@ import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           Debug.Trace
+
+-----------------------------------------------------------------------
+-- | Retrofitting instances to SourcePos ------------------------------
+-----------------------------------------------------------------------
+
+instance NFData SourcePos where
+  rnf = rnf . ofSourcePos
+
+instance B.Binary SourcePos where
+  put = B.put . ofSourcePos
+  get = toSourcePos <$> B.get
+
+instance Serialize SourcePos where
+  put = undefined
+  get = undefined
+
+ofSourcePos :: SourcePos -> (SourceName, Line, Column)
+ofSourcePos p = (f, l, c)
+  where
+   f = sourceName   p
+   l = sourceLine   p
+   c = sourceColumn p
+
+toSourcePos :: (SourceName, Line, Column) -> SourcePos
+toSourcePos (f, l, c) = newPos f l c
+
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
 -----------------------------------------------------------------------
@@ -53,6 +80,9 @@ import           Debug.Trace
 data SrcSpan = SS { sp_start :: !SourcePos
                   , sp_stop  :: !SourcePos}
                  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance Serialize SrcSpan
+instance Serialize Error
 
 instance PPrint SrcSpan where
   pprint = ppSrcSpan

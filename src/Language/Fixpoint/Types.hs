@@ -1288,9 +1288,6 @@ conjuncts p
 -- | Serialization ---------------------------------------------
 ----------------------------------------------------------------
 
-instance B.Binary SourcePos where
-  put = B.put . ofSourcePos
-  get = toSourcePos <$> B.get
 
 instance B.Binary KVar
 
@@ -1329,19 +1326,6 @@ instance (B.Binary a) => B.Binary (Located a)
 ----------------------------------------------------------------
 -- | Strictness ------------------------------------------------
 ----------------------------------------------------------------
-
-instance NFData SourcePos where
-  rnf = rnf . ofSourcePos
-
-ofSourcePos :: SourcePos -> (SourceName, Line, Column)
-ofSourcePos p = (f, l, c)
-  where
-   f = sourceName   p
-   l = sourceLine   p
-   c = sourceColumn p
-
-toSourcePos :: (SourceName, Line, Column) -> SourcePos
-toSourcePos (f, l, c) = newPos f l c
 
 instance NFData KVar
 instance NFData Kuts
