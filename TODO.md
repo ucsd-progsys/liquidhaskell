@@ -2,7 +2,7 @@
 
 * Smash Types.hs into
   + Environments
-  + Terms 
+  + Terms = Expr + Pred + Const + etc. 
   + Sorts
   + Refinements
   + Constraints
