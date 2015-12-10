@@ -56,6 +56,8 @@ import           Text.Printf
 -- import           Debug.Trace
 
 instance Serialize Error
+instance Serialize (FixResult Error)
+
 instance (B.Binary a) => B.Binary (FixResult a)
 
 -----------------------------------------------------------------------
