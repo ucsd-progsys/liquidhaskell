@@ -12,6 +12,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import           Language.Fixpoint.Misc
 import           Data.Hashable
+import           Data.Text as T
+
 
 traceFix     ::  (Fixpoint a) => String -> a -> a
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
@@ -128,6 +130,9 @@ instance PPrint Int where
 
 instance PPrint Integer where
   pprint = integer
+
+instance PPrint T.Text where 
+  pprint = pprint . T.unpack
 
 newtype DocTable = DocTable [(Doc, Doc)]
 
