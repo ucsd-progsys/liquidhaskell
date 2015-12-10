@@ -3,7 +3,8 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
-module Language.Fixpoint.Errors (
+
+module Language.Fixpoint.Types.Errors (
   -- * Concrete Location Type
     SrcSpan (..)
   , dummySpan
@@ -34,19 +35,25 @@ module Language.Fixpoint.Errors (
   ) where
 
 import           Control.Exception
+import           Control.DeepSeq
 import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Hashable
 import           Data.Typeable
+import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Types
+-- import           Language.Fixpoint.Types
 import           Language.Fixpoint.Misc
 import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 import           Debug.Trace
+
+-- | Throw an UnknownError exception
+unknownError :: String -> Result a
+unknownError e = Result (UnknownError e) mempty
 
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------
@@ -62,6 +69,9 @@ instance B.Binary SourcePos where
 instance Serialize SourcePos where
   put = undefined
   get = undefined
+
+instance PPrint SourcePos where
+  pprint = text . show
 
 ofSourcePos :: SourcePos -> (SourceName, Line, Column)
 ofSourcePos p = (f, l, c)
@@ -105,6 +115,7 @@ sourcePosElts s = (src, line, col)
     src         = sourceName   s
     line        = sourceLine   s
     col         = sourceColumn s
+
 
 instance Hashable SourcePos where
   hashWithSalt i   = hashWithSalt i . sourcePosElts
@@ -157,7 +168,6 @@ catErrors :: ListNE Error -> Error
 ---------------------------------------------------------------------
 catErrors = foldr1 catError
 
-
 ---------------------------------------------------------------------
 err :: SrcSpan -> String -> Error
 ---------------------------------------------------------------------
@@ -169,13 +179,6 @@ die :: Error -> a
 die = throw
 
 ---------------------------------------------------------------------
-result :: Error -> Result a
----------------------------------------------------------------------
-result e = Result (Crash [] msg) mempty
-  where
-    msg  = {- trace "HITTING RESULT" $ -} showpp e
-
----------------------------------------------------------------------
 exit :: a -> IO a -> IO a
 ---------------------------------------------------------------------
 exit def act = catch act $ \(e :: Error) -> do
@@ -184,12 +187,20 @@ exit def act = catch act $ \(e :: Error) -> do
 
 
 ---------------------------------------------------------------------
--- | Catalogue of Errors --------------------------------------------
+-- | Result ---------------------------------------------------------
 ---------------------------------------------------------------------
 
-errFreeVarInQual  :: Qualifier -> Error
+data FixResult a = Crash [a] String
+                 | Safe
+                 | Unsafe ![a]
+                 -- | UnknownError !String
+                   deriving (Data, Typeable, Show, Generic)
+
+---------------------------------------------------------------------
+-- | Catalogue of Errors --------------------------------------------
+---------------------------------------------------------------------
+errFreeVarInQual  :: _ -> Error
 errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
--- errFreeVarInQual q = err dummySpan $ printf "Qualifier with free vars" --  : %s \n" (showFix q)
   where
     sp             = SS l l
     l              = q_pos q

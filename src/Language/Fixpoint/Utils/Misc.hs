@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ImplicitParams            #-}
 
-module Language.Fixpoint.Misc where
+module Language.Fixpoint.Utils.Misc where
 
 import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.Exception                (bracket_)
@@ -27,6 +27,9 @@ import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 -- import           System.ProgressBar
 import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
+import Control.Concurrent
+import Control.Concurrent.Async
+
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -34,6 +37,9 @@ import GHC.Err.Located
 import GHC.Stack
 #endif
 
+
+asyncMapM :: (a -> IO b) -> [a] -> IO [b]
+asyncMapM f xs = mapM (async . f) xs >>= mapM wait
 
 traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x

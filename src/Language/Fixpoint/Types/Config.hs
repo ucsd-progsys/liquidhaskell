@@ -4,7 +4,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 
-module Language.Fixpoint.Config (
+module Language.Fixpoint.Types.Config (
     Config  (..)
   , getOpts
   , Command (..)

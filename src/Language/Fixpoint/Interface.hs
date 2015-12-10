@@ -47,7 +47,7 @@ import           Language.Fixpoint.Statistics       (statistics)
 import           Language.Fixpoint.Partition        (partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors           (exit, die, result)
+import           Language.Fixpoint.Errors           (exit, die)
 import           Language.Fixpoint.PrettyPrint      (showpp)
 import           Language.Fixpoint.Parallel         (inParallelUsing)
 import           Control.DeepSeq
@@ -153,6 +153,19 @@ solveParWith s c fi0 = do
       [onePart] -> s c onePart
       _         -> inParallelUsing (s c) fis
 
+-------------------------------------------------------------------------------
+-- | Solve a list of FInfos using the provided solver function in parallel
+-------------------------------------------------------------------------------
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing f xs = do
+   setNumCapabilities (length xs)
+   rs <- asyncMapM f xs
+   return $ mconcat rs
+
+
+
+
 -- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
 -- DEBUG debugDiff fi fi' = putStrLn msg
   -- DEBUG where
@@ -190,6 +203,13 @@ solveParWith s c fi0 = do
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
+
+
+result :: Error -> Result a
+result e = Result (Crash [] msg) mempty
+  where
+    msg  = showpp e
+
 
 solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)

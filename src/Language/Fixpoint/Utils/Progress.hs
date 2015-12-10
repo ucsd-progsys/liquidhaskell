@@ -1,6 +1,6 @@
 -- | Progress Bar API
 
-module Language.Fixpoint.Progress (
+module Language.Fixpoint.Utils.Progress (
       withProgress
     , progressInit
     , progressTick

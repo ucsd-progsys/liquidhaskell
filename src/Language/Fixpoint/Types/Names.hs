@@ -15,7 +15,7 @@
 --   should be defined here, and the (exported) variables should be used and
 --   manipulated elsewhere.
 
-module Language.Fixpoint.Names (
+module Language.Fixpoint.Types.Names (
 
   -- * Symbols
     Symbol
@@ -103,6 +103,7 @@ import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
+import           Language.Fixpoint.PrettyPrint (PPrint (..))
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -178,6 +179,9 @@ instance Monoid Symbol where
     where
       s1'       = symbolText s1
       s2'       = symbolText s2
+
+instance PPrint Symbol where
+  pprint = text . symbolString
 
 ---------------------------------------------------------------------------
 -- | Decoding Symbols -----------------------------------------------------
