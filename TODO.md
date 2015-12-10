@@ -1,9 +1,9 @@
 # TODO
 
 * Smash Types.hs into
-  + Environments
-  + Terms = Expr + Pred + Const + etc. 
-  + Sorts
-  + Refinements
-  + Constraints
-  + Substitutions
+  1. Environments
+  2. Terms = Expr + Pred + Const + etc. 
+  3. Sorts
+  4. Refinements
+  5. Constraints
+  6. Substitutions
