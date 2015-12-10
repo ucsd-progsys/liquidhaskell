@@ -1,4 +1,4 @@
-import Language.Fixpoint.Interface     (solveFQ)
+import Language.Fixpoint.Solver        (solveFQ)
 import Language.Fixpoint.Types.Config  (getOpts)
 import System.Exit
 import Language.Fixpoint.Utils.Misc    (writeLoud)
