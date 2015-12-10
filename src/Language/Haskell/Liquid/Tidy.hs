@@ -23,7 +23,7 @@ import qualified Data.List           as L
 import qualified Data.Text           as T
 import           Data.Maybe                 (fromMaybe)
 
-import Language.Fixpoint.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
+import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar)
 import Language.Haskell.Liquid.Types

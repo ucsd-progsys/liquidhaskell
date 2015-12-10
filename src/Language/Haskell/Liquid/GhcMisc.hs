@@ -71,7 +71,7 @@ import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 import           Data.Monoid                  (mempty, mappend)
 import           Language.Fixpoint.Types      hiding (Constant (..), SESearch(..))
-import           Language.Fixpoint.Names
+import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
 --import qualified HscMain as GHC

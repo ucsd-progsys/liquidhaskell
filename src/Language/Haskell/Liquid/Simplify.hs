@@ -2,7 +2,7 @@ module Language.Haskell.Liquid.Simplify (simplifyBounds) where
 
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
-import Language.Fixpoint.Visitor
+import Language.Fixpoint.Types.Visitor
 -- import Control.Applicative                 ((<$>))
 import Data.Monoid
 

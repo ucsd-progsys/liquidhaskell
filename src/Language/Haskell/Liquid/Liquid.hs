@@ -14,10 +14,10 @@ import           Var
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Console.CmdArgs.Default
 
-import qualified Language.Fixpoint.Config as FC
+import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Interface
+import           Language.Fixpoint.Solver
 import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Errors

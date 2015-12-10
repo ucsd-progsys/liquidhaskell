@@ -239,11 +239,11 @@ import qualified  Data.Text                    as T
 import Text.Parsec.Pos              (SourcePos)
 import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Config     hiding (Config)
+import Language.Fixpoint.Types.Config     hiding (Config)
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
-import Language.Fixpoint.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.PrettyPrint as F
+import Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
+import qualified Language.Fixpoint.Types.PrettyPrint as F
 import CoreSyn (CoreBind, CoreExpr)
 
 import Language.Haskell.Liquid.Variance

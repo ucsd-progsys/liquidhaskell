@@ -15,7 +15,7 @@ import Control.Applicative      ((<$>))
 import Var
 
 
-import Language.Fixpoint.Names      (symbolString)
+import Language.Fixpoint.Types.Names      (symbolString)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc       (errorstar)
 

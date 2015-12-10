@@ -9,7 +9,7 @@ import Data.Char
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (errorstar, fst3)
-import Language.Fixpoint.Names (headSym)
+import Language.Fixpoint.Types.Names (headSym)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, exprReft)
 
 import Language.Haskell.Liquid.RefType (strengthen, uTop)
