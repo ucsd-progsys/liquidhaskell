@@ -28,9 +28,9 @@ module Language.Haskell.Liquid.CmdLine (
 
    -- * Diff check mode
    , diffcheck
+
 ) where
 
-import Control.Applicative                 ((<$>))
 import Control.Monad
 import Data.Maybe
 import System.Directory
@@ -41,7 +41,7 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (intercalate, nub)
+import Data.List                           (nub)
 import Data.Monoid
 
 import System.FilePath                     (dropFileName, isAbsolute,
@@ -77,7 +77,7 @@ defaultMaxParams = 2
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
-
+config :: Mode (CmdArgs Config)
 config = cmdArgsMode $ Config {
    files
     = def &= typ "TARGET"
@@ -193,6 +193,9 @@ config = cmdArgsMode $ Config {
  , eliminate
     = def &= name "eliminate"
           &= help "Use experimental 'eliminate' feature"
+
+ , port = 7856
+          &= help "Port at which lhi should listen"
 
  } &= verbosity
    &= program "liquid"

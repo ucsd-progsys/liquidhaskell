@@ -7,7 +7,7 @@ import           Control.Concurrent.MVar ( newMVar )
 import           Data.Default ( def )
 import           Language.Haskell.Liquid.Interactive.Types
 import qualified Language.Haskell.Liquid.Interactive.Handler as H
-
+import           Language.Haskell.Liquid.CmdLine (getOpts)
 
 daemonName :: String
 daemonName = "lhi"
@@ -25,3 +25,10 @@ options cmd = def { daemonPort = port cmd }
 
 client :: Command -> IO (Maybe Response)
 client cmd = runClient "localhost" (port cmd) cmd
+
+---------------------------------------------------------------------------------
+-- | Parsing Command Line -------------------------------------------------------
+---------------------------------------------------------------------------------
+command :: IO Command
+-------------------------------------------------------------------------------
+command = getOpts =<< getArgs
