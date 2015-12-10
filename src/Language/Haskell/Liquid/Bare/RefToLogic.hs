@@ -13,7 +13,7 @@ import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)
 import Language.Fixpoint.Misc  (errorstar)
-import Language.Fixpoint.Names
+import Language.Fixpoint.Types.Names
 import Language.Haskell.Liquid.GhcMisc (dropModuleUnique)
 import qualified Data.HashMap.Strict as M
 

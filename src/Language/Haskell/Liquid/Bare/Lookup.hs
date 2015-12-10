@@ -35,7 +35,7 @@ import Text.PrettyPrint.HughesPJ (text)
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
+import Language.Fixpoint.Types.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
 import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)

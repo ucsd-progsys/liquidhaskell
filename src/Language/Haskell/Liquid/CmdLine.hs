@@ -47,12 +47,12 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, extSolver,
+import Language.Fixpoint.Types.Config            hiding (Config, real, extSolver,
                                                    getOpts, cores, minPartSize,
                                                    maxPartSize, newcheck, eliminate)
-import Language.Fixpoint.Files
+import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names
+import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Result)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc

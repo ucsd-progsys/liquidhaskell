@@ -34,7 +34,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (Predicate)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types hiding (sort)
--- import Language.Fixpoint.Names (symbolString, propConName, hpropConName)
+-- import Language.Fixpoint.Types.Names (symbolString, propConName, hpropConName)
 import TypeRep          hiding (maybeParen, pprArrowChain)
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Var              (Var)

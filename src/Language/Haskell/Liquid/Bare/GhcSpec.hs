@@ -34,7 +34,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (thd3, traceShow)
-import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
+import Language.Fixpoint.Types.Names (takeWhileSym, nilName, consName)
 import Language.Fixpoint.Types
 
 import Language.Haskell.Liquid.Dictionaries

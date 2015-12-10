@@ -55,8 +55,8 @@ import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 
-import Language.Fixpoint.Names
-import Language.Fixpoint.Files
+import Language.Fixpoint.Types.Names
+import Language.Fixpoint.Utils.Files
 
 
 

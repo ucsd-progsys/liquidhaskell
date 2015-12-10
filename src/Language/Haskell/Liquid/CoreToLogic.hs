@@ -30,7 +30,7 @@ import TysWiredIn
 import Control.Applicative
 
 import Language.Fixpoint.Misc (snd3)
-import Language.Fixpoint.Names (propConName, isPrefixOfSym)
+import Language.Fixpoint.Types.Names (propConName, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc
