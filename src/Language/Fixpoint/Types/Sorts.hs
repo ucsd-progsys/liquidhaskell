@@ -37,6 +37,7 @@ module Language.Fixpoint.Types.Sorts (
   , fObj
 
   , sortSubst
+  , functionSort
   ) where
 
 import           Debug.Trace               (trace)
@@ -121,6 +122,12 @@ sortFTycon FNum    = Just numFTyCon
 sortFTycon (FTC c) = Just c
 sortFTycon _       = Nothing
 
+functionSort :: Sort -> Maybe (Int, [Sort], Sort)
+functionSort (FFunc n ts) = Just (n, its, t)
+  where
+    (its, t)              = safeUnsnoc "functionSort" ts
+functionSort _            = Nothing
+
 ----------------------------------------------------------------------
 ------------------------------- Sorts --------------------------------
 ----------------------------------------------------------------------
@@ -200,3 +207,16 @@ sortSubst _  t           = t
 instance B.Binary FTycon
 instance B.Binary Sort
 instance B.Binary Sub
+
+instance NFData FTycon
+instance NFData Sort
+instance NFData Sub
+
+
+instance Monoid Sort where
+  mempty            = FObj "any"
+  mappend t1 t2
+    | t1 == mempty  = t2
+    | t2 == mempty  = t1
+    | t1 == t2      = t1
+    | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2

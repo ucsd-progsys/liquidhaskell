@@ -7,7 +7,8 @@
 module Language.Fixpoint.Types.Spans (
 
   -- * Concrete Location Type
-    SrcSpan (..)
+    SourcePos (..)
+  , SrcSpan (..)
 
   -- * Located Values
   , Loc (..)
@@ -112,6 +113,9 @@ instance Traversable Located where
 
 instance Show a => Show (Located a) where
   show (Loc l l' x) = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
+
+instance PPrint a => PPrint (Located a) where
+  pprint (Loc _ _ x) = pprint x
 
 instance Eq a => Eq (Located a) where
   (Loc _ _ x) == (Loc _ _ y) = x == y

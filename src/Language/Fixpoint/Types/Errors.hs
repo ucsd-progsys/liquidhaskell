@@ -46,7 +46,7 @@ import           Data.Generics                 (Data)
 import           Data.Typeable
 import           Control.DeepSeq
 -- import           Data.Hashable
--- import qualified Data.Binary                   as B
+import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
@@ -56,6 +56,7 @@ import           Text.Printf
 -- import           Debug.Trace
 
 instance Serialize Error
+instance (B.Binary a) => B.Binary (FixResult a)
 
 -----------------------------------------------------------------------
 -- | A BareBones Error Type -------------------------------------------
