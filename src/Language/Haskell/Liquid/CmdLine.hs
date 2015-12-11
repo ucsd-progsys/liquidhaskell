@@ -194,7 +194,9 @@ config = cmdArgsMode $ Config {
     = def &= name "eliminate"
           &= help "Use experimental 'eliminate' feature"
 
- , port = 7856
+ , port
+     = defaultPort
+          &= name "port"
           &= help "Port at which lhi should listen"
 
  } &= verbosity
@@ -206,6 +208,9 @@ config = cmdArgsMode $ Config {
               , "To check a Haskell file foo.hs, type:"
               , "  liquid foo.hs "
               ]
+
+defaultPort :: Int
+defaultPort = 7856
 
 getOpts :: [String] -> IO Config
 getOpts as = do
@@ -363,6 +368,7 @@ defConfig = Config { files          = def
                    , ghcOptions     = def
                    , cFiles         = def
                    , eliminate      = def
+                   , port           = defaultPort
                    }
 
 instance Monoid SMTSolver where
