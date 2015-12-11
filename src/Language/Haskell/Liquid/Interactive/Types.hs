@@ -9,8 +9,8 @@ module Language.Haskell.Liquid.Interactive.Types
 
     -- * Response
   , Response (..)
-  , response
-  
+  , status
+
     -- * State
   , State (..)
 
@@ -42,16 +42,17 @@ type Command = Config
 -- | Response -----------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-data Response = ResOk
-              | ResFail Int
+data Status = ResOk
+            | ResFail Int
                deriving ( Generic, Data, Typeable, Show )
 
-instance Serialize Response
+type Response = (Status, Int)
 
+instance Serialize Status
 
-response :: ExitCode -> Response
-response ExitSuccess     = ResOk
-response (ExitFailure n) = ResFail n
+status :: ExitCode -> Status
+status ExitSuccess     = ResOk
+status (ExitFailure n) = ResFail n
 
 {-
 cGet :: Command

@@ -11,7 +11,7 @@ import           Language.Haskell.Liquid.CmdLine (getOpts)
 import           Language.Haskell.Liquid.Config  (port)
 
 daemonName :: String
-daemonName = "lhi"
+daemonName = "lhi0"
 
 main :: IO ()
 main = do
