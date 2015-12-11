@@ -38,8 +38,7 @@ mkPB n = newProgressBar def { pgWidth       = 80
                             , pgTotal       = toInteger n
                             , pgFormat      = "Working :percent [:bar]"
                             , pgPendingChar = '.'
-                            -- , pgOnCompletion = Just "Done :percent after :elapsed seconds"
-                            , pgOnCompletion = Just "Done solving :percent."
+                            , pgOnCompletion = Just "Done solving." --  :percent."
                             }
 
 {-
