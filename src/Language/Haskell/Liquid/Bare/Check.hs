@@ -26,8 +26,8 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Misc (applyNonNull, group, errorstar, safeHead)
-import Language.Fixpoint.Sort (checkSorted, checkSortedReftFull, checkSortFull)
-import Language.Fixpoint.Types hiding (R)
+import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
+import Language.Fixpoint.Types      hiding (Error, R)
 
 import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (snd4, mapSnd)

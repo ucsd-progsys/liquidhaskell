@@ -32,7 +32,7 @@ import Text.PrettyPrint.HughesPJ    (text)
 
 import Language.Preprocessor.Unlit (unlit)
 
-import Language.Fixpoint.Types hiding (Def, R)
+import Language.Fixpoint.Types hiding (Error, Def, R)
 
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types hiding (Axiom)
@@ -42,7 +42,7 @@ import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
-import Language.Fixpoint.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
+import Language.Fixpoint.Types.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
 import Language.Fixpoint.Misc (safeLast, errorstar)
 import Language.Fixpoint.Parse hiding (angles, refBindP, refP, refDefP)
 

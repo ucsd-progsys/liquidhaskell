@@ -64,9 +64,9 @@ import qualified Data.Traversable as T
 import Text.Printf
 
 import qualified Language.Haskell.Liquid.CTags      as Tg
-import Language.Fixpoint.Sort (pruneUnsortedReft)
-import Language.Fixpoint.Visitor
-import Language.Fixpoint.Names (symbolString)
+import Language.Fixpoint.SortCheck (pruneUnsortedReft)
+import Language.Fixpoint.Types.Visitor
+import Language.Fixpoint.Types.Names (symbolString)
 import Language.Haskell.Liquid.Fresh
 
 import qualified Language.Fixpoint.Types            as F
@@ -708,7 +708,7 @@ initCGI cfg info = CGInfo {
   , annotMap   = AI M.empty
   , tyConInfo  = tyi
   , tyConEmbed = tce
-  , kuts       = F.ksEmpty
+  , kuts       = mempty -- F.ksEmpty
   , lits       = coreBindLits tce info ++  (map (mapSnd F.sr_sort) $ map mkSort $ meas spc)
   , termExprs  = M.fromList $ texprs spc
   , specDecr   = decr spc
@@ -949,9 +949,9 @@ freshTy_reftype k t = (fixTy t >>= refresh) =>> addKVars k
 
 addKVars        :: KVKind -> SpecType -> CG ()
 addKVars !k !t  = do when (True)    $ modify $ \s -> s { kvProf = updKVProf k kvars (kvProf s) }
-                     when (isKut k) $ modify $ \s -> s { kuts   = F.ksUnion kvars   (kuts s)   }
+                     when (isKut k) $ modify $ \s -> s { kuts   = mappend   kvars   (kuts s)   }
   where
-     kvars      = sortNub $ specTypeKVars t
+     kvars      = F.KS $ S.fromList $ specTypeKVars t
 
 isKut          :: KVKind -> Bool
 isKut RecBindE = True

@@ -28,9 +28,9 @@ module Language.Haskell.Liquid.CmdLine (
 
    -- * Diff check mode
    , diffcheck
+
 ) where
 
-import Control.Applicative                 ((<$>))
 import Control.Monad
 import Data.Maybe
 import System.Directory
@@ -41,19 +41,19 @@ import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
 
-import Data.List                           (intercalate, nub)
+import Data.List                           (nub)
 import Data.Monoid
 
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Config            hiding (Config, real, extSolver,
-                                                   getOpts, cores, minPartSize,
-                                                   maxPartSize, newcheck, eliminate)
-import Language.Fixpoint.Files
+import Language.Fixpoint.Types.Config      hiding (Config, real, extSolver,
+                                              getOpts, cores, minPartSize,
+                                              maxPartSize, newcheck, eliminate)
+import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Names
-import Language.Fixpoint.Types             hiding (Result)
+import Language.Fixpoint.Types.Names
+import Language.Fixpoint.Types             hiding (Error, Result)
 import Language.Haskell.Liquid.Annotate
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
@@ -77,7 +77,7 @@ defaultMaxParams = 2
 ---------------------------------------------------------------------------------
 -- Parsing Command Line----------------------------------------------------------
 ---------------------------------------------------------------------------------
-
+config :: Mode (CmdArgs Config)
 config = cmdArgsMode $ Config {
    files
     = def &= typ "TARGET"
@@ -194,6 +194,11 @@ config = cmdArgsMode $ Config {
     = def &= name "eliminate"
           &= help "Use experimental 'eliminate' feature"
 
+ , port
+     = defaultPort
+          &= name "port"
+          &= help "Port at which lhi should listen"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -204,9 +209,11 @@ config = cmdArgsMode $ Config {
               , "  liquid foo.hs "
               ]
 
+defaultPort :: Int
+defaultPort = 7856
+
 getOpts :: [String] -> IO Config
 getOpts as = do
-  --  as     <- getArgs
   cfg0   <- envCfg
   cfg1   <- mkOpts =<< cmdArgsRun'
                          config { modeValue = (modeValue config) { cmdArgsValue = cfg0 } }
@@ -361,6 +368,7 @@ defConfig = Config { files          = def
                    , ghcOptions     = def
                    , cFiles         = def
                    , eliminate      = def
+                   , port           = defaultPort
                    }
 
 instance Monoid SMTSolver where
@@ -404,7 +412,7 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
 resDocs _ Safe             = [text "RESULT: SAFE"]
 resDocs k (Crash xs s)     = text ("RESULT: ERROR") : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
-resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
+-- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
 
 reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
 
@@ -413,5 +421,6 @@ addErrors r []             = r
 addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
+
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs Full

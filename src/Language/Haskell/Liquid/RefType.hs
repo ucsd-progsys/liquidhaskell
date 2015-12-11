@@ -93,7 +93,7 @@ import Text.PrettyPrint.HughesPJ
 import Language.Haskell.Liquid.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
-import Language.Fixpoint.Visitor (mapKVars)
+import Language.Fixpoint.Types.Visitor (mapKVars)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
 import Language.Haskell.Liquid.Variance
@@ -102,7 +102,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Fixpoint.Names (symbolString, listConName, tupConName)
+import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
 
 

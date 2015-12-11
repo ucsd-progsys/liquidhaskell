@@ -1,8 +1,8 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -131,7 +131,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Printer Configuration
   , PPEnv (..)
-  , Tidy  (..)
   , ppEnv
   , ppEnvShort
 
@@ -225,6 +224,8 @@ import Control.Applicative                      ((<$>))
 import Data.Typeable                            (Typeable)
 import Data.Generics                            (Data)
 import Data.Monoid                              hiding ((<>))
+
+
 import qualified  Data.Foldable as F
 import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
@@ -237,80 +238,21 @@ import qualified  Data.Text                    as T
 import Text.Parsec.Pos              (SourcePos)
 import Text.Parsec.Error            (ParseError)
 import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Config     hiding (Config)
+import Language.Fixpoint.Types.Config     hiding (Config)
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Result, Predicate, Def, R)
-import Language.Fixpoint.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.PrettyPrint as F
+import Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
+import Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
+import qualified Language.Fixpoint.Types.PrettyPrint as F
 import CoreSyn (CoreBind, CoreExpr)
 
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.Misc
-
-
+import Language.Haskell.Liquid.Config
 import Data.Default
------------------------------------------------------------------------------
--- | Command Line Config Options --------------------------------------------
------------------------------------------------------------------------------
-
--- NOTE: adding strictness annotations breaks the help message
-data Config = Config {
-    files          :: [FilePath] -- ^ source files to check
-  , idirs          :: [FilePath] -- ^ path to directory for including specs
-  , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
-  , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
-  , real           :: Bool       -- ^ supports real number arithmetic
-  , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
-  , extSolver      :: Bool       -- ^ use external (OCaml) fixpoint constraint solver
-  , binders        :: [String]   -- ^ set of binders to check
-  , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
-  , notermination  :: Bool       -- ^ disable termination check
-  , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
-  , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
-  , trustinternals :: Bool       -- ^ type all internal variables with true
-  , nocaseexpand   :: Bool       -- ^ disable case expand
-  , strata         :: Bool       -- ^ enable strata analysis
-  , notruetypes    :: Bool       -- ^ disable truing top level types
-  , totality       :: Bool       -- ^ check totality in definitions
-  , noPrune        :: Bool       -- ^ disable prunning unsorted Refinements
-  , cores          :: Maybe Int  -- ^ number of cores used to solve constraints
-  , minPartSize    :: Int        -- ^ Minimum size of a partition
-  , maxPartSize    :: Int        -- ^ Maximum size of a partition. Overrides minPartSize
-  , maxParams      :: Int        -- ^ the maximum number of parameters to accept when mining qualifiers
-  , smtsolver      :: Maybe SMTSolver  -- ^ name of smtsolver to use [default: try z3, cvc4, mathsat in order]
-  , shortNames     :: Bool       -- ^ drop module qualifers from pretty-printed names.
-  , shortErrors    :: Bool       -- ^ don't show subtyping errors and contexts.
-  , cabalDir       :: Bool       -- ^ find and use .cabal file to include paths to sources for imported modules
-  , ghcOptions     :: [String]   -- ^ command-line options to pass to GHC
-  , cFiles         :: [String]   -- ^ .c files to compile and link against (for GHC)
-  , eliminate      :: Bool
-  , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
-  } deriving (Data, Typeable, Show, Eq)
-
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
-
-data Tidy = Lossy | Full deriving (Eq, Ord)
-
-class PPrint a where
-  pprint     :: a -> Doc
-
-  pprintTidy :: Tidy -> a -> Doc
-  pprintTidy _ = pprint
-
-showpp :: (PPrint a) => a -> String
-showpp = render . pprint
-
-instance PPrint a => PPrint (Maybe a) where
-  pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
-
-instance PPrint a => PPrint [a] where
-  pprint = brackets . intersperse comma . map pprint
-
-instance (PPrint a, PPrint b) => PPrint (a,b) where
-  pprint (x, y)  = pprint x <+> text ":" <+> pprint y
 
 data PPEnv
   = PP { ppPs    :: Bool
@@ -320,7 +262,7 @@ data PPEnv
        }
 
 ppEnv           = ppEnvPrintPreds
-_ppEnvCurrent    = PP False False False False
+_ppEnvCurrent   = PP False False False False
 ppEnvPrintPreds = PP False False False False
 ppEnvShort pp   = pp { ppShort = True }
 
@@ -1396,51 +1338,6 @@ instance PPrint Strata where
   pprint [] = empty
   pprint ss = hsep (pprint <$> nub ss)
 
-instance PPrint SourcePos where
-  pprint = text . show
-
-instance PPrint () where
-  pprint = text . show
-
-instance PPrint String where
-  pprint = text
-
-instance PPrint Text where
-  pprint = text . T.unpack
-
-instance PPrint a => PPrint (Located a) where
-  pprint = pprint . val
-
-instance PPrint Int where
-  pprint = F.pprint
-
-instance PPrint Integer where
-  pprint = F.pprint
-
-instance PPrint Constant where
-  pprint = F.pprint
-
-instance PPrint Brel where
-  pprint = F.pprint
-
-instance PPrint Bop where
-  pprint = F.pprint
-
-instance PPrint Sort where
-  pprint = F.pprint
-
-instance PPrint Symbol where
-  pprint = pprint . symbolText
-
-instance PPrint Expr where
-  pprint = F.pprint
-
-instance PPrint SymConst where
-  pprint = F.pprint
-
-instance PPrint Pred where
-  pprint = F.pprint
-
 instance PPrint a => PPrint (PVar a) where
   pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
     where
@@ -1449,12 +1346,6 @@ instance PPrint a => PPrint (PVar a) where
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
-
-instance PPrint Reft where
-  pprint = F.pprint
-
-instance PPrint SortedReft where
-  pprint = F.pprint
 
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
@@ -1475,7 +1366,6 @@ instance PPrint EMsg where
 --   internals like TyCon and Class inside it.
 
 type Error = TError SpecType
-
 
 -- | INVARIANT : all Error constructors should have a pos field
 data TError t =
@@ -1609,18 +1499,12 @@ data TError t =
                 } -- ^ Unexpected PANIC
   deriving (Typeable, Functor)
 
--- data LParseError = LPE !SourcePos [String]
---                    deriving (Data, Typeable, Generic)
-
-
-
 
 errToFCrash :: Error -> Error
 errToFCrash (ErrSubType l m g t1 t2)
   = ErrFCrash l m g t1 t2
 errToFCrash e
   = e
-
 
 instance Eq Error where
   e1 == e2 = pos e1 == pos e2
@@ -1629,7 +1513,7 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = errOther . pprint
+  strMsg = errOther . text
 
 errSpan :: TError a -> SrcSpan
 errSpan = pos
@@ -1661,7 +1545,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther _ d) = UnknownError $ render d
+  result (ErrOther _ d) = Crash [] $ render d
   result e              = result [e]
 
 instance Result (FixResult Cinfo) where
@@ -1863,10 +1747,12 @@ newtype KVProf = KVP (M.HashMap KVKind Int)
 emptyKVProf :: KVProf
 emptyKVProf = KVP M.empty
 
-updKVProf :: KVKind -> [KVar] -> KVProf -> KVProf
-updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + length kvs) m
+updKVProf :: KVKind -> Kuts -> KVProf -> KVProf
+updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + n) m
   where
     kn                  = M.lookupDefault 0 k m
+    n                   = S.size $ ksVars kvs
+
 
 instance NFData KVKind where
   rnf z = z `seq` ()

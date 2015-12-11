@@ -23,7 +23,7 @@ import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Variance
 import Language.Haskell.Liquid.PredType
 
-import Language.Fixpoint.Names (hpropConName, propConName)
+import Language.Fixpoint.Types.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
 
 import BasicTypes

@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.Server (getType) where
 import           Language.Haskell.Liquid.Types (Output(..))
 import qualified Language.Haskell.Liquid.ACSS as A
 import           Text.PrettyPrint.HughesPJ    hiding (Mode)
-import           Language.Fixpoint.Files
+import           Language.Fixpoint.Utils.Files
 import           System.Directory
 import           Data.Time.Clock (UTCTime)
 import qualified Control.Exception as Ex
