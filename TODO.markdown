@@ -1,6 +1,60 @@
 TODO
 ====
 
++ Types
+  + Names.hs
+  + Variance.hs
+  + Dictionaries.hs
+  + Literals.hs
+  + Strata.hs
+  + Visitors.hs
+  + Bounds.hs
+  + RefType.hs
+  + Types.hs
+  + PredType.hs
+
++ GHC
+  + GhcPlay.hs
+  + GhcInterface.hs
+  + GhcMisc.hs
+
++ Bare
+
++ UX
+  + ACSS.hs
+  + Annotate.hs
+  + DiffCheck.hs
+  + CTags
+  + Tidy
+  + Server.hs
+  + CTags.hs
+  + Config.hs
+  + Tidy.hs
+  + Cabal.hs
+  + Errors.hs
+  ? PrettyPrint.hs
+  + CmdLine.hs
+
++ Transforms
+  + Recursion unroll
+  + ANFTransform
+  + CoreToLogic.hs
+  + Simplify.hs
+  + TransformRec.hs
+  + ANFTransform.hs
+  ? RefSplit.hs
+
++ Constraints
+  + Fresh.hs
+
++ Bare
+  + Measure.hs
+
+Liquid.hs
+Misc.hs
+WiredIn.hs
+Parse.hs
+
 
 Check covariants
 ----------------
