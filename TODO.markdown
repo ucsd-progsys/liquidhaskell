@@ -36,7 +36,6 @@ TODO
   + CmdLine.hs
 
 + Transforms
-  + Recursion unroll
   + ANFTransform
   + CoreToLogic.hs
   + Simplify.hs
