@@ -4,7 +4,7 @@
 *.cmx
 *.o
 /dist*
-
+.liquid
 /.vagrant/
 /.stack-work/
 /build.sh
