@@ -9,7 +9,7 @@ import Language.Haskell.Liquid.Constraint.Types
 
 import Language.Haskell.Liquid.Types hiding     ( binds )
 import Language.Haskell.Liquid.Misc             ( mapSnd )
-import Language.Fixpoint.Interface              ( parseFInfo )
+import Language.Fixpoint.Solver                 ( parseFInfo )
 
 import           Control.Applicative ((<$>))
 import qualified Data.HashMap.Strict            as M
@@ -34,9 +34,6 @@ targetFInfo info cgi fn = F.fi cs ws bs ls ks qs bi fn
    ks     = kuts cgi
    qs     = targetQuals info cgi
    bi     = (`Ci` Nothing) <$> bindSpans cgi
-   -- msg    = (show ls') ++ show (fEnv cgi)
-   -- ls     = trace msg ls' -- $ F.fromListSEnv $ lits cgi
-   -- ls'    = F.fromListSEnv $ lits cgi
 
 targetQuals :: GhcInfo -> CGInfo -> [F.Qualifier]
 targetQuals info cgi = spcQs ++ genQs

@@ -38,7 +38,7 @@ import           Data.List                       (foldl', partition)
 import           Data.Monoid                     (mappend, mconcat, mempty)
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Names         (symbolString)
+import           Language.Fixpoint.Types.Names         (symbolString)
 import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GhcMisc

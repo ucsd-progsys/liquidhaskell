@@ -102,5 +102,8 @@ lint:
 	hlint --colour --report .
 
 tags:
-	hasktags -c src/
-	hasktags -e src/
+	hasktags -x -c src/
+	# hasktags -c src/
+	# hasktags -e src/
+
+

@@ -32,10 +32,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
-
-import Language.Fixpoint.Names
-import Language.Fixpoint.Types (Expr(..))
-import Language.Fixpoint.Sort (isFirstOrder)
+import Language.Fixpoint.Types (Symbol, symbol, symbolString)
+import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc (showPpr)
 import Language.Haskell.Liquid.RefType
@@ -69,8 +67,8 @@ makeAxiom lmap cbs _ _ x
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return ((val x, makeType v), 
-                                     ((v, makeAssumeType v): vts), 
+                             return ((val x, makeType v),
+                                     ((v, makeAssumeType v): vts),
                                      defAxioms v def)
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
@@ -103,8 +101,8 @@ makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
   = return (v, x{val = t})
   where
     t   = traceShow  "\n\nmakeAxiomType\n\n" $ fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
-    tt  = ofType $ varType v 
-    tr  = trace ("\n\ntoRType\n\n" ++ show (v, tt) ++ "\n\nWith Vars\n\n" ++ show xs ++ "\n\nOn Axiom\n\n" ++ show axm) $ toRTypeRep tt 
+    tt  = ofType $ varType v
+    tr  = trace ("\n\ntoRType\n\n" ++ show (v, tt) ++ "\n\nWith Vars\n\n" ++ show xs ++ "\n\nOn Axiom\n\n" ++ show axm) $ toRTypeRep tt
     res = ty_res tr `strengthen` U ref mempty mempty
 
     llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of

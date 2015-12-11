@@ -24,7 +24,7 @@ import Data.Monoid
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (dummySymbol)
+import Language.Fixpoint.Types.Names (dummySymbol)
 import Language.Fixpoint.Types (mapPredReft, pAnd, conjuncts, TCEmb)
 -- import Language.Fixpoint.Types (traceFix, showFix)
 

@@ -16,7 +16,7 @@ import qualified Data.List           as L
 import qualified Data.Text           as T
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Names (prims, unconsSym)
+import Language.Fixpoint.Types.Names (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Pred(..),
                                 Qualifier(..),

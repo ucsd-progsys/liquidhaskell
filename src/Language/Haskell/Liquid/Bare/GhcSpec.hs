@@ -13,7 +13,7 @@ import CoreSyn hiding (Expr)
 import HscTypes
 import Id
 import NameSet
-import Name 
+import Name
 import TyCon
 import Var
 import TysWiredIn
@@ -34,8 +34,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (thd3, traceShow)
-import Language.Fixpoint.Names (takeWhileSym, nilName, consName)
-import Language.Fixpoint.Types
+import Language.Fixpoint.Types.Names (takeWhileSym, nilName, consName)
+import Language.Fixpoint.Types hiding (Error)
 
 import Language.Haskell.Liquid.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId, dropModuleNames)
@@ -137,38 +137,38 @@ makeGhcSpec' cfg cbs vars defVars exports specs
          >>= makeGhcSpec3 datacons tycons embs syms
          >>= makeSpecDictionaries embs vars specs
          >>= makeGhcAxioms cbs name specs
-         >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)  
+         >>= makeExactDataCons name (exactDC cfg) (snd <$> syms)
          -- This step need the updated logic map, ie should happen after makeGhcAxioms
-         >>= makeGhcSpec4 defVars specs name su               
+         >>= makeGhcSpec4 defVars specs name su
          >>= addProofType
 
 
 addProofType :: GhcSpec -> BareM GhcSpec
 addProofType spec
   = do tycon <- (Just <$> (lookupGhcTyCon $ dummyLoc proofTyConName)) `catchError` (\_ -> return Nothing)
-       return $ spec {proofType = (`TyConApp` []) <$> tycon}     
+       return $ spec {proofType = (`TyConApp` []) <$> tycon}
 
 
 makeExactDataCons :: ModName -> Bool -> [Var] -> GhcSpec -> BareM GhcSpec
-makeExactDataCons n flag vs spec 
+makeExactDataCons n flag vs spec
   | flag      = return $ spec {tySigs = (tySigs spec) ++ xts}
-  | otherwise = return spec 
-  where 
-    xts = makeExact <$> (filter isDataConId $ filter (varInModule n) vs) 
+  | otherwise = return spec
+  where
+    xts = makeExact <$> (filter isDataConId $ filter (varInModule n) vs)
 
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
 makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
-  where 
+  where
     t    :: SpecType
-    t    = ofType $ varType x 
-    trep = toRTypeRep t 
+    t    = ofType $ varType x
+    trep = toRTypeRep t
     xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
 
     res  = ty_res trep `strengthen` U ref mempty mempty
     vv   = vv_
-    x'   = symbol x --  simpleSymbolVar x 
+    x'   = symbol x --  simpleSymbolVar x
     ref  = Reft (vv, PAtom Eq (EVar vv) eq)
     eq   | null (ty_vars trep) && null xs = EVar x'
          | otherwise = EApp (dummyLoc x') (EVar <$> xs)
@@ -180,17 +180,17 @@ makeGhcAxioms cbs name bspecs sp = makeAxioms cbs sp spec
     spec = fromMaybe mempty $ lookup name bspecs
 
 makeAxioms :: [CoreBind] -> GhcSpec -> Ms.BareSpec -> BareM GhcSpec
-makeAxioms cbs spec sp 
+makeAxioms cbs spec sp
   = do lmap          <- logicEnv <$> get
-       (ms, tys, as) <- unzip3 <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)  
+       (ms, tys, as) <- unzip3 <$> mapM (makeAxiom lmap cbs spec sp) (S.toList $ Ms.axioms sp)
        lmap'         <- logicEnv <$> get
-       return $ spec { meas     = ms         ++  meas   spec 
+       return $ spec { meas     = ms         ++  meas   spec
                      , asmSigs  = concat tys ++ asmSigs spec
-                     , axioms   = concat as  ++ axioms spec 
-                     , logicMap = lmap' } 
+                     , axioms   = concat as  ++ axioms spec
+                     , logicMap = lmap' }
 
 emptySpec     :: Config -> GhcSpec
-emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing 
+emptySpec cfg = SP [] [] [] [] [] [] [] [] [] mempty [] [] [] [] mempty mempty mempty cfg mempty [] mempty mempty [] mempty Nothing
 
 
 makeGhcSpec0 cfg defVars exports name sp

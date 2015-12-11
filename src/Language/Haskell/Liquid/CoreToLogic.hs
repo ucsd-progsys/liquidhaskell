@@ -6,17 +6,17 @@
 
 module Language.Haskell.Liquid.CoreToLogic (
 
-  coreToDef , coreToFun, 
+  coreToDef , coreToFun,
   coreToLogic, coreToPred,
   mkLit, runToLogic,
-  logicType, 
+  logicType,
   strengthenResult
 
   ) where
 
 import GHC hiding (Located)
-import Var 
-import Type 
+import Var
+import Type
 import TypeRep
 
 import qualified CoreSyn   as C
@@ -30,8 +30,8 @@ import TysWiredIn
 import Control.Applicative
 
 import Language.Fixpoint.Misc (snd3)
-import Language.Fixpoint.Names (propConName, isPrefixOfSym)
-import Language.Fixpoint.Types hiding (Def, R, simplify)
+import Language.Fixpoint.Types.Names (propConName, isPrefixOfSym)
+import Language.Fixpoint.Types hiding (Error, Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.GhcPlay
@@ -273,13 +273,13 @@ eVarWithMap x lmap
        return $ eAppWithMap lmap f' [] (eVar x )
   where
     eVar x | isPolyCst $ varType x  = EApp (dummyLoc $ symbol x) []
-           | otherwise              = EVar $ symbol x 
+           | otherwise              = EVar $ symbol x
 
-    isPolyCst (ForAllTy _ t) = isCst t 
-    isPolyCst _              = False 
-    isCst     (ForAllTy _ t) = isCst t 
-    isCst     (FunTy _ _)    = False 
-    isCst     _              = True 
+    isPolyCst (ForAllTy _ t) = isCst t
+    isPolyCst _              = False
+    isCst     (ForAllTy _ t) = isCst t
+    isCst     (FunTy _ _)    = False
+    isCst     _              = True
 
 
 brels :: M.HashMap Symbol Brel
@@ -354,7 +354,7 @@ class Simplify a where
 
   normalize :: a -> a
   normalize = inline_preds . inline_anf . simplify
-   where 
+   where
     inline_preds = inline (eqType boolTy . varType)
     inline_anf   = inline isANF
 
