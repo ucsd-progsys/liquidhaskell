@@ -9,6 +9,8 @@ module Language.Haskell.Liquid.GhcInterface (
   -- * extract all information needed for verification
     getGhcInfo
 
+  -- * printer
+  , pprintCBs
   ) where
 import IdInfo
 import InstEnv
@@ -40,7 +42,7 @@ import qualified Data.HashSet        as S
 
 import System.Console.CmdArgs.Verbosity (whenLoud)
 import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
-import Language.Fixpoint.Types hiding (Result, Expr)
+import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
@@ -331,10 +333,6 @@ reqFile ext s
   | otherwise
   = Nothing
 
-
-
-
-
 instance PPrint GhcSpec where
   pprint spec =  (text "******* Target Variables ********************")
               $$ (pprint $ tgtVars spec)
@@ -359,13 +357,13 @@ instance PPrint GhcInfo where
               $+$ (text "*************** Specification ***************")
               $+$ (pprint $ spec info)
               $+$ (text "*************** Core Bindings ***************")
-              $+$ (pprint $ cbs info)
+              $+$ (pprintCBs $ cbs info)
+
+pprintCBs :: [CoreBind] -> Doc
+pprintCBs = pprDoc . tidyCBs
 
 instance Show GhcInfo where
   show = showpp
-
-instance PPrint [CoreBind] where
-  pprint = pprDoc . tidyCBs
 
 instance PPrint TargetVars where
   pprint AllVars   = text "All Variables"
