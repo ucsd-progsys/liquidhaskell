@@ -32,9 +32,9 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
-import           Language.Fixpoint.PrettyPrint
-import           Language.Fixpoint.Visitor      as V
-import qualified Language.Fixpoint.Sort         as So
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Visitor      as V
+import qualified Language.Fixpoint.SortCheck    as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
@@ -125,7 +125,7 @@ init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
 init fi  = M.fromList keqs
   where
-    keqs = map (refine fi qs) ws `using` parList rdeepseq 
+    keqs = map (refine fi qs) ws `using` parList rdeepseq
     qs   = F.quals fi
     ws   = M.elems $ F.ws fi
 

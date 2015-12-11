@@ -94,48 +94,22 @@ Source-Repository head
 -- asked.
 Executable fixpoint.native
   default-language: Haskell98
-  Main-is: Fixpoint.hs
+  Main-is: Ocaml.hs
+  hs-source-dirs:  src
   Build-Depends: base >= 4.7 && < 5
-               , array
-               , async
-               , syb
-               , cmdargs
-               , ansi-terminal
-               -- , terminal-progress-bar
-               , ascii-progress >= 0.3
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filepath
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , hashable
-               , unordered-containers
-               , text-format
-               , cereal
-               , liquid-fixpoint
-
 
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
   ghc-options:   -threaded
+  hs-source-dirs:  src
   Build-Depends: base >= 4.7 && < 5
                , array
                , async
+               , attoparsec
                , syb
                , cmdargs
                , ansi-terminal
-               -- , terminal-progress-bar
                , ascii-progress >= 0.3
                , bifunctors
                , binary
@@ -143,8 +117,9 @@ Executable fixpoint
                , containers
                , deepseq
                , directory
-               -- , filemanip
                , filepath
+               , ghc-prim
+               , intern
                , mtl
                , parsec
                , pretty
@@ -153,32 +128,43 @@ Executable fixpoint
                , process
                , syb
                , text
+               , transformers
                , hashable
                , unordered-containers
                , text-format
                , cereal
                , liquid-fixpoint
+  if impl(ghc >= 7.10.2)
+    Build-Depends: located-base
+
 
 Library
   default-language: Haskell98
   hs-source-dirs:  src
-  Exposed-Modules: Language.Fixpoint.Names,
-                   Language.Fixpoint.Files,
-                   Language.Fixpoint.Errors,
-                   Language.Fixpoint.Config,
+  Exposed-Modules: Language.Fixpoint.Types.Names,
+                   Language.Fixpoint.Types.Errors,
+                   Language.Fixpoint.Types.Config,
+                   Language.Fixpoint.Types.Visitor,
+                   Language.Fixpoint.Types.PrettyPrint,
+                   Language.Fixpoint.Types.Spans,
+                   Language.Fixpoint.Types.Sorts,
+                   Language.Fixpoint.Types.Refinements,
+                   Language.Fixpoint.Types.Substitutions,
+                   Language.Fixpoint.Types.Environments,
+                   Language.Fixpoint.Types.Constraints,
                    Language.Fixpoint.Types,
-                   Language.Fixpoint.Bitvector,
-                   Language.Fixpoint.Visitor,
-                   Language.Fixpoint.Sort,
-                   Language.Fixpoint.Interface,
-                   Language.Fixpoint.Parse,
-                   Language.Fixpoint.PrettyPrint,
                    Language.Fixpoint.Smt.Types,
+                   Language.Fixpoint.Smt.Bitvector,
                    Language.Fixpoint.Smt.Theories,
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
+                   Language.Fixpoint.Partition,
+                   Language.Fixpoint.Solver,
+                   Language.Fixpoint.Parse,
+                   Language.Fixpoint.SortCheck,
                    Language.Fixpoint.Misc,
-                   Language.Fixpoint.Progress,
+                   Language.Fixpoint.Utils.Progress,
+                   Language.Fixpoint.Utils.Files,
                    Language.Fixpoint.Solver.Types,
                    Language.Fixpoint.Solver.Graph,
                    Language.Fixpoint.Solver.Solution,
@@ -189,10 +175,8 @@ Library
                    Language.Fixpoint.Solver.Uniqify,
                    Language.Fixpoint.Solver.Eliminate,
                    Language.Fixpoint.Solver.Validate,
-                   Language.Fixpoint.Partition,
-                   Language.Fixpoint.Statistics,
+                   Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve
-                   Language.Fixpoint.Parallel
 
   Build-Depends: base >= 4.7 && < 5
                , array
@@ -201,7 +185,6 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               -- , terminal-progress-bar
                , ascii-progress >= 0.3
                , bifunctors
                , binary

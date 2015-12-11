@@ -31,7 +31,6 @@ module Language.Fixpoint.Smt.Types (
     ) where
 
 import           Language.Fixpoint.Types
-
 import qualified Data.Text.Format         as DTF
 import           Data.Text.Format.Params  (Params)
 import qualified Data.Text                as T

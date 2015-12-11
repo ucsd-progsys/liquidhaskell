@@ -25,13 +25,13 @@ module Language.Fixpoint.Solver.Monad
 
 import           Control.DeepSeq
 import           GHC.Generics
-import           Language.Fixpoint.Progress
+import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
-import           Language.Fixpoint.Config  (Config, solver, real)
+import           Language.Fixpoint.Types.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
-import qualified Language.Fixpoint.Errors  as E
+import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
 import           Language.Fixpoint.Solver.Solution

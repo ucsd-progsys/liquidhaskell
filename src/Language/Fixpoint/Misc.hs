@@ -7,26 +7,29 @@
 
 module Language.Fixpoint.Misc where
 
-import           System.IO.Unsafe            (unsafePerformIO)
+-- import           System.IO.Unsafe            (unsafePerformIO)
 import           Control.Exception                (bracket_)
 import           Data.Hashable
-import           Data.IORef
+-- import           Data.IORef
 import           Control.Arrow                    (second)
-import           Control.Monad                    (forM_, unless)
+import           Control.Monad                    (forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       (fromMaybe)
-
+import           Data.Maybe                       -- (f romMaybe)
+import           Data.Array                hiding (indices)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
-import           System.Console.CmdArgs.Verbosity (isLoud, whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 -- import           System.ProgressBar
 import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
+-- import Control.Concurrent
+import Control.Concurrent.Async
+ 
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -34,10 +37,38 @@ import GHC.Err.Located
 import GHC.Stack
 #endif
 
+firstMaybe :: (a -> Maybe b) -> [a] -> Maybe b
+firstMaybe f = listToMaybe . mapMaybe f
+
+
+asyncMapM :: (a -> IO b) -> [a] -> IO [b]
+asyncMapM f xs = mapM (async . f) xs >>= mapM wait
 
 traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
+hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
+hashMapToAscList = L.sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+
+---------------------------------------------------------------
+-- | Edit Distance --------------------------------------------
+---------------------------------------------------------------
+
+editDistance :: Eq a => [a] -> [a] -> Int
+editDistance xs ys = table ! (m, n)
+    where
+    (m,n) = (length xs, length ys)
+    x     = array (1,m) (zip [1..] xs)
+    y     = array (1,n) (zip [1..] ys)
+
+    table :: Array (Int,Int) Int
+    table = array bnds [(ij, dist ij) | ij <- range bnds]
+    bnds  = ((0,0),(m,n))
+
+    dist (0,j) = j
+    dist (i,0) = i
+    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
+        if x ! i == y ! j then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
 
 -----------------------------------------------------------------------------------
 ------------ Support for Colored Logging ------------------------------------------

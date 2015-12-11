@@ -6,7 +6,7 @@
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
 
-module Language.Fixpoint.Sort  (
+module Language.Fixpoint.SortCheck  (
   -- * Sort Substitutions
     TVSubst
 
@@ -39,10 +39,10 @@ import           Control.Monad.Error       (MonadError(..))
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
-import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (subst)
-import           Language.Fixpoint.Visitor (foldSort)
+import           Language.Fixpoint.Types.Visitor (foldSort)
 
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf

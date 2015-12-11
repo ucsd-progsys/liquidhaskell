@@ -4,7 +4,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 
-module Language.Fixpoint.Config (
+module Language.Fixpoint.Types.Config (
     Config  (..)
   , getOpts
   , Command (..)
@@ -19,7 +19,7 @@ module Language.Fixpoint.Config (
 
 import GHC.Generics
 import System.Console.CmdArgs
-import Language.Fixpoint.Files
+import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc (errorstar)
 
 class Command a  where

@@ -9,16 +9,17 @@ import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
-import           Language.Fixpoint.Progress
+import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
-import           Language.Fixpoint.Config hiding (stats)
+import           Language.Fixpoint.Types.Errors as F
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 -- DEBUG
 import           Text.Printf
-import           Language.Fixpoint.PrettyPrint
 import           Debug.Trace
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
