@@ -210,7 +210,7 @@ config = cmdArgsMode $ Config {
               ]
 
 defaultPort :: Int
-defaultPort = 7856
+defaultPort = 3000
 
 getOpts :: [String] -> IO Config
 getOpts as = do
