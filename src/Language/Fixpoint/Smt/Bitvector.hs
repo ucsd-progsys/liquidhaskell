@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
 
-module Language.Fixpoint.Bitvector
+module Language.Fixpoint.Smt.Bitvector
        ( -- * Constructor
          Bv (..)
 
@@ -26,7 +26,7 @@ import           Data.Generics           (Data)
 import qualified Data.Text               as T
 import           Data.Typeable           (Typeable)
 import           GHC.Generics            (Generic)
-import           Language.Fixpoint.Names
+import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types
 
 data Bv     = Bv BvSize String

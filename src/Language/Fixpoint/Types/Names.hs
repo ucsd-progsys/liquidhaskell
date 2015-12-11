@@ -15,11 +15,13 @@
 --   should be defined here, and the (exported) variables should be used and
 --   manipulated elsewhere.
 
-module Language.Fixpoint.Names (
+module Language.Fixpoint.Types.Names (
 
   -- * Symbols
     Symbol
   , Symbolic (..)
+  , LocSymbol
+  , LocText
 
   -- * Conversion to/from Text
   , symbolSafeText
@@ -32,6 +34,7 @@ module Language.Fixpoint.Names (
   , isSuffixOfSym
   , isNonSymbol
   , isNontrivialVV
+  , isDummy
 
   -- * Destructors
   , stripPrefix
@@ -103,6 +106,9 @@ import           Data.Binary                 (Binary (..))
 import           Data.Typeable               (Typeable)
 import           GHC.Generics                (Generic)
 
+import           Text.PrettyPrint.HughesPJ   (text)
+import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Spans
 
 ---------------------------------------------------------------
 -- | Symbols --------------------------------------------------
@@ -179,12 +185,34 @@ instance Monoid Symbol where
       s1'       = symbolText s1
       s2'       = symbolText s2
 
+instance PPrint Symbol where
+  pprint = text . symbolString
+
+instance Fixpoint T.Text where
+  toFix = text . T.unpack
+
+instance Fixpoint Symbol where
+  toFix = toFix . symbolSafeText
+
+---------------------------------------------------------------------------
+-- | Located Symbols -----------------------------------------------------
+---------------------------------------------------------------------------
+
+type LocSymbol = Located Symbol
+type LocText   = Located T.Text
+
+isDummy :: (Symbolic a) => a -> Bool
+isDummy a = symbol a == symbol dummyName
+
+instance Symbolic a => Symbolic (Located a) where
+  symbol = symbol . val
+
 ---------------------------------------------------------------------------
 -- | Decoding Symbols -----------------------------------------------------
 ---------------------------------------------------------------------------
 
 symbolText :: Symbol -> T.Text
-symbolText = symbolRaw -- decode
+symbolText = symbolRaw
 
 symbolString :: Symbol -> String
 symbolString = T.unpack . symbolText

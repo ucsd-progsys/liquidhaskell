@@ -2,15 +2,15 @@
 
 -- | This module implements functions that print out
 --   statistics about the constraints.
-module Language.Fixpoint.Statistics (statistics) where
+module Language.Fixpoint.Utils.Statistics (statistics) where
 
 import           Control.DeepSeq
 import           GHC.Generics
 import           Control.Arrow ((&&&))
 
 import           Language.Fixpoint.Misc                (donePhase, Moods(..), applyNonNull)
-import           Language.Fixpoint.Config
-import           Language.Fixpoint.PrettyPrint
+import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Partition           (partition')
 import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M

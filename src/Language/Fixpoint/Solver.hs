@@ -4,7 +4,7 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Language.Fixpoint.Interface (
+module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
     solve
 
@@ -18,7 +18,7 @@ module Language.Fixpoint.Interface (
   , parseFInfo
 ) where
 
-
+import           Control.Concurrent
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
 import qualified Data.HashMap.Strict                as M
@@ -39,19 +39,18 @@ import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
 import           Language.Fixpoint.Solver.Uniqify   (renameAll)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Config           (multicore, Config (..), command, withTarget)
-import           Language.Fixpoint.Files            hiding (Result)
+import           Language.Fixpoint.Types.Config           (multicore, Config (..), command, withTarget)
+import           Language.Fixpoint.Types.Errors
+import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Progress
-import           Language.Fixpoint.Statistics       (statistics)
-import           Language.Fixpoint.Partition        (partition, partition')
+import           Language.Fixpoint.Utils.Progress
+import           Language.Fixpoint.Utils.Statistics (statistics)
+import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
 import           Language.Fixpoint.Parse            (rr, rr', mkQual)
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Errors           (exit, die, result)
-import           Language.Fixpoint.PrettyPrint      (showpp)
-import           Language.Fixpoint.Parallel         (inParallelUsing)
+import           Language.Fixpoint.Types.Errors           (exit, die)
+import           Language.Fixpoint.Types.PrettyPrint      (showpp)
 import           Control.DeepSeq
-
 
 ---------------------------------------------------------------------------
 -- | Top level Solvers ----------------------------------------------------
@@ -153,36 +152,15 @@ solveParWith s c fi0 = do
       [onePart] -> s c onePart
       _         -> inParallelUsing (s c) fis
 
--- DEBUG debugDiff :: FInfo a -> FInfo b -> IO ()
--- DEBUG debugDiff fi fi' = putStrLn msg
-  -- DEBUG where
-    -- DEBUG {- msg          = printf "\nDEBUG: diff = %s, cs = %s, ws = %s, bs = %s, \n lits = %s \n, \n lits' = %s"
-                     -- DEBUG (show $ ufi      == ufi')
-                     -- DEBUG (show $ cm ufi   == cm   ufi')
-                     -- DEBUG (show $ ws ufi   == ws   ufi')
-                     -- DEBUG (show $ bs ufi   == bs   ufi')
-                     -- DEBUG -- (show $ lits ufi == lits ufi')
-                     -- DEBUG (show $ lits ufi)
-                     -- DEBUG (show $ lits ufi') -}
--- DEBUG
-    -- DEBUG msg          = printf "\nquals = %s\n\n\nquals' = %s"
-                     -- DEBUG (show $ sort $ quals fi)
-                     -- DEBUG (show $ sort $ quals fi')
--- DEBUG
-    -- DEBUG (ufi, ufi')  = (fu <$> fi    ,  fu <$> fi')
-    -- DEBUG fu           = const ()
-    -- DEBUG (ncs, ncs')  = (cLength  fi  , cLength fi')
-    -- DEBUG (nws, nws')  = (wLength  fi  , wLength fi')
-    -- DEBUG (nbs, nbs')  = (beLength fi  , beLength fi')
-    -- DEBUG (nls, nls')  = (litLength fi , litLength fi')
-    -- DEBUG (nqs, nqs')  = (qLength   fi , qLength fi')
-    -- DEBUG cLength      = M.size . cm
-    -- DEBUG wLength      = length . ws
-    -- DEBUG beLength     = length . bindEnvToList . bs
-    -- DEBUG litLength    = length . toListSEnv . lits
-    -- DEBUG qLength      = length . quals
-
-
+-------------------------------------------------------------------------------
+-- | Solve a list of FInfos using the provided solver function in parallel
+-------------------------------------------------------------------------------
+inParallelUsing :: (a -> IO (Result b)) -> [a] -> IO (Result b)
+-------------------------------------------------------------------------------
+inParallelUsing f xs = do
+   setNumCapabilities (length xs)
+   rs <- asyncMapM f xs
+   return $ mconcat rs
 
 ---------------------------------------------------------------------------
 -- | Native Haskell Solver ------------------------------------------------
@@ -190,6 +168,11 @@ solveParWith s c fi0 = do
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
+
+result :: Error -> Result a
+result e = Result (Crash [] msg) mempty
+  where
+    msg  = showpp e
 
 solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file in: \n" ++ render (toFixpoint cfg fi)
@@ -353,11 +336,6 @@ isBinary = isExtFile BinFq
 
 ---------------------------------------------------------------------------
 -- | Initialize Progress Bar
----------------------------------------------------------------------------
--- progressInitFI :: FInfo a -> IO ()
----------------------------------------------------------------------------
--- progressInitFI = progressInit . fromIntegral . gSccs . cGraph
-
 ---------------------------------------------------------------------------
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------

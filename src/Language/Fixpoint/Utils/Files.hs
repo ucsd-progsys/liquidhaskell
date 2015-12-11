@@ -7,7 +7,7 @@
 -- should be defined here, and the (exported) variables should be used and
 -- manipulated elsewhere.
 
-module Language.Fixpoint.Files (
+module Language.Fixpoint.Utils.Files (
 
   -- * Hardwired file extension names
     Ext (..)

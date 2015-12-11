@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Language.Fixpoint.Visitor (
+module Language.Fixpoint.Types.Visitor (
   -- * Visitor
      Visitor (..)
 
