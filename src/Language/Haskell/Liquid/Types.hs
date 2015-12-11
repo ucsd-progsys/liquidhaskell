@@ -1367,7 +1367,6 @@ instance PPrint EMsg where
 
 type Error = TError SpecType
 
-
 -- | INVARIANT : all Error constructors should have a pos field
 data TError t =
     ErrSubType { pos  :: !SrcSpan
