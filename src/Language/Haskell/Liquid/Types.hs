@@ -560,7 +560,6 @@ instance Show TyConInfo where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
--- MOVE TO TYPES
 data RType c tv r
   = RVar {
       rt_var    :: !tv
@@ -590,10 +589,10 @@ data RType c tv r
     }
 
   | RApp  {
-      rt_tycon  :: !c
-    , rt_args   :: ![RType  c tv r]
-    , rt_pargs  :: ![RTProp c tv r]
-    , rt_reft   :: !r
+      rt_tycon   :: !c
+    , rt_args    :: ![RType  c tv r]
+    , rt_pargs   :: ![RTProp c tv r]
+    , rt_reft    :: !r
     }
 
   | RAllE {
