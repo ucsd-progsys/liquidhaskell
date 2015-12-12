@@ -96,7 +96,7 @@ getGhcInfo'' cfg0 target
       addRootTarget         =<< guessTarget target Nothing
       (name, tgtSpec)    <- liftIO $ parseSpec target
 
-      liftIO $ donePhase Loud "Parsed Target Specs"
+      -- liftIO $ donePhase Loud "Parsed Target Specs"
 
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
       cfg                <- liftIO $ withCabal cfg
@@ -108,7 +108,7 @@ getGhcInfo'' cfg0 target
 
       impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
 
-      liftIO $ donePhase Loud "Parsed Transitive Specs"
+      liftIO $ donePhase Loud "Parsed All Specifications"
 
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
@@ -120,9 +120,9 @@ getGhcInfo'' cfg0 target
       liftIO $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
-      liftIO $ donePhase Loud "getGhcModGuts1"
+      -- liftIO $ donePhase Loud "getGhcModGuts1"
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
-      liftIO $ donePhase Loud "anormalize"
+      -- liftIO $ donePhase Loud "anormalize"
       let datacons        = [ dataConWorkId dc
                             | tc <- mgi_tcs modguts
                             , dc <- tyConDataCons tc
@@ -134,10 +134,10 @@ getGhcInfo'' cfg0 target
       let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
       (spc, imps, incs)  <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
-      liftIO $ donePhase Loud "moduleSpec"
+      -- liftIO $ donePhase Loud "moduleSpec"
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      liftIO $ donePhase Loud "moduleHquals"
+      -- liftIO $ donePhase Loud "moduleHquals"
       return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spc
 
 makeLogicMap = do
