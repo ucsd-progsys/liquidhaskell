@@ -56,24 +56,46 @@ import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
 
+-- HEREHEREHERE
+-- setSession, getSession,
+-- https://github.com/ghc/ghc/blob/master/compiler/main/GhcMonad.hs#L145
 
+type GhcResult = Either ErrorResult (GhcInfo, HscEnv)
 
 --------------------------------------------------------------------
-getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
+getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO GhcResult
 --------------------------------------------------------------------
-getGhcInfo cfg f = (Right <$> getGhcInfo' cfg f)
-                    `Ex.catch` (\(e :: SourceError) -> handle e)
-                    `Ex.catch` (\(e :: Error)       -> handle e)
-                    `Ex.catch` (\(e :: [Error])     -> handle e)
+getGhcInfo hEnv cfg f =
+    (Right <$> getGhcInfo' hEnv cfg f)
+      `Ex.catch` (\(e :: SourceError) -> handle e)
+      `Ex.catch` (\(e :: Error)       -> handle e)
+      `Ex.catch` (\(e :: [Error])     -> handle e)
   where
-    handle       = return . Left . result
+    handle = return . Left . result
 
-getGhcInfo' :: Config -> FilePath -> IO GhcInfo
-getGhcInfo' cfg0 target
-  = runGhc (Just libdir) $ do
+repM 1 act = act
+repM n act = act >> repM (n - 1) act
+
+addRootTarget x = setTargets [x]
+
+getGhcInfo' :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
+getGhcInfo' hEnv cfg f
+  = runGhc (Just libdir) $ {- repM 3 -} do
+      _     <- setSessionMb hEnv
+      info  <- getGhcInfo'' cfg f
+      hEnv' <- getSession
+      return (info, hEnv')
+
+setSessionMb :: Maybe HscEnv -> Ghc ()
+setSessionMb Nothing  = return ()
+setSessionMb (Just e) = setSession e
+
+getGhcInfo'' :: Config -> FilePath -> Ghc GhcInfo
+getGhcInfo'' cfg0 target
+  = {- runGhc (Just libdir) $ -} do
       liftIO              $ cleanFiles target
       liftIO $ donePhase Loud "Cleaned Files"
-      addTarget         =<< guessTarget target Nothing
+      addRootTarget         =<< guessTarget target Nothing
       (name, tgtSpec)    <- liftIO $ parseSpec target
 
       liftIO $ donePhase Loud "Parsed Target Specs"
@@ -96,7 +118,7 @@ getGhcInfo' cfg0 target
                                 addTarget =<< guessTarget f Nothing
                               return (n,s)
       load LoadAllTargets
-      
+
       liftIO $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
