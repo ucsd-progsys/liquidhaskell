@@ -13,6 +13,7 @@ import           CoreSyn
 import           Var
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Console.CmdArgs.Default
+import           GHC (HscEnv)
 
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
@@ -32,19 +33,15 @@ import           Language.Haskell.Liquid.Annotate (mkOutput)
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid args = getOpts args >>= repeatM 3 runLiquid >>= exitWith
-
-repeatM 1 k x = k x
-repeatM n k x = k x >> repeatM (n - 1) k x
-
+liquid args = getOpts args >>= runLiquid Nothing >>= exitWith
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
 ------------------------------------------------------------------------------
-runLiquid :: Config -> IO ExitCode
-runLiquid cfg = ec <$> mapM (checkOne cfg) (files cfg)
+runLiquid :: Maybe HscEnv -> Config -> IO ExitCode
+runLiquid _ cfg = ec <$> mapM (checkOne cfg) (files cfg)
   where
-    ec        = resultExit . o_result . mconcat
+    ec          = resultExit . o_result . mconcat
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------
