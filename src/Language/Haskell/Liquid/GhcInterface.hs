@@ -34,8 +34,6 @@ import System.FilePath ( replaceExtension, normalise)
 
 import DynFlags
 import Control.Monad (filterM, foldM, when, forM, forM_, liftM)
-import Control.Applicative  hiding (empty)
-import Data.Monoid hiding ((<>))
 import Data.List (find, nub)
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
@@ -56,8 +54,6 @@ import Language.Haskell.Liquid.Visitors
 import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
-
-import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
 
 
@@ -65,36 +61,48 @@ import Language.Fixpoint.Utils.Files
 --------------------------------------------------------------------
 getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
 --------------------------------------------------------------------
-getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
-                          `Ex.catch` (\(e :: SourceError) -> handle e)
-                          `Ex.catch` (\(e :: Error)       -> handle e)
-                          `Ex.catch` (\(e :: [Error])     -> handle e)
+getGhcInfo cfg f = (Right <$> getGhcInfo' cfg f)
+                    `Ex.catch` (\(e :: SourceError) -> handle e)
+                    `Ex.catch` (\(e :: Error)       -> handle e)
+                    `Ex.catch` (\(e :: [Error])     -> handle e)
   where
-    handle            = return . Left . result
+    handle       = return . Left . result
 
 getGhcInfo' :: Config -> FilePath -> IO GhcInfo
 getGhcInfo' cfg0 target
   = runGhc (Just libdir) $ do
       liftIO              $ cleanFiles target
+      liftIO $ donePhase Loud "Cleaned Files"
       addTarget         =<< guessTarget target Nothing
-      (name,tgtSpec)     <- liftIO $ parseSpec target
+      (name, tgtSpec)    <- liftIO $ parseSpec target
+
+      liftIO $ donePhase Loud "Parsed Target Specs"
+
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
       cfg                <- liftIO $ withCabal cfg
       let paths           = idirs cfg
-      updateDynFlags cfg
+      _                  <- updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
+
       impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+
+      liftIO $ donePhase Loud "Parsed Transitive Specs"
+
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
-      impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
-        when (not $ isSpecImport n) $
-          addTarget =<< guessTarget f Nothing
-        return (n,s)
+      impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
+                              when (not $ isSpecImport n) $
+                                addTarget =<< guessTarget f Nothing
+                              return (n,s)
       load LoadAllTargets
+      
+      liftIO $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
+      liftIO $ donePhase Loud "getGhcModGuts1"
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
+      liftIO $ donePhase Loud "anormalize"
       let datacons        = [ dataConWorkId dc
                             | tc <- mgi_tcs modguts
                             , dc <- tyConDataCons tc
@@ -105,41 +113,43 @@ getGhcInfo' cfg0 target
       let letVs           = letVars     coreBinds
       let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
-      (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
+      (spc, imps, incs)  <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
+      liftIO $ donePhase Loud "moduleSpec"
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec
+      liftIO $ donePhase Loud "moduleHquals"
+      return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spc
 
-
-makeLogicMap
-  = do lg    <- getCoreToLogicPath
-       lspec <- readFile lg
-       return $ parseSymbolToLogic lg lspec
+makeLogicMap = do
+  lg    <- getCoreToLogicPath
+  lspec <- readFile lg
+  return $ parseSymbolToLogic lg lspec
 
 classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
-derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
-derivedVars _    Nothing    = []
+derivedVars cBinds (Just fds) = concatMap (derivedVs cBinds) fds
+derivedVars _      Nothing    = []
 
 derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd = concatMap bindersOf cbf ++ deps
-  where cbf            = filter f cbs
+derivedVs cBinds fd = concatMap bindersOf cBinds' ++ deps
+  where
+    cBinds'         = filter f cBinds
+    f (NonRec x _)  = eqFd x
+    f (Rec xes   )  = any eqFd (fst <$> xes)
+    eqFd x          = varName x == varName fd
+    deps            = concatMap unfoldDep unfolds
+    unfolds         = unfoldingInfo . idInfo <$> concatMap bindersOf cBinds'
 
-        f (NonRec x _) = eqFd x
-        f (Rec xes   ) = any eqFd (fst <$> xes)
-        eqFd x         = varName x == varName fd
-        deps :: [Id]
-        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap bindersOf cbf)
+unfoldDep :: Unfolding -> [Id]
+unfoldDep (DFunUnfolding _ _ e)         = concatMap exprDep  e
+unfoldDep (CoreUnfolding {uf_tmpl = e}) = exprDep  e
+unfoldDep _                             = []
 
-        dep (DFunUnfolding _ _ e)         = concatMap grapDep  e
-        dep (CoreUnfolding {uf_tmpl = e}) = grapDep  e
-        dep _                             = []
-
-        grapDep :: CoreExpr -> [Id]
-        grapDep e           = freeVars S.empty e
+exprDep :: CoreExpr -> [Id]
+exprDep = freeVars S.empty
 
 updateDynFlags cfg
   = do df <- getSessionDynFlags
@@ -192,12 +202,12 @@ getGhcModGuts1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
        let deriv = getDerivedDictionaries mod_guts
        return   $! (miModGuts (Just deriv) mod_guts)
-     Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
+     Nothing ->
+       exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
 getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 
@@ -209,13 +219,7 @@ cleanFiles fn
        bins = replaceExtension fn <$> ["hi", "o"]
        dir  = tempDirectory fn
 
-
 removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
-
---------------------------------------------------------------------------------
--- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
---------------------------------------------------------------------------------
-
 
 --------------------------------------------------------------------------------
 -- | Extracting Qualifiers -----------------------------------------------------
@@ -233,16 +237,16 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
 
-moduleSpec cfg cbs vars defVars target mg tgtSpec logicmap impSpecs
-  = do addImports  impSpecs
+moduleSpec cfg cBinds vars dVars tgtMod mg tgtSpec logicmap impSpecs
+  = do _          <- addImports  impSpecs
        addContext  $ IIModule $ moduleName $ mgi_module mg
-       env        <- getSession
-       let specs   = (target,tgtSpec):impSpecs
+       gEnv        <- getSession
+       let specs   = (tgtMod, tgtSpec):impSpecs
        let imps    = sortNub $ impNames ++ [ symbolString x
                                            | (_, sp) <- specs
                                            , x <- Ms.imports sp
                                            ]
-       ghcSpec    <- liftIO $ makeGhcSpec cfg target cbs vars defVars exports env logicmap specs
+       ghcSpec    <- liftIO $ makeGhcSpec cfg tgtMod cBinds vars dVars exports gEnv logicmap specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       exports    = mgi_exports mg
@@ -370,7 +374,7 @@ instance PPrint TargetVars where
   pprint (Only vs) = text "Only Variables: " <+> pprint vs
 
 ------------------------------------------------------------------------
--- Dealing With Errors -------------------------------------------------
+-- | Dealing With Errors -------------------------------------------------
 ------------------------------------------------------------------------
 -- | Convert a GHC error into one of ours
 instance Result SourceError where

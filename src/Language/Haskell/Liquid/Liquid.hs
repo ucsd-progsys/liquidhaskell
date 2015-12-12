@@ -32,7 +32,11 @@ import           Language.Haskell.Liquid.Annotate (mkOutput)
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid args = getOpts args >>= runLiquid >>= exitWith
+liquid args = getOpts args >>= repeatM 3 runLiquid >>= exitWith
+
+repeatM 1 k x = k x
+repeatM n k x = k x >> repeatM (n - 1) k x
+
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
