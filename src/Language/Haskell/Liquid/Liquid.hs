@@ -19,7 +19,7 @@ import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
-import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
+import           Language.Fixpoint.Types (sinfo, Result (..)) -- , FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Errors
 import           Language.Haskell.Liquid.CmdLine
@@ -30,29 +30,56 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
 import           Language.Haskell.Liquid.Annotate (mkOutput)
 
+type MbEnv = Maybe HscEnv
+
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid args = getOpts args >>= runLiquid Nothing >>= exitWith
+liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
 ------------------------------------------------------------------------------
-runLiquid :: Maybe HscEnv -> Config -> IO ExitCode
-runLiquid _ cfg = ec <$> mapM (checkOne cfg) (files cfg)
+runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
+------------------------------------------------------------------------------
+runLiquid mE cfg = do
+  (d, mE') <- checkMany cfg mempty mE (filesTimes3 cfg)
+  return      (ec d, mE')
   where
-    ec          = resultExit . o_result . mconcat
+    ec     = resultExit . o_result
+
+filesTimes3 cfg = case files cfg of
+                    [f] -> [f, f, f]
+                    fs  -> fs
+
 
 ------------------------------------------------------------------------------
+checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
 ------------------------------------------------------------------------------
+checkMany cfg d mE (f:fs) = do
+  (d', mE') <- checkOne mE cfg f
+  checkMany cfg (d `mappend` d') mE' fs
+
+checkMany _   d mE [] =
+  return (d, mE)
+
 ------------------------------------------------------------------------------
+checkOne :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
+------------------------------------------------------------------------------
+checkOne mE cfg t = do
+  z <- getGhcInfo mE cfg t
+  case z of
+    Left e -> do
+      d <- exitWithResult cfg t $ mempty { o_result = e }
+      return (d, Nothing)
+    Right (gInfo, hEnv) -> do
+      d <- liquidOne t gInfo
+      return (d, Just hEnv)
 
-checkOne :: Config -> FilePath -> IO (Output Doc)
-checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)
-  where
-    errOut r    = exitWithResult cfg0 t $ mempty { o_result = r}
 
+------------------------------------------------------------------------------
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
+------------------------------------------------------------------------------
 liquidOne tgt info = do
   donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
