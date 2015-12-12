@@ -73,8 +73,6 @@ getGhcInfo hEnv cfg f =
   where
     handle = return . Left . result
 
-repM 1 act = act
-repM n act = act >> repM (n - 1) act
 
 addRootTarget x = setTargets [x]
 
