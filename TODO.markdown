@@ -1,6 +1,10 @@
 TODO
 ====
 
+
+Organizing Modules
+------------------
+
 + Types
   + Names.hs
   + Variance.hs
