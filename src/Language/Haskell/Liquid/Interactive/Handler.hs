@@ -7,32 +7,24 @@ module Language.Haskell.Liquid.Interactive.Handler (
   ) where
 
 import Control.Concurrent.MVar
--- import Data.HashMap.Strict as M
 import Language.Haskell.Liquid.Interactive.Types
 import Language.Haskell.Liquid.Liquid
+-- import Language.Fixpoint.Misc (errorstar)
 
 ------------------------------------------------------------------------------
 handler :: MVar State -> Command -> IO Response
 ------------------------------------------------------------------------------
-handler r cfg = do
-  n <- yo r
-  s <- status <$> runLiquid cfg
-  return (s, n)
+handler r = modifyMVar r . runLiquid'
 
-yo :: MVar State -> IO Int
-yo r = do
-  n <- bump r
-  writeFile "/Users/rjhala/tmp/lhi.log" (msg n)
-  return n
-
-msg n = "Lhi: Query " ++ show n
-
-bump :: MVar State -> IO Int
-bump r = modifyMVar r $ \s ->
-  let n = sCount s in
-  return (s { sCount = n + 1 },  n)
+runLiquid' :: Command -> State -> IO (State, Response)
+runLiquid' cfg s = do
+  let mE    = sMbEnv s
+  let n     = sCount s
+  (c, mE') <- runLiquid mE cfg
+  let s'    = State (n+1) mE'
+  return      (s', (status c, n))
 
 ------------------------------------------------------------------------------
 initial :: State
 ------------------------------------------------------------------------------
-initial = State 0
+initial = State 0 Nothing

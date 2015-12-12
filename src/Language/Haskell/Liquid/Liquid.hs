@@ -3,7 +3,16 @@
 {-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
-module Language.Haskell.Liquid.Liquid (liquid, runLiquid) where
+module Language.Haskell.Liquid.Liquid (
+   -- * Executable command
+    liquid
+
+   -- * Single query
+  , runLiquid
+
+   -- * Ghci State
+  , MbEnv
+  ) where
 
 import           Data.Maybe
 import           System.Exit
@@ -43,14 +52,15 @@ liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 ------------------------------------------------------------------------------
 runLiquid mE cfg = do
-  (d, mE') <- checkMany cfg mempty mE (filesTimes3 cfg)
+  (d, mE') <- checkMany cfg mempty mE (files cfg)
   return      (ec d, mE')
   where
     ec     = resultExit . o_result
 
-filesTimes3 cfg = case files cfg of
-                    [f] -> [f, f, f]
-                    fs  -> fs
+
+-- filesTimes3 cfg = case files cfg of
+--                    [f] -> [f, f, f]
+--                     fs  -> fs
 
 
 ------------------------------------------------------------------------------
