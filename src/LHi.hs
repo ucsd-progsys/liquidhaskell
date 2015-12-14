@@ -7,8 +7,8 @@ import           Control.Concurrent.MVar ( newMVar )
 import           Data.Default ( def )
 import           Language.Haskell.Liquid.Interactive.Types
 import qualified Language.Haskell.Liquid.Interactive.Handler as H
-import           Language.Haskell.Liquid.CmdLine (getOpts)
-import           Language.Haskell.Liquid.Config  (port)
+import           Language.Haskell.Liquid.UX.CmdLine (getOpts)
+import           Language.Haskell.Liquid.UX.Config  (port)
 
 daemonName :: String
 daemonName = "lhi0"

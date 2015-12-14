@@ -247,7 +247,7 @@ import CoreSyn (CoreBind, CoreExpr)
 
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Config
+import Language.Haskell.Liquid.UX.Config
 import Data.Default
 
 -----------------------------------------------------------------------------

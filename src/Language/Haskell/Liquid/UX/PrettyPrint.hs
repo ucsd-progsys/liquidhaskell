@@ -6,7 +6,7 @@
 
 -- | Module with all the printing and serialization routines
 
-module Language.Haskell.Liquid.PrettyPrint (
+module Language.Haskell.Liquid.UX.PrettyPrint (
 
   -- * Tidy level
   Tidy (..)

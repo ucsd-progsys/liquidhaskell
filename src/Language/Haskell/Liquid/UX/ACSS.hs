@@ -1,5 +1,5 @@
 -- | Formats Haskell source code as HTML with CSS and Mouseover Type Annotations
-module Language.Haskell.Liquid.ACSS (
+module Language.Haskell.Liquid.UX.ACSS (
     hscolour
   , hsannot
   , AnnMap (..)

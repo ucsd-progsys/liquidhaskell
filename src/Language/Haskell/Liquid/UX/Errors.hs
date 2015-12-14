@@ -5,7 +5,7 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.Errors (tidyError, exitWithPanic) where
+module Language.Haskell.Liquid.UX.Errors (tidyError, exitWithPanic) where
 
 
 import           Control.Applicative                 ((<$>), (<*>))
@@ -21,10 +21,10 @@ import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
-import           Language.Haskell.Liquid.PrettyPrint
+import           Language.Haskell.Liquid.UX.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Simplify
-import           Language.Haskell.Liquid.Tidy
+import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc        (single)
 import           SrcLoc                              (SrcSpan)

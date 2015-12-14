@@ -15,19 +15,19 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Console.CmdArgs.Default
 
 import qualified Language.Fixpoint.Types.Config as FC
-import qualified Language.Haskell.Liquid.DiffCheck as DC
+import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Errors
-import           Language.Haskell.Liquid.CmdLine
+import           Language.Haskell.Liquid.UX.Errors
+import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.GhcInterface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.TransformRec
-import           Language.Haskell.Liquid.Annotate (mkOutput)
+import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b

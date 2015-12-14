@@ -15,7 +15,7 @@
 --   causes it, generate a suitable .json file and then exit.
 
 
-module Language.Haskell.Liquid.CmdLine (
+module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
      getOpts, mkOpts
 
@@ -54,13 +54,13 @@ import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result)
-import Language.Haskell.Liquid.Annotate
+import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.PrettyPrint
+import Language.Haskell.Liquid.UX.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
-import Language.Haskell.Liquid.Errors
-import Language.Haskell.Liquid.Cabal
+import Language.Haskell.Liquid.UX.Errors
+import Language.Haskell.Liquid.UX.Cabal
 
 import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode)

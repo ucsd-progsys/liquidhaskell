@@ -34,7 +34,7 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
 
-import Language.Haskell.Liquid.Errors ()
+import Language.Haskell.Liquid.UX.Errors ()
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Bounds
 
