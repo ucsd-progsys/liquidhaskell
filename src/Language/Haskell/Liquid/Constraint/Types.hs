@@ -30,7 +30,7 @@ import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc
 
-import qualified Language.Haskell.Liquid.CTags      as Tg
+import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
 
 type CG = State CGInfo

@@ -1,8 +1,8 @@
-module Language.Haskell.Liquid.Server (getType) where
+module Language.Haskell.Liquid.UX.Server (getType) where
 
 -- import           Control.Monad ((<<))
 import           Language.Haskell.Liquid.Types (Output(..))
-import qualified Language.Haskell.Liquid.ACSS as A
+import qualified Language.Haskell.Liquid.UX.ACSS as A
 import           Text.PrettyPrint.HughesPJ    hiding (Mode)
 import           Language.Fixpoint.Utils.Files
 import           System.Directory

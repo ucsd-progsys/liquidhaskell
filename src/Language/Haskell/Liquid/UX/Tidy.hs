@@ -6,7 +6,7 @@
 --   they are rendered, e.g. in error messages or annoations.
 ---------------------------------------------------------------------
 
-module Language.Haskell.Liquid.Tidy (
+module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Tidying functions
     tidySpecType

@@ -24,7 +24,7 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapFst)
 
 import qualified Data.HashMap.Strict as M
-import Language.Haskell.Liquid.PrettyPrint ()
+import Language.Haskell.Liquid.UX.PrettyPrint ()
 
 makeDictionaries :: [RInstance SpecType] -> DEnv Symbol SpecType
 makeDictionaries = DEnv . M.fromList . map makeDictionary

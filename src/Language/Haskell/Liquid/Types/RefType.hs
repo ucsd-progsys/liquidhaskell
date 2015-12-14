@@ -90,7 +90,7 @@ import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
-import Language.Haskell.Liquid.PrettyPrint
+import Language.Haskell.Liquid.UX.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Fixpoint.Types.Visitor (mapKVars)

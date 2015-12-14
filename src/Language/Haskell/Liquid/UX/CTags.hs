@@ -4,7 +4,7 @@
 -- constraint was generated. These tags are used by fixpoint to
 -- prioritize constraints by the "source-level" function.
 
-module Language.Haskell.Liquid.CTags (
+module Language.Haskell.Liquid.UX.CTags (
     -- * Type for constraint tags
     TagKey, TagEnv
 
