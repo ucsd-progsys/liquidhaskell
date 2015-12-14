@@ -24,11 +24,11 @@ import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
 import Language.Haskell.Liquid.GhcMisc (symbolTyVar)
-import Language.Haskell.Liquid.PredType (dataConPSpecType)
-import Language.Haskell.Liquid.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
+import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
+import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure as Ms

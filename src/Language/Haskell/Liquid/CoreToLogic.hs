@@ -38,7 +38,7 @@ import Language.Haskell.Liquid.GhcPlay
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Types.RefType
 
 
 import qualified Data.HashMap.Strict as M

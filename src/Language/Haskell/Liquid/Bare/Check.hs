@@ -31,9 +31,9 @@ import Language.Fixpoint.Types      hiding (Error, R)
 
 import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (snd4, mapSnd)
-import Language.Haskell.Liquid.PredType (pvarRType)
+import Language.Haskell.Liquid.Types.PredType (pvarRType)
 import Language.Haskell.Liquid.PrettyPrint (pprintSymbol)
-import Language.Haskell.Liquid.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
+import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 

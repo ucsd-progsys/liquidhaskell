@@ -22,7 +22,7 @@ import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.PrettyPrint
-import           Language.Haskell.Liquid.RefType
+import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Simplify
 import           Language.Haskell.Liquid.Tidy
 import           Language.Haskell.Liquid.Types

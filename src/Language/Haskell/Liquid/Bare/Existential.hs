@@ -12,7 +12,7 @@ import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Types.Names (headSym)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, exprReft)
 
-import Language.Haskell.Liquid.RefType (strengthen, uTop)
+import Language.Haskell.Liquid.Types.RefType (strengthen, uTop)
 import Language.Haskell.Liquid.Types
 
 -------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ addExists t = liftM (M.foldlWithKey' addExist t) getBinds
 
 addExist t x (tx, e) = REx x t' t
   where t' = (ofRSort tx) `strengthen` uTop r
-        r  = exprReft e 
+        r  = exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
 expToBindRef (U r (Pr p) l)

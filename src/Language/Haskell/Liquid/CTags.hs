@@ -1,19 +1,19 @@
 {-# LANGUAGE TupleSections #-}
 -- | This module contains the code for generating "tags" for constraints
 -- based on their source, i.e. the top-level binders under which the
--- constraint was generated. These tags are used by fixpoint to 
+-- constraint was generated. These tags are used by fixpoint to
 -- prioritize constraints by the "source-level" function.
 
 module Language.Haskell.Liquid.CTags (
     -- * Type for constraint tags
     TagKey, TagEnv
- 
+
     -- * Default tag value
   , defaultTag
-   
+
     -- * Constructing @TagEnv@
   , makeTagEnv
-  
+
     -- * Accessing @TagEnv@
   , getTag, memTagEnv
 
@@ -27,7 +27,7 @@ import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
 import Language.Fixpoint.Types          (Tag)
-import Language.Haskell.Liquid.Visitors (freeVars)
+import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Misc     (mapSnd)
 
 -- | The @TagKey@ is the top-level binder, and @Tag@ is a singleton Int list
@@ -43,8 +43,8 @@ defaultTag = [0]
 memTagEnv :: TagKey -> TagEnv -> Bool
 memTagEnv = M.member
 
-makeTagEnv :: [CoreBind] -> TagEnv 
-makeTagEnv = M.map (:[]) . callGraphRanks . makeCallGraph 
+makeTagEnv :: [CoreBind] -> TagEnv
+makeTagEnv = M.map (:[]) . callGraphRanks . makeCallGraph
 
 -- makeTagEnv = M.fromList . (`zip` (map (:[]) [1..])). L.sort . map fst . concatMap bindEqns
 
@@ -60,15 +60,13 @@ callGraphRanks :: CallGraph -> M.HashMap Var Int
 
 callGraphRanks  = M.fromList . concat . index . mkScc
   where mkScc cg = G.stronglyConnComp [(u, u, vs) | (u, vs) <- cg]
-        index    = zipWith (\i -> map (, i) . G.flattenSCC) [1..] 
+        index    = zipWith (\i -> map (, i) . G.flattenSCC) [1..]
 
 makeCallGraph :: [CoreBind] -> CallGraph
-makeCallGraph cbs = mapSnd calls `fmap` xes 
+makeCallGraph cbs = mapSnd calls `fmap` xes
   where xes       = concatMap bindEqns cbs
         xs        = S.fromList $ map fst xes
         calls     = filter (`S.member` xs) . freeVars S.empty
 
 bindEqns (NonRec x e) = [(x, e)]
-bindEqns (Rec xes)    = xes 
-
-
+bindEqns (Rec xes)    = xes
