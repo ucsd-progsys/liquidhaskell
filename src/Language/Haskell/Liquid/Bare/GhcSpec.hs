@@ -37,14 +37,14 @@ import Language.Fixpoint.Misc (thd3, traceShow)
 import Language.Fixpoint.Types.Names (takeWhileSym, nilName, consName)
 import Language.Fixpoint.Types hiding (Error)
 
-import Language.Haskell.Liquid.Dictionaries
+import Language.Haskell.Liquid.Types.Dictionaries
 import Language.Haskell.Liquid.GhcMisc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId, dropModuleNames)
-import Language.Haskell.Liquid.PredType (makeTyConInfo)
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Types.PredType (makeTyConInfo)
+import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
-import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.CoreToLogic
 
 import qualified Language.Haskell.Liquid.Measure as Ms

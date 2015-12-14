@@ -3,7 +3,7 @@
 module Language.Haskell.Liquid.WiredIn
        ( propType
        , propTyCon
-       , arrowTyCon 
+       , arrowTyCon
        , arrowType
        , runFunName, runFunSort
        , hpropTyCon
@@ -11,17 +11,17 @@ module Language.Haskell.Liquid.WiredIn
        , wiredTyCons, wiredDataCons
        , wiredSortedSyms
 
-       -- | Constants for automatic proofs 
-       , dictionaryVar, dictionaryTyVar, dictionaryBind 
+       -- | Constants for automatic proofs
+       , dictionaryVar, dictionaryTyVar, dictionaryBind
        , proofTyConName, combineProofsName
        ) where
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.PredType
+import Language.Haskell.Liquid.Types.Variance
+import Language.Haskell.Liquid.Types.PredType
 
 import Language.Fixpoint.Types.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
@@ -30,9 +30,9 @@ import BasicTypes
 import DataCon
 import TyCon
 import TysWiredIn
-import Kind 
+import Kind
 
-import Var 
+import Var
 import TypeRep
 import CoreSyn
 
@@ -45,11 +45,11 @@ wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1.
 -- | LH Primitive TyCons ----------------------------------------------
 -----------------------------------------------------------------------
 
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar) 
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy dictionaryTyVar $ TyVarTy dictionaryTyVar)
 dictionaryTyVar = stringTyVar "da"
 dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
-  where 
-   v = dictionaryVar 
+  where
+   v = dictionaryVar
    a = dictionaryTyVar
 
 
@@ -59,7 +59,7 @@ dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
 -----------------------------------------------------------------------
 
 
-combineProofsName :: String 
+combineProofsName :: String
 combineProofsName = "combineProofs"
 
 proofTyConName :: Symbol
@@ -72,12 +72,12 @@ runFunName   = "runFun"
 arrowTyCon, propTyCon, hpropTyCon :: TyCon
 
 
-{- ATTENTION: Uniques should be different when defining TyCons 
+{- ATTENTION: Uniques should be different when defining TyCons
    otherwise the TyCons are equal and they will all resolve to
    bool in fixpoint, as propTyCon is a bool
  -}
 
-arrowTyCon = (symbolTyConWithKind k 'w' 24 arrowConName) 
+arrowTyCon = (symbolTyConWithKind k 'w' 24 arrowConName)
   where k = mkArrowKinds [superKind, superKind] superKind
 
 propTyCon  = symbolTyCon 'w' 25 propConName
@@ -86,7 +86,7 @@ hpropTyCon = symbolTyCon 'w' 26 hpropConName
 
 arrowFTyCon = symbolFTycon $ dummyLoc arrowConName
 
-runFunSort :: Sort 
+runFunSort :: Sort
 runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
 
 -----------------------------------------------------------------------

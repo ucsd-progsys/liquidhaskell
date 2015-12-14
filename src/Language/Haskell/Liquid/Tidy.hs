@@ -27,7 +27,7 @@ import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symS
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GhcMisc      (stringTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType hiding (shiftVV)
+import Language.Haskell.Liquid.Types.RefType hiding (shiftVV)
 
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol

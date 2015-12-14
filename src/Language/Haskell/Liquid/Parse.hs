@@ -37,9 +37,9 @@ import Language.Fixpoint.Types hiding (Error, Def, R)
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Types hiding (Axiom)
 import Language.Haskell.Liquid.Misc (mapSnd)
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.Types.Variance
+import Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Types.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)

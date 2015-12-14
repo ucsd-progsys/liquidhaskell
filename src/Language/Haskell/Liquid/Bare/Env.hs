@@ -36,7 +36,7 @@ import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
 
 import Language.Haskell.Liquid.Errors ()
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.Bounds
 
 
 -----------------------------------------------------------------------------------

@@ -52,7 +52,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GhcMisc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.Visitors
+import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms

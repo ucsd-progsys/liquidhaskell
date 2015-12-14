@@ -245,7 +245,7 @@ import Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName,
 import qualified Language.Fixpoint.Types.PrettyPrint as F
 import CoreSyn (CoreBind, CoreExpr)
 
-import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Config
 import Data.Default

@@ -46,7 +46,7 @@ import            Language.Fixpoint.Utils.Files
 import            Language.Haskell.Liquid.Types   (SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GhcMisc
-import            Language.Haskell.Liquid.Visitors
+import            Language.Haskell.Liquid.Types.Visitors
 import            Language.Haskell.Liquid.Errors   ()
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
