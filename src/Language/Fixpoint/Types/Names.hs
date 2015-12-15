@@ -118,7 +118,7 @@ deriving instance Data     InternedText
 deriving instance Typeable InternedText
 deriving instance Generic  InternedText
 
-{-@ type SafeText = {v: T.Text | IsSafe v} @-}
+{- type SafeText = {v: T.Text | IsSafe v} @-}
 type SafeText = T.Text
 
 -- | Invariant: a `SafeText` is made up of:

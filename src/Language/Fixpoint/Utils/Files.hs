@@ -66,6 +66,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Annot    -- ^ Text file with inferred types
          | Vim      -- ^ Vim annotation file
          | Hs       -- ^ Haskell source
+         | HsBoot   -- ^ Haskell source
          | LHs      -- ^ Literate Haskell source
          | Js       -- ^ JavaScript source
          | Ts       -- ^ Typescript source
@@ -101,6 +102,7 @@ extMap          = go
     go Vim      = ".vim.annot"
     go Hs       = ".hs"
     go LHs      = ".lhs"
+    go HsBoot   = ".hs-boot"
     go Js       = ".js"
     go Ts       = ".ts"
     go Mkdn     = ".markdown"
