@@ -73,7 +73,7 @@ import Language.Fixpoint.SortCheck     (pruneUnsortedReft)
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
 
-import Language.Haskell.Liquid.Fresh
+import Language.Haskell.Liquid.Constraint.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
@@ -89,11 +89,11 @@ import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc             hiding (mapSndM)
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
-import Language.Haskell.Liquid.RefSplit
+import Language.Haskell.Liquid.Transforms.RefSplit
 import Control.DeepSeq
 import Language.Haskell.Liquid.Constraint.Constraint
 import Language.Haskell.Liquid.Constraint.ProofToCore
@@ -103,7 +103,7 @@ import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
 import Language.Fixpoint.Smt.Interface
 
 
-import Language.Haskell.Liquid.CoreToLogic
+import Language.Haskell.Liquid.Transforms.CoreToLogic
 
 import CoreSyn
 

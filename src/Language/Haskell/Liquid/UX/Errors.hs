@@ -23,7 +23,7 @@ import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.UX.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Simplify
+import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc        (single)

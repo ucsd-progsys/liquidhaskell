@@ -25,7 +25,7 @@ import Data.List (foldl', (\\), delete)
 
 import qualified Data.HashSet        as S
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc ()
+import Language.Haskell.Liquid.GHC.Misc ()
 
 
 ------------------------------------------------------------------------------

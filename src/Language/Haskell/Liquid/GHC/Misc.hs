@@ -13,7 +13,7 @@
 -- accessing GHC module information. It should NEVER depend on
 -- ANY module inside the Language.Haskell.Liquid.* tree.
 
-module Language.Haskell.Liquid.GhcMisc where
+module Language.Haskell.Liquid.GHC.Misc where
 
 import PrelNames (fractionalClassKeys)
 import Class     (classKey)

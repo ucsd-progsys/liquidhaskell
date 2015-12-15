@@ -29,7 +29,7 @@ import HscTypes                         (SourceError)
 import SrcLoc
 import GHC                              (Name, Class)
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (SrcSpan, Predicate)
 import Language.Fixpoint.Misc

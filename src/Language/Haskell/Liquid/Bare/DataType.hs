@@ -23,7 +23,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
-import Language.Haskell.Liquid.GhcMisc (symbolTyVar)
+import Language.Haskell.Liquid.GHC.Misc (symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
 import Language.Haskell.Liquid.Types

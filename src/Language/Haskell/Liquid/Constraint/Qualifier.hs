@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
 
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.GhcMisc  (getSourcePos)
+import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
 import Language.Haskell.Liquid.Types.PredType
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types

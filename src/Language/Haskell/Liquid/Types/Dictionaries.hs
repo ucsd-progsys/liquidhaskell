@@ -19,7 +19,7 @@ import Language.Fixpoint.Types.Names      (symbolString)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc       (errorstar)
 
-import Language.Haskell.Liquid.GhcMisc (dropModuleNames)
+import Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapFst)
 

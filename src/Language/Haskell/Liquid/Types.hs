@@ -210,7 +210,7 @@ import Var
 import Text.Printf
 import GHC                                      (HscEnv, ModuleName, moduleNameString)
 import GHC.Generics
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 
 import PrelInfo         (isNumericClass)
 

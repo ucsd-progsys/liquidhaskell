@@ -36,7 +36,7 @@ import qualified Data.List as L
 import Language.Fixpoint.Misc  (sortNub)
 import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
 
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (sortDiff)

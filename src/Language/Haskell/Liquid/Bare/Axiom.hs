@@ -35,11 +35,11 @@ import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GhcMisc (showPpr)
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
 import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.CoreToLogic
+import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
+import Language.Haskell.Liquid.GHC.Misc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
 import Language.Haskell.Liquid.Types.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types hiding (binders)
 import Language.Haskell.Liquid.Types.Bounds

@@ -45,7 +45,7 @@ import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.GhcMisc
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Fixpoint.Types hiding (Error, Loc, Def (..), Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.PrettyPrint

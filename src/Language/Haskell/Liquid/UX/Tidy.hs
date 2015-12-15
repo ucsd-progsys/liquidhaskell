@@ -25,7 +25,7 @@ import           Data.Maybe                 (fromMaybe)
 
 import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
-import Language.Haskell.Liquid.GhcMisc      (stringTyVar)
+import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType hiding (shiftVV)
 

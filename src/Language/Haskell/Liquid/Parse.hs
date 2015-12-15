@@ -34,7 +34,7 @@ import Language.Preprocessor.Unlit (unlit)
 
 import Language.Fixpoint.Types hiding (Error, Def, R)
 
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types hiding (Axiom)
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Types.RefType
