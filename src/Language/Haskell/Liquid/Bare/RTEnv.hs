@@ -15,8 +15,8 @@ import qualified Data.List           as L
 import Language.Fixpoint.Misc (errorstar, fst3)
 import Language.Fixpoint.Types (Expr(..), Pred(..), Symbol)
 
-import Language.Haskell.Liquid.GhcMisc (sourcePosSrcSpan)
-import Language.Haskell.Liquid.RefType (symbolRTyVar)
+import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
+import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure as Ms

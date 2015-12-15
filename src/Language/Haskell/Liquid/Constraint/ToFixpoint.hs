@@ -16,7 +16,7 @@ import qualified Data.HashMap.Strict            as M
 import           Data.Monoid
 import           Debug.Trace
 import Language.Haskell.Liquid.Constraint.Qualifier
-import Language.Haskell.Liquid.RefType          ( rTypeSortedReft )
+import Language.Haskell.Liquid.Types.RefType          ( rTypeSortedReft )
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi fi = do

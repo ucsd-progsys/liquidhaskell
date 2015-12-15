@@ -9,7 +9,7 @@
 ------------ Code to convert Core to Administrative Normal Form ---------------------
 -------------------------------------------------------------------------------------
 
-module Language.Haskell.Liquid.ANFTransform (anormalize) where
+module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 import           CoreSyn
 import           CoreUtils                        (exprType)
 import qualified DsMonad
@@ -31,8 +31,8 @@ import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
 import           Language.Fixpoint.Misc     (fst3, errorstar)
 import           Language.Fixpoint.Types          (anfPrefix)
-import           Language.Haskell.Liquid.GhcMisc  (MGIModGuts(..), showPpr, symbolFastString)
-import           Language.Haskell.Liquid.TransformRec
+import           Language.Haskell.Liquid.GHC.Misc  (MGIModGuts(..), showPpr, symbolFastString)
+import           Language.Haskell.Liquid.Transforms.Rec
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Control.Applicative

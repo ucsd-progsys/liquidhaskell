@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Simplify (simplifyBounds) where
+module Language.Haskell.Liquid.Transforms.Simplify (simplifyBounds) where
 
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types

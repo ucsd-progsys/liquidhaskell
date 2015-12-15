@@ -4,7 +4,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
-module Language.Haskell.Liquid.GhcInterface (
+module Language.Haskell.Liquid.GHC.Interface (
 
   -- * extract all information needed for verification
     getGhcInfo
@@ -46,14 +46,14 @@ import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Errors
-import Language.Haskell.Liquid.ANFTransform
+import Language.Haskell.Liquid.UX.Errors
+import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.PrettyPrint
-import Language.Haskell.Liquid.Visitors
-import Language.Haskell.Liquid.CmdLine (withCabal, withPragmas)
+import Language.Haskell.Liquid.UX.PrettyPrint
+import Language.Haskell.Liquid.Types.Visitors
+import Language.Haskell.Liquid.UX.CmdLine (withCabal, withPragmas)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 
