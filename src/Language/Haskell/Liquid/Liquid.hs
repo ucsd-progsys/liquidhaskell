@@ -22,11 +22,11 @@ import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
-import           Language.Haskell.Liquid.GhcInterface
+import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.TransformRec
+import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
 ------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Haskell.Liquid.RefSplit (
+module Language.Haskell.Liquid.Transforms.RefSplit (
 
         splitXRelatedRefs
 

@@ -13,8 +13,6 @@ import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 
--- TODO: Rename, "Sort" isn't a good name for this module
-
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
 -- (2) gathers _extra_ RProp at turnst them into refinements,

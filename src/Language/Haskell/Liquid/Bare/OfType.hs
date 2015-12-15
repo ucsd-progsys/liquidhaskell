@@ -33,7 +33,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
 
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types

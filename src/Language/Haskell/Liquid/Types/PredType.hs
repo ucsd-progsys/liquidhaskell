@@ -41,7 +41,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Names         (symbolString)
 import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types         as F
-import           Language.Haskell.Liquid.GhcMisc
+import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types

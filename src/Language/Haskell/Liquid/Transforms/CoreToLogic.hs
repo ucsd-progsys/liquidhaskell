@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
 
-module Language.Haskell.Liquid.CoreToLogic (
+module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   coreToDef , coreToFun,
   coreToLogic, coreToPred,
@@ -33,8 +33,8 @@ import Language.Fixpoint.Misc (snd3)
 import Language.Fixpoint.Types.Names (propConName, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Error, Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GhcMisc
-import Language.Haskell.Liquid.GhcPlay
+import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn

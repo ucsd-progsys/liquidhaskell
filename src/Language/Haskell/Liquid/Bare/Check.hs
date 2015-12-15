@@ -29,7 +29,7 @@ import Language.Fixpoint.Misc (applyNonNull, group, errorstar, safeHead)
 import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types      hiding (Error, R)
 
-import Language.Haskell.Liquid.GhcMisc (realTcArity, showPpr, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GHC.Misc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (snd4, mapSnd)
 import Language.Haskell.Liquid.Types.PredType (pvarRType)
 import Language.Haskell.Liquid.UX.PrettyPrint (pprintSymbol)

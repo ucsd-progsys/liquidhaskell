@@ -55,7 +55,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (Error, Result)
 import Language.Haskell.Liquid.UX.Annotate
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.UX.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
