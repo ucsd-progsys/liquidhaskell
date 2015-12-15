@@ -6,7 +6,7 @@
 
 -- | Module with all the printing and serialization routines
 
-module Language.Haskell.Liquid.PrettyPrint (
+module Language.Haskell.Liquid.UX.PrettyPrint (
 
   -- * Tidy level
   Tidy (..)
@@ -29,7 +29,7 @@ import HscTypes                         (SourceError)
 import SrcLoc
 import GHC                              (Name, Class)
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Text.PrettyPrint.HughesPJ
 import Language.Fixpoint.Types hiding (SrcSpan, Predicate)
 import Language.Fixpoint.Misc

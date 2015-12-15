@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Language.Haskell.Liquid.RefSplit (
+module Language.Haskell.Liquid.Transforms.RefSplit (
 
         splitXRelatedRefs
 
@@ -12,7 +12,7 @@ import Data.List (partition)
 import Text.PrettyPrint.HughesPJ
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.PrettyPrint ()
+import Language.Haskell.Liquid.UX.PrettyPrint ()
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc

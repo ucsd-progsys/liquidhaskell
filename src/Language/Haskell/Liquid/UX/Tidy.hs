@@ -6,7 +6,7 @@
 --   they are rendered, e.g. in error messages or annoations.
 ---------------------------------------------------------------------
 
-module Language.Haskell.Liquid.Tidy (
+module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Tidying functions
     tidySpecType
@@ -25,9 +25,9 @@ import           Data.Maybe                 (fromMaybe)
 
 import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
-import Language.Haskell.Liquid.GhcMisc      (stringTyVar)
+import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType hiding (shiftVV)
+import Language.Haskell.Liquid.Types.RefType hiding (shiftVV)
 
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol

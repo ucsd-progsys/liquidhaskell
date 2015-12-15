@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeSynonymInstances      #-} 
+{-# LANGUAGE TypeSynonymInstances      #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TupleSections             #-}
@@ -7,10 +7,10 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 
 
-module Language.Haskell.Liquid.Visitors (
-  
-  -- * visitors 
-  CBVisitable (..) 
+module Language.Haskell.Liquid.Types.Visitors (
+
+  -- * visitors
+  CBVisitable (..)
 
   ) where
 
@@ -25,7 +25,7 @@ import Data.List (foldl', (\\), delete)
 
 import qualified Data.HashSet        as S
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc ()
+import Language.Haskell.Liquid.GHC.Misc ()
 
 
 ------------------------------------------------------------------------------
@@ -36,24 +36,24 @@ import Language.Haskell.Liquid.GhcMisc ()
 
 class CBVisitable a where
   freeVars :: S.HashSet Var -> a -> [Var]
-  readVars :: a -> [Var] 
-  letVars  :: a -> [Var] 
+  readVars :: a -> [Var]
+  letVars  :: a -> [Var]
   literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
-  freeVars env cbs = (sortNub xs) \\ ys 
-    where xs = concatMap (freeVars env) cbs 
+  freeVars env cbs = (sortNub xs) \\ ys
+    where xs = concatMap (freeVars env) cbs
           ys = concatMap bindings cbs
-  
+
   readVars = concatMap readVars
-  letVars  = concatMap letVars 
+  letVars  = concatMap letVars
   literals = concatMap literals
 
 instance CBVisitable CoreBind where
-  freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e 
-  freeVars env (Rec xes)    = concatMap (freeVars env') es 
-                              where (xs,es) = unzip xes 
-                                    env'    = extendEnv env xs 
+  freeVars env (NonRec x e) = freeVars (extendEnv env [x]) e
+  freeVars env (Rec xes)    = concatMap (freeVars env') es
+                              where (xs,es) = unzip xes
+                                    env'    = extendEnv env xs
 
   readVars (NonRec _ e)     = readVars e
   readVars (Rec xes)        = concat [x `delete` nubReadVars e |(x, e) <- xes]
@@ -61,7 +61,7 @@ instance CBVisitable CoreBind where
 
   letVars (NonRec x e)      = x : letVars e
   letVars (Rec xes)         = xs ++ concatMap letVars es
-    where 
+    where
       (xs, es)              = unzip xes
 
   literals (NonRec _ e)      = literals e
@@ -73,34 +73,34 @@ instance CBVisitable (Expr Var) where
   letVars  = exprLetVars
   literals = exprLiterals
 
-exprFreeVars = go 
-  where 
-    go env (Var x)         = if x `S.member` env then [] else [x]  
+exprFreeVars = go
+  where
+    go env (Var x)         = if x `S.member` env then [] else [x]
     go env (App e a)       = (go env e) ++ (go env a)
     go env (Lam x e)       = go (extendEnv env [x]) e
     go env (Let b e)       = (freeVars env b) ++ (go (extendEnv env (bindings b)) e)
     go env (Tick _ e)      = go env e
     go env (Cast e _)      = go env e
-    go env (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs) 
+    go env (Case e x _ cs) = (go env e) ++ (concatMap (freeVars (extendEnv env [x])) cs)
     go _   _               = []
 
 exprReadVars = go
   where
     go (Var x)             = [x]
-    go (App e a)           = concatMap go [e, a] 
+    go (App e a)           = concatMap go [e, a]
     go (Lam _ e)           = go e
-    go (Let b e)           = readVars b ++ go e 
+    go (Let b e)           = readVars b ++ go e
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
-    go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs) 
+    go (Case e _ _ cs)     = (go e) ++ (concatMap readVars cs)
     go _                   = []
 
 exprLetVars = go
   where
     go (Var _)             = []
-    go (App e a)           = concatMap go [e, a] 
+    go (App e a)           = concatMap go [e, a]
     go (Lam x e)           = x : go e
-    go (Let b e)           = letVars b ++ go e 
+    go (Let b e)           = letVars b ++ go e
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
     go (Case e x _ cs)     = x : go e ++ concatMap letVars cs
@@ -109,12 +109,12 @@ exprLetVars = go
 exprLiterals = go
   where
     go (Lit l)             = [l]
-    go (App e a)           = concatMap go [e, a] 
-    go (Let b e)           = literals b ++ go e 
+    go (App e a)           = concatMap go [e, a]
+    go (Let b e)           = literals b ++ go e
     go (Lam _ e)           = go e
     go (Tick _ e)          = go e
     go (Cast e _)          = go e
-    go (Case e _ _ cs)     = (go e) ++ (concatMap literals cs) 
+    go (Case e _ _ cs)     = (go e) ++ (concatMap literals cs)
     go _                   = []
 
 
@@ -137,7 +137,7 @@ instance CBVisitable AltCon where
 
 extendEnv = foldl' (flip S.insert)
 
-bindings (NonRec x _) 
+bindings (NonRec x _)
   = [x]
-bindings (Rec  xes  ) 
+bindings (Rec  xes  )
   = map fst xes

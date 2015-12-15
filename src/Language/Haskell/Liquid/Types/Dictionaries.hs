@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Dictionaries (
+module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
   , makeDictionary
 
@@ -19,12 +19,12 @@ import Language.Fixpoint.Types.Names      (symbolString)
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc       (errorstar)
 
-import Language.Haskell.Liquid.GhcMisc (dropModuleNames)
+import Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapFst)
 
 import qualified Data.HashMap.Strict as M
-import Language.Haskell.Liquid.PrettyPrint ()
+import Language.Haskell.Liquid.UX.PrettyPrint ()
 
 makeDictionaries :: [RInstance SpecType] -> DEnv Symbol SpecType
 makeDictionaries = DEnv . M.fromList . map makeDictionary

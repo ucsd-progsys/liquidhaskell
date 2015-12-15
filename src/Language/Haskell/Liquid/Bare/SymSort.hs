@@ -9,11 +9,9 @@ import qualified Data.List as L
 import Language.Fixpoint.Misc (errorstar, safeZip, fst3, snd3)
 import Language.Fixpoint.Types (meet)
 
-import Language.Haskell.Liquid.RefType (appRTyCon, strengthen)
+import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (safeZipWithError)
-
--- TODO: Rename, "Sort" isn't a good name for this module
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
@@ -21,22 +19,22 @@ import Language.Haskell.Liquid.Misc (safeZipWithError)
 --     e.g. tests/pos/multi-pred-app-00.hs
 txRefSort tyi tce = mapBot (addSymSort tce tyi)
 
-addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r) 
+addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef rc) pvs rargs [1..]) r'
   where
     rc'                = appRTyCon tce tyi rc ts
-    pvs                = rTyConPVs rc' 
+    pvs                = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
     go r (RProp  _ _ ) = r -- is this correct?
     go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
 
-addSymSort _ _ t 
+addSymSort _ _ t
   = t
 
 addSymSortRef _  _ (RHProp _ _) _   = errorstar "TODO:EFFECTS:addSymSortRef"
-addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r 
+addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r
                        | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
 
@@ -46,18 +44,18 @@ addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
       t  = ofRSort (pvType p) `strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' _ _ p (RProp s t) 
+addSymSortRef' _ _ p (RProp s t)
   = RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
-addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _)) 
+addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
   = RPropP xts r -- (ofRSort (pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
-      msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up) 
+      msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up)
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
 addSymSortRef' _ _ _ (RPropP s r)
@@ -66,7 +64,7 @@ addSymSortRef' _ _ _ (RPropP s r)
 addSymSortRef' _ _ _ _
   = errorstar "TODO:EFFECTS:addSymSortRef'"
 
-spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p) 
+spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p)
 
 intToString 1 = "1st"
 intToString 2 = "2nd"

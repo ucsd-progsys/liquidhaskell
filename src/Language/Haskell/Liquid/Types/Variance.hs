@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Language.Haskell.Liquid.Variance (
+module Language.Haskell.Liquid.Types.Variance (
     Variance(..), VarianceInfo
         ) where
 
