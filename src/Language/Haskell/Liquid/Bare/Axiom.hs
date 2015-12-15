@@ -72,11 +72,12 @@ makeAxiom lmap cbs _ _ x
                                      defAxioms v def)
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
-
+     {-
+         TODO: Not called, do I need to exist?
     coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
                             Left l  -> l :: [Def (RRType ()) DataCon] -- return     l
                             Right _ -> error $ "ERROR" -- throwError e
-
+     -}
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
@@ -86,9 +87,12 @@ makeAxiom lmap cbs _ _ x
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
 
-
+{- TODO: first argument never used. Given that this function is called
+   "updateLMap", and the LogicMap argument is unused, I suspect this
+   probably does something other than updating a LogicMap and should
+   be renamed-}
 updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
-updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
+updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
   = insertLogicEnv (val x) ys runFun
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
@@ -97,7 +101,7 @@ updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
     runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val y, F.EVar x1], F.EVar x2]
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
-makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
+makeAxiomType lmap x v axm@(Axiom _ xs _ lhs rhs)
   = return (v, x{val = t})
   where
     t   = traceShow  "\n\nmakeAxiomType\n\n" $ fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
@@ -112,21 +116,22 @@ makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
        Left e -> e
        Right e -> error $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
-
+   {- TODO: unsued, do I need to exist?
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
-    ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+   -- ys@[x1, x2] = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs -}
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
-
-    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2]
+    {- TODO: unsued, do I need to exist?
+    runFun = F.EApp (dummyLoc runFunName) [F.EApp (dummyLoc runFunName) [F.EVar $ val x, F.EVar x1], F.EVar x2] -}
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
-
+    {- TODO: unused, do I need to exist?
     mkBinds (x:xs) (v:vs) = v:mkBinds xs vs
     mkBinds _ _ = []
 
     v' = val x -- symbol $ showPpr $ getName vv
+-}
 
 
 
@@ -207,8 +212,8 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
     ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
     mkApp = F.EApp s . map F.EVar -- foldl runFun (F.EVar $ val s)
-
-    runFun e x = F.EApp (dummyLoc runFunName) [e, F.EVar x]
+    {- TODO: unused, do I need to exist?
+    runFun e x = F.EApp (dummyLoc runFunName) [e, F.EVar x] -}
 
 
 -- | Type for uninterpreted function that approximated Haskell function into logic
