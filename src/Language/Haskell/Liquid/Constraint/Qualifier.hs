@@ -6,6 +6,8 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
   specificationQualifiers
   ) where
 
+import TyCon
+
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
@@ -54,7 +56,7 @@ specificationQualifiers k info lEnv
 
 -- TODO: rewrite using foldReft'
 -- refTypeQuals :: SpecType -> [Qualifier]
-refTypeQuals :: SEnv Sort -> _ -> _ -> SpecType -> [Qualifier]
+refTypeQuals :: SEnv Sort -> SourcePos -> TCEmb TyCon -> SpecType -> [Qualifier]
 refTypeQuals lEnv l tce t0    = go emptySEnv t0
   where
     scrape                    = refTopQuals lEnv l tce t0
@@ -100,7 +102,7 @@ mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
 
 mkQual = mkQualNEW
 
-mkQualNEW lEnv l t0 γ v so p   = Q "Auto" ((v, so) : xts) p l
+mkQualNEW lEnv l _ γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
     xs   = delete v $ nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
@@ -108,6 +110,8 @@ mkQualNEW lEnv l t0 γ v so p   = Q "Auto" ((v, so) : xts) p l
     -- msg  = "Free Vars in: " ++ showFix p ++ " in " ++ show t0
 
 -- OLD
+{-
+  TODO: If it's so OLD, do we need to keep it? Never called, etc...
 mkQualOLD lEnv l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
   where
     yts                = [(y, lookupSort l γ i x) | (x, i, y) <- xys ]
@@ -120,21 +124,27 @@ mkQualOLD lEnv l t0 γ v so p   = Q "Auto" ((v, so) : yts) p' l
 
 orderedFreeVarsOLD :: SEnv Sort -> Pred -> [Symbol]
 orderedFreeVarsOLD γ = nub . filter (`memberSEnv` γ) . syms
+-}
 
-
+{-
+   TODO: Never used, do I need to exist?
 orderedFreeVars :: SEnv Sort -> Pred -> [Symbol]
 orderedFreeVars lEnv = nub . filter (not . (`memberSEnv` lEnv)) . syms
+-}
 
-envSort :: _ -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
+envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
   | Just t <- lookupSEnv x tEnv = Just (x, t)
-  | Just t <- lookupSEnv x lEnv = Nothing
+  | Just _ <- lookupSEnv x lEnv = Nothing
   | otherwise                   = Just (x, ai)
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
     msg            = "unknown symbol in qualifier: " ++ show x
 
+{-
+   TODO: Never used, do I need to exist?
 lookupSort l γ i x = fromMaybe ai $ lookupSEnv x γ
   where
     ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
     msg            = "unknown symbol in qualifier: " ++ show x
+-}
