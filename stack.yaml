@@ -2,9 +2,13 @@
 resolver: nightly-2015-09-24
 
 packages:
+
+- location:
+    git: https://github.com/ranjitjhala/ghc-options.git
+    commit: 70e04dabe6d2806d84cdae29e42941eb29626ae3
 - ./prover
 - ./liquid-fixpoint
-- .
+- .   
 
 flags:
   liquid-fixpoint:
@@ -16,4 +20,3 @@ extra-deps:
 - ascii-progress-0.3.2.0
 - concurrent-output-1.7.1
 - daemons-0.2.1
-- ghc-opts-0.1.0.0

@@ -51,14 +51,12 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.UX.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.CmdLine (withCabal, withPragmas)
+import Language.Haskell.Liquid.UX.CmdLine (withPragmas)
+import Language.Haskell.Liquid.UX.Cabal   (withCabal)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
 
--- HEREHEREHERE
--- setSession, getSession,
--- https://github.com/ghc/ghc/blob/master/compiler/main/GhcMonad.hs#L145
 
 type GhcResult = Either ErrorResult (GhcInfo, HscEnv)
 
@@ -106,7 +104,7 @@ getGhcInfo'' cfg0 target
       liftIO $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
-                              when (not $ isSpecImport n) $
+                              unless (isSpecImport n) $
                                 addTarget =<< guessTarget f Nothing
                               return (n,s)
       load LoadAllTargets
@@ -122,7 +120,7 @@ getGhcInfo'' cfg0 target
       let defVs           = definedVars coreBinds
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
+      let derVs           = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
       (spc, imps, incs)  <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
