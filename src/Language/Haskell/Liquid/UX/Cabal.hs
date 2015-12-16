@@ -11,7 +11,7 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
-module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
+module Language.Haskell.Liquid.UX.Cabal (cabalInfo, Info(..)) where
 
 import Control.Exception
 import Data.Bits                              ( shiftL, shiftR, xor )
@@ -38,8 +38,7 @@ import System.FilePath
 import System.Directory
 import System.Info
 import System.Process
-
-import Language.Haskell.Liquid.Errors
+import Language.Haskell.Liquid.UX.Errors
 
 -----------------------------------------------------------------------------------------------
 cabalInfo :: FilePath -> IO (Maybe Info)

@@ -22,15 +22,15 @@ import Control.Monad.State
 import Var
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Strata
+import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc     (fourth4)
-import Language.Haskell.Liquid.RefType  (shiftVV)
+import Language.Haskell.Liquid.Types.RefType  (shiftVV)
 import Language.Haskell.Liquid.WiredIn  (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc
 
-import qualified Language.Haskell.Liquid.CTags      as Tg
+import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
 
 type CG = State CGInfo

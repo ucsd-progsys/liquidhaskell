@@ -38,7 +38,7 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Types.Names (hpropConName, isPrefixOfSym, lengthSym, propConName, symbolString)
 import Language.Fixpoint.Types (Symbol, Symbolic(..))
 
-import Language.Haskell.Liquid.GhcMisc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
+import Language.Haskell.Liquid.GHC.Misc (lookupRdrName, sourcePosSrcSpan, tcRnLookupRdrName)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 

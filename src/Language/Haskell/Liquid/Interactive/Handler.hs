@@ -21,7 +21,7 @@ runLiquid' cfg s = do
   let mE    = sMbEnv s
   let n     = sCount s
   (c, mE') <- runLiquid mE cfg
-  let s'    = State (n+1) mE'
+  let s'    = State (n + 1) mE'
   return      (s', (status c, n))
 
 ------------------------------------------------------------------------------

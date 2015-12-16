@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE UndecidableInstances  #-}
 
-module Language.Haskell.Liquid.Fresh (Freshable(..)) where
+module Language.Haskell.Liquid.Constraint.Fresh (Freshable(..)) where
 
 import           Control.Applicative           (Applicative, (<$>), (<*>))
 import           Data.Monoid                   (mempty)
@@ -83,15 +83,15 @@ trueRefType (RVar a r)
   = RVar a <$> true r
 
 trueRefType (RAllE y ty tx)
-  = do y'  <- fresh 
+  = do y'  <- fresh
        ty' <- true ty
        tx' <- true tx
-       return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
+       return $ RAllE y' ty' (tx' `subst1` (y, EVar y'))
 
 trueRefType (RRTy e o r t)
-  = RRTy e o r <$> trueRefType t 
+  = RRTy e o r <$> trueRefType t
 
-trueRefType t 
+trueRefType t
   = return t
 
 trueRef (RProp s t) = RProp s <$> trueRefType t
@@ -112,7 +112,7 @@ refreshRefType (RFun b t t' _)
   | otherwise        = rFun     b     <$> refresh t <*> refresh t'
 
 refreshRefType (RApp rc ts _ _) | isClass rc
-  = return $ rRCls rc ts 
+  = return $ rRCls rc ts
 
 refreshRefType (RApp rc ts rs r)
   = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
@@ -124,13 +124,13 @@ refreshRefType (RAppTy t t' r)
   = RAppTy <$> refresh t <*> refresh t' <*> refresh r
 
 refreshRefType (RAllE y ty tx)
-  = do y'  <- fresh 
+  = do y'  <- fresh
        ty' <- refresh ty
        tx' <- refresh tx
-       return $ RAllE y' ty' (tx' `subst1` (y, EVar y')) 
+       return $ RAllE y' ty' (tx' `subst1` (y, EVar y'))
 
 refreshRefType (RRTy e o r t)
-  = RRTy e o r <$> refreshRefType t 
+  = RRTy e o r <$> refreshRefType t
 
 refreshRefType t
   = return t
@@ -138,4 +138,3 @@ refreshRefType t
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
 refreshRef _           = errorstar "refreshRef: unexpected"
 freshSym (_, t)        = (, t) <$> fresh
-

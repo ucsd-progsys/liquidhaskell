@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Language.Haskell.Liquid.Config (
+module Language.Haskell.Liquid.UX.Config (
 
    -- * Configuration Options
      Config (..)

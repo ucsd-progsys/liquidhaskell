@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 
-module Language.Haskell.Liquid.GhcPlay where
+module Language.Haskell.Liquid.GHC.Play where
 
 import GHC
 import CoreSyn
@@ -15,7 +15,7 @@ import Coercion
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 
-import Language.Haskell.Liquid.GhcMisc ()
+import Language.Haskell.Liquid.GHC.Misc ()
 
 class Subable a where
   sub   :: M.HashMap CoreBndr CoreExpr -> a -> a

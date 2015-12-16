@@ -6,7 +6,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 
-module Language.Haskell.Liquid.TransformRec (
+module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
      ) where
 
@@ -27,8 +27,8 @@ import           TypeRep
 import           Unique              hiding (deriveUnique)
 import           Var
 import           Name (isSystemName)
-import           Language.Haskell.Liquid.GhcMisc
-import           Language.Haskell.Liquid.GhcPlay
+import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc (mapSndM, mapSnd)
 
 import           Data.List                (foldl', isInfixOf)
@@ -40,8 +40,8 @@ import qualified Data.List as L
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e
-  =  {-trace "new cbs"-} pg 
-  | otherwise 
+  =  {-trace "new cbs"-} pg
+  | otherwise
   = error ("Type-check" ++ showSDoc (pprMessageBag e))
   where pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
         (_, e) = lintCoreBindings [] pg
@@ -50,7 +50,7 @@ transformRecExpr cbs
 
 
 
-inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be 
+inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
   = Rec [(x, foldr Lam (sub (M.singleton lbx e') lbe) (αs ++ as))]
   where
     (αs, as, be) = collectTyAndValBinders e
@@ -62,22 +62,22 @@ inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
 
     isLoopBreaker =  isStrongLoopBreaker . occInfo . idInfo
 
-inlineLoopBreaker bs 
+inlineLoopBreaker bs
   = bs
 
 inlineFailCases :: CoreProgram -> CoreProgram
 inlineFailCases = (go [] <$>)
-  where 
+  where
     go su (Rec xes)    = Rec (mapSnd (go' su) <$> xes)
     go su (NonRec x e) = NonRec x (go' su e)
 
-    go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e  
+    go' su (App (Var x) _)       | isFailId x, Just e <- getFailExpr x su = e
     go' su (Let (NonRec x ex) e) | isFailId x   = go' (addFailExpr x (go' su ex) su) e
 
     go' su (App e1 e2)      = App (go' su e1) (go' su e2)
     go' su (Lam x e)        = Lam x (go' su e)
     go' su (Let xs e)       = Let (go su xs) (go' su e)
-    go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt) 
+    go' su (Case e x t alt) = Case (go' su e) x t (goalt su <$> alt)
     go' su (Cast e c)       = Cast (go' su e) c
     go' su (Tick t e)       = Tick t (go' su e)
     go' _  e                = e
@@ -87,7 +87,7 @@ inlineFailCases = (go [] <$>)
     isFailId x  = isLocalId x && (isSystemName $ varName x) && L.isPrefixOf "fail" (show x)
     getFailExpr = L.lookup
 
-    addFailExpr x (Lam _ e) su = (x, e):su 
+    addFailExpr x (Lam _ e) su = (x, e):su
     addFailExpr _ _         _  = error "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
@@ -126,7 +126,7 @@ transBd (Rec xes)    = liftM Rec $ mapM (mapSndM (mapBdM transBd)) xes
 
 transExpr :: CoreExpr -> TE CoreExpr
 transExpr e
-  | (isNonPolyRec e') && (not (null tvs)) 
+  | (isNonPolyRec e') && (not (null tvs))
   = trans tvs ids bs e'
   | otherwise
   = return e
@@ -164,7 +164,7 @@ makeTrans vs ids (Let (Rec xes) e)
       let es'  = zipWith (mkE ys) ids' es
       let xes' = zip ys es'
       return   $ mkRecBinds rs (Rec xes') (sub su e)
- where 
+ where
    (xs, es)       = unzip xes
    mkSu ys ids'   = mkSubs ids vs ids' (zip xs ys)
    mkE ys ids' e' = mkCoreLams (vs ++ ids') (sub (mkSu ys ids') e')
@@ -173,7 +173,7 @@ makeTrans _ _ _ = error "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (foldl' f e xes)
-  where f e (x, xe) = Let (NonRec x xe) e  
+  where f e (x, xe) = Let (NonRec x xe) e
 
 mkSubs ids tvs xs ys = M.fromList $ s1 ++ s2
   where s1 = (second (appTysAndIds tvs xs)) <$> ys
@@ -184,7 +184,7 @@ mkFreshIds tvs ids x
        let t  = mkForAllTys tvs $ mkType (reverse ids') $ varType x
        let x' = setVarType x t
        return (ids', x')
-  where 
+  where
     mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
 
 class Freshable a where
@@ -240,5 +240,5 @@ mapBdM _ = return
 -- mapBdM f (Case e b t alt) = liftM (Case e b t) (mapM (mapBdAltM f) alt)
 -- mapBdM f (Tick t e)       = liftM (Tick t) (mapBdM f e)
 -- mapBdM _  e               = return  e
--- 
+--
 -- mapBdAltM f (d, bs, e) = liftM ((,,) d bs) (mapBdM f e)

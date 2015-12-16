@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Names where
+module Language.Haskell.Liquid.Types.Names where
 
 import Language.Fixpoint.Types
 
