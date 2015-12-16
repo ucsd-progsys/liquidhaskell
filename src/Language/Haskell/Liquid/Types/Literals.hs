@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Haskell.Liquid.Literals (
+module Language.Haskell.Liquid.Types.Literals (
          literalFRefType
        , literalFReft
        , literalConst
@@ -11,8 +11,8 @@ import Literal
 import qualified TyCon  as TC
 import Language.Haskell.Liquid.Measure
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.CoreToLogic (mkLit)
+import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit)
 
 import qualified Language.Fixpoint.Types as F
 

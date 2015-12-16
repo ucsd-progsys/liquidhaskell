@@ -39,12 +39,12 @@ import qualified Data.HashMap.Strict as M
 import Language.Fixpoint.Misc (group, snd3)
 import Language.Fixpoint.Types.Names (dropSym, isPrefixOfSym,  symbolString)
 import Language.Fixpoint.Types (Qualifier(..), symbol)
-import Language.Haskell.Liquid.Dictionaries
-import Language.Haskell.Liquid.GhcMisc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
+import Language.Haskell.Liquid.Types.Dictionaries
+import Language.Haskell.Liquid.GHC.Misc ( dropModuleNames, qualifySymbol, takeModuleNames, getSourcePos, showPpr, symbolTyVar)
 import Language.Haskell.Liquid.Misc (addFst3, fourth4, mapFst, concatMapM)
-import Language.Haskell.Liquid.RefType (generalize, rVar, symbolRTyVar)
+import Language.Haskell.Liquid.Types.RefType (generalize, rVar, symbolRTyVar)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 

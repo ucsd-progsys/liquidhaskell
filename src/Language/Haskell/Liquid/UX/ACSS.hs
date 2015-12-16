@@ -1,5 +1,5 @@
 -- | Formats Haskell source code as HTML with CSS and Mouseover Type Annotations
-module Language.Haskell.Liquid.ACSS (
+module Language.Haskell.Liquid.UX.ACSS (
     hscolour
   , hsannot
   , AnnMap (..)
@@ -19,7 +19,7 @@ import qualified Data.HashMap.Strict as M
 import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 
 data AnnMap  = Ann {
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)

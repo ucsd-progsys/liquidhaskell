@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bounds (
+module Language.Haskell.Liquid.Types.Bounds (
 
     Bound(..),
 
@@ -30,7 +30,7 @@ import Language.Fixpoint.Misc        (errorstar)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc  (mapFst, mapSnd)
-import Language.Haskell.Liquid.RefType
+import Language.Haskell.Liquid.Types.RefType
 
 
 data Bound t e

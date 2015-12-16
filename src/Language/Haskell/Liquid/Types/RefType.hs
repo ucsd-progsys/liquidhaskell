@@ -16,7 +16,7 @@
 --   room for refinements of various sorts.
 
 -- TODO: Desperately needs re-organization.
-module Language.Haskell.Liquid.RefType (
+module Language.Haskell.Liquid.Types.RefType (
 
   -- * Functions for lifting Reft-values to Spec-values
     uTop, uReft, uRType, uRType', uRTypeGen, uPVar
@@ -90,18 +90,18 @@ import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
-import Language.Haskell.Liquid.PrettyPrint
+import Language.Haskell.Liquid.UX.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Fixpoint.Types.Visitor (mapKVars)
 import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
 
-import Language.Haskell.Liquid.Variance
+import Language.Haskell.Liquid.Types.Variance
 
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Names
+import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GhcMisc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
 

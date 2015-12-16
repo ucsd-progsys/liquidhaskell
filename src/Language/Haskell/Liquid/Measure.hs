@@ -37,12 +37,12 @@ import Data.Maybe (fromMaybe)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
-import Language.Haskell.Liquid.GhcMisc
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.Misc     (mapSnd)
-import Language.Haskell.Liquid.RefType
-import Language.Haskell.Liquid.Variance
-import Language.Haskell.Liquid.Bounds
+import Language.Haskell.Liquid.Types.RefType
+import Language.Haskell.Liquid.Types.Variance
+import Language.Haskell.Liquid.Types.Bounds
 
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
