@@ -13,9 +13,9 @@
 
 module Language.Haskell.Liquid.Cabal (cabalInfo, Info(..)) where
 
-import Control.Applicative ((<$>))
+import Control.Exception
 import Data.Bits                              ( shiftL, shiftR, xor )
-import Data.Char                              ( ord )
+import Data.Char                              ( ord, isSpace )
 import Data.List
 import Data.Maybe
 import qualified Data.Text as T
@@ -37,30 +37,102 @@ import System.Exit
 import System.FilePath
 import System.Directory
 import System.Info
-import Language.Haskell.Liquid.Errors
+import System.Process
 
--- To use in ghci:
---   exitWithPanic = undefined
+import Language.Haskell.Liquid.Errors
 
 -----------------------------------------------------------------------------------------------
 cabalInfo :: FilePath -> IO (Maybe Info)
 -----------------------------------------------------------------------------------------------
-cabalInfo f = do
-  f  <- canonicalizePath f
-  cf <- findCabalFile f
-  case cf of
-    Just f  -> Just  <$> processCabalFile f
+cabalInfo tgt = do
+  f    <- canonicalizePath tgt
+  mbCf <- findCabalFile f
+  case mbCf of
+    Just cf -> Just  <$> processCabalFile cf
     Nothing -> return Nothing
 
 processCabalFile :: FilePath -> IO Info
-processCabalFile f = do
-  let sandboxDir = sandboxBuildDir (takeDirectory f </> ".cabal-sandbox")
-  b <- doesDirectoryExist sandboxDir
-  let distDir = if b then sandboxDir else "dist"
-  i <- cabalConfiguration f distDir <$> readPackageDescription silent f
-  i <- addPackageDbs =<< canonicalizePaths i
+processCabalFile cf = do
+  distDir <- distDirectory cf
+  i       <- cabalConfiguration cf distDir <$> readPackageDescription silent cf
+  i       <- addPackageDbs =<< canonicalizePaths i
   whenLoud $ putStrLn $ "Cabal Info: " ++ show i
   return i
+
+
+--------------------------------------------------------------------------------
+distDirectory :: FilePath -> IO FilePath
+--------------------------------------------------------------------------------
+distDirectory cf = do
+  d1    <- sandboxDistDir cf
+  d2    <- stackDistDir   cf
+  d3    <- defaultDistDir cf
+  return $ firstJust d3 [d1, d2]
+
+firstJust :: a -> [Maybe a] -> a
+firstJust d []             = d
+firstJust _ (Just x  : _)  = x
+firstJust d (Nothing : xs) = firstJust d xs
+
+sandboxDistDir :: FilePath -> IO (Maybe FilePath)
+sandboxDistDir f = do
+  let sandboxDir = sandboxBuildDir (takeDirectory f </> ".cabal-sandbox")
+  b <- doesDirectoryExist sandboxDir
+  return $ if b then Just sandboxDir else Nothing
+
+defaultDistDir :: FilePath -> IO FilePath
+defaultDistDir _ = return "dist"
+
+stackDistDir :: FilePath -> IO (Maybe FilePath)
+stackDistDir cf = (splice <$>) <$> execInPath cmd cf
+  where
+    cmd         = "stack path --dist-dir"
+    splice      = (takeDirectory cf </>) . trim
+
+--------------------------------------------------------------------------------
+getStackDbs :: FilePath -> IO [FilePath]
+--------------------------------------------------------------------------------
+getStackDbs p = do mpp <- execInPath cmd p
+                   case mpp of
+                     Just pp -> extractDbs pp
+                     Nothing -> return []
+  where
+        cmd   = "stack --verbosity quiet exec printenv GHC_PACKAGE_PATH"
+
+extractDbs :: String -> IO [FilePath]
+extractDbs = filterM doesDirectoryExist . stringPaths
+
+filterM f (x:xs) = do b  <- f x
+                      ys <- filterM f xs
+                      return $ if b then (x : ys) else ys
+filterM f []     = return []
+
+stringPaths :: String -> [String]
+stringPaths = splitBy ':' . trim
+
+splitBy :: Char -> String -> [String]
+splitBy c str
+  | null str' = [x]
+  | otherwise = x : splitBy c (tail str')
+  where
+    (x, str') = span (c /=) str
+
+execInPath :: String -> FilePath -> IO (Maybe String)
+execInPath cmd p = do
+  eIOEstr <- try $ readCreateProcess prc "" :: IO (Either IOError String)
+  return $ case eIOEstr of
+            Right s -> Just s
+            -- This error is most likely "/bin/sh: stack: command not found"
+            -- which is caused by the package containing a stack.yaml file but
+            -- no stack command is in the PATH.
+            Left _  -> Nothing
+      where
+        prc          = (shell cmd) { cwd = Just $ takeDirectory p }
+
+trim :: String -> String
+trim = f . f
+  where
+   f = reverse . dropWhile isSpace
 
 -----------------------------------------------------------------------------------------------
 findCabalFile :: FilePath -> IO (Maybe FilePath)
@@ -82,12 +154,11 @@ ancestorDirs = go . takeDirectory
         f'        = takeDirectory f
 
 findInDir :: (FilePath -> Bool) -> FilePath -> IO [FilePath]
-findInDir p dir = do
-  files <- getDirectoryContents dir
-  return [ dir </> f | f <- files, p f ]
+findInDir p d = do
+  files <- getDirectoryContents d
+  return [ d </> f | f <- files, p f ]
 
 -----------------------------------------------------------------------------------------------
-
 
 -- INVARIANT: all FilePaths must be absolute
 data Info = Info { cabalFile    :: FilePath
@@ -100,19 +171,18 @@ data Info = Info { cabalFile    :: FilePath
                  , macroPath    :: FilePath
                  } deriving (Show)
 
-
 addPackageDbs :: Info -> IO Info
-addPackageDbs i = maybe i addDB <$> getSandboxDB i
-  where
-    addDB db    = i { packageDbs = T.unpack db : packageDbs i}
+addPackageDbs i = do
+  boxDbs <- getSandboxDbs i
+  stkDbs <- getStackDbs (dir i)
+  return  $ i { packageDbs = stkDbs ++ boxDbs ++ packageDbs i}
 
-getSandboxDB :: Info -> IO (Maybe T.Text)
-getSandboxDB i = do
+getSandboxDbs :: Info -> IO [FilePath]
+getSandboxDbs i = do
   tM <- maybeReadFile $ sandBoxFile i
   case tM of
-   Just t  -> return $ Just $ parsePackageDb t
-   Nothing -> return Nothing
-   -- fmap <$> maybeReadFile (sandBoxFile i)
+   Just t  -> return [T.unpack $ parsePackageDb t]
+   Nothing -> return []
 
 parsePackageDb :: T.Text -> T.Text
 parsePackageDb t = case dbs of
@@ -129,13 +199,11 @@ maybeReadFile f = do
   if b then Just <$> TIO.readFile f
        else return Nothing
 
-
-
 sandBoxFile :: Info -> FilePath
-sandBoxFile i = dir </> "cabal.sandbox.config"
-  where
-    dir       = takeDirectory $ cabalFile i
+sandBoxFile i = dir i </> "cabal.sandbox.config"
 
+dir :: Info -> FilePath
+dir = takeDirectory . cabalFile
 
 dumpPackageDescription :: PackageDescription -> FilePath -> FilePath -> Info
 dumpPackageDescription pkgDesc file distDir = Info {
@@ -186,13 +254,12 @@ allowedOptionPrefixes =
   ,"-pgm"
   ,"-opt"]
 
-
 getBuildDirectories :: PackageDescription -> FilePath -> ([String], FilePath)
 getBuildDirectories pkgDesc distDir =
-  (case library pkgDesc of
-    Just _ -> buildDir : buildDirs
-    Nothing -> buildDirs
-  ,autogenDir </> cppHeaderName)
+  ( case library pkgDesc of
+      Just _  -> buildDir : buildDirs
+      Nothing -> buildDirs
+  , autogenDir </> cppHeaderName)
   where
     buildDir       = distDir </> "build"
     autogenDir     = buildDir </> "autogen"
@@ -247,3 +314,23 @@ canonicalizePaths i = do
   buildDirs <- mapM canonicalizePath (buildDirs i)
   macroPath <- canonicalizePath (macroPath i)
   return (i { buildDirs = buildDirs, macroPath = macroPath })
+
+{-
+  Cabal Info: Info {cabalFile = "/Users/rjhala/research/stack/liquid/liquidhaskell/liquidhaskell.cabal",
+  buildDirs = ["/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build",
+               "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/autogen",
+               "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/liquid/liquid-tmp",
+               "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/lhi/lhi-tmp"],
+  sourceDirs = ["/Users/rjhala/research/stack/liquid/liquidhaskell/src",
+                "/Users/rjhala/research/stack/liquid/liquidhaskell/include",
+                "/Users/rjhala/research/stack/liquid/liquidhaskell/"],
+  exts = [EnableExtension PatternGuards],
+
+  otherOptions = ["-W","-fno-warn-unused-imports","-fno-warn-dodgy-imports","-fno-warn-deprecated-flags","-fno-warn-deprecations","-fno-warn-missing-methods"],
+
+  packageDbs = ["/Users/rjhala/research/stack/liquid/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/pkgdb",
+                "/Users/rjhala/.stack/snapshots/x86_64-osx/nightly-2015-09-24/7.10.2/pkgdb",
+                "/Applications/ghc-7.10.2.app/Contents/lib/ghc-7.10.2/package.conf.d"],
+
+  packageDeps = ["Cabal","Diff","aeson","array","base","bifunctors","bytestring","cereal","cmdargs","containers","cpphs","daemons","data-default","deepseq","directory","filepath","fingertree","ghc","ghc-paths","hashable","hpc","hscolour","liquid-fixpoint","mtl","network","parsec","pretty","process","prover","syb","template-haskell","text","time","unix","unordered-containers","vector"], macroPath = "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/autogen/cabal_macros.h"}
+-}
