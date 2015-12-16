@@ -63,6 +63,7 @@ Executable liquid
                , cmdargs >= 0.10 && < 0.11
                , deepseq >= 1.3 && < 1.5
                , pretty >= 1.1 && < 1.2
+               , process >= 1.2 && < 1.3
                , liquid-fixpoint >= 0.6 && < 0.7
                , prover
                , liquidhaskell
@@ -90,6 +91,7 @@ Executable lhi
                , data-default
                , unordered-containers
                , cereal
+               , process >= 1.2 && < 1.3
   Main-is: src/LHi.hs
   ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
   Default-Extensions: PatternGuards
@@ -118,6 +120,7 @@ Library
                 , mtl >= 2.1 && < 2.3
                 , parsec >= 3.1 && < 3.2
                 , pretty >= 1.1 && < 1.2
+                , process >= 1.2 && < 1.3
                 , syb >= 0.4.4 && < 0.7
                 , text >= 1.2 && < 1.3
                 , vector >= 0.10 && < 0.12

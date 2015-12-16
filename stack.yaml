@@ -16,3 +16,4 @@ extra-deps:
 - ascii-progress-0.3.2.0
 - concurrent-output-1.7.1
 - daemons-0.2.1
+- ghc-opts-0.1.0.0
