@@ -192,12 +192,12 @@ solveNative' !cfg !fi0 = do
   -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si2)
   -- rnf si2 `seq` donePhase Loud "Uniqify"
   (s0, si3) <- {-# SCC "elim" #-} elim cfg $!! si2
-  Result stat soln <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si3
+  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si3
   -- rnf soln `seq` donePhase Loud "Solve2"
-  let stat' = sid <$> stat
-  writeLoud $ "\nSolution:\n"  ++ showpp soln
-  -- colorStrLn (colorResult stat') (show stat')
-  return    $ Result (WrapC . mlookup (cm fi0) . mfromJust "WAT" <$> stat') soln
+  --let stat = resStatus res
+  writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
+  -- colorStrLn (colorResult stat) (show stat)
+  return res
 
 printElimStats :: Deps -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
@@ -261,7 +261,7 @@ exitFq fn z _
   = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
        let (x, y) = parseFixpointOutput str
        let x'     = fmap (mlookup z) x
-       return     $ Result (WrapC <$> x') y
+       return     $ Result (sinfo <$> x') y
 
 parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
 parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)

@@ -34,7 +34,7 @@ module Language.Fixpoint.Types.Constraints (
   , SubC, subcId, sid, senv, slhs, srhs, subC, wfC
   , SimpC (..)
   , Tag
-  , TaggedC, WrappedC (..), clhs, crhs
+  , TaggedC, clhs, crhs
 
   -- * Accessing Constraints
   , addIds
@@ -134,22 +134,6 @@ sortedReftBind sr = (x, sr)
   where
     Reft (x, _)   = sr_reft sr
 
--- RJ: This whole "Wrapped" business seems clunky. What is it for exactly?
-
-data WrappedC a where
-  WrapC :: (TaggedC c a, Show (c a)) => { _x :: c a } -> WrappedC a
-
-instance Show (WrappedC a) where
-  show (WrapC x) = show x
-
-instance TaggedC WrappedC a where
-  senv  (WrapC x)   = senv  x
-  sid   (WrapC x)   = sid   x
-  stag  (WrapC x)   = stag  x
-  sinfo (WrapC x)   = sinfo x
-  crhs  (WrapC x)   = crhs  x
-  clhs  b (WrapC x) = clhs b x
-
 subcId :: (TaggedC c a) => c a -> Integer
 subcId = mfromJust "subCId" . sid
 
@@ -159,8 +143,8 @@ subcId = mfromJust "subCId" . sid
 
 type FixSolution = M.HashMap KVar Pred
 
-data Result a = Result { resStatus   :: FixResult (WrappedC a)
-                       , resSolution :: FixSolution            }
+data Result a = Result { resStatus   :: FixResult a
+                       , resSolution :: FixSolution }
                 deriving (Generic, Show)
 
 instance Monoid (Result a) where
@@ -233,8 +217,6 @@ instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
-instance (NFData a) => NFData (WrappedC a) where
-  rnf (WrapC _) = ()
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------

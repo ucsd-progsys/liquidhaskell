@@ -113,8 +113,7 @@ result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 result wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ wkl s
-  return   $ F.Result (F.WrapC <$> stat) sol
-
+  return   $ F.Result (F.sinfo <$> stat) sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s   = res <$> filterM isUnsat' cs
