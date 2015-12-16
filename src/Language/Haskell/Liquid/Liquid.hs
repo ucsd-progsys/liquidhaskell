@@ -115,7 +115,7 @@ solveCs cfg tgt cgi info dc
                        , FC.maxPartSize = maxPartSize cfg
                        -- , FC.stats   = True
                        }
-       ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
+       ferr s r  = fmap (tidyError s) $ result r
 
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
