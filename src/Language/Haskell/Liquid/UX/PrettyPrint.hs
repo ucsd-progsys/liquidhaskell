@@ -321,6 +321,9 @@ pprXOT (x, v) = (xd, pprint v)
   where
     xd = maybe (text "unknown") pprint x
 
+{-
+   TODO: Not exported/never called. Do I have any reason to exist?
+
 ppTable m = vcat $ pprxt <$> xts
   where
     pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)
@@ -331,5 +334,5 @@ ppTable m = vcat $ pprxt <$> xts
 
 maximumWithDefault zero [] = zero
 maximumWithDefault _    xs = maximum xs
-
+-}
 dot                = char '.'

@@ -5,10 +5,10 @@
 module Language.Haskell.Liquid.Interactive.Types
   (
     -- * Commands
-    Command (..)
+    Command
 
     -- * Response
-  , Response (..)
+  , Response
   , status
 
     -- * State
