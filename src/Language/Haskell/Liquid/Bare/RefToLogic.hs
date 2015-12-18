@@ -12,7 +12,7 @@ import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc  (errorstar)
+import Language.Fixpoint.Misc  (errorstar, traceShow)
 import Language.Fixpoint.Types.Names
 import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
 import qualified Data.HashMap.Strict as M
@@ -114,9 +114,10 @@ mexpr s (Left  (LMap _ _  _)) = EVar s
 mexpr _ (Right (TI _ (Right e))) = e
 mexpr s s' = errorstar ("mexpr on " ++ show s ++ "\t" ++ show s')
 
+
 txEApp (s, (Left (LMap _ xs e))) f es
   | cmpSymbol s (val f)
-  = subst (mkSubst $ zip xs es) e
+  = subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
   | otherwise
   = EApp f es
 
@@ -131,6 +132,13 @@ txEApp (s, (Right (TI _ (Left _)))) f es
   = errorstar "txEApp: deep internal error"
   | otherwise
   = EApp f es
+
+
+-- HACK for currying, but it only works on runFun things
+-- TODO: make it work for any curried function
+dropArgs 0 e = e 
+dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
+dropArgs n e = error $ "dropArgs on " ++ show (n, e) 
 
 txPApp (s, (Right (TI xs (Left e)))) f es
   | cmpSymbol s (val f)
