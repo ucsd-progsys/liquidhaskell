@@ -86,7 +86,7 @@ txQuant xss s m p
 
 instance Transformable Expr where
   tx s m (EVar s')
-    | cmpSymbol s s'    = mexpr m
+    | cmpSymbol s s'    = mexpr s' m
     | otherwise         = EVar s'
   tx s m (EApp f es)    = txEApp (s, m) f (tx s m <$> es)
   tx _ _ (ESym c)       = ESym c
@@ -109,9 +109,10 @@ instance Transformable Body where
   tx s m (P p)   = P $ tx s m p
   tx s m (R v p) = R v $ tx s m p
 
-mexpr (Left  (LMap _ _ e)) = e
-mexpr (Right (TI _ (Right e))) = e
-mexpr _ = errorstar "mexpr"
+mexpr _ (Left  (LMap _ [] e)) = e
+mexpr s (Left  (LMap _ _  _)) = EVar s 
+mexpr _ (Right (TI _ (Right e))) = e
+mexpr s s' = errorstar ("mexpr on " ++ show s ++ "\t" ++ show s')
 
 txEApp (s, (Left (LMap _ xs e))) f es
   | cmpSymbol s (val f)
