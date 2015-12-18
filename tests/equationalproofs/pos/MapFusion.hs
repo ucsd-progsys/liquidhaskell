@@ -53,6 +53,20 @@ TODO
  when auto is on it is crashing
 -}
 
+
+
+{-@ prop_fusion0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
+                -> {v:Proof | map f (map g xs) ==  map f xs }  @-}
+prop_fusion0     :: Eq a => (a -> a) -> (a -> a) -> L a -> Proof
+prop_fusion0 f g N = 
+   auto 1 (map f (map g N) == map f N)
+  where
+    e1  = map f (map g N)
+    pr1 = axiom_map_N g
+    e2  = map f N
+
+
+
 {-@ prop_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a
                 -> {v:Proof | map f (map g xs) ==  map (compose f g) xs }  @-}
 prop_fusion     :: Eq a => (a -> a) -> (a -> a) -> L a -> Proof
