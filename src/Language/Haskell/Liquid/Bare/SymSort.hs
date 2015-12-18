@@ -28,12 +28,11 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
     r'                 = L.foldl' go r rrest
     go r (RPropP _ r') = r' `meet` r
     go r (RProp  _ _ ) = r -- is this correct?
-    go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
 
 addSymSort _ _ t
   = t
 
-addSymSortRef _  _ (RHProp _ _) _   = errorstar "TODO:EFFECTS:addSymSortRef"
+
 addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r
                        | otherwise  = errorstar "addSymSortRef: malformed ref application"
 
@@ -49,7 +48,7 @@ addSymSortRef' _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
-addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
+addSymSortRef' rc i p (RPropP _ r@(MkUReft _ (Pr [up]) _))
   = RPropP xts r -- (ofRSort (pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
@@ -60,9 +59,6 @@ addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
 
 addSymSortRef' _ _ _ (RPropP s r)
   = RPropP s r -- (ofRSort (pvType p) `strengthen` r)
-
-addSymSortRef' _ _ _ _
-  = errorstar "TODO:EFFECTS:addSymSortRef'"
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p)
 

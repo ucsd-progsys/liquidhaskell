@@ -178,7 +178,7 @@ bareTypeP
  <|> bareAtomP (refBindP bindP)
  <|> try (angles (do t <- parens bareTypeP
                      p <- monoPredicateP
-                     return $ t `strengthen` U mempty p mempty))
+                     return $ t `strengthen` MkUReft mempty p mempty))
 
 bareArgP vv
   =  bareAtomP (refDefP vv)
@@ -460,7 +460,7 @@ bRProp syms' expr = RProp ss $ bRVar dummyName mempty mempty r
     su            = mkSubst [(x, EVar y) | ((x, _), y) <- syms']
     r             = su `subst` Reft (v, expr)
 
-bRVar α s p r             = RVar α (U r p s)
+bRVar α s p r             = RVar α (MkUReft r p s)
 bLst (Just t) rs r        = RApp (dummyLoc listConName) [t] rs (reftUReft r)
 bLst (Nothing) rs r       = RApp (dummyLoc listConName) []  rs (reftUReft r)
 
@@ -472,15 +472,15 @@ bTup ts rs r              = RApp (dummyLoc tupConName) ts rs (reftUReft r)
 -- Temporarily restore this hack benchmarks/esop2013-submission/Array.hs fails
 -- w/o it
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
-bCon b s [RPropP _ r1] [] _ r = RApp b [] [] $ r1 `meet` (U r mempty s)
-bCon b s rs            ts p r = RApp b ts rs $ U r p s
+bCon b s [RPropP _ r1] [] _ r = RApp b [] [] $ r1 `meet` (MkUReft r mempty s)
+bCon b s rs            ts p r = RApp b ts rs $ MkUReft r p s
 
 bAppTy v ts r  = ts' `strengthen` reftUReft r
   where
     ts'        = foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts
 
-reftUReft r    = U r mempty mempty
-predUReft p    = U dummyReft p mempty
+reftUReft r    = MkUReft r mempty mempty
+predUReft p    = MkUReft dummyReft p mempty
 dummyReft      = mempty
 dummyTyId      = ""
 

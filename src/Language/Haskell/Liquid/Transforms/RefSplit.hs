@@ -91,11 +91,7 @@ splitUReft x (RProp xs t) = (RProp xs t1, RProp xs t2)
   where
         (t1, t2) = splitRType x t
 
-splitUReft _ (RHProp xs _) = (RHProp xs w1, RHProp xs w2)
-  where
-        (w1, w2) = error "TODO: RefSplit.splitUReft"
-
-splitRef f (U r p s) = (U r1 p1 s, U r2 p2 s)
+splitRef f (MkUReft r p s) = (MkUReft r1 p1 s, MkUReft r2 p2 s)
         where
                 (r1, r2) = splitReft f r
                 (p1, p2) = splitPred f p

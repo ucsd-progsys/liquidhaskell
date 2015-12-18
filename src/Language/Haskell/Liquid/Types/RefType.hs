@@ -109,7 +109,7 @@ import Data.List (sort, foldl')
 strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
     where
       trep = toRTypeRep t
-      tres = ty_res trep `strengthen` U (exprReft expr) mempty mempty
+      tres = ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
       xs   = ty_binds trep
       as   = ty_vars  trep
       x'   = symbol x
@@ -143,7 +143,7 @@ uReft           :: (Symbol, Pred) -> UReft Reft
 uReft           = uTop . Reft
 
 uTop            ::  r -> UReft r
-uTop r          = U r mempty mempty
+uTop r          = MkUReft r mempty mempty
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -197,12 +197,10 @@ instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsT
     => Reftable (RTProp c tv r) where
   isTauto (RPropP _ r) = isTauto r
   isTauto (RProp  _ t) = isTrivial t
-  isTauto (RHProp _ _) = errorstar "RefType: Reftable isTauto in RHProp"
   top (RProp xs t)     = RProp xs $ mapReft top t
   top _                = errorstar "RefType: Reftable top"
   ppTy (RPropP _ r) d  = ppTy r d
   ppTy (RProp  _ _) _  = errorstar "RefType: Reftable ppTy in RProp"
-  ppTy (RHProp _ _) _  = errorstar "RefType: Reftable ppTy in RProp"
   toReft               = errorstar "RefType: Reftable toReft"
   params               = errorstar "RefType: Reftable params for Ref"
   bot                  = errorstar "RefType: Reftable bot    for Ref"
@@ -216,18 +214,18 @@ instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsT
 instance Subable (RRProp Reft) where
   syms (RPropP ss r)     = (fst <$> ss) ++ syms r
   syms (RProp ss t)      = (fst <$> ss) ++ syms t
-  syms _                 = error "TODO:EFFECTS"
+
 
   subst su (RPropP ss r) = RPropP (mapSnd (subst su) <$> ss) $ subst su r
   subst su (RProp ss r)  = RProp  (mapSnd (subst su) <$> ss) $ subst su r
-  subst _  _             = error "TODO:EFFECTS"
+
 
   substf f (RPropP ss r) = RPropP (mapSnd (substf f) <$> ss) $ substf f r
   substf f (RProp  ss r) = RProp  (mapSnd (substf f) <$> ss) $ substf f r
-  substf _ _             = error "TODO:EFFECTS"
+
   substa f (RPropP ss r) = RPropP (mapSnd (substa f) <$> ss) $ substa f r
   substa f (RProp  ss r) = RProp  (mapSnd (substa f) <$> ss) $ substa f r
-  substa _ _             = error "TODO:EFFECTS"
+
 
 -------------------------------------------------------------------------------
 -- | Reftable Instances -------------------------------------------------------
@@ -562,12 +560,6 @@ mkRTProp pv (RProp ss t)
   | otherwise
   = RProp (pvArgs pv) t
 
-mkRTProp pv (RHProp ss w)
-  | length (pargs pv) == length ss
-  = RHProp ss w
-  | otherwise
-  = RHProp (pvArgs pv) w
-
 pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
 
@@ -635,7 +627,6 @@ tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show
 instance (NFData a, NFData b, NFData t) => NFData (Ref t a b) where
   rnf (RPropP s a) = rnf s `seq` rnf a
   rnf (RProp  s b) = rnf s `seq` rnf b
-  rnf (RHProp _ _) = errorstar "TODO RHProp.rnf"
 
 instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
   rnf (RVar α r)       = rnf α `seq` rnf r
@@ -737,8 +728,6 @@ subsFreeRef m s (α', τ', t')  (RProp ss t)
   = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
 subsFreeRef _ _ (α', τ', _) (RPropP ss r)
   = RPropP (mapSnd (subt (α', τ')) <$> ss) r
-subsFreeRef _ _ _ (RHProp _ _)
-  = errorstar "TODO RHProp.subsFreeRef"
 
 -------------------------------------------------------------------
 ------------------- Type Substitutions ----------------------------
@@ -790,10 +779,9 @@ instance SubsTy Symbol BSort BSort where
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
   subt m (RPropP ss p) = RPropP ((mapSnd (subt m)) <$> ss) $ subt m p
   subt m (RProp  ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
-  subt _ (RHProp _  _) = errorstar "TODO: RHProp.subt"
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
-subvUReft f (U r p s) = U r (subvPredicate f p) s
+subvUReft f (MkUReft r p s) = MkUReft r (subvPredicate f p) s
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
@@ -926,7 +914,7 @@ applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
 -------------------------------------------------------------------------------
 applySolution = fmap . fmap . mapReft . appSolRefa
   where
-    mapReft f (U (Reft (x, z)) p s) = U (Reft (x, f z)) p s
+    mapReft f (MkUReft (Reft (x, z)) p s) = MkUReft (Reft (x, f z)) p s
 -- OLD    appSolRefa _ ra@(RConc _)        = ra
 -- OLD    appSolRefa s (RKvar k su)        = RConc $ subst su $ M.lookupDefault PTop k s
 

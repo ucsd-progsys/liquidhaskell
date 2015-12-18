@@ -118,9 +118,8 @@ getPsSig _ _ z
 
 getPsSigPs m pos (RPropP _ r) = addps m pos r
 getPsSigPs m pos (RProp  _ t) = getPsSig m pos t
-getPsSigPs _ _   (RHProp _ _) = errorstar "TODO:EFFECTS:getPsSigPs"
 
-addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon

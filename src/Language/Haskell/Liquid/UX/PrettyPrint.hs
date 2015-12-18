@@ -276,7 +276,6 @@ ppr_tyvar_short = text . showPpr
 instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t s (RType b c p)) where
   pprint (RPropP ss s) = ppRefArgs (fst <$> ss) <+> pprint s
   pprint (RProp  ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
-  pprint (RHProp ss _) = ppRefArgs (fst <$> ss) <+> text "world"
 
 
 ppRefArgs [] = empty
@@ -286,7 +285,7 @@ ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (U r p _)
+  pprint (MkUReft r p _)
     | isTauto r  = pprint p
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r

@@ -75,7 +75,6 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
     goRef g (RProp  s t)  _   = go (insertsSEnv g s) t
     goRef _ (RPropP _ _)  _   = []
-    goRef _ (RHProp _ _)  _   = errorstar "TODO: EFFECTS"
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 refTopQuals lEnv l tce t0 γ t
@@ -84,7 +83,7 @@ refTopQuals lEnv l tce t0 γ t
                                   , not $ isHole pa
     ]
     ++
-    [ mkP s e | let (U _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
+    [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
                              , p <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
                              , (s, _, e) <- pargs p
     ]

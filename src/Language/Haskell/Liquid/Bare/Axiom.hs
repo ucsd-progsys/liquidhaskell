@@ -107,7 +107,7 @@ makeAxiomType lmap x v axm@(Axiom _ xs _ lhs rhs)
     t   = traceShow  "\n\nmakeAxiomType\n\n" $ fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
     tt  = ofType $ varType v
     tr  = trace ("\n\ntoRType\n\n" ++ show (v, tt) ++ "\n\nWith Vars\n\n" ++ show xs ++ "\n\nOn Axiom\n\n" ++ show axm) $ toRTypeRep tt
-    res = ty_res tr `strengthen` U ref mempty mempty
+    res = ty_res tr `strengthen` MkUReft ref mempty mempty
 
     llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of
        Left e -> e
@@ -207,7 +207,7 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
     xs = (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
     x  = F.vv_
 
-    res = ty_res t `strengthen` U ref mempty mempty
+    res = ty_res t `strengthen` MkUReft ref mempty mempty
 
     ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 

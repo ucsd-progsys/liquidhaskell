@@ -109,8 +109,8 @@ dataConTy _ _
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s)
-  = U (Reft (v, rs'')) (Pr ps2) s
+replacePredsWithRefs (p, r) (MkUReft (Reft(v, rs)) (Pr ps) s)
+  = MkUReft (Reft (v, rs'')) (Pr ps2) s
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
@@ -168,7 +168,6 @@ replacePreds msg             = foldl' go
   where
     go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
     go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
-    go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
 
 -- TODO: replace `replacePreds` with
 -- instance SubsTy RPVar (Ref RReft SpecType) SpecType where
@@ -248,8 +247,6 @@ substPredP msg su@(p, RProp ss _) (RProp s t)
    ss' = drop n ss ++  s
    n   = length ss - length (freeArgsPs p t)
 
-substPredP _ _  (RHProp _ _)
-  = errorstar "TODO:EFFECTS:substPredP"
 
 substPredP _ su p@(RPropP _ _)
   = errorstar ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
@@ -258,7 +255,7 @@ substPredP _ su p
   = errorstar ("PredType.substPredP called on invalid inputs" ++ showpp (su, p))
 
 
-splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
+splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
   where
     (epvs, pvs')               = partition (uPVar pv ==) pvs
 
@@ -289,7 +286,7 @@ freeArgsPs p (RHole r)
 freeArgsPs p (RRTy env r _ t)
   = nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
-freeArgsPsRef p (U _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
+freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}

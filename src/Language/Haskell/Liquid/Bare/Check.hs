@@ -318,11 +318,10 @@ checkAbstractRefs t = go t
       = Just $ text "Wrong Number of Arguments in" <+> pprint p
       | otherwise
       = Nothing
-    checkOne' _ _ = errorstar "This cannot happen"
 
     efold f = foldl (\acc x -> acc <|> f x) Nothing
 
-    check s (U _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
+    check s (MkUReft _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s
                  = Just $ text "Incorrect Sort:\n\t"
