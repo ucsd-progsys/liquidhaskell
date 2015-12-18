@@ -50,13 +50,10 @@ $(axiomatize
 
 {-
 TODO 
- 1. when sig is on it is crashing
- 2. when auto is on it is crashing
- 3. define the Cons case 
-
+ when auto is on it is crashing
 -}
 
-{- prop_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a
+{-@ prop_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a
                 -> {v:Proof | map f (map g xs) ==  map (compose f g) xs }  @-}
 prop_fusion     :: Eq a => (a -> a) -> (a -> a) -> L a -> Proof
 prop_fusion f g N = 
@@ -72,8 +69,21 @@ prop_fusion f g N =
     pr3 = axiom_map_N (compose f g)
     e4  = map fg N
 
-prop_fusion f g (C x xs) 
-  = undefined  
+prop_fusion f g (C x xs) = 
+--     auto 2 (map f (map g (C x xs)) == map (compose f g) (C x xs))
+    refl e1 `by` pr1 `by` pr2 `by` pr3 `by` pr4 `by` pr5
+  where
+    e1 = map f (map g (C x xs))
+    pr1 = axiom_map_C g x xs
+    e2 = map f (C (g x) (map g xs))
+    pr2 = axiom_map_C f (g x) (map g xs)
+    e3 = C (f (g x)) (map f (map g xs))
+    pr3 = prop_fusion f g xs
+    e4 = C (f (g x)) (map (compose f g) xs)
+    pr4 = axiom_compose f g x
+    e5 = C ((compose f g) x) (map (compose f g) xs)
+    pr5 = axiom_map_C (compose f g) x xs
+    e6 = map (compose f g) (C x xs)
 
 
 
@@ -83,6 +93,13 @@ prop_fusion f g (C x xs)
 
 
 
+{-@ data L [llen] @-}
+{-@ invariant {v: L a | llen v >= 0} @-}
+
+{-@ measure llen @-}
+llen :: L a -> Int
+llen N = 0
+llen (C x xs) = 1 + llen xs
 
 
 
