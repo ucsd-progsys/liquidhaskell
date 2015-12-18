@@ -167,7 +167,6 @@ buildTypeEdges table = ordNub . go
 
     go_ref (RPropP _ _) = Nothing
     go_ref (RProp  _ t) = Just t
-    go_ref (RHProp _ _) = errorstar "TODO:EFFECTS:buildTypeEdges"
 
 buildPredEdges :: AliasTable Pred -> Pred -> [Symbol]
 buildPredEdges table = ordNub . go

@@ -102,9 +102,9 @@ makeBoundType penv (q:qs) xts = go xts
     go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
     go ((x, t):xtss) = (val x, mkt t x):(go xtss)
 
-    mkt t x = ofRSort t `strengthen` ofUReft (U (Reft (val x, mempty))
+    mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (Reft (val x, mempty))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
-    tp t x  = ofRSort t `strengthen` ofUReft (U (Reft (val x, pAnd rs))
+    tp t x  = ofRSort t `strengthen` ofUReft (MkUReft (Reft (val x, pAnd rs))
                                                 (Pr $ M.lookupDefault [] (val x) ps) mempty)
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
@@ -149,13 +149,13 @@ envToSub = go []
 -- thus it can contain both concrete and abstract refinements
 
 makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
-makeRef penv v (PAnd rs) = ofUReft (U (Reft (val v, pAnd rrs)) r mempty)
+makeRef penv v (PAnd rs) = ofUReft (MkUReft (Reft (val v, pAnd rrs)) r mempty)
   where
     r                    = Pr  (toUsedPVar penv <$> pps)
     (pps, rrs)           = partition (isPApp penv) rs
 
 makeRef penv v rr
-  | isPApp penv rr       = ofUReft (U (Reft(val v, mempty)) r mempty)
+  | isPApp penv rr       = ofUReft (MkUReft (Reft(val v, mempty)) r mempty)
   where
     r                    = Pr [toUsedPVar penv rr]
 

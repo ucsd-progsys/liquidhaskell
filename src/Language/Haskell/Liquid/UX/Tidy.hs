@@ -77,7 +77,7 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
   where
     txReft' Full                  = id
     txReft' Lossy                 = txReft
-    txStrata (U r p l)            = U r p (txStr l)
+    txStrata (MkUReft r p l)      = MkUReft r p (txStr l)
     txReft u                      = u { ur_reft = mapPredReft dropLocals $ ur_reft u }
     dropLocals                    = pAnd . filter (not . any isTmp . syms) . conjuncts
     isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]

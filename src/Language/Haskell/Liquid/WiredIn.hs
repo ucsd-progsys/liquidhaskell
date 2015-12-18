@@ -159,7 +159,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
-pdVarReft = (\p -> U mempty p mempty) . pdVar
+pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
 mkps _  _      _           = error "Bare : mkps"

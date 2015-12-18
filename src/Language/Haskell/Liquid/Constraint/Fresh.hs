@@ -43,8 +43,8 @@ instance Freshable m Integer => Freshable m Reft where
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = errorstar "fresh RReft"
-  true (U r _ s)    = U <$> true r    <*> return mempty <*> true s
-  refresh (U r _ s) = U <$> refresh r <*> return mempty <*> refresh s
+  true (MkUReft r _ s)    = MkUReft <$> true r    <*> return mempty <*> true s
+  refresh (MkUReft r _ s) = MkUReft <$> refresh r <*> return mempty <*> refresh s
 
 instance Freshable m Integer => Freshable m Strata where
   fresh      = (:[]) . SVar <$> fresh

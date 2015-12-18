@@ -139,8 +139,7 @@ ofBRType appRTAlias resolveReft
       = RPropP <$> mapM go_syms ss <*> resolveReft r
     go_ref (RProp ss t)
       = RProp <$> mapM go_syms ss <*> go t
-    go_ref (RHProp _ _)
-      = errorstar "TODO:EFFECTS:ofBRType"
+
 
     go_syms
       = secondM ofBSort

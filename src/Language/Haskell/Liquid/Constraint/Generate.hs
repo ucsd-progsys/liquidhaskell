@@ -196,7 +196,7 @@ makeAutoDecrDataCons dcts specenv dcs
     idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
-    invariant = U (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+    invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
@@ -205,7 +205,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       x      = dataConWorkId x'
       t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts
       trep   = toRTypeRep t
-      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
+      tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
@@ -235,7 +235,7 @@ refreshArgs' = mapM (mapSndM refreshArgs)
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where
-    pt                  = fmap (\(U _ _ l) -> U mempty mempty l) <$> L.lookup x senv
+    pt                  = fmap (\(MkUReft _ _ l) -> MkUReft mempty mempty l) <$> L.lookup x senv
 
 
 -- | TODO: All this *should* happen inside @Bare@ but appears
@@ -385,8 +385,6 @@ rsplitW _ (RPropP _ _)
 rsplitW γ (RProp ss t0)
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
-rsplitW _ (RHProp _ _)
-  = errorstar "TODO: EFFECTS"
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
@@ -1701,8 +1699,6 @@ refreshVVRef (RProp ss t)
 refreshVVRef (RPropP ss r)
   = return $ RPropP ss r
 
-refreshVVRef (RHProp _ _)
-  = errorstar "TODO: EFFECTS refreshVVRef"
 
 
 -------------------------------------------------------------------------------------
