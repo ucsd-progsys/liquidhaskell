@@ -95,48 +95,16 @@ Source-Repository head
 Executable fixpoint.native
   default-language: Haskell98
   Main-is: Ocaml.hs
-  hs-source-dirs:  src
+  hs-source-dirs: bin
   Build-Depends: base >= 4.7 && < 5
 
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
   ghc-options:   -threaded
-  hs-source-dirs:  src
+  hs-source-dirs: bin
   Build-Depends: base >= 4.7 && < 5
-               , array
-               , async
-               , attoparsec
-               , syb
-               , cmdargs
-               , ansi-terminal
-               , ascii-progress >= 0.3
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filepath
-               , ghc-prim
-               , intern
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , transformers
-               , hashable
-               , unordered-containers
-               , text-format
-               , cereal
                , liquid-fixpoint
-  if impl(ghc >= 7.10.2)
-    Build-Depends: located-base
-
 
 Library
   default-language: Haskell98
