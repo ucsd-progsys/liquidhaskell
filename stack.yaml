@@ -1,12 +1,8 @@
 # GHC 7.10
-resolver: nightly-2015-09-24
+resolver: nightly-2015-12-21
 
 packages:
 - .
-
-flags:
-  liquid-fixpoint:
-    build-external: true
 
 extra-deps:
 - intern-0.9.1.4
