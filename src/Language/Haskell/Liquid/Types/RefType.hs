@@ -51,8 +51,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , isSizeable
 
   -- * Manipulating Refinements in RTypes
-  , rTypeSortedReft
-  , rTypeSort
+  , rTypeSortedReft, rTypeSortedReftArrow
+  , rTypeSort, rTypeSortArrow
   , shiftVV
 
   , mkDataConIdsTy
@@ -910,11 +910,19 @@ toType t
 ---------------- Annotations and Solutions --------------------
 ---------------------------------------------------------------
 
+rTypeSortedReftArrow       ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
+rTypeSortedReftArrow emb t = RR (rTypeSortArrow emb t) (rTypeReft t)
+
+
 rTypeSortedReft       ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
+
+
+rTypeSortArrow     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
+rTypeSortArrow tce = typeSortArrow tce . toType
 
 -------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
@@ -970,6 +978,19 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
+
+
+typeSortArrow :: TCEmb TyCon -> Type -> Sort
+typeSortArrow tce τ@(ForAllTy _ _)
+  = typeSortForAll tce τ
+typeSortArrow tce (FunTy tx t)
+  = FApp (FApp (FTC arrowFTyCon) (typeSortArrow tce tx)) (typeSortArrow tce t)
+typeSortArrow tce (TyConApp c τs)
+  = fAppTC (tyConFTyCon tce c) (typeSortArrow tce <$> τs)
+typeSortArrow tce (AppTy t1 t2)
+  = fApp (typeSortArrow tce t1) [typeSortArrow tce t2]
+typeSortArrow _ τ
+  = FObj $ typeUniqueSymbol τ
 
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)

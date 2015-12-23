@@ -32,6 +32,7 @@ import Control.Monad.Writer
 import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
+
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
 
 import Language.Haskell.Liquid.UX.Errors ()

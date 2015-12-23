@@ -15,8 +15,6 @@
 
 -- | This module should contain all the global type definitions and basic instances.
 
-{-@ LIQUID "--cabaldir" @-}
-
 module Language.Haskell.Liquid.Types (
 
   -- * Options
@@ -560,6 +558,7 @@ instance Show TyConInfo where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data RType c tv r
   = RVar {
       rt_var    :: !tv
@@ -589,10 +588,10 @@ data RType c tv r
     }
 
   | RApp  {
-      rt_tycon   :: !c
-    , rt_args    :: ![RType  c tv r]
-    , rt_pargs   :: ![RTProp c tv r]
-    , rt_reft    :: !r
+      rt_tycon  :: !c
+    , rt_args   :: ![RType  c tv r]
+    , rt_pargs  :: ![RTProp c tv r]
+    , rt_reft   :: !r
     }
 
   | RAllE {
@@ -1122,6 +1121,10 @@ emapRef  f γ (RProp  s t)         = RProp s $ emapReft f γ t
 -- same as GhcMisc isBaseType
 
 -- isBase :: RType a -> Bool
+
+-- set all types to basic types, haskell `tx -> t` is translated to Arrow tx t
+-- isBase _ = True
+
 isBase (RAllT _ t)      = isBase t
 isBase (RAllP _ t)      = isBase t
 isBase (RVar _ _)       = True
@@ -1188,9 +1191,8 @@ efoldReft cb g f fp = go
     go γ z (RAllS _ t)                  = go γ z t
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
        | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    go γ z me@(RFun x t t' r)
-       | isBase t                       = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
-    go γ z me@(RFun _ t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
+    go γ z me@(RFun x t t' r)           = f γ (Just me) r (go (insertSEnv x (g t) γ) (go γ z t) t')
+--     go γ z me@(RFun _ t t' r)           = f γ (Just me) r (go γ (go γ z t) t')
     go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
