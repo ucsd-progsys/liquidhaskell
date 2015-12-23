@@ -911,15 +911,14 @@ toType t
   = errorstar $ "RefType.toType cannot handle: " ++ show t
 
 
----------------------------------------------------------------
----------------- Annotations and Solutions --------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Annotations and Solutions -------------------------------------------------
+--------------------------------------------------------------------------------
 
-rTypeSortedReftArrow       ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
+rTypeSortedReftArrow ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReftArrow emb t = RR (rTypeSortArrow emb t) (rTypeReft t)
 
-
-rTypeSortedReft       ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
+rTypeSortedReft ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort

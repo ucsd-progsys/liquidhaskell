@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Constraint.Types  where
+module Language.Haskell.Liquid.Constraint.Types where
 
 import CoreSyn
 import SrcLoc
@@ -13,19 +13,21 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
-import Control.Applicative      ((<$>))
+import Control.DeepSeq
 import Data.Monoid              (mconcat)
 import Data.Maybe               (catMaybes)
 import Control.Monad.State
 
 
 import Var
+import Type   (Type)
+import Class  (Class)
 
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Misc     (fourth4)
+import Language.Haskell.Liquid.Misc           (fourth4)
 import Language.Haskell.Liquid.Types.RefType  (shiftVV)
-import Language.Haskell.Liquid.WiredIn  (wiredSortedSyms)
+import Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Fixpoint.Misc
@@ -58,6 +60,10 @@ data CGEnv
 
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
+
+instance Monoid LConstraint where
+  mempty  = LC []
+  mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
 
 
 instance PPrint CGEnv where
@@ -125,7 +131,7 @@ data CGInfo = CGInfo {
   , specLazy   :: !(S.HashSet Var)             -- ^ ? FIX THIS
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
-  , kuts       :: !(F.Kuts)                    -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
+  , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
   , lits       :: ![(F.Symbol, F.Sort)]        -- ^ ? FIX THIS
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
   , scheck     :: !Bool                        -- ^ Check Strata (?)
@@ -225,32 +231,9 @@ conjoinInvariant t@(RVar _ r) (RVar _ ir)
 conjoinInvariant t _
   = t
 
-
-
-grapBindsWithType tx γ
-  = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
-
----------------------------------------------------------------
------ Refinement Type Environments ----------------------------
----------------------------------------------------------------
-
-
-
-toListREnv (REnv env)     = M.toList env
-filterREnv f (REnv env)   = REnv $ M.filter f env
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-memberREnv x (REnv env)   = M.member x env
-
-
-
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
------------------------- Fixpoint Environment --------------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Fixpoint Environment ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 
 data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
@@ -264,3 +247,50 @@ insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
 initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
+
+--------------------------------------------------------------------------------
+-- | Forcing Strictness --------------------------------------------------------
+--------------------------------------------------------------------------------
+
+
+instance NFData REnv where
+  rnf (REnv _) = () -- rnf m
+
+instance NFData CGEnv where
+  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
+    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
+      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
+
+instance NFData FEnv where
+  rnf (FE x1 _) = rnf x1
+
+instance NFData SubC where
+  rnf (SubC x1 x2 x3)
+    = rnf x1 `seq` rnf x2 `seq` rnf x3
+  rnf (SubR x1 _ x2)
+    = rnf x1 `seq` rnf x2
+
+instance NFData Class where
+  rnf _ = ()
+
+instance NFData RTyCon where
+  rnf _ = ()
+
+instance NFData Type where
+  rnf _ = ()
+
+instance NFData WfC where
+  rnf (WfC x1 x2)
+    = rnf x1 `seq` rnf x2
+
+instance NFData CGInfo where
+  rnf x = ({-# SCC "CGIrnf1" #-}  rnf (hsCs x))       `seq`
+          ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq`
+          ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq`
+          ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq`
+          ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
+          ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
+          ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
+          ({-# SCC "CGIrnf10" #-} rnf (kvProf x))
