@@ -286,9 +286,9 @@ mkOpts cfg
   = do let files' = sortNub $ files cfg
        id0 <- getIncludeDir
        return  $ cfg { files = files' }
-                     { idirs = -- NOTE: don't add the file's directory
+                     { idirs = -- NOTE: not convinced we should add the file's directory
                                -- to the search path
-                               -- (dropFileName <$> files') ++
+                               (dropFileName <$> files') ++
                                [id0 </> gHC_VERSION, id0] ++ idirs cfg }
                               -- tests fail if you flip order of idirs'
 
