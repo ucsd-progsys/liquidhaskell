@@ -45,7 +45,7 @@ module Language.Haskell.Liquid.Types.RefType (
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
   , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
-  , dataConSymbol, dataConMsReft, dataConReft
+  , dataConMsReft, dataConReft
   , classBinds
 
   , isSizeable
@@ -824,16 +824,13 @@ ofType_ (LitTy x)
     fromTyLit (NumTyLit _) = rApp intTyCon [] [] mempty
     fromTyLit (StrTyLit _) = rApp listTyCon [rApp charTyCon [] [] mempty] [] mempty
 
-----------------------------------------------------------------
-------------------- Converting to Fixpoint ---------------------
-----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Converting to Fixpoint ----------------------------------------------------
+--------------------------------------------------------------------------------
 
 
 instance Expression Var where
   expr   = eVar
-
-dataConSymbol ::  DataCon -> Symbol
-dataConSymbol = symbol . dataConWorkId
 
 -- TODO: turn this into a map lookup?
 dataConReft ::  DataCon -> [Symbol] -> Reft
@@ -854,9 +851,9 @@ dataConReft c xs
   where
     dcValue
       | null xs && null (dataConUnivTyVars c)
-      = EVar $ dataConSymbol c
+      = EVar $ symbol c
       | otherwise
-      = EApp (dummyLoc $ dataConSymbol c) (eVar <$> xs)
+      = EApp (dummyLoc $ symbol c) (eVar <$> xs)
 
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 

@@ -165,7 +165,7 @@ instance Provable CoreExpr where
 expProofsCase :: CoreExpr -> CoreAlt -> Pr CoreAlt
 expProofsCase (Var x) (DataAlt c, xs, e)
   = do addVars xs
-       t <- L.lookup (dataConSymbol c) . ae_sigs <$> get
+       t <- L.lookup (symbol c) . ae_sigs <$> get
        addAssert $ makeRefinement t (x:xs)
        res <- liftM (DataAlt c,xs,) (expProofs e)
        rmAssert
