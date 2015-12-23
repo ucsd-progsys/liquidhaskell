@@ -5,11 +5,7 @@ packages:
 
 - ./prover
 - ./liquid-fixpoint
-- .   
-
-flags:
-  liquid-fixpoint:
-    build-external: true
+- .
 
 extra-deps:
 - intern-0.9.1.4
