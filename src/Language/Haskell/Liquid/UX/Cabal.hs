@@ -1,11 +1,13 @@
 module Language.Haskell.Liquid.UX.Cabal (withCabal) where
 
-withCabal :: Config -> IO Config
+-- withCabal :: Config -> IO Config
+withCabal :: a -> IO a
 withCabal = return
 
 
+{-
 
-{- DEPRECATED: use `stack exec -- liquid /path/to/file.hs` for now 
+DEPRECATED: use `stack exec -- liquid /path/to/file.hs` for now
 
 import Language.Fixpoint.Misc (traceShow)
 import Language.Haskell.Liquid.UX.Errors
