@@ -380,8 +380,8 @@ splitW (WfC γ (REx x tx t))
 splitW (WfC _ t)
   = errorstar $ "splitW cannot handle: " ++ showpp t
 
-rsplitW _ (RPropP _ _)
-  = errorstar "Constrains: rsplitW for RPropP"
+rsplitW _ (RProp _ (RHole _))
+  = errorstar "Constrains: rsplitW for RProp _ (RHole _)"
 rsplitW γ (RProp ss t0)
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
@@ -495,12 +495,15 @@ bsplitS t1 t2
   = return $ [(s1, s2)]
   where [s1, s2]   = getStrata <$> [t1, t2]
 
+rsplitS _ (RProp _ (RHole _)) _
+   = errorstar "rsplitS RProp _ (RHole _)"
+
+rsplitS _ _ (RProp _ (RHole _))
+   = errorstar "rsplitS RProp _ (RHole _)"
+
 rsplitS γ (RProp s1 r1) (RProp s2 r2)
   = splitS (SubC γ (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
-
-rsplitS _ _ _
-  = errorstar "rspliS Rpoly - RPropP"
 
 
 
@@ -682,16 +685,16 @@ unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
 unifyVV _ _
   = errorstar $ "Constraint.Generate.unifyVV called on invalid inputs"
 
-rsplitC _ (RPropP _ _) (RPropP _ _)
-  = errorstar "RefTypes.rsplitC on RPropP"
+rsplitC _ _ (RProp _ (RHole _))
+  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
+
+rsplitC _ (RProp _ (RHole _)) _
+  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
        splitC (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
-
-rsplitC _ _ _
-  = errorstar "rsplit Rpoly - RPropP"
 
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
@@ -1690,14 +1693,14 @@ refreshVV (RApp c ts rs r)
 refreshVV t
   = return t
 
+refreshVVRef (RProp ss (RHole r))
+  = return $ RProp ss (RHole r)
 
 refreshVVRef (RProp ss t)
   = do xs    <- mapM (\_ -> fresh) (fst <$> ss)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
 
-refreshVVRef (RPropP ss r)
-  = return $ RPropP ss r
 
 
 

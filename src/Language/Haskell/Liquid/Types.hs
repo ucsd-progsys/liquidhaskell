@@ -46,7 +46,7 @@ module Language.Haskell.Liquid.Types (
   , isClassRTyCon, isClassType
 
   -- * Refinement Types
-  , RType (..), Ref(..), RTProp
+  , RType (..), Ref(..), RTProp, rPropP
   , RTyVar (..)
   , RTAlias (..)
 
@@ -652,21 +652,18 @@ instance PPrint Oblig where
 --   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
 --   directly to any type and has semantics _independent of_ the data-type.
 
-data Ref τ r t
-  = RPropP {
-      rf_args :: [(Symbol, τ)]
-    , rf_reft :: r
-    }                              -- ^ Parse-time `RProp`
-
-  | RProp  {
+data Ref τ t
+  = RProp  {
       rf_args :: [(Symbol, τ)]
     , rf_body :: t
     }                              -- ^ Abstract refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
 
+rPropP τ r = RProp τ (RHole r)
+
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.
-type RTProp c tv r = Ref (RType c tv ()) r (RType c tv r)
+type RTProp c tv r = Ref (RType c tv ()) (RType c tv r)
 
 
 -- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
@@ -699,7 +696,7 @@ type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft
 type SpecProp   = RRProp    RReft
-type RRProp r   = Ref       RSort r (RRType r)
+type RRProp r   = Ref       RSort (RRType r)
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
@@ -1038,16 +1035,15 @@ instance Subable r => Subable (UReft r) where
   substa f (MkUReft r z l) = MkUReft (substa f r) (substa f z) (substa f l)
 
 instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
-  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
   syms (RProp  ss r)     = (fst <$> ss) ++ syms r
 
-  subst su (RPropP ss r) = RPropP ss (subst su r)
+  subst su (RProp ss (RHole r)) = RProp ss (RHole (subst su r))
   subst su (RProp  ss t) = RProp ss (subst su <$> t)
 
-  substf f (RPropP ss r) = RPropP ss (substf f r)
+  substf f (RProp ss (RHole r)) = RProp ss (RHole (substf f r))
   substf f (RProp  ss t) = RProp ss (substf f <$> t)
 
-  substa f (RPropP ss r) = RPropP ss (substa f r)
+  substa f (RProp ss (RHole r)) = RProp ss (RHole (substa f r))
   substa f (RProp  ss t) = RProp ss (substa f <$> t)
 
 
@@ -1118,7 +1114,7 @@ emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r
 emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
-emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
+emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
 emapRef  f γ (RProp  s t)         = RProp s $ emapReft f γ t
 
 ------------------------------------------------------------------------------------------------------
@@ -1159,8 +1155,7 @@ mapReftM f (RHole r)          = liftM   RHole       (f r)
 mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
-mapRefM  f (RPropP s r)       = liftM   (RPropP s)     (f r)
-mapRefM  f (RProp  s t)       = liftM   (RProp s)      (mapReftM f t)
+mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
 
 
 --------------------------------------------------------------------------------
@@ -1207,8 +1202,8 @@ efoldReft cb g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref
-    ho  γ z (RPropP ss r)               = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp  ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
+    ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RProp ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
 
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts
@@ -1228,8 +1223,8 @@ mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f (RRTy e r o t)    = RRTy (mapSnd (mapBot f) <$> e) r o (mapBot f t)
 mapBot f t'                = f t'
-mapBotRef _ (RPropP s r)    = RPropP s $ r
-mapBotRef f (RProp  s t)    = RProp  s $ mapBot f t
+mapBotRef _ (RProp s (RHole r)) = RProp s $ RHole r
+mapBotRef f (RProp s t)    = RProp  s $ mapBot f t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1244,8 +1239,8 @@ mapBind f (RRTy e r o t)   = RRTy e r o (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
-mapBindRef f (RPropP s r)   = RPropP (mapFst f <$> s) r
-mapBindRef f (RProp  s t)   = RProp  (mapFst f <$> s) $ mapBind f t
+mapBindRef f (RProp s (RHole r)) = RProp (mapFst f <$> s) (RHole r)
+mapBindRef f (RProp s t)         = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
@@ -1265,8 +1260,8 @@ stripAnnotations (RAppTy t t' r)  = RAppTy (stripAnnotations t) (stripAnnotation
 stripAnnotations (RApp c ts rs r) = RApp c (stripAnnotations <$> ts) (stripAnnotationsRef <$> rs) r
 stripAnnotations (RRTy _ _ _ t)   = stripAnnotations t
 stripAnnotations t                = t
-stripAnnotationsRef (RProp s t)   = RProp s $ stripAnnotations t
-stripAnnotationsRef r             = r
+stripAnnotationsRef (RProp s (RHole r)) = RProp s (RHole r)
+stripAnnotationsRef (RProp s t)         = RProp s $ stripAnnotations t
 
 
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
