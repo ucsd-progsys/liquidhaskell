@@ -1698,8 +1698,8 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
           where
             x' = F.symbol x
             tx = fromMaybe tt (γ ?= x')
-            tt = panicUnbound γ x
-            -- tt = ofType $ varType x
+            tt = ofType $ varType x
+            -- tt = panicUnbound γ x
 
 
 --------------------------------------------------------------------------------

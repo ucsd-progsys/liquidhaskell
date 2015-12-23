@@ -297,6 +297,7 @@ isData = spacePrefix "data"
 isType = spacePrefix "type"
 isIncl = spacePrefix "include"
 
+{-@ spacePrefix :: _ -> s:_ -> _ / [len s] @-}
 spacePrefix str s@(c:cs)
   | isSpace c   = spacePrefix str cs
   | otherwise   = take (length str) s == str
