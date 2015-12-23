@@ -10,3 +10,6 @@
 [submodule "prover"]
 	path = prover
 	url = https://github.com/ucsd-progsys/prover.git
+[submodule "ghc-options"]
+	path = ghc-options
+	url = https://github.com/ranjitjhala/ghc-options.git

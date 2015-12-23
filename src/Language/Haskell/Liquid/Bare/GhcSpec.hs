@@ -67,7 +67,14 @@ import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv -> Either Error LogicMap
+makeGhcSpec :: Config
+            -> ModName
+            -> [CoreBind]
+            -> [Var]
+            -> [Var]
+            -> NameSet
+            -> HscEnv
+            -> Either Error LogicMap
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs

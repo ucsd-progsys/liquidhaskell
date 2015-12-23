@@ -109,6 +109,10 @@ packages:
 - ./liquid-fixpoint
 - ./prover
 - .
+
+flags:
+  liquid-fixpoint:
+    build-external: true
 EOF
 
   loud cat stack.yaml

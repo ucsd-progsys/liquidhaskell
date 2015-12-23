@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
-{-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
 -- | This module contains all the code needed to output the result which
@@ -21,7 +20,6 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
    -- * Update Configuration With Pragma
    , withPragmas
-   , withCabal
 
    -- * Exit Function
    , exitWithResult
@@ -252,7 +250,6 @@ fixConfig :: Config -> IO Config
 fixConfig cfg = do
   pwd <- getCurrentDirectory
   cfg <- canonicalizePaths pwd cfg
-  -- cfg <- withCabal cfg
   return $ fixDiffCheck cfg
 
 -- | Attempt to canonicalize all `FilePath's in the `Config' so we don't have
@@ -309,33 +306,6 @@ withPragma c s = withArgs [val s] $ cmdArgsRun
 parsePragma   :: Located String -> IO Config
 parsePragma = withPragma defConfig
    --withArgs [val s] $ cmdArgsRun config
-
----------------------------------------------------------------------------------------
-withCabal :: Config -> IO Config
----------------------------------------------------------------------------------------
-withCabal cfg
-  | cabalDir cfg = withCabal' cfg
-  | otherwise    = return cfg
-
-withCabal' cfg = do
-  whenLoud $ putStrLn $ "addCabalDirs: " ++ tgt
-  io <- cabalInfo tgt
-  case io of
-    Just i  -> return $ fixCabalDirs' cfg i
-    Nothing -> exitWithPanic "Cannot find .cabal information!"
-  where
-    tgt = case files cfg of
-            f:_ -> f
-            _   -> exitWithPanic "Please provide a target file to verify."
-
-
-fixCabalDirs' :: Config -> Info -> Config
-fixCabalDirs' cfg i = cfg { idirs      = nub $ idirs cfg ++ sourceDirs i ++ buildDirs i }
-                          { ghcOptions = ghcOptions cfg ++ dbOpts ++ pkOpts
-                                      ++ ["-optP-include", "-optP" ++ macroPath i]}
-   where
-     dbOpts         = ["-package-db " ++ db | db <- packageDbs  i]
-     pkOpts         = ["-package "    ++ n  | n  <- packageDeps i] -- SPEED HIT for smaller benchmarks
 
 defConfig :: Config
 defConfig = Config { files          = def
@@ -410,7 +380,7 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 resDocs _ Safe             = [text "RESULT: SAFE"]
-resDocs k (Crash xs s)     = text ("RESULT: ERROR") : text s : pprManyOrdered k "" (errToFCrash <$> xs)
+resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 -- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
 

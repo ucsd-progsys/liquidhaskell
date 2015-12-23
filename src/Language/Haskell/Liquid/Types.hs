@@ -15,8 +15,6 @@
 
 -- | This module should contain all the global type definitions and basic instances.
 
-{-@ LIQUID "--cabaldir" @-}
-
 module Language.Haskell.Liquid.Types (
 
   -- * Options
@@ -560,6 +558,7 @@ instance Show TyConInfo where
 ---- Unified Representation of Refinement Types --------------------
 --------------------------------------------------------------------
 
+-- MOVE TO TYPES
 data RType c tv r
   = RVar {
       rt_var    :: !tv
@@ -589,10 +588,10 @@ data RType c tv r
     }
 
   | RApp  {
-      rt_tycon   :: !c
-    , rt_args    :: ![RType  c tv r]
-    , rt_pargs   :: ![RTProp c tv r]
-    , rt_reft    :: !r
+      rt_tycon  :: !c
+    , rt_args   :: ![RType  c tv r]
+    , rt_pargs  :: ![RTProp c tv r]
+    , rt_reft   :: !r
     }
 
   | RAllE {
@@ -1136,7 +1135,7 @@ emapRef  _ _ (RHProp _ _)         = error "TODO: PHProp empaReft"
 -- isBase :: RType a -> Bool
 
 -- set all types to basic types, haskell `tx -> t` is translated to Arrow tx t
--- isBase _ = True 
+-- isBase _ = True
 
 isBase (RAllT _ t)      = isBase t
 isBase (RAllP _ t)      = isBase t
