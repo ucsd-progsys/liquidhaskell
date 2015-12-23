@@ -49,7 +49,7 @@ import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId)
-import Language.Haskell.Liquid.Types.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
+import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Bounds
 
@@ -173,9 +173,8 @@ mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(Symbol, DataCon)] -> Ms.MSpec t Data
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
   where
     m'  = fmap (tx.val) m
-    cm' = hashMapMapKeys (tx' . tx) $ Ms.ctorMap m'
+    cm' = hashMapMapKeys (symbol . tx) $ Ms.ctorMap m'
     tx  = mlookup (M.fromList ndcs)
-    tx' = dataConSymbol
 
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
