@@ -1,9 +1,17 @@
 {-# LANGUAGE TupleSections  #-}
 
-{-@ LIQUID "--cabaldir" @-}
 {-@ LIQUID "--diff"     @-}
 
-module Language.Haskell.Liquid.Liquid (liquid, runLiquid) where
+module Language.Haskell.Liquid.Liquid (
+   -- * Executable command
+    liquid
+
+   -- * Single query
+  , runLiquid
+
+   -- * Ghci State
+  , MbEnv
+  ) where
 
 import           Data.Maybe
 import           System.Exit
@@ -13,12 +21,13 @@ import           CoreSyn
 import           Var
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Console.CmdArgs.Default
+import           GHC (HscEnv)
 
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
-import           Language.Fixpoint.Types (sinfo, Result (..), FixResult (..))
+import           Language.Fixpoint.Types (sinfo, Result (..)) -- , FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -29,29 +38,58 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 
+
+type MbEnv = Maybe HscEnv
+
 ------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 ------------------------------------------------------------------------------
-liquid args = getOpts args >>= runLiquid >>= exitWith
+liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 
 ------------------------------------------------------------------------------
 -- | This fellow does the real work
 ------------------------------------------------------------------------------
-runLiquid :: Config -> IO ExitCode
-runLiquid cfg = ec <$> mapM (checkOne cfg) (files cfg)
+runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
+------------------------------------------------------------------------------
+runLiquid mE cfg = do
+  (d, mE') <- checkMany cfg mempty mE (files cfg)
+  return      (ec d, mE')
   where
-    ec        = resultExit . o_result . mconcat
+    ec     = resultExit . o_result
+
+
+-- filesTimes3 cfg = case files cfg of
+--                    [f] -> [f, f, f]
+--                     fs  -> fs
+
 
 ------------------------------------------------------------------------------
+checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
 ------------------------------------------------------------------------------
+checkMany cfg d mE (f:fs) = do
+  (d', mE') <- checkOne mE cfg f
+  checkMany cfg (d `mappend` d') mE' fs
+
+checkMany _   d mE [] =
+  return (d, mE)
+
 ------------------------------------------------------------------------------
+checkOne :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
+------------------------------------------------------------------------------
+checkOne mE cfg t = do
+  z <- getGhcInfo mE cfg t
+  case z of
+    Left e -> do
+      d <- exitWithResult cfg t $ mempty { o_result = e }
+      return (d, Nothing)
+    Right (gInfo, hEnv) -> do
+      d <- liquidOne t gInfo
+      return (d, Just hEnv)
 
-checkOne :: Config -> FilePath -> IO (Output Doc)
-checkOne cfg0 t = getGhcInfo cfg0 t >>= either errOut (liquidOne t)
-  where
-    errOut r    = exitWithResult cfg0 t $ mempty { o_result = r}
 
+------------------------------------------------------------------------------
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
+------------------------------------------------------------------------------
 liquidOne tgt info = do
   donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
@@ -94,7 +132,7 @@ prune cfg cbinds tgt info
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
-  = do finfo    <- cgInfoFInfo info cgi tgt
+  = do finfo        <- cgInfoFInfo info cgi tgt
        Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
@@ -115,7 +153,7 @@ solveCs cfg tgt cgi info dc
                        , FC.maxPartSize = maxPartSize cfg
                        -- , FC.stats   = True
                        }
-       ferr s r  = fmap (tidyError s) $ result $ sinfo <$> r
+       ferr s r  = tidyError s <$> result r
 
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str

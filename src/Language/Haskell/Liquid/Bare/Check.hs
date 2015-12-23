@@ -33,7 +33,7 @@ import Language.Haskell.Liquid.GHC.Misc (realTcArity, showPpr, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (snd4, mapSnd)
 import Language.Haskell.Liquid.Types.PredType (pvarRType)
 import Language.Haskell.Liquid.UX.PrettyPrint (pprintSymbol)
-import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
+import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, rTypeSortedReftArrow, subsTyVars_meet, toType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
@@ -230,7 +230,7 @@ checkRType :: (PPrint r, Reftable r) => TCEmb TyCon -> SEnv SortedReft -> RRType
 checkRType emb env t   =  checkAppTys t
                       <|> checkFunRefs t
                       <|> checkAbstractRefs t
-                      <|> efoldReft cb (rTypeSortedReft emb) f insertPEnv env Nothing t
+                      <|> efoldReft cb (rTypeSortedReftArrow emb) f insertPEnv env Nothing t
   where
     cb c ts            = classBinds (rRCls c ts)
     f env me r err     = err <|> checkReft env emb me r

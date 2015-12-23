@@ -22,6 +22,7 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.PredType
+import Language.Haskell.Liquid.Types.Names
 
 import Language.Fixpoint.Types.Names (hpropConName, propConName)
 import Language.Fixpoint.Types
@@ -65,9 +66,6 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
-arrowConName, runFunName :: Symbol
-arrowConName = "Arrow"
-runFunName   = "runFun"
 
 arrowTyCon, propTyCon, hpropTyCon :: TyCon
 
@@ -84,10 +82,10 @@ propTyCon  = symbolTyCon 'w' 25 propConName
 hpropTyCon = symbolTyCon 'w' 26 hpropConName
 
 
-arrowFTyCon = symbolFTycon $ dummyLoc arrowConName
 
 runFunSort :: Sort
 runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
+
 
 -----------------------------------------------------------------------
 -- | LH Primitive Types ----------------------------------------------

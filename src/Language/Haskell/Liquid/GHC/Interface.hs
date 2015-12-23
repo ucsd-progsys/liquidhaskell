@@ -33,9 +33,7 @@ import GHC.Paths (libdir)
 import System.FilePath ( replaceExtension, normalise)
 
 import DynFlags
-import Control.Monad (filterM, foldM, when, forM, forM_, liftM)
-import Control.Applicative  hiding (empty)
-import Data.Monoid hiding ((<>))
+import Control.Monad (unless, filterM, foldM, when, forM, forM_, liftM)
 import Data.List (find, nub)
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
@@ -53,45 +51,66 @@ import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.UX.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.UX.CmdLine (withCabal, withPragmas)
+import Language.Haskell.Liquid.UX.CmdLine (withPragmas)
+import Language.Haskell.Liquid.UX.Cabal   (withCabal)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
-
-import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
 
 
+type GhcResult = Either ErrorResult (GhcInfo, HscEnv)
 
 --------------------------------------------------------------------
-getGhcInfo :: Config -> FilePath -> IO (Either ErrorResult GhcInfo)
+getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO GhcResult
 --------------------------------------------------------------------
-getGhcInfo cfg target = (Right <$> getGhcInfo' cfg target)
-                          `Ex.catch` (\(e :: SourceError) -> handle e)
-                          `Ex.catch` (\(e :: Error)       -> handle e)
-                          `Ex.catch` (\(e :: [Error])     -> handle e)
+getGhcInfo hEnv cfg f =
+    (Right <$> getGhcInfo' hEnv cfg f)
+      `Ex.catch` (\(e :: SourceError) -> handle e)
+      `Ex.catch` (\(e :: Error)       -> handle e)
+      `Ex.catch` (\(e :: [Error])     -> handle e)
   where
-    handle            = return . Left . result
+    handle = return . Left . result
 
-getGhcInfo' :: Config -> FilePath -> IO GhcInfo
-getGhcInfo' cfg0 target
-  = runGhc (Just libdir) $ do
+
+addRootTarget x = setTargets [x]
+
+
+getGhcInfo' :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
+getGhcInfo' hEnv cfg f
+  = runGhc (Just libdir) $ {- repM 3 -} do
+      _     <- setSessionMb hEnv
+      info  <- getGhcInfo'' cfg f
+      hEnv' <- getSession
+      return (info, hEnv')
+
+setSessionMb :: Maybe HscEnv -> Ghc ()
+setSessionMb Nothing  = return ()
+setSessionMb (Just e) = setSession e
+
+
+getGhcInfo'' :: Config -> FilePath -> Ghc GhcInfo
+getGhcInfo'' cfg0 target
+  = {- runGhc (Just libdir) $ -} do
       liftIO              $ cleanFiles target
-      addTarget         =<< guessTarget target Nothing
-      (name,tgtSpec)     <- liftIO $ parseSpec target
+      liftIO $ donePhase Loud "Cleaned Files"
+      addRootTarget     =<< guessTarget target Nothing
+      (name, tgtSpec)    <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
       cfg                <- liftIO $ withCabal cfg
       let paths           = idirs cfg
-      updateDynFlags cfg
+      _                  <- updateDynFlags cfg
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+      liftIO $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
-      impSpecs'          <- forM impSpecs $ \(f,n,s) -> do
-        when (not $ isSpecImport n) $
-          addTarget =<< guessTarget f Nothing
-        return (n,s)
+      impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
+                              unless (isSpecImport n) $
+                                addTarget =<< guessTarget f Nothing
+                              return (n,s)
       load LoadAllTargets
+      liftIO $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts
@@ -103,44 +122,45 @@ getGhcInfo' cfg0 target
       let defVs           = definedVars coreBinds
       let useVs           = readVars    coreBinds
       let letVs           = letVars     coreBinds
-      let derVs           = derivedVars coreBinds $ fmap (fmap is_dfun) $ mgi_cls_inst modguts
+      let derVs           = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modguts
       logicmap           <- liftIO makeLogicMap
-      (spec, imps, incs) <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
+      (spc, imps, incs)  <- moduleSpec cfg coreBinds (impVs ++ defVs) letVs name' modguts tgtSpec logicmap impSpecs'
       liftIO              $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
       hqualFiles         <- moduleHquals modguts paths target imps incs
-      return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spec
+      return              $ GI target hscEnv coreBinds derVs impVs (letVs ++ datacons) useVs hqualFiles imps incs spc
 
-
-makeLogicMap
-  = do lg    <- getCoreToLogicPath
-       lspec <- readFile lg
-       return $ parseSymbolToLogic lg lspec
+makeLogicMap = do
+  lg    <- getCoreToLogicPath
+  lspec <- readFile lg
+  return $ parseSymbolToLogic lg lspec
 
 classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
 derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
-derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
-derivedVars _    Nothing    = []
+derivedVars cBinds (Just fds) = concatMap (derivedVs cBinds) fds
+derivedVars _      Nothing    = []
 
 derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd = concatMap bindersOf cbf ++ deps
-  where cbf            = filter f cbs
+derivedVs cBinds fd = concatMap bindersOf cBinds' ++ deps
+  where
+    cBinds'         = filter f cBinds
+    f (NonRec x _)  = eqFd x
+    f (Rec xes   )  = any eqFd (fst <$> xes)
+    eqFd x          = varName x == varName fd
+    deps            = concatMap unfoldDep unfolds
+    unfolds         = unfoldingInfo . idInfo <$> concatMap bindersOf cBinds'
 
-        f (NonRec x _) = eqFd x
-        f (Rec xes   ) = any eqFd (fst <$> xes)
-        eqFd x         = varName x == varName fd
-        deps :: [Id]
-        deps = concatMap dep $ (unfoldingInfo . idInfo <$> concatMap bindersOf cbf)
+unfoldDep :: Unfolding -> [Id]
+unfoldDep (DFunUnfolding _ _ e)         = concatMap exprDep  e
+unfoldDep (CoreUnfolding {uf_tmpl = e}) = exprDep  e
+unfoldDep _                             = []
 
-        dep (DFunUnfolding _ _ e)         = concatMap grapDep  e
-        dep (CoreUnfolding {uf_tmpl = e}) = grapDep  e
-        dep _                             = []
+exprDep :: CoreExpr -> [Id]
+exprDep = freeVars S.empty
 
-        grapDep :: CoreExpr -> [Id]
-        grapDep e           = freeVars S.empty e
-
+{- ORIG -}
 updateDynFlags cfg
   = do df <- getSessionDynFlags
        let df' = df { importPaths  = idirs cfg ++ importPaths df
@@ -153,7 +173,7 @@ updateDynFlags cfg
                     , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
                     -- prevent GHC from printing anything
-                    , log_action   = \_ _ _ _ _ -> return ()
+                    -- , log_action   = \_ _ _ _ _ -> return ()
                     -- , verbosity = 3
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
@@ -161,7 +181,161 @@ updateDynFlags cfg
                       `gopt_set` Opt_PIC
                       `gopt_set` Opt_Debug
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
-       setSessionDynFlags $ df'' -- {profAuto = ProfAutoAll}
+       setSessionDynFlags df''
+
+
+{- hdevtools
+updateDynFlags cfg = do
+  initialDynFlags <- GHC.getSessionDynFlags
+  let updatedDynFlags = initialDynFlags
+                        { GHC.ghcLink       = GHC.NoLink
+                        -- , GHC.log_action    = \ _ _ _ _ _ -> return () -- logAction state clientSend
+                        , GHC.hscTarget     = GHC.HscInterpreted
+                        }
+  (finalDynFlags, _, _) <- GHC.parseDynamicFlags updatedDynFlags (map GHC.noLoc hackOptions{- $ ghcOptions cfg -})
+  -- HEREHERE
+  -- liftIO $ writeFile "/Users/rjhala/tmp/hdevtools.log" (show ghcOpts)
+  _ <- GHC.setSessionDynFlags finalDynFlags
+  return ()
+-}
+
+{- TODO: unused
+hackOptions :: [String]
+hackOptions =
+  [ "-w"
+  , "-v0"
+  , "-fbuilding-cabal-package"
+  , "-O"
+  , "-outputdir"
+  , ".stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  , "-odir"
+  , ".stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  , "-hidir"
+  , ".stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  , "-stubdir"
+  , ".stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  , "-i"
+  , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/src"
+  , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/include"
+  -- , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/."
+  , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  -- , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/tests"
+  , "-i/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/autogen"
+  , "-I.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/autogen"
+  , "-I.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build"
+  , "-optP-include"
+  , "-optP.stack-work/dist/x86_64-osx/Cabal-1.22.4.0/build/autogen/cabal_macros.h"
+  , "-hide-all-packages"
+  , "-no-user-package-db"
+  , "-package-db"
+  , "/Applications/ghc-7.10.2.app/Contents/lib/ghc-7.10.2/package.conf.d"
+  , "-package-db"
+  , "/Users/rjhala/.stack/snapshots/x86_64-osx/nightly-2015-09-24/7.10.2/pkgdb"
+  , "-package-db"
+  , "/Users/rjhala/research/stack/liquid/liquidhaskell/.stack-work/install/x86_64-osx/nightly-2015-09-24/7.10.2/pkgdb"
+  , "-package-id"
+  , "Cabal-1.22.4.0-43515548ac8e8e693b550dcfa1b04e2b"
+  , "-package-id"
+  , "Diff-0.3.2-d60e738085e24bd2ba085853867b84a6"
+  , "-package-id"
+  , "aeson-0.9.0.1-ea82995047cb231c94231aee293436ee"
+  , "-package-id"
+  , "array-0.5.1.0-d4206b835b96b5079d918fa1eab1a9a8"
+  , "-package-id"
+  , "bifunctors-5-9497b78c1808987b8601618de2742b5c"
+  , "-package-id"
+  , "cpphs-1.19.3-21d69634848f44bbddd2385456c13030"
+  , "-package-id"
+  , "fingertree-0.1.1.0-e8cb817ba02a5ed615b3a46f18f3fd8f"
+  , "-package-id"
+  , "ghc-paths-0.1.0.9-b18f6718b3226041485a4e0a0842c180"
+  , "-package-id"
+  , "hashable-1.2.3.3-09c4177c49dd46a63f7036317bb17114"
+  , "-package-id"
+  , "hpc-0.6.0.2-49bce407db3f37807645ac03c42b8ff3"
+  , "-package-id"
+  , "hscolour-1.23-77c6937e0747fc7892d42aa452545b51"
+  , "-package-id"
+  , "parsec-3.1.9-bddea73c8bf2d5ff1335dae2cc92e789"
+  , "-package-id"
+  , "syb-0.5.1-09089498a055bd723b4a95c1351d3c8a"
+  , "-package-id"
+  , "template-haskell-2.10.0.0-161ca39a5ae657ff216d049e722e60ea"
+  , "-package-id"
+  , "text-1.2.1.3-2395ef415c1b20175aae83b50060e389"
+  , "-package-id"
+  , "time-1.5.0.1-710377a9566ae0edafdde8dc74a184c3"
+  , "-package-id"
+  , "vector-0.10.12.3-67219b7cb09d19688dca52e92595a7d6"
+  , "-package-id"
+  , "bytestring-0.10.6.0-6e8453cb70b477776f26900f41a5e17a"
+  , "-package-id"
+  , "cereal-0.4.1.1-e7af0306d1317407815a09e40431fc3f"
+  , "-package-id"
+  , "cmdargs-0.10.13-a8aec3840014c1a2b642b8ee0671d451"
+  , "-package-id"
+  , "daemons-0.2.1-0b0661a02074f525101355cceebca33b"
+  , "-package-id"
+  , "data-default-0.5.3-a2ece8050e447d921b001e26e14476f2"
+  , "-package-id"
+  , "deepseq-1.4.1.1-5de90d6c626db2476788444fb08c1eb3"
+  , "-package-id"
+  , "ghc-7.10.2-5c2381785a7b22838c6eda985bc898cf"
+  , "-package-id"
+  , "ghc-options-0.2.0.1-58eda4323c55c86764b7c99a83ab50a1"
+  , "-package-id"
+  , "liquid-fixpoint-0.6-c5ff693cb49202144ed67af52435a9b7"
+  , "-package-id"
+  , "network-2.6.2.1-54f9bbbc4dc78b945fb82127414a5b82"
+  , "-package-id"
+  , "pretty-1.1.2.0-1d31b75e6aa28069010db3db8ab24535"
+  , "-package-id"
+  , "prover-0.1.0.0-af42484d037d94d0e2b5c21591019282"
+  , "-package-id"
+  , "unix-2.7.1.0-75051e1ddce506fe76a9ea932b926357"
+  , "-package-id"
+  , "unordered-containers-0.2.5.1-09ed02f61ed89449c8cd4b51d7f295c2"
+  , "-package-id"
+  , "base-4.8.1.0-075aa0db10075facc5aaa59a7991ca2f"
+  , "-package-id"
+  , "containers-0.5.6.2-2b49cce16f8a2908df8454387e550b93"
+  , "-package-id"
+  , "directory-1.2.2.0-16f6a661d4e92cd8da4d681a1d197064"
+  , "-package-id"
+  , "filepath-1.4.0.0-8fee9c13b5e42926cc01f6aa7c403c4b"
+  , "-package-id"
+  , "mtl-2.2.1-5cf332b11edb88a6040af20fd6a58acb"
+  , "-package-id"
+  , "optparse-applicative-0.11.0.2-64c4a013db45b66a7b578a0a518d7f3d"
+  , "-package-id"
+  , "process-1.2.3.0-36e5501145ab363f58c5e5a7079e9636"
+  , "-package-id"
+  , "stm-2.4.4-2526ff89874f899372b2e4f544bb03cd"
+  , "-package-id"
+  , "tagged-0.8.1-8fb7724b78ef88e44ca8950c77a173f6"
+  , "-package-id"
+  , "tasty-0.10.1.2-3edf1ce479f2dc1472803ce20060e1e3"
+  , "-package-id"
+  , "tasty-hunit-0.9.2-dc3e487b6addcc5acb2e3cf6fcd6ae50"
+  , "-package-id"
+  , "tasty-rerun-1.1.5-69a2e8be39919b24c991bdcc6778a213"
+  , "-package-id"
+  , "transformers-0.4.2.0-21dcbf13c43f5d8cf6a1f54dee6c5bff"
+  , "-XHaskell98"
+  , "-XPatternGuards"
+  , "-W"
+  , "-fno-warn-unused-imports"
+  , "-fno-warn-dodgy-imports"
+  , "-fno-warn-deprecated-flags"
+  , "-fno-warn-deprecations"
+  , "-fno-warn-missing-methods"
+  , "-O2"
+  , "-threaded"
+  , "-O0"
+  , "-Wall"]
+-}
+
+
 
 compileCFiles cfg
   = do df  <- getSessionDynFlags
@@ -192,12 +366,12 @@ getGhcModGuts1 fn = do
    modGraph <- getModuleGraph
    case find ((== fn) . msHsFilePath) modGraph of
      Just modSummary -> do
-       -- mod_guts <- modSummaryModGuts modSummary
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
        let deriv = getDerivedDictionaries mod_guts
-       return   $! (miModGuts (Just deriv) mod_guts)
-     Nothing     -> exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
+       return   $! miModGuts (Just deriv) mod_guts
+     Nothing ->
+       exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
 
 getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 
@@ -209,13 +383,7 @@ cleanFiles fn
        bins = replaceExtension fn <$> ["hi", "o"]
        dir  = tempDirectory fn
 
-
 removeFileIfExists f = doesFileExist f >>= (`when` removeFile f)
-
---------------------------------------------------------------------------------
--- | Desugaring (Taken from GHC, modified to hold onto Loc in Ticks) -----------
---------------------------------------------------------------------------------
-
 
 --------------------------------------------------------------------------------
 -- | Extracting Qualifiers -----------------------------------------------------
@@ -233,16 +401,16 @@ moduleHquals mg paths target imps incs
 -- | Extracting Specifications (Measures + Assumptions) ------------------------
 --------------------------------------------------------------------------------
 
-moduleSpec cfg cbs vars defVars target mg tgtSpec logicmap impSpecs
-  = do addImports  impSpecs
+moduleSpec cfg cBinds vars dVars tgtMod mg tgtSpec logicmap impSpecs
+  = do _          <- addImports  impSpecs
        addContext  $ IIModule $ moduleName $ mgi_module mg
-       env        <- getSession
-       let specs   = (target,tgtSpec):impSpecs
+       gEnv        <- getSession
+       let specs   = (tgtMod, tgtSpec):impSpecs
        let imps    = sortNub $ impNames ++ [ symbolString x
                                            | (_, sp) <- specs
                                            , x <- Ms.imports sp
                                            ]
-       ghcSpec    <- liftIO $ makeGhcSpec cfg target cbs vars defVars exports env logicmap specs
+       ghcSpec    <- liftIO $ makeGhcSpec cfg tgtMod cBinds vars dVars exports gEnv logicmap specs
        return      (ghcSpec, imps, Ms.includes tgtSpec)
     where
       exports    = mgi_exports mg
@@ -296,11 +464,13 @@ parseSpec file
   = do whenLoud $ putStrLn $ "parseSpec: " ++ file
        either Ex.throw return . specParser file =<< readFile file
 
-specParser file str
-  | isExtFile Spec file  = specSpecificationP file str
-  | isExtFile Hs file    = hsSpecificationP   file str
-  | isExtFile LHs file   = lhsSpecificationP  file str
-  | otherwise            = exitWithPanic $ "SpecParser: Cannot Parse File " ++ file
+specParser f str
+  | isExtFile Spec   f = specSpecificationP f str
+  | isExtFile Hs     f = hsSpecificationP   f str
+  | isExtFile HsBoot f = hsSpecificationP   f str
+  | isExtFile LHs    f = lhsSpecificationP  f str
+  | otherwise          = exitWithPanic $ "SpecParser: Cannot Parse File " ++ f
+
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
 moduleImports exts paths names
@@ -370,7 +540,7 @@ instance PPrint TargetVars where
   pprint (Only vs) = text "Only Variables: " <+> pprint vs
 
 ------------------------------------------------------------------------
--- Dealing With Errors -------------------------------------------------
+-- | Dealing With Errors -------------------------------------------------
 ------------------------------------------------------------------------
 -- | Convert a GHC error into one of ours
 instance Result SourceError where

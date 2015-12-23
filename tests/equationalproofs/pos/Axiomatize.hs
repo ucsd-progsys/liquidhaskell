@@ -16,8 +16,6 @@ import Data.Maybe (fromMaybe)
 data Proof = Proof
 
 
-
-{- assume auto :: Int -> b:Bool -> {v:Proof | Prop b } @-}
 {-@ auto :: Int -> b:Bool -> Proof @-}
 auto :: Int -> Bool -> Proof
 auto _ _ = Proof

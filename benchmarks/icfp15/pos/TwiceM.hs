@@ -15,7 +15,7 @@ twiceM  :: forall < pre   :: World -> Prop
                  , post1 :: World -> a -> World -> Prop
                  , post :: World -> a -> World -> Prop>.
                  {w ::World<pre>, x::a|- World<post1 w x> <: World<pre>}
-                 {w1::World<pre>, y::a, w2::World<post1 w1 y>, w20::{v:World<pre> | v = w2}, x::a |- World<post1 w2 x> <: World<post w1 x>}
+                 {w1::World<pre>, y::a, w2::World<post1 w1 y>, x::a |- World<post1 w2 x> <: World<post w1 x>}
        (b -> RIO <pre, post1> a)  
      -> b -> RIO <pre, post> a 
 @-}
