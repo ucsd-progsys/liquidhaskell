@@ -1549,6 +1549,9 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys
        cconsE cγ ce t
 
+--------------------------------------------------------------------------------
+refreshTy :: SpecType -> CG SpecType
+--------------------------------------------------------------------------------
 refreshTy t = refreshVV t >>= refreshArgs
 
 refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
