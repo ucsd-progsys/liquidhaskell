@@ -13,15 +13,15 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImplicitParams            #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and
 -- the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate (
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-   generateConstraints
-
-  ) where
+import GHC.Err.Located hiding (error)
+import GHC.Stack
 
 import CoreUtils     (exprType)
 import MkCore
@@ -57,7 +57,6 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import Data.Bifunctor
-import Data.List (foldl')
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
 
@@ -68,6 +67,7 @@ import Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Names (symbolString)
 import Language.Haskell.Liquid.Constraint.Fresh
+import Language.Haskell.Liquid.Constraint.Env
 
 import qualified Language.Fixpoint.Types            as F
 
@@ -87,8 +87,6 @@ import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments,
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
-import Language.Haskell.Liquid.Transforms.RefSplit
-import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
@@ -141,8 +139,6 @@ addCombine τ γ
     combineType   = makeCombineType τ
     combineVar    = makeCombineVar  combineType
     combineSymbol = F.symbol combineVar
-
-
 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
@@ -308,7 +304,7 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
   | otherwise         = γ
 
 withRecs :: CGEnv -> [Var] -> CGEnv
-withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
+withRecs γ xs  = γ { recs = L.foldl' (flip S.insert) (recs γ) xs }
 
 withTRec γ xts = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
   where γ'    = γ `withRecs` (fst <$> xts)
@@ -330,9 +326,9 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isEq           = (eqClassName ==) . className
 
 
-------------------------------------------------------------
-------------------- Constraint Splitting -------------------
-------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Constraint Splitting ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 splitW ::  WfC -> CG [FixWfC]
 
@@ -639,8 +635,6 @@ rsplitsCWithVariance False _ _ _ _
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
-
-
 bsplitC γ t1 t2
   = do checkStratum γ t1 t2
        pflag <- pruneRefs <$> get
@@ -650,6 +644,7 @@ bsplitC γ t1 t2
        return $ bsplitC' γ' t1' t2 pflag
   where
     F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
+
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
@@ -743,109 +738,6 @@ coreBindLits tce info
     dconToSym    = dataConSymbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
-_extendEnvWithTrueVV γ t
-  = true t >>= extendEnvWithVV γ
-
-extendEnvWithVV γ t
-  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
-  = (γ, "extVV") += (vv, t)
-  | otherwise
-  = return γ
-  where vv = rTypeValueVar t
-
-{- see tests/pos/polyfun for why you need everything in fixenv -}
-addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, REx y tyy tyx)
-  = do y' <- fresh
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
-
-addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (msg, x, t)
-  where
-    xs    = grapBindsWithType tyy γ
-    t     = foldl F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
-
-    (tyx', ttrue) = splitXRelatedRefs yy tyx
-
-addCGEnv tx γ (_, x, t')
-  = do idx   <- fresh
-       let t  = tx $ normalize {-x-} idx t'
-       let l  = loc γ
-       let γ' = γ { renv = insertREnv x t (renv γ) }
-       pflag <- pruneRefs <$> get
-       is    <- if isBase t
-                  then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
-                  else return []
-       return $ γ' { fenv = insertsFEnv (fenv γ) is }
-
-(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-(++=) γ = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ
-
-addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
-
-rTypeSortedReft' pflag γ
-  | pflag
-  = pruneUnsortedReft (fe_env $ fenv γ) . f
-  | otherwise
-  = f
-  where
-    f = rTypeSortedReft (emb γ)
-
-(+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
-
-(γ, _) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
-
-(+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
-(γ, msg) += (x, r)
-  | x == F.dummySymbol
-  = return γ
-  | x `memberREnv` (renv γ)
-  = err
-  | otherwise
-  =  γ ++= (msg, x, r)
-  where err = errorstar $ msg ++ " Duplicate binding for "
-                              ++ symbolString x
-                              ++ "\n New: " ++ showpp r
-                              ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
-
-γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
-
-(??=) :: CGEnv -> F.Symbol -> CG SpecType
-γ ??= x
-  = case M.lookup x (lcb γ) of
-    Just e  -> consE (γ-=x) e
-    Nothing -> refreshTy $ γ ?= x
-
-(?=) ::  CGEnv -> F.Symbol -> SpecType
-γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
-         where err = errorstar $ "EnvLookup: unknown "
-                               ++ showpp x
-                               ++ " in renv\n"
-                               ++ showpp (renv γ)
-
-normalize idx
-  = normalizeVV idx
-  . normalizePds
-
-normalizeVV idx t@(RApp _ _ _ _)
-  | not (F.isNontrivialVV (rTypeValueVar t))
-  = shiftVV t (F.vv $ Just idx)
-
-normalizeVV _ t
-  = t
-
-
-addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
-addBind l x r
-  = do st          <- get
-       let (i, bs') = F.insertBindEnv x r (binds st)
-       put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
-
-addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
-addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
 -- RJ: What is this `isBind` business?
 pushConsBind act
@@ -998,11 +890,6 @@ refreshArgsSub t
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
 
-instance Freshable CG Integer where
-  fresh = do s <- get
-             let n = freshIndex s
-             put $ s { freshIndex = n + 1 }
-             return n
 
 
 -------------------------------------------------------------------------------
@@ -1339,7 +1226,6 @@ extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
 extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
 extender γ _               = return γ
 
-addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
@@ -1390,7 +1276,7 @@ cconsE γ e (RAllP p t)
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
     (css, t'') = splitConstraints t'
-    γ'         = foldl (flip addConstraints) γ css
+    γ'         = L.foldl' addConstraints γ css
 
 cconsE γ (Let b e) t
   = do γ'  <- consCBLet γ b
@@ -1468,7 +1354,6 @@ substStrata t ls ls'   = F.substa f t
     su                 = zip ls ls'
 
 -------------------------------------------------------------------
-
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
@@ -1607,10 +1492,6 @@ castTy g t (Tick _ e)
 castTy _ _ e
   = errorstar $ "castTy cannot handle expr " ++ showPpr e
 
--- castTy γ τ e
---   = do t <- trueTy (exprType e)
---        cconsE γ e t
---        trueTy τ
 
 singletonReft = uTop . F.symbolReft . F.symbol
 
@@ -1706,13 +1587,21 @@ refreshVVRef (RHProp _ _)
 
 
 -------------------------------------------------------------------------------------
+(??=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> CG SpecType
+-------------------------------------------------------------------------------------
+γ ??= x
+  = case M.lookup x (lcb γ) of
+    Just e  -> consE (γ -= x) e
+    Nothing -> refreshTy $ γ ?= x
+
+
+-------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
        let xt            = shiftVV xt0 x'
---        γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt]
        tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
@@ -1747,11 +1636,11 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
 
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
-instantiateTys = foldl' go
+instantiateTys = L.foldl' go
   where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
         go _ _               = errorstar "Constraint.instanctiateTy"
 
-instantiatePvs = foldl' go
+instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = errorstar "Constraint.instanctiatePv"
 
@@ -1833,52 +1722,10 @@ topMeet r r' = F.top r `F.meet` r'
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 
------------------------------------------------------------------------
---------------- Forcing Strictness ------------------------------------
------------------------------------------------------------------------
 
-instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
-      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
-
-instance NFData FEnv where
-  rnf (FE x1 _) = rnf x1
-
-instance NFData SubC where
-  rnf (SubC x1 x2 x3)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (SubR x1 _ x2)
-    = rnf x1 `seq` rnf x2
-
-instance NFData Class where
-  rnf _ = ()
-
-instance NFData RTyCon where
-  rnf _ = ()
-
-instance NFData Type where
-  rnf _ = ()
-
-instance NFData WfC where
-  rnf (WfC x1 x2)
-    = rnf x1 `seq` rnf x2
-
-instance NFData CGInfo where
-  rnf x = ({-# SCC "CGIrnf1" #-}  rnf (hsCs x))       `seq`
-          ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq`
-          ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq`
-          ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq`
-          ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
-          ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
-          ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kvProf x))
-
--------------------------------------------------------------------------------
---------------------- Reftypes from F.Fixpoint Expressions ----------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Reftypes from F.Fixpoint Expressions --------------------------------------
+--------------------------------------------------------------------------------
 
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
@@ -1888,10 +1735,6 @@ forallExprRefType γ t = t `strengthen` (uTop r')
 
 forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
 forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
-
---   = do e  <- F.isSingletonReft r
---        r' <- forallExprReft_ γ e
---        return r'
 
 forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
 forallExprReft_ γ (F.EApp f es)
@@ -1911,25 +1754,9 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
-{-
-splitExistsCases z xs tx
-  = fmap $ fmap (exrefAddEq z xs tx)
-
-exrefAddEq z xs t (F.Reft (s, F.Refa rs))
-  = F.Reft(s, F.Refa (F.POr [ pand x | x <- xs]))
-  where
-    tref      = fromMaybe mempty $ stripRTypeBase t
-    pand x    = substzx x rs `mappend` exrefToPred x tref
-    substzx x = F.subst (F.mkSubst [(z, F.EVar x)])
-
-exrefToPred x u             = F.subst (F.mkSubst [(v, F.EVar x)]) p
-  where
-    F.Reft (v, F.Refa p)    = ur_reft u
--}
-
--------------------------------------------------------------------------------
--------------------- Cleaner Signatures For Rec-bindings ----------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Cleaner Signatures For Rec-bindings ---------------------------------------
+--------------------------------------------------------------------------------
 
 exprLoc                         :: CoreExpr -> Maybe SrcSpan
 
@@ -1971,7 +1798,3 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
-
-
-instance NFData REnv where
-  rnf (REnv _) = () -- rnf m
