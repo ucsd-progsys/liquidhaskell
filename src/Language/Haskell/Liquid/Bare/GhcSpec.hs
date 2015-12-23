@@ -173,7 +173,7 @@ makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
     trep = toRTypeRep t
     xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
 
-    res  = ty_res trep `strengthen` U ref mempty mempty
+    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
     vv   = vv_
     x'   = symbol x --  simpleSymbolVar x
     ref  = Reft (vv, PAtom Eq (EVar vv) eq)

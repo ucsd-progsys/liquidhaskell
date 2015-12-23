@@ -13,15 +13,15 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImplicitParams            #-}
 
 -- | This module defines the representation of Subtyping and WF Constraints, and
 -- the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate (
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-   generateConstraints
-
-  ) where
+import GHC.Err.Located hiding (error)
+import GHC.Stack
 
 import CoreUtils     (exprType)
 import MkCore
@@ -57,17 +57,20 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import Data.Bifunctor
-import Data.List (foldl')
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
+import qualified Control.Exception as Ex
 
 import Text.Printf
 
-import qualified Language.Haskell.Liquid.UX.CTags      as Tg
+import           Language.Haskell.Liquid.UX.PrettyPrint -- (pprint)
+import qualified Language.Haskell.Liquid.UX.CTags       as Tg
+import           Language.Haskell.Liquid.UX.Errors
 import Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Names (symbolString)
 import Language.Haskell.Liquid.Constraint.Fresh
+import Language.Haskell.Liquid.Constraint.Env
 
 import qualified Language.Fixpoint.Types            as F
 
@@ -87,8 +90,6 @@ import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments,
 import Language.Haskell.Liquid.Misc
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
-import Language.Haskell.Liquid.Transforms.RefSplit
-import Control.DeepSeq
 
 import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
@@ -142,8 +143,6 @@ addCombine τ γ
     combineVar    = makeCombineVar  combineType
     combineSymbol = F.symbol combineVar
 
-
-
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
 ------------------------------------------------------------------------------------
@@ -196,7 +195,7 @@ makeAutoDecrDataCons dcts specenv dcs
     idTyCon x = dataConTyCon <$> case idDetails x of {DataConWorkId d -> Just d; DataConWrapId d -> Just d; _ -> Nothing}
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
-    invariant = U (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+    invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
 lenOf x = F.EApp lenLocSymbol [F.EVar x]
 
@@ -205,7 +204,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       x      = dataConWorkId x'
       t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts
       trep   = toRTypeRep t
-      tres   = ty_res trep `strengthen` U (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
+      tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
@@ -235,7 +234,7 @@ refreshArgs' = mapM (mapSndM refreshArgs)
 strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
 strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
   where
-    pt                  = fmap (\(U _ _ l) -> U mempty mempty l) <$> L.lookup x senv
+    pt                  = fmap (\(MkUReft _ _ l) -> MkUReft mempty mempty l) <$> L.lookup x senv
 
 
 -- | TODO: All this *should* happen inside @Bare@ but appears
@@ -251,9 +250,9 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
     tce            = tcEmbeds sp
     tyi            = tyconEnv sp
 
- ---------------------------------------------------------------------------------------
- ---------------------------------------------------------------------------------------
- ---------------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs autosizes
   = CGE { loc   = noSrcSpan
@@ -308,7 +307,7 @@ setLoc :: CGEnv -> SrcSpan -> CGEnv
   | otherwise         = γ
 
 withRecs :: CGEnv -> [Var] -> CGEnv
-withRecs γ xs  = γ { recs = foldl' (flip S.insert) (recs γ) xs }
+withRecs γ xs  = γ { recs = L.foldl' (flip S.insert) (recs γ) xs }
 
 withTRec γ xts = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
   where γ'    = γ `withRecs` (fst <$> xts)
@@ -330,9 +329,9 @@ isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConst
         isEq           = (eqClassName ==) . className
 
 
-------------------------------------------------------------
-------------------- Constraint Splitting -------------------
-------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Constraint Splitting ------------------------------------------------------
+--------------------------------------------------------------------------------
 
 splitW ::  WfC -> CG [FixWfC]
 
@@ -380,13 +379,11 @@ splitW (WfC γ (REx x tx t))
 splitW (WfC _ t)
   = errorstar $ "splitW cannot handle: " ++ showpp t
 
-rsplitW _ (RPropP _ _)
-  = errorstar "Constrains: rsplitW for RPropP"
+rsplitW _ (RProp _ (RHole _))
+  = errorstar "Constrains: rsplitW for RProp _ (RHole _)"
 rsplitW γ (RProp ss t0)
   = do γ' <- foldM (++=) γ [("rsplitC", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
-rsplitW _ (RHProp _ _)
-  = errorstar "TODO: EFFECTS"
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
@@ -497,14 +494,15 @@ bsplitS t1 t2
   = return $ [(s1, s2)]
   where [s1, s2]   = getStrata <$> [t1, t2]
 
+rsplitS _ (RProp _ (RHole _)) _
+   = errorstar "rsplitS RProp _ (RHole _)"
+
+rsplitS _ _ (RProp _ (RHole _))
+   = errorstar "rsplitS RProp _ (RHole _)"
+
 rsplitS γ (RProp s1 r1) (RProp s2 r2)
   = splitS (SubC γ (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
-
-rsplitS _ _ _
-  = errorstar "rspliS Rpoly - RPropP"
-
-
 
 splitfWithVariance f t1 t2 Invariant     = liftM2 (++) (f t1 t2) (f t2 t1) -- return []
 splitfWithVariance f t1 t2 Bivariant     = liftM2 (++) (f t1 t2) (f t2 t1)
@@ -639,8 +637,6 @@ rsplitsCWithVariance False _ _ _ _
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
-
-
 bsplitC γ t1 t2
   = do checkStratum γ t1 t2
        pflag <- pruneRefs <$> get
@@ -676,24 +672,25 @@ bsplitC' γ t1 t2 pflag
     REnv g = renv γ
 
 
+unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
-       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
+       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )
 
 unifyVV _ _
   = errorstar $ "Constraint.Generate.unifyVV called on invalid inputs"
 
-rsplitC _ (RPropP _ _) (RPropP _ _)
-  = errorstar "RefTypes.rsplitC on RPropP"
+rsplitC _ _ (RProp _ (RHole _))
+  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
+
+rsplitC _ (RProp _ (RHole _)) _
+  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
        splitC (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
-
-rsplitC _ _ _
-  = errorstar "rsplit Rpoly - RPropP"
 
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
@@ -740,112 +737,9 @@ coreBindLits tce info
     dcons        = filter isDCon freeVs
     freeVs       = impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
-    dconToSym    = dataConSymbol . idDataCon
+    dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
-_extendEnvWithTrueVV γ t
-  = true t >>= extendEnvWithVV γ
-
-extendEnvWithVV γ t
-  | F.isNontrivialVV vv && not (vv `memberREnv` (renv γ))
-  = (γ, "extVV") += (vv, t)
-  | otherwise
-  = return γ
-  where vv = rTypeValueVar t
-
-{- see tests/pos/polyfun for why you need everything in fixenv -}
-addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, REx y tyy tyx)
-  = do y' <- fresh
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
-
-addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (msg, x, t)
-  where
-    xs    = grapBindsWithType tyy γ
-    t     = foldl F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
-
-    (tyx', ttrue) = splitXRelatedRefs yy tyx
-
-addCGEnv tx γ (_, x, t')
-  = do idx   <- fresh
-       let t  = tx $ normalize {-x-} idx t'
-       let l  = loc γ
-       let γ' = γ { renv = insertREnv x t (renv γ) }
-       pflag <- pruneRefs <$> get
-       is    <- if isBase t
-                  then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
-                  else return []
-       return $ γ' { fenv = insertsFEnv (fenv γ) is }
-
-(++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-(++=) γ = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ
-
-addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
-
-rTypeSortedReft' pflag γ
-  | pflag
-  = pruneUnsortedReft (fe_env $ fenv γ) . f
-  | otherwise
-  = f
-  where
-    f = rTypeSortedReft (emb γ)
-
-(+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
-
-(γ, _) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
-
-(+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
-(γ, msg) += (x, r)
-  | x == F.dummySymbol
-  = return γ
-  | x `memberREnv` (renv γ)
-  = err
-  | otherwise
-  =  γ ++= (msg, x, r)
-  where err = errorstar $ msg ++ " Duplicate binding for "
-                              ++ symbolString x
-                              ++ "\n New: " ++ showpp r
-                              ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
-
-γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
-
-(??=) :: CGEnv -> F.Symbol -> CG SpecType
-γ ??= x
-  = case M.lookup x (lcb γ) of
-    Just e  -> consE (γ-=x) e
-    Nothing -> refreshTy $ γ ?= x
-
-(?=) ::  CGEnv -> F.Symbol -> SpecType
-γ ?= x = fromMaybe err $ lookupREnv x (renv γ)
-         where err = errorstar $ "EnvLookup: unknown "
-                               ++ showpp x
-                               ++ " in renv\n"
-                               ++ showpp (renv γ)
-
-normalize idx
-  = normalizeVV idx
-  . normalizePds
-
-normalizeVV idx t@(RApp _ _ _ _)
-  | not (F.isNontrivialVV (rTypeValueVar t))
-  = shiftVV t (F.vv $ Just idx)
-
-normalizeVV _ t
-  = t
-
-
-addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
-addBind l x r
-  = do st          <- get
-       let (i, bs') = F.insertBindEnv x r (binds st)
-       put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
-
-addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
-addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
 -- RJ: What is this `isBind` business?
 pushConsBind act
@@ -998,11 +892,6 @@ refreshArgsSub t
        ts_u    = ty_args  trep
        tbd     = ty_res   trep
 
-instance Freshable CG Integer where
-  fresh = do s <- get
-             let n = freshIndex s
-             put $ s { freshIndex = n + 1 }
-             return n
 
 
 -------------------------------------------------------------------------------
@@ -1339,7 +1228,6 @@ extender γ (x, Asserted t) = γ ++= ("extender", F.symbol x, t)
 extender γ (x, Assumed t)  = γ ++= ("extender", F.symbol x, t)
 extender γ _               = return γ
 
-addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 data Template a = Asserted a | Assumed a | Unknown deriving (Functor, F.Foldable, T.Traversable)
 
@@ -1390,7 +1278,7 @@ cconsE γ e (RAllP p t)
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
     (css, t'') = splitConstraints t'
-    γ'         = foldl (flip addConstraints) γ css
+    γ'         = L.foldl' addConstraints γ css
 
 cconsE γ (Let b e) t
   = do γ'  <- consCBLet γ b
@@ -1468,7 +1356,6 @@ substStrata t ls ls'   = F.substa f t
     su                 = zip ls ls'
 
 -------------------------------------------------------------------
-
 cconsLazyLet γ (Let (NonRec x ex) e) t
   = do tx <- trueTy (varType x)
        γ' <- (γ, "Let NonRec") +++= (x', ex, tx)
@@ -1607,10 +1494,6 @@ castTy g t (Tick _ e)
 castTy _ _ e
   = errorstar $ "castTy cannot handle expr " ++ showPpr e
 
--- castTy γ τ e
---   = do t <- trueTy (exprType e)
---        cconsE γ e t
---        trueTy τ
 
 singletonReft = uTop . F.symbolReft . F.symbol
 
@@ -1667,6 +1550,9 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys
        cconsE cγ ce t
 
+--------------------------------------------------------------------------------
+refreshTy :: SpecType -> CG SpecType
+--------------------------------------------------------------------------------
 refreshTy t = refreshVV t >>= refreshArgs
 
 refreshVV (RAllT a t) = liftM (RAllT a) (refreshVV t)
@@ -1692,17 +1578,15 @@ refreshVV (RApp c ts rs r)
 refreshVV t
   = return t
 
+refreshVVRef (RProp ss (RHole r))
+  = return $ RProp ss (RHole r)
 
 refreshVVRef (RProp ss t)
   = do xs    <- mapM (\_ -> fresh) (fst <$> ss)
        let su = F.mkSubst $ zip (fst <$> ss) (F.EVar <$> xs)
        liftM (RProp (zip xs (snd <$> ss)) . F.subst su) (refreshVV t)
 
-refreshVVRef (RPropP ss r)
-  = return $ RPropP ss r
 
-refreshVVRef (RHProp _ _)
-  = errorstar "TODO: EFFECTS refreshVVRef"
 
 
 -------------------------------------------------------------------------------------
@@ -1710,10 +1594,9 @@ caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x
        let xt            = shiftVV xt0 x'
---        γ                <- foldM extendEnvWithTrueVV γ0 [ t | RProp _ t <- rt_pargs xt]
-       tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
+       tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
@@ -1725,7 +1608,7 @@ caseEnv γ x _   (DataAlt c) ys
 
 caseEnv γ x acs a _
   = do let x'  = F.symbol x
-       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x')
+       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
 
@@ -1747,11 +1630,11 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
 
 unfoldR _  _                _  = error "Constraint.hs : unfoldR"
 
-instantiateTys = foldl' go
+instantiateTys = L.foldl' go
   where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
         go _ _               = errorstar "Constraint.instanctiateTy"
 
-instantiatePvs = foldl' go
+instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
         go _ _               = errorstar "Constraint.instanctiatePv"
 
@@ -1795,9 +1678,9 @@ freshPredRef γ e (PV _ (PVProp τ) _ as)
 freshPredRef _ _ (PV _ PVHProp _ _)
   = errorstar "TODO:EFFECTS:freshPredRef"
 
------------------------------------------------------------------------
----------- Helpers: Creating Refinement Types For Various Things ------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Helpers: Creating Refinement Types For Various Things ---------------------
+--------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.eVar vy
@@ -1805,8 +1688,25 @@ argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
-varRefType :: CGEnv -> Var -> CG SpecType
-varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
+
+--------------------------------------------------------------------------------
+(??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
+--------------------------------------------------------------------------------
+γ ??= x = case M.lookup x' (lcb γ) of
+            Just e  -> consE (γ -= x') e
+            Nothing -> refreshTy tx
+          where
+            x' = F.symbol x
+            tx = fromMaybe tt (γ ?= x')
+            tt = panicUnbound γ x
+            -- tt = ofType $ varType x
+
+
+--------------------------------------------------------------------------------
+varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
+--------------------------------------------------------------------------------
+varRefType γ x = varRefType' γ x <$> (γ ??= x)
+
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1817,7 +1717,6 @@ varRefType' γ x t'
   where
     xr = singletonReft x
     x' = F.symbol x
-
 
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
@@ -1833,53 +1732,10 @@ topMeet r r' = F.top r `F.meet` r'
 -- TODO: should only expose/use subt. Not subsTyVar_meet
 subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 
------------------------------------------------------------------------
---------------- Forcing Strictness ------------------------------------
------------------------------------------------------------------------
 
-instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
-      rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
-
-instance NFData FEnv where
-  rnf (FE x1 _) = rnf x1
-
-instance NFData SubC where
-  rnf (SubC x1 x2 x3)
-    = rnf x1 `seq` rnf x2 `seq` rnf x3
-  rnf (SubR x1 _ x2)
-    = rnf x1 `seq` rnf x2
-
-instance NFData Class where
-  rnf _ = ()
-
-instance NFData RTyCon where
-  rnf _ = ()
-
-instance NFData Type where
-  rnf _ = ()
-
-instance NFData WfC where
-  rnf (WfC x1 x2)
-    = rnf x1 `seq` rnf x2
-
-instance NFData CGInfo where
-  rnf x = ({-# SCC "CGIrnf1" #-}  rnf (hsCs x))       `seq`
-          ({-# SCC "CGIrnf2" #-}  rnf (hsWfs x))      `seq`
-          ({-# SCC "CGIrnf3" #-}  rnf (fixCs x))      `seq`
-          ({-# SCC "CGIrnf4" #-}  rnf (fixWfs x))     `seq`
-          ({-# SCC "CGIrnf6" #-}  rnf (freshIndex x)) `seq`
-          ({-# SCC "CGIrnf7" #-}  rnf (binds x))      `seq`
-          ({-# SCC "CGIrnf8" #-}  rnf (annotMap x))   `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kuts x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (lits x))       `seq`
-          ({-# SCC "CGIrnf10" #-} rnf (kvProf x))
-
--------------------------------------------------------------------------------
---------------------- Reftypes from F.Fixpoint Expressions ----------------------
--------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Reftypes from F.Fixpoint Expressions --------------------------------------
+--------------------------------------------------------------------------------
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
   where
@@ -1889,47 +1745,31 @@ forallExprRefType γ t = t `strengthen` (uTop r')
 forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
 forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
 
---   = do e  <- F.isSingletonReft r
---        r' <- forallExprReft_ γ e
---        return r'
-
 forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
 forallExprReft_ γ (F.EApp f es)
   = case forallExprReftLookup γ (val f) of
       Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> Nothing -- F.exprReft e
+      Nothing       -> Nothing
 
 forallExprReft_ γ (F.EVar x)
   = case forallExprReftLookup γ x of
       Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> Nothing -- F.exprReft e
+      Nothing         -> Nothing
 
-forallExprReft_ _ _ = Nothing -- F.exprReft e
+forallExprReft_ _ _
+  = Nothing
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
-    snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
+    snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
+    lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
-{-
-splitExistsCases z xs tx
-  = fmap $ fmap (exrefAddEq z xs tx)
 
-exrefAddEq z xs t (F.Reft (s, F.Refa rs))
-  = F.Reft(s, F.Refa (F.POr [ pand x | x <- xs]))
-  where
-    tref      = fromMaybe mempty $ stripRTypeBase t
-    pand x    = substzx x rs `mappend` exrefToPred x tref
-    substzx x = F.subst (F.mkSubst [(z, F.EVar x)])
 
-exrefToPred x u             = F.subst (F.mkSubst [(v, F.EVar x)]) p
-  where
-    F.Reft (v, F.Refa p)    = ur_reft u
--}
-
--------------------------------------------------------------------------------
--------------------- Cleaner Signatures For Rec-bindings ----------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Cleaner Signatures For Rec-bindings ---------------------------------------
+--------------------------------------------------------------------------------
 
 exprLoc                         :: CoreExpr -> Maybe SrcSpan
 
@@ -1973,5 +1813,8 @@ extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
 
 
-instance NFData REnv where
-  rnf (REnv _) = () -- rnf m
+--------------------------------------------------------------------------------
+-- | Constraint Generation Panic -----------------------------------------------
+--------------------------------------------------------------------------------
+
+panicUnbound γ x = Ex.throw $ (ErrUnbound (loc γ) (pprint x) :: Error)

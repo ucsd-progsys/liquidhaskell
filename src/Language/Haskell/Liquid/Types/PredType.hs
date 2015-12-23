@@ -109,8 +109,8 @@ dataConTy _ _
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
 ----------------------------------------------------------------------------
 
-replacePredsWithRefs (p, r) (U (Reft(v, rs)) (Pr ps) s)
-  = U (Reft (v, rs'')) (Pr ps2) s
+replacePredsWithRefs (p, r) (MkUReft (Reft(v, rs)) (Pr ps) s)
+  = MkUReft (Reft (v, rs'')) (Pr ps2) s
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
@@ -166,9 +166,9 @@ replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> Spe
 -------------------------------------------------------------------------------------
 replacePreds msg             = foldl' go
   where
-    go z (π, t@(RProp _ _)) = substPred msg   (π, t)     z
-    go _ (_, RPropP _ _)    = error "replacePreds on RPropP"
-    go _ (_, RHProp _ _)    = errorstar "TODO:EFFECTS:replacePreds"
+     go _ (_, RProp _ (RHole _)) = error "replacePreds on RProp _ (RHole _)"
+     go z (π, t) = substPred msg   (π, t)     z
+
 
 -- TODO: replace `replacePreds` with
 -- instance SubsTy RPVar (Ref RReft SpecType) SpecType where
@@ -242,23 +242,16 @@ pad msg _ xs ys
     nxs         = length xs
     nys         = length ys
 
+substPredP _ su p@(RProp _ (RHole _))
+  = errorstar ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where
    ss' = drop n ss ++  s
    n   = length ss - length (freeArgsPs p t)
 
-substPredP _ _  (RHProp _ _)
-  = errorstar "TODO:EFFECTS:substPredP"
 
-substPredP _ su p@(RPropP _ _)
-  = errorstar ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
-
-substPredP _ su p
-  = errorstar ("PredType.substPredP called on invalid inputs" ++ showpp (su, p))
-
-
-splitRPvar pv (U x (Pr pvs) s) = (U x (Pr pvs') s, epvs)
+splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
   where
     (epvs, pvs')               = partition (uPVar pv ==) pvs
 
@@ -289,12 +282,13 @@ freeArgsPs p (RHole r)
 freeArgsPs p (RRTy env r _ t)
   = nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
-freeArgsPsRef p (U _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
+freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (EVar x) == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}
 
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
+
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
 meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
@@ -308,6 +302,10 @@ meetListWithPSub ss r1 r2 π
   where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
+meetListWithPSubRef _ (RProp _ (RHole _)) _ _ -- TODO: Is this correct?
+  = errorstar "PredType.meetListWithPSubRef called with invalid input"
+meetListWithPSubRef _ _ (RProp _ (RHole _)) _
+  = errorstar "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
   = RProp s1 $ (subst su' r2) `meet` r1
@@ -319,8 +317,6 @@ meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
     su' = mkSubst [(x, EVar y) | (x, y) <- zip (fst <$> s2) (fst <$> s1)]
 
-meetListWithPSubRef _ _ _ _
-  = errorstar "PredType.meetListWithPSubRef called with invalid input"
 
 ----------------------------------------------------------------------------
 -- | Interface: Modified CoreSyn.exprType due to predApp -------------------
