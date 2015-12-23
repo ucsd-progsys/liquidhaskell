@@ -53,7 +53,7 @@ data CGEnv
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-        , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked
+        , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
         , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         } -- deriving (Data, Typeable)
@@ -234,7 +234,6 @@ conjoinInvariant t _
 --------------------------------------------------------------------------------
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
-
 
 data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
                , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
