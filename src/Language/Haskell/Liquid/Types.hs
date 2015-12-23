@@ -44,7 +44,7 @@ module Language.Haskell.Liquid.Types (
   , isClassRTyCon, isClassType
 
   -- * Refinement Types
-  , RType (..), Ref(..), RTProp
+  , RType (..), Ref(..), RTProp, rPropP
   , RTyVar (..)
   , RTAlias (..)
 
@@ -152,6 +152,7 @@ module Language.Haskell.Liquid.Types (
   , ErrorResult
   , errSpan
   , errOther
+  , errLocOther
   , errToFCrash
 
   -- * Source information (associated with constraints)
@@ -445,8 +446,8 @@ instance Monoid Predicate where
   mappend p p' = pdAnd [p, p']
 
 instance (Monoid a) => Monoid (UReft a) where
-  mempty                         = U mempty mempty mempty
-  mappend (U x y z) (U x' y' z') = U (mappend x x') (mappend y y') (mappend z z')
+  mempty                         = MkUReft mempty mempty mempty
+  mappend (MkUReft x y z) (MkUReft x' y' z') = MkUReft (mappend x x') (mappend y y') (mappend z z')
 
 
 pdTrue         = Pr []
@@ -475,7 +476,7 @@ instance Subable Qualifier where
 mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r) where
-  rnf (U r p s) = rnf r `seq` rnf p `seq` rnf s
+  rnf (MkUReft r p s) = rnf r `seq` rnf p `seq` rnf s
 
 instance NFData Strata where
   rnf _ = ()
@@ -651,26 +652,18 @@ instance PPrint Oblig where
 --   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
 --   directly to any type and has semantics _independent of_ the data-type.
 
-data Ref τ r t
-  = RPropP {
-      rf_args :: [(Symbol, τ)]
-    , rf_reft :: r
-    }                              -- ^ Parse-time `RProp`
-
-  | RProp  {
+data Ref τ t
+  = RProp  {
       rf_args :: [(Symbol, τ)]
     , rf_body :: t
     }                              -- ^ Abstract refinement associated with `RTyCon`
-
-  | RHProp {
-      rf_args :: [(Symbol, τ)]
-    , rf_heap :: World t
-    }                              -- ^ Abstract heap-refinement associated with `RTyCon`
   deriving (Generic, Data, Typeable)
+
+rPropP τ r = RProp τ (RHole r)
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
 --   In general, perhaps we need not expose @Ref@ directly at all.
-type RTProp c tv r = Ref (RType c tv ()) r (RType c tv r)
+type RTProp c tv r = Ref (RType c tv ()) (RType c tv r)
 
 
 -- | A @World@ is a Separation Logic predicate that is essentially a sequence of binders
@@ -686,7 +679,7 @@ data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
                 deriving (Generic, Data, Typeable)
 
 data UReft r
-  = U { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
+  = MkUReft { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
     deriving (Generic, Data, Typeable)
 
 type BRType     = RType LocSymbol Symbol
@@ -703,7 +696,7 @@ type PrType     = RRType    Predicate
 type BareType   = BRType    RReft
 type SpecType   = RRType    RReft
 type SpecProp   = RRProp    RReft
-type RRProp r   = Ref       RSort r (RRType r)
+type RRProp r   = Ref       RSort (RRType r)
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
@@ -1003,7 +996,7 @@ instance Reftable Strata where
 
 class Reftable r => UReftable r where
   ofUReft :: UReft Reft -> r
-  ofUReft (U r _ _) = ofReft r
+  ofUReft (MkUReft r _ _) = ofReft r
 
 
 instance UReftable (UReft Reft) where
@@ -1015,16 +1008,16 @@ instance UReftable () where
 instance (PPrint r, Reftable r) => Reftable (UReft r) where
   isTauto            = isTauto_ureft
   ppTy               = ppTy_ureft
-  toReft (U r ps _)  = toReft r `meet` toReft ps
-  params (U r _ _)   = params r
-  bot (U r _ s)      = U (bot r) (Pr []) (bot s)
-  top (U r p s)      = U (top r) (top p) s
+  toReft (MkUReft r ps _)  = toReft r `meet` toReft ps
+  params (MkUReft r _ _)   = params r
+  bot (MkUReft r _ s)      = MkUReft (bot r) (Pr []) (bot s)
+  top (MkUReft r p s)      = MkUReft (top r) (top p) s
 
-  ofReft r = U (ofReft r) mempty mempty
+  ofReft r = MkUReft (ofReft r) mempty mempty
 
 isTauto_ureft u      = isTauto (ur_reft u) && isTauto (ur_pred u) -- && (isTauto $ ur_strata u)
 
-ppTy_ureft u@(U r p s) d
+ppTy_ureft u@(MkUReft r p s) d
   | isTauto_ureft  u  = d
   | otherwise         = ppr_reft r (ppTy p d) s
 
@@ -1036,26 +1029,23 @@ ppr_str [] = empty
 ppr_str s  = text "^" <> pprint s
 
 instance Subable r => Subable (UReft r) where
-  syms (U r p _)     = syms r ++ syms p
-  subst s (U r z l)  = U (subst s r) (subst s z) (subst s l)
-  substf f (U r z l) = U (substf f r) (substf f z) (substf f l)
-  substa f (U r z l) = U (substa f r) (substa f z) (substa f l)
+  syms (MkUReft r p _)     = syms r ++ syms p
+  subst s (MkUReft r z l)  = MkUReft (subst s r) (subst s z) (subst s l)
+  substf f (MkUReft r z l) = MkUReft (substf f r) (substf f z) (substf f l)
+  substa f (MkUReft r z l) = MkUReft (substa f r) (substa f z) (substa f l)
 
 instance (Reftable r, RefTypable c tv r) => Subable (RTProp c tv r) where
-  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
   syms (RProp  ss r)     = (fst <$> ss) ++ syms r
-  syms (RHProp _  _)     = error "TODO: PHProp.syms"
 
-  subst su (RPropP ss r) = RPropP ss (subst su r)
+  subst su (RProp ss (RHole r)) = RProp ss (RHole (subst su r))
   subst su (RProp  ss t) = RProp ss (subst su <$> t)
-  subst _  (RHProp _  _) = error "TODO: PHProp.subst"
 
-  substf f (RPropP ss r) = RPropP ss (substf f r)
+  substf f (RProp ss (RHole r)) = RProp ss (RHole (substf f r))
   substf f (RProp  ss t) = RProp ss (substf f <$> t)
-  substf _ (RHProp _  _) = error "TODO PHProp.substf"
-  substa f (RPropP ss r) = RPropP ss (substa f r)
+
+  substa f (RProp ss (RHole r)) = RProp ss (RHole (substa f r))
   substa f (RProp  ss t) = RProp ss (substa f <$> t)
-  substa _ (RHProp _  _) = error "TODO PHProp.substa"
+
 
 instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
   syms        = foldReft (\_ r acc -> syms r ++ acc) []
@@ -1097,7 +1087,7 @@ pappSym n  = symbol $ "papp" ++ show n
 isTrivial t = foldReft (\_ r b -> isTauto r && b) True t
 
 instance Functor UReft where
-  fmap f (U r p s) = U (f r) p s
+  fmap f (MkUReft r p s) = MkUReft (f r) p s
 
 instance Functor (RType a b) where
   fmap  = mapReft
@@ -1124,9 +1114,8 @@ emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r
 emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
-emapRef  f γ (RPropP s r)         = RPropP s $ f γ r
+emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
 emapRef  f γ (RProp  s t)         = RProp s $ emapReft f γ t
-emapRef  _ _ (RHProp _ _)         = error "TODO: PHProp empaReft"
 
 ------------------------------------------------------------------------------------------------------
 -- isBase' x t = traceShow ("isBase: " ++ showpp x) $ isBase t
@@ -1170,9 +1159,7 @@ mapReftM f (RHole r)          = liftM   RHole       (f r)
 mapReftM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapReftM f)) xts) (f r) (return o) (mapReftM f t)
 
 mapRefM  :: (Monad m) => (t -> m s) -> (RTProp c tv t) -> m (RTProp c tv s)
-mapRefM  f (RPropP s r)       = liftM   (RPropP s)     (f r)
-mapRefM  f (RProp  s t)       = liftM   (RProp s)      (mapReftM f t)
-mapRefM  _ (RHProp _ _)       = error "TODO PHProp.mapRefM"
+mapRefM  f (RProp s t)         = liftM   (RProp s)      (mapReftM f t)
 
 
 --------------------------------------------------------------------------------
@@ -1218,9 +1205,8 @@ efoldReft cb g f fp = go
     go γ z me@(RHole r)                 = f γ (Just me) r z
 
     -- folding over Ref
-    ho  γ z (RPropP ss r)               = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
-    ho  γ z (RProp  ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
-    ho  _ _ (RHProp _  _)               = error "TODO: RHProp.ho"
+    ho  γ z (RProp ss (RHole r))       = f (insertsSEnv γ (mapSnd (g . ofRSort) <$> ss)) Nothing r z
+    ho  γ z (RProp ss t)               = go (insertsSEnv γ ((mapSnd (g . ofRSort)) <$> ss)) z t
 
     -- folding over [RType]
     go' γ z ts                 = foldr (flip $ go γ) z ts
@@ -1240,9 +1226,8 @@ mapBot f (REx b t1 t2)     = REx b  (mapBot f t1) (mapBot f t2)
 mapBot f (RAllE b t1 t2)   = RAllE b  (mapBot f t1) (mapBot f t2)
 mapBot f (RRTy e r o t)    = RRTy (mapSnd (mapBot f) <$> e) r o (mapBot f t)
 mapBot f t'                = f t'
-mapBotRef _ (RPropP s r)    = RPropP s $ r
-mapBotRef f (RProp  s t)    = RProp  s $ mapBot f t
-mapBotRef _ (RHProp _ _)    = error "TODO: RHProp.mapBotRef"
+mapBotRef _ (RProp s (RHole r)) = RProp s $ RHole r
+mapBotRef f (RProp s t)    = RProp  s $ mapBot f t
 
 mapBind f (RAllT α t)      = RAllT α (mapBind f t)
 mapBind f (RAllP π t)      = RAllP π (mapBind f t)
@@ -1257,9 +1242,8 @@ mapBind f (RRTy e r o t)   = RRTy e r o (mapBind f t)
 mapBind _ (RExprArg e)     = RExprArg e
 mapBind f (RAppTy t t' r)  = RAppTy (mapBind f t) (mapBind f t') r
 
-mapBindRef f (RPropP s r)   = RPropP (mapFst f <$> s) r
-mapBindRef f (RProp  s t)   = RProp  (mapFst f <$> s) $ mapBind f t
-mapBindRef _ (RHProp _ _)   = error "TODO: RHProp.mapBindRef"
+mapBindRef f (RProp s (RHole r)) = RProp (mapFst f <$> s) (RHole r)
+mapBindRef f (RProp s t)         = RProp (mapFst f <$> s) $ mapBind f t
 
 
 --------------------------------------------------
@@ -1279,8 +1263,8 @@ stripAnnotations (RAppTy t t' r)  = RAppTy (stripAnnotations t) (stripAnnotation
 stripAnnotations (RApp c ts rs r) = RApp c (stripAnnotations <$> ts) (stripAnnotationsRef <$> rs) r
 stripAnnotations (RRTy _ _ _ t)   = stripAnnotations t
 stripAnnotations t                = t
-stripAnnotationsRef (RProp s t)   = RProp s $ stripAnnotations t
-stripAnnotationsRef r             = r
+stripAnnotationsRef (RProp s (RHole r)) = RProp s (RHole r)
+stripAnnotationsRef (RProp s t)         = RProp s $ stripAnnotations t
 
 
 insertsSEnv  = foldr (\(x, t) γ -> insertSEnv x t γ)
@@ -1314,7 +1298,7 @@ mapRBase _ t                = t
 makeLType :: Stratum -> SpecType -> SpecType
 makeLType l t = fromRTypeRep trep{ty_res = mapRBase f $ ty_res trep}
   where trep = toRTypeRep t
-        f (U r p _) = U r p [l]
+        f (MkUReft r p _) = MkUReft r p [l]
 
 
 makeDivType = makeLType SDiv
@@ -1522,6 +1506,8 @@ errSpan = pos
 errOther :: Doc -> Error
 errOther = ErrOther noSrcSpan
 
+errLocOther :: SrcSpan -> Doc -> Error
+errLocOther = ErrOther
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------

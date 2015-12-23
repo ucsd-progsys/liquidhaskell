@@ -12,7 +12,7 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
-import TypeRep 
+import TypeRep
 
 import Prelude hiding (mapM)
 import Control.Arrow ((&&&))
@@ -37,12 +37,12 @@ import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GHC.Misc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
-import Language.Haskell.Liquid.Types.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
+import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
+-- import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
+
 import Language.Haskell.Liquid.Types hiding (binders)
 import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.WiredIn
@@ -76,9 +76,9 @@ makeAxiom lmap cbs _ _ x
     _                  -> throwError $ mkError "Cannot extract measure from haskell function"
   where
 
-    coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
-                            Left l  -> l :: [Def (RRType ()) DataCon] -- return     l
-                            Right _ -> error $ "ERROR" -- throwError e
+    --coreToDef' x v def = case runToLogic lmap mkError $ coreToDef x v def of
+    --                        Left l  -> l :: [Def (RRType ()) DataCon] -- return     l
+    --                        Right _ -> error $ "ERROR" -- throwError e
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
@@ -94,10 +94,12 @@ updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap _ _ _ v | not (isFun $ varType v)
   = return ()
   where
-    isFun (FunTy _ _)    = True 
-    isFun (ForAllTy _ t) = isFun t 
-    isFun  _             = False 
+    isFun (FunTy _ _)    = True
+    isFun (ForAllTy _ t) = isFun t
+    isFun  _             = False
+updateLMap _ _ _ _ = error "updateLMap: failed through to second case, this should never happen!"
 
+{- TODO: unused
 updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
   = insertLogicEnv (val x) ys (makeRunFun (val y) ys)
   where
@@ -106,20 +108,21 @@ updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 
-makeRunFun y ys = go $ reverse ys 
-  where 
+makeRunFun y ys = go $ reverse ys
+  where
     go [x]    = F.EApp (dummyLoc runFunName) [F.EVar y, F.EVar x]
     go (x:xs) = F.EApp (dummyLoc runFunName) [go xs,    F.EVar x]
+-}
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
-makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs 
+makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
+  = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
     t   = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
     tt  = ofType $ varType v
     tr  = toRTypeRep tt
-    res = ty_res tr `strengthen` U ref mempty mempty
+    res = ty_res tr `strengthen` MkUReft ref mempty mempty
 
     llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of
        Left e -> e
@@ -129,17 +132,17 @@ makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
        Right e -> error $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
-    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+    -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
 
     lmap' = lmap -- M.insert v' (LMap v' ys runFun) lmap
 
     mkErr s = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text s)
 
-    mkBinds (x:xs) (v:vs) = v:mkBinds xs vs
-    mkBinds _ _ = []
+    --mkBinds (_:xs) (v:vs) = v:mkBinds xs vs
+    --mkBinds _ _ = []
 
-    v' = val x -- symbol $ showPpr $ getName vv
+    -- v' = val x -- symbol $ showPpr $ getName vv
 
 
 
@@ -215,11 +218,11 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
     xs = (\i -> symbol ("x" ++ show i)) <$> [1..(length ys)]
     x  = F.vv_
 
-    res = ty_res t `strengthen` U ref mempty mempty
+    res = ty_res t `strengthen` MkUReft ref mempty mempty
 
     ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
-    mkApp = F.EApp s . map F.EVar 
+    mkApp = F.EApp s . map F.EVar
 
 
 -- | Type for uninterpreted function that approximated Haskell function into logic
@@ -234,7 +237,7 @@ ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts
     mkType (t:ts) tr = arrowType (defunc t) $ mkType ts tr
 
     defunc (RFun _ tx t _) = arrowType (defunc tx) (defunc t)
-    defunc t               = t 
+    defunc t               = t
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
