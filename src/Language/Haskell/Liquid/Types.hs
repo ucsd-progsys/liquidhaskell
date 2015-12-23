@@ -152,6 +152,7 @@ module Language.Haskell.Liquid.Types (
   , ErrorResult
   , errSpan
   , errOther
+  , errLocOther
   , errToFCrash
 
   -- * Source information (associated with constraints)
@@ -1522,6 +1523,8 @@ errSpan = pos
 errOther :: Doc -> Error
 errOther = ErrOther noSrcSpan
 
+errLocOther :: SrcSpan -> Doc -> Error
+errLocOther = ErrOther
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------

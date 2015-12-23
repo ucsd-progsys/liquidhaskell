@@ -59,10 +59,13 @@ import qualified Data.Text           as T
 import Data.Bifunctor
 import qualified Data.Foldable    as F
 import qualified Data.Traversable as T
+import qualified Control.Exception as Ex
 
 import Text.Printf
 
-import qualified Language.Haskell.Liquid.UX.CTags      as Tg
+import           Language.Haskell.Liquid.UX.PrettyPrint -- (pprint)
+import qualified Language.Haskell.Liquid.UX.CTags       as Tg
+import           Language.Haskell.Liquid.UX.Errors
 import Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Names (symbolString)
@@ -247,9 +250,9 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
     tce            = tcEmbeds sp
     tyi            = tyconEnv sp
 
- ---------------------------------------------------------------------------------------
- ---------------------------------------------------------------------------------------
- ---------------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
+ -------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs autosizes
   = CGE { loc   = noSrcSpan
@@ -500,8 +503,6 @@ rsplitS γ (RProp s1 r1) (RProp s2 r2)
 rsplitS _ _ _
   = errorstar "rspliS Rpoly - RPropP"
 
-
-
 splitfWithVariance f t1 t2 Invariant     = liftM2 (++) (f t1 t2) (f t2 t1) -- return []
 splitfWithVariance f t1 t2 Bivariant     = liftM2 (++) (f t1 t2) (f t2 t1)
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
@@ -645,7 +646,6 @@ bsplitC γ t1 t2
   where
     F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
-
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
   | otherwise = addWarning wrn
@@ -671,10 +671,11 @@ bsplitC' γ t1 t2 pflag
     REnv g = renv γ
 
 
+unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
-       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) ) -- {rt_pargs = r2s'})
+       return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )
 
 unifyVV _ _
   = errorstar $ "Constraint.Generate.unifyVV called on invalid inputs"
@@ -1591,9 +1592,9 @@ caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
+       xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x
        let xt            = shiftVV xt0 x'
-       tdc              <- γ ??= (F.symbol c) >>= refreshVV
+       tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
@@ -1605,7 +1606,7 @@ caseEnv γ x _   (DataAlt c) ys
 
 caseEnv γ x acs a _
   = do let x'  = F.symbol x
-       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x')
+       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
        cγ     <- addBinders γ x' [(x', xt')]
        return cγ
 
@@ -1687,19 +1688,22 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
 
 --------------------------------------------------------------------------------
-(??=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> CG SpecType
+(??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-γ ??= x
-  = case M.lookup x (lcb γ) of
-    Just e  -> consE (γ -= x) e
-    Nothing -> refreshTy $ γ ?= x
-
+γ ??= x = case M.lookup x' (lcb γ) of
+            Just e  -> consE (γ -= x') e
+            Nothing -> refreshTy tx
+          where
+            x' = F.symbol x
+            tx = fromMaybe tt (γ ?= x')
+            tt = ofType $ varType x
 
 
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
+varRefType γ x = varRefType' γ x <$> (γ ??= x)
+
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1755,7 +1759,11 @@ forallExprReft_ _ _
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
-    snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
+    snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
+    lookup z = fromMaybe (die z) (γ ?= F.symbol z)
+    die z    = Ex.throw $ ErrUnbound sp (pprint z)
+    sp       = loc γ
+
 
 
 --------------------------------------------------------------------------------
