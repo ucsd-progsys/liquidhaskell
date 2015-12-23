@@ -1,8 +1,9 @@
 # GHC 7.10
 resolver: nightly-2015-09-24
 
-packages:
+compiler-check: newer-minor
 
+packages:
 - ./prover
 - ./liquid-fixpoint
 - .
