@@ -47,7 +47,7 @@ import Control.Monad.State
 import GHC.Err.Located hiding (error)
 import GHC.Stack
 
-import Data.Maybe               (fromMaybe)
+-- import Data.Maybe               (fromMaybe)
 import qualified Data.HashMap.Strict                as M
 import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Misc
@@ -185,8 +185,8 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
-(?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> SpecType
-γ ?= x  = fromMaybe (errorstar msg) $ lookupREnv x (renv γ)
+(?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType
+γ ?= x  = {- fromMaybe (errorstar msg) $ -} lookupREnv x (renv γ)
   where
     msg = "EnvLookup:: unknown binder " ++ showpp x
                                -- ++ " in renv\n"
