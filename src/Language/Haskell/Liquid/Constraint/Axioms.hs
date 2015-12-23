@@ -95,7 +95,8 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.Types.Literals
 import Language.Haskell.Liquid.Transforms.RefSplit
 import Control.DeepSeq
-import Language.Haskell.Liquid.Constraint.Constraint
+
+-- import Language.Haskell.Liquid.Constraint.Constraint
 import Language.Haskell.Liquid.Constraint.ProofToCore
 
 import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
@@ -164,7 +165,7 @@ instance Provable CoreExpr where
 expProofsCase :: CoreExpr -> CoreAlt -> Pr CoreAlt
 expProofsCase (Var x) (DataAlt c, xs, e)
   = do addVars xs
-       t <- L.lookup (dataConSymbol c) . ae_sigs <$> get
+       t <- L.lookup (symbol c) . ae_sigs <$> get
        addAssert $ makeRefinement t (x:xs)
        res <- liftM (DataAlt c,xs,) (expProofs e)
        rmAssert
@@ -503,7 +504,7 @@ grapInt _          = return 2
 
 
 -------------------------------------------------------------------------------
----------------------  Combine Proofs  ----------------------------------------
+--------------------  Combine Proofs  ----------------------------------------
 -------------------------------------------------------------------------------
 
 makeCombineType Nothing

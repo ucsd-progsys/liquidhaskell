@@ -199,6 +199,7 @@ updateDynFlags cfg = do
   return ()
 -}
 
+{- TODO: unused
 hackOptions :: [String]
 hackOptions =
   [ "-w"
@@ -332,7 +333,7 @@ hackOptions =
   , "-threaded"
   , "-O0"
   , "-Wall"]
-
+-}
 
 
 

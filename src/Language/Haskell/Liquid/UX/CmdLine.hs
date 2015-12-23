@@ -384,7 +384,9 @@ resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 -- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
 
-reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell"
+{-
+   TODO: Never used, do I need to exist?
+reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
 addErrors r []             = r
