@@ -34,7 +34,7 @@ import System.FilePath ( replaceExtension, normalise)
 
 import DynFlags
 import Control.Monad (unless, filterM, foldM, when, forM, forM_, liftM)
-import Data.List (find, nub)
+import Data.List (find, nub, (\\))
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 
@@ -79,7 +79,8 @@ getGhcInfo' :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
 getGhcInfo' hEnv cfg f
   = runGhc (Just libdir) $ {- repM 3 -} do
       _     <- setSessionMb hEnv
-      info  <- getGhcInfo'' cfg f
+      df    <- getDynFlags
+      info  <- defaultCleanupHandler df $ getGhcInfo'' cfg f
       hEnv' <- getSession
       return (info, hEnv')
 
@@ -166,20 +167,20 @@ updateDynFlags cfg
        let df' = df { importPaths  = idirs cfg ++ importPaths df
                     , libraryPaths = idirs cfg ++ libraryPaths df
                     , includePaths = idirs cfg ++ includePaths df
-                    , profAuto     = ProfAutoCalls
+                    -- , profAuto     = ProfAutoCalls
                     , ghcLink      = LinkInMemory
                     --FIXME: this *should* be HscNothing, but that prevents us from
                     -- looking up *unexported* names in another source module..
                     , hscTarget    = HscInterpreted -- HscNothing
                     , ghcMode      = CompManager
                     -- prevent GHC from printing anything
-                    -- , log_action   = \_ _ _ _ _ -> return ()
-                    -- , verbosity = 3
+                    , log_action   = \_ _ _ _ _ -> return ()
+                    -- , verbosity = 2
                     } `xopt_set` Opt_MagicHash
                   --     `gopt_set` Opt_Hpc
                       `gopt_set` Opt_ImplicitImportQualified
                       `gopt_set` Opt_PIC
-                      `gopt_set` Opt_Debug
+                      -- `gopt_set` Opt_Debug
        (df'',_,_) <- parseDynamicFlags df' (map noLoc $ ghcOptions cfg)
        setSessionDynFlags df''
 
@@ -363,7 +364,7 @@ definedVars           = concatMap defs
 getGhcModGuts1 :: FilePath -> Ghc MGIModGuts
 getGhcModGuts1 fn = do
    modGraph <- getModuleGraph
-   case find ((== fn) . msHsFilePath) modGraph of
+   case find (\m -> not (isBootSummary m) && fn == msHsFilePath m) modGraph of
      Just modSummary -> do
        mod_p    <- parseModule modSummary
        mod_guts <- coreModule <$> (desugarModule =<< typecheckModule (ignoreInline mod_p))
@@ -414,7 +415,7 @@ moduleSpec cfg cBinds vars dVars tgtMod mg tgtSpec logicmap impSpecs
     where
       exports    = mgi_exports mg
       impNames   = map (getModString.fst) impSpecs
-      addImports = mapM (addContext . IIDecl . qualImportDecl . getModName . fst)
+      addImports = mapM_ (addContext . IIDecl . qualImportDecl . getModName . fst)
 
 allDepNames = concatMap (map declNameString . ms_textual_imps)
 
@@ -430,7 +431,10 @@ getSpecs rflag tflag target paths names exts
        rlSpec  <- getRealSpec paths rflag
        let fs  = patSpec ++ rlSpec ++ fs'
        liftIO  $ whenLoud $ putStrLn ("getSpecs: " ++ show fs)
-       transParseSpecs exts paths (S.singleton target) mempty (map snd fs)
+       transParseSpecs exts paths (S.singleton target) mempty
+                       -- NOTE: remove target from the initial list of specs
+                       -- in case of cyclic dependencies with hs-boot files
+                       (map snd fs \\ [target])
 
 getPatSpec paths totalitycheck
   | totalitycheck
@@ -480,7 +484,8 @@ moduleFile :: GhcMonad m => [FilePath] -> String -> Ext -> m (Maybe FilePath)
 moduleFile paths name ext
   | ext `elem` [Hs, LHs]
   = do mg <- getModuleGraph
-       case find ((==name) . moduleNameString . ms_mod_name) mg of
+       case find (\m -> not (isBootSummary m) &&
+                        name == moduleNameString (ms_mod_name m)) mg of
          Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
          Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise
