@@ -1,61 +1,7 @@
 TODO
 ====
 
-+ Types
-  + Names.hs
-  + Variance.hs
-  + Dictionaries.hs
-  + Literals.hs
-  + Strata.hs
-  + Visitors.hs
-  + Bounds.hs
-  + RefType.hs
-  + Types.hs
-  + PredType.hs
-
-+ GHC
-  + GhcPlay.hs
-  + GhcInterface.hs
-  + GhcMisc.hs
-
-+ Bare
-
-+ UX
-  + ACSS.hs
-  + Annotate.hs
-  + DiffCheck.hs
-  + CTags
-  + Tidy
-  + Server.hs
-  + CTags.hs
-  + Config.hs
-  + Tidy.hs
-  + Cabal.hs
-  + Errors.hs
-  ? PrettyPrint.hs
-  + CmdLine.hs
-
-+ Transforms
-  + ANFTransform
-  + CoreToLogic.hs
-  + Simplify.hs
-  + TransformRec.hs
-  + ANFTransform.hs
-  ? RefSplit.hs
-
-+ Constraints
-  + Fresh.hs
-
-+ Bare
-  + Measure.hs
-
-Liquid.hs
-Misc.hs
-WiredIn.hs
-Parse.hs
-
-
-Check covariants
+Check Covariance
 ----------------
 
 See https://github.com/ucsd-progsys/liquidhaskell/blob/master/tests/todo/kmpMonad.hs#L55
@@ -68,9 +14,13 @@ Restore LAZYVARS in `Data/Text.hs`, `Data/Text/Unsafe.hs`
 
 Automatically refine *inductors*
 --------------------------------
-Proposed by Valentine: in dependent languages (Coq) inductors (like our `loop` for natural numbers)
+
+Proposed by Valentine: in dependent languages (Coq)
+inductors (like our `loop` for natural numbers)
 automatically get types abstracted over properties.
-Trasversal should create such functions. Maybe we can automatically refine them.
+Trasversal should create such functions.
+Maybe we can automatically refine them.
+
 
 Check refinements using `Eq` and `Ord` info
 -------------------------------------------
