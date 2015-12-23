@@ -273,9 +273,9 @@ instance PPrint RTyVar where
 ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
-instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t s (RType b c p)) where
-  pprint (RPropP ss s) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp  ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+instance (PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t (RType b c p)) where
+  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
+  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 
 ppRefArgs [] = empty

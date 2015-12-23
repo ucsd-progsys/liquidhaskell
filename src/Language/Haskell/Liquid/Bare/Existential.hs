@@ -63,8 +63,9 @@ expToBindT t
   = return t
 
 expToBindReft              :: SpecProp -> State ExSt SpecProp
+expToBindReft (RProp s (RHole r)) = rPropP s <$> expToBindRef r
 expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
-expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
+
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds

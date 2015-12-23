@@ -73,8 +73,8 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     go γ (REx x t t')         = go γ t ++ goBind x t γ t'
     go _ _                    = []
     goRefs c g rs             = concat $ zipWith (goRef g) rs (rTyConPVs c)
-    goRef g (RProp  s t)  _   = go (insertsSEnv g s) t
-    goRef _ (RPropP _ _)  _   = []
+    goRef _ (RProp _ (RHole _)) _ = []
+    goRef g (RProp s t)  _    = go (insertsSEnv g s) t
     insertsSEnv               = foldr (\(x, t) γ -> insertSEnv x (rTypeSort tce t) γ)
 
 refTopQuals lEnv l tce t0 γ t

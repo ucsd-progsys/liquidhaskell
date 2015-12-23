@@ -94,8 +94,9 @@ trueRefType (RRTy e o r t)
 trueRefType t
   = return t
 
+trueRef (RProp _ (RHole _)) = errorstar "trueRef: unexpected RProp _ (RHole _))"
 trueRef (RProp s t) = RProp s <$> trueRefType t
-trueRef _           = errorstar "trueRef: unexpected"
+
 
 
 -----------------------------------------------------------------------------------------------
@@ -135,6 +136,7 @@ refreshRefType (RRTy e o r t)
 refreshRefType t
   = return t
 
+refreshRef (RProp _ (RHole _)) = errorstar "refreshRef: unexpected (RProp _ (RHole _))"
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
-refreshRef _           = errorstar "refreshRef: unexpected"
+
 freshSym (_, t)        = (, t) <$> fresh

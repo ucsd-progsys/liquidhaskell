@@ -164,6 +164,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
   mappend = strengthenRefType
 
 -- MOVE TO TYPES
+{-
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , Reftable r
@@ -172,15 +173,15 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          => Monoid (Ref (RType c tv ()) r (RType c tv (UReft r))) where
   mempty      = errorstar "mempty: RType 2"
   mappend _ _ = errorstar "mappend: RType 2"
-
+-}
 instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ()))
          => Monoid (RTProp b c r) where
   mempty         = errorstar "mempty: RTProp"
 
-  mappend (RPropP s1 r1) (RPropP s2 r2)
-    | isTauto r1 = RPropP s2 r2
-    | isTauto r2 = RPropP s1 r1
-    | otherwise  = RPropP s1 $ r1 `meet`
+  mappend (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
+    | isTauto r1 = RProp s2 (RHole r2)
+    | isTauto r2 = RProp s1 (RHole r1)
+    | otherwise  = RProp s1 $ RHole $ r1 `meet`
                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
 
   mappend (RProp s1 t1) (RProp s2 t2)
@@ -190,20 +191,26 @@ instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, Ref
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
 --   mappend (RPropP s1 t1) (RProp s2 t2) = errorstar "Reftable.mappend on invalid inputs"
-  mappend t1 t2 = errorstar ("Reftable.mappend on invalid inputs" ++ show (t1, t2))
+  --mappend t1 t2 = errorstar ("Reftable.mappend on invalid inputs" ++ show (t1, t2))
 --   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
 instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c)
     => Reftable (RTProp c tv r) where
-  isTauto (RPropP _ r) = isTauto r
-  isTauto (RProp  _ t) = isTrivial t
+  isTauto (RProp _ (RHole r)) = isTauto r
+  isTauto (RProp _ t)  = isTrivial t
+
+  top (RProp _ (RHole _)) = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
   top (RProp xs t)     = RProp xs $ mapReft top t
-  top _                = errorstar "RefType: Reftable top"
-  ppTy (RPropP _ r) d  = ppTy r d
-  ppTy (RProp  _ _) _  = errorstar "RefType: Reftable ppTy in RProp"
+
+  ppTy (RProp _ (RHole r)) d = ppTy r d
+  ppTy (RProp _ _) _   = errorstar "RefType: Reftable ppTy in RProp"
+
   toReft               = errorstar "RefType: Reftable toReft"
+
   params               = errorstar "RefType: Reftable params for Ref"
+
   bot                  = errorstar "RefType: Reftable bot    for Ref"
+
   ofReft               = errorstar "RefType: Reftable ofReft for Ref"
 
 
@@ -212,19 +219,19 @@ instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsT
 ----------------------------------------------------------------------------
 
 instance Subable (RRProp Reft) where
-  syms (RPropP ss r)     = (fst <$> ss) ++ syms r
+  syms (RProp ss (RHole r)) = (fst <$> ss) ++ syms r
   syms (RProp ss t)      = (fst <$> ss) ++ syms t
 
 
-  subst su (RPropP ss r) = RPropP (mapSnd (subst su) <$> ss) $ subst su r
+  subst su (RProp ss (RHole r)) = RProp (mapSnd (subst su) <$> ss) $ RHole $ subst su r
   subst su (RProp ss r)  = RProp  (mapSnd (subst su) <$> ss) $ subst su r
 
 
-  substf f (RPropP ss r) = RPropP (mapSnd (substf f) <$> ss) $ substf f r
-  substf f (RProp  ss r) = RProp  (mapSnd (substf f) <$> ss) $ substf f r
+  substf f (RProp ss (RHole r)) = RProp (mapSnd (substf f) <$> ss) $ RHole $ substf f r
+  substf f (RProp ss r) = RProp  (mapSnd (substf f) <$> ss) $ substf f r
 
-  substa f (RPropP ss r) = RPropP (mapSnd (substa f) <$> ss) $ substa f r
-  substa f (RProp  ss r) = RProp  (mapSnd (substa f) <$> ss) $ substa f r
+  substa f (RProp ss (RHole r)) = RProp (mapSnd (substa f) <$> ss) $ RHole $ substa f r
+  substa f (RProp ss r) = RProp  (mapSnd (substa f) <$> ss) $ substa f r
 
 
 -------------------------------------------------------------------------------
@@ -551,7 +558,7 @@ rtPropPV rc = safeZipWith msg mkRTProp
   where
     msg     = "appRefts: " ++ showFix rc
 
-mkRTProp pv (RPropP ss r)
+mkRTProp pv (RProp ss (RHole r))
   = RProp ss $ (ofRSort $ pvType pv) `strengthen` r
 
 mkRTProp pv (RProp ss t)
@@ -624,9 +631,8 @@ tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show
 ---------------------- Strictness ------------------------------
 ----------------------------------------------------------------
 
-instance (NFData a, NFData b, NFData t) => NFData (Ref t a b) where
-  rnf (RPropP s a) = rnf s `seq` rnf a
-  rnf (RProp  s b) = rnf s `seq` rnf b
+instance (NFData b, NFData t) => NFData (Ref t b) where
+  rnf (RProp s b) = rnf s `seq` rnf b
 
 instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
   rnf (RVar α r)       = rnf α `seq` rnf r
@@ -724,10 +730,11 @@ refAppTyToFun r
   | isTauto r = r
   | otherwise = errorstar "RefType.refAppTyToFun"
 
+subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
+  = RProp (mapSnd (subt (α', τ')) <$> ss) (RHole r)
 subsFreeRef m s (α', τ', t')  (RProp ss t)
   = RProp (mapSnd (subt (α', τ')) <$> ss) $ subsFree m s (α', τ', fmap top t') t
-subsFreeRef _ _ (α', τ', _) (RPropP ss r)
-  = RPropP (mapSnd (subt (α', τ')) <$> ss) r
+
 
 -------------------------------------------------------------------
 ------------------- Type Substitutions ----------------------------
@@ -777,8 +784,8 @@ instance SubsTy Symbol BSort BSort where
   subt (α, τ) = subsTyVar_meet (α, τ, ofRSort τ)
 
 instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty (RTProp c tv (UReft r))  where
-  subt m (RPropP ss p) = RPropP ((mapSnd (subt m)) <$> ss) $ subt m p
-  subt m (RProp  ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
+  subt m (RProp ss (RHole p)) = RProp ((mapSnd (subt m)) <$> ss) $ RHole $ subt m p
+  subt m (RProp ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
 subvUReft f (MkUReft r p s) = MkUReft r (subvPredicate f p) s
