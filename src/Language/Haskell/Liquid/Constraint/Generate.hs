@@ -1696,7 +1696,8 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
           where
             x' = F.symbol x
             tx = fromMaybe tt (γ ?= x')
-            tt = ofType $ varType x
+            tt = panicUnbound γ x
+            -- tt = ofType $ varType x
 
 
 --------------------------------------------------------------------------------
@@ -1760,9 +1761,7 @@ forallExprReft_ _ _
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
-    lookup z = fromMaybe (die z) (γ ?= F.symbol z)
-    die z    = Ex.throw $ ErrUnbound sp (pprint z)
-    sp       = loc γ
+    lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 
 
@@ -1810,3 +1809,10 @@ bindRefType_ γ (NonRec x e)
 
 extendγ γ xts
   = foldr (\(x,t) m -> M.insert x t m) γ xts
+
+
+--------------------------------------------------------------------------------
+-- | Constraint Generation Panic -----------------------------------------------
+--------------------------------------------------------------------------------
+
+panicUnbound γ x = Ex.throw $ (ErrUnbound (loc γ) (pprint x) :: Error)
