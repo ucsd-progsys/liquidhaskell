@@ -49,8 +49,8 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-
     tests = group "Tests" [ unitTests, benchTests ]
+    -- tests = group "Tests" [ selfTests ]
 
 data SmtSolver = Z3 | CVC4 deriving (Show, Read, Eq, Ord, Typeable)
 instance IsOption SmtSolver where
@@ -98,6 +98,11 @@ benchTests
     , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                ["RIO.hs", "DataBase.hs"] (ExitFailure 1)
     ]
 
+selfTests
+  = group "Self" [
+      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
+  ]
+
 ---------------------------------------------------------------------------
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
@@ -113,7 +118,7 @@ isTest f = takeExtension f == ".hs"
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
 ---------------------------------------------------------------------------
 mkTest code dir file
-  = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $ do
+  = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
       if test `elem` knownToFail smt
       then do
         printf "%s is known to fail with %s: SKIPPING" test (show smt)
@@ -137,9 +142,15 @@ binPath pkgName = do
   testPath <- getExecutablePath
   return    $ (takeDirectory $ takeDirectory testPath) </> pkgName </> pkgName
 
-knownToFail CVC4 = [ "tests/pos/linspace.hs", "tests/pos/RealProps.hs", "tests/pos/RealProps1.hs", "tests/pos/initarray.hs"
-                   , "tests/pos/maps.hs", "tests/pos/maps1.hs", "tests/neg/maps.hs"
+knownToFail CVC4 = [ "tests/pos/linspace.hs"
+                   , "tests/pos/RealProps.hs"
+                   , "tests/pos/RealProps1.hs"
+                   , "tests/pos/initarray.hs"
+                   , "tests/pos/maps.hs"
+                   , "tests/pos/maps1.hs"
+                   , "tests/neg/maps.hs"
                    , "tests/pos/Product.hs" ]
+
 knownToFail Z3   = [ "tests/pos/linspace.hs" ]
 
 ---------------------------------------------------------------------------

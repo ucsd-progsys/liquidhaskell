@@ -85,8 +85,8 @@ plugHoles tce tyi x f t (Loc l l' st)
         addHoles = everywhere (mkT $ addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType
-        addHole t@(RVar v r)       = RVar v (f t (uReft ("v", hole)))
-        addHole t@(RApp c ts ps r) = RApp c ts ps (f t (uReft ("v", hole)))
+        addHole t@(RVar v _)       = RVar v (f t (uReft ("v", hole)))
+        addHole t@(RApp c ts ps _) = RApp c ts ps (f t (uReft ("v", hole)))
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = return v

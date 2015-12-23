@@ -273,10 +273,9 @@ instance PPrint RTyVar where
 ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
-instance (Reftable s, PPrint s, PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t s (RType b c p)) where
-  pprint (RPropP ss s) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp  ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
-  pprint (RHProp ss _) = ppRefArgs (fst <$> ss) <+> text "world"
+instance (PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t (RType b c p)) where
+  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
+  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 
 ppRefArgs [] = empty
@@ -286,7 +285,7 @@ ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (U r p _)
+  pprint (MkUReft r p _)
     | isTauto r  = pprint p
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
@@ -321,6 +320,9 @@ pprXOT (x, v) = (xd, pprint v)
   where
     xd = maybe (text "unknown") pprint x
 
+{-
+   TODO: Not exported/never called. Do I have any reason to exist?
+
 ppTable m = vcat $ pprxt <$> xts
   where
     pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)
@@ -331,5 +333,5 @@ ppTable m = vcat $ pprxt <$> xts
 
 maximumWithDefault zero [] = zero
 maximumWithDefault _    xs = maximum xs
-
+-}
 dot                = char '.'

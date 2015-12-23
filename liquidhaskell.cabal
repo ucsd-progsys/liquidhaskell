@@ -66,9 +66,9 @@ Executable liquid
                , process >= 1.2 && < 1.3
                , liquid-fixpoint >= 0.6 && < 0.7
                -- , ghc-options >= 0.2
+               , located-base
                , prover
                , liquidhaskell
-
 
   Main-is: src/Liquid.hs
   ghc-options: -Werror -W  -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
@@ -83,6 +83,7 @@ Executable lhi
                , pretty >= 1.1 && < 1.2
                , liquid-fixpoint >= 0.6 && < 0.7
                -- , ghc-options >= 0.2
+               , located-base
                , prover
                , liquidhaskell
                , network
@@ -129,6 +130,7 @@ Library
                 , hashable >= 1.2 && < 1.3
                 , unordered-containers >= 0.2 && < 0.3
                 , liquid-fixpoint >= 0.6 && < 0.7
+                , located-base
                 , prover
                --  , ghc-options >= 0.2
                 , aeson >= 0.8 && < 0.11
@@ -146,6 +148,7 @@ Library
                     Language.Haskell.Liquid.UX.PrettyPrint,
                     Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint.Constraint,
+                    Language.Haskell.Liquid.Constraint.Env,
                     Language.Haskell.Liquid.Constraint.Types,
                     Language.Haskell.Liquid.Constraint.Axioms,
                     Language.Haskell.Liquid.Constraint.ProofToCore,
@@ -225,9 +228,7 @@ Library
                     Language.Haskell.Liquid.Desugar710.Match,
                     Language.Haskell.Liquid.Desugar710.MatchCon,
                     Language.Haskell.Liquid.Desugar710.MatchLit
-   ghc-options: -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
-   if flag(devel)
-     ghc-options: -Werror
+   ghc-options: -Werror -W -fno-warn-unused-imports -fno-warn-dodgy-imports -fno-warn-deprecated-flags -fno-warn-deprecations -fno-warn-missing-methods -threaded
    if flag(include)
      hs-source-dirs: devel
    ghc-prof-options: -fprof-auto

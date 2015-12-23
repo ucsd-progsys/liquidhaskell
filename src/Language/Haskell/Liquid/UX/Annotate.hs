@@ -208,7 +208,6 @@ mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkS
 mkStatus (Safe)          = ACSS.Safe
 mkStatus (Unsafe _)      = ACSS.Unsafe
 mkStatus (Crash _ _)     = ACSS.Error
-mkStatus _               = ACSS.Crash
 
 mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
 mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls

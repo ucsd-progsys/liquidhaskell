@@ -129,7 +129,7 @@ mkVarExpr v
   | isFunVar v = EApp (varFunSymbol v) []
   | otherwise  = EVar (symbol v)
 
-varFunSymbol = dummyLoc . dataConSymbol . idDataCon
+varFunSymbol = dummyLoc . symbol . idDataCon
 
 isFunVar v   = isDataConId v && not (null αs) && isNothing tf
   where

@@ -302,6 +302,13 @@ checkAbstractRefs t = go t
 
     go' c rs = foldl (\acc (x, y) -> acc <|> checkOne' x y) Nothing (zip rs (rTyConPVs c))
 
+    checkOne' (RProp xs (RHole _)) p
+      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs p)]
+      = Just $ text "Wrong Arguments in" <+> pprint p
+      | length xs /= length (pargs p)
+      = Just $ text "Wrong Number of Arguments in" <+> pprint p
+      | otherwise
+      = Nothing
     checkOne' (RProp xs t) p
       | pvType p /= toRSort t
       = Just $ text "Unexpected Sort in" <+> pprint p
@@ -311,18 +318,11 @@ checkAbstractRefs t = go t
       = Just $ text "Wrong Number of Arguments in" <+> pprint p
       | otherwise
       = go t
-    checkOne' (RPropP xs _) p
-      | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs p)]
-      = Just $ text "Wrong Arguments in" <+> pprint p
-      | length xs /= length (pargs p)
-      = Just $ text "Wrong Number of Arguments in" <+> pprint p
-      | otherwise
-      = Nothing
-    checkOne' _ _ = errorstar "This cannot happen"
+
 
     efold f = foldl (\acc x -> acc <|> f x) Nothing
 
-    check s (U _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
+    check s (MkUReft _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s
                  = Just $ text "Incorrect Sort:\n\t"
