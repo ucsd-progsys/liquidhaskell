@@ -735,7 +735,7 @@ coreBindLits tce info
     dcons        = filter isDCon freeVs
     freeVs       = impVars info ++ (snd <$> freeSyms (spec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
-    dconToSym    = dataConSymbol . idDataCon
+    dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)
 
 
@@ -1593,7 +1593,7 @@ caseEnv γ x _   (DataAlt c) ys
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) <$> γ ??= x'
        let xt            = shiftVV xt0 x'
-       tdc              <- γ ??= (dataConSymbol c) >>= refreshVV
+       tdc              <- γ ??= (F.symbol c) >>= refreshVV
        let (rtd, yts, _) = unfoldR tdc xt ys
        let r1            = dataConReft   c   ys'
        let r2            = dataConMsReft rtd ys'
@@ -1695,8 +1695,10 @@ argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
     Nothing -> refreshTy $ γ ?= x
 
 
+
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
+--------------------------------------------------------------------------------
 varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
@@ -1755,7 +1757,7 @@ forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
-  
+
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

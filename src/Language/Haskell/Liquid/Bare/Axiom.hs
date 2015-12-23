@@ -12,7 +12,7 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
-import TypeRep 
+import TypeRep
 
 import Prelude hiding (mapM)
 import Control.Arrow ((&&&))
@@ -37,12 +37,12 @@ import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GHC.Misc (getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
-import Language.Haskell.Liquid.Types.RefType (dataConSymbol, generalize, ofType, uRType, typeSort)
+import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
+-- import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
+
 import Language.Haskell.Liquid.Types hiding (binders)
 import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.WiredIn
@@ -94,9 +94,9 @@ updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap _ _ _ v | not (isFun $ varType v)
   = return ()
   where
-    isFun (FunTy _ _)    = True 
-    isFun (ForAllTy _ t) = isFun t 
-    isFun  _             = False 
+    isFun (FunTy _ _)    = True
+    isFun (ForAllTy _ t) = isFun t
+    isFun  _             = False
 
 updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
   = insertLogicEnv (val x) ys (makeRunFun (val y) ys)
@@ -106,14 +106,14 @@ updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 
-makeRunFun y ys = go $ reverse ys 
-  where 
+makeRunFun y ys = go $ reverse ys
+  where
     go [x]    = F.EApp (dummyLoc runFunName) [F.EVar y, F.EVar x]
     go (x:xs) = F.EApp (dummyLoc runFunName) [go xs,    F.EVar x]
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs 
+  = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
        return (v, x{val = t})
   where
     t   = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
@@ -219,7 +219,7 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
-    mkApp = F.EApp s . map F.EVar 
+    mkApp = F.EApp s . map F.EVar
 
 
 -- | Type for uninterpreted function that approximated Haskell function into logic
@@ -234,7 +234,7 @@ ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts
     mkType (t:ts) tr = arrowType (defunc t) $ mkType ts tr
 
     defunc (RFun _ tx t _) = arrowType (defunc tx) (defunc t)
-    defunc t               = t 
+    defunc t               = t
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName
