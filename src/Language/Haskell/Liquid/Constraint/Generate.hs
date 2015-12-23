@@ -1587,15 +1587,6 @@ refreshVVRef (RHProp _ _)
 
 
 -------------------------------------------------------------------------------------
-(??=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> CG SpecType
--------------------------------------------------------------------------------------
-γ ??= x
-  = case M.lookup x (lcb γ) of
-    Just e  -> consE (γ -= x) e
-    Nothing -> refreshTy $ γ ?= x
-
-
--------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> CG CGEnv
 -------------------------------------------------------------------------------------
 caseEnv γ x _   (DataAlt c) ys
@@ -1684,9 +1675,9 @@ freshPredRef γ e (PV _ (PVProp τ) _ as)
 freshPredRef _ _ (PV _ PVHProp _ _)
   = errorstar "TODO:EFFECTS:freshPredRef"
 
------------------------------------------------------------------------
----------- Helpers: Creating Refinement Types For Various Things ------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Helpers: Creating Refinement Types For Various Things ---------------------
+--------------------------------------------------------------------------------
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.eVar vy
@@ -1694,7 +1685,18 @@ argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
 
-varRefType :: CGEnv -> Var -> CG SpecType
+
+--------------------------------------------------------------------------------
+(??=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> CG SpecType
+--------------------------------------------------------------------------------
+γ ??= x
+  = case M.lookup x (lcb γ) of
+    Just e  -> consE (γ -= x) e
+    Nothing -> refreshTy $ γ ?= x
+
+
+--------------------------------------------------------------------------------
+varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 varRefType γ x = varRefType' γ x <$> (γ ??= F.symbol x)
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
@@ -1706,7 +1708,6 @@ varRefType' γ x t'
   where
     xr = singletonReft x
     x' = F.symbol x
-
 
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
@@ -1726,7 +1727,6 @@ subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
 --------------------------------------------------------------------------------
 -- | Reftypes from F.Fixpoint Expressions --------------------------------------
 --------------------------------------------------------------------------------
-
 forallExprRefType     :: CGEnv -> SpecType -> SpecType
 forallExprRefType γ t = t `strengthen` (uTop r')
   where
@@ -1741,19 +1741,21 @@ forallExprReft_ γ (F.EApp f es)
   = case forallExprReftLookup γ (val f) of
       Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
                        Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> Nothing -- F.exprReft e
+      Nothing       -> Nothing
 
 forallExprReft_ γ (F.EVar x)
   = case forallExprReftLookup γ x of
       Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> Nothing -- F.exprReft e
+      Nothing         -> Nothing
 
-forallExprReft_ _ _ = Nothing -- F.exprReft e
+forallExprReft_ _ _
+  = Nothing
 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap                 = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . (γ ?=) . F.symbol
 
+  
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

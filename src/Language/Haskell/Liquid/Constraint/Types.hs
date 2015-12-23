@@ -51,11 +51,11 @@ data CGEnv
         , assms  :: !REnv              -- ^ Top-level variables with assumed types
         , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
-        , tgKey :: !(Maybe Tg.TagKey)  -- ^ Current top-level binder
+        , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
-        , lcb   :: !(M.HashMap F.Symbol CoreExpr) -- ^ Let binding that have not been checked
-        , holes :: !HEnv               -- ^ Types with holes, will need refreshing
-        , lcs   :: !LConstraint  -- ^ Logical Constraints
+        , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked
+        , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
+        , lcs   :: !LConstraint                           -- ^ Logical Constraints
         } -- deriving (Data, Typeable)
 
 
