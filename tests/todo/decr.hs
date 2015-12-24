@@ -1,7 +1,20 @@
+-- | The below gives a reasonable error message when
+--   we REMOVE the liquid signature (with the termination metric)
+--   but gives an incomprehensible "termination error" otherwise.
+--   # Issue 1. Why?!
+--
+-- | The above error goes away if you give an explicit HS type
+--   signature, which causes a different GHC core term to be analyzed.
+--   I suppose this is because the refined-type is for the top-level
+--   binder, not the inner-letrec. BUT THEN, we should produce
+--   THE SAME ERROR as if there was NO refined-signature AND add to
+--   the error message, "Please make sure you add a HS type signature too"
+
 module Blank  where
 
 {-@ spacePrefix :: _ -> s:_ -> _ / [len s] @-}
-spacePrefix :: String -> String -> Bool
+
+-- spacePrefix :: String -> String -> Bool
 spacePrefix str (c:cs)
   | isSpace c   = spacePrefix str cs
   | otherwise   = take (length str) (c:cs) == str
