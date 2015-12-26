@@ -442,15 +442,22 @@ Writing Specifications
 Modules WITHOUT code
 --------------------
 
-For a module Foo.Bar.Baz the spec file is
+When checking a file `target.hs`, you can specify an _include_ directory by 
 
-    include/Foo/Bar/Baz.spec
+    liquid -i /path/to/include/  target.hs
+    
+Now, to write specifications for some module `Foo.Bar.Baz` for which
+you _do not_ have the code, you can create a `.spec` file at:
+
+    /path/to/include/Foo/Bar/Baz.spec
 
 See, for example, the contents of
 
-    include/Prelude.spec
-    include/Data/List.spec
-    include/Data/Vector.spec
+    [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
+    [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
+    [include/Data/Vector.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/Vector.spec)
+    
+(**Note**: The above directories are part of the LH prelude, and included by default when running `liquid`.)
 
 Modules WITH code: Data
 -----------------------
