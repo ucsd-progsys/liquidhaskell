@@ -895,7 +895,7 @@ data RTypeRep c tv r
              , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
-             }
+             } 
 
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds ty_labels arrs ty_res
