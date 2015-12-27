@@ -50,7 +50,7 @@ prop_map_append f N ys =
 -}  
 
 prop_map_append f (C x xs) ys = 
-  auto 2  (map f (append (C x xs) ys) == {- <== -} append (map f (C x xs)) (map f ys))
+  auto 2  (map f (append (C x xs) ys) == append (map f (C x xs)) (map f ys))
 {-  
   -- refl (append (map f (C x xs)) (map f ys))
   --   `by` pr1 `by` pr2 `by` pr3 `by` pr4 `by` pr5 
