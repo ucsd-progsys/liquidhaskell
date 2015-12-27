@@ -50,8 +50,9 @@ $(axiomatize
 prop_fusion     :: Eq a => (a -> a) -> (a -> a) -> L a -> Proof
 
 prop_fusion f g N = 
---    refl e1 `by` pr1 `by` pr2 `by` pr3
+--   refl e1 `by` pr1 `by` pr2 `by` pr3
     auto 2 (map f (map g N)  ==  map (compose f g) N)
+{-
   where
     e1  = map f (map g N)
     pr1 = axiom_map_N g
@@ -60,10 +61,12 @@ prop_fusion f g N =
     e3  = N
     pr3 = axiom_map_N (compose f g)
     e4  = map (compose f g) N
+-}
 
 prop_fusion f g (C x xs) = 
    auto 2 (map f (map g (C x xs)) == map (compose f g) (C x xs))
 --    refl e1 `by` pr1 `by` pr2 `by` pr3 `by` pr4 `by` pr5
+{-
   where
     e1 = map f (map g (C x xs))
     pr1 = axiom_map_C g x xs
@@ -76,7 +79,7 @@ prop_fusion f g (C x xs) =
     e5 = C ((compose f g) x) (map (compose f g) xs)
     pr5 = axiom_map_C (compose f g) x xs
     e6 = map (compose f g) (C x xs)
-
+-}
 
 {-@ data L [llen] @-}
 {-@ invariant {v: L a | llen v >= 0} @-}
