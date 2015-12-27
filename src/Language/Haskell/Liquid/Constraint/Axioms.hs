@@ -223,7 +223,7 @@ updateLMap _ _ v | not (isFun $ varType v)
     isFun (ForAllTy _ t) = isFun t 
     isFun  _             = False 
 
-updateLMap lmap x vv
+updateLMap _ x vv
   = insertLogicEnv x' ys (applyArrow (val x) ys)
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
@@ -261,17 +261,13 @@ makeQuery fn i p axioms cts ds env vs
            , q_goal   = P.Pred p
 
            , q_vars   = checkVar  <$> vs      -- local variables
-           , q_ctors  = checkCtor <$> cts     -- constructors: globals with function type
+           , q_ctors  = cts                   -- constructors: globals with function type
            , q_env    = checkEnv  <$> env     -- environment: anything else that can appear in the logic
 
            , q_fname  = fn
            , q_axioms = axioms
            , q_decls  = (P.Pred <$> ds)
            }
-
-checkCtor ct@(P.VarCtor (P.Var x s _) _ _)
-  | isBaseSort s = ct 
-  | otherwise    = ct -- errorstar ("\nCtor:\nNon Basic " ++ show x ++ " :: " ++ show s)
 
 checkEnv pv@(P.Var x s _) 
   | isBaseSort s = pv
@@ -323,10 +319,10 @@ makeCtor c
        return $ makeCtor' tce lmap sigs (c `elem` lvs) c
 
 makeCtor' :: F.TCEmb TyCon -> LogicMap -> [(F.Symbol, SpecType)] -> Bool -> Var -> HVarCtor
-makeCtor' tce lmap sigs islocal  v | islocal
+makeCtor' tce _ _ islocal  v | islocal
   = P.VarCtor (P.Var (F.symbol v) (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
 
-makeCtor' tce lmap sigs islocal  v 
+makeCtor' tce lmap sigs _  v 
   = case M.lookup v (axiom_map lmap) of 
     Nothing -> P.VarCtor (P.Var (F.symbol v) (typeSort tce $ varType v)      v) vs r
     Just x  -> P.VarCtor (P.Var x            (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
