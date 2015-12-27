@@ -116,11 +116,10 @@ getPsSig m pos (RHole r)
 getPsSig _ _ z
   = error $ "getPsSig" ++ show z
 
-getPsSigPs m pos (RPropP _ r) = addps m pos r
-getPsSigPs m pos (RProp  _ t) = getPsSig m pos t
-getPsSigPs _ _   (RHProp _ _) = errorstar "TODO:EFFECTS:getPsSigPs"
+getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
+getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
-addps m pos (U _ ps _) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
   where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon
@@ -128,7 +127,7 @@ ofBDataCon l l' tc αs ps ls πs (c, xts)
   = do c'      <- lookupGhcDataCon c
        ts'     <- mapM (mkSpecType' l ps) ts
        let cs   = map ofType (dataConStupidTheta c')
-       let t0   = rApp tc rs (RPropP [] . pdVarReft <$> πs) mempty
+       let t0   = rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty
        return   $ (c', DataConP l αs πs ls cs (reverse (zip xs ts')) t0 l')
     where
        (xs, ts) = unzip xts

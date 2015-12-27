@@ -67,7 +67,14 @@ import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
 ---------- Top Level Output --------------------------------------
 ------------------------------------------------------------------
 
-makeGhcSpec :: Config -> ModName -> [CoreBind] -> [Var] -> [Var] -> NameSet -> HscEnv -> Either Error LogicMap
+makeGhcSpec :: Config
+            -> ModName
+            -> [CoreBind]
+            -> [Var]
+            -> [Var]
+            -> NameSet
+            -> HscEnv
+            -> Either Error LogicMap
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
@@ -166,7 +173,7 @@ makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
     trep = toRTypeRep t
     xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
 
-    res  = ty_res trep `strengthen` U ref mempty mempty
+    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
     vv   = vv_
     x'   = symbol x --  simpleSymbolVar x
     ref  = Reft (vv, PAtom Eq (EVar vv) eq)

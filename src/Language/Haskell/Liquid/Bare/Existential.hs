@@ -63,9 +63,9 @@ expToBindT t
   = return t
 
 expToBindReft              :: SpecProp -> State ExSt SpecProp
+expToBindReft (RProp s (RHole r)) = rPropP s <$> expToBindRef r
 expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
-expToBindReft (RPropP s r) = RPropP s <$> expToBindRef r
-expToBindReft (RHProp _ _) = errorstar "TODO:EFFECTS:expToBindReft"
+
 
 getBinds :: State ExSt (M.HashMap Symbol (RSort, Expr))
 getBinds
@@ -80,8 +80,8 @@ addExist t x (tx, e) = REx x t' t
         r  = exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (U r (Pr p) l)
-  = mapM expToBind p >>= return . (\p -> U r p l). Pr
+expToBindRef (MkUReft r (Pr p) l)
+  = mapM expToBind p >>= return . (\p -> MkUReft r p l). Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p

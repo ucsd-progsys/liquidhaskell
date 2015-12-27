@@ -103,7 +103,7 @@ instance Resolvable Sort where
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
 
 instance Resolvable (UReft Reft) where
-  resolve l (U r p s) = U <$> resolve l r <*> resolve l p <*> return s
+  resolve l (MkUReft r p s) = MkUReft <$> resolve l r <*> resolve l p <*> return s
 
 instance Resolvable Reft where
   resolve l (Reft (s, ra)) = Reft . (s,) <$> resolve l ra

@@ -26,43 +26,34 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
     pvs                = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
-    go r (RPropP _ r') = r' `meet` r
+    go r (RProp _ (RHole r')) = r' `meet` r
     go r (RProp  _ _ ) = r -- is this correct?
-    go _ (RHProp _ _ ) = errorstar "TODO:EFFECTS:addSymSort"
 
 addSymSort _ _ t
   = t
 
-addSymSortRef _  _ (RHProp _ _) _   = errorstar "TODO:EFFECTS:addSymSortRef"
+
 addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r
                        | otherwise  = errorstar "addSymSortRef: malformed ref application"
-
-
 addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
       t  = ofRSort (pvType p) `strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
-
-addSymSortRef' _ _ p (RProp s t)
-  = RProp xs t
-    where
-      xs = spliceArgs "addSymSortRef 2" s p
-
-addSymSortRef' rc i p (RPropP _ r@(U _ (Pr [up]) _))
-  = RPropP xts r -- (ofRSort (pvType p) `strengthen` r)
+addSymSortRef' rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+  = RProp xts (RHole r) -- (ofRSort (pvType p) `strengthen` r)
     where
       xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
       msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up)
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
-
-addSymSortRef' _ _ _ (RPropP s r)
-  = RPropP s r -- (ofRSort (pvType p) `strengthen` r)
-
-addSymSortRef' _ _ _ _
-  = errorstar "TODO:EFFECTS:addSymSortRef'"
+addSymSortRef' _ _ _ (RProp s (RHole r))
+  = RProp s (RHole r) -- (ofRSort (pvType p) `strengthen` r)
+addSymSortRef' _ _ p (RProp s t)
+  = RProp xs t
+    where
+      xs = spliceArgs "addSymSortRef 2" s p
 
 spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p)
 
