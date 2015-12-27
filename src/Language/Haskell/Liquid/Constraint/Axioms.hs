@@ -147,6 +147,12 @@ instance Provable CoreExpr where
   expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isAuto f = grapInt i >>= expandAutoProof ee e
   expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isAuto f = grapInt i >>= expandAutoProof ee e
 
+
+  expProofs ee@(App (App (Tick _ (Var f)) i) e) | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (App (Var f) i) e)          | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isCases f = grapInt i >>= expandCasesProof ee e
+
   expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
   expProofs (Lam x e)   = addVar x >> liftM  (Lam x) (expProofs e)
   expProofs (Let b e)   = do b' <- expProofs b
@@ -179,6 +185,34 @@ expProofsCase _ (c, xs, e)
 instance Provable CoreAlt where
   expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
 
+expandCasesProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
+expandCasesProof inite e it 
+  = do vs <-  reverse . ae_vars <$> get
+       case L.find (isAlgType . varType) vs of 
+          Nothing -> return inite 
+          Just v  -> makeCases v inite e it  
+
+makeDataCons v = data_cons $ algTyConRhs tc 
+  where
+    t  = varType v 
+    tc = fst $ splitTyConApp t 
+
+makeCases v inite e it = Case (Var v) v (varType v) <$> (mapM go $ makeDataCons v)
+  where
+    go c = do xs <- makeDataConArgs v c 
+              addVars xs
+              t <- L.lookup (symbol c) . ae_sigs <$> get 
+              addAssert $ makeRefinement t (v:xs)
+              proof <- expandAutoProof inite (e) it
+              rmAssert 
+              return (DataAlt c, xs, proof)
+
+makeDataConArgs v dc = mapM freshVar ts 
+  where
+    ts = dataConInstOrigArgTys dc ats
+    ats = snd $ splitTyConApp $ varType v 
+
+
 expandAutoProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
 expandAutoProof inite e it
   =  do ams  <- ae_axioms  <$> get
@@ -191,10 +225,10 @@ expandAutoProof inite e it
 
         foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) x >> (ae_lmap <$> get))) lmap vs'
 
-        let (vs, vlits)  = L.partition (`elem` readVars e') $ {- filter hasBaseType $ -} L.nub vs'
-        let allvs        = L.nub  ((fst . aname <$> ams) ++ cts  ++ vs')
+        let (vs, vlits)  = L.partition (`elem` readVars e') $ nub' vs'
+        let allvs        = nub'  ((fst . aname <$> ams) ++ cts  ++ vs')
         let (cts', vcts) = L.partition (isFunctionType . varType) allvs
-        let usedVs = L.nub (vs++vcts)
+        let usedVs = nub' (vs++vcts)
 
         env    <- makeEnvironment ((L.\\) allvs usedVs) ((L.\\) vlits usedVs)
         ctors  <- mapM makeCtor cts'
@@ -212,7 +246,7 @@ expandAutoProof inite e it
            ) $ -}
           traceShow "\nexpandedExpr\n" $ toCore cmb inite sol
 
-
+nub' = L.nubBy (\v1 v2 -> F.symbol v1 == F.symbol v2)
 
 -- TODO: merge this with the Bare.Axiom.hs
 updateLMap :: LogicMap  -> LocSymbol -> Var -> Pr ()
@@ -483,6 +517,11 @@ getUniq
        ae_index <$> get
 
 
+freshVar :: Type -> Pr Var
+freshVar t = 
+  do n <- getUniq
+     return $ stringVar ("x" ++ show n) t 
+
 freshFilePath :: Pr FilePath
 freshFilePath =
   do fn <- ae_target <$> get
@@ -563,6 +602,7 @@ makeCombineVar τ =  stringVar combineProofsName τ
 
 canIgnore v = isInternal v || isTyVar v
 isAuto    v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v
+isCases   v = isPrefixOfSym "cases" $ dropModuleNames $ F.symbol v
 isProof   v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v
 
 
