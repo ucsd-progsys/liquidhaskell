@@ -93,15 +93,20 @@ makeAxiom lmap cbs _ _ x
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
 
-
 updateLMap :: LogicMap -> LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap _ _ _ v | not (isFun $ varType v)
   = return ()
   where
-    isFun (FunTy _ _)    = True
-    isFun (ForAllTy _ t) = isFun t
-    isFun  _             = False
-updateLMap _ _ _ _ = error "updateLMap: failed through to second case, this should never happen!"
+    isFun (FunTy _ _)    = True 
+    isFun (ForAllTy _ t) = isFun t 
+    isFun  _             = False 
+
+updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
+  = insertLogicEnv (val x) ys (applyArrow (val y) ys)
+  where
+    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+
+    ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
