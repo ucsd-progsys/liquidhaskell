@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Bare.Env (
   , execBare
 
   , insertLogicEnv
+  , insertAxiom
   ) where
 
 import HscTypes
@@ -71,7 +72,11 @@ data BareEnv = BE { modName  :: !ModName
 
 
 
-insertLogicEnv x ys e = modify $ \be -> be {logicEnv = M.insert x (LMap x ys e) $ logicEnv be}
+insertLogicEnv x ys e 
+  = modify $ \be -> be {logicEnv = (logicEnv be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ logicEnv be}}
+
+insertAxiom x s 
+  = modify $ \be -> be {logicEnv = (logicEnv be){axiom_map = M.insert x s $ axiom_map $ logicEnv be}}
 
 setModule m b = b { modName = m }
 

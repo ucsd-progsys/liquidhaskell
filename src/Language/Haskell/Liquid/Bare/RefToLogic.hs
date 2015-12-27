@@ -28,7 +28,7 @@ class Transformable a where
   tx' :: LogicMap -> InlnEnv -> a -> a
   tx' lmap imap x = M.foldrWithKey tx x limap
     where
-      limap       = M.fromList ((mapSnd Left <$> M.toList lmap) ++ (mapSnd Right <$> M.toList imap))
+      limap       = M.fromList ((mapSnd Left <$> (M.toList $ logic_map lmap)) ++ (mapSnd Right <$> M.toList imap))
 
 
 instance (Transformable a) => (Transformable [a]) where

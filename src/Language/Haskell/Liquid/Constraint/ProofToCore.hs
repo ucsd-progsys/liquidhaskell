@@ -24,6 +24,7 @@ type HId       = Id
 type HVar      = Var      HId
 type HAxiom    = Axiom    HId
 type HCtor     = Ctor     HId
+type HVarCtor  = VarCtor     HId
 type HQuery    = Query    HId
 type HInstance = Instance HId
 type HProof    = Proof    HId
@@ -49,7 +50,7 @@ instance ToCore HExpr  where
   toCore c' e (EApp c es) = makeApp (toCore c' e c) (toCore c' e <$> es)
 
 instance ToCore HCtor where
-  toCore c' e c =  toCore c' e $ ctor_var c
+  toCore c' e c =  toCore c' e $ ctor_expr c
 
 instance ToCore HVar where
   toCore _ _ v = H.Var $ var_info v

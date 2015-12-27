@@ -29,13 +29,13 @@ import TysWiredIn
 
 import Control.Applicative
 
-import Language.Fixpoint.Misc (snd3)
+import Language.Fixpoint.Misc (snd3, traceShow)
 import Language.Fixpoint.Types.Names (propConName, isPrefixOfSym)
 import Language.Fixpoint.Types hiding (Error, Def, R, simplify)
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
-import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
+import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..), LM)
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.Types.RefType
@@ -189,8 +189,12 @@ coreToPd e
 --  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
 
 
+instance Show C.CoreExpr where
+  show = showPpr 
+
 coreToLogic :: C.CoreExpr -> LogicM Expr
 coreToLogic = coreToLg . simplify
+
 
 coreToLg :: C.CoreExpr -> LogicM Expr
 coreToLg (C.Let b e)  = subst1 <$> coreToLg e <*>  makesub b
