@@ -57,6 +57,8 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
+import Prover.Defunctionalize
+
 import Debug.Trace (trace)
 
 makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
@@ -64,10 +66,12 @@ makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
 makeAxiom lmap cbs _ _ x
   = case filter ((val x `elem`) . map (dropModuleNames . simplesymbol) . binders) cbs of
     (NonRec v def:_)   -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                             insertAxiom v (val x) 
                              updateLMap lmap x x v
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
                              return ((val x, makeType v), (v, makeAssumeType v):vts, defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
+                             insertAxiom v (val x) 
                              updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
                              return ((val x, makeType v),
@@ -99,17 +103,11 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False 
 
 updateLMap lmap x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = insertLogicEnv (val x) ys (makeRunFun (val y) ys)
+  = insertLogicEnv (val x) ys (applyArrow (val y) ys)
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
-
-
-makeRunFun y ys = go $ reverse ys 
-  where 
-    go [x]    = F.EApp (dummyLoc runFunName) [F.EVar y, F.EVar x]
-    go (x:xs) = F.EApp (dummyLoc runFunName) [go xs,    F.EVar x]
 
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v axm@(Axiom (vv, _) xs _ lhs rhs)

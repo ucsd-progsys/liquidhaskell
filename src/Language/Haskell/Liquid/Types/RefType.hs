@@ -53,6 +53,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- * Manipulating Refinements in RTypes
   , rTypeSortedReft, rTypeSortedReftArrow
   , rTypeSort, rTypeSortArrow
+  , typeSortArrow
   , shiftVV
 
   , mkDataConIdsTy
@@ -104,6 +105,8 @@ import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
+
+import Prover.Defunctionalize
 
 
 strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
@@ -925,7 +928,6 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
 
-
 rTypeSortArrow     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSortArrow tce = typeSortArrow tce . toType
 
@@ -987,15 +989,16 @@ typeUniqueSymbol = symbol . typeUniqueString
 
 typeSortArrow :: TCEmb TyCon -> Type -> Sort
 typeSortArrow tce τ@(ForAllTy _ _)
-  = typeSortForAll tce τ
+  = typeSortForAllArrow tce τ
 typeSortArrow tce (FunTy tx t)
-  = FApp (FApp (FTC arrowFTyCon) (typeSortArrow tce tx)) (typeSortArrow tce t)
+  = arrowSort (typeSortArrow tce tx) (typeSortArrow tce t)
 typeSortArrow tce (TyConApp c τs)
   = fAppTC (tyConFTyCon tce c) (typeSortArrow tce <$> τs)
 typeSortArrow tce (AppTy t1 t2)
   = fApp (typeSortArrow tce t1) [typeSortArrow tce t2]
 typeSortArrow _ τ
   = FObj $ typeUniqueSymbol τ
+
 
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)
@@ -1013,6 +1016,15 @@ tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.look
 
 typeSortForAll tce τ
   = genSort $ typeSort tce tbody
+  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
+        genSort t           = FFunc n [sortSubst su t]
+        (as, tbody)         = splitForAllTys τ
+        su                  = M.fromList $ zip sas (FVar <$>  [0..])
+        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
+        n                   = length as
+
+typeSortForAllArrow tce τ
+  = genSort $ typeSortArrow tce tbody
   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
         genSort t           = FFunc n [sortSubst su t]
         (as, tbody)         = splitForAllTys τ

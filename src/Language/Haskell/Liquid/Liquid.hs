@@ -99,7 +99,7 @@ solveCs cfg tgt cgi info dc
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
-       let res   = ferr sol r
+       let res   = undefined -- ferr sol r
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars = names } { o_errors  = warns} { o_result = res }
     where

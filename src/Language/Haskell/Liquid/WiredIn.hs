@@ -40,6 +40,8 @@ import CoreSyn
 import Data.Monoid
 import Control.Applicative
 
+import Prover.Names
+
 wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
 -----------------------------------------------------------------------
