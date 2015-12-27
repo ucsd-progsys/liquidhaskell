@@ -20,6 +20,11 @@ data Proof = Proof
 auto :: Int -> Bool -> Proof
 auto _ _ = Proof
 
+{-@ cases :: Int -> b:{v:Bool |Prop v} -> Proof @-}
+cases :: Int -> Bool -> Proof
+cases _ _ = Proof
+
+
 axiomatize :: Q [Dec] -> Q [Dec]
 axiomatize q = do d <- q
                   let vts = [(x, t) | FunD x _ <- d, SigD y t <- d, x == y ]
