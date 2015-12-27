@@ -15,6 +15,8 @@ import TypeRep
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.WiredIn
 
+import Language.Fixpoint.Misc (errorstar)
+
 import Prover.Types
 
 import qualified Data.List as L
@@ -70,11 +72,16 @@ combineProofs c _ es = foldl (flip Let) (combine [1..] c (H.Var v) (H.Var <$> vs
       (v:vs, bs) = unzip [let v = (varANF i (exprType e)) in (v, NonRec v e)
                               | (e, i) <- zip es [1..] ]
 
-combine _ c e []             = e
+combine _ _ e []             = e
 combine _ c e' [e]           = c e' e
 combine (i:uniq) c e' (e:es) = Let (NonRec v (c e' e)) (combine uniq c (H.Var v) es)
   where
-  	v = varCombine i (exprType $ c e' e)
+     v = varCombine i (exprType $ c e' e)
+combine _ _ _ _              = errorstar err -- TODO: Does this case have a
+   where                                     -- sane implementation?
+     err = "Language.Haskell.Liquid.Constraint.ProofToCore.combine called with"
+           ++ " empty first argument and non-empty fourth argument. This should"
+           ++ " never happen!"
 
 
 -------------------------------------------------------------------------------
@@ -91,7 +98,7 @@ makeApp :: CoreExpr -> [CoreExpr] -> CoreExpr
 makeApp f es = foldl (flip Let) (foldl App f' (reverse es')) (reverse  bs)
   where
    vts      = resolveVs $ zip ts (exprType <$> es)
-   (as, ts) = bkArrow (exprType f)
+   (_, ts) = bkArrow (exprType f)
    f'       = instantiateVars vts f
    ds       = makeDictionaries dictionaryVar f'
    (bs, es', _) = foldl anf ([], [], [1..]) (ds ++ (instantiateVars vts <$> es))
@@ -124,8 +131,8 @@ instantiateVars vts e = go e (exprType e)
 
 resolveVs :: [(Type, Type)] -> [(Id, Type)]
 resolveVs []                                     = []
-resolveVs ((ForAllTy a t1, t2):ts)               = resolveVs ((t1, t2):ts)
-resolveVs ((t1, ForAllTy a t2):ts)               = resolveVs ((t1, t2):ts)
+resolveVs ((ForAllTy _ t1, t2):ts)               = resolveVs ((t1, t2):ts)
+resolveVs ((t1, ForAllTy _ t2):ts)               = resolveVs ((t1, t2):ts)
 resolveVs ((FunTy   t1 t2, FunTy t1' t2'):ts)    = resolveVs ((t1, t1'):(t2, t2'):ts)
 resolveVs ((AppTy t1 t2, AppTy t1' t2'):ts)      = resolveVs ((t1, t1'):(t2, t2'):ts)
 resolveVs ((TyVarTy a, TyVarTy a'):ts) | a == a' = resolveVs ts
@@ -133,9 +140,9 @@ resolveVs ((TyVarTy a, t):ts)                    = let vts = (resolveVs (substTy
 resolveVs ((t, TyVarTy a):ts)                    = let vts = (resolveVs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
 resolveVs ((TyConApp _ cts,TyConApp _ cts'):ts)  = resolveVs (zip cts cts' ++ ts)
 resolveVs ((LitTy _, LitTy _):ts)                = resolveVs ts
-resolveVs (tt:ts)                                = error $ showPpr tt
+resolveVs (tt:_)                                = error $ showPpr tt
 
-resolveVar a t [] = t
+resolveVar _ t [] = t
 resolveVar a t ((a', t'):ats)
   | a == a'           = resolveVar a' t' ats
   | TyVarTy a'' <- t' = resolveVar a'' t' ats

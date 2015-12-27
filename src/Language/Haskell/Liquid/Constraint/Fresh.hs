@@ -43,8 +43,8 @@ instance Freshable m Integer => Freshable m Reft where
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = errorstar "fresh RReft"
-  true (U r _ s)    = U <$> true r    <*> return mempty <*> true s
-  refresh (U r _ s) = U <$> refresh r <*> return mempty <*> refresh s
+  true (MkUReft r _ s)    = MkUReft <$> true r    <*> return mempty <*> true s
+  refresh (MkUReft r _ s) = MkUReft <$> refresh r <*> return mempty <*> refresh s
 
 instance Freshable m Integer => Freshable m Strata where
   fresh      = (:[]) . SVar <$> fresh
@@ -94,8 +94,9 @@ trueRefType (RRTy e o r t)
 trueRefType t
   = return t
 
+trueRef (RProp _ (RHole _)) = errorstar "trueRef: unexpected RProp _ (RHole _))"
 trueRef (RProp s t) = RProp s <$> trueRefType t
-trueRef _           = errorstar "trueRef: unexpected"
+
 
 
 -----------------------------------------------------------------------------------------------
@@ -135,6 +136,7 @@ refreshRefType (RRTy e o r t)
 refreshRefType t
   = return t
 
+refreshRef (RProp _ (RHole _)) = errorstar "refreshRef: unexpected (RProp _ (RHole _))"
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
-refreshRef _           = errorstar "refreshRef: unexpected"
+
 freshSym (_, t)        = (, t) <$> fresh

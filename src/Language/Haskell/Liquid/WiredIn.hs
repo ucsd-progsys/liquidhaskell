@@ -128,9 +128,9 @@ listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just 
       xs         = "xsListSelector"
       p          = PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar fld)]
       px         = pdVarReft $ PV "p" (PVProp t) (vv Nothing) [(t, fld, EVar x)]
-      lt         = rApp c [xt] [RPropP [] $ pdVarReft p] mempty
+      lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
       xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) px] [RPropP [] $ pdVarReft p] mempty
+      xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
       cargs      = [(xs, xst), (x, xt)]
       fsize z    = EApp (dummyLoc "len") [EVar z]
 
@@ -151,7 +151,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     ps            = mkps pnames (ta:ts) ((fld, EVar fld) : zip flds (EVar <$> flds))
     ups           = uPVar <$> ps
     pxs           = mkps pnames (ta:ts) ((fld, EVar x1) : zip flds (EVar <$> xs))
-    lt            = rApp c (rVar <$> tyvs) (RPropP [] . pdVarReft <$> ups) mempty
+    lt            = rApp c (rVar <$> tyvs) (rPropP [] . pdVarReft <$> ups) mempty
     xts           = zipWith (\v p -> RVar (RTV v) (pdVarReft p)) tvs pxs
     cargs         = reverse $ (x1, rVar tv) : zip xs xts
     pnames        = mks_ "p"
@@ -159,7 +159,7 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
     mks_ x        = (\i -> symbol (x++ show i)) <$> [2..n]
 
 
-pdVarReft = (\p -> U mempty p mempty) . pdVar
+pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
 mkps _  _      _           = error "Bare : mkps"

@@ -1,14 +1,12 @@
 # GHC 7.10
 resolver: nightly-2015-09-24
 
+compiler-check: newer-minor
+
 packages:
 - ./prover
 - ./liquid-fixpoint
 - .
-
-flags:
-  liquid-fixpoint:
-    build-external: true
 
 extra-deps:
 - intern-0.9.1.4
