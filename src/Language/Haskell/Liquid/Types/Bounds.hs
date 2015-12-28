@@ -10,20 +10,19 @@ module Language.Haskell.Liquid.Types.Bounds (
     RBEnv, RRBEnv,
 
     makeBound,
-    envToSub
 
-        ) where
+    ) where
 
 import Text.PrettyPrint.HughesPJ
 
 import Data.List (partition)
 import Data.Maybe
 import Data.Hashable
-import Data.Monoid
+-- import Data.Monoid
 import Data.Bifunctor
 
 import qualified Data.HashMap.Strict as M
-import Control.Applicative           ((<$>))
+-- import Control.Applicative           ((<$>))
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc        (errorstar)
@@ -137,13 +136,6 @@ toUsedPVar penv (PBexp (EApp p es))
      Just q = lookup (val p) penv
 
 toUsedPVar _ _ = error "This cannot happen"
-
-envToSub = go []
-  where
-    go _   []              = error "This cannot happen: envToSub on 0 elems"
-    go _   [(_,_)]         = error "This cannot happen: envToSub on 1 elem"
-    go ack [(_,l), (_, r)] = (reverse ack, l, r)
-    go ack (x:xs)          = go (x:ack) xs
 
 -- `makeRef` is used to make the refinement of the last implication,
 -- thus it can contain both concrete and abstract refinements

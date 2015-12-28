@@ -1,4 +1,47 @@
-module Language.Haskell.Liquid.Constraint.Types where
+
+{-# LANGUAGE BangPatterns              #-}
+
+module Language.Haskell.Liquid.Constraint.Types
+  ( -- * Constraint Generation Monad
+    CG
+
+    -- * Constraint information
+  , CGInfo (..)
+
+    -- * Constraint Generation Environment
+  , CGEnv (..)
+
+    -- * Logical constraints (FIXME: related to bounds?)
+  , LConstraint (..)
+
+    -- * Fixpoint environment
+  , FEnv (..)
+  , initFEnv
+  , insertsFEnv
+
+   -- * Hole Environment
+  , HEnv
+  , fromListHEnv
+  , elemHEnv
+
+   -- * Subtyping Constraints
+  , SubC (..)
+  , FixSubC
+
+   -- * Well-formedness Constraints
+  , WfC (..)
+  , FixWfC
+
+   -- * Invariants
+  , RTyConInv
+  , mkRTyConInv
+  , addRTyConInv
+  , addRInv
+
+  -- * Aliases?
+  , RTyConIAl
+  , mkRTyConIAl
+  ) where
 
 import CoreSyn
 import SrcLoc
@@ -14,7 +57,7 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
 import Control.DeepSeq
-import Data.Monoid              (mconcat)
+-- import Data.Monoid              (mconcat)
 import Data.Maybe               (catMaybes)
 import Control.Monad.State
 
@@ -33,7 +76,6 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
-
 
 type CG = State CGInfo
 
@@ -74,9 +116,11 @@ instance Show CGEnv where
 
 
 
------------------------------------------------------------------
-------------------- Constraints: Types --------------------------
------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Subtyping Constraints -----------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- RJ: what is the difference between these two?
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
@@ -106,12 +150,9 @@ instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
   subS _  c              = c
 
-
-
-
------------------------------------------------------------
--------------------- Generation: Types --------------------
------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Generation: Types ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data CGInfo = CGInfo {
     fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
@@ -165,30 +206,25 @@ pprCGInfo _cgi
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
------------------------------ Helper Types: HEnv -----------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Helper Types: HEnv --------------------------------------------------------
+--------------------------------------------------------------------------------
 
 newtype HEnv = HEnv (S.HashSet F.Symbol)
 
 fromListHEnv = HEnv . S.fromList
 elemHEnv x (HEnv s) = x `S.member` s
 
-
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
--------------------------- Helper Types: Invariants --------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Helper Types: Invariants --------------------------------------------------
+--------------------------------------------------------------------------------
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
 type RTyConIAl = M.HashMap RTyCon [SpecType]
 
+--------------------------------------------------------------------------------
 mkRTyConInv    :: [F.Located SpecType] -> RTyConInv
+--------------------------------------------------------------------------------
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where
     strip      = fourth4 . bkUniv . val
@@ -235,8 +271,8 @@ conjoinInvariant t _
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
-               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+data FEnv = FE { feBinds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
+               , feEnv   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
                }
 
 insertFEnv (FE benv env) ((x, t), i)
@@ -250,7 +286,6 @@ initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
-
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m

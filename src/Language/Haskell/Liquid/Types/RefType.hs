@@ -44,7 +44,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , strengthen
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
-  , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
+  , subsTyVar_meet, subsTyVar_meet', subsTyVar_nomeet
+  , subsTyVars_nomeet, subsTyVars_meet
   , dataConMsReft, dataConReft
   , classBinds
 
@@ -677,10 +678,12 @@ instance PPrint REnv where
 -- TODO: Rewrite subsTyvars with Traversable
 ------------------------------------------------------------------------------------------
 
-subsTyVars_meet       = subsTyVars True
-subsTyVars_nomeet     = subsTyVars False
-subsTyVar_nomeet      = subsTyVar False
-subsTyVar_meet        = subsTyVar True
+subsTyVars_meet        = subsTyVars True
+subsTyVars_nomeet      = subsTyVars False
+subsTyVar_nomeet       = subsTyVar False
+subsTyVar_meet         = subsTyVar True
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
+
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 subsTyVar meet        = subsFree meet S.empty
 
