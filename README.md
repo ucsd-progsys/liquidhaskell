@@ -21,18 +21,17 @@ In addition to the .cabal dependencies you require an SMTLIB2 compatible solver 
 If on Windows, please make sure to place the binary and any associated DLLs somewhere 
 in your path.
 
-
 How To Build and Install
 ------------------------
 
 Simply do:
 
+    git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
+    cd liquid-fixpoint
     stack install
 
-or
+or (`cabal` instead of `stack` if you prefer.)
 
-    cabal install
-  
 
 Using SMTLIB-based SMT Solvers
 ------------------------------
@@ -47,28 +46,6 @@ Currently, we support
     * CVC4
     * MathSat
 
-Building With Z3 (Optional)
----------------------------
-
-As of now, you can **ONLY link with Z3 on Linux**
-
-These other things are required
-
-- the GNU multiprecision library
-- a recent OCaml compiler
-- the CamlIDL library
-
-1. Install the above on a recent Linux by
-
-    sudo apt-get install haskell-platform ocaml camlidl g++ libgmp3c2
-
-2. Modify `configure` to set
-
-    Z3MEM=true
-
-3. Install as usual
-
-    cabal install
 
 
 Configuration Management
