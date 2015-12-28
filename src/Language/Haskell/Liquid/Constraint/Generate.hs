@@ -953,6 +953,8 @@ consE γ e'@(App e (Type τ))
        t'         <- refreshVV t
        instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
 
+-- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
+-- out to the top-level.
 consE γ e'@(App e a) | isDictionary a
   = if isJust tt
       then return $ fromJust tt

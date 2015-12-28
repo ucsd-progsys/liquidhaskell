@@ -8,7 +8,8 @@
 module Language.Haskell.Liquid.UX.Errors (tidyError, exitWithPanic) where
 
 
-import           Control.Applicative                 ((<$>), (<*>))
+-- import           Data.Monoid                         hiding ((<>))
+-- import           Control.Applicative                 ((<$>), (<*>))
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
@@ -18,7 +19,6 @@ import qualified Data.HashSet                        as S
 import           Data.Hashable
 import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
-import           Data.Monoid                         hiding ((<>))
 import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
 import           Language.Haskell.Liquid.UX.PrettyPrint
@@ -41,6 +41,7 @@ tidyError sol
   . tidyErrContext sol
   . applySolution sol
 
+tidyErrContext :: FixSolution -> TError SpecType -> TError SpecType
 tidyErrContext _ err@(ErrSubType {})
   = err { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
@@ -136,50 +137,56 @@ instance Exception [Error]
 ------------------------------------------------------------------------
 ppError :: (PPrint a, Show a) => Tidy -> TError a -> Doc
 ------------------------------------------------------------------------
-
 ppError k e  = ppError' k (pprintE $ errSpan e) e
 pprintE l    = pprint l <> text ": Error:"
-
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
-
 sepVcat d ds = vcat $ intersperse d ds
 blankLine    = sizedText 5 " "
 
-------------------------------------------------------------------------
+ppFull :: Tidy -> Doc -> Doc
+ppFull Full  d = d
+ppFull Lossy _ = empty
+
+ppReqInContext :: (PPrint t, PPrint c) => t -> t -> c -> Doc
+ppReqInContext tA tE c
+  = sepVcat blankLine
+      [ nests 2 [ text "Inferred type"
+                , text "VV :" <+> pprint tA]
+      , nests 2 [ text "not a subtype of Required type"
+                , text "VV :" <+> pprint tE]
+      , nests 2 [ text "In Context"
+                , pprint c                 ]]
+
+
+ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc
+ppPropInContext p c
+  = sepVcat blankLine
+      [ nests 2 [ text "Property"
+                , pprint p]
+      , nests 2 [ text "Not provable in context"
+                , pprint c                 ]]
+
+--------------------------------------------------------------------------------
+ppOblig :: Oblig -> Doc
+--------------------------------------------------------------------------------
+ppOblig OCons = text "Constraint Check"
+ppOblig OTerm = text "Termination Check"
+ppOblig OInv  = text "Invariant Check"
+
+--------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+ppError' td dSp (ErrAssType _ o _ c p)
+  = dSp <+> ppOblig o
+        $+$ (ppFull td $ ppPropInContext p c)
 
-ppError' _ dSp (ErrAssType _ OCons _ _)
-  = dSp <+> text "Constraint Check"
-
-ppError' _ dSp (ErrAssType _ OTerm _ _)
-  = dSp <+> text "Termination Check"
-
-ppError' _ dSp (ErrAssType _ OInv _ _)
-  = dSp <+> text "Invariant Check"
-
-ppError' Lossy dSp (ErrSubType _ _ _ _ _)
+ppError' td dSp (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
+        $+$ (ppFull td $ ppReqInContext tA tE c)
 
-ppError' Full  dSp (ErrSubType _ _ c tA tE)
-  = dSp <+> text "Liquid Type Mismatch"
-        $+$ sepVcat blankLine
-              [ nests 2 [ text "Inferred type"
-                        , text "VV :" <+> pprint tA]
-              , nests 2 [ text "not a subtype of Required type"
-                        , text "VV :" <+> pprint tE]
-              , nests 2 [ text "In Context"
-                        , pprint c                 ]]
-
-ppError' _  dSp (ErrFCrash _ _ c tA tE)
+ppError' td  dSp (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
-        $+$ sepVcat blankLine
-              [ nests 2 [ text "Inferred type"
-                        , text "VV :" <+> pprint tA]
-              , nests 2 [ text "Required type"
-                        , text "VV :" <+> pprint tE]
-              , nests 2 [ text "Context"
-                        , pprint c                 ]]
+        $+$ (ppFull td $ ppReqInContext tA tE c)
 
 ppError' _ dSp (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
