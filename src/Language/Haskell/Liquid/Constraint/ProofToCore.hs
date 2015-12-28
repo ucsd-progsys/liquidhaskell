@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
 module Language.Haskell.Liquid.Constraint.ProofToCore where
 
@@ -7,6 +8,7 @@ import CoreSyn hiding (Expr, Var)
 import qualified CoreSyn as H
 
 import Var hiding (Var)
+import qualified Var as V 
 import CoreUtils
 
 import Type hiding (Var)
@@ -15,10 +17,10 @@ import TypeRep
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Fixpoint.Misc (errorstar)
+import Language.Fixpoint.Misc 
 
 import Prover.Types
-
+import Language.Haskell.Liquid.Transforms.CoreToLogic ()
 import qualified Data.List as L
 import Data.Maybe (fromMaybe)
 
@@ -97,12 +99,16 @@ combine _ _ _ _              = errorstar err -- TODO: Does this case have a
 makeApp :: CoreExpr -> [CoreExpr] -> CoreExpr
 makeApp f es = foldl (flip Let) (foldl App f' (reverse es')) (reverse  bs)
   where
-   vts      = resolveVs $ zip (dropWhile isClassPred ts) (exprType <$> es)
-   (_, ts) = bkArrow (exprType f)
+   vts      = resolveVs as $ zip (dropWhile isClassPred ts) (exprType <$> es)
+   (as, ts) = bkArrow (exprType f)
    f'       = instantiateVars vts f
    ds       = makeDictionaries dictionaryVar f'
    (bs, es', _) = foldl anf ([], [], [1..]) (ds ++ (instantiateVars vts <$> es))
 
+
+instance Show Type where
+  show (TyVarTy v) = show $ tvId v 
+  show t           = showPpr t 
 
 -- | ANF
 anf :: ([CoreBind], [CoreExpr], [Int]) -> CoreExpr -> ([CoreBind], [CoreExpr], [Int])
@@ -121,26 +127,26 @@ makeDictionaries dname e = go (exprType e)
 
 makeDictionary dname t = App (H.Var dname) (Type t)
 
-
-
 -- | Filling up types
 instantiateVars vts e = go e (exprType e)
   where
-    go e (ForAllTy a t) = go (App e (Type $ fromMaybe (TyVarTy a) $ L.lookup a vts)) t
-    go e _ = e
+    go e (ForAllTy a t) = go (App e (Type $ fromMaybe (TyVarTy a) $ L.lookup a vts)) t 
+    go e _              = e
 
-resolveVs :: [(Type, Type)] -> [(Id, Type)]
-resolveVs []                                     = []
-resolveVs ((ForAllTy _ t1, t2):ts)               = resolveVs ((t1, t2):ts)
-resolveVs ((t1, ForAllTy _ t2):ts)               = resolveVs ((t1, t2):ts)
-resolveVs ((FunTy   t1 t2, FunTy t1' t2'):ts)    = resolveVs ((t1, t1'):(t2, t2'):ts)
-resolveVs ((AppTy t1 t2, AppTy t1' t2'):ts)      = resolveVs ((t1, t1'):(t2, t2'):ts)
-resolveVs ((TyVarTy a, TyVarTy a'):ts) | a == a' = resolveVs ts
-resolveVs ((TyVarTy a, t):ts)                    = let vts = (resolveVs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
-resolveVs ((t, TyVarTy a):ts)                    = let vts = (resolveVs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
-resolveVs ((TyConApp _ cts,TyConApp _ cts'):ts)  = resolveVs (zip cts cts' ++ ts)
-resolveVs ((LitTy _, LitTy _):ts)                = resolveVs ts
-resolveVs (tt:_)                                = errorstar $ ("cannot resolve " ++ showPpr tt)
+resolveVs :: [Id] -> [(Type, Type)] -> [(Id, Type)]
+resolveVs as  ts = go as ts 
+  where 
+    go _   []                                     = []
+    go fvs ((ForAllTy v t1, t2):ts)               = go (v:fvs) ((t1, t2):ts)
+    go fvs ((t1, ForAllTy v t2):ts)               = go (v:fvs) ((t1, t2):ts)
+    go fvs ((FunTy t1 t2, FunTy t1' t2'):ts)      = go fvs ((t1, t1'):(t2, t2'):ts)
+    go fvs ((AppTy t1 t2, AppTy t1' t2'):ts)      = go fvs ((t1, t1'):(t2, t2'):ts)
+    go fvs ((TyVarTy a, TyVarTy a'):ts) | a == a' = go fvs ts
+    go fvs ((TyVarTy a, t):ts) | a `elem` fvs     = let vts = (go fvs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
+    go fvs ((t, TyVarTy a):ts) | a `elem` fvs     = let vts = (go fvs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
+    go fvs ((TyConApp _ cts,TyConApp _ cts'):ts)  = go fvs (zip cts cts' ++ ts)
+    go fvs ((LitTy _, LitTy _):ts)                = go fvs ts
+    go _   (tt:_)                                 = errorstar $ ("cannot resolve " ++ show tt ++ (" for ") ++ show ts)
 
 resolveVar _ t [] = t
 resolveVar a t ((a', t'):ats)

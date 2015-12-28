@@ -267,11 +267,12 @@ ppr_name                      = text . symbolString
 
 instance PPrint RTyVar where
   pprint (RTV α)
-   | ppTyVar ppEnv = ppr_tyvar α
-   | otherwise     = ppr_tyvar_short α
+   | True  = ppr_tyvar α
+--    | ppTyVar ppEnv = ppr_tyvar α
+--    | otherwise     = ppr_tyvar_short α
 
 ppr_tyvar       = text . tvId
-ppr_tyvar_short = text . showPpr
+-- ppr_tyvar_short = text . showPpr
 
 instance (PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t (RType b c p)) where
   pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
