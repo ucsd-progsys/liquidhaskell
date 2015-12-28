@@ -184,7 +184,7 @@ module Language.Haskell.Liquid.Types (
   , makeDivType, makeFinType
 
   -- * CoreToLogic
-  , LogicMap, toLogicMap, eAppWithMap, LMap(..)
+  , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
   , RDEnv, DEnv(..), RInstance(..)
@@ -325,11 +325,13 @@ data GhcSpec = SP {
   , proofType  :: Maybe Type
   }
 
-type LogicMap = M.HashMap Symbol LMap
+data LogicMap = LM { logic_map :: M.HashMap Symbol LMap
+                   , axiom_map :: M.HashMap Var Symbol
+                   } deriving (Show)
 
 instance Monoid LogicMap where
-  mempty  = M.empty
-  mappend = M.union
+  mempty                        = LM M.empty M.empty
+  mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
 
 data LMap = LMap { lvar  :: Symbol
                  , largs :: [Symbol]
@@ -340,16 +342,21 @@ instance Show LMap where
   show (LMap x xs e) = show x ++ " " ++ show xs ++ "\t|->\t" ++ show e
 
 
-toLogicMap = M.fromList . map toLMap
+toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
   where
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) lmap
-  = subst (mkSubst $ zip xs es) e
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  = subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
   | otherwise
   = def
 
+-- HACK for currying, but it only works on runFun things
+-- TODO: make it work for any curried function
+dropArgs 0 e = e 
+dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
+dropArgs n e = error $ "dropArgs on " ++ show (n, e) 
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
@@ -888,7 +895,7 @@ data RTypeRep c tv r
              , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
-             }
+             } 
 
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds ty_labels arrs ty_res

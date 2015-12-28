@@ -26,6 +26,7 @@ type HId       = Id
 type HVar      = Var      HId
 type HAxiom    = Axiom    HId
 type HCtor     = Ctor     HId
+type HVarCtor  = VarCtor     HId
 type HQuery    = Query    HId
 type HInstance = Instance HId
 type HProof    = Proof    HId
@@ -51,7 +52,7 @@ instance ToCore HExpr  where
   toCore c' e (EApp c es) = makeApp (toCore c' e c) (toCore c' e <$> es)
 
 instance ToCore HCtor where
-  toCore c' e c =  toCore c' e $ ctor_var c
+  toCore c' e c =  toCore c' e $ ctor_expr c
 
 instance ToCore HVar where
   toCore _ _ v = H.Var $ var_info v
@@ -96,7 +97,7 @@ combine _ _ _ _              = errorstar err -- TODO: Does this case have a
 makeApp :: CoreExpr -> [CoreExpr] -> CoreExpr
 makeApp f es = foldl (flip Let) (foldl App f' (reverse es')) (reverse  bs)
   where
-   vts      = resolveVs $ zip ts (exprType <$> es)
+   vts      = resolveVs $ zip (dropWhile isClassPred ts) (exprType <$> es)
    (_, ts) = bkArrow (exprType f)
    f'       = instantiateVars vts f
    ds       = makeDictionaries dictionaryVar f'
@@ -139,7 +140,7 @@ resolveVs ((TyVarTy a, t):ts)                    = let vts = (resolveVs (substTy
 resolveVs ((t, TyVarTy a):ts)                    = let vts = (resolveVs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
 resolveVs ((TyConApp _ cts,TyConApp _ cts'):ts)  = resolveVs (zip cts cts' ++ ts)
 resolveVs ((LitTy _, LitTy _):ts)                = resolveVs ts
-resolveVs (tt:_)                                = error $ showPpr tt
+resolveVs (tt:_)                                = errorstar $ ("cannot resolve " ++ showPpr tt)
 
 resolveVar _ t [] = t
 resolveVar a t ((a', t'):ats)
