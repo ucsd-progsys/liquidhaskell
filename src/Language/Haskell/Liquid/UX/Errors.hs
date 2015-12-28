@@ -42,16 +42,23 @@ tidyError sol
   . applySolution sol
 
 tidyErrContext :: FixSolution -> TError SpecType -> TError SpecType
-tidyErrContext _ err@(ErrSubType {})
-  = err { ctx = c', tact = subst θ tA, texp = subst θ tE }
+tidyErrContext _ e@(ErrSubType {})
+  = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
-      (θ, c') = tidyCtx xs $ ctx err
+      (θ, c') = tidyCtx xs $ ctx e
       xs      = syms tA ++ syms tE
-      tA      = tact err
-      tE      = texp err
+      tA      = tact e
+      tE      = texp e
 
-tidyErrContext _ err
-  = err
+tidyErrContext _ e@(ErrAssType {})
+  = e { ctx = c', cond = subst θ p }
+    where
+      (θ, c') = tidyCtx xs $ ctx e
+      xs      = syms p
+      p       = cond e
+
+tidyErrContext _ e
+  = e
 
 ---------------------------------------------------------------------------------
 tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
