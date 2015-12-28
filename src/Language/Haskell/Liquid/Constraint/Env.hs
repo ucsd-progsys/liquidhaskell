@@ -138,7 +138,7 @@ addCGEnv tx γ (_, x, t')
 
 rTypeSortedReft' pflag γ
   | pflag
-  = pruneUnsortedReft (fe_env $ fenv γ) . f
+  = pruneUnsortedReft (feEnv $ fenv γ) . f
   | otherwise
   = f
   where
@@ -186,13 +186,4 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
 (?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType
-γ ?= x  = {- fromMaybe (errorstar msg) $ -} lookupREnv x (renv γ)
-  -- where
-    -- msg = "EnvLookup:: unknown binder " ++ showpp x
-                               -- ++ " in renv\n"
-                               -- ++ showpp (renv γ)
-
---------------------------------------------------------------------------------
--- lookupEnv :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType
---------------------------------------------------------------------------------
--- lookupEnv γ x = lookupREnv x (renv γ)
+γ ?= x  = lookupREnv x (renv γ)

@@ -103,7 +103,6 @@ module Language.Haskell.Liquid.Types (
   -- * ???
   , Oblig(..)
   , ignoreOblig
-  , addTermCond
   , addInvCond
 
 
@@ -354,9 +353,9 @@ eAppWithMap lmap f es def
 
 -- HACK for currying, but it only works on runFun things
 -- TODO: make it work for any curried function
-dropArgs 0 e = e 
+dropArgs 0 e = e
 dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
-dropArgs n e = error $ "dropArgs on " ++ show (n, e) 
+dropArgs n e = error $ "dropArgs on " ++ show (n, e)
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
@@ -636,7 +635,7 @@ data RType c tv r
 data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
-  | OCons -- ^ Obligation that proves constraints
+  | OCons -- ^ Obligation that proves subtyping constraints
   deriving (Generic, Data, Typeable)
 
 ignoreOblig (RRTy _ _ _ t) = t
@@ -895,7 +894,7 @@ data RTypeRep c tv r
              , ty_refts  :: [r]
              , ty_args   :: [RType c tv r]
              , ty_res    :: (RType c tv r)
-             } 
+             }
 
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds ty_labels arrs ty_res
@@ -946,8 +945,6 @@ rFun b t t' = RFun b t t' mempty
 rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] mempty
 rRCls rc ts = RApp rc ts [] mempty
 
-addTermCond = addObligation OTerm
-
 addInvCond :: SpecType -> RReft -> SpecType
 addInvCond t r'
   | isTauto $ ur_reft r' -- null rv
@@ -963,14 +960,7 @@ addInvCond t r'
     rx   = PIff (PBexp $ EVar v) $ subst1 rv su
     Reft(v, rv) = ur_reft r'
 
-addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
-  where
-    (αs, πs, ls, t1) = bkUniv t
-    (xs, ts, rs, t2) = bkArrow t1
-    xts              = zip3 xs ts rs
-
---------------------------------------------
+-------------------------------------------
 
 instance Subable Stratum where
   syms (SVar s) = [s]
