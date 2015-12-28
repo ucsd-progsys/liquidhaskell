@@ -85,18 +85,12 @@ solve cfg fi
                    res <- sW s cfg $!! fi
                    return          $!! res {- FIXME make this $!! -}
   where
-    s         = configSolver cfg
-    sW        = configSW     cfg
+    s         = solveNative
+    sW        = configSW cfg
 
 saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
 saveBin cfg fi = when (binary cfg) $ saveBinaryFile cfg fi
   -- putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
-
-
-configSolver   :: (NFData a, Fixpoint a) => Config -> Solver a
-configSolver cfg
-  | extSolver cfg = solveExt
-  | otherwise     = solveNative
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
@@ -217,68 +211,6 @@ remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
   where
     msg      = "REMAKEQUAL: " ++ show q
-
----------------------------------------------------------------------------
--- | External Ocaml Solver ------------------------------------------------
----------------------------------------------------------------------------
-solveExt :: (Fixpoint a) => Solver a
-solveExt cfg fi =   {-# SCC "Solve"  #-} execFq cfg fn fi
-                >>= {-# SCC "exitFq" #-} exitFq fn (cm fi)
-  where
-    fn          = fileName fi -- srcFile cfg
-
-execFq :: (Fixpoint a) => Config -> FilePath -> FInfo a -> IO ExitCode
-execFq cfg fn fi
-  = do ensurePath fq
-       writeFile fq $ render $ {-# SCC "FixPointify" #-} toFixpoint cfg fi
-       solveFile $ cfg `withTarget` fq
-    where
-       fq   = extFileName Fq fn
-
-solveFile :: Config -> IO ExitCode
-solveFile cfg
-  = do fp <- getFixpointPath
-       z3 <- getZ3LibPath
-       v  <- (\b -> if b then "-v 1" else "") <$> isLoud
-       {-# SCC "sysCall:Fixpoint" #-} executeShellCommand "fixpoint" $ fixCommand fp z3 v
-    where
-      fixCommand fp z3 verbosity
-        = printf "LD_LIBRARY_PATH=%s %s %s %s -notruekvars -refinesort -nosimple -strictsortcheck -sortedquals %s %s"
-          z3 fp verbosity rf newcheckf (command cfg)
-        where
-          rf  = if real cfg then realFlags else ""
-          newcheckf = if newcheck cfg then "-newcheck" else ""
-
-realFlags :: String
-realFlags =  "-no-uif-multiply "
-          ++ "-no-uif-divide "
-
-
-exitFq :: (Fixpoint a) => FilePath -> M.HashMap Integer (SubC a) -> ExitCode -> IO (Result a)
-exitFq _ _ (ExitFailure n) | n /= 1
-  = return $ Result (Crash [] "Unknown Error") M.empty
-exitFq fn z _
-  = do str <- {-# SCC "readOut" #-} readFile (extFileName Out fn)
-       let (x, y) = parseFixpointOutput str
-       let x'     = fmap (mlookup z) x
-       return     $ Result (sinfo <$> x') y
-
-parseFixpointOutput :: String -> (FixResult Integer, FixSolution)
-parseFixpointOutput str = {-# SCC "parseFixOut" #-} rr ({-# SCC "sanitizeFixpointOutput" #-} sanitizeFixpointOutput str)
-
-sanitizeFixpointOutput :: String -> String
-sanitizeFixpointOutput
-  = unlines
-  . filter (not . ("//"     `isPrefixOf`))
-  . chopAfter ("//QUALIFIERS" `isPrefixOf`)
-  . lines
-
-chopAfter ::  (a -> Bool) -> [a] -> [a]
-chopAfter f xs
-  = case findIndex f xs of
-      Just n  -> take n xs
-      Nothing -> xs
-
 
 ---------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ----------------------------------

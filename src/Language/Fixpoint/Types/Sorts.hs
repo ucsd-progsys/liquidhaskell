@@ -40,33 +40,21 @@ module Language.Fixpoint.Types.Sorts (
   , functionSort
   ) where
 
-import           Debug.Trace               (trace)
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
 import           Data.Hashable
-import           Data.List                 (partition, foldl', sort, sortBy)
-import           Data.String
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T
-import           GHC.Conc                  (getNumProcessors)
+import           Data.List                 (foldl')
 import           Control.DeepSeq
-import           Data.Maybe                (isJust, mapMaybe, listToMaybe, fromMaybe)
-import           Text.Printf               (printf)
-import           Language.Fixpoint.Types.Config
+import           Data.Maybe                (fromMaybe)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
-import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Misc
-import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
-import           Data.Array                hiding (indices)
 import qualified Data.HashMap.Strict       as M
-import qualified Data.HashSet              as S
 
 
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)

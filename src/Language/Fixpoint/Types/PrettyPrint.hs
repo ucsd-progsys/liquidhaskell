@@ -5,7 +5,6 @@
 module Language.Fixpoint.Types.PrettyPrint where
 
 import           Debug.Trace               (trace)
-import           Text.Parsec
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
