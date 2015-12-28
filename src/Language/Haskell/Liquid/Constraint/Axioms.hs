@@ -115,6 +115,7 @@ import System.IO.Unsafe
 import Prover.Types (Axiom(..), Query(..))
 import qualified Prover.Types as P
 import Prover.Solve (solve)
+import Prover.Defunctionalize
 
 import Debug.Trace (trace)
 import qualified Data.HashSet        as S
@@ -124,7 +125,10 @@ import qualified Data.HashSet        as S
 class Provable a where
 
   expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a
-  expandProofs info sigs x = evalState (expProofs x) <$> initAEEnv info sigs
+  expandProofs info sigs x = 
+    do (x, s) <- runState (expProofs x) <$> initAEEnv info sigs
+       modify $ \st -> st {freshIndex = ae_index s}
+       return x 
 
   expProofs :: a -> Pr a
   expProofs = return
@@ -145,6 +149,12 @@ instance Provable CoreExpr where
   expProofs ee@(App (App (Var f) i) e)          | isAuto f = grapInt i >>= expandAutoProof ee e
   expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isAuto f = grapInt i >>= expandAutoProof ee e
   expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isAuto f = grapInt i >>= expandAutoProof ee e
+
+
+  expProofs ee@(App (App (Tick _ (Var f)) i) e) | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (App (Var f) i) e)          | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (Tick _ (App (Tick _ (Var f)) i)) e) | isCases f = grapInt i >>= expandCasesProof ee e
+  expProofs ee@(App (Tick _ (App (Var f) i)) e)          | isCases f = grapInt i >>= expandCasesProof ee e
 
   expProofs (App e1 e2) = liftM2 App (expProofs e1) (expProofs e2)
   expProofs (Lam x e)   = addVar x >> liftM  (Lam x) (expProofs e)
@@ -178,6 +188,34 @@ expProofsCase _ (c, xs, e)
 instance Provable CoreAlt where
   expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
 
+expandCasesProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
+expandCasesProof inite e it 
+  = do vs <-  reverse . ae_vars <$> get
+       case L.find (isAlgType . varType) vs of 
+          Nothing -> return inite 
+          Just v  -> makeCases v inite e it  
+
+makeDataCons v = data_cons $ algTyConRhs tc 
+  where
+    t  = varType v 
+    tc = fst $ splitTyConApp t 
+
+makeCases v inite e it = Case (Var v) v (varType v) <$> (mapM go $ makeDataCons v)
+  where
+    go c = do xs <- makeDataConArgs v c 
+              addVars xs
+              t <- L.lookup (symbol c) . ae_sigs <$> get 
+              addAssert $ makeRefinement t (v:xs)
+              proof <- expandAutoProof inite (e) it
+              rmAssert 
+              return (DataAlt c, xs, proof)
+
+makeDataConArgs v dc = mapM freshVar ts 
+  where
+    ts = dataConInstOrigArgTys dc ats
+    ats = snd $ splitTyConApp $ varType v 
+
+
 expandAutoProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
 expandAutoProof inite e it
   =  do ams  <- ae_axioms  <$> get
@@ -185,14 +223,17 @@ expandAutoProof inite e it
         cts  <- ae_consts  <$> get
         ds   <- ae_assert  <$> get
         cmb  <- ae_cmb     <$> get
+        lmap <- ae_lmap    <$> get
         e'   <- unANFExpr e
 
-        let (vs, vlits)  = L.partition (`elem` readVars e') $ filter hasBaseType $ L.nub vs'
-        let allvs        = L.nub  ((fst . aname <$> ams) ++ cts ++ vs)
-        let (cts', vcts) = L.partition (isFunctionType . varType) allvs
-        let usedVs = L.nub (vs++vcts)
+        foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) x >> (ae_lmap <$> get))) lmap vs'
 
-        env    <- makeEnvironment allvs ((L.\\) vlits usedVs)
+        let (vs, vlits)  = L.partition (`elem` readVars e') $ nub' vs'
+        let allvs        = nub'  ((fst . aname <$> ams) ++ cts  ++ vs')
+        let (cts', vcts) = L.partition (isFunctionType . varType) allvs
+        let usedVs = nub' (vs++vcts)
+
+        env    <- makeEnvironment ((L.\\) allvs usedVs) ((L.\\) vlits usedVs)
         ctors  <- mapM makeCtor cts'
         pvs    <- mapM makeVar usedVs
         le     <- makeGoalPredicate e'
@@ -208,13 +249,36 @@ expandAutoProof inite e it
            ) $ -}
           traceShow "\nexpandedExpr\n" $ toCore cmb inite sol
 
+nub' = L.nubBy (\v1 v2 -> F.symbol v1 == F.symbol v2)
 
-instance Show CoreExpr where
-  show = showPpr
+-- TODO: merge this with the Bare.Axiom.hs
+updateLMap :: LogicMap  -> LocSymbol -> Var -> Pr ()
+updateLMap _ _ v | not (isFun $ varType v)
+  = return ()
+  where
+    isFun (FunTy _ _)    = True 
+    isFun (ForAllTy _ t) = isFun t 
+    isFun  _             = False 
+
+updateLMap _ x vv
+  = insertLogicEnv x' ys (applyArrow (val x) ys)
+  where
+    nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
+
+    ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
+    x' = simpleSymbolVar vv
+
+
+insertLogicEnv x ys e 
+  = modify $ \be -> be {ae_lmap = (ae_lmap be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ ae_lmap be}}
+
+simpleSymbolVar  x = dropModuleNames $ symbol $ showPpr $ getName x
 
 -------------------------------------------------------------------------------
 ----------------   From Haskell to Prover  ------------------------------------
 -------------------------------------------------------------------------------
+
+
 
 
 
@@ -228,20 +292,27 @@ makeEnvironment avs vs
 
 
 
-makeQuery :: FilePath -> Integer -> F.Pred -> [HAxiom] -> [HCtor] -> [F.Pred] -> [P.LVar] ->  [HVar] -> HQuery
+makeQuery :: FilePath -> Integer -> F.Pred -> [HAxiom] -> [HVarCtor] -> [F.Pred] -> [P.LVar] ->  [HVar] -> HQuery
 makeQuery fn i p axioms cts ds env vs
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p
 
-           , q_vars   = vs       -- local variables
-           , q_ctors  = cts      -- constructors: globals with function type
-           , q_env    = env      -- environment: anything else that can appear in the logic
+           , q_vars   = checkVar  <$> vs      -- local variables
+           , q_ctors  = cts                   -- constructors: globals with function type
+           , q_env    = checkEnv  <$> env     -- environment: anything else that can appear in the logic
 
            , q_fname  = fn
            , q_axioms = axioms
            , q_decls  = (P.Pred <$> ds)
            }
 
+checkEnv pv@(P.Var x s _) 
+  | isBaseSort s = pv
+  | otherwise    = errorstar ("\nEnv:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
+
+checkVar pv@(P.Var x s _) 
+  | isBaseSort s = pv
+  | otherwise    = errorstar ("\nVar:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
 
 makeAxioms =
   do recs <- ae_recs    <$> get
@@ -276,16 +347,25 @@ makeRefinement (Just t) xs = rr
 
 
 
-makeCtor :: Var -> Pr HCtor
+makeCtor :: Var -> Pr HVarCtor
 makeCtor c
   = do tce  <- ae_emb     <$> get
        sigs <- ae_sigs    <$> get
-       return $ makeCtor' tce sigs c
+       lmap <- ae_lmap    <$> get
+       lvs  <- ae_vars    <$> get 
+       return $ makeCtor' tce lmap sigs (c `elem` lvs) c
 
-makeCtor' :: F.TCEmb TyCon -> [(F.Symbol, SpecType)] -> Var -> HCtor
-makeCtor' tce sigs c = P.Ctor (makeVar' tce c) vs r
+makeCtor' :: F.TCEmb TyCon -> LogicMap -> [(F.Symbol, SpecType)] -> Bool -> Var -> HVarCtor
+makeCtor' tce _ _ islocal  v | islocal
+  = P.VarCtor (P.Var (F.symbol v) (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
+
+makeCtor' tce lmap sigs _  v 
+  = case M.lookup v (axiom_map lmap) of 
+    Nothing -> P.VarCtor (P.Var (F.symbol v) (typeSort tce $ varType v)      v) vs r
+    Just x  -> P.VarCtor (P.Var x            (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
+
   where
-    x    = F.symbol c
+    x    = F.symbol v
     (vs, r) = case L.lookup x sigs of
                 Nothing -> ([], P.Pred F.PTrue)
                 Just t  -> let trep = toRTypeRep t
@@ -294,18 +374,17 @@ makeCtor' tce sigs c = P.Ctor (makeVar' tce c) vs r
                                Just r  -> let (F.Reft(v, p)) = F.toReft r
                                               xts = [(x,t) | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
                                               e  = F.EApp (dummyLoc x) (F.EVar . fst  <$> xts)
-                                          in ([P.Var x (rTypeSort tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
+                                          in ([P.Var x (rTypeSortArrow tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
 
 makeVar :: Var -> Pr HVar
 makeVar v = do {tce <- ae_emb <$> get; return $ makeVar' tce v}
 
-makeVar' tce v = P.Var (F.symbol v) (typeSort tce $ varType v) v
-
+makeVar'  tce v = P.Var (F.symbol v) (typeSortArrow tce $ varType v) v
 
 makeLVar :: Var -> Pr P.LVar
 makeLVar v = do {tce <- ae_emb <$> get; return $ makeLVar' tce v}
 
-makeLVar' tce v = P.Var (F.symbol v) (typeSort tce $ varType v) ()
+makeLVar' tce v = P.Var (F.symbol v) (typeSortArrow tce $ varType v) ()
 
 
 
@@ -326,7 +405,7 @@ varToPAxiomWithGuard tce sigs recs v
                                             Nothing -> F.PTrue
                                             Just r  -> let (F.Reft(_, p)) = F.toReft r in p
                                    xts   = filter (not . isClassType . snd) $ zip (ty_binds trep) (ty_args trep)
-                                   vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- xts]
+                                   vs'   = [P.Var x (rTypeSortArrow tce t) () | (x, t) <- xts]
                                in  (vs', xts, bd')
 
 makeGuard :: [(F.Symbol, (F.Symbol, SpecType))] -> F.Pred
@@ -355,7 +434,7 @@ varToPAxiom tce sigs v
                               bd'  = case stripRTypeBase $ ty_res trep of
                                        Nothing -> F.PTrue
                                        Just r  -> let (F.Reft(_, p)) = F.toReft r in p
-                              vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
+                              vs'   = [P.Var x (rTypeSortArrow tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
                           in  (vs', bd')
 
 
@@ -423,22 +502,24 @@ rmAssert      = modify $ \ae -> ae{ae_assert = tail $ ae_assert ae}
 addRec  (x,e) = modify $ \ae -> ae{ae_recs  = (x, grapArgs e):ae_recs  ae}
 addRecs xes   = modify $ \ae -> ae{ae_recs  = [(x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
 
-addVar  x | canIgnore x = return ()
-          | otherwise   =  modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
+addVar  x | canIgnore x = return () 
+          | otherwise   = modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
+
 
 addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
   where
     x' = filter (not . canIgnore) x
 
-
--- NV check get unique, there is a bug and single increase is not good
-
 getUniq :: Pr Integer
 getUniq
   = do modify (\s -> s{ae_index = 1 + (ae_index s)})
-       modify (\s -> s{ae_index = 1 + (ae_index s)})
        ae_index <$> get
 
+
+freshVar :: Type -> Pr Var
+freshVar t = 
+  do n <- getUniq
+     return $ stringVar ("x" ++ show n) t 
 
 freshFilePath :: Pr FilePath
 freshFilePath =
@@ -465,7 +546,7 @@ notFFunc _ = True
 --------------  Playing with GHC Core  ----------------------------------------
 -------------------------------------------------------------------------------
 
-hasBaseType = isBaseTy . varType
+-- hasBaseType = isBaseTy . varType
 
 isFunctionType (FunTy _ _)    = True
 isFunctionType (ForAllTy _ t) = isFunctionType t
@@ -520,6 +601,7 @@ makeCombineVar τ =  stringVar combineProofsName τ
 
 canIgnore v = isInternal v || isTyVar v
 isAuto    v = isPrefixOfSym "auto"  $ dropModuleNames $ F.symbol v
+isCases   v = isPrefixOfSym "cases" $ dropModuleNames $ F.symbol v
 isProof   v = isPrefixOfSym "Proof" $ dropModuleNames $ F.symbol v
 
 
