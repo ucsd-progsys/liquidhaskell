@@ -978,8 +978,6 @@ consE γ e'@(App e a) | isDictionary a
     dinfo = dlookup (denv γ) d
     tt = dhasinfo dinfo $ grepfunname e
 
-
-
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
