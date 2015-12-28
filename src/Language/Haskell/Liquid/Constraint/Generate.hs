@@ -135,7 +135,7 @@ consAct info
                 (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
-    fixEnv   = fe_env . fenv
+    fixEnv   = feEnv . fenv
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -961,7 +961,7 @@ consE γ e'@(App e a) | isDictionary a
               te'              <- instantiateStrata ls te0
               (γ', te''')      <- dropExists γ te'
               te''             <- dropConstraints γ te'''
-              updateLocA πs (exprLoc e) te''
+              updateLocA {- πs -}  (exprLoc e) te''
               let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
               pushConsBind      $ cconsE γ' a tx
               addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
@@ -978,13 +978,15 @@ consE γ e'@(App e a) | isDictionary a
     dinfo = dlookup (denv γ) d
     tt = dhasinfo dinfo $ grepfunname e
 
+
+
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
        te'              <- instantiateStrata ls te0
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
-       updateLocA πs (exprLoc e) te''
+       updateLocA {- πs -}  (exprLoc e) te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)

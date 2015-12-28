@@ -1,4 +1,7 @@
 
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+
 --------------------------------------------------------------------------------
 -- | Constraint Splitting ------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -14,6 +17,9 @@ module Language.Haskell.Liquid.Constraint.Split (
   -- * Split Strata Constraints
   , splitS
 
+  -- * ???
+  , envToSub
+
   -- * Panic
   , panicUnbound
   ) where
@@ -24,17 +30,26 @@ import qualified TyCon  as TC
 import           Data.Maybe          (fromMaybe) -- catMaybes, fromJust, isJust)
 import           Control.Monad
 import           Control.Monad.State (get)
+import qualified Control.Exception as Ex
+
 import qualified Language.Fixpoint.Types            as F
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
+
+import           Language.Haskell.Liquid.Misc -- (concatMapM)
+import qualified Language.Haskell.Liquid.UX.CTags       as Tg
+import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
+import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
+import           Language.Haskell.Liquid.Types.RefType
+
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Fresh
-import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.Misc -- (concatMapM)
+import           Language.Haskell.Liquid.Constraint.Monad
+import           Language.Haskell.Liquid.Constraint.Constraint
 
 --------------------------------------------------------------------------------
 splitW ::  WfC -> CG [FixWfC]
@@ -422,6 +437,7 @@ forallExprReft_ γ (F.EVar x)
 forallExprReft_ _ _
   = Nothing
 
+-- forallExprReftLookup :: CGEnv -> F.Symbol -> Int 
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
@@ -435,7 +451,18 @@ getTag γ = maybe Tg.defaultTag (`Tg.getTag` tgEnv γ) (tgKey γ)
 
 
 --------------------------------------------------------------------------------
+{-@ envToSub :: {v:[(a, b)] | 2 <= len v} -> ([(a, b)], b, b) @-}
+envToSub :: [(a, b)] -> ([(a, b)], b, b)
+--------------------------------------------------------------------------------
+envToSub = go []
+  where
+    go _   []              = error "This cannot happen: envToSub on 0 elems"
+    go _   [(_,_)]         = error "This cannot happen: envToSub on 1 elem"
+    go ack [(_,l), (_, r)] = (reverse ack, l, r)
+    go ack (x:xs)          = go (x:ack) xs
+
+--------------------------------------------------------------------------------
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
-panicUnbound :: CGEnv -> _ -> a
+panicUnbound :: (PPrint x) => CGEnv -> x -> a
 panicUnbound γ x = Ex.throw $ (ErrUnbound (loc γ) (pprint x) :: Error)
