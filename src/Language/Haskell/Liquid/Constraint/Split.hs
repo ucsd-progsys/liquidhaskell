@@ -341,9 +341,10 @@ splitC (SubR γ o r)
     r2  = F.RR F.boolSort $ F.Reft (vv, F.PBexp $ F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err
-    err = Just $ ErrAssType src o (text $ show o ++ "type error") r
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") g r
     tag = getTag γ
     src = loc γ
+    REnv g = renv γ
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -437,7 +438,7 @@ forallExprReft_ γ (F.EVar x)
 forallExprReft_ _ _
   = Nothing
 
--- forallExprReftLookup :: CGEnv -> F.Symbol -> Int 
+-- forallExprReftLookup :: CGEnv -> F.Symbol -> Int
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
     snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup

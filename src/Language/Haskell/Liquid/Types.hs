@@ -1357,17 +1357,20 @@ data TError t =
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
+
   | ErrFCrash  { pos  :: !SrcSpan
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
-  | ErrAssType { pos :: !SrcSpan
-               , obl :: !Oblig
-               , msg :: !Doc
-               , ref :: !RReft
-               } -- ^ liquid type error
+
+  | ErrAssType { pos  :: !SrcSpan
+               , obl  :: !Oblig
+               , msg  :: !Doc
+               , ctx  :: !(M.HashMap Symbol t)
+               , cond :: !RReft
+               } -- ^ condition failure error
 
   | ErrParse    { pos :: !SrcSpan
                 , msg :: !Doc
