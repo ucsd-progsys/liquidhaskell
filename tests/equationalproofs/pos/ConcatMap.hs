@@ -6,7 +6,7 @@
 {-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
-module Append where
+module ConcatMap where
 
 import Axiomatize
 import Equational 

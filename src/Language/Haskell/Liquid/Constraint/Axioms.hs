@@ -125,7 +125,10 @@ import qualified Data.HashSet        as S
 class Provable a where
 
   expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a
-  expandProofs info sigs x = evalState (expProofs x) <$> initAEEnv info sigs
+  expandProofs info sigs x = 
+    do (x, s) <- runState (expProofs x) <$> initAEEnv info sigs
+       modify $ \st -> st {freshIndex = ae_index s}
+       return x 
 
   expProofs :: a -> Pr a
   expProofs = return
@@ -507,13 +510,9 @@ addVars x = modify $ \ae -> ae{ae_vars  = x' ++ ae_vars  ae}
   where
     x' = filter (not . canIgnore) x
 
-
--- NV check get unique, there is a bug and single increase is not good
-
 getUniq :: Pr Integer
 getUniq
   = do modify (\s -> s{ae_index = 1 + (ae_index s)})
-       modify (\s -> s{ae_index = 1 + (ae_index s)})
        ae_index <$> get
 
 
