@@ -11,6 +11,9 @@ module Language.Haskell.Liquid.Constraint.Types
     -- * Constraint Generation Environment
   , CGEnv (..)
 
+    -- * Logical constraints (FIXME: related to bounds?)
+  , LConstraint (..)
+
     -- * Fixpoint environment
   , FEnv (..)
   , initFEnv
@@ -54,7 +57,7 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
 import Control.DeepSeq
-import Data.Monoid              (mconcat)
+-- import Data.Monoid              (mconcat)
 import Data.Maybe               (catMaybes)
 import Control.Monad.State
 
