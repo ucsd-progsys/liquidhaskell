@@ -2,35 +2,37 @@ Liquid Fixpoint [![Build Status](https://travis-ci.org/ucsd-progsys/liquid-fixpo
 ===============
 
 
-This package is a Haskell wrapper to the SMTLIB-based
-Horn-Clause/Logical Implication constraint solver used
-for Liquid Types.
+This package implements a Horn-Clause/Logical Implication constraint solver used
+for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm similar to:
 
-The solver itself is written in Ocaml.
++ [Houdini](https://users.soe.ucsc.edu/~cormac/papers/fme01.pdf)
++ [cartesian predicate abstraction](http://swt.informatik.uni-freiburg.de/berit/papers/boolean-and-cartesian-....pdf)
 
-The package includes:
-
-1. Types for Expressions, Predicates, Constraints, Solutions
-2. Code for serializing the above
-3. Code for parsing the results from the fixpoint.native binary
-4. The Ocaml fixpoint code and pre-compiled binaries
-5. (Deprecated) Z3 binaries if you want to link against the API.
 
 Requirements
 ------------
 
-In addition to the .cabal dependencies you require
+In addition to the .cabal dependencies you require an SMTLIB2 compatible solver binary:
 
-- A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-  If on Windows, please make sure to place the binary and any associated DLLs
-  in your "cabal/bin" folder, right next to the fixpoint.native.exe binary.
+- [Z3](http://z3.codeplex.com)
+- [CVC4](http://cvc4.cs.nyu.edu) 
+- [MathSat](http://mathsat.fbk.eu/download.html)
 
-- An ocaml compiler (if installing with -fbuild-external).
+If on Windows, please make sure to place the binary and any associated DLLs somewhere 
+in your path.
+
 
 How To Build and Install
 ------------------------
 
+Simply do:
+
+    stack install
+
+or
+
     cabal install
+  
 
 Using SMTLIB-based SMT Solvers
 ------------------------------
@@ -41,7 +43,7 @@ You can use one of several SMTLIB2 compliant solvers, by:
 
 Currently, we support
 
-    * z3
+    * Z3
     * CVC4
     * MathSat
 
@@ -68,12 +70,6 @@ These other things are required
 
     cabal install
 
-How to Clone
-------------
-
-To clone Liquid Fixpoint:
-
-git clone git@github.com:ucsd-progsys/liquid-fixpoint.git
 
 Configuration Management
 ------------------------
