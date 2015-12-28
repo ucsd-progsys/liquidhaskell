@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
+{-@ LIQUID "--diffcheck" @-}
+
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate
 -- 1. HTMLized source with Inferred Types in mouseover annotations.
@@ -298,6 +300,7 @@ isType = spacePrefix "type"
 isIncl = spacePrefix "include"
 
 {-@ spacePrefix :: _ -> s:_ -> _ / [len s] @-}
+spacePrefix :: String -> String -> Bool
 spacePrefix str s@(c:cs)
   | isSpace c   = spacePrefix str cs
   | otherwise   = take (length str) s == str

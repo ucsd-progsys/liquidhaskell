@@ -9,11 +9,9 @@ module Language.Haskell.Liquid.Constraint.Constraint (
 ) where
 
 import Data.Maybe
-
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Env
-
 import Language.Fixpoint.Types
 
 --------------------------------------------------------------------------------
@@ -50,8 +48,6 @@ subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
                                         su'          = (x', EVar x):(v, EVar x) : su
                                     in
                                      (subst (mkSubst su') p : acc, su')
-
-
 
 combinations :: [[a]] -> [[a]]
 combinations []           = [[]]
