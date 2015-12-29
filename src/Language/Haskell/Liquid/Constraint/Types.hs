@@ -14,6 +14,9 @@ module Language.Haskell.Liquid.Constraint.Types
     -- * Logical constraints (FIXME: related to bounds?)
   , LConstraint (..)
 
+    -- * Source Position
+  , CGLoc (..)
+
     -- * Fixpoint environment
   , FEnv (..)
   , initFEnv
@@ -66,6 +69,8 @@ import Var
 import Type   (Type)
 import Class  (Class)
 
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
@@ -80,10 +85,9 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv
-  = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
+  = CGE { cgLoc  :: [CGLoc]             -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv)
         , denv   :: !RDEnv             -- ^ Dictionary Environment
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
@@ -100,6 +104,12 @@ data CGEnv
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         } -- deriving (Data, Typeable)
 
+data CGLoc = CGVar  Var           -- ^ binder for whom we are generating constraint
+           | CGTick (Tickish Var) -- ^ nearest known Source Span
+
+instance Show CGLoc where
+  show (CGVar x)   = show x
+  show (CGTick tt) = showPpr tt
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 

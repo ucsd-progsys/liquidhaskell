@@ -372,7 +372,7 @@ getGhcModGuts1 fn = do
        let deriv = getDerivedDictionaries mod_guts
        return   $! miModGuts (Just deriv) mod_guts
      Nothing ->
-       exitWithPanic "Ghc Interface: Unable to get GhcModGuts"
+       panic Nothing $ text "Ghc Interface: Unable to get GhcModGuts"
 
 getDerivedDictionaries cm = instEnvElts $ mg_inst_env cm
 
@@ -473,7 +473,7 @@ specParser f str
   | isExtFile Hs     f = hsSpecificationP   f str
   | isExtFile HsBoot f = hsSpecificationP   f str
   | isExtFile LHs    f = lhsSpecificationP  f str
-  | otherwise          = exitWithPanic $ "SpecParser: Cannot Parse File " ++ f
+  | otherwise          = panic Nothing $ text $ "SpecParser: Cannot Parse File " ++ f
 
 
 moduleImports :: GhcMonad m => [Ext] -> [FilePath] -> [String] -> m [(String, FilePath)]
