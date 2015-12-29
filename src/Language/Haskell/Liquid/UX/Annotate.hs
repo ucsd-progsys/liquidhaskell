@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
-{-@ LIQUID "--diffcheck" @-}
+{- LIQUID "--diffcheck" @-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate

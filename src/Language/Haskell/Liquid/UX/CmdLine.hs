@@ -13,7 +13,6 @@
 --   here. The idea should be to report the error, the source position that
 --   causes it, generate a suitable .json file and then exit.
 
-
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
      getOpts, mkOpts
@@ -239,9 +238,9 @@ withSmtSolver cfg =
     Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
                   case catMaybes smts of
                     (s:_) -> return (cfg {smtsolver = Just s})
-                    _     -> exitWithPanic noSmtError
+                    _     -> panic Nothing noSmtError
   where
-    noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+    noSmtError = text "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
 findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)

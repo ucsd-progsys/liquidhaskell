@@ -5,11 +5,8 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.UX.Errors (tidyError, exitWithPanic) where
+module Language.Haskell.Liquid.UX.Errors (tidyError, panic) where
 
-
--- import           Data.Monoid                         hiding ((<>))
--- import           Control.Applicative                 ((<$>), (<*>))
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
@@ -32,6 +29,14 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 
 type Ctx = M.HashMap Symbol SpecType
+
+
+--------------------------------------------------------------------------------
+-- | Throw a panic exception (and die) -----------------------------------------
+--------------------------------------------------------------------------------
+panic :: Maybe SrcSpan -> Doc -> a
+--------------------------------------------------------------------------------
+panic sp d = Ex.throw $ errOther sp d
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
@@ -69,7 +74,6 @@ tidyCtx xs m  = (θ, M.fromList yts)
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
 
-
 stripReft     :: SpecType -> SpecType
 stripReft t   = maybe t' (strengthen t') ro
   where
@@ -90,12 +94,13 @@ tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
     ok        = not . isFunTy
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
-expandFix f xs            = S.toList $ go S.empty xs
+expandFix f ys            = S.toList $ go S.empty ys
   where
     go seen []            = seen
     go seen (x:xs)
       | x `S.member` seen = go seen xs
       | otherwise         = go (S.insert x seen) (f x ++ xs)
+
 
 tidyTemps     :: (Subable t) => [(Symbol, t)] -> (Subst, [(Symbol, t)])
 tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
@@ -112,8 +117,8 @@ niceTemps     = mkSymbol <$> xs ++ ys
   where
     mkSymbol  = symbol . ('?' :)
     xs        = single   <$> ['a' .. 'z']
-    ys        = ("a" ++) <$> [show n | n <- [0 ..]]
-
+    ys        = ("a" ++) <$> [show n | n <- ns]
+    ns        = [0 ..] :: [Int]
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
@@ -188,7 +193,7 @@ ppError' td dSp (ErrAssType _ o _ c p)
         $+$ (ppFull td $ ppPropInContext p c)
 
 ppError' td dSp (ErrSubType _ _ c tA tE)
-  = dSp <+> text "Liquid Type Mismatch"
+  = dSp <+> text "Liquid Type Mismatches"
         $+$ (ppFull td $ ppReqInContext tA tE c)
 
 ppError' td  dSp (ErrFCrash _ _ c tA tE)
@@ -317,7 +322,3 @@ instance FromJSON Error where
 
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
-
--- | Throw a panic exception
-exitWithPanic  :: String -> a
-exitWithPanic  = Ex.throw . errOther . text

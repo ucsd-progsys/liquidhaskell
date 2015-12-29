@@ -37,28 +37,44 @@ module Language.Haskell.Liquid.Constraint.Env (
 
   -- * Pruning refinements (TODO: move!)
  , rTypeSortedReft'
+
+  -- * Extend CGEnv
+ , setLocation, setBind, setRecs, setTRec
+
+  -- * Lookup CGEnv
+ , getLocation
+
 ) where
 
+import Name (getSrcSpan)
 import CoreSyn (CoreExpr)
-import SrcLoc  (SrcSpan)
+import SrcLoc
+import Var
+import Outputable
+import FastString (fsLit)
 import Control.Monad.State
 
+import           GHC.Err.Located hiding (error)
+import           GHC.Stack
 
-import GHC.Err.Located hiding (error)
-import GHC.Stack
+import           Control.Arrow           (first)
+import           Data.Maybe              -- (fromMaybe)
+import qualified Data.List               as L
+import qualified Data.HashSet            as S
+import qualified Data.HashMap.Strict     as M
+import qualified Language.Fixpoint.Types as F
 
-import Data.Maybe               (fromMaybe)
-import qualified Data.HashMap.Strict                as M
-import qualified Language.Fixpoint.Types            as F
-import Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
-import Language.Fixpoint.SortCheck (pruneUnsortedReft)
-import Language.Haskell.Liquid.Types.RefType
-import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
-import Language.Haskell.Liquid.Constraint.Types
-import Language.Haskell.Liquid.Constraint.Fresh
-import Language.Haskell.Liquid.Transforms.RefSplit
-
+import           Language.Haskell.Liquid.Misc (firstJust)
+import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan)
+import           Language.Haskell.Liquid.Types.RefType
+import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.Fresh
+import           Language.Haskell.Liquid.Transforms.RefSplit
+import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 
 instance Freshable CG Integer where
   fresh = do s <- get
@@ -128,7 +144,7 @@ addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
 addCGEnv tx γ (_, x, t')
   = do idx   <- fresh
        let t  = tx $ normalize idx t'
-       let l  = loc γ
+       let l  = getLocation γ
        let γ' = γ { renv = insertREnv x t (renv γ) }
        pflag <- pruneRefs <$> get
        is    <- if isBase t
@@ -187,3 +203,52 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 (?=) :: (?callStack :: CallStack) => CGEnv -> F.Symbol -> Maybe SpecType
 γ ?= x  = lookupREnv x (renv γ)
+
+------------------------------------------------------------------------
+setLocation :: CGEnv -> CGLoc -> CGEnv
+------------------------------------------------------------------------
+setLocation γ p = γ { cgLoc = p : cgLoc γ }
+
+------------------------------------------------------------------------
+setBind :: CGEnv -> Var -> CGEnv
+------------------------------------------------------------------------
+setBind γ x = γ `setLocation` CGVar x `setBind'` x
+
+setBind' :: CGEnv -> Tg.TagKey -> CGEnv
+setBind' γ k
+  | Tg.memTagEnv k (tgEnv γ) = γ { tgKey = Just k }
+  | otherwise                = γ
+
+------------------------------------------------------------------------
+setRecs :: CGEnv -> [Var] -> CGEnv
+------------------------------------------------------------------------
+setRecs γ xs   = γ { recs = L.foldl' (flip S.insert) (recs γ) xs }
+
+------------------------------------------------------------------------
+setTRec :: CGEnv -> [(Var, SpecType)] -> CGEnv
+------------------------------------------------------------------------
+setTRec γ xts  = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
+  where
+    γ'         = γ `setRecs` (fst <$> xts)
+    trec'      = fromMaybe M.empty $ trec γ
+    xts'       = first F.symbol <$> xts
+
+
+------------------------------------------------------------------------
+getLocation :: CGEnv -> SrcSpan
+------------------------------------------------------------------------
+getLocation γ = fromMaybe sp0 $ firstJust cgSrcSpan stk
+  where
+    sp0       = showSpan ("Span Stack:", stk)
+    stk       = cgLoc γ
+
+cgSrcSpan :: CGLoc -> Maybe SrcSpan
+cgSrcSpan (CGVar x)   = maybeSpan (Just $ showSpan x) $ getSrcSpan x
+cgSrcSpan (CGTick tt) = maybeSpan Nothing             $ tickSrcSpan tt
+
+maybeSpan d sp
+  | isGoodSrcSpan sp = Just sp
+  | otherwise        = d
+
+showSpan :: (Show a) => a -> SrcSpan
+showSpan = mkGeneralSrcSpan . fsLit . show
