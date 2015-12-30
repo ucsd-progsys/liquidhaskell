@@ -5,7 +5,14 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.UX.Errors (tidyError, panic) where
+module Language.Haskell.Liquid.UX.Errors (
+  -- * Cleanup an `Error` 
+    tidyError
+
+  -- * Die, with grace 
+  , panic
+  , panicError
+  ) where
 
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
