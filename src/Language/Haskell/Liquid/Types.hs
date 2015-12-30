@@ -147,11 +147,9 @@ module Language.Haskell.Liquid.Types (
   , Error
   , TError (..)
   , EMsg (..)
-  -- , LParseError (..)
   , ErrorResult
   , errSpan
   , errOther
-  , errLocOther
   , errToFCrash
 
   -- * Source information (associated with constraints)
@@ -216,6 +214,7 @@ import PrelInfo         (isNumericClass)
 import TysWiredIn                               (listTyCon)
 import Control.Arrow                            (second)
 import Control.Monad                            (liftM, liftM2, liftM3, liftM4)
+import qualified Control.Exception
 import qualified Control.Monad.Error as Ex
 import Control.DeepSeq
 import Control.Applicative                      ((<$>))
@@ -1372,9 +1371,9 @@ data TError t =
                , cond :: !RReft
                } -- ^ condition failure error
 
-  | ErrParse    { pos :: !SrcSpan
-                , msg :: !Doc
-                , err :: !ParseError
+  | ErrParse    { pos  :: !SrcSpan
+                , msg  :: !Doc
+                , pErr :: !ParseError
                 } -- ^ specification parse error
 
   | ErrTySpec   { pos :: !SrcSpan
@@ -1498,16 +1497,14 @@ instance Ord Error where
   e1 <= e2 = pos e1 <= pos e2
 
 instance Ex.Error Error where
-  strMsg = errOther . text
+  strMsg = errOther Nothing . text
 
 errSpan :: TError a -> SrcSpan
 errSpan = pos
 
-errOther :: Doc -> Error
-errOther = ErrOther noSrcSpan
+errOther :: Maybe SrcSpan -> Doc -> Error
+errOther = ErrOther . fromMaybe noSrcSpan
 
-errLocOther :: SrcSpan -> Doc -> Error
-errLocOther = ErrOther
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------
@@ -1585,7 +1582,7 @@ mapRP f e = e { predAliases = f $ predAliases e }
 mapRE f e = e { exprAliases = f $ exprAliases e }
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = errOther $ text $ "Cinfo:" ++ showPpr l
+cinfoError (Ci l _)        = errOther Nothing $ text $ "Cinfo:" ++ showPpr l
 
 
 --------------------------------------------------------------------------------

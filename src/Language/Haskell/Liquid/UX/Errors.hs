@@ -5,7 +5,13 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.UX.Errors (tidyError, exitWithPanic) where
+module Language.Haskell.Liquid.UX.Errors (tidyError,
+                                          exitWithPanic,
+                                          panic,
+                                          panicWithLoc,
+                                          panicNoLoc,
+                                          todo,
+                                          impossible) where
 
 
 -- import           Data.Monoid                         hiding ((<>))
@@ -345,5 +351,5 @@ todo m = panicNoLoc $ "TODO: " ++ m
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
-todo :: (?callStack :: CallStack) => String -> a
-todo m = panicNoLoc $ "Should never happen: " ++ m
+impossible :: (?callStack :: CallStack) => String -> a
+impossible  m = panicNoLoc $ "Should never happen: " ++ m
