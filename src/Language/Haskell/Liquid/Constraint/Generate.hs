@@ -22,7 +22,6 @@ module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
 import GHC.Err.Located hiding (error)
 import GHC.Stack
-
 import CoreUtils     (exprType)
 import MkCore
 import Coercion
@@ -76,6 +75,7 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Types.Dictionaries
 import Language.Haskell.Liquid.Types.Variance
+import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Types.Names
@@ -254,7 +254,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 -------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs autosizes
-  = CGE { cgLoc = []
+  = CGE { cgLoc = Sp.empty 
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
@@ -833,7 +833,7 @@ cconsE γ (Lam x e) (RFun y ty t _)
        addIdA x (AnnDef ty)
 
 cconsE γ (Tick tt e) t
-  = cconsE (γ `setLocation` (CGTick tt)) e t
+  = cconsE (γ `setLocation` (Sp.Tick tt)) e t
 
 -- GHC 7.10 encodes type classes with a single method as newtypes and
 -- `cast`s between the method and class type instead of applying the
@@ -981,7 +981,7 @@ consE γ e@(Case _ _ _ _)
   = cconsFreshE CaseE γ e
 
 consE γ (Tick tt e)
-  = do t <- consE (setLocation γ (CGTick tt)) e
+  = do t <- consE (setLocation γ (Sp.Tick tt)) e
        addLocA Nothing (tickSrcSpan tt) (AnnUse t)
        return t
 

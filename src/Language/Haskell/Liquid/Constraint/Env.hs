@@ -46,15 +46,15 @@ module Language.Haskell.Liquid.Constraint.Env (
 
 ) where
 
-import Name (getSrcSpan)
+-- import Name (getSrcSpan)
 import CoreSyn (CoreExpr)
 import SrcLoc
 import Var
-import Outputable
-import FastString (fsLit)
+-- import Outputable
+-- import FastString (fsLit)
 import Control.Monad.State
 
-import           GHC.Err.Located hiding (error)
+-- import           GHC.Err.Located hiding (error)
 import           GHC.Stack
 
 import           Control.Arrow           (first)
@@ -70,6 +70,7 @@ import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import           Language.Haskell.Liquid.Misc (firstJust)
 import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType
+import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Fresh
@@ -205,14 +206,14 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 γ ?= x  = lookupREnv x (renv γ)
 
 ------------------------------------------------------------------------
-setLocation :: CGEnv -> CGLoc -> CGEnv
+setLocation :: CGEnv -> Sp.Span -> CGEnv
 ------------------------------------------------------------------------
-setLocation γ p = γ { cgLoc = p : cgLoc γ }
+setLocation γ p = γ { cgLoc = Sp.push p $ cgLoc γ }
 
 ------------------------------------------------------------------------
 setBind :: CGEnv -> Var -> CGEnv
 ------------------------------------------------------------------------
-setBind γ x = γ `setLocation` CGVar x `setBind'` x
+setBind γ x = γ `setLocation` Sp.Var x `setBind'` x
 
 setBind' :: CGEnv -> Tg.TagKey -> CGEnv
 setBind' γ k
@@ -233,24 +234,7 @@ setTRec γ xts  = γ' {trec = Just $ M.fromList xts' `M.union` trec'}
     trec'      = fromMaybe M.empty $ trec γ
     xts'       = first F.symbol <$> xts
 
-
 ------------------------------------------------------------------------
 getLocation :: CGEnv -> SrcSpan
 ------------------------------------------------------------------------
-getLocation γ = fromMaybe sp0 $ firstJust cgSrcSpan stk
-  where
-    sp0       = showSpan ("Span Stack:", stk)
-    stk       = cgLoc γ
-
-cgSrcSpan :: CGLoc -> Maybe SrcSpan
-cgSrcSpan          = maybeSpan Nothing . go
-  where
-    go (CGVar x)   = getSrcSpan x
-    go (CGTick tt) = tickSrcSpan tt
-
-maybeSpan d sp
-  | isGoodSrcSpan sp = Just sp
-  | otherwise        = d
-
-showSpan :: (Show a) => a -> SrcSpan
-showSpan = mkGeneralSrcSpan . fsLit . show
+getLocation = Sp.srcSpan . cgLoc
