@@ -243,8 +243,10 @@ getLocation γ = fromMaybe sp0 $ firstJust cgSrcSpan stk
     stk       = cgLoc γ
 
 cgSrcSpan :: CGLoc -> Maybe SrcSpan
-cgSrcSpan (CGVar x)   = maybeSpan (Just $ showSpan x) $ getSrcSpan x
-cgSrcSpan (CGTick tt) = maybeSpan Nothing             $ tickSrcSpan tt
+cgSrcSpan          = maybeSpan Nothing . go
+  where
+    go (CGVar x)   = getSrcSpan x
+    go (CGTick tt) = tickSrcSpan tt
 
 maybeSpan d sp
   | isGoodSrcSpan sp = Just sp
