@@ -11,6 +11,7 @@ module Language.Haskell.Liquid.Bare.Check (
 
 import Debug.Trace
 
+import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
@@ -25,7 +26,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (applyNonNull, group, errorstar, safeHead)
+import Language.Fixpoint.Misc (applyNonNull, group, safeHead)
 import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types      hiding (Error, R)
 
@@ -36,6 +37,8 @@ import Language.Haskell.Liquid.UX.PrettyPrint (pprintSymbol)
 import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTypeSortedReft, rTypeSortedReftArrow, subsTyVars_meet, toType)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
+
+import Language.Haskell.Liquid.UX.Errors
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -202,7 +205,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
                                           (text s)
                                           (pprint $ rtName x)
                                           (sourcePosSrcSpan . rtPos <$> xs)
-    mkErr []                = error "mkError: called on empty list"
+    mkErr []                = panic Nothing "mkError: called on empty list"
     dups                    = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
 
