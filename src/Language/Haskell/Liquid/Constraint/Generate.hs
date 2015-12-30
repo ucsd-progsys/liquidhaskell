@@ -254,7 +254,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 -------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs autosizes
-  = CGE { cgLoc = Sp.empty 
+  = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
@@ -652,7 +652,7 @@ consCB tflag _ γ (Rec xes) | tflag
     where
       xs = fst $ unzip xes
       check ys r | length ys == length xs = r
-                 | otherwise              = panic (Just loc) $ text msg
+                 | otherwise              = panic (Just loc) $ msg
       msg        = "Termination expressions must be provided for all mutually recursive binders"
       loc        = getSrcSpan (head xs)
       lookup k m = (k,) <$> M.lookup k m
@@ -1046,7 +1046,7 @@ checkUnbound γ e x t a
   | x `notElem` (F.syms t) = t
   | otherwise              = panic (Just $ getLocation γ) msg
   where
-    msg = text $ unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
+    msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
                          , "In", showPpr e, "Arg = " , show a ]
 
 
