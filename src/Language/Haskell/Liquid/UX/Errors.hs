@@ -314,13 +314,16 @@ instance FromJSON Error where
                                   <*> v .: "msg"
   parseJSON _          = mempty
 
-
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
 
 -- | Throw a panic exception
 exitWithPanic  :: String -> a
 exitWithPanic  = Ex.throw . errOther . text
+
+------------------------------------------------------------------------
+-- Errors --------------------------------------------------------------
+------------------------------------------------------------------------
 
 -- | Show an Error, then crash
 panic :: (?callStack :: CallStack) => Error -> a
@@ -339,3 +342,8 @@ panicNoLoc = panic $ errOther $ text
 --   This function should be used to mark unimplemented functionality
 todo :: (?callStack :: CallStack) => String -> a
 todo m = panicNoLoc $ "TODO: " ++ m
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark impossible-to-reach codepaths
+todo :: (?callStack :: CallStack) => String -> a
+todo m = panicNoLoc $ "Should never happen: " ++ m
