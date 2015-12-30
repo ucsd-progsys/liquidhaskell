@@ -334,3 +334,8 @@ panicWithLoc s l = panic $ errLocOther l $ text s
 --   Always prefer panicWithLoc or panic to this function!
 panicNoLoc :: (?callStack :: CallStack) => String -> a
 panicNoLoc = panic $ errOther $ text
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark unimplemented functionality
+todo :: (?callStack :: CallStack) => String -> a
+todo m = panicNoLoc $ "TODO: " ++ m
