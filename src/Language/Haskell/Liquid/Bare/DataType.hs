@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.DataType (
@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.DataType (
   , meetDataConSpec
   ) where
 
+import Prelude hiding (error)
 import DataCon
 import TyCon
 import Var
@@ -20,7 +21,6 @@ import Data.Monoid
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
 import Language.Haskell.Liquid.GHC.Misc (symbolTyVar)
@@ -36,6 +36,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.OfType
+import Language.Haskell.Liquid.UX.Errors
 
 -----------------------------------------------------------------------
 -- Bare Predicate: DataCon Definitions --------------------------------
@@ -98,7 +99,7 @@ ofBDataDecl Nothing (Just (tc, is))
     (tcov, tcontr) = (is, [])
 
 ofBDataDecl Nothing Nothing
-  = errorstar $ "Bare.DataType.ofBDataDecl called on invalid inputs"
+  = panic Nothing "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 getPsSig m pos (RAllT _ t)
   = getPsSig m pos t
@@ -114,13 +115,13 @@ getPsSig m pos (RFun _ t1 t2 r)
 getPsSig m pos (RHole r)
   = addps m pos r
 getPsSig _ _ z
-  = error $ "getPsSig" ++ show z
+  = panic Nothing $ "getPsSig" ++ show z
 
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
-  where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
+  where f = fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon
 ofBDataCon l l' tc αs ps ls πs (c, xts)

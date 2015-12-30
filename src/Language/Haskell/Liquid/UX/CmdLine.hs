@@ -240,7 +240,7 @@ withSmtSolver cfg =
                     (s:_) -> return (cfg {smtsolver = Just s})
                     _     -> panic Nothing noSmtError
   where
-    noSmtError = text "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
+    noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
 findSmtSolver :: SMTSolver -> IO (Maybe SMTSolver)
 findSmtSolver smt = maybe Nothing (const $ Just smt) <$> findExecutable (show smt)

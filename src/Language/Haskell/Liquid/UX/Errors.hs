@@ -1,19 +1,19 @@
-
+{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.UX.Errors (
-  -- * Cleanup an `Error` 
-    tidyError
+module Language.Haskell.Liquid.UX.Errors (tidyError,
+                                          panic,
+                                          panicError,
+                                          todo,
+                                          impossible) where
 
-  -- * Die, with grace 
-  , panic
-  , panicError
-  ) where
 
+-- import           Data.Monoid                         hiding ((<>))
+-- import           Control.Applicative                 ((<$>), (<*>))
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
@@ -36,20 +36,6 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
 
 type Ctx = M.HashMap Symbol SpecType
-
-
---------------------------------------------------------------------------------
--- | Throw a panic exception (and die) -----------------------------------------
---------------------------------------------------------------------------------
-panic :: Maybe SrcSpan -> Doc -> a
---------------------------------------------------------------------------------
-panic sp d = panicError $ errOther sp d
-
---------------------------------------------------------------------------------
-panicError :: Error -> a
---------------------------------------------------------------------------------
-panicError = Ex.throw 
-
 
 ------------------------------------------------------------------------
 tidyError :: FixSolution -> Error -> Error
@@ -87,6 +73,7 @@ tidyCtx xs m  = (θ, M.fromList yts)
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
 
+
 stripReft     :: SpecType -> SpecType
 stripReft t   = maybe t' (strengthen t') ro
   where
@@ -107,13 +94,12 @@ tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
     ok        = not . isFunTy
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
-expandFix f ys            = S.toList $ go S.empty ys
+expandFix f xs            = S.toList $ go S.empty xs
   where
     go seen []            = seen
     go seen (x:xs)
       | x `S.member` seen = go seen xs
       | otherwise         = go (S.insert x seen) (f x ++ xs)
-
 
 tidyTemps     :: (Subable t) => [(Symbol, t)] -> (Subst, [(Symbol, t)])
 tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
@@ -130,8 +116,8 @@ niceTemps     = mkSymbol <$> xs ++ ys
   where
     mkSymbol  = symbol . ('?' :)
     xs        = single   <$> ['a' .. 'z']
-    ys        = ("a" ++) <$> [show n | n <- ns]
-    ns        = [0 ..] :: [Int]
+    ys        = ("a" ++) <$> [show n | n <- [0 ..]]
+
 
 ------------------------------------------------------------------------
 -- | Pretty Printing Error Messages ------------------------------------
@@ -206,7 +192,7 @@ ppError' td dSp (ErrAssType _ o _ c p)
         $+$ (ppFull td $ ppPropInContext p c)
 
 ppError' td dSp (ErrSubType _ _ c tA tE)
-  = dSp <+> text "Liquid Type Mismatches"
+  = dSp <+> text "Liquid Type Mismatch"
         $+$ (ppFull td $ ppReqInContext tA tE c)
 
 ppError' td  dSp (ErrFCrash _ _ c tA tE)
@@ -332,6 +318,27 @@ instance FromJSON Error where
                                   <*> v .: "msg"
   parseJSON _          = mempty
 
-
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
+
+------------------------------------------------------------------------
+-- Errors --------------------------------------------------------------
+------------------------------------------------------------------------
+
+-- | Show an Error, then crash
+panicError :: {-(?callStack :: CallStack) =>-} Error -> a
+panicError = Ex.throw
+
+-- | Construct and show an Error, then crash
+panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+panic sp d = panicError $ errOther sp $ text d
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark unimplemented functionality
+todo :: {-(?callStack :: CallStack) =>-} String -> a
+todo m = panic Nothing $ "TODO: " ++ m
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark impossible-to-reach codepaths
+impossible :: {-(?callStack :: CallStack) =>-} String -> a
+impossible  m = panic Nothing $ "Should never happen: " ++ m
