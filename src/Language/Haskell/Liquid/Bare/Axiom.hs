@@ -58,6 +58,8 @@ import Language.Haskell.Liquid.Bare.OfType
 import Language.Haskell.Liquid.Bare.Resolve
 import Language.Haskell.Liquid.Bare.RefToLogic
 
+import Language.Haskell.Liquid.UX.Errors
+
 import Prover.Defunctionalize
 
 import Debug.Trace (trace)
@@ -121,10 +123,10 @@ makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
 
     llhs = case runToLogic lmap' mkErr (coreToLogic lhs) of
        Left e -> e
-       Right e -> panicNoLoc $ show e
+       Right e -> panic Nothing $ show e
     lrhs = case runToLogic lmap' mkErr (coreToLogic rhs) of
        Left e -> e
-       Right e -> panicNoLoc $ show e
+       Right e -> panic Nothing $ show e
     ref = F.Reft (F.vv_, F.PAtom F.Eq llhs lrhs)
 
     -- nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
@@ -162,8 +164,8 @@ defAxioms v e = go [] $ simplify e
 
      goalt x bs (DataAlt c, ys, e) = let vs = [b | b<- bs , b /= x] ++ ys in
         Axiom (v, Just c) vs (varType <$> vs) (mkApp bs x c ys) $ simplify e
-     goalt _ _  (LitAlt _,  _,  _) = panicNoLoc "TODO defAxioms: goalt Lit"
-     goalt _ _  (DEFAULT,   _,  _) = panicNoLoc "TODO defAxioms: goalt Def"
+     goalt _ _  (LitAlt _,  _,  _) = todo "defAxioms: goalt Lit"
+     goalt _ _  (DEFAULT,   _,  _) = todo "defAxioms: goalt Def"
 
      mkApp bs x c ys = foldl App (Var v) ((\y -> if y == x then (mkConApp c (Var <$> ys)) else Var y)<$> bs)
 
@@ -183,7 +185,7 @@ instance Simplifiable CoreExpr where
   simplify (App e (Var x)) | isClassPred (varType x) = simplify e
   simplify (App f e) = App (simplify f) (simplify e)
   simplify e@(Var _) = e
-  simplify e = panicNoLoc ("TODO simplify" ++ showPpr e)
+  simplify e = todo ("simplify" ++ showPpr e)
 
 unANF (NonRec x ex) e | L.isPrefixOf "lq_anf" (show x)
   = subst (x, ex) e
@@ -202,7 +204,7 @@ instance Subable CoreExpr where
                         | otherwise = Var y
   subst su (App f e) = App (subst su f) (subst su e)
   subst su (Lam x e) = Lam x (subst su e)
-  subst _ _          = panicNoLoc "TODO Subable"
+  subst _ _          = todo "Subable"
 
 -- | Specification for Haskell function
 axiomType :: LocSymbol -> Type -> SpecType

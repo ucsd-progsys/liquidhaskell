@@ -38,6 +38,8 @@ import Language.Haskell.Liquid.Types.RefType (classBinds, ofType, rTypeSort, rTy
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.WiredIn
 
+import Language.Haskell.Liquid.UX.Errors
+
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.DataType (dataConSpec)
@@ -203,7 +205,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
                                           (text s)
                                           (pprint $ rtName x)
                                           (sourcePosSrcSpan . rtPos <$> xs)
-    mkErr []                = panicNoLoc "mkError: called on empty list"
+    mkErr []                = panic Nothing "mkError: called on empty list"
     dups                    = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
 

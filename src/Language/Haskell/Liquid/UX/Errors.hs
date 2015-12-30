@@ -6,10 +6,8 @@
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
 module Language.Haskell.Liquid.UX.Errors (tidyError,
-                                          exitWithPanic,
                                           panic,
-                                          panicWithLoc,
-                                          panicNoLoc,
+                                          panicError,
                                           todo,
                                           impossible) where
 
@@ -32,7 +30,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Misc        (single, errorstar)
+import           Language.Haskell.Liquid.Misc        (single)
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
@@ -323,33 +321,24 @@ instance FromJSON Error where
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
 
--- | Throw a panic exception
-exitWithPanic  :: String -> a
-exitWithPanic  = Ex.throw . errOther . text
-
 ------------------------------------------------------------------------
 -- Errors --------------------------------------------------------------
 ------------------------------------------------------------------------
 
 -- | Show an Error, then crash
-panic :: (?callStack :: CallStack) => Error -> a
-panic = errorstar $ show
+panicError :: {-(?callStack :: CallStack) =>-} Error -> a
+panicError = Ex.throw
 
 -- | Construct and show an Error, then crash
-panicWithLoc :: (?callStack :: CallStack) => String -> SrcSpan -> a
-panicWithLoc s l = panic $ errLocOther l $ text s
-
--- | Construct and show an Error with no SrcSpan, then crash
---   Always prefer panicWithLoc or panic to this function!
-panicNoLoc :: (?callStack :: CallStack) => String -> a
-panicNoLoc = panic $ errOther $ text
+panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+panic sp d = panicError $ errOther sp $ text d
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
-todo :: (?callStack :: CallStack) => String -> a
-todo m = panicNoLoc $ "TODO: " ++ m
+todo :: {-(?callStack :: CallStack) =>-} String -> a
+todo m = panic Nothing $ "TODO: " ++ m
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
-impossible :: (?callStack :: CallStack) => String -> a
-impossible  m = panicNoLoc $ "Should never happen: " ++ m
+impossible :: {-(?callStack :: CallStack) =>-} String -> a
+impossible  m = panic Nothing $ "Should never happen: " ++ m
