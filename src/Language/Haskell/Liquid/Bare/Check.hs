@@ -11,6 +11,7 @@ module Language.Haskell.Liquid.Bare.Check (
 
 import Debug.Trace
 
+import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
 import TyCon
@@ -202,7 +203,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
                                           (text s)
                                           (pprint $ rtName x)
                                           (sourcePosSrcSpan . rtPos <$> xs)
-    mkErr []                = error "mkError: called on empty list"
+    mkErr []                = panicNoLoc "mkError: called on empty list"
     dups                    = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
 
 

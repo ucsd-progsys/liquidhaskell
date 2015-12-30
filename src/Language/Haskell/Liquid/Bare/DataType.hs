@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.DataType (
   , meetDataConSpec
   ) where
 
+import Prelude hiding (error)
 import DataCon
 import TyCon
 import Var
