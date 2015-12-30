@@ -10,6 +10,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
+
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           CoreSyn
@@ -33,7 +34,7 @@ import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
-import           Language.Fixpoint.Misc             (fst3, errorstar)
+import           Language.Fixpoint.Misc             (fst3)
 import           Language.Fixpoint.Types            (anfPrefix)
 import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, symbolFastString)
@@ -42,8 +43,7 @@ import           Language.Haskell.Liquid.UX.Errors
 import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
-import           Control.Applicative
-
+-- import           Control.Applicative
 
 
 --------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ anormalize expandFlag hscEnv modGuts
       m        = mgi_module modGuts
       grEnv    = mgi_rdr_env modGuts
       tEnv     = modGutsTypeEnv modGuts
-      act      = concatMapM (normalizeTopBind expandFlag emptyVarEnv) orig_cbs
+      act      = concatMapM (normalizeTopBind expandFlag emptyAnfEnv) orig_cbs
       orig_cbs = transformRecExpr $ mgi_binds modGuts
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
 
@@ -76,7 +76,7 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
-normalizeTopBind :: Bool -> VarEnv Id -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
+normalizeTopBind :: Bool -> AnfEnv -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
 normalizeTopBind expandFlag γ (NonRec x e)
   = do e' <- runDsM $ evalStateT (stitch γ e) (DsST expandFlag  [])
        return [normalizeTyVars $ NonRec x e']
@@ -85,6 +85,7 @@ normalizeTopBind expandFlag γ (Rec xes)
   = do xes' <- runDsM $ execStateT (normalizeBind γ (Rec xes)) (DsST expandFlag [])
        return $ map normalizeTyVars (st_binds xes')
 
+normalizeTyVars :: Bind Id -> Bind Id
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
   where t'       = subst msg as as' bt
         msg      = "WARNING unable to renameVars on " ++ showPpr x
@@ -94,6 +95,7 @@ normalizeTyVars (Rec xes)    = Rec xes'
   where nrec = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
         xes' = (\(NonRec x e) -> (x, e)) <$> nrec
 
+subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
   | length as == length as'
   = mkForAllTys as' $ substTy su bt
@@ -121,9 +123,8 @@ data DsST = DsST { st_expandflag :: Bool
 type DsMW = StateT DsST DsM
 
 ------------------------------------------------------------------
-normalizeBind :: VarEnv Id -> CoreBind -> DsMW ()
+normalizeBind :: AnfEnv -> CoreBind -> DsMW ()
 ------------------------------------------------------------------
-
 normalizeBind γ (NonRec x e)
    = do e' <- normalize γ e
         add [NonRec x e']
@@ -134,36 +135,36 @@ normalizeBind γ (Rec xes)
     where (xs, es) = unzip xes
 
 --------------------------------------------------------------------
-normalizeName :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
+normalizeName :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 --------------------------------------------------------------------
 
 -- normalizeNameDebug γ e
 --   = liftM (tracePpr ("normalizeName" ++ showPpr e)) $ normalizeName γ e
 
-normalizeName _ e@(Lit l)
+normalizeName γ e@(Lit l)
   | shouldNormalize l
-  = normalizeLiteral e
+  = normalizeLiteral γ e
   | otherwise
   = return e
 
 normalizeName γ (Var x)
-  = return $ Var (lookupWithDefaultVarEnv γ x x)
+  = return $ Var (lookupAnfEnv γ x x)
 
 normalizeName _ e@(Type _)
   = return e
 
-normalizeName _ e@(Coercion _)
-  = do x     <- lift $ freshNormalVar $ exprType e
+normalizeName γ e@(Coercion _)
+  = do x     <- lift $ freshNormalVar γ $ exprType e
        add  [NonRec x e]
        return $ Var x
 
-normalizeName γ (Tick n e)
-  = do e'    <- normalizeName γ e
-       return $ Tick n e'
+normalizeName γ (Tick tt e)
+  = do e'    <- normalizeName (γ `at` tt) e
+       return $ Tick tt e'
 
 normalizeName γ e
   = do e'   <- normalize γ e
-       x    <- lift $ freshNormalVar $ exprType e
+       x    <- lift $ freshNormalVar γ $ exprType e
        add [NonRec x e']
        return $ Var x
 
@@ -176,18 +177,15 @@ add :: [CoreBind] -> DsMW ()
 add w = modify $ \s -> s{st_binds = st_binds s++w}
 
 ---------------------------------------------------------------------
-normalizeLiteral :: CoreExpr -> DsMW CoreExpr
+normalizeLiteral :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 ---------------------------------------------------------------------
-normalizeLiteral e =
-  do x <- lift $ freshNormalVar (exprType e)
+normalizeLiteral γ e =
+  do x <- lift $ freshNormalVar γ $ exprType e
      add [NonRec x e]
      return $ Var x
 
-freshNormalVar :: Type -> DsM Id
-freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
-
 ---------------------------------------------------------------------
-normalize :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
+normalize :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 ---------------------------------------------------------------------
 
 normalize γ (Lam x e)
@@ -202,16 +200,16 @@ normalize γ (Let b e)
 
 normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
-       x'    <- lift $ freshNormalVar τx -- rename "wild" to avoid shadowing
-       let γ' = extendVarEnv γ x x'
+       x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
+       let γ' = extendAnfEnv γ x x'
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
        flag  <- st_expandflag <$> get
-       as''  <- lift $ expandDefaultCase flag τx as'
+       as''  <- lift $ expandDefaultCase γ flag τx as'
        return $ Case n x' t as''
     where τx = varType x
 
 normalize γ (Var x)
-  = return $ Var (lookupWithDefaultVarEnv γ x x)
+  = return $ Var (lookupAnfEnv γ x x)
 
 normalize _ e@(Lit _)
   = return e
@@ -228,14 +226,14 @@ normalize γ (App e1 e2)
        n2  <- normalizeName γ e2
        return $ App e1' n2
 
-normalize γ (Tick n e)
-  = do e' <- normalize γ e
-       return $ Tick n e'
+normalize γ (Tick tt e)
+  = do e' <- normalize (γ `at` tt) e
+       return $ Tick tt e'
 
 normalize _ (Coercion c)
   = return $ Coercion c
 
-stitch :: VarEnv Id -> CoreExpr -> DsMW CoreExpr
+stitch :: AnfEnv -> CoreExpr -> DsMW CoreExpr
 stitch γ e
   = do bs'   <- get
        modify $ \s -> s {st_binds = []}
@@ -244,36 +242,40 @@ stitch γ e
        put bs'
        return $ mkCoreLets bs e'
 
-----------------------------------------------------------------------------------
-expandDefaultCase :: Bool -> Type -> [(AltCon, [Id], CoreExpr)] -> DsM [(AltCon, [Id], CoreExpr)]
-----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+expandDefaultCase :: AnfEnv
+                  -> Bool
+                  -> Type
+                  -> [(AltCon, [Id], CoreExpr)]
+                  -> DsM [(AltCon, [Id], CoreExpr)]
+--------------------------------------------------------------------------------
 
-expandDefaultCase flag tyapp zs@((DEFAULT, _ ,_) : _) | flag
-  = expandDefaultCase' tyapp zs
+expandDefaultCase γ flag tyapp zs@((DEFAULT, _ ,_) : _) | flag
+  = expandDefaultCase' γ tyapp zs
 
-expandDefaultCase _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
+expandDefaultCase γ _    tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
                      if (length ds') == 1
-                      then expandDefaultCase' tyapp z
+                      then expandDefaultCase' γ tyapp z
                       else return z
        Nothing -> return z --
 
-expandDefaultCase _ _ z
+expandDefaultCase _ _ _ z
    = return z
 
-expandDefaultCase' (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
+expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     dcs'   <- forM ds' $ cloneCase argτs e
+                     dcs'   <- forM ds' $ cloneCase γ argτs e
                      return $ sortCases $ dcs' ++ dcs
        Nothing -> return z --
 
-expandDefaultCase' _ z
+expandDefaultCase' _ _ z
    = return z
 
-cloneCase argτs e d
-  = do xs  <- mapM freshNormalVar $ dataConInstArgTys d argτs
+cloneCase γ argτs e d
+  = do xs  <- mapM (freshNormalVar γ) $ dataConInstArgTys d argτs
        return (DataAlt d, xs, e)
 
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
@@ -282,16 +284,30 @@ sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------
 --------------------------------------------------------------------------------
-{-
 
-freshNormalVarAt :: Type -> SrcSpan -> DsM Id
-freshNormalVarAt = mkUserLocalM anfOcc
+-- freshNormalVar :: Type -> DsM Id
+-- freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
+
+freshNormalVar :: AnfEnv -> Type -> DsM Id
+freshNormalVar γ t = mkUserLocalM anfOcc t sp
   where
-    anfOcc       = mkVarOccFS $ symbolFastString anfPrefix
+    anfOcc         = mkVarOccFS $ symbolFastString anfPrefix
+    sp             = Sp.srcSpan (aeSrcSpan γ)
+
 
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
   , aeSrcSpan :: Sp.SpanStack
   }
 
--}
+emptyAnfEnv :: AnfEnv
+emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
+
+lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
+lookupAnfEnv γ x y = lookupWithDefaultVarEnv (aeVarEnv γ) x y
+
+extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
+extendAnfEnv γ x y = γ { aeVarEnv = extendVarEnv (aeVarEnv γ) x y }
+
+at :: AnfEnv -> Tickish Id -> AnfEnv
+at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}
