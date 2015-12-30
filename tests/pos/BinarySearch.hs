@@ -29,7 +29,7 @@ loop
 @-}
 loop :: Ord a => a -> Vector a -> Int -> Int -> Maybe Int
 loop x v lo hi = do
-    let mid = midpoint lo hi
+    let mid = lo + ((hi - lo) `div` 2) -- midpoint lo hi
     if x < v ! mid
     then do
         let hi' = mid - 1
