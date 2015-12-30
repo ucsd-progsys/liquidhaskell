@@ -112,7 +112,7 @@ bsplitW' γ t pflag
   | otherwise         = []
   where
     r'                = rTypeSortedReft' pflag γ t
-    ci                = Ci (loc γ) Nothing
+    ci                = Ci (getLocation γ) Nothing
 
 --------------------------------------------------------------------------------
 splitS  :: SubC -> CG [([Stratum], [Stratum])]
@@ -343,7 +343,7 @@ splitC (SubR γ o r)
     ci  = Ci src err
     err = Just $ ErrAssType src o (text $ show o ++ "type error") g r
     tag = getTag γ
-    src = loc γ
+    src = getLocation γ
     REnv g = renv γ
 
 splitsCWithVariance γ t1s t2s variants
@@ -370,7 +370,7 @@ checkStratum γ t1 t2
   | otherwise = addWarning wrn
   where
     [s1, s2]  = getStrata <$> [t1, t2]
-    wrn       =  ErrOther (loc γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
+    wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
 bsplitC' γ t1 t2 pflag
   | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
@@ -386,9 +386,8 @@ bsplitC' γ t1 t2 pflag
     ci     = Ci src err
     tag    = getTag γ
     err    = Just $ ErrSubType src (text "subtype") g t1 t2
-    src    = loc γ
+    src    = getLocation γ
     REnv g = renv γ
-
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 
@@ -466,4 +465,4 @@ envToSub = go []
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
 panicUnbound :: (PPrint x) => CGEnv -> x -> a
-panicUnbound γ x = Ex.throw $ (ErrUnbound (loc γ) (pprint x) :: Error)
+panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (pprint x) :: Error)

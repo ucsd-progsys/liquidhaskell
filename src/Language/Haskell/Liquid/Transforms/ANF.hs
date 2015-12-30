@@ -1,3 +1,8 @@
+
+--------------------------------------------------------------------------------
+-- | Convert GHC Core into Administrative Normal Form (ANF) --------------------
+--------------------------------------------------------------------------------
+
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TupleSections              #-}
@@ -5,18 +10,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
--------------------------------------------------------------------------------------
------------- Code to convert Core to Administrative Normal Form ---------------------
--------------------------------------------------------------------------------------
-
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
+
 import           CoreSyn
 import           CoreUtils                        (exprType)
 import qualified DsMonad
 import           DsMonad                          (initDs)
 import           GHC                              hiding (exprType)
 import           HscTypes
-import           Id                               (mkSysLocalM)
+
+import           OccName                          (mkVarOccFS)
+import           Id                               (mkUserLocalM, mkSysLocalM)
 import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
@@ -29,34 +33,45 @@ import           FamInstEnv                       (emptyFamInstEnv)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           Control.Monad.State.Lazy
 import           UniqSupply                       (MonadUnique)
-import           Language.Fixpoint.Misc     (fst3, errorstar)
-import           Language.Fixpoint.Types          (anfPrefix)
-import           Language.Haskell.Liquid.GHC.Misc  (MGIModGuts(..), showPpr, symbolFastString)
+import           Language.Fixpoint.Misc             (fst3, errorstar)
+import           Language.Fixpoint.Types            (anfPrefix)
+import           Language.Haskell.Liquid.Misc       (concatMapM)
+import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
+import           Language.Haskell.Liquid.UX.Errors
+import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Control.Applicative
 
+
+
+--------------------------------------------------------------------------------
+-- | A-Normalize a module ------------------------------------------------------
+--------------------------------------------------------------------------------
 anormalize :: Bool -> HscEnv -> MGIModGuts -> IO [CoreBind]
+--------------------------------------------------------------------------------
 anormalize expandFlag hscEnv modGuts
   = do -- putStrLn "***************************** GHC CoreBinds ***************************"
        -- putStrLn $ showPpr orig_cbs
-       liftM (fromMaybe err . snd) $ initDs hscEnv m grEnv tEnv emptyFamInstEnv act
-    where m        = mgi_module modGuts
-          grEnv    = mgi_rdr_env modGuts
-          tEnv     = modGutsTypeEnv modGuts
-          act      = liftM concat $ mapM (normalizeTopBind expandFlag emptyVarEnv) orig_cbs
-          orig_cbs = transformRecExpr $ mgi_binds modGuts
-          err      = errorstar "anormalize fails!"
+       (fromMaybe err . snd) <$> initDs hscEnv m grEnv tEnv emptyFamInstEnv act
+    where
+      m        = mgi_module modGuts
+      grEnv    = mgi_rdr_env modGuts
+      tEnv     = modGutsTypeEnv modGuts
+      act      = concatMapM (normalizeTopBind expandFlag emptyVarEnv) orig_cbs
+      orig_cbs = transformRecExpr $ mgi_binds modGuts
+      err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
 
-modGutsTypeEnv mg = typeEnvFromEntities ids tcs fis
-  where ids = bindersOfBinds (mgi_binds mg)
-        tcs = mgi_tcs mg
-        fis = mgi_fam_insts mg
+modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
+  where
+    ids            = bindersOfBinds (mgi_binds mg)
+    tcs            = mgi_tcs mg
+    fis            = mgi_fam_insts mg
 
-------------------------------------------------------------------
------------------ Actual Normalizing Functions -------------------
-------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | A-Normalize a @CoreBind@ --------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
@@ -163,7 +178,6 @@ add w = modify $ \s -> s{st_binds = st_binds s++w}
 ---------------------------------------------------------------------
 normalizeLiteral :: CoreExpr -> DsMW CoreExpr
 ---------------------------------------------------------------------
-
 normalizeLiteral e =
   do x <- lift $ freshNormalVar (exprType e)
      add [NonRec x e]
@@ -254,6 +268,7 @@ expandDefaultCase' (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
                      dcs'   <- forM ds' $ cloneCase argτs e
                      return $ sortCases $ dcs' ++ dcs
        Nothing -> return z --
+
 expandDefaultCase' _ z
    = return z
 
@@ -262,3 +277,21 @@ cloneCase argτs e d
        return (DataAlt d, xs, e)
 
 sortCases = sortBy (\x y -> cmpAltCon (fst3 x) (fst3 y))
+
+
+--------------------------------------------------------------------------------
+-- | ANF Environments ----------------------------------------------------------
+--------------------------------------------------------------------------------
+{-
+
+freshNormalVarAt :: Type -> SrcSpan -> DsM Id
+freshNormalVarAt = mkUserLocalM anfOcc
+  where
+    anfOcc       = mkVarOccFS $ symbolFastString anfPrefix
+
+data AnfEnv = AnfEnv
+  { aeVarEnv  :: VarEnv Id
+  , aeSrcSpan :: Sp.SpanStack
+  }
+
+-}

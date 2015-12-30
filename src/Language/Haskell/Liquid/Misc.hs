@@ -10,7 +10,8 @@ import           Control.Exception     (catch, IOException)
 import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
-import           Data.Maybe            (fromJust)
+-- import           Data.Maybe            (fromJust)
+import           Data.Maybe              -- (fromMaybe)
 import           Data.Hashable
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
@@ -153,3 +154,7 @@ tryIgnore s a = catch a $ \e ->
                    return ()
 
 (=>>) m f = m >>= (\x -> f x >> return x)
+
+
+firstJust :: (a -> Maybe b) -> [a] -> Maybe b
+firstJust f xs = listToMaybe $ catMaybes $ map f xs
