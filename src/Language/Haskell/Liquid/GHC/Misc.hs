@@ -470,16 +470,10 @@ tyConTyVarsDef c = TC.tyConTyVars c
 gHC_VERSION :: String
 gHC_VERSION = show __GLASGOW_HASKELL__
 
-desugarModule :: TypecheckedModule -> Ghc DesugaredModule
-
 symbolFastString :: Symbol -> FastString
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-
-synTyConRhs_maybe :: TyCon -> Maybe Type
-
-tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
-
+desugarModule :: TypecheckedModule -> Ghc DesugaredModule
 desugarModule tcm = do
   let ms = pm_mod_summary $ tm_parsed_module tcm
   -- let ms = modSummary tcm
@@ -491,14 +485,15 @@ desugarModule tcm = do
 
 -- desugarModule = GHC.desugarModule
 
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
-
 type Prec = TyPrec
 
+lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
 lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
 
+synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe
 
+tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 
@@ -559,3 +554,7 @@ stripParens t = fromMaybe t (strip t)
 
 stripParensSym :: Symbol -> Symbol
 stripParensSym (symbolText -> t) = symbol $ stripParens t
+
+--------------------------------------------------------------------------------
+-- | Source Info = Stack of most recent binders/spans
+--------------------------------------------------------------------------------
