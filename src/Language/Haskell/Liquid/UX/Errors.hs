@@ -1,4 +1,4 @@
-
+{-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -26,7 +26,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Misc        (single)
+import           Language.Haskell.Liquid.Misc        (single, errorstar)
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
@@ -321,3 +321,16 @@ errSaved x = ErrSaved x . text
 -- | Throw a panic exception
 exitWithPanic  :: String -> a
 exitWithPanic  = Ex.throw . errOther . text
+
+-- | Show an Error, then crash
+panic :: (?callStack :: CallStack) => Error -> a
+panic = errorstar $ show
+
+-- | Construct and show an Error, then crash
+panicWithLoc :: (?callStack :: CallStack) => String -> SrcSpan -> a
+panicWithLoc s l = panic $ errLocOther l $ text s
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   Always prefer panicWithLoc or panic to this function!
+panicNoLoc :: (?callStack :: CallStack) => String -> a
+panicNoLoc = panic $ errOther $ text

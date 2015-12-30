@@ -20,7 +20,6 @@ import Data.Monoid
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
 import Language.Haskell.Liquid.GHC.Misc (symbolTyVar)
@@ -98,7 +97,7 @@ ofBDataDecl Nothing (Just (tc, is))
     (tcov, tcontr) = (is, [])
 
 ofBDataDecl Nothing Nothing
-  = errorstar $ "Bare.DataType.ofBDataDecl called on invalid inputs"
+  = panicNoLoc "Bare.DataType.ofBDataDecl called on invalid inputs"
 
 getPsSig m pos (RAllT _ t)
   = getPsSig m pos t
@@ -114,13 +113,13 @@ getPsSig m pos (RFun _ t1 t2 r)
 getPsSig m pos (RHole r)
   = addps m pos r
 getPsSig _ _ z
-  = error $ "getPsSig" ++ show z
+  = panicNoLoc $ "getPsSig" ++ show z
 
 getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
-  where f = fromMaybe (error "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
+  where f = fromMaybe (panicNoLoc "Bare.addPs: notfound") . (`L.lookup` m) . uPVar
 
 -- TODO:EFFECTS:ofBDataCon
 ofBDataCon l l' tc αs ps ls πs (c, xts)

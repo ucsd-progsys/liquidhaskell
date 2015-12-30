@@ -25,7 +25,7 @@ import Text.PrettyPrint.HughesPJ
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (applyNonNull, group, errorstar, safeHead)
+import Language.Fixpoint.Misc (applyNonNull, group, safeHead)
 import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types      hiding (Error, R)
 
