@@ -22,7 +22,6 @@ import Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
 import Data.Maybe                       (fromMaybe)
 import Language.Haskell.Liquid.Misc     (firstJust)
 
-
 -- | Opaque type for a stack of spans
 newtype SpanStack = SpanStack {unStack :: [Span]}
 

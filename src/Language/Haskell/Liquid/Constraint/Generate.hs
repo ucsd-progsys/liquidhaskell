@@ -254,7 +254,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 -------------------------------------------------------------------------------
 
 measEnv sp xts cbs lts asms hs autosizes
-  = CGE { cgLoc = Sp.empty 
+  = CGE { cgLoc = Sp.empty
         , renv  = fromListREnv $ second val <$> meas sp
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
