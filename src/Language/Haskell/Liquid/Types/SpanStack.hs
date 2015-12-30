@@ -19,12 +19,11 @@ import CoreSyn                          hiding (Tick, Var)
 import Name                             (getSrcSpan)
 import FastString                       (fsLit)
 import Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
-import Data.Maybe                       (fromMaybe)
+import Data.Maybe                       (listToMaybe, fromMaybe)
 import Language.Haskell.Liquid.Misc     (firstJust)
 
-
 -- | Opaque type for a stack of spans
-newtype SpanStack = SpanStack {unStack :: [Span]}
+newtype SpanStack = SpanStack {unStack :: [(Span, SrcSpan)]}
 
 --------------------------------------------------------------------------------
 empty :: SpanStack
@@ -34,7 +33,9 @@ empty = SpanStack []
 --------------------------------------------------------------------------------
 push :: Span -> SpanStack -> SpanStack
 --------------------------------------------------------------------------------
-push !s (SpanStack stk) = SpanStack (s : stk)
+push !s stk -- @(SpanStack stk)
+  | Just sp <- spanSrcSpan s = SpanStack ((s, sp) : unStack stk)
+  | otherwise                = stk
 
 -- | A single span
 data Span
@@ -48,13 +49,15 @@ instance Show Span where
 --------------------------------------------------------------------------------
 srcSpan :: SpanStack -> SrcSpan
 --------------------------------------------------------------------------------
-srcSpan s = fromMaybe sp0 $ firstJust spanSrcSpan stk
+srcSpan s  = fromMaybe noSpan (mbSrcSpan s)
   where
-    stk   = unStack s
-    sp0   = showSpan ("Span Stack:", stk)
+    noSpan = showSpan "Yikes! No source information"
+
+mbSrcSpan :: SpanStack -> Maybe SrcSpan
+mbSrcSpan = fmap snd . listToMaybe  . unStack
 
 spanSrcSpan :: Span -> Maybe SrcSpan
-spanSrcSpan        = maybeSpan Nothing . go
+spanSrcSpan      = maybeSpan Nothing . go
   where
     go (Var x)   = getSrcSpan x
     go (Tick tt) = tickSrcSpan tt
