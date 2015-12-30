@@ -22,8 +22,8 @@ loop
     :: Ord a
     => x  : a
     -> v  : Vector a
-    -> lo : { lo : Int | 0  <= lo && lo < vlen v }
-    -> hi : { hi : Int | lo <= hi && hi < vlen v }
+    -> lo : { Int | 0  <= lo && lo < vlen v }
+    -> hi : { Int | lo <= hi && hi < vlen v }
     -> Maybe Int
     / [hi - lo]
 @-}
