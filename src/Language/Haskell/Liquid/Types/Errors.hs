@@ -23,9 +23,12 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Misc Creators & Transformers
   , errToFCrash
 
-  -- * Panic
-  , Panic
-  , panic 
+  -- * Panic (unexpected failures)
+  , Panic (..)
+  , panic
+  , todo
+  , impossible
+
   ) where
 
 import           Type
@@ -216,6 +219,11 @@ data TError s t =
                 , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
+
+  | ErrOther    { pos   :: s
+                , msg   :: !Doc
+                } -- ^ Sigh. Other.
+
   deriving (Typeable, Functor)
 
 instance (SourceInfo s) => Eq (TError s a) where
