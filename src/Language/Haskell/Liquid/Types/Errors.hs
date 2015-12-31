@@ -43,18 +43,19 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types      (Symbol, Expr)
 import           Text.Parsec.Error            (ParseError)
+import qualified Control.Exception
 
 --------------------------------------------------------------------------------
 -- | A million ways to die -----------------------------------------------------
 --------------------------------------------------------------------------------
 
 -- | Show an Error, then crash
-panicError :: {-(?callStack :: CallStack) =>-} Error -> a
-panicError = Ex.throw
+panicError :: {-(?callStack :: CallStack) =>-} TError s a -> b
+panicError = error "FIXME: panicError" -- Control.Exception.throw
 
 -- | Construct and show an Error, then crash
 panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
-panic sp d = panicError $ errOther sp $ text d
+panic _ _ = error "FIXME: panic"-- Control.Exception.throw $ errOther sp $ text d
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
