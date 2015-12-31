@@ -437,7 +437,7 @@ makeDecrIndexTy x t
        ts         = ty_args trep
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
-       msg        = ErrTermin [x] (getSrcSpan x) (text "No decreasing parameter")
+       msg        = ErrTermin (getSrcSpan x) [x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
@@ -458,8 +458,8 @@ checkIndex (x, vs, t, index)
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg'  = ErrTermin [x] loc (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
-       msg   = ErrTermin [x] loc (text "No decreasing parameter")
+       msg'  = ErrTermin loc [x] (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
+       msg   = ErrTermin loc [x] (text "No decreasing parameter")
 
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
@@ -495,7 +495,7 @@ checkHint _ _ _ Nothing
   = return Nothing
 
 checkHint x _ _ (Just ns) | L.sort ns /= ns
-  = addWarning (ErrTermin [x] loc (text "The hints should be increasing")) >> return Nothing
+  = addWarning (ErrTermin loc [x] (text "The hints should be increasing")) >> return Nothing
   where loc = getSrcSpan x
 
 checkHint x ts f (Just ns)
@@ -505,8 +505,9 @@ checkValidHint x ts f n
   | n < 0 || n >= length ts = addWarning err >> return Nothing
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
-  where err = ErrTermin [x] loc (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x) ++  "\nin\n" ++ show (ts))
-        loc = getSrcSpan x
+  where
+    err = ErrTermin loc [x] (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x) ++  "\nin\n" ++ show (ts))
+    loc = getSrcSpan x
 
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
@@ -581,8 +582,8 @@ consCBSizedTys γ xes
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
-       err1           = ErrTermin xs loc $ text "The decreasing parameters should be of same type"
-       err2           = ErrTermin xs loc $ text "All Recursive functions should have the same number of decreasing parameters"
+       err1           = ErrTermin loc xs $ text "The decreasing parameters should be of same type"
+       err2           = ErrTermin loc xs $ text "All Recursive functions should have the same number of decreasing parameters"
        loc            = getSrcSpan (head xs)
 
        checkAll _   _ []            = return []
