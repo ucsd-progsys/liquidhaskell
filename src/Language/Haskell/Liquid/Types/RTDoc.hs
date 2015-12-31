@@ -5,15 +5,11 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 
-module Language.Haskell.Liquid.Types.RTDoc (rtypeDoc) where
+module Language.Haskell.Liquid.Types.RTDoc (OkRT, rtypeDoc, ppr_rtype) where
 
--- import           SrcLoc                       (noSrcSpan, SrcSpan)
 import           TypeRep hiding (maybeParen)
 import           Data.Maybe
--- import qualified Data.Text as T
 import           Text.PrettyPrint.HughesPJ
--- import           Text.Parsec.Error            (ParseError)
--- import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Misc
@@ -21,9 +17,9 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.GHC.Misc
 
----------------------------------------------------------------
--- | Pretty Printing RefType ----------------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Pretty Printing RefType ---------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- Should just make this a @Pretty@ instance but its too damn tedious
 -- to figure out all the constraints.
@@ -37,18 +33,17 @@ type OkRT c tv r = ( TyConable c
                    , Reftable (RTProp c tv r)
                    )
 
+--------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => Tidy -> RType c tv r -> Doc
+--------------------------------------------------------------------------------
 rtypeDoc k    = ppr_rtype (ppE k) TopPrec
   where
     ppE Lossy = ppEnvShort ppEnv
     ppE Full  = ppEnv
 
-ppTyConB bb
-  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
-  | otherwise  = ppTycon
-
-
+--------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
+--------------------------------------------------------------------------------
 ppr_rtype bb p t@(RAllT _ _)
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)
@@ -94,6 +89,9 @@ ppr_rtype bb p (RRTy e r o t)
 ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
+ppTyConB bb
+  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
+  | otherwise  = ppTycon
 
 ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
@@ -123,7 +121,6 @@ maybeParen :: Prec -> Prec -> Doc -> Doc
 maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
   | otherwise                  = parens pretty
-
 
 -- ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppExists bb p t
