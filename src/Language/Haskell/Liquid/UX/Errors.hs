@@ -122,18 +122,6 @@ niceTemps     = mkSymbol <$> xs ++ ys
     xs        = single   <$> ['a' .. 'z']
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 
---------------------------------------------------------------------------------
--- | Context information for Error Messages ------------------------------------
---------------------------------------------------------------------------------
-
-class SourceInfo s where
-  siSpan    :: s -> SrcSpan
-  siContext :: s -> Doc
-
-instance SourceInfo SrcSpan where
-  siSpan x    = x
-  siContext _ = empty
-
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------

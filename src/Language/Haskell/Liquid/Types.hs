@@ -146,7 +146,7 @@ module Language.Haskell.Liquid.Types (
   -- * Errors and Error Messages
   , Error
   , TError (..)
-  , EMsg (..)
+  -- , EMsg (..)
   , ErrorResult
   , errSpan
   , errOther
@@ -1331,24 +1331,49 @@ instance PPrint Predicate where
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
+
 -- | The type used during constraint generation, used also to define contexts
 -- for errors, hence in this file, and NOT in Constraint.hs
 newtype REnv = REnv  (M.HashMap Symbol SpecType)
 
 type ErrorResult = FixResult Error
 
-newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
-
-instance PPrint EMsg where
-  pprint (EMsg s) = text s
+-- newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
+--
+-- instance PPrint EMsg where
+  -- pprint (EMsg s) = text s
 
 -- | In the below, we use EMsg instead of, say, SpecType because
 --   the latter is impossible to serialize, as it contains GHC
 --   internals like TyCon and Class inside it.
 
-type Error = TError SrcSpan SpecType
+type Error    = TError SrcSpan SpecType
+type ErrorCtx = TError CtxSpan SpecType
+
+--------------------------------------------------------------------------------
+-- | Context information for Error Messages ------------------------------------
+--------------------------------------------------------------------------------
+
+class SourceInfo s where
+  siSpan    :: s -> SrcSpan
+  siContext :: s -> Doc
+
+
+data CtxSpan = CtxSpan
+  { ctSpan    :: SrcSpan
+  , ctContext :: Text
+  } deriving (Generic)
+
+instance SourceInfo SrcSpan where
+  siSpan x    = x
+  siContext _ = empty
+
+instance SourceInfo CtxSpan where
+  siSpan    = ctSpan
+  siContext = text . T.unpack . ctContext
 
 -- | INVARIANT : all Error constructors should have a pos field
+
 data TError s t =
     ErrSubType { pos  :: s
                , msg  :: !Doc
@@ -1486,10 +1511,8 @@ data TError s t =
 
 
 errToFCrash :: Error -> Error
-errToFCrash (ErrSubType l m g t1 t2)
-  = ErrFCrash l m g t1 t2
-errToFCrash e
-  = e
+errToFCrash (ErrSubType l m g t1 t2) = ErrFCrash l m g t1 t2
+errToFCrash e                        = e
 
 instance Eq Error where
   e1 == e2 = pos e1 == pos e2
