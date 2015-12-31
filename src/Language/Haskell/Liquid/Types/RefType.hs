@@ -200,21 +200,15 @@ instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, Ref
 instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c)
     => Reftable (RTProp c tv r) where
   isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)  = isTrivial t
-
-  top (RProp _ (RHole _)) = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)     = RProp xs $ mapReft top t
-
-  ppTy (RProp _ (RHole r)) d = ppTy r d
-  ppTy (RProp _ _) _   = errorstar "RefType: Reftable ppTy in RProp"
-
-  toReft               = errorstar "RefType: Reftable toReft"
-
-  params               = errorstar "RefType: Reftable params for Ref"
-
-  bot                  = errorstar "RefType: Reftable bot    for Ref"
-
-  ofReft               = errorstar "RefType: Reftable ofReft for Ref"
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = errorstar "RefType: Reftable ppTy in RProp"
+  toReft                      = errorstar "RefType: Reftable toReft"
+  params                      = errorstar "RefType: Reftable params for Ref"
+  bot                         = errorstar "RefType: Reftable bot    for Ref"
+  ofReft                      = errorstar "RefType: Reftable ofReft for Ref"
 
 
 ----------------------------------------------------------------------------
