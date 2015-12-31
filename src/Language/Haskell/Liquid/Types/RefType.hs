@@ -38,7 +38,6 @@ module Language.Haskell.Liquid.Types.RefType (
   , rTyVar, rVar, rApp, rEx
   , symbolRTyVar
   , addTyConInfo
-  -- , expandRApp
   , appRTyCon
   , typeSort, typeUniqueSymbol
   , strengthen
@@ -276,7 +275,6 @@ instance FreeVar RTyCon RTyVar where
 instance FreeVar LocSymbol Symbol where
   freeVars _ = []
 
-
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
@@ -392,11 +390,10 @@ nlzP ps t@(RAllE _ _ _)
 nlzP _ t
  = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
-
 strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
          , RefTypable c tv r
---          , PPrint (RType c tv r)
+         , PPrint (RType c tv r)
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -915,7 +912,6 @@ shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
-
 
 shiftVV t@(RFun _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }

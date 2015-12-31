@@ -118,5 +118,3 @@ niceTemps     = mkSymbol <$> xs ++ ys
 
 errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
-
-
