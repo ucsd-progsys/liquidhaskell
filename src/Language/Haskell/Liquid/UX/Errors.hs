@@ -46,7 +46,7 @@ tidyError sol
   . tidyErrContext sol
   . applySolution sol
 
-tidyErrContext :: FixSolution -> TError SpecType -> TError SpecType
+tidyErrContext :: FixSolution -> TError s SpecType -> TError s SpecType
 tidyErrContext _ e@(ErrSubType {})
   = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
@@ -147,10 +147,14 @@ instance Exception Error
 instance Exception [Error]
 
 ------------------------------------------------------------------------
-ppError :: (PPrint a, Show a) => Tidy -> TError a -> Doc
+ppError :: (PPrint a, Show a) => Tidy -> TError SrcSpan a -> Doc
 ------------------------------------------------------------------------
 ppError k e  = ppError' k (pprintE $ errSpan e) e
+
+
+
 pprintE l    = pprint l <> text ": Error:"
+
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 sepVcat d ds = vcat $ intersperse d ds
 blankLine    = sizedText 5 " "
@@ -186,7 +190,7 @@ ppOblig OTerm = text "Termination Check"
 ppOblig OInv  = text "Invariant Check"
 
 --------------------------------------------------------------------------------
-ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
+ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError SrcSpan a -> Doc
 --------------------------------------------------------------------------------
 ppError' td dSp (ErrAssType _ o _ c p)
   = dSp <+> ppOblig o
