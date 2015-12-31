@@ -179,7 +179,7 @@ data CGInfo = CGInfo {
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-  , logErrors  :: ![TError SpecType]           -- ^ Errors during constraint generation
+  , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder

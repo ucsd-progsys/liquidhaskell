@@ -1346,141 +1346,140 @@ instance PPrint EMsg where
 --   the latter is impossible to serialize, as it contains GHC
 --   internals like TyCon and Class inside it.
 
-
-
-type Error = TError SpecType
+type Error = TError SrcSpan SpecType
 
 -- | INVARIANT : all Error constructors should have a pos field
-data TError t =
-    ErrSubType { pos  :: !SrcSpan
+data TError s t =
+    ErrSubType { pos  :: s
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrFCrash  { pos  :: !SrcSpan
+  | ErrFCrash  { pos  :: s
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrAssType { pos  :: !SrcSpan
+  | ErrAssType { pos  :: s
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , cond :: !RReft
                } -- ^ condition failure error
 
-  | ErrParse    { pos  :: !SrcSpan
+  | ErrParse    { pos  :: s
                 , msg  :: !Doc
                 , pErr :: !ParseError
                 } -- ^ specification parse error
 
-  | ErrTySpec   { pos :: !SrcSpan
+  | ErrTySpec   { pos :: s
                 , var :: !Doc
                 , typ :: !t
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
-  | ErrTermSpec { pos :: !SrcSpan
+  | ErrTermSpec { pos :: s
                 , var :: !Doc
                 , exp :: !Expr
                 , msg :: !Doc
                 } -- ^ sort error in specification
-  | ErrDupAlias { pos  :: !SrcSpan
+
+  | ErrDupAlias { pos  :: s
                 , var  :: !Doc
                 , kind :: !Doc
-                , locs :: ![SrcSpan]
+                , locs :: ![s]
                 } -- ^ multiple alias with same name error
 
-  | ErrDupSpecs { pos :: !SrcSpan
+  | ErrDupSpecs { pos :: s
                 , var :: !Doc
-                , locs:: ![SrcSpan]
+                , locs:: ![s]
                 } -- ^ multiple specs for same binder error
 
-  | ErrBadData  { pos :: !SrcSpan
+  | ErrBadData  { pos :: s
                 , var :: !Doc
                 , msg :: !Doc
                 } -- ^ multiple specs for same binder error
 
-  | ErrInvt     { pos :: !SrcSpan
+  | ErrInvt     { pos :: s
                 , inv :: !t
                 , msg :: !Doc
                 } -- ^ Invariant sort error
 
-  | ErrIAl      { pos :: !SrcSpan
+  | ErrIAl      { pos :: s
                 , inv :: !t
                 , msg :: !Doc
                 } -- ^ Using  sort error
 
-  | ErrIAlMis   { pos :: !SrcSpan
+  | ErrIAlMis   { pos :: s
                 , t1  :: !t
                 , t2  :: !t
                 , msg :: !Doc
                 } -- ^ Incompatible using error
 
-  | ErrMeas     { pos :: !SrcSpan
+  | ErrMeas     { pos :: s
                 , ms  :: !Symbol
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
-  | ErrHMeas    { pos :: !SrcSpan
+  | ErrHMeas    { pos :: s
                 , ms  :: !Symbol
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 
-  | ErrUnbound  { pos :: !SrcSpan
+  | ErrUnbound  { pos :: s
                 , var :: !Doc
                 } -- ^ Unbound symbol in specification
 
-  | ErrGhc      { pos :: !SrcSpan
+  | ErrGhc      { pos :: s
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos  :: !SrcSpan
+  | ErrMismatch { pos  :: s
                 , var  :: !Doc
                 , hs   :: !Type
                 , lq   :: !Type
                 } -- ^ Mismatch between Liquid and Haskell types
 
-  | ErrAliasCycle { pos    :: !SrcSpan
-                  , acycle :: ![(SrcSpan, Doc)]
+  | ErrAliasCycle { pos    :: s
+                  , acycle :: ![(s, Doc)]
                   } -- ^ Cyclic Refined Type Alias Definitions
 
-  | ErrIllegalAliasApp { pos   :: !SrcSpan
+  | ErrIllegalAliasApp { pos   :: s
                        , dname :: !Doc
-                       , dpos  :: !SrcSpan
+                       , dpos  :: s
                        } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
-  | ErrAliasApp { pos   :: !SrcSpan
+  | ErrAliasApp { pos   :: s
                 , nargs :: !Int
                 , dname :: !Doc
-                , dpos  :: !SrcSpan
+                , dpos  :: s
                 , dargs :: !Int
                 }
 
-  | ErrSaved    { pos :: !SrcSpan
+  | ErrSaved    { pos :: s
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
-  | ErrTermin   { bind :: ![Var]
-                , pos  :: !SrcSpan
+  | ErrTermin   { pos  :: s
+                , bind :: ![Var]
                 , msg  :: !Doc
                 } -- ^ Termination Error
 
-  | ErrRClass   { pos   :: !SrcSpan
+  | ErrRClass   { pos   :: s
                 , cls   :: !Doc
                 , insts :: ![(SrcSpan, Doc)]
                 } -- ^ Refined Class/Interfaces Conflict
 
-  | ErrBadQual  { pos   :: !SrcSpan
+  | ErrBadQual  { pos   :: s
                 , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
 
-  | ErrOther    { pos :: !SrcSpan
+  | ErrOther    { pos :: s
                 , msg :: !Doc
                 } -- ^ Unexpected PANIC
   deriving (Typeable, Functor)
@@ -1501,7 +1500,7 @@ instance Ord Error where
 instance Ex.Error Error where
   strMsg = errOther Nothing . text
 
-errSpan :: TError a -> SrcSpan
+errSpan :: TError SrcSpan a -> SrcSpan
 errSpan = pos
 
 errOther :: Maybe SrcSpan -> Doc -> Error
