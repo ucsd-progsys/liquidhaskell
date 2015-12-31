@@ -21,14 +21,11 @@ module Language.Haskell.Liquid.Types.Errors (
   , CtxSpan (..)
 
   -- * Misc Creators & Transformers
-  , errOther
   , errToFCrash
 
-  -- * Various ways to die
-  , panic
-  , panicError
-  , todo
-  , impossible
+  -- * Panic
+  , Panic
+  , panic 
   ) where
 
 import           Type
@@ -38,34 +35,13 @@ import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import           Data.Maybe
 import qualified Data.Text as T
-import qualified Control.Monad.Error as Ex
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (Symbol, Expr)
+
+import           Language.Fixpoint.Types      (showpp, PPrint (..), Symbol, Expr, Reft)
+import           Language.Haskell.Liquid.GHC.Misc (pprDoc)
 import           Text.Parsec.Error            (ParseError)
-import qualified Control.Exception
-
---------------------------------------------------------------------------------
--- | A million ways to die -----------------------------------------------------
---------------------------------------------------------------------------------
-
--- | Show an Error, then crash
-panicError :: {-(?callStack :: CallStack) =>-} TError s a -> b
-panicError = error "FIXME: panicError" -- Control.Exception.throw
-
--- | Construct and show an Error, then crash
-panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
-panic _ _ = error "FIXME: panic"-- Control.Exception.throw $ errOther sp $ text d
-
--- | Construct and show an Error with no SrcSpan, then crash
---   This function should be used to mark unimplemented functionality
-todo :: {-(?callStack :: CallStack) =>-} String -> a
-todo m = panic Nothing $ "TODO: " ++ m
-
--- | Construct and show an Error with no SrcSpan, then crash
---   This function should be used to mark impossible-to-reach codepaths
-impossible :: {-(?callStack :: CallStack) =>-} String -> a
-impossible  m = panic Nothing $ "Should never happen: " ++ m
+import qualified Control.Exception as Ex
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -105,7 +81,6 @@ instance Show Oblig where
   show OInv  = "invariant-obligation"
   show OCons = "constraint-obligation"
 
-
 --------------------------------------------------------------------------------
 -- | Generic Type for Error Messages -------------------------------------------
 --------------------------------------------------------------------------------
@@ -131,7 +106,7 @@ data TError s t =
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
-               , cond :: !Doc -- RReft
+               , cond :: !Reft
                } -- ^ condition failure error
 
   | ErrParse    { pos  :: s
@@ -241,10 +216,6 @@ data TError s t =
                 , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
-
-  | ErrOther    { pos :: s
-                , msg :: !Doc
-                } -- ^ Unexpected PANIC
   deriving (Typeable, Functor)
 
 instance (SourceInfo s) => Eq (TError s a) where
@@ -256,12 +227,48 @@ instance (SourceInfo s) => Ord (TError s a) where
 errSpan :: (SourceInfo s) => TError s a -> SrcSpan
 errSpan = siSpan . pos
 
-instance Ex.Error (TError SrcSpan a) where
-  strMsg = errOther Nothing . text
-
-errOther :: Maybe SrcSpan -> Doc -> TError SrcSpan a
-errOther = ErrOther . fromMaybe noSrcSpan
+-- instance Ex.Error (TError SrcSpan a) where
+--   strMsg = errOther Nothing . text
 
 errToFCrash :: TError s a -> TError s a
 errToFCrash (ErrSubType l m g t1 t2) = ErrFCrash l m g t1 t2
 errToFCrash e                        = e
+
+
+--------------------------------------------------------------------------------
+-- | Simple unstructured type for panic ----------------------------------------
+--------------------------------------------------------------------------------
+
+data Panic = Panic { ePos :: !SrcSpan
+                   , eMsg :: !Doc
+                   } -- ^ Unexpected PANIC
+  deriving (Typeable)
+
+instance PPrint SrcSpan where
+  pprint = pprDoc
+
+instance PPrint Panic where
+  pprint (Panic sp d) = pprint sp <+> text "Unexpected panic (!)"
+                                  $+$ nest 4 d
+
+instance Show Panic where
+  show = showpp
+
+instance Ex.Exception Panic
+
+-- | Construct and show an Error, then crash
+panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+panic sp d = Ex.throw $ Panic (sspan sp) (text d)
+  where
+    sspan  = fromMaybe noSrcSpan
+
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark unimplemented functionality
+todo :: {-(?callStack :: CallStack) =>-} String -> a
+todo m = panic Nothing $ "TODO: " ++ m
+
+-- | Construct and show an Error with no SrcSpan, then crash
+--   This function should be used to mark impossible-to-reach codepaths
+impossible :: {-(?callStack :: CallStack) =>-} String -> a
+impossible  m = panic Nothing $ "Should never happen: " ++ m

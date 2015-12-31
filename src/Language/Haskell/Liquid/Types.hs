@@ -148,6 +148,10 @@ module Language.Haskell.Liquid.Types (
   , Error
   , ErrorCtx
   , ErrorResult
+  , panic
+  , panicError
+  , todo
+  , impossible
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -672,7 +676,10 @@ data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
                 deriving (Generic, Data, Typeable)
 
 data UReft r
-  = MkUReft { ur_reft :: !r, ur_pred :: !Predicate, ur_strata :: !Strata }
+  = MkUReft { ur_reft   :: !r
+            , ur_pred   :: !Predicate
+            , ur_strata :: !Strata
+            }
     deriving (Generic, Data, Typeable)
 
 type BRType     = RType LocSymbol Symbol
@@ -1331,6 +1338,11 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 type ErrorResult = FixResult Error
 type Error       = TError SrcSpan SpecType
 type ErrorCtx    = TError CtxSpan SpecType
+
+-- | Show an Error, then crash
+panicError :: {-(?callStack :: CallStack) =>-} Error -> a
+panicError = Control.Exception.throw
+
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------

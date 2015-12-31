@@ -145,7 +145,6 @@ ppTable m = vcat $ pprxt <$> xts
 maximumWithDefault zero [] = zero
 maximumWithDefault _    xs = maximum xs
 -}
-dot                = char '.'
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------
@@ -159,7 +158,7 @@ instance PPrint Error where
   pprintTidy k = ppError k . fmap ppSpecTypeErr
 
 ppSpecTypeErr :: SpecType -> Doc
-ppSpecTypeErr = rtypeDoc Lossy
+ppSpecTypeErr = rtypeDoc     Lossy
               . tidySpecType Lossy
               . fmap (everywhere (mkT noCasts))
   where
@@ -360,10 +359,5 @@ ppError' _ dSp _ (ErrRClass p0 c is)
     describeInst (p, t)
       =   text "Refined instance for:" <+> t
       $+$ text "Defined at:" <+> ppErrSpan p
-
-ppError' _ dSp dCtx (ErrOther _ s)
-  = dSp <+> text "Unexpected panic (!)"
-        $+$ dCtx
-        $+$ nest 4 (pprint s)
 
 ppVar v = text "`" <> pprint v <> text "'"

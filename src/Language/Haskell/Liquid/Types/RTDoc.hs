@@ -5,7 +5,14 @@
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 
-module Language.Haskell.Liquid.Types.RTDoc (OkRT, rtypeDoc, ppr_rtype) where
+module Language.Haskell.Liquid.Types.RTDoc
+  ( -- * Printable RTypes
+    OkRT
+    -- * Printers
+  , rtypeDoc
+  , ppr_rtype
+
+  ) where
 
 import           TypeRep hiding (maybeParen)
 import           Data.Maybe
@@ -103,6 +110,7 @@ ppr_rsubtype bb p e
     pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
+{- NUKE?
 ppSpine (RAllT _ t)      = text "RAllT" <+> parens (ppSpine t)
 ppSpine (RAllP _ t)      = text "RAllP" <+> parens (ppSpine t)
 ppSpine (RAllS _ t)      = text "RAllS" <+> parens (ppSpine t)
@@ -115,6 +123,8 @@ ppSpine (RApp c _ _ _)   = text "RApp" <+> parens (pprint c)
 ppSpine (RVar _ _)       = text "RVar"
 ppSpine (RExprArg _)     = text "RExprArg"
 ppSpine (RRTy _ _ _ _)   = text "RRTy"
+
+-}
 
 -- | From GHC: TypeRep
 maybeParen :: Prec -> Prec -> Doc -> Doc
@@ -136,7 +146,7 @@ ppAllExpr bb p t
           split zs (RAllE x t t') = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
-ppReftPs bb p rs
+ppReftPs _ _ rs
   | all isTauto rs   = empty
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs

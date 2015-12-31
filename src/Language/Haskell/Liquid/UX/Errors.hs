@@ -5,6 +5,8 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
+-- | TODO: move this into Tidy.
+
 module Language.Haskell.Liquid.UX.Errors
   ( -- * Cleanup an Error
     tidyError
