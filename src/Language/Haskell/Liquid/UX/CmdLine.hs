@@ -381,10 +381,11 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
+resDocs :: Tidy -> FixResult Error -> [Doc]
 resDocs _ Safe             = [text "RESULT: SAFE"]
 resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
--- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
+
 
 {-
    TODO: Never used, do I need to exist?
