@@ -1346,6 +1346,8 @@ instance PPrint EMsg where
 --   the latter is impossible to serialize, as it contains GHC
 --   internals like TyCon and Class inside it.
 
+
+
 type Error = TError SpecType
 
 -- | INVARIANT : all Error constructors should have a pos field
