@@ -5,21 +5,24 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
-module Language.Haskell.Liquid.UX.Errors (tidyError,
-                                          panic,
-                                          panicError,
-                                          todo,
-                                          impossible) where
+module Language.Haskell.Liquid.UX.Errors
+  ( -- * Cleanup an Error
+    tidyError
 
+    -- * Various ways to die
+  , panic
+  , panicError
+  , todo
+  , impossible
+  ) where
 
--- import           Data.Monoid                         hiding ((<>))
--- import           Control.Applicative                 ((<$>), (<*>))
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
 import           Data.Generics                       (everywhere, mkT)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import qualified Data.Text                           as T
 import           Data.Hashable
 import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
@@ -119,10 +122,21 @@ niceTemps     = mkSymbol <$> xs ++ ys
     xs        = single   <$> ['a' .. 'z']
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
 
+--------------------------------------------------------------------------------
+-- | Context information for Error Messages ------------------------------------
+--------------------------------------------------------------------------------
 
-------------------------------------------------------------------------
--- | Pretty Printing Error Messages ------------------------------------
-------------------------------------------------------------------------
+class SourceInfo s where
+  siSpan    :: s -> SrcSpan
+  siContext :: s -> Doc
+
+instance SourceInfo SrcSpan where
+  siSpan x    = x
+  siContext _ = empty
+
+--------------------------------------------------------------------------------
+-- | Pretty Printing Error Messages --------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
@@ -131,14 +145,13 @@ instance PPrint Error where
   pprint       = pprintTidy Full
   pprintTidy k = ppError k . fmap ppSpecTypeErr
 
-ppSpecTypeErr   :: SpecType -> Doc
-ppSpecTypeErr
-  = rtypeDoc Lossy . tidySpecType Lossy . fmap (everywhere (mkT noCasts))
+ppSpecTypeErr :: SpecType -> Doc
+ppSpecTypeErr = rtypeDoc Lossy
+              . tidySpecType Lossy
+              . fmap (everywhere (mkT noCasts))
   where
     noCasts (ECst x _) = x
     noCasts e          = e
-
--- full = isNontrivialVV $ rTypeValueVar t =
 
 instance Show Error where
   show = showpp
@@ -146,13 +159,20 @@ instance Show Error where
 instance Exception Error
 instance Exception [Error]
 
-------------------------------------------------------------------------
-ppError :: (PPrint a, Show a) => Tidy -> TError SrcSpan a -> Doc
-------------------------------------------------------------------------
-ppError k e  = ppError' k (pprintE $ errSpan e) e
+--------------------------------------------------------------------------------
+ppError :: (PPrint a, SourceInfo s, Show a) => Tidy -> TError s a -> Doc
+--------------------------------------------------------------------------------
+ppError k e  = ppError' k dSp dCtx e
+  where
+    dSp      = ppErrSpan (pos e) <> text ": Error:"
+    dCtx     = ppErrorCtx e
 
+ppErrSpan :: (SourceInfo s) => s -> Doc
+ppErrSpan   = pprint . siSpan
 
-pprintE l    = pprint l <> text ": Error:"
+ppErrorCtx :: (SourceInfo s) => TError s a -> Doc
+ppErrorCtx   = pprint . siContext . pos
+
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 sepVcat d ds = vcat $ intersperse d ds
 blankLine    = sizedText 5 " "
@@ -188,132 +208,140 @@ ppOblig OTerm = text "Termination Check"
 ppOblig OInv  = text "Invariant Check"
 
 --------------------------------------------------------------------------------
-ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError SrcSpan a -> Doc
+ppError' :: (PPrint a, Show a, SourceInfo s)
+         => Tidy -> Doc -> Doc -> TError s a -> Doc
 --------------------------------------------------------------------------------
-ppError' td dSp (ErrAssType _ o _ c p)
+ppError' td dSp dCtx (ErrAssType _ o _ c p)
   = dSp <+> ppOblig o
+        $+$ dCtx
         $+$ (ppFull td $ ppPropInContext p c)
 
-ppError' td dSp (ErrSubType _ _ c tA tE)
+ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
+        $+$ dCtx
         $+$ (ppFull td $ ppReqInContext tA tE c)
 
-ppError' td  dSp (ErrFCrash _ _ c tA tE)
+ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
+        $+$ dCtx
         $+$ (ppFull td $ ppReqInContext tA tE c)
 
-ppError' _ dSp (ErrParse _ _ e)
+ppError' _ dSp dCtx (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
-    $+$ (nest 4 $ pprint e)
+        $+$ dCtx
+        $+$ (nest 4 $ pprint e)
 
-ppError' _ dSp (ErrTySpec _ v t s)
+ppError' _ dSp _ (ErrTySpec _ v t s)
   = dSp <+> text "Bad Type Specification"
-    $+$ (pprint v <+> dcolon <+> pprint t)
-    $+$ (nest 4 $ pprint s)
+        $+$ (pprint v <+> dcolon <+> pprint t)
+        $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp (ErrBadData _ v s)
+ppError' _ dSp _ (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
-    $+$ (pprint v <+> dcolon <+> pprint s)
+        $+$ (pprint v <+> dcolon <+> pprint s)
 
-
-ppError' _ dSp (ErrBadQual _ n d)
+ppError' _ dSp dCtx (ErrBadQual _ n d)
   = dSp <+> text "Bad Qualifier Specification for" <+> n
-    $+$ (pprint d)
+        $+$ dCtx
+        $+$ (pprint d)
 
-
-ppError' _ dSp (ErrTermSpec _ v e s)
+ppError' _ dSp _ (ErrTermSpec _ v e s)
   = dSp <+> text "Bad Termination Specification"
-    $+$ (pprint v <+> dcolon <+> pprint e)
-    $+$ (nest 4 $ pprint s)
+        $+$ (pprint v <+> dcolon <+> pprint e)
+        $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp (ErrInvt _ t s)
+ppError' _ dSp _ (ErrInvt _ t s)
   = dSp <+> text "Bad Invariant Specification"
-    $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
+        $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
 
-ppError' _ dSp (ErrIAl _ t s)
+ppError' _ dSp _ (ErrIAl _ t s)
   = dSp <+> text "Bad Using Specification"
-    $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
+        $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
 
-ppError' _ dSp (ErrIAlMis _ t1 t2 s)
+ppError' _ dSp _ (ErrIAlMis _ t1 t2 s)
   = dSp <+> text "Incompatible Using Specification"
-    $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
+        $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
-ppError' _ dSp (ErrMeas _ t s)
+ppError' _ dSp _ (ErrMeas _ t s)
   = dSp <+> text "Bad Measure Specification"
-    $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
+        $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
-ppError' _ dSp (ErrHMeas _ t s)
+ppError' _ dSp _ (ErrHMeas _ t s)
   = dSp <+> text "Cannot promote Haskell function" <+> pprint t <+> text "to logic"
-    $+$ (nest 4 $ pprint s)
+        $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp (ErrDupSpecs _ v ls)
+ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
-    $+$ (nest 4 $ vcat $ pprint <$> ls)
+        $+$ (nest 4 $ vcat $ ppErrSpan <$> ls)
 
-ppError' _ dSp (ErrDupAlias _ k v ls)
+ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    <+> (nest 4 $ vcat $ pprint <$> ls)
+    <+> (nest 4 $ vcat $ ppErrSpan <$> ls)
 
-ppError' _ dSp (ErrUnbound _ x)
-  = dSp <+> text "Unbound variable"
-    $+$ (nest 4 $ pprint x)
+ppError' _ dSp dCtx (ErrUnbound _ x)
+  = dSp <+> text "Unbound variable" <+> pprint x
+        $+$ dCtx
 
-ppError' _ dSp (ErrGhc _ s)
+ppError' _ dSp dCtx (ErrGhc _ s)
   = dSp <+> text "GHC Error"
-    $+$ (nest 4 $ pprint s)
+        $+$ dCtx
+        $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp (ErrMismatch _ x τ t)
+ppError' _ dSp dCtx (ErrMismatch _ x τ t)
   = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
-    $+$ text "Haskell:" <+> pprint τ
-    $+$ text "Liquid :" <+> pprint t
+        $+$ dCtx
+        $+$ text "Haskell:" <+> pprint τ
+        $+$ text "Liquid :" <+> pprint t
 
-ppError' _ dSp (ErrAliasCycle _ acycle)
+ppError' _ dSp _ (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic Alias Definitions"
-    $+$ text "The following alias definitions form a cycle:"
-    $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
+        $+$ text "The following alias definitions form a cycle:"
+        $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
   where
-    describe (pos, name)
-      = text "Type alias:"     <+> pprint name
-        $+$ text "Defined at:" <+> pprint pos
+    describe (p, name)
+      =   text "Type alias:"     <+> pprint name
+      $+$ text "Defined at:" <+> ppErrSpan p
 
-ppError' _ dSp (ErrIllegalAliasApp _ dn dl)
+ppError' _ dSp dCtx (ErrIllegalAliasApp _ dn dl)
   = dSp <+> text "Refinement Type Alias cannot be used in this context"
-    $+$ text "Type alias:" <+> pprint dn
-    $+$ text "Defined at:" <+> pprint dl
+        $+$ dCtx
+        $+$ text "Type alias:" <+> pprint    dn
+        $+$ text "Defined at:" <+> ppErrSpan dl
 
-ppError' _ dSp (ErrAliasApp _ n name dl dn)
+ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
   = dSp <+> text "Malformed Type Alias Application"
-    $+$ text "Type alias:" <+> pprint name
-    $+$ text "Defined at:" <+> pprint dl
-    $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
+        $+$ dCtx
+        $+$ text "Type alias:" <+> pprint name
+        $+$ text "Defined at:" <+> ppErrSpan dl
+        $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
 
-ppError' _ dSp (ErrSaved _ s)
+ppError' _ dSp _ (ErrSaved _ s)
   = dSp <+> s
 
-ppError' _ dSp (ErrTermin _ xs s)
+ppError' _ dSp dCtx (ErrTermin _ xs s)
   = dSp <+> text "Termination Error on" <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
 
-ppError' _ dSp (ErrRClass pos cls insts)
+ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"
-    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst insts)
+    $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst is)
   where
     describeCls
-      = text "Refined class definition for:" <+> cls
-        $+$ text "Defined at:" <+> pprint pos
-    describeInst (pos, t)
-      = text "Refined instance for:" <+> t
-        $+$ text "Defined at:" <+> pprint pos
+      =   text "Refined class definition for:" <+> c
+      $+$ text "Defined at:" <+> ppErrSpan p0
+    describeInst (p, t)
+      =   text "Refined instance for:" <+> t
+      $+$ text "Defined at:" <+> ppErrSpan p
 
-ppError' _ _ (ErrOther _ s)
-  = text "Panic!" <+> nest 4 (pprint s)
-
+ppError' _ dSp dCtx (ErrOther _ s)
+  = dSp <+> text "Panic!"
+        $+$ nest 4 (pprint s)
 
 ppVar v = text "`" <> pprint v <> text "'"
 
 instance ToJSON Error where
-  toJSON e = object [ "pos" .= (errSpan e)
-                    , "msg" .= (render $ ppError' Full empty e)
+  toJSON e = object [ "pos" .= (pos e)
+                    , "msg" .= (render $ ppError' Full empty empty e)
                     ]
 
 instance FromJSON Error where
@@ -325,7 +353,7 @@ errSaved :: SrcSpan -> String -> Error
 errSaved x = ErrSaved x . text
 
 ------------------------------------------------------------------------
--- Errors --------------------------------------------------------------
+-- | Errors ------------------------------------------------------------
 ------------------------------------------------------------------------
 
 -- | Show an Error, then crash
