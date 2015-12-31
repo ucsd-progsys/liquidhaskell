@@ -302,6 +302,9 @@ instance (PPrint t) => PPrint (Annot t) where
 instance PPrint a => PPrint (AnnInfo a) where
   pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
 
+instance PPrint a => Show (AnnInfo a) where
+  show = showpp
+
 pprAnnInfoBinds (l, xvs)
   = vcat $ map (pprAnnInfoBind . (l,)) xvs
 

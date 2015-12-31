@@ -63,10 +63,7 @@ import Language.Haskell.Liquid.Bare.SymSort
 import Language.Haskell.Liquid.Bare.RefToLogic
 import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
 
-------------------------------------------------------------------
----------- Top Level Output --------------------------------------
-------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> ModName
             -> [CoreBind]
@@ -77,6 +74,7 @@ makeGhcSpec :: Config
             -> Either Error LogicMap
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
+--------------------------------------------------------------------------------
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv

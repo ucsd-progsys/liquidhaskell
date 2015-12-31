@@ -34,6 +34,7 @@ import           Language.Haskell.Liquid.Misc        (single)
 import           SrcLoc                              (SrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception as Ex
+-- import           System.Console.ANSI
 
 type Ctx = M.HashMap Symbol SpecType
 
@@ -64,9 +65,9 @@ tidyErrContext _ e@(ErrAssType {})
 tidyErrContext _ e
   = e
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 tidyCtx xs m  = (θ, M.fromList yts)
   where
     yts       = [tBind x t | (x, t) <- xts]
