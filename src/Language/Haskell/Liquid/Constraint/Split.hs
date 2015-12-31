@@ -337,11 +337,12 @@ splitC (SubR γ o r)
   where
     γ'' = feEnv $ fenv γ
     γ'  = feBinds $ fenv γ
-    r1  = F.RR F.boolSort $ F.toReft r
+    r1  = F.RR F.boolSort rr -- $ F.toReft r
     r2  = F.RR F.boolSort $ F.Reft (vv, F.PBexp $ F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err
-    err = Just $ ErrAssType src o (text $ show o ++ "type error") g r
+    err = Just $ ErrAssType src o (text $ show o ++ "type error") g rr -- (F.toReft r)
+    rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
     REnv g = renv γ

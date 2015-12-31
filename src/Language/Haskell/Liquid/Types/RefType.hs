@@ -85,7 +85,6 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
--- import Control.Applicative  hiding (empty)
 import Control.DeepSeq
 import Control.Monad  (void)
 import Text.Printf
