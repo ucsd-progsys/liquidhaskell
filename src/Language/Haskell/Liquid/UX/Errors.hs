@@ -134,6 +134,7 @@ instance SourceInfo SrcSpan where
   siSpan x    = x
   siContext _ = empty
 
+
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------
 --------------------------------------------------------------------------------
@@ -319,8 +320,9 @@ ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
 ppError' _ dSp _ (ErrSaved _ s)
   = dSp <+> s
 
-ppError' _ dSp dCtx (ErrTermin _ xs s)
-  = dSp <+> text "Termination Error on" <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
+ppError' _ dSp _ (ErrTermin _ xs s)
+  = dSp <+> text "Termination Error"
+        <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
 
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"
@@ -334,7 +336,8 @@ ppError' _ dSp _ (ErrRClass p0 c is)
       $+$ text "Defined at:" <+> ppErrSpan p
 
 ppError' _ dSp dCtx (ErrOther _ s)
-  = dSp <+> text "Panic!"
+  = dSp <+> text "Unexpected panic (!)"
+        $+$ dCtx
         $+$ nest 4 (pprint s)
 
 ppVar v = text "`" <> pprint v <> text "'"
