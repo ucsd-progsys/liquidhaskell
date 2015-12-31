@@ -40,13 +40,13 @@ import Id
 import IdInfo
 import Name
 import NameSet
-import TypeRep
-import Unique
+-- import Unique
+
 
 import Text.PrettyPrint.HughesPJ hiding (first)
 import Control.Monad.State
-import Control.Applicative      ((<$>), (<*>), Applicative)
-import Data.Monoid              (mconcat, mempty, mappend)
+-- import Control.Applicative      ((<$>), (<*>), Applicative)
+-- import Data.Monoid              (mconcat, mempty, mappend)
 import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S

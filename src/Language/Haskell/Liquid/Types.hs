@@ -1661,7 +1661,8 @@ instance Functor RClass where
 -- | Annotations -------------------------------------------------------
 ------------------------------------------------------------------------
 
-newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Text, a)]) deriving (Generic)
+newtype AnnInfo a = AI (M.HashMap SrcSpan [(Maybe Text, a)])
+                    deriving (Generic)
 
 data Annot t      = AnnUse t
                   | AnnDef t
@@ -1750,8 +1751,6 @@ instance PPrint KVProf where
 instance NFData KVProf where
   rnf (KVP m) = rnf m `seq` ()
 
--- hasHole (toReft -> (Reft (_, rs))) = any isHole rs
-
 hole :: Pred
 hole = PKVar "HOLE" mempty
 
@@ -1761,12 +1760,6 @@ isHole _                  = False
 
 hasHole :: Reftable r => r -> Bool
 hasHole = any isHole . conjuncts . reftPred . toReft
-
-
--- isHole :: KVar -> Bool
--- isHole "HOLE" = True
--- isHole _      = False
-
 
 -- classToRApp :: SpecType -> SpecType
 -- classToRApp (RCls cl ts)

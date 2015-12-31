@@ -14,7 +14,8 @@
 -- 3. JSON files for the web-demo etc.
 ---------------------------------------------------------------------------
 
-module Language.Haskell.Liquid.UX.Annotate (mkOutput, annotate) where
+
+module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate) where
 
 import           GHC                      ( SrcSpan (..)
                                           , srcSpanStartCol
@@ -31,7 +32,7 @@ import           Data.Maybe               (mapMaybe)
 
 import           Data.Aeson
 import           Control.Arrow            hiding ((<+>))
-import           Control.Applicative      ((<$>))
+-- import           Control.Applicative      ((<$>))
 import           Control.Monad            (when, forM_)
 
 import           System.Exit                      (ExitCode (..))
@@ -48,13 +49,15 @@ import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Fixpoint.Types hiding (Error, Loc, Def (..), Constant (..), Located (..))
+import           Language.Fixpoint.Types hiding (Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Errors ()
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
+import           Language.Haskell.Liquid.Types.Specifications
+
 
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
@@ -85,11 +88,11 @@ annotate cfg srcF out
        B.writeFile       jsonF $ encode typAnnMap
        when showWarns $ forM_ bots (printf "WARNING: Found false in %s\n" . showPpr)
     where
-       tplAnnMap  = mkAnnMap cfg result annTpl
-       typAnnMap  = mkAnnMap cfg result annTyp
+       tplAnnMap  = mkAnnMap cfg res annTpl
+       typAnnMap  = mkAnnMap cfg res annTyp
        annTpl     = o_templs out
        annTyp     = o_types  out
-       result     = o_result out
+       res        = o_result out
        bots       = o_bots   out
        tyHtmlF    = extFileName Html                   srcF
        tpHtmlF    = extFileName Html $ extFileName Cst srcF
@@ -298,7 +301,7 @@ isData = spacePrefix "data"
 isType = spacePrefix "type"
 isIncl = spacePrefix "include"
 
-{-@ spacePrefix :: _ -> s:_ -> _ / [len s] @-}
+{-@ spacePrefix :: String -> s:String -> Bool / [len s] @-}
 spacePrefix :: String -> String -> Bool
 spacePrefix str s@(c:cs)
   | isSpace c   = spacePrefix str cs
@@ -400,7 +403,22 @@ ins r c x (Asc m)  = Asc (M.insert r (Asc (M.insert c x rm)) m)
   where
     Asc rm         = M.lookupDefault (Asc M.empty) r m
 
+--------------------------------------------------------------------------------
+-- | LH Related Stuff ----------------------------------------------------------
+--------------------------------------------------------------------------------
 
+{-@ LIQUID "--diffcheck" @-}
+
+{-@ type ListNE a    = {v:[a] | 0 < len v}  @-}
+{-@ type ListN  a N  = {v:[a] | len v == N} @-}
+{-@ type ListXs a Xs = ListN a {len Xs}     @-}
+
+{-@ assume GHC.Exts.sortWith :: Ord b => (a -> b) -> xs:[a] -> ListXs a xs @-}
+{-@ assume GHC.Exts.groupWith :: Ord b => (a -> b) -> [a] -> [ListNE a] @-}
+
+{-@ junkProp :: ListNE Int @-}
+junkProp :: [Int]
+junkProp = [ 8 ]
 
 --------------------------------------------------------------------------------
 -- | A Little Unit Test --------------------------------------------------------
