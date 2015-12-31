@@ -4,22 +4,12 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TupleSections        #-}
 
--- | Module with all the printing and serialization routines
+-- | Module with PPrint instances
 
 module Language.Haskell.Liquid.UX.PrettyPrint (
-  -- * Tidy level
-  Tidy (..)
-
-  -- * Printing RType
-  , rtypeDoc
-  , ppr_rtype
-
-  -- * Printing an Orderable List
-  , pprManyOrdered
-
-  -- * Printing a List with many large items
+  -- * Printing Lists (TODO: move to fixpoint)
+    pprManyOrdered
   , pprintLongList
-  , ppSpine
   , pprintSymbol
   ) where
 
@@ -31,32 +21,51 @@ import TypeRep          hiding (maybeParen, pprArrowChain)
 import Var              (Var)
 import TyCon            (TyCon)
 
+import Data.Generics                       (everywhere, mkT)
 
-import Language.Haskell.Liquid.Misc
+-- import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Fixpoint.Types hiding (Error, SrcSpan, Predicate)
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc hiding (intersperse)
 import Language.Haskell.Liquid.Types hiding (sort)
+import Language.Haskell.Liquid.Types.RTDoc
 import Language.Haskell.Liquid.UX.Tidy
 
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Text.PrettyPrint.HughesPJ
 
-import Data.Maybe   (fromMaybe)
-import Data.List    (sort, sortBy)
-import Data.Function (on)
+-- import Data.Maybe   (fromMaybe)
+import Data.List    (intersperse, sort)
+-- import Data.Function (on)
 import Data.Aeson
 
 import qualified Control.Exception  as Ex
 import qualified Data.HashMap.Strict as M
 
 
+
+--------------------------------------------------------------------------------
+pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
+--------------------------------------------------------------------------------
+pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . sort
+
+--------------------------------------------------------------------------------
+pprintLongList :: PPrint a => [a] -> Doc
+--------------------------------------------------------------------------------
+pprintLongList = brackets . vcat . map pprint
+
+
+--------------------------------------------------------------------------------
 pprintSymbol :: Symbol -> Doc
+--------------------------------------------------------------------------------
 pprintSymbol x = char '‘' <> pprint x <> char '’'
+
+--------------------------------------------------------------------------------
+-- | A whole bunch of PPrint instances follow ----------------------------------
+--------------------------------------------------------------------------------
 
 instance PPrint SrcSpan where
   pprint = pprDoc
-
 
 instance PPrint ErrMsg where
   pprint = text . show
@@ -91,35 +100,6 @@ instance PPrint Class where
 
 instance Show Predicate where
   show = showpp
-
-
--- | Printing an Ordered List
-
----------------------------------------------------------------
-pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
----------------------------------------------------------------
-pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . sort
-
-instance PPrint RTyVar where
-  pprint (RTV α)
-   | ppTyVar ppEnv = ppr_tyvar α
-   | otherwise     = ppr_tyvar_short α
-
-ppr_tyvar       = text . tvId
-ppr_tyvar_short = text . showPpr
-
-instance (PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t (RType b c p)) where
-  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
-
-ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
-
-ppRefSym "" = text "_"
-ppRefSym s  = pprint s
-
-pprintLongList :: PPrint a => [a] -> Doc
-pprintLongList = brackets . vcat . map pprint
 
 instance (PPrint t) => PPrint (Annot t) where
   pprint (AnnUse t) = text "AnnUse" <+> pprint t
@@ -201,6 +181,9 @@ instance FromJSON Error where
   parseJSON (Object v) = errSaved <$> v .: "pos"
                                   <*> v .: "msg"
   parseJSON _          = mempty
+
+errSaved :: SrcSpan -> String -> Error
+errSaved x = ErrSaved x . text
 
 -- type CtxError = Error
 --------------------------------------------------------------------------------

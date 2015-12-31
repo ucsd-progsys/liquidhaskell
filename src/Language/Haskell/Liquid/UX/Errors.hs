@@ -115,6 +115,3 @@ niceTemps     = mkSymbol <$> xs ++ ys
     mkSymbol  = symbol . ('?' :)
     xs        = single   <$> ['a' .. 'z']
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]
-
-errSaved :: SrcSpan -> String -> Error
-errSaved x = ErrSaved x . text

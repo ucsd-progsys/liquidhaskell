@@ -16,19 +16,16 @@ module Language.Haskell.Liquid.UX.Tidy (
   , isTmpSymbol
   ) where
 
-import Control.Applicative
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import           Data.Maybe                 (fromMaybe)
 
-import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symSepName, isPrefixOfSym, takeWhileSym)
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
-
 
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
