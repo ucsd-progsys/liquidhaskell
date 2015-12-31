@@ -79,13 +79,13 @@ import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPr
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon)
 
-import           Data.Monoid      hiding ((<>))
+-- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-import Control.Applicative  hiding (empty)
+-- import Control.Applicative  hiding (empty)
 import Control.DeepSeq
 import Control.Monad  (void)
 import Text.Printf

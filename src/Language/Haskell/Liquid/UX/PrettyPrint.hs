@@ -118,12 +118,6 @@ ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
 ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
-instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (MkUReft r p _)
-    | isTauto r  = pprint p
-    | isTauto p  = pprint r
-    | otherwise  = pprint p <> text " & " <> pprint r
-
 pprintLongList :: PPrint a => [a] -> Doc
 pprintLongList = brackets . vcat . map pprint
 
