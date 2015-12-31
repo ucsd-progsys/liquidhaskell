@@ -152,9 +152,7 @@ ppError :: (PPrint a, Show a) => Tidy -> TError SrcSpan a -> Doc
 ppError k e  = ppError' k (pprintE $ errSpan e) e
 
 
-
 pprintE l    = pprint l <> text ": Error:"
-
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 sepVcat d ds = vcat $ intersperse d ds
 blankLine    = sizedText 5 " "
