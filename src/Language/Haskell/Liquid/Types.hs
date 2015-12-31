@@ -144,13 +144,10 @@ module Language.Haskell.Liquid.Types (
   , Result (..)
 
   -- * Errors and Error Messages
+  , module Language.Haskell.Liquid.Types.Errors
   , Error
-  , TError (..)
-  -- , EMsg (..)
+  , ErrorCtx
   , ErrorResult
-  , errSpan
-  , errOther
-  , errToFCrash
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -203,24 +200,22 @@ import NameSet
 import Module                                   (moduleNameFS)
 import TypeRep                          hiding  (maybeParen, pprArrowChain)
 import Var
-import Text.Printf
 import GHC                                      (HscEnv, ModuleName, moduleNameString)
 import GHC.Generics
-import Language.Haskell.Liquid.GHC.Misc
-
+import CoreSyn (CoreBind, CoreExpr)
 import PrelInfo         (isNumericClass)
-
-
 import TysWiredIn                               (listTyCon)
-import Control.Arrow                            (second)
-import Control.Monad                            (liftM, liftM2, liftM3, liftM4)
-import qualified Control.Exception
-import qualified Control.Monad.Error as Ex
-import Control.DeepSeq
-import Control.Applicative                      ((<$>))
-import Data.Typeable                            (Typeable)
-import Data.Generics                            (Data)
-import Data.Monoid                              hiding ((<>))
+
+import            Control.Arrow                            (second)
+import            Control.Monad                            (liftM, liftM2, liftM3, liftM4)
+import qualified  Control.Exception
+import qualified  Control.Monad.Error as Ex
+import            Control.DeepSeq
+import            Control.Applicative                      ((<$>))
+import            Data.Typeable                            (Typeable)
+import            Data.Generics                            (Data)
+
+import            Data.Monoid                              hiding ((<>))
 
 
 import qualified  Data.Foldable as F
@@ -232,17 +227,20 @@ import            Data.Traversable             hiding (mapM)
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
 import qualified  Data.Text                    as T
-import Text.Parsec.Pos              (SourcePos)
-import Text.Parsec.Error            (ParseError)
-import Text.PrettyPrint.HughesPJ
-import Language.Fixpoint.Types.Config     hiding (Config)
-import Language.Fixpoint.Misc
-import Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
-import Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.Types.PrettyPrint as F
-import CoreSyn (CoreBind, CoreExpr)
+import            Text.Parsec.Pos              (SourcePos)
+import            Text.Parsec.Error            (ParseError)
+import            Text.PrettyPrint.HughesPJ
+import            Text.Printf
 
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
+import           Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
+import qualified Language.Fixpoint.Types.PrettyPrint as F
+import           Language.Fixpoint.Types.Config     hiding (Config)
+
+import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
+import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.UX.Config
 import Data.Default
@@ -631,19 +629,8 @@ data RType c tv r
             --   see tests/pos/Holes.hs
   deriving (Generic, Data, Typeable)
 
-data Oblig
-  = OTerm -- ^ Obligation that proves termination
-  | OInv  -- ^ Obligation that proves invariants
-  | OCons -- ^ Obligation that proves subtyping constraints
-  deriving (Generic, Data, Typeable)
-
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
-
-instance Show Oblig where
-  show OTerm = "termination-condition"
-  show OInv  = "invariant-obligation"
-  show OCons = "constraint-obligation"
 
 instance PPrint Oblig where
   pprint = text . show
@@ -740,7 +727,6 @@ class ( TyConable c
       , PPrint r
       ) => RefTypable c tv r
   where
---     ppCls    :: p -> [RType c tv r] -> Doc
     ppRType  :: Prec -> RType c tv r -> Doc
 
 
@@ -1328,206 +1314,18 @@ instance PPrint Predicate where
   pprint (Pr [])       = text "True"
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
 
-------------------------------------------------------------------------
--- | Error Data Type ---------------------------------------------------
-------------------------------------------------------------------------
 
 -- | The type used during constraint generation, used also to define contexts
 -- for errors, hence in this file, and NOT in Constraint.hs
 newtype REnv = REnv  (M.HashMap Symbol SpecType)
 
+------------------------------------------------------------------------
+-- | Error Data Type ---------------------------------------------------
+------------------------------------------------------------------------
+
 type ErrorResult = FixResult Error
-
--- newtype EMsg     = EMsg String deriving (Generic, Data, Typeable)
---
--- instance PPrint EMsg where
-  -- pprint (EMsg s) = text s
-
--- | In the below, we use EMsg instead of, say, SpecType because
---   the latter is impossible to serialize, as it contains GHC
---   internals like TyCon and Class inside it.
-
-type Error    = TError SrcSpan SpecType
-type ErrorCtx = TError CtxSpan SpecType
-
---------------------------------------------------------------------------------
--- | Context information for Error Messages ------------------------------------
---------------------------------------------------------------------------------
-
-class SourceInfo s where
-  siSpan    :: s -> SrcSpan
-  siContext :: s -> Doc
-
-
-data CtxSpan = CtxSpan
-  { ctSpan    :: SrcSpan
-  , ctContext :: Text
-  } deriving (Generic)
-
-instance SourceInfo SrcSpan where
-  siSpan x    = x
-  siContext _ = empty
-
-instance SourceInfo CtxSpan where
-  siSpan    = ctSpan
-  siContext = text . T.unpack . ctContext
-
--- | INVARIANT : all Error constructors should have a pos field
-
-data TError s t =
-    ErrSubType { pos  :: s
-               , msg  :: !Doc
-               , ctx  :: !(M.HashMap Symbol t)
-               , tact :: !t
-               , texp :: !t
-               } -- ^ liquid type error
-
-  | ErrFCrash  { pos  :: s
-               , msg  :: !Doc
-               , ctx  :: !(M.HashMap Symbol t)
-               , tact :: !t
-               , texp :: !t
-               } -- ^ liquid type error
-
-  | ErrAssType { pos  :: s
-               , obl  :: !Oblig
-               , msg  :: !Doc
-               , ctx  :: !(M.HashMap Symbol t)
-               , cond :: !RReft
-               } -- ^ condition failure error
-
-  | ErrParse    { pos  :: s
-                , msg  :: !Doc
-                , pErr :: !ParseError
-                } -- ^ specification parse error
-
-  | ErrTySpec   { pos :: s
-                , var :: !Doc
-                , typ :: !t
-                , msg :: !Doc
-                } -- ^ sort error in specification
-
-  | ErrTermSpec { pos :: s
-                , var :: !Doc
-                , exp :: !Expr
-                , msg :: !Doc
-                } -- ^ sort error in specification
-
-  | ErrDupAlias { pos  :: s
-                , var  :: !Doc
-                , kind :: !Doc
-                , locs :: ![s]
-                } -- ^ multiple alias with same name error
-
-  | ErrDupSpecs { pos :: s
-                , var :: !Doc
-                , locs:: ![s]
-                } -- ^ multiple specs for same binder error
-
-  | ErrBadData  { pos :: s
-                , var :: !Doc
-                , msg :: !Doc
-                } -- ^ multiple specs for same binder error
-
-  | ErrInvt     { pos :: s
-                , inv :: !t
-                , msg :: !Doc
-                } -- ^ Invariant sort error
-
-  | ErrIAl      { pos :: s
-                , inv :: !t
-                , msg :: !Doc
-                } -- ^ Using  sort error
-
-  | ErrIAlMis   { pos :: s
-                , t1  :: !t
-                , t2  :: !t
-                , msg :: !Doc
-                } -- ^ Incompatible using error
-
-  | ErrMeas     { pos :: s
-                , ms  :: !Symbol
-                , msg :: !Doc
-                } -- ^ Measure sort error
-
-  | ErrHMeas    { pos :: s
-                , ms  :: !Symbol
-                , msg :: !Doc
-                } -- ^ Haskell bad Measure error
-
-  | ErrUnbound  { pos :: s
-                , var :: !Doc
-                } -- ^ Unbound symbol in specification
-
-  | ErrGhc      { pos :: s
-                , msg :: !Doc
-                } -- ^ GHC error: parsing or type checking
-
-  | ErrMismatch { pos  :: s
-                , var  :: !Doc
-                , hs   :: !Type
-                , lq   :: !Type
-                } -- ^ Mismatch between Liquid and Haskell types
-
-  | ErrAliasCycle { pos    :: s
-                  , acycle :: ![(s, Doc)]
-                  } -- ^ Cyclic Refined Type Alias Definitions
-
-  | ErrIllegalAliasApp { pos   :: s
-                       , dname :: !Doc
-                       , dpos  :: s
-                       } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
-
-  | ErrAliasApp { pos   :: s
-                , nargs :: !Int
-                , dname :: !Doc
-                , dpos  :: s
-                , dargs :: !Int
-                }
-
-  | ErrSaved    { pos :: s
-                , msg :: !Doc
-                } -- ^ Previously saved error, that carries over after DiffCheck
-
-  | ErrTermin   { pos  :: s
-                , bind :: ![Var]
-                , msg  :: !Doc
-                } -- ^ Termination Error
-
-  | ErrRClass   { pos   :: s
-                , cls   :: !Doc
-                , insts :: ![(SrcSpan, Doc)]
-                } -- ^ Refined Class/Interfaces Conflict
-
-  | ErrBadQual  { pos   :: s
-                , qname :: !Doc
-                , msg   :: !Doc
-                } -- ^ Non well sorted Qualifier
-
-  | ErrOther    { pos :: s
-                , msg :: !Doc
-                } -- ^ Unexpected PANIC
-  deriving (Typeable, Functor)
-
-
-errToFCrash :: Error -> Error
-errToFCrash (ErrSubType l m g t1 t2) = ErrFCrash l m g t1 t2
-errToFCrash e                        = e
-
-instance Eq Error where
-  e1 == e2 = pos e1 == pos e2
-
-instance Ord Error where
-  e1 <= e2 = pos e1 <= pos e2
-
-instance Ex.Error Error where
-  strMsg = errOther Nothing . text
-
-errSpan :: TError SrcSpan a -> SrcSpan
-errSpan = pos
-
-errOther :: Maybe SrcSpan -> Doc -> Error
-errOther = ErrOther . fromMaybe noSrcSpan
+type Error       = TError SrcSpan SpecType
+type ErrorCtx    = TError CtxSpan SpecType
 
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
