@@ -148,10 +148,10 @@ module Language.Haskell.Liquid.Types (
   , Error
   , ErrorCtx
   , ErrorResult
-  , panic
-  , panicError
-  , todo
-  , impossible
+  -- , panic
+  -- , panicError
+  -- , todo
+  -- , impossible
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -1340,8 +1340,8 @@ type Error       = TError SrcSpan SpecType
 type ErrorCtx    = TError CtxSpan SpecType
 
 -- | Show an Error, then crash
-panicError :: {-(?callStack :: CallStack) =>-} Error -> a
-panicError = Control.Exception.throw
+-- panicError :: {-(?callStack :: CallStack) =>-} Error -> a
+-- panicError = Control.Exception.throw
 
 
 ------------------------------------------------------------------------
@@ -1368,8 +1368,7 @@ instance Result [Error] where
   result es = Crash es ""
 
 instance Result Error where
-  result (ErrOther _ d) = Crash [] $ render d
-  result e              = result [e]
+  result e  = Crash [e] ""
 
 instance Result (FixResult Cinfo) where
   result = fmap cinfoError
@@ -1421,7 +1420,7 @@ mapRP f e = e { predAliases = f $ predAliases e }
 mapRE f e = e { exprAliases = f $ exprAliases e }
 
 cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = errOther Nothing $ text $ "Cinfo:" ++ showPpr l
+cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 
 
 --------------------------------------------------------------------------------
