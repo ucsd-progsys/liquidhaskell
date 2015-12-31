@@ -396,7 +396,8 @@ pvType p = case ptype p of
              PVHProp  -> errorstar "pvType on HProp-PVar"
 
 data PVKind t
-  = PVProp t | PVHProp
+  = PVProp t
+  | PVHProp
     deriving (Generic, Data, Typeable, F.Foldable, Traversable, Show)
 
 instance Eq (PVar t) where
@@ -1305,10 +1306,14 @@ instance PPrint Strata where
   pprint [] = empty
   pprint ss = hsep (pprint <$> nub ss)
 
-instance PPrint a => PPrint (PVar a) where
-  pprint (PV s _ _ xts)   = pprint s <+> hsep (pprint <$> dargs xts)
-    where
-      dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y)
+instance PPrint (PVar a) where
+  pprint = ppr_pvar
+
+ppr_pvar :: PVar a -> Doc
+ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
+  where
+    dargs               = map thd3 . takeWhile (\(_, x, y) -> EVar x /= y)
+
 
 instance PPrint Predicate where
   pprint (Pr [])       = text "True"
@@ -1616,11 +1621,12 @@ instance PPrint RTyVar where
 ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
-instance (PPrint p, Reftable  p, PPrint t, PPrint (RType b c p)) => PPrint (Ref t (RType b c p)) where
+instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
   pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
   pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 
+ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty
 ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
 
