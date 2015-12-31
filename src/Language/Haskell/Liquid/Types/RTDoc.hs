@@ -221,3 +221,11 @@ ppRefSym "" = text "_"
 ppRefSym s  = pprint s
 
 dot                = char '.'
+
+
+
+instance (PPrint r, Reftable r) => PPrint (UReft r) where
+  pprint (MkUReft r p _)
+    | isTauto r  = pprint p
+    | isTauto p  = pprint r
+    | otherwise  = pprint p <> text " & " <> pprint r
