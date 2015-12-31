@@ -92,7 +92,7 @@ import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
-import Language.Haskell.Liquid.UX.PrettyPrint
+-- import Language.Haskell.Liquid.UX.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Fixpoint.Types.Visitor (mapKVars)
@@ -265,16 +265,6 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
---   ppCls   = ppClassSymbol
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
-instance (Reftable r, PPrint r) => RefTypable RTyCon RTyVar r where
---   ppCls   = ppClassClassPred
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
 class FreeVar a v where
   freeVars :: a -> [v]
 
@@ -406,7 +396,7 @@ nlzP _ t
 strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
          , RefTypable c tv r
-         , PPrint (RType c tv r)
+--          , PPrint (RType c tv r)
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -652,31 +642,10 @@ instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
   rnf (RRTy _ r _ t)   = rnf r `seq` rnf t
   rnf (RHole r)        = rnf r
 
-----------------------------------------------------------------
------------------- Printing Refinement Types -------------------
-----------------------------------------------------------------
 
-instance Show RTyVar where
-  show = showpp
-
-instance PPrint (UReft r) => Show (UReft r) where
-  show = showpp
-
-instance (RefTypable c tv r) => PPrint (RType c tv r) where
-  pprint = ppRType TopPrec
-
-instance PPrint (RType c tv r) => Show (RType c tv r) where
-  show = showpp
-
-instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
-  show = showpp
-
-instance PPrint REnv where
-  pprint (REnv m)  = pprint m
-
-------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
-------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 subsTyVars_meet        = subsTyVars True
 subsTyVars_nomeet      = subsTyVars False
