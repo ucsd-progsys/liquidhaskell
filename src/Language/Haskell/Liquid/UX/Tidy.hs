@@ -27,7 +27,7 @@ import Language.Fixpoint.Types.Names              (stripPrefix, kArgPrefix, symS
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
 import Language.Haskell.Liquid.Types
--- import Language.Haskell.Liquid.Types.RefType hiding (shiftVV)
+import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
 
 
 -------------------------------------------------------------------------
@@ -83,7 +83,6 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     dropLocals                    = pAnd . filter (not . any isTmp . syms) . conjuncts
     isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
     txStr                         = filter (not . isSVar)
-
 
 tidyDSymbols :: SpecType -> SpecType
 tidyDSymbols t = mapBind tx $ substa tx t
