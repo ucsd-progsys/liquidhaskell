@@ -370,10 +370,6 @@ exitWithResult cfg target out
     where
        r         = o_result out `addErrors` o_errors out
 
--- TODO: move to Language.Fixpoint.Types.Errors
-instance Foldable    FixResult
-instance Traversable FixResult
-
 resultWithContext :: FixResult Error -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 

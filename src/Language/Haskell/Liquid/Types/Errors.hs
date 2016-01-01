@@ -30,7 +30,7 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Type
-import           SrcLoc                       (noSrcSpan, SrcSpan)
+import           SrcLoc                       (RealSrcSpan (..), SrcSpan (..), noSrcSpan)
 import           GHC.Generics
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
@@ -43,7 +43,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types               (showpp, PPrint (..), Symbol, Expr, Reft)
-import           Language.Haskell.Liquid.GHC.Misc      (pprDoc)
+import           Language.Haskell.Liquid.GHC.Misc      (pprDoc, unpackRealSrcSpan)
 import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
@@ -62,17 +62,43 @@ instance Eq (CtxError t) where
 
 instance Ord (CtxError t) where
   e1 <= e2 = ctErr e1 <= ctErr e2
-  
+
 --------------------------------------------------------------------------------
 errorWithContext :: TError t -> IO (CtxError t)
 --------------------------------------------------------------------------------
 errorWithContext e = CtxError e <$> srcSpanContext (pos e)
 
-srcSpanContext :: SrcLoc.SrcSpan -> IO Doc
-srcSpanContext = error "TODO: HEREHEREHERE addContext"
+srcSpanContext :: SrcSpan -> IO Doc
+srcSpanContext sp
+  | Just (f, l, c, c') <- srcSpanInfo sp
+  = maybe empty (makeContext l c c') <$> getFileLine f l
+  | otherwise
+  = return empty
 
-getFileLine :: FilePath -> Int -> IO String
-getFileLine = error "TODO: HEREHERE"
+srcSpanInfo :: SrcSpan -> Maybe (FilePath, Int, Int, Int)
+srcSpanInfo (RealSrcSpan s)
+  | l == l'           = Just (f, l, c, c')
+  | otherwise         = Nothing
+  where
+    (f, l, c, l', c') = unpackRealSrcSpan s
+srcSpanInfo _         = Nothing
+
+getFileLine :: FilePath -> Int -> IO (Maybe String)
+getFileLine f i = getNth i . lines <$> readFile f
+
+getNth :: Int -> [a] -> Maybe a
+getNth i xs
+  | i < length xs = Just (xs !! i)
+  | otherwise     = Nothing
+
+makeContext :: Int -> Int -> Int -> String -> Doc
+makeContext l c c' s = lnum l <+> (text s $+$ cursor)
+  where
+    lnum n           = text (show n) <+> text "|"
+    cursor           = blanks c <> pointer (c' - c)
+    blanks n         = text $ replicate n ' '
+    pointer n        = text $ replicate n '^'
+
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
 --------------------------------------------------------------------------------
@@ -236,7 +262,6 @@ instance Eq (TError a) where
 
 instance Ord (TError a) where
   e1 <= e2 = errSpan e1 <= errSpan e2
-
 
 
 errSpan :: TError a -> SrcSpan
