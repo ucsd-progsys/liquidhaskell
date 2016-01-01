@@ -189,9 +189,9 @@ solveNative' !cfg !fi0 = do
   when (elimStats cfg) $ printElimStats (deps si1)
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
-  -- writeLoud $ "fq file after uniqify: \n" ++ render (toFixpoint cfg si2)
   -- rnf si2 `seq` donePhase Loud "Uniqify"
   (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
+  writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res

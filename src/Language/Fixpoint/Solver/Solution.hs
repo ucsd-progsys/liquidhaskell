@@ -30,7 +30,7 @@ import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (maybeToList, isNothing)
+import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor      as V
@@ -224,6 +224,14 @@ instance Solvable F.KVar where
   apply s k = apply s $ safeLookup err k s
     where
       err   = "apply: Unknown KVar " ++ show k
+
+{- The below just kicks the can down the road.
+instance Solvable F.KVar where
+  apply s k = fromMaybe def kp
+    where
+      kp    = apply s <$> M.lookup k s
+      def   = F.PKVar k mempty
+-}
 
 instance Solvable (F.KVar, F.Subst) where
   apply s (k, su) = F.subst su (apply s k)

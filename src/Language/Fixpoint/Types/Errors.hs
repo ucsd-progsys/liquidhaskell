@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE DeriveFoldable            #-}
+{-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
@@ -119,7 +121,7 @@ exit def act = catch act $ \(e :: Error) -> do
 data FixResult a = Crash [a] String
                  | Safe
                  | Unsafe ![a]
-                   deriving (Data, Typeable, Show, Generic)
+                   deriving (Data, Typeable, Foldable, Traversable, Show, Generic)
 
 instance (NFData a) => NFData (FixResult a)
 
