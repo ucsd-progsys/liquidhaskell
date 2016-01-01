@@ -45,7 +45,7 @@ tidyError sol
   . tidyErrContext sol
   . applySolution sol
 
-tidyErrContext :: FixSolution -> TError s SpecType -> TError s SpecType
+tidyErrContext :: FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
   = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
     where
