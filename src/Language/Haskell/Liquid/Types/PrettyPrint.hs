@@ -4,26 +4,120 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE TupleSections     #-}
 
-module Language.Haskell.Liquid.Types.RTDoc
+module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
     OkRT
     -- * Printers
   , rtypeDoc
   , ppr_rtype
 
+  -- * Printing Lists (TODO: move to fixpoint)
+  , pprManyOrdered
+  , pprintLongList
+  , pprintSymbol
+
   ) where
 
 import           TypeRep hiding (maybeParen)
+import           ErrUtils                         (ErrMsg)
+import           HscTypes                         (SourceError)
+import           SrcLoc
+import           GHC                              (Name, Class)
+import           Var              (Var)
+import           TyCon            (TyCon)
 import           Data.Maybe
+import qualified Data.List    as L -- (sort)
+import qualified Data.HashMap.Strict as M
+import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import           Text.PrettyPrint.HughesPJ
-import           Language.Fixpoint.Types.Names
-import           Language.Fixpoint.Types
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Fixpoint.Types       hiding (Error, SrcSpan, Predicate)
+import           Language.Haskell.Liquid.Types hiding (sort)
 
+--------------------------------------------------------------------------------
+pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
+--------------------------------------------------------------------------------
+pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . L.sort
+
+--------------------------------------------------------------------------------
+pprintLongList :: PPrint a => [a] -> Doc
+--------------------------------------------------------------------------------
+pprintLongList = brackets . vcat . map pprint
+
+
+--------------------------------------------------------------------------------
+pprintSymbol :: Symbol -> Doc
+--------------------------------------------------------------------------------
+pprintSymbol x = char '‘' <> pprint x <> char '’'
+
+
+--------------------------------------------------------------------------------
+-- | A whole bunch of PPrint instances follow ----------------------------------
+--------------------------------------------------------------------------------
+instance PPrint ErrMsg where
+  pprint = text . show
+
+instance PPrint SourceError where
+  pprint = text . show
+
+instance PPrint ParseError where
+  pprint e = vcat $ tail $ map text ls
+    where
+      ls = lines $ showErrorMessages "or" "unknown parse error"
+                                     "expecting" "unexpected" "end of input"
+                                     (errorMessages e)
+
+instance PPrint Var where
+  pprint = pprDoc
+
+instance PPrint Name where
+  pprint = pprDoc
+
+instance PPrint TyCon where
+  pprint = pprDoc
+
+instance PPrint Type where
+  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
+
+instance PPrint Class where
+  pprint = pprDoc
+
+instance Show Predicate where
+  show = showpp
+
+instance (PPrint t) => PPrint (Annot t) where
+  pprint (AnnUse t) = text "AnnUse" <+> pprint t
+  pprint (AnnDef t) = text "AnnDef" <+> pprint t
+  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
+  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+
+instance PPrint a => PPrint (AnnInfo a) where
+  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
+
+instance PPrint a => Show (AnnInfo a) where
+  show = showpp
+
+pprAnnInfoBinds (l, xvs)
+  = vcat $ map (pprAnnInfoBind . (l,)) xvs
+
+pprAnnInfoBind (RealSrcSpan k, xv)
+  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
+    where
+      l        = srcSpanStartLine k
+      c        = srcSpanStartCol k
+      (xd, vd) = pprXOT xv
+      n        = length $ lines $ render vd
+
+pprAnnInfoBind (_, _)
+  = empty
+
+pprXOT (x, v) = (xd, pprint v)
+  where
+    xd = maybe (text "unknown") pprint x
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -232,10 +326,10 @@ ppRefSym s  = pprint s
 
 dot                = char '.'
 
-
-
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprint (MkUReft r p _)
     | isTauto r  = pprint p
     | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
+
+--------------------------------------------------------------------------------

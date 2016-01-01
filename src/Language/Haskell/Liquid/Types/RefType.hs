@@ -91,7 +91,7 @@ import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
 
-import Language.Haskell.Liquid.Types.RTDoc
+import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Fixpoint.Types.Visitor (mapKVars)
