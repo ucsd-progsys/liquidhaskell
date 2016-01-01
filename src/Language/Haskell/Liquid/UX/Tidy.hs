@@ -166,7 +166,6 @@ funBinds (RHole _)        = []
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
-
 instance PPrint (CtxError SpecType) where
   pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ppSpecTypeErr <$> ctErr ce

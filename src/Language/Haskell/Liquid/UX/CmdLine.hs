@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 import Control.Monad
 import Data.Maybe
+import Data.Traversable (mapM)
 import System.Directory
 import System.Exit
 import System.Environment
@@ -362,17 +363,27 @@ exitWithResult cfg target out
   = do {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
-       writeResult cfg (colorResult r) r
-       writeFile   (extFileName Result target) (showFix r)
+       cr <- resultWithContext r
+       writeResult cfg (colorResult r) cr
+       writeFile   (extFileName Result target) (showFix cr)
        return $ out { o_result = r }
     where
        r         = o_result out `addErrors` o_errors out
 
+-- TODO: move to Language.Fixpoint.Types.Errors
+instance Foldable    FixResult
+instance Traversable FixResult
+
+resultWithContext :: FixResult Error -> IO (FixResult CError)
+resultWithContext = mapM errorWithContext
 
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
+type CError = CtxError SpecType
+
+writeResult :: Config -> Moods -> FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
     tidy                   = if shortErrors cfg then Lossy else Full
@@ -382,11 +393,16 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 
-resDocs :: Tidy -> FixResult Error -> [Doc]
+resDocs :: Tidy -> FixResult CError -> [Doc]
 resDocs _ Safe             = [text "RESULT: SAFE"]
 resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 
+errToFCrash :: CtxError a -> CtxError a
+errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
+  where
+    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx e                       = e
 
 {-
    TODO: Never used, do I need to exist?
@@ -398,16 +414,5 @@ addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 
-instance Fixpoint (FixResult Error) where
+instance Fixpoint (FixResult CError) where
   toFix = vcat . resDocs Full
-
-
---------------------------------------------------------------------------------
-errorWithContext :: TError t -> IO (CtxError t)
-errorWithContext e = CtxError e <$> srcSpanContext (pos e)
-
-srcSpanContext :: SrcSpan -> IO Doc
-srcSpanContext = "TODO: HEREHEREHERE addContext"
-
-getFileLine :: FilePath -> Int -> IO String
-getFileLine = error "TODO: HEREHERE"
