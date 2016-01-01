@@ -145,7 +145,6 @@ Library
    Exposed-Modules: Language.Haskell.Liquid.Prelude,
                     Language.Haskell.Liquid.Foreign,
                     Language.Haskell.Liquid.List,
-                    Language.Haskell.Liquid.Types.PrettyPrint,
                     Language.Haskell.Liquid.Bare,
                     Language.Haskell.Liquid.Constraint.Constraint,
                     Language.Haskell.Liquid.Constraint.Monad,
