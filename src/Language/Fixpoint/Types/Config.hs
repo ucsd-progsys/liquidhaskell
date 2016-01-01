@@ -57,7 +57,6 @@ data Config
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , binary      :: Bool                -- ^ save FInfo as binary file
-    , extSolver   :: Bool                -- ^ use external (ocaml) solver
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -80,7 +79,6 @@ instance Default Config where
                , stats       = def
                , parts       = def
                , binary      = def
-               , extSolver   = def
                }
 
 instance Command Config where
@@ -133,12 +131,12 @@ instance Show SMTSolver where
   show Mathsat = "mathsat"
   show Z3mem   = "z3mem"
 
-smtSolver :: String -> SMTSolver
-smtSolver "z3"      = Z3
-smtSolver "cvc4"    = Cvc4
-smtSolver "mathsat" = Mathsat
-smtSolver "z3mem"   = Z3mem
-smtSolver other     = errorstar $ "ERROR: unsupported SMT Solver = " ++ other
+--smtSolver :: String -> SMTSolver
+--smtSolver "z3"      = Z3
+--smtSolver "cvc4"    = Cvc4
+--smtSolver "mathsat" = Mathsat
+--smtSolver "z3mem"   = Z3mem
+--smtSolver other     = errorstar $ "ERROR: unsupported SMT Solver = " ++ other
 
 -- defaultSolver       :: Maybe SMTSolver -> SMTSolver
 -- defaultSolver       = fromMaybe Z3
@@ -164,7 +162,6 @@ config = Config {
   , cores       = def   &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
-  , extSolver   = False &= help "Use external (Ocaml) Solver"
   }
   &= verbosity
   &= program "fixpoint"

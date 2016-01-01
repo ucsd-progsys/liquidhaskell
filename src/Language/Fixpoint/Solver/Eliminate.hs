@@ -5,7 +5,6 @@ module Language.Fixpoint.Solver.Eliminate
        (eliminateAll) where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Names     (existSymbol)
 import           Language.Fixpoint.Types.Visitor   (kvars)
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
 import           Language.Fixpoint.Misc            (fst3)

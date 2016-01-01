@@ -52,9 +52,9 @@ getFixpointPath = fromMaybe msg . msum <$>
 getZ3LibPath    = dropFileName <$> getFixpointPath
 
 
-checkM f msg p
-  = do ex <- f p
-       if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
+--checkM f msg p
+--  = do ex <- f p
+--       if ex then return p else errorstar $ "Cannot find " ++ msg ++ " at :" ++ p
 
 
  -----------------------------------------------------------------------------------

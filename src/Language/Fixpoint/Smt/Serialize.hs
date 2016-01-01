@@ -11,7 +11,7 @@
 module Language.Fixpoint.Smt.Serialize where
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
+--import           Language.Fixpoint.Types.Names (mulFuncName, divFuncName)
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
