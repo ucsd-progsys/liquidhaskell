@@ -146,7 +146,6 @@ module Language.Haskell.Liquid.Types (
   -- * Errors and Error Messages
   , module Language.Haskell.Liquid.Types.Errors
   , Error
-  , ErrorCtx
   , ErrorResult
   -- , panic
   -- , panicError
@@ -1341,8 +1340,7 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 ------------------------------------------------------------------------
 
 type ErrorResult = FixResult Error
-type Error       = TError SrcSpan SpecType
-type ErrorCtx    = TError CtxSpan SpecType
+type Error       = TError SpecType
 
 -- | Show an Error, then crash
 -- panicError :: {-(?callStack :: CallStack) =>-} Error -> a

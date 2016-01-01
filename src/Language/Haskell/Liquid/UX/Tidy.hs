@@ -4,7 +4,8 @@
 
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
---   they are rendered, e.g. in error messages or annoations.
+--   they are rendered, e.g. in error messages or annoations,
+--   and also some PPrint instances that rely upon tidying.
 ---------------------------------------------------------------------
 
 module Language.Haskell.Liquid.UX.Tidy (
@@ -33,10 +34,11 @@ import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Fixpoint.Misc hiding (intersperse)
 
 import SrcLoc
-import Data.List    (intersperse, sort)
+import Data.List    (intersperse )
 import Data.Generics                       (everywhere, mkT)
-import Language.Haskell.Liquid.Types.PrettyPrint
+import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Text.PrettyPrint.HughesPJ
+
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
