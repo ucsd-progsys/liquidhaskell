@@ -65,7 +65,7 @@ data CtxError t = CtxError {
   }
 
 srcSpanContext :: SrcSpan -> IO Doc
-srcSpanContext = error "TODO: HEREHEREHERE addContext"
+srcSpanContext = "TODO: HEREHEREHERE addContext"
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
