@@ -16,7 +16,6 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Error with Source Context
   , CtxError (..)
-  , errorWithContext
 
   -- * Subtyping Obligation Type
   , Oblig (..)
@@ -55,17 +54,10 @@ import qualified Control.Monad.Error as Ex
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
 --------------------------------------------------------------------------------
-errorWithContext :: TError t -> IO (CtxError t)
---------------------------------------------------------------------------------
-errorWithContext e = CtxError e <$> srcSpanContext (pos e)
-
 data CtxError t = CtxError {
     ctErr :: TError t
   , ctCtx :: Doc
   }
-
-srcSpanContext :: SrcSpan -> IO Doc
-srcSpanContext = "TODO: HEREHEREHERE addContext"
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
