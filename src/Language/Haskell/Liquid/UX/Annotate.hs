@@ -51,7 +51,7 @@ import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Fixpoint.Types hiding (Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.UX.PrettyPrint
+import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.UX.Errors ()
