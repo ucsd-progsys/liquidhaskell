@@ -14,12 +14,11 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Generic Error Type
     TError (..)
 
+  -- * Error with Source Context
+  , CtxError (..)
+
   -- * Subtyping Obligation Type
   , Oblig (..)
-
-  -- * Source Span Information
-  , SourceInfo (..)
-  , CtxSpan (..)
 
   -- * Misc Creators & Transformers
   , errToFCrash
@@ -55,28 +54,34 @@ import qualified Control.Monad.Error as Ex
 -- | Context information for Error Messages ------------------------------------
 --------------------------------------------------------------------------------
 
-class SourceInfo s where
-  siSpan    :: s -> SrcSpan
-  siContext :: s -> Doc
+-- class SourceInfo s where
+  -- siSpan    :: s -> SrcSpan
+  -- siContext :: s -> Doc
+--
+-- instance SourceInfo SrcSpan where
+  -- siSpan x    = x
+  -- siContext _ = empty
+--
+-- data CtxSpan = CtxSpan
+  -- { ctSpan    :: SrcSpan
+  -- , ctContext :: T.Text
+  -- } deriving (Generic)
 
-instance SourceInfo SrcSpan where
-  siSpan x    = x
-  siContext _ = empty
+-- instance SourceInfo CtxSpan where
+--  siSpan    = ctSpan
+--  siContext = text . T.unpack . ctContext
 
-data CtxSpan = CtxSpan
-  { ctSpan    :: SrcSpan
-  , ctContext :: T.Text
-  } deriving (Generic)
-
-instance SourceInfo CtxSpan where
-  siSpan    = ctSpan
-  siContext = text . T.unpack . ctContext
-
-srcSpanContext :: SrcSpan -> IO CtxSpan
+srcSpanContext :: SrcSpan -> IO Doc
 srcSpanContext = error "TODO: addContext"
 
-errorWithContext :: TError t -> IO (CtxSpan, TError t)
-errorWithContext e = (, e) <$> srcSpanContext (pos e)
+errorWithContext :: TError t -> IO (CtxError t)
+errorWithContext e = CtxError e <$> srcSpanContext (pos e)
+
+data CtxError t = CtxError {
+    ctErr :: TError t
+  , ctCtx :: Doc
+  }
+
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------

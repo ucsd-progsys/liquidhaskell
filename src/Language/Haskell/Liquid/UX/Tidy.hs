@@ -1,6 +1,8 @@
+
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ImplicitParams    #-}
 
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
@@ -164,9 +166,14 @@ funBinds (RHole _)        = []
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
+
+instance PPrint (CtxError SpecType) where
+  pprint          = pprintTidy Full
+  pprintTidy k ce = ppError k (ctCtx ce) $ ppSpecTypeErr <$> ctErr ce
+
 instance PPrint Error where
   pprint       = pprintTidy Full
-  pprintTidy k = ppError k . fmap ppSpecTypeErr
+  pprintTidy k = ppError k empty . fmap ppSpecTypeErr
 
 ppSpecTypeErr :: SpecType -> Doc
 ppSpecTypeErr = rtypeDoc     Lossy
@@ -197,18 +204,11 @@ errSaved x = ErrSaved x . text
 
 -- type CtxError = Error
 --------------------------------------------------------------------------------
-ppError :: (PPrint a, SourceInfo s, Show a) => Tidy -> TError s a -> Doc
+ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
-ppError k e  = ppError' k dSp dCtx e
+ppError k dCtx e = ppError' k dSp dCtx e
   where
-    dSp      = ppErrSpan (pos e) <> text ": Error:"
-    dCtx     = ppErrorCtx e
-
-ppErrSpan :: (SourceInfo s) => s -> Doc
-ppErrSpan   = pprint . siSpan
-
-ppErrorCtx :: (SourceInfo s) => TError s a -> Doc
-ppErrorCtx   = pprint . siContext . pos
+    dSp          = pprint (pos e) <> text ": Error:"
 
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 sepVcat d ds = vcat $ intersperse d ds
@@ -238,8 +238,7 @@ ppPropInContext p c
                 , pprint c                 ]]
 
 --------------------------------------------------------------------------------
-ppError' :: (PPrint a, Show a, SourceInfo s)
-         => Tidy -> Doc -> Doc -> TError s a -> Doc
+ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError' td dSp dCtx (ErrAssType _ o _ c p)
   = dSp <+> pprint o
@@ -302,12 +301,12 @@ ppError' _ dSp _ (ErrHMeas _ t s)
 
 ppError' _ dSp _ (ErrDupSpecs _ v ls)
   = dSp <+> text "Multiple Specifications for" <+> pprint v <> colon
-        $+$ (nest 4 $ vcat $ ppErrSpan <$> ls)
+        $+$ (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp _ (ErrDupAlias _ k v ls)
   = dSp <+> text "Multiple Declarations! "
     $+$ (nest 2 $ text "Multiple Declarations of" <+> pprint k <+> ppVar v $+$ text "Declared at:")
-    <+> (nest 4 $ vcat $ ppErrSpan <$> ls)
+    <+> (nest 4 $ vcat $ pprint <$> ls)
 
 ppError' _ dSp dCtx (ErrUnbound _ x)
   = dSp <+> text "Unbound variable" <+> pprint x
@@ -329,21 +328,21 @@ ppError' _ dSp _ (ErrAliasCycle _ acycle)
         $+$ text "The following alias definitions form a cycle:"
         $+$ (nest 4 $ sepVcat blankLine $ map describe acycle)
   where
-    describe (p, name)
-      =   text "Type alias:"     <+> pprint name
-      $+$ text "Defined at:" <+> ppErrSpan p
+    describe (p, n)
+      =   text "Type alias:" <+> pprint n
+      $+$ text "Defined at:" <+> pprint p
 
 ppError' _ dSp dCtx (ErrIllegalAliasApp _ dn dl)
   = dSp <+> text "Refinement Type Alias cannot be used in this context"
         $+$ dCtx
-        $+$ text "Type alias:" <+> pprint    dn
-        $+$ text "Defined at:" <+> ppErrSpan dl
+        $+$ text "Type alias:" <+> pprint dn
+        $+$ text "Defined at:" <+> pprint dl
 
 ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
   = dSp <+> text "Malformed Type Alias Application"
         $+$ dCtx
         $+$ text "Type alias:" <+> pprint name
-        $+$ text "Defined at:" <+> ppErrSpan dl
+        $+$ text "Defined at:" <+> pprint dl
         $+$ text "Expects"     <+> pprint dn <+> text "arguments, but is given" <+> pprint n
 
 ppError' _ dSp _ (ErrSaved _ s)
@@ -364,9 +363,9 @@ ppError' _ dSp _ (ErrRClass p0 c is)
   where
     describeCls
       =   text "Refined class definition for:" <+> c
-      $+$ text "Defined at:" <+> ppErrSpan p0
+      $+$ text "Defined at:" <+> pprint p0
     describeInst (p, t)
       =   text "Refined instance for:" <+> t
-      $+$ text "Defined at:" <+> ppErrSpan p
+      $+$ text "Defined at:" <+> pprint p
 
 ppVar v = text "`" <> pprint v <> text "'"
