@@ -12,7 +12,7 @@ import Data.List (partition)
 import Text.PrettyPrint.HughesPJ
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.UX.PrettyPrint ()
+import Language.Haskell.Liquid.Types.PrettyPrint ()
 
 import Language.Fixpoint.Types
 import Language.Fixpoint.Misc

@@ -59,7 +59,7 @@ import qualified Control.Exception as Ex
 
 import Text.Printf
 
-import           Language.Haskell.Liquid.UX.PrettyPrint -- (pprint)
+import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors
 import Language.Fixpoint.SortCheck (pruneUnsortedReft)

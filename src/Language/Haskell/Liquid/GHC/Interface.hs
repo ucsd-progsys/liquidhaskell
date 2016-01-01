@@ -49,7 +49,7 @@ import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.UX.PrettyPrint
+import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine (withPragmas)
 import Language.Haskell.Liquid.UX.Cabal   (withCabal)

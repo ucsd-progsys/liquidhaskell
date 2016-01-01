@@ -24,7 +24,7 @@ import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
 import           Language.Fixpoint.Misc              (dcolon)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
-import           Language.Haskell.Liquid.UX.PrettyPrint
+import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
