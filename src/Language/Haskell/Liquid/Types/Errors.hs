@@ -1,4 +1,5 @@
 {-# LANGUAGE ImplicitParams      #-}
+{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DeriveGeneric       #-}
@@ -36,7 +37,10 @@ import           SrcLoc                       (noSrcSpan, SrcSpan)
 import           GHC.Generics
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
+import           Data.Generics.Schemes        (everywhere)
+import           Data.Generics.Aliases        (mkT)
 import           Data.Maybe
+import           Data.Bifunctor
 import qualified Data.Text as T
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
@@ -68,6 +72,11 @@ instance SourceInfo CtxSpan where
   siSpan    = ctSpan
   siContext = text . T.unpack . ctContext
 
+srcSpanContext :: SrcSpan -> IO CtxSpan
+srcSpanContext = error "TODO: addContext"
+
+errorWithContext :: TError t -> IO (CtxSpan, TError t)
+errorWithContext e = (, e) <$> srcSpanContext (pos e)
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
@@ -91,158 +100,157 @@ instance Show Oblig where
 
 -- | INVARIANT : all Error constructors should have a pos field
 
-data TError s t =
-    ErrSubType { pos  :: s
+data TError t =
+    ErrSubType { pos  :: !SrcSpan
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrFCrash  { pos  :: s
+  | ErrFCrash  { pos  :: !SrcSpan
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , tact :: !t
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrAssType { pos  :: s
+  | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
                , msg  :: !Doc
                , ctx  :: !(M.HashMap Symbol t)
                , cond :: !Reft
                } -- ^ condition failure error
 
-  | ErrParse    { pos  :: s
+  | ErrParse    { pos  :: !SrcSpan
                 , msg  :: !Doc
                 , pErr :: !ParseError
                 } -- ^ specification parse error
 
-  | ErrTySpec   { pos :: s
+  | ErrTySpec   { pos :: !SrcSpan
                 , var :: !Doc
                 , typ :: !t
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
-  | ErrTermSpec { pos :: s
+  | ErrTermSpec { pos :: !SrcSpan
                 , var :: !Doc
                 , exp :: !Expr
                 , msg :: !Doc
                 } -- ^ sort error in specification
 
-  | ErrDupAlias { pos  :: s
+  | ErrDupAlias { pos  :: !SrcSpan
                 , var  :: !Doc
                 , kind :: !Doc
-                , locs :: ![s]
+                , locs :: ![SrcSpan]
                 } -- ^ multiple alias with same name error
 
-  | ErrDupSpecs { pos :: s
+  | ErrDupSpecs { pos :: !SrcSpan
                 , var :: !Doc
-                , locs:: ![s]
+                , locs:: ![SrcSpan]
                 } -- ^ multiple specs for same binder error
 
-  | ErrBadData  { pos :: s
+  | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
                 } -- ^ multiple specs for same binder error
 
-  | ErrInvt     { pos :: s
+  | ErrInvt     { pos :: !SrcSpan
                 , inv :: !t
                 , msg :: !Doc
                 } -- ^ Invariant sort error
 
-  | ErrIAl      { pos :: s
+  | ErrIAl      { pos :: !SrcSpan
                 , inv :: !t
                 , msg :: !Doc
                 } -- ^ Using  sort error
 
-  | ErrIAlMis   { pos :: s
+  | ErrIAlMis   { pos :: !SrcSpan
                 , t1  :: !t
                 , t2  :: !t
                 , msg :: !Doc
                 } -- ^ Incompatible using error
 
-  | ErrMeas     { pos :: s
+  | ErrMeas     { pos :: !SrcSpan
                 , ms  :: !Symbol
                 , msg :: !Doc
                 } -- ^ Measure sort error
 
-  | ErrHMeas    { pos :: s
+  | ErrHMeas    { pos :: !SrcSpan
                 , ms  :: !Symbol
                 , msg :: !Doc
                 } -- ^ Haskell bad Measure error
 
-  | ErrUnbound  { pos :: s
+  | ErrUnbound  { pos :: !SrcSpan
                 , var :: !Doc
                 } -- ^ Unbound symbol in specification
 
-  | ErrGhc      { pos :: s
+  | ErrGhc      { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos  :: s
+  | ErrMismatch { pos  :: !SrcSpan
                 , var  :: !Doc
                 , hs   :: !Type
                 , lq   :: !Type
                 } -- ^ Mismatch between Liquid and Haskell types
 
-  | ErrAliasCycle { pos    :: s
-                  , acycle :: ![(s, Doc)]
+  | ErrAliasCycle { pos    :: !SrcSpan
+                  , acycle :: ![(SrcSpan, Doc)]
                   } -- ^ Cyclic Refined Type Alias Definitions
 
-  | ErrIllegalAliasApp { pos   :: s
+  | ErrIllegalAliasApp { pos   :: !SrcSpan
                        , dname :: !Doc
-                       , dpos  :: s
+                       , dpos  :: !SrcSpan
                        } -- ^ Illegal RTAlias application (from BSort, eg. in PVar)
 
-  | ErrAliasApp { pos   :: s
+  | ErrAliasApp { pos   :: !SrcSpan
                 , nargs :: !Int
                 , dname :: !Doc
-                , dpos  :: s
+                , dpos  :: !SrcSpan
                 , dargs :: !Int
                 }
 
-  | ErrSaved    { pos :: s
+  | ErrSaved    { pos :: !SrcSpan
                 , msg :: !Doc
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
-  | ErrTermin   { pos  :: s
+  | ErrTermin   { pos  :: !SrcSpan
                 , bind :: ![Var]
                 , msg  :: !Doc
                 } -- ^ Termination Error
 
-  | ErrRClass   { pos   :: s
+  | ErrRClass   { pos   :: !SrcSpan
                 , cls   :: !Doc
                 , insts :: ![(SrcSpan, Doc)]
                 } -- ^ Refined Class/Interfaces Conflict
 
-  | ErrBadQual  { pos   :: s
+  | ErrBadQual  { pos   :: !SrcSpan
                 , qname :: !Doc
                 , msg   :: !Doc
                 } -- ^ Non well sorted Qualifier
 
-  | ErrOther    { pos   :: s
+  | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
 
-  deriving (Typeable, Functor)
+  deriving (Typeable, Generic, Functor)
 
-instance (SourceInfo s) => Eq (TError s a) where
+instance Eq (TError a) where
   e1 == e2 = errSpan e1 == errSpan e2
 
-instance (SourceInfo s) => Ord (TError s a) where
+instance Ord (TError a) where
   e1 <= e2 = errSpan e1 <= errSpan e2
 
-errSpan :: (SourceInfo s) => TError s a -> SrcSpan
-errSpan = siSpan . pos
+errSpan :: TError a -> SrcSpan
+errSpan =  pos
 
-instance Ex.Error (TError SrcSpan a) where
+instance Ex.Error (TError a) where
    strMsg = ErrOther (showSpan "Yikes! Exception!") . text
 
-errToFCrash :: TError s a -> TError s a
+errToFCrash :: TError a -> TError a
 errToFCrash (ErrSubType l m g t t') = ErrFCrash l m g t t'
 errToFCrash e                       = e
-
 
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------

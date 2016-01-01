@@ -15,7 +15,7 @@ module Language.Haskell.Liquid.UX.Errors
 import           Control.Arrow                       (second)
 import           Control.Exception                   (Exception (..))
 import           Data.Aeson
-import           Data.Generics                       (everywhere, mkT)
+-- import           Data.Generics                       (everywhere, mkT)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
 import qualified Data.Text                           as T
