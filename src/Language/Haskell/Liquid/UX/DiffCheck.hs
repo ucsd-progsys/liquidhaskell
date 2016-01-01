@@ -380,7 +380,7 @@ errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
 errorsResult _ []                 = Safe
 errorsResult f es                 = f es
 
-adjustErrors :: LMap -> ChkItv -> [TError SrcSpan a] -> [TError SrcSpan a]
+adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
     adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$> adjustSrcSpan lm cm sp
