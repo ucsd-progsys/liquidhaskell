@@ -29,19 +29,16 @@ import Language.Fixpoint.Types hiding (Error, SrcSpan, Predicate)
 import Language.Fixpoint.Misc hiding (intersperse)
 import Language.Haskell.Liquid.Types hiding (sort)
 import Language.Haskell.Liquid.Types.RTDoc
+
 import Language.Haskell.Liquid.UX.Tidy
 
 import Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import Text.PrettyPrint.HughesPJ
-
--- import Data.Maybe   (fromMaybe)
 import Data.List    (intersperse, sort)
--- import Data.Function (on)
 import Data.Aeson
 
 import qualified Control.Exception  as Ex
 import qualified Data.HashMap.Strict as M
-
 
 
 --------------------------------------------------------------------------------
@@ -60,13 +57,10 @@ pprintSymbol :: Symbol -> Doc
 --------------------------------------------------------------------------------
 pprintSymbol x = char '‘' <> pprint x <> char '’'
 
+
 --------------------------------------------------------------------------------
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
-
-instance PPrint SrcSpan where
-  pprint = pprDoc
-
 instance PPrint ErrMsg where
   pprint = text . show
 
@@ -79,9 +73,6 @@ instance PPrint ParseError where
       ls = lines $ showErrorMessages "or" "unknown parse error"
                                      "expecting" "unexpected" "end of input"
                                      (errorMessages e)
-
--- instance PPrint LParseError where
---   pprint (LPE _ msgs) = text "Parse Error: " <> vcat (map pprint msgs)
 
 instance PPrint Var where
   pprint = pprDoc
@@ -131,23 +122,12 @@ pprXOT (x, v) = (xd, pprint v)
   where
     xd = maybe (text "unknown") pprint x
 
-{-
-   TODO: Not exported/never called. Do I have any reason to exist?
-
-ppTable m = vcat $ pprxt <$> xts
-  where
-    pprxt (x,t) = pprint x $$ nest n (colon <+> pprint t)
-    n          = 1 + maximumWithDefault 0 [ i | (x, _) <- xts, let i = keySize x, i <= thresh ]
-    keySize     = length . render . pprint
-    xts         = sortBy (compare `on` fst) $ M.toList m
-    thresh      = 6
-
-maximumWithDefault zero [] = zero
-maximumWithDefault _    xs = maximum xs
--}
-
 --------------------------------------------------------------------------------
 -- | Pretty Printing Error Messages --------------------------------------------
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- TODO: move into Tidy.hs
 --------------------------------------------------------------------------------
 
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
@@ -344,6 +324,11 @@ ppError' _ dSp dCtx (ErrAliasApp _ n name dl dn)
 
 ppError' _ dSp _ (ErrSaved _ s)
   = dSp <+> s
+
+ppError' _ dSp dCtx (ErrOther _ s)
+  = dSp <+> text "Uh oh."
+        $+$ dCtx
+        $+$ nest 4 s
 
 ppError' _ dSp _ (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"

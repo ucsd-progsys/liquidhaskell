@@ -41,11 +41,12 @@ import qualified Data.Text as T
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 
-import           Language.Fixpoint.Types      (showpp, PPrint (..), Symbol, Expr, Reft)
-import           Language.Haskell.Liquid.GHC.Misc (pprDoc)
+import           Language.Fixpoint.Types               (showpp, PPrint (..), Symbol, Expr, Reft)
+import           Language.Haskell.Liquid.GHC.Misc      (pprDoc)
+import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
-
+import qualified Control.Monad.Error as Ex
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
 --------------------------------------------------------------------------------
@@ -235,12 +236,12 @@ instance (SourceInfo s) => Ord (TError s a) where
 errSpan :: (SourceInfo s) => TError s a -> SrcSpan
 errSpan = siSpan . pos
 
--- instance Ex.Error (TError SrcSpan a) where
---   strMsg = errOther Nothing . text
+instance Ex.Error (TError SrcSpan a) where
+   strMsg = ErrOther (showSpan "Yikes! Exception!") . text
 
 errToFCrash :: TError s a -> TError s a
-errToFCrash (ErrSubType l m g t1 t2) = ErrFCrash l m g t1 t2
-errToFCrash e                        = e
+errToFCrash (ErrSubType l m g t t') = ErrFCrash l m g t t'
+errToFCrash e                       = e
 
 
 --------------------------------------------------------------------------------
