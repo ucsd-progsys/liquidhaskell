@@ -75,7 +75,7 @@ import qualified Language.Fixpoint.Types            as F
 import Language.Haskell.Liquid.WiredIn          (dictionaryVar)
 import Language.Haskell.Liquid.Types.Dictionaries
 import Language.Haskell.Liquid.Types.Variance
-import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
+import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Types.Names

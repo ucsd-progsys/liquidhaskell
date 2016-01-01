@@ -18,96 +18,46 @@ module Language.Haskell.Liquid.Constraint.Axioms (
 
     expandProofs
 
-    -- | Combining proofs
-  , makeCombineType, makeCombineVar
+    -- * Combining proofs
+  , makeCombineType
+  , makeCombineVar
 
   ) where
 
 
 import Literal
 
-
-import CoreUtils     (exprType)
-import MkCore
 import Coercion
 import DataCon
-import Pair
 import CoreSyn
-import SrcLoc hiding (Located)
 import Type
 import TyCon
-import PrelNames
 import TypeRep
-import Class            (Class, className)
 import Var
-import Kind
-import Id
-import IdInfo
 import Name
 import NameSet
-import TypeRep
-import Unique
 
 import Text.PrettyPrint.HughesPJ hiding (first, sep)
-
 import Control.Monad.State
-
-import Control.Applicative      ((<$>), (<*>), Applicative)
-
-import Data.Monoid              (mconcat, mempty, mappend)
-import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
-import Data.Bifunctor
-import Data.List (foldl')
-import qualified Data.Foldable    as F
-import qualified Data.Traversable as T
-
-import Text.Printf
-
-import qualified Language.Haskell.Liquid.UX.CTags      as Tg
-import Language.Fixpoint.SortCheck     (pruneUnsortedReft)
-
+import qualified Data.HashMap.Strict as M
+import Data.Maybe               (fromJust)
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
-
-import Language.Haskell.Liquid.Constraint.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
-import Language.Haskell.Liquid.Types.Names
-import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def, HAxiom)
 import qualified Language.Haskell.Liquid.Types as T
-import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
-import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Misc             hiding (mapSndM)
+import Language.Haskell.Liquid.GHC.SpanStack                 (showSpan)
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Types.Literals
-import Language.Haskell.Liquid.Transforms.RefSplit
-import Control.DeepSeq
-
--- import Language.Haskell.Liquid.Constraint.Constraint
 import Language.Haskell.Liquid.Constraint.ProofToCore
-
-import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
-
-import Language.Fixpoint.Smt.Interface
-
-
 import Language.Haskell.Liquid.Transforms.CoreToLogic
-
-import CoreSyn
-
 import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe
@@ -328,7 +278,7 @@ unANFExpr e = (foldl (flip Let) e . ae_binds) <$> get
 
 makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
-     case runToLogic lm (errOther Nothing . text) (coreToPred e) of
+     case runToLogic lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
        Left p  -> return p
        Right (ErrOther _ err) -> error $ show err
        _                      -> error "makeGoalPredicate: panic"
