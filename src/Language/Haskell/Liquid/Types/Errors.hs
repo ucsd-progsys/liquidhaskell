@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Error with Source Context
   , CtxError (..)
+  , errorWithContext
 
   -- * Subtyping Obligation Type
   , Oblig (..)
@@ -50,31 +51,12 @@ import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
 import qualified Control.Monad.Error as Ex
+
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
 --------------------------------------------------------------------------------
-
--- class SourceInfo s where
-  -- siSpan    :: s -> SrcSpan
-  -- siContext :: s -> Doc
---
--- instance SourceInfo SrcSpan where
-  -- siSpan x    = x
-  -- siContext _ = empty
---
--- data CtxSpan = CtxSpan
-  -- { ctSpan    :: SrcSpan
-  -- , ctContext :: T.Text
-  -- } deriving (Generic)
-
--- instance SourceInfo CtxSpan where
---  siSpan    = ctSpan
---  siContext = text . T.unpack . ctContext
-
-srcSpanContext :: SrcSpan -> IO Doc
-srcSpanContext = error "TODO: addContext"
-
 errorWithContext :: TError t -> IO (CtxError t)
+--------------------------------------------------------------------------------
 errorWithContext e = CtxError e <$> srcSpanContext (pos e)
 
 data CtxError t = CtxError {
@@ -82,6 +64,8 @@ data CtxError t = CtxError {
   , ctCtx :: Doc
   }
 
+srcSpanContext :: SrcSpan -> IO Doc
+srcSpanContext = error "TODO: HEREHEREHERE addContext"
 
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
