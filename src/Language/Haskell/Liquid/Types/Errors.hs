@@ -16,12 +16,10 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Error with Source Context
   , CtxError (..)
+  , errorWithContext
 
   -- * Subtyping Obligation Type
   , Oblig (..)
-
-  -- * Misc Creators & Transformers
-  , errToFCrash
 
   -- * Panic (unexpected failures)
   , Panic (..)
@@ -59,6 +57,22 @@ data CtxError t = CtxError {
   , ctCtx :: Doc
   }
 
+instance Eq (CtxError t) where
+  e1 == e2 = ctErr e1 == ctErr e2
+
+instance Ord (CtxError t) where
+  e1 <= e2 = ctErr e1 <= ctErr e2
+  
+--------------------------------------------------------------------------------
+errorWithContext :: TError t -> IO (CtxError t)
+--------------------------------------------------------------------------------
+errorWithContext e = CtxError e <$> srcSpanContext (pos e)
+
+srcSpanContext :: SrcLoc.SrcSpan -> IO Doc
+srcSpanContext = error "TODO: HEREHEREHERE addContext"
+
+getFileLine :: FilePath -> Int -> IO String
+getFileLine = error "TODO: HEREHERE"
 --------------------------------------------------------------------------------
 -- | Different kinds of Check "Obligations" ------------------------------------
 --------------------------------------------------------------------------------
@@ -223,15 +237,13 @@ instance Eq (TError a) where
 instance Ord (TError a) where
   e1 <= e2 = errSpan e1 <= errSpan e2
 
+
+
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
 
 instance Ex.Error (TError a) where
    strMsg = ErrOther (showSpan "Yikes! Exception!") . text
-
-errToFCrash :: TError a -> TError a
-errToFCrash (ErrSubType l m g t t') = ErrFCrash l m g t t'
-errToFCrash e                       = e
 
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
