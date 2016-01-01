@@ -390,7 +390,7 @@ resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs
 
 {-
    TODO: Never used, do I need to exist?
-reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
+reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
 addErrors r []             = r
@@ -400,3 +400,14 @@ addErrors r  _             = r
 
 instance Fixpoint (FixResult Error) where
   toFix = vcat . resDocs Full
+
+
+--------------------------------------------------------------------------------
+errorWithContext :: TError t -> IO (CtxError t)
+errorWithContext e = CtxError e <$> srcSpanContext (pos e)
+
+srcSpanContext :: SrcSpan -> IO Doc
+srcSpanContext = "TODO: HEREHEREHERE addContext"
+
+getFileLine :: FilePath -> Int -> IO String
+getFileLine = error "TODO: HEREHERE"
