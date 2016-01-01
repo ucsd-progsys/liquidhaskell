@@ -159,7 +159,7 @@ Library
                     Language.Haskell.Liquid.Measure,
                     Language.Haskell.Liquid.Parse,
                     Language.Haskell.Liquid.GHC.Interface,
-                    Language.Haskell.Liquid.Types.SpanStack,
+                    Language.Haskell.Liquid.GHC.SpanStack,
                     Language.Haskell.Liquid.Types.RefType,
                     Language.Haskell.Liquid.Types.Errors,
                     Language.Haskell.Liquid.Types.Specifications,

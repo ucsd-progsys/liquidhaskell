@@ -40,7 +40,7 @@ import           Language.Haskell.Liquid.Misc       (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc   (MGIModGuts(..), showPpr, symbolFastString)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Types.Errors
-import qualified Language.Haskell.Liquid.Types.SpanStack as Sp
+import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 

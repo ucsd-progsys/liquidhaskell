@@ -68,7 +68,7 @@ import Class  (Class)
 
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
 
-import Language.Haskell.Liquid.Types.SpanStack
+import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
