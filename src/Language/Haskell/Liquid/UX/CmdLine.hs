@@ -45,7 +45,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, extSolver,
+import Language.Fixpoint.Types.Config      hiding (Config, real, --extSolver,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -102,8 +102,8 @@ config = cmdArgsMode $ Config {
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
- , extSolver
-    = def &= help "Use external (OCaml) fixpoint constraint solver"
+ -- , extSolver
+ --    = def &= help "Use external (OCaml) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -317,7 +317,7 @@ defConfig = Config { files          = def
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
-                   , extSolver      = def
+                   -- , extSolver      = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
@@ -370,8 +370,10 @@ exitWithResult cfg target out
     where
        r         = o_result out `addErrors` o_errors out
 
+
 resultWithContext :: FixResult Error -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
+
 
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
