@@ -98,7 +98,7 @@ makeContext l c c' s = vcat [ text ""
                             ]
   where
     lnum n           = text (show n) <+> text "|"
-    cursor           = blanks (c - 1) <> pointer (1 + c' - c)
+    cursor           = blanks (c - 1) <> pointer (c' - c)
     blanks n         = text $ replicate n ' '
     pointer n        = text $ replicate n '^'
 
