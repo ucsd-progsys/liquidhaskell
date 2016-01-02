@@ -84,7 +84,7 @@ srcSpanInfo (RealSrcSpan s)
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
-getFileLine f i = getNth i . lines <$> readFile f
+getFileLine f i = getNth (i - 1) . lines <$> readFile f
 
 getNth :: Int -> [a] -> Maybe a
 getNth i xs
@@ -92,10 +92,13 @@ getNth i xs
   | otherwise     = Nothing
 
 makeContext :: Int -> Int -> Int -> String -> Doc
-makeContext l c c' s = lnum l <+> (text s $+$ cursor)
+makeContext l c c' s = vcat [ text ""
+                            , lnum l <+> (text s $+$ cursor)
+                            , text ""
+                            ]
   where
     lnum n           = text (show n) <+> text "|"
-    cursor           = blanks c <> pointer (c' - c)
+    cursor           = blanks (c - 1) <> pointer (1 + c' - c)
     blanks n         = text $ replicate n ' '
     pointer n        = text $ replicate n '^'
 
