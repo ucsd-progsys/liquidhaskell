@@ -1342,11 +1342,6 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 type ErrorResult = FixResult Error
 type Error       = TError SpecType
 
--- | Show an Error, then crash
--- panicError :: {-(?callStack :: CallStack) =>-} Error -> a
--- panicError = Control.Exception.throw
-
-
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------
