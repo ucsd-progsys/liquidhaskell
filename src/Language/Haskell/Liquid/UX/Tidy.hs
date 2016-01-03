@@ -18,6 +18,9 @@ module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Tidyness tests
   , isTmpSymbol
+
+    -- * Panic and Exit
+  , panicError
   ) where
 
 import qualified Data.HashMap.Strict as M
@@ -28,8 +31,8 @@ import           Data.Maybe                 (fromMaybe)
 import           Data.Aeson
 import qualified Control.Exception  as Ex
 
-import Language.Fixpoint.Types      hiding (SrcSpan, Error)
 import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
+import Language.Fixpoint.Types      hiding (SrcSpan, Error)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -156,11 +159,19 @@ funBinds (RHole _)        = []
 
 
 --------------------------------------------------------------------------------
--- | Pretty Printing Error Messages --------------------------------------------
+-- | Show an Error, then crash
 --------------------------------------------------------------------------------
+panicError :: {-(?callStack :: CallStack) =>-} Error -> a
+--------------------------------------------------------------------------------
+panicError = Ex.throw
+
+-- ^ This function is put in this module as
+--   it depends on the Exception instance,
+--   which depends on the PPrint instance,
+--   which depends on tidySpecType.
 
 --------------------------------------------------------------------------------
--- TODO: move into Tidy.hs
+-- | Pretty Printing Error Messages --------------------------------------------
 --------------------------------------------------------------------------------
 
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
@@ -187,6 +198,11 @@ instance Show Error where
 
 instance Ex.Exception Error
 instance Ex.Exception [Error]
+
+
+
+
+
 
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (pos e)
