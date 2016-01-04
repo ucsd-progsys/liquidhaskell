@@ -66,6 +66,9 @@ import Var
 import Type   (Type)
 import Class  (Class)
 
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
+import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
@@ -80,10 +83,9 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv
-  = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
+  = CGE { cgLoc  :: !SpanStack         -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv)
         , denv   :: !RDEnv             -- ^ Dictionary Environment
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
@@ -99,7 +101,6 @@ data CGEnv
         , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
         } -- deriving (Data, Typeable)
-
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 
@@ -178,7 +179,7 @@ data CGInfo = CGInfo {
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-  , logErrors  :: ![TError SpecType]           -- ^ Errors during constraint generation
+  , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder

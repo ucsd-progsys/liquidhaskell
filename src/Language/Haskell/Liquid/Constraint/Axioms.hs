@@ -18,96 +18,46 @@ module Language.Haskell.Liquid.Constraint.Axioms (
 
     expandProofs
 
-    -- | Combining proofs
-  , makeCombineType, makeCombineVar
+    -- * Combining proofs
+  , makeCombineType
+  , makeCombineVar
 
   ) where
 
 
 import Literal
 
-
-import CoreUtils     (exprType)
-import MkCore
 import Coercion
 import DataCon
-import Pair
 import CoreSyn
-import SrcLoc hiding (Located)
 import Type
 import TyCon
-import PrelNames
 import TypeRep
-import Class            (Class, className)
 import Var
-import Kind
-import Id
-import IdInfo
 import Name
 import NameSet
-import TypeRep
-import Unique
 
 import Text.PrettyPrint.HughesPJ hiding (first, sep)
-
 import Control.Monad.State
-
-import Control.Applicative      ((<$>), (<*>), Applicative)
-
-import Data.Monoid              (mconcat, mempty, mappend)
-import Data.Maybe               (fromMaybe, catMaybes, fromJust, isJust)
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 import qualified Data.List           as L
-import qualified Data.Text           as T
-import Data.Bifunctor
-import Data.List (foldl')
-import qualified Data.Foldable    as F
-import qualified Data.Traversable as T
-
-import Text.Printf
-
-import qualified Language.Haskell.Liquid.UX.CTags      as Tg
-import Language.Fixpoint.SortCheck     (pruneUnsortedReft)
-
+import qualified Data.HashMap.Strict as M
+import Data.Maybe               (fromJust)
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Utils.Files
-
-import Language.Haskell.Liquid.Constraint.Fresh
 
 import qualified Language.Fixpoint.Types            as F
 
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
-import Language.Haskell.Liquid.Types.Names
-import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def, HAxiom)
 import qualified Language.Haskell.Liquid.Types as T
-import Language.Haskell.Liquid.Types.Strata
-import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.WiredIn
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
-import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 import Language.Haskell.Liquid.GHC.Misc
-import Language.Haskell.Liquid.Misc             hiding (mapSndM)
+import Language.Haskell.Liquid.GHC.SpanStack                 (showSpan)
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.Types.Literals
-import Language.Haskell.Liquid.Transforms.RefSplit
-import Control.DeepSeq
-
--- import Language.Haskell.Liquid.Constraint.Constraint
 import Language.Haskell.Liquid.Constraint.ProofToCore
-
-import Language.Haskell.Liquid.WiredIn (wiredSortedSyms)
-
-import Language.Fixpoint.Smt.Interface
-
-
 import Language.Haskell.Liquid.Transforms.CoreToLogic
-
-import CoreSyn
-
 import Language.Haskell.Liquid.Constraint.Types
 
 import System.IO.Unsafe
@@ -125,10 +75,10 @@ import qualified Data.HashSet        as S
 class Provable a where
 
   expandProofs :: GhcInfo -> [(F.Symbol, SpecType)] -> a -> CG a
-  expandProofs info sigs x = 
+  expandProofs info sigs x =
     do (x, s) <- runState (expProofs x) <$> initAEEnv info sigs
        modify $ \st -> st {freshIndex = ae_index s}
-       return x 
+       return x
 
   expProofs :: a -> Pr a
   expProofs = return
@@ -189,31 +139,31 @@ instance Provable CoreAlt where
   expProofs (c, xs, e) = addVars xs >> liftM (c,xs,) (expProofs e)
 
 expandCasesProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
-expandCasesProof inite e it 
+expandCasesProof inite e it
   = do vs <-  reverse . ae_vars <$> get
-       case L.find (isAlgType . varType) vs of 
-          Nothing -> return inite 
-          Just v  -> makeCases v inite e it  
+       case L.find (isAlgType . varType) vs of
+          Nothing -> return inite
+          Just v  -> makeCases v inite e it
 
-makeDataCons v = data_cons $ algTyConRhs tc 
+makeDataCons v = data_cons $ algTyConRhs tc
   where
-    t  = varType v 
-    tc = fst $ splitTyConApp t 
+    t  = varType v
+    tc = fst $ splitTyConApp t
 
 makeCases v inite e it = Case (Var v) v (varType v) <$> (mapM go $ makeDataCons v)
   where
-    go c = do xs <- makeDataConArgs v c 
+    go c = do xs <- makeDataConArgs v c
               addVars xs
-              t <- L.lookup (symbol c) . ae_sigs <$> get 
+              t <- L.lookup (symbol c) . ae_sigs <$> get
               addAssert $ makeRefinement t (v:xs)
               proof <- expandAutoProof inite (e) it
-              rmAssert 
+              rmAssert
               return (DataAlt c, xs, proof)
 
-makeDataConArgs v dc = mapM freshVar ts 
+makeDataConArgs v dc = mapM freshVar ts
   where
     ts = dataConInstOrigArgTys dc ats
-    ats = snd $ splitTyConApp $ varType v 
+    ats = snd $ splitTyConApp $ varType v
 
 
 expandAutoProof :: CoreExpr -> CoreExpr -> Integer -> Pr CoreExpr
@@ -256,9 +206,9 @@ updateLMap :: LogicMap  -> LocSymbol -> Var -> Pr ()
 updateLMap _ _ v | not (isFun $ varType v)
   = return ()
   where
-    isFun (FunTy _ _)    = True 
-    isFun (ForAllTy _ t) = isFun t 
-    isFun  _             = False 
+    isFun (FunTy _ _)    = True
+    isFun (ForAllTy _ t) = isFun t
+    isFun  _             = False
 
 updateLMap _ x vv
   = insertLogicEnv x' ys (applyArrow (val x) ys)
@@ -269,7 +219,7 @@ updateLMap _ x vv
     x' = simpleSymbolVar vv
 
 
-insertLogicEnv x ys e 
+insertLogicEnv x ys e
   = modify $ \be -> be {ae_lmap = (ae_lmap be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ ae_lmap be}}
 
 simpleSymbolVar  x = dropModuleNames $ symbol $ showPpr $ getName x
@@ -306,11 +256,11 @@ makeQuery fn i p axioms cts ds env vs
            , q_decls  = (P.Pred <$> ds)
            }
 
-checkEnv pv@(P.Var x s _) 
+checkEnv pv@(P.Var x s _)
   | isBaseSort s = pv
   | otherwise    = errorstar ("\nEnv:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
 
-checkVar pv@(P.Var x s _) 
+checkVar pv@(P.Var x s _)
   | isBaseSort s = pv
   | otherwise    = errorstar ("\nVar:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
 
@@ -328,7 +278,7 @@ unANFExpr e = (foldl (flip Let) e . ae_binds) <$> get
 
 makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
-     case runToLogic lm (errOther . text) (coreToPred e) of
+     case runToLogic lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
        Left p  -> return p
        Right (ErrOther _ err) -> error $ show err
        _                      -> error "makeGoalPredicate: panic"
@@ -352,15 +302,15 @@ makeCtor c
   = do tce  <- ae_emb     <$> get
        sigs <- ae_sigs    <$> get
        lmap <- ae_lmap    <$> get
-       lvs  <- ae_vars    <$> get 
+       lvs  <- ae_vars    <$> get
        return $ makeCtor' tce lmap sigs (c `elem` lvs) c
 
 makeCtor' :: F.TCEmb TyCon -> LogicMap -> [(F.Symbol, SpecType)] -> Bool -> Var -> HVarCtor
 makeCtor' tce _ _ islocal  v | islocal
   = P.VarCtor (P.Var (F.symbol v) (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
 
-makeCtor' tce lmap sigs _  v 
-  = case M.lookup v (axiom_map lmap) of 
+makeCtor' tce lmap sigs _  v
+  = case M.lookup v (axiom_map lmap) of
     Nothing -> P.VarCtor (P.Var (F.symbol v) (typeSort tce $ varType v)      v) vs r
     Just x  -> P.VarCtor (P.Var x            (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
 
@@ -502,7 +452,7 @@ rmAssert      = modify $ \ae -> ae{ae_assert = tail $ ae_assert ae}
 addRec  (x,e) = modify $ \ae -> ae{ae_recs  = (x, grapArgs e):ae_recs  ae}
 addRecs xes   = modify $ \ae -> ae{ae_recs  = [(x, grapArgs e) | (x, e) <- xes] ++ ae_recs  ae}
 
-addVar  x | canIgnore x = return () 
+addVar  x | canIgnore x = return ()
           | otherwise   = modify $ \ae -> ae{ae_vars  = x:ae_vars  ae}
 
 
@@ -517,9 +467,9 @@ getUniq
 
 
 freshVar :: Type -> Pr Var
-freshVar t = 
+freshVar t =
   do n <- getUniq
-     return $ stringVar ("x" ++ show n) t 
+     return $ stringVar ("x" ++ show n) t
 
 freshFilePath :: Pr FilePath
 freshFilePath =
