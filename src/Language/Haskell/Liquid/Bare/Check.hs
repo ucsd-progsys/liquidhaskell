@@ -17,7 +17,7 @@ import Name (getSrcSpan)
 import TyCon
 import Var
 
-import Control.Applicative ((<$>), (<|>))
+import Control.Applicative ((<|>))
 import Control.Arrow ((&&&))
 import Control.Monad.Writer
 import Data.Maybe

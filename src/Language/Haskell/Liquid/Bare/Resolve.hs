@@ -7,7 +7,9 @@ module Language.Haskell.Liquid.Bare.Resolve (
     Resolvable(..)
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+
+import Prelude hiding (error)
+
 import Control.Monad.State
 import Data.Char (isUpper)
 import Text.Parsec.Pos

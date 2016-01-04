@@ -7,17 +7,22 @@ module Language.Haskell.Liquid.Bare.RefToLogic (
 
   ) where
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
 import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc  (errorstar, traceShow)
+import Language.Fixpoint.Misc  (traceShow)
 import Language.Fixpoint.Types.Names
 import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
+
+import Language.Haskell.Liquid.Types.Errors (panic, impossible)
+
 import qualified Data.HashMap.Strict as M
 
-import Control.Applicative                      ((<$>))
+
 
 txRefToLogic :: (Transformable r) => LogicMap -> InlnEnv -> r -> r
 txRefToLogic = tx'
@@ -51,7 +56,7 @@ instance Transformable RReft where
 
 instance Transformable Reft where
   tx s m (Reft (v, p)) = if v == s
-                         then errorstar "Transformable: this should not happen"
+                         then impossible "Transformable: v != s"
                          else Reft(v, tx s m p)
 
 -- OLD instance Transformable Refa where
@@ -75,12 +80,12 @@ instance Transformable Pred where
   tx s m (PBexp e)       = PBexp (tx s m e)
   tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
   tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
-  tx _ _ (PExist _ _)    = error "tx: PExist is for fixpoint internals only"
+  tx _ _ (PExist _ _)    = panic Nothing "tx: PExist is for fixpoint internals only"
  --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p
 
 txQuant xss s m p
-  | s `elem` (fst <$> xss) = errorstar "Transformable.tx on Pred: this should not happen"
+  | s `elem` (fst <$> xss) = impossible "Transformable.tx on Pred"
   | otherwise              = tx s m p
 
 
@@ -110,9 +115,9 @@ instance Transformable Body where
   tx s m (R v p) = R v $ tx s m p
 
 mexpr _ (Left  (LMap _ [] e)) = e
-mexpr s (Left  (LMap _ _  _)) = EVar s 
+mexpr s (Left  (LMap _ _  _)) = EVar s
 mexpr _ (Right (TI _ (Right e))) = e
-mexpr s s' = errorstar ("mexpr on " ++ show s ++ "\t" ++ show s')
+mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
 
 txEApp (s, (Left (LMap _ xs e))) f es
@@ -129,16 +134,16 @@ txEApp (s, (Right (TI xs (Right e)))) f es
 
 txEApp (s, (Right (TI _ (Left _)))) f es
   | cmpSymbol s (val f)
-  = errorstar "txEApp: deep internal error"
+  = panic Nothing "txEApp: deep internal error"
   | otherwise
   = EApp f es
 
 
 -- HACK for currying, but it only works on runFun things
 -- TODO: make it work for any curried function
-dropArgs 0 e = e 
+dropArgs 0 e = e
 dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
-dropArgs n e = error $ "dropArgs on " ++ show (n, e) 
+dropArgs n e = panic Nothing $ "dropArgs on " ++ show (n, e)
 
 txPApp (s, (Right (TI xs (Left e)))) f es
   | cmpSymbol s (val f)

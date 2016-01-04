@@ -14,7 +14,6 @@ import DataCon
 import TyCon
 import Var
 
-import Control.Applicative ((<$>))
 import Data.Maybe
 import Data.Monoid
 
