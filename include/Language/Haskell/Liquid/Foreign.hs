@@ -11,7 +11,7 @@ import Foreign.ForeignPtr
 import GHC.Base
 
 -- TODO: shouldn't have to re-import these (tests/pos/imp0.hs)
-{- import Foreign.C.Types    -}    
+{- import Foreign.C.Types    -}
 {- import Foreign.Ptr        -}
 {- import Foreign.ForeignPtr -}
 {- import GHC.Base           -}
@@ -23,17 +23,17 @@ import GHC.Base
 {-# NOINLINE intCSize #-}
 {-@ assume intCSize :: x:Int -> {v: CSize | v = x } @-}
 intCSize :: Int -> CSize
-intCSize = fromIntegral 
+intCSize = fromIntegral
 
 {-# NOINLINE cSizeInt #-}
 {-@ assume cSizeInt :: x:CSize -> {v: Int | v = x } @-}
 cSizeInt :: CSize -> Int
-cSizeInt = fromIntegral 
+cSizeInt = fromIntegral
 
 
 {-@ assume mkPtr :: x:GHC.Prim.Addr# -> {v: (Ptr b) | ((plen v) = (addrLen x) && ((plen v) >= 0)) } @-}
 mkPtr   :: Addr# -> Ptr b
-mkPtr = undefined -- Ptr x 
+mkPtr = undefined -- Ptr x
 
 
 {-@ isNullPtr :: p:(Ptr a) -> {v:Bool | ((Prop v) <=> (isNullPtr p)) } @-}

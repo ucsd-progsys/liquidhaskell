@@ -2,7 +2,7 @@
      http://www.haskellforall.com/2015/12/compile-time-memory-safety-using-liquid.html
 -}
 
-module BinarySearch (binarySearch) where 
+module BinarySearch (binarySearch) where
 
 {-@ LIQUID "--real" @-}
 
@@ -22,16 +22,14 @@ loop
     :: Ord a
     => x  : a
     -> v  : Vector a
-    -> lo : { Int | 0  <= lo && lo < vlen v }
-    -> hi : { Int | lo <= hi && hi < vlen v }
+    -> lo : { lo : Int | 0  <= lo && lo < vlen v }
+    -> hi : { hi : Int | lo <= hi && hi < vlen v }
     -> Maybe Int
     / [hi - lo]
 @-}
 loop :: Ord a => a -> Vector a -> Int -> Int -> Maybe Int
 loop x v lo hi = do
-    -- let mid = midpoint lo hi 
-    -- let mid = (lo +  hi) `div` 2
-    let mid = lo + ((hi - lo) `div` 2) 
+    let mid = lo + ((hi - lo) `div` 2) -- midpoint lo hi
     if x < v ! mid
     then do
         let hi' = mid - 1
