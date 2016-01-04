@@ -2,16 +2,18 @@ module Language.Haskell.Liquid.Bare.SymSort (
     txRefSort
   ) where
 
-import Control.Applicative ((<$>))
+import Prelude hiding (error)
 
 import qualified Data.List as L
 
-import Language.Fixpoint.Misc (errorstar, safeZip, fst3, snd3)
+import Language.Fixpoint.Misc (fst3, snd3)
 import Language.Fixpoint.Types (meet)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (safeZipWithError)
+
+import Language.Haskell.Liquid.Types.Errors (panic)
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
@@ -34,7 +36,7 @@ addSymSort _ _ t
 
 
 addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r
-                       | otherwise  = errorstar "addSymSortRef: malformed ref application"
+                       | otherwise  = panic Nothing "addSymSortRef: malformed ref application"
 addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
@@ -55,7 +57,7 @@ addSymSortRef' _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
-spliceArgs msg s p = safeZip msg (fst <$> s) (fst3 <$> pargs p)
+spliceArgs msg s p = safeZipWithError msg (fst <$> s) (fst3 <$> pargs p)
 
 intToString 1 = "1st"
 intToString 2 = "2nd"

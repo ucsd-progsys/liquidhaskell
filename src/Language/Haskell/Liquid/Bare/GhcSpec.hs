@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.GhcSpec (
   ) where
 
 -- import Debug.Trace (trace)
+import Prelude hiding (error)
 import CoreSyn hiding (Expr)
 import HscTypes
 import Id
@@ -18,7 +19,6 @@ import TyCon
 import Var
 import TysWiredIn
 
-import Control.Applicative ((<$>))
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
