@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.OfType (
   , mkSpecType'
   ) where
 
+import Prelude hiding (error)
 import BasicTypes
 import Name
 import TyCon hiding (synTyConRhs_maybe)
@@ -30,7 +31,6 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar)
 import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
 
 import Language.Haskell.Liquid.GHC.Misc
@@ -91,7 +91,7 @@ txPvar :: M.HashMap Symbol UsedPVar -> UsedPVar -> UsedPVar
 txPvar m π = π { pargs = args' }
   where args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
               | otherwise            = pargs π'
-        π'    = fromMaybe (errorstar err) $ M.lookup (pname π) m
+        π'    = fromMaybe (panic Nothing err) $ M.lookup (pname π) m
         err   = "Bare.replaceParams Unbound Predicate Variable: " ++ show π
 
 predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
@@ -160,7 +160,7 @@ ofBRType appRTAlias resolveReft
             rs' <- mapM go_ref rs
             ts' <- mapM go ts
             bareTCApp r' lc' rs' ts'
-    goRApp _ _ = errorstar "This cannot happen"
+    goRApp _ _ = impossible "goRApp failed through to final case"
 
 
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
@@ -213,7 +213,7 @@ exprArg msg (RApp f ts [] _)
 exprArg msg (RAppTy (RVar f _) t _)
   = EApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
-  = errorstar $ printf "Unexpected expression parameter: %s in %s" (show z) msg
+  = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
 
 --------------------------------------------------------------------------------
 
@@ -238,7 +238,7 @@ bareTCApp r (Loc _ _ c) rs ts
 
 tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `meet` r')
 tyApp t                []  []  r  = t `strengthen` r
-tyApp _                 _  _   _  = errorstar $ "Bare.Type.tyApp on invalid inputs"
+tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
 expandRTypeSynonyms :: (PPrint r, Reftable r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType

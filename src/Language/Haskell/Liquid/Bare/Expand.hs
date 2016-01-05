@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Bare.Expand (
   , expandExpr
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Prelude hiding (error)
 import Control.Monad.Reader hiding (forM)
 import Control.Monad.State hiding (forM)
 
@@ -16,6 +16,7 @@ import Language.Fixpoint.Types (Expr(..), Pred(..), Reft(..), mkSubst, subst)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Errors
 
 import Language.Haskell.Liquid.Bare.Env
 
@@ -46,7 +47,7 @@ mapPredM f = go
     go (PBexp e)       = PBexp <$> f e
     go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
     go (PAll xs p)     = PAll xs <$> go p
-    go (PExist _ _)    = error "mapPredM: PExist is for fixpoint internals only"
+    go (PExist _ _)    = panic Nothing "mapPredM: PExist is for fixpoint internals only"
     -- go (PExist xs p)   = PExist xs <$> go p
     go PTop            = return PTop
 

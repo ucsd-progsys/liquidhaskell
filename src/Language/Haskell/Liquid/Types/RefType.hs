@@ -38,13 +38,13 @@ module Language.Haskell.Liquid.Types.RefType (
   , rTyVar, rVar, rApp, rEx
   , symbolRTyVar
   , addTyConInfo
-  -- , expandRApp
   , appRTyCon
   , typeSort, typeUniqueSymbol
   , strengthen
   , generalize, normalizePds
   , subts, subvPredicate, subvUReft
-  , subsTyVar_meet, subsTyVars_meet, subsTyVar_nomeet, subsTyVars_nomeet
+  , subsTyVar_meet, subsTyVar_meet', subsTyVar_nomeet
+  , subsTyVars_nomeet, subsTyVars_meet
   , dataConMsReft, dataConReft
   , classBinds
 
@@ -79,19 +79,19 @@ import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPr
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon)
 
-import           Data.Monoid      hiding ((<>))
+-- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-import Control.Applicative  hiding (empty)
 import Control.DeepSeq
 import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
-import Language.Haskell.Liquid.UX.PrettyPrint
+
+import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
 import Language.Fixpoint.Types.Visitor (mapKVars)
@@ -159,26 +159,23 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , RefTypable c tv ()
          , RefTypable c tv r
-         , PPrint (RType c tv r)
+         -- , PPrint (RType c tv r)
+         , OkRT c tv r
          , FreeVar c tv
          )
         => Monoid (RType c tv r)  where
   mempty  = errorstar "mempty: RType"
   mappend = strengthenRefType
 
+
 -- MOVE TO TYPES
-{-
-instance ( SubsTy tv (RType c tv ()) (RType c tv ())
-         , SubsTy tv (RType c tv ()) c
-         , Reftable r
+instance ( SubsTy tv (RType c tv ()) c
+         , OkRT c tv r
+         , RefTypable c tv r
          , RefTypable c tv ()
-         , RefTypable c tv (UReft r))
-         => Monoid (Ref (RType c tv ()) r (RType c tv (UReft r))) where
-  mempty      = errorstar "mempty: RType 2"
-  mappend _ _ = errorstar "mappend: RType 2"
--}
-instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, RefTypable b c (), FreeVar b c, SubsTy c (RType b c ()) (RType b c ()))
-         => Monoid (RTProp b c r) where
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ()))
+         => Monoid (RTProp c tv r) where
   mempty         = errorstar "mempty: RTProp"
 
   mappend (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
@@ -193,28 +190,23 @@ instance (SubsTy c (RType b c ()) b, Monoid r, Reftable r, RefTypable b c r, Ref
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
 
---   mappend (RPropP s1 t1) (RProp s2 t2) = errorstar "Reftable.mappend on invalid inputs"
-  --mappend t1 t2 = errorstar ("Reftable.mappend on invalid inputs" ++ show (t1, t2))
---   mappend _ _ = errorstar "Reftable.mappend on invalid inputs"
 
-instance (Reftable r, RefTypable c tv r, RefTypable c tv (), FreeVar c tv, SubsTy tv (RType c tv ()) (RType c tv ()), SubsTy tv (RType c tv ()) c)
-    => Reftable (RTProp c tv r) where
+instance ( OkRT c tv r
+         , RefTypable c tv r
+         , RefTypable c tv ()
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c) => Reftable (RTProp c tv r) where
   isTauto (RProp _ (RHole r)) = isTauto r
-  isTauto (RProp _ t)  = isTrivial t
-
-  top (RProp _ (RHole _)) = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
-  top (RProp xs t)     = RProp xs $ mapReft top t
-
-  ppTy (RProp _ (RHole r)) d = ppTy r d
-  ppTy (RProp _ _) _   = errorstar "RefType: Reftable ppTy in RProp"
-
-  toReft               = errorstar "RefType: Reftable toReft"
-
-  params               = errorstar "RefType: Reftable params for Ref"
-
-  bot                  = errorstar "RefType: Reftable bot    for Ref"
-
-  ofReft               = errorstar "RefType: Reftable ofReft for Ref"
+  isTauto (RProp _ t)         = isTrivial t
+  top (RProp _ (RHole _))     = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp xs t)            = RProp xs $ mapReft top t
+  ppTy (RProp _ (RHole r)) d  = ppTy r d
+  ppTy (RProp _ _) _          = errorstar "RefType: Reftable ppTy in RProp"
+  toReft                      = errorstar "RefType: Reftable toReft"
+  params                      = errorstar "RefType: Reftable params for Ref"
+  bot                         = errorstar "RefType: Reftable bot    for Ref"
+  ofReft                      = errorstar "RefType: Reftable ofReft for Ref"
 
 
 ----------------------------------------------------------------------------
@@ -264,16 +256,6 @@ instance Fixpoint Class where
   toFix = text . showPpr
 
 -- MOVE TO TYPES
-instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
---   ppCls   = ppClassSymbol
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
-instance (Reftable r, PPrint r) => RefTypable RTyCon RTyVar r where
---   ppCls   = ppClassClassPred
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
 class FreeVar a v where
   freeVars :: a -> [v]
 
@@ -284,7 +266,6 @@ instance FreeVar RTyCon RTyVar where
 -- MOVE TO TYPES
 instance FreeVar LocSymbol Symbol where
   freeVars _ = []
-
 
 -- Eq Instances ------------------------------------------------------
 
@@ -401,19 +382,21 @@ nlzP ps t@(RAllE _ _ _)
 nlzP _ t
  = errorstar $ "RefType.nlzP: cannot handle " ++ show t
 
-
 strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
          , RefTypable c tv r
-         , PPrint (RType c tv r)
+         -- , PPrint (RType c tv r)
+         , OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          ) => RType c tv r -> RType c tv r -> RType c tv r
+
 strengthenRefType_ ::
          ( RefTypable c tv ()
          , RefTypable c tv r
-         , PPrint (RType c tv r)
+         -- , PPrint (RType c tv r)
+         , OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -425,8 +408,10 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-                         (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+                         (pprt_raw t1) (showpp (toRSort t1)) (pprt_raw t2) (showpp (toRSort t2))
 
+pprt_raw :: (OkRT c tv r) => RType c tv r -> String
+pprt_raw = render . rtypeDoc Full
 
 -- NEWISH: with unifying type variables: causes big problems with TUPLES?
 --strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
@@ -651,36 +636,17 @@ instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
   rnf (RRTy _ r _ t)   = rnf r `seq` rnf t
   rnf (RHole r)        = rnf r
 
-----------------------------------------------------------------
------------------- Printing Refinement Types -------------------
-----------------------------------------------------------------
 
-instance Show RTyVar where
-  show = showpp
-
-instance PPrint (UReft r) => Show (UReft r) where
-  show = showpp
-
-instance (RefTypable c tv r) => PPrint (RType c tv r) where
-  pprint = ppRType TopPrec
-
-instance PPrint (RType c tv r) => Show (RType c tv r) where
-  show = showpp
-
-instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
-  show = showpp
-
-instance PPrint REnv where
-  pprint (REnv m)  = pprint m
-
-------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
-------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-subsTyVars_meet       = subsTyVars True
-subsTyVars_nomeet     = subsTyVars False
-subsTyVar_nomeet      = subsTyVar False
-subsTyVar_meet        = subsTyVar True
+subsTyVars_meet        = subsTyVars True
+subsTyVars_nomeet      = subsTyVars False
+subsTyVar_nomeet       = subsTyVar False
+subsTyVar_meet         = subsTyVar True
+subsTyVar_meet' (α, t) = subsTyVar_meet (α, toRSort t, t)
+
 subsTyVars meet ats t = foldl' (flip (subsTyVar meet)) t ats
 subsTyVar meet        = subsFree meet S.empty
 
@@ -938,12 +904,10 @@ appSolRefa s p = mapKVars f p
 -------------------------------------------------------------------------------
 shiftVV :: SpecType -> Symbol -> SpecType
 -------------------------------------------------------------------------------
-
 shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
-
 
 shiftVV t@(RFun _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
@@ -1173,3 +1137,34 @@ mkTyConInfo c usertyvar userprvariance f
         n             = (TC.tyConArity c) - 1
         errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
         dindex        = -1
+
+
+--------------------------------------------------------------------------------
+-- | Printing Refinement Types -------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- MOVE TO TYPES
+instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
+  ppRType = ppr_rtype ppEnv
+
+-- MOVE TO TYPES
+instance (Reftable r, PPrint r) => RefTypable RTyCon RTyVar r where
+  ppRType = ppr_rtype ppEnv
+
+instance Show RTyVar where
+  show = showpp
+
+instance PPrint (UReft r) => Show (UReft r) where
+  show = showpp
+
+instance (RefTypable c tv r) => PPrint (RType c tv r) where
+  pprint = ppRType TopPrec
+
+instance PPrint (RType c tv r) => Show (RType c tv r) where
+  show = showpp
+
+instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
+  show = showpp
+
+instance PPrint REnv where
+  pprint (REnv m)  = pprint m

@@ -1,4 +1,47 @@
-module Language.Haskell.Liquid.Constraint.Types where
+
+{-# LANGUAGE BangPatterns              #-}
+
+module Language.Haskell.Liquid.Constraint.Types
+  ( -- * Constraint Generation Monad
+    CG
+
+    -- * Constraint information
+  , CGInfo (..)
+
+    -- * Constraint Generation Environment
+  , CGEnv (..)
+
+    -- * Logical constraints (FIXME: related to bounds?)
+  , LConstraint (..)
+
+    -- * Fixpoint environment
+  , FEnv (..)
+  , initFEnv
+  , insertsFEnv
+
+   -- * Hole Environment
+  , HEnv
+  , fromListHEnv
+  , elemHEnv
+
+   -- * Subtyping Constraints
+  , SubC (..)
+  , FixSubC
+
+   -- * Well-formedness Constraints
+  , WfC (..)
+  , FixWfC
+
+   -- * Invariants
+  , RTyConInv
+  , mkRTyConInv
+  , addRTyConInv
+  , addRInv
+
+  -- * Aliases?
+  , RTyConIAl
+  , mkRTyConIAl
+  ) where
 
 import CoreSyn
 import SrcLoc
@@ -14,7 +57,7 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 
 import Control.DeepSeq
-import Data.Monoid              (mconcat)
+-- import Data.Monoid              (mconcat)
 import Data.Maybe               (catMaybes)
 import Control.Monad.State
 
@@ -23,6 +66,9 @@ import Var
 import Type   (Type)
 import Class  (Class)
 
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
+import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)
 import Language.Haskell.Liquid.Types.Strata
 import Language.Haskell.Liquid.Misc           (fourth4)
@@ -34,14 +80,12 @@ import Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
-
 type CG = State CGInfo
 
 data CGEnv
-  = CGE { loc    :: !SrcSpan           -- ^ Location in original source file
+  = CGE { cgLoc  :: !SpanStack         -- ^ Location in original source file
         , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
         , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        -- , penv   :: !(F.SEnv PrType)   -- ^ PrTypes for top-level bindings (merge with renv)
         , denv   :: !RDEnv             -- ^ Dictionary Environment
         , fenv   :: !FEnv              -- ^ Fixpoint Environment
         , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
@@ -59,7 +103,6 @@ data CGEnv
         , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
         } -- deriving (Data, Typeable)
 
-
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
@@ -75,9 +118,11 @@ instance Show CGEnv where
 
 
 
------------------------------------------------------------------
-------------------- Constraints: Types --------------------------
------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Subtyping Constraints -----------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- RJ: what is the difference between these two?
 
 data SubC     = SubC { senv  :: !CGEnv
                      , lhs   :: !SpecType
@@ -107,12 +152,9 @@ instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
   subS _  c              = c
 
-
-
-
------------------------------------------------------------
--------------------- Generation: Types --------------------
------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Generation: Types ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data CGInfo = CGInfo {
     fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
@@ -138,7 +180,7 @@ data CGInfo = CGInfo {
   , scheck     :: !Bool                        -- ^ Check Strata (?)
   , trustghc   :: !Bool                        -- ^ Trust ghc auto generated bindings
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
-  , logErrors  :: ![TError SpecType]           -- ^ Errors during constraint generation
+  , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
@@ -166,30 +208,25 @@ pprCGInfo _cgi
   -- -$$ (text "Recursive binders:" <+> pprint (recCount cgi))
 
 
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
------------------------------ Helper Types: HEnv -----------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Helper Types: HEnv --------------------------------------------------------
+--------------------------------------------------------------------------------
 
 newtype HEnv = HEnv (S.HashSet F.Symbol)
 
 fromListHEnv = HEnv . S.fromList
 elemHEnv x (HEnv s) = x `S.member` s
 
-
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
--------------------------- Helper Types: Invariants --------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Helper Types: Invariants --------------------------------------------------
+--------------------------------------------------------------------------------
 
 type RTyConInv = M.HashMap RTyCon [SpecType]
 type RTyConIAl = M.HashMap RTyCon [SpecType]
 
+--------------------------------------------------------------------------------
 mkRTyConInv    :: [F.Located SpecType] -> RTyConInv
+--------------------------------------------------------------------------------
 mkRTyConInv ts = group [ (c, t) | t@(RApp c _ _ _) <- strip <$> ts]
   where
     strip      = fourth4 . bkUniv . val
@@ -236,8 +273,8 @@ conjoinInvariant t _
 -- | Fixpoint Environment ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data FEnv = FE { fe_binds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
-               , fe_env   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
+data FEnv = FE { feBinds :: !F.IBindEnv      -- ^ Integer Keys for Fixpoint Environment
+               , feEnv   :: !(F.SEnv F.Sort) -- ^ Fixpoint Environment
                }
 
 insertFEnv (FE benv env) ((x, t), i)
@@ -251,7 +288,6 @@ initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
-
 
 instance NFData REnv where
   rnf (REnv _) = () -- rnf m

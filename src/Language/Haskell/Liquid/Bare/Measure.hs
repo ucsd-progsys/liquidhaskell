@@ -21,9 +21,8 @@ import Name
 import Type hiding (isFunTy)
 import Var
 
-import Prelude hiding (mapM)
+import Prelude hiding (mapM, error)
 import Control.Arrow ((&&&))
-import Control.Applicative ((<$>), (<*>))
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Error hiding (Error, forM, mapM)
 import Control.Monad.State hiding (forM, mapM)

@@ -9,7 +9,6 @@ module Language.Haskell.Liquid.Interactive.Handler (
 import Control.Concurrent.MVar
 import Language.Haskell.Liquid.Interactive.Types
 import Language.Haskell.Liquid.Liquid
--- import Language.Fixpoint.Misc (errorstar)
 
 ------------------------------------------------------------------------------
 handler :: MVar State -> Command -> IO Response
