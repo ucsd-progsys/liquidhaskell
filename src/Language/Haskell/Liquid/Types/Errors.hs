@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE OverloadedStrings   #-}
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -30,18 +31,13 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Type
-import           SrcLoc                       (RealSrcSpan (..), SrcSpan (..), noSrcSpan)
+import           SrcLoc                       (SrcSpan (..), noSrcSpan)
 import           GHC.Generics
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
-import           Data.Generics.Schemes        (everywhere)
-import           Data.Generics.Aliases        (mkT)
 import           Data.Maybe
-import           Data.Bifunctor
-import qualified Data.Text as T
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
-
 import           Language.Fixpoint.Types               (showpp, PPrint (..), Symbol, Expr, Reft)
 import           Language.Haskell.Liquid.GHC.Misc      (pprDoc, unpackRealSrcSpan)
 import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
@@ -304,11 +300,12 @@ panic sp d = Ex.throw $ Panic (sspan sp) (text d)
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
 todo :: {-(?callStack :: CallStack) =>-} String -> a
-todo m = panic Nothing $ msg ++ m
-   where
-      msg = "This functionality is currently unimplemented. " ++
-            "If this functionality is critical to you, please contact us at: "
-            "https://github.com/ucsd-progsys/liquidhaskell/issues\n\n"
+todo m  = panic Nothing $ unlines [
+            "This functionality is currently unimplemented. "
+          , "If this functionality is critical to you, please contact us at: "
+          , "https://github.com/ucsd-progsys/liquidhaskell/issues"
+          , m
+          ]
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
