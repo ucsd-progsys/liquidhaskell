@@ -38,18 +38,18 @@ env:
 # This line does all of the work: installs GHC if necessary, build the library,
 # executables, and test suites, and runs the test suites. --no-terminal works
 # around some quirks in Travis's terminal implementation.
-script:
-- stack $ARGS --no-terminal --install-ghc test liquidhaskell --haddock --no-haddock-deps --test-arguments "-j2 -p $TESTS"
+#script:
+#- stack $ARGS --no-terminal --install-ghc test liquidhaskell --haddock --no-haddock-deps --test-arguments "-j2 -p $TESTS"
 
-# install:
-#  - scripts/travis install_smt "$SMT"
-#  - scripts/travis install_stack "$STACK"
-#  - scripts/travis configure_stack "$GHC"
-#  - scripts/travis setup_ghc
-#  - scripts/travis install_dependencies
-# 
-# script:
-#  - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT"
+install:
+ - scripts/travis install_smt "$SMT"
+ # - scripts/travis install_stack "$STACK"
+ # - scripts/travis configure_stack "$GHC"
+ - scripts/travis setup_ghc
+ - scripts/travis install_dependencies
+
+script:
+ - scripts/travis do_build && scripts/travis do_test "$TESTS" "$SMT"
 
 after_failure:
  - scripts/travis dump_fail_logs
