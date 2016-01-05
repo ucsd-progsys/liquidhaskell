@@ -117,7 +117,7 @@ mexpr s s' = errorstar ("mexpr on " ++ show s ++ "\t" ++ show s')
 
 txEApp (s, (Left (LMap _ xs e))) f es
   | cmpSymbol s (val f)
-  = subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
+  = traceShow ("\ntxEapp\n" ++ show (f, es)) $ subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
   | otherwise
   = EApp f es
 
