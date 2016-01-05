@@ -113,12 +113,14 @@ miModGuts cls mg  = MI {
 srcSpanTick :: Module -> SrcSpan -> Tickish a
 srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
 
--- tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
--- tickSrcSpan z
-  -- | sp == noSrcSpan = traceShow ("tickSrcSpan:" ++ showPpr z) sp
-  -- | otherwise       = sp
-  -- where
-    -- sp              = tickSrcSpan' z
+{-
+tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
+tickSrcSpan z
+  | sp == noSrcSpan = traceShow ("tickSrcSpan:" ++ showPpr z) sp
+  | otherwise       = sp
+  where
+    sp              = tickSrcSpan' z
+-}
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
