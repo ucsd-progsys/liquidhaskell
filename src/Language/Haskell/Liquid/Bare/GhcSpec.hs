@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.GhcSpec (
   ) where
 
 -- import Debug.Trace (trace)
+import Prelude hiding (error)
 import CoreSyn hiding (Expr)
 import HscTypes
 import Id
@@ -18,7 +19,6 @@ import TyCon
 import Var
 import TysWiredIn
 
-import Control.Applicative ((<$>))
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
@@ -63,10 +63,7 @@ import Language.Haskell.Liquid.Bare.SymSort
 import Language.Haskell.Liquid.Bare.RefToLogic
 import Language.Haskell.Liquid.Bare.Lookup (lookupGhcTyCon)
 
-------------------------------------------------------------------
----------- Top Level Output --------------------------------------
-------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
 makeGhcSpec :: Config
             -> ModName
             -> [CoreBind]
@@ -77,6 +74,7 @@ makeGhcSpec :: Config
             -> Either Error LogicMap
             -> [(ModName,Ms.BareSpec)]
             -> IO GhcSpec
+--------------------------------------------------------------------------------
 makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv

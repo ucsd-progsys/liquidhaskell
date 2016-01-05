@@ -2,13 +2,13 @@ module Language.Haskell.Liquid.Bare.Existential (
     txExpToBind
   ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad.State
 import Data.Char
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Misc (errorstar, fst3)
+import Prelude hiding (error)
+import Language.Fixpoint.Misc (fst3)
 import Language.Fixpoint.Types.Names (headSym)
 import Language.Fixpoint.Types (Expr(..), Symbol, symbol, exprReft)
 

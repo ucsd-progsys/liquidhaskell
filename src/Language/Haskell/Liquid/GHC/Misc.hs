@@ -45,7 +45,8 @@ import           Finder                       (findImportedModule, cannotFindMod
 import           Panic                        (throwGhcException)
 import           FastString
 import           TcRnDriver
-import           TcRnTypes
+-- import           TcRnTypes
+
 
 import           RdrName
 import           Type                         (liftedTypeKind)
@@ -57,19 +58,19 @@ import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe                   (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
-import qualified Data.List                    as L
+-- import qualified Data.List                    as L
 import           Data.Aeson
 import qualified Data.Text.Encoding           as T
-import qualified Data.Text.Unsafe             as T
+-- import qualified Data.Text.Unsafe             as T
 import qualified Data.Text                    as T
-import           Control.Applicative          ((<$>), (<*>))
+-- import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Monad                ((>=>))
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ    as PJ
-import           Data.Monoid                  (mempty, mappend)
+-- import           Data.Monoid                  (mempty, mappend)
 import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
 -- import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
@@ -106,13 +107,20 @@ miModGuts cls mg  = MI {
   , mgi_cls_inst  = cls
   }
 
------------------------------------------------------------------------
---------------- Generic Helpers for Encoding Location -----------------
------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
+-- | Encoding and Decoding Location --------------------------------------------
+--------------------------------------------------------------------------------
 srcSpanTick :: Module -> SrcSpan -> Tickish a
-srcSpanTick m loc
-  = ProfNote (AllCafsCC m loc) False True
+srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
+
+{-
+tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
+tickSrcSpan z
+  | sp == noSrcSpan = traceShow ("tickSrcSpan:" ++ showPpr z) sp
+  | otherwise       = sp
+  where
+    sp              = tickSrcSpan' z
+-}
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
@@ -464,16 +472,10 @@ tyConTyVarsDef c = TC.tyConTyVars c
 gHC_VERSION :: String
 gHC_VERSION = show __GLASGOW_HASKELL__
 
-desugarModule :: TypecheckedModule -> Ghc DesugaredModule
-
 symbolFastString :: Symbol -> FastString
+symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-
-synTyConRhs_maybe :: TyCon -> Maybe Type
-
-tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
-
+desugarModule :: TypecheckedModule -> Ghc DesugaredModule
 desugarModule tcm = do
   let ms = pm_mod_summary $ tm_parsed_module tcm
   -- let ms = modSummary tcm
@@ -485,14 +487,15 @@ desugarModule tcm = do
 
 -- desugarModule = GHC.desugarModule
 
-symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
-
 type Prec = TyPrec
 
+lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
 lintCoreBindings = CoreLint.lintCoreBindings CoreDoNothing
 
+synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe
 
+tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 
@@ -553,3 +556,7 @@ stripParens t = fromMaybe t (strip t)
 
 stripParensSym :: Symbol -> Symbol
 stripParensSym (symbolText -> t) = symbol $ stripParens t
+
+--------------------------------------------------------------------------------
+-- | Source Info = Stack of most recent binders/spans
+--------------------------------------------------------------------------------

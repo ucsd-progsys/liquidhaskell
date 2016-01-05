@@ -13,7 +13,6 @@
 --   here. The idea should be to report the error, the source position that
 --   causes it, generate a suitable .json file and then exit.
 
-
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
      getOpts, mkOpts
@@ -31,6 +30,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 import Control.Monad
 import Data.Maybe
+import Data.Traversable (mapM)
 import System.Directory
 import System.Exit
 import System.Environment
@@ -45,7 +45,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, extSolver,
+import Language.Fixpoint.Types.Config      hiding (Config, real, --extSolver,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -55,7 +55,7 @@ import Language.Fixpoint.Types             hiding (Error, Result)
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.UX.PrettyPrint
+import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types       hiding (config, name, typ)
 import Language.Haskell.Liquid.UX.Errors
 import Language.Haskell.Liquid.UX.Cabal
@@ -102,8 +102,8 @@ config = cmdArgsMode $ Config {
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
- , extSolver
-    = def &= help "Use external (OCaml) fixpoint constraint solver"
+ -- , extSolver
+ --    = def &= help "Use external (OCaml) fixpoint constraint solver"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -239,7 +239,7 @@ withSmtSolver cfg =
     Nothing -> do smts <- mapM findSmtSolver [Z3, Cvc4, Mathsat]
                   case catMaybes smts of
                     (s:_) -> return (cfg {smtsolver = Just s})
-                    _     -> exitWithPanic noSmtError
+                    _     -> panic Nothing noSmtError
   where
     noSmtError = "LiquidHaskell requires an SMT Solver, i.e. z3, cvc4, or mathsat to be installed."
 
@@ -317,7 +317,7 @@ defConfig = Config { files          = def
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
-                   , extSolver      = def
+                   -- , extSolver      = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
@@ -363,17 +363,25 @@ exitWithResult cfg target out
   = do {-# SCC "annotate" #-} annotate cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
-       writeResult cfg (colorResult r) r
-       writeFile   (extFileName Result target) (showFix r)
+       cr <- resultWithContext r
+       writeResult cfg (colorResult r) cr
+       writeFile   (extFileName Result target) (showFix cr)
        return $ out { o_result = r }
     where
        r         = o_result out `addErrors` o_errors out
+
+
+resultWithContext :: FixResult Error -> IO (FixResult CError)
+resultWithContext = mapM errorWithContext
 
 
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
+type CError = CtxError SpecType
+
+writeResult :: Config -> Moods -> FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
     tidy                   = if shortErrors cfg then Lossy else Full
@@ -382,14 +390,21 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
+
+resDocs :: Tidy -> FixResult CError -> [Doc]
 resDocs _ Safe             = [text "RESULT: SAFE"]
 resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
 resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
--- resDocs _ (UnknownError d) = [text $ "RESULT: PANIC: Unexpected Error: " ++ d, reportUrl]
+
+errToFCrash :: CtxError a -> CtxError a
+errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
+  where
+    tx (ErrSubType l m g t t') = ErrFCrash l m g t t'
+    tx e                       = e
 
 {-
    TODO: Never used, do I need to exist?
-reportUrl              = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
+reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
 addErrors r []             = r
@@ -397,5 +412,5 @@ addErrors Safe errs        = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 
-instance Fixpoint (FixResult Error) where
+instance Fixpoint (FixResult CError) where
   toFix = vcat . resDocs Full

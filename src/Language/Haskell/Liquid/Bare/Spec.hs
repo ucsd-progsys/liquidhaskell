@@ -22,11 +22,12 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeHBounds
   ) where
 
+import Prelude hiding (error)
 import MonadUtils (mapMaybeM)
 import TyCon
 import Var
 
-import Control.Applicative ((<$>))
+
 import Control.Monad.Error
 import Control.Monad.State
 import Data.Maybe
