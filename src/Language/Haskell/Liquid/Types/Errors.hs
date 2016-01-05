@@ -304,9 +304,18 @@ panic sp d = Ex.throw $ Panic (sspan sp) (text d)
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
 todo :: {-(?callStack :: CallStack) =>-} String -> a
-todo m = panic Nothing $ "TODO: " ++ m
+todo m = panic Nothing $ msg ++ m
+   where
+      msg = "This functionality is currently unimplemented. " ++
+            "If this functionality is critical to you, please contact us at: "
+            "https://github.com/ucsd-progsys/liquidhaskell/issues\n\n"
 
 -- | Construct and show an Error with no SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
 impossible :: {-(?callStack :: CallStack) =>-} String -> a
-impossible  m = panic Nothing $ "Should never happen: " ++ m
+impossible  m = panic Nothing $ msg ++ m
+   where
+      msg = "This should never happen! If you are seeing this message, " ++
+            "please submit a bug report at " ++
+            "https://github.com/ucsd-progsys/liquidhaskell/issues " ++
+            "with this message and the source file that caused this error.\n\n"

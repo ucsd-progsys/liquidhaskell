@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Bare.Misc (
   , hasBoolResult
   ) where
 
-
+import Prelude hiding (error)
 import TysWiredIn
 import Name
 
@@ -26,7 +26,6 @@ import Type
 import TypeRep
 import Var
 
-import Control.Applicative ((<$>))
 import Control.Monad.Error (throwError)
 import Control.Monad.State
 import Data.Maybe (isNothing)
