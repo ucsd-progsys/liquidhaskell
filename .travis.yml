@@ -16,6 +16,8 @@ before_install:
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+- travis_retry stack install cabal-install
+- scripts/travis install_smt "$SMT"
 
 env:
   global:
@@ -41,7 +43,6 @@ env:
 #- stack $ARGS --no-terminal --install-ghc test liquidhaskell --haddock --no-haddock-deps --test-arguments "-j2 -p $TESTS"
 
 install:
- - scripts/travis install_smt "$SMT"
  # - scripts/travis install_stack "$STACK"
  # - scripts/travis configure_stack "$GHC"
  # - scripts/travis setup_ghc
