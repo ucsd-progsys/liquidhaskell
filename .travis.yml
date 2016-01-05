@@ -16,7 +16,6 @@ before_install:
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-- scripts/travis install_smt "$SMT"
 
 env:
   global:
@@ -45,7 +44,7 @@ install:
  - scripts/travis install_smt "$SMT"
  # - scripts/travis install_stack "$STACK"
  # - scripts/travis configure_stack "$GHC"
- - scripts/travis setup_ghc
+ # - scripts/travis setup_ghc
  - scripts/travis install_dependencies
 
 script:
