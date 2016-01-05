@@ -339,18 +339,19 @@ dataConTypes  s = (ctorTys, measTys)
     defsVar     = ctor . safeHead "defsVar"
 
 defRefType :: Def (RRType Reft) DataCon -> RRType Reft
-defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
+defRefType dd@(Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
   where
     t   = fromMaybe (ofType $ dataConOrigResTy dc) mt
     xts = safeZipWith msg g xs $ ofType `fmap` dataConOrigArgTys dc
     g (x, Nothing) t = (x, t, mempty)
     g (x, Just t)  _ = (x, t, mempty)
     t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    msg = "defRefType dc = " ++ showPpr dc
+    msg = "defRefType dc = " ++ showPpr dc ++ " xs = " ++ show (xs, dataConOrigArgTys dc, dd)  ++ "\n" ++ show (dataConRepArgTys dc) 
 
     mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
-
+instance Show Type where
+  show = showPpr 
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->

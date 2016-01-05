@@ -56,6 +56,7 @@ data CGEnv
         , lcb   :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
         , holes :: !HEnv                                  -- ^ Types with holes, will need refreshing
         , lcs   :: !LConstraint                           -- ^ Logical Constraints
+        , aenv  :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps axiomatized Haskell functions to the logical functions
         } -- deriving (Data, Typeable)
 
 
@@ -256,7 +257,7 @@ instance NFData REnv where
   rnf (REnv _) = () -- rnf m
 
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _)
+  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _ _)
     = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 

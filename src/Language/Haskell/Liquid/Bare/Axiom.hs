@@ -69,7 +69,8 @@ makeAxiom lmap cbs _ _ x
                              insertAxiom v (val x) 
                              updateLMap lmap x x v
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return ((val x, makeType v), (v, makeAssumeType v):vts, defAxioms v def)
+                             return ((traceShow "makeType" (val x, makeType v)), 
+                                     (v, makeAssumeType v):vts, defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              insertAxiom v (val x) 
                              updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
@@ -89,6 +90,8 @@ makeAxiom lmap cbs _ _ x
 
     makeType v       = x{val = ufType    $ varType v}
     makeAssumeType v = x{val = axiomType x $ varType v}
+
+    
 
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes
@@ -111,7 +114,7 @@ updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
 makeAxiomType :: LogicMap -> LocSymbol -> Var -> HAxiom -> BareM (Var, Located SpecType)
 makeAxiomType lmap x v (Axiom _ xs _ lhs rhs)
   = do foldM (\lm x -> (updateLMap lm (dummyLoc $ F.symbol x) (dummyLoc $ F.symbol x) x >> (logicEnv <$> get))) lmap xs
-       return (v, x{val = t})
+       return $ traceShow ("\nmakeAssumedType\n" ++ show (x, v)) (v, x{val = t})
   where
     t   = fromRTypeRep $  tr{ty_res = res, ty_binds = symbol <$> xs}
     tt  = ofType $ varType v
