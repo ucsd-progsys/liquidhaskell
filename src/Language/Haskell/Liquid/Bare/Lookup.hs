@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Bare.Lookup (
   , lookupGhcDataCon
   ) where
 
+import Prelude hiding (error)
 import BasicTypes
 import ConLike
 import DataCon

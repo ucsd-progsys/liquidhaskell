@@ -4,7 +4,8 @@ module Language.Haskell.Liquid.Bare.RTEnv (
     makeRTEnv
   ) where
 
-import Control.Applicative ((<$>))
+import Prelude hiding (error)
+
 import Data.Graph hiding (Graph)
 import Data.Maybe
 
@@ -12,12 +13,13 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
-import Language.Fixpoint.Misc (errorstar, fst3)
+import Language.Fixpoint.Misc (fst3)
 import Language.Fixpoint.Types (Expr(..), Pred(..), Symbol)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Errors (panic)
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
@@ -88,7 +90,7 @@ fromAliasSymbol :: AliasTable t -> Symbol -> (ModName, RTAlias Symbol t)
 fromAliasSymbol table sym
   = fromMaybe err $ M.lookup sym table
   where
-    err = errorstar $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
+    err = panic Nothing $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
 
 
 type Graph t = [Node t]
@@ -122,7 +124,7 @@ checkCyclicAliases table graph
                       , acycle = map locate scc
                       }
     err []
-      = errorstar "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
+      = panic Nothing "Bare.RTEnv.checkCyclicAliases: No type aliases in reported cycle"
 
     locate sym
       = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol table sym

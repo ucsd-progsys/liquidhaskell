@@ -17,7 +17,7 @@ import TypeRep
 
 import Prelude hiding (mapM)
 import Control.Arrow ((&&&))
-import Control.Applicative ((<$>), (<*>))
+
 import Control.Monad hiding (forM, mapM)
 import Control.Monad.Error hiding (Error, forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
