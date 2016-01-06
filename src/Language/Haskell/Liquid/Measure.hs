@@ -346,10 +346,9 @@ defRefType (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
     g (x, Nothing) t = (x, t, mempty)
     g (x, Just t)  _ = (x, t, mempty)
     t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    msg = "defRefType dc = " ++ showPpr dc
+    msg = "defRefType dc = " ++ showPpr dc 
 
     mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
-
 
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
