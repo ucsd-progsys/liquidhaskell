@@ -49,22 +49,29 @@ module Language.Fixpoint.Types.Names (
   -- * Transforms
   , nonSymbol
   , vvCon
+  , tidySymbol
 
   -- * Widely used prefixes
   , anfPrefix
-  , litPrefix
+  -- , litPrefix
   , tempPrefix
   , vv
   , symChars
-  , kArgPrefix
+  -- , kArgPrefix
 
   -- * Creating Symbols
   , dummySymbol
   , intSymbol
   , tempSymbol
+
+  -- * Wrapping Symbols
+  , litSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
+
+  -- * Unwrapping Symbols
+  , unLitSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -95,6 +102,7 @@ module Language.Fixpoint.Types.Names (
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
+import           Data.Maybe                  (fromMaybe)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -178,12 +186,12 @@ instance IsString Symbol where
 instance Show Symbol where
   show = show . symbolRaw
 
-instance Monoid Symbol where
-  mempty        = ""
-  mappend s1 s2 = textSymbol $ mappend s1' s2'
+--instance Monoid Symbol where
+-- mempty        = ""
+mappendSym s1 s2 = textSymbol $ mappend s1' s2'
     where
-      s1'       = symbolText s1
-      s2'       = symbolText s2
+      s1'        = symbolText s1
+      s2'        = symbolText s2
 
 instance PPrint Symbol where
   pprint = text . symbolString
@@ -357,23 +365,29 @@ isNontrivialVV      :: Symbol -> Bool
 isNontrivialVV      = not . (vv Nothing ==)
 
 vvCon, dummySymbol :: Symbol
-vvCon       = vvName `mappend` symbol [symSepName] `mappend` "F"
+vvCon       = vvName `mappendSym` symbol [symSepName] `mappendSym` "F"
 dummySymbol = dummyName
 
+litSymbol :: Symbol -> Symbol
+litSymbol s = litPrefix `mappendSym` s
+
+unLitSymbol :: Symbol -> Maybe Symbol
+unLitSymbol = stripPrefix litPrefix
+
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `mappend` symbol ('#' : show i)
+intSymbol x i = x `mappendSym` symbol ('#' : show i)
 
 tempSymbol :: Symbol -> Integer -> Symbol
-tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
+tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
 
 renameSymbol :: Symbol -> Int -> Symbol
-renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
+renameSymbol prefix = intSymbol (renamePrefix `mappendSym` prefix)
 
 kArgSymbol :: Symbol -> Symbol
-kArgSymbol x = kArgPrefix `mappend` x
+kArgSymbol x = kArgPrefix `mappendSym` x
 
 existSymbol :: Symbol -> Integer -> Symbol
-existSymbol prefix = intSymbol (existPrefix `mappend` prefix)
+existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
 tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
@@ -382,6 +396,13 @@ renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 kArgPrefix   = "lq_karg$"
 existPrefix  = "lq_ext$"
+
+-------------------------------------------------------------------------
+tidySymbol :: Symbol -> Symbol
+-------------------------------------------------------------------------
+tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
+
+dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
 
 
 

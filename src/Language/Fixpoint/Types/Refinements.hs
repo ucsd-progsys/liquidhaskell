@@ -245,10 +245,10 @@ instance Symbolic SymConst where
   symbol = encodeSymConst
 
 encodeSymConst        :: SymConst -> Symbol
-encodeSymConst (SL s) = litPrefix `mappend` symbol s
+encodeSymConst (SL s) = litSymbol $ symbol s
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolText) . stripPrefix litPrefix
+decodeSymConst = fmap (SL . symbolText) . unLitSymbol 
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
