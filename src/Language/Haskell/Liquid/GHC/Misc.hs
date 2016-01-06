@@ -439,9 +439,8 @@ varSymbol v
   | us `isSuffixOfSym` vs = vs
   | otherwise             = suffixSymbol vs us
   where
-    us  = symbol $ showPpr $ getDataConVarUnique v
-    vs  = symbol $ getName v
-
+    us                    = symbol $ showPpr $ getDataConVarUnique v
+    vs                    = symbol $ getName v
 
 qualifiedNameSymbol n = symbol $
   case nameModule_maybe n of
@@ -529,7 +528,6 @@ mungeNames _ _ _ ""  = ""
 mungeNames f d msg s'@(symbolText -> s)
   | s' == tupConName = tupConName
   | otherwise        = f (msg ++ T.unpack s) $ T.splitOn d $ stripParens s
-
 
 qualifySymbol :: Symbol -> Symbol -> Symbol
 qualifySymbol (symbolText -> m) x'@(symbolText -> x)
