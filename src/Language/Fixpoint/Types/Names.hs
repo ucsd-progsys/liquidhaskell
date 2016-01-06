@@ -53,11 +53,11 @@ module Language.Fixpoint.Types.Names (
 
   -- * Widely used prefixes
   , anfPrefix
-  -- , litPrefix
   , tempPrefix
   , vv
   , symChars
   -- , kArgPrefix
+  -- , litPrefix
 
   -- * Creating Symbols
   , dummySymbol
@@ -69,6 +69,7 @@ module Language.Fixpoint.Types.Names (
   , renameSymbol
   , kArgSymbol
   , existSymbol
+  , suffixSymbol
 
   -- * Unwrapping Symbols
   , unLitSymbol
