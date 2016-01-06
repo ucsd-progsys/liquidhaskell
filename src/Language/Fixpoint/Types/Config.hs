@@ -56,7 +56,7 @@ data Config
     , metadata    :: Bool                -- ^ print meta-data associated with constraints
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
-    , binary      :: Bool                -- ^ save FInfo as binary file
+    , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -78,7 +78,7 @@ instance Default Config where
                , metadata    = def
                , stats       = def
                , parts       = def
-               , binary      = def
+               , save        = def
                }
 
 instance Command Config where
@@ -131,16 +131,6 @@ instance Show SMTSolver where
   show Mathsat = "mathsat"
   show Z3mem   = "z3mem"
 
---smtSolver :: String -> SMTSolver
---smtSolver "z3"      = Z3
---smtSolver "cvc4"    = Cvc4
---smtSolver "mathsat" = Mathsat
---smtSolver "z3mem"   = Z3mem
---smtSolver other     = errorstar $ "ERROR: unsupported SMT Solver = " ++ other
-
--- defaultSolver       :: Maybe SMTSolver -> SMTSolver
--- defaultSolver       = fromMaybe Z3
-
 ---------------------------------------------------------------------------------------
 
 config :: Config
@@ -155,7 +145,7 @@ config = Config {
   , real        = False &= help "(alpha) Theory of real numbers"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
-  , binary      = False &= help "(alpha) Save Query as Binary File"
+  , save        = False &= help "Save Query as .fq and .bfq files"
   , metadata    = False &= help "Print meta-data associated with constraints"
   , stats       = False &= help "Compute constraint statistics"
   , parts       = False &= help "Partition constraints into indepdendent .fq files"

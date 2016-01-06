@@ -18,6 +18,7 @@ module Language.Fixpoint.Solver (
   , parseFInfo
 ) where
 
+
 import           Control.Concurrent
 import           Data.Binary
 import           Data.Maybe                         (fromMaybe)
@@ -57,6 +58,7 @@ import           Control.DeepSeq
 
 type Solver a = Config -> FInfo a -> IO (Result a)
 
+---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
@@ -74,6 +76,7 @@ solveFQ cfg = do
     eCode   = resultExit . resStatus
     statStr = render . resultDoc . fmap (const ())
 
+---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve :: (NFData a, Fixpoint a) => Solver a
@@ -81,16 +84,15 @@ solve :: (NFData a, Fixpoint a) => Solver a
 solve cfg fi
   | parts cfg = partition  cfg     $!! fi
   | stats cfg = statistics cfg     $!! fi
-  | otherwise = do saveBin cfg     $!! fi
+  | otherwise = do saveQuery cfg   $!! fi
                    res <- sW s cfg $!! fi
-                   return          $!! res {- FIXME make this $!! -}
+                   return          $!! res
   where
     s         = solveNative
     sW        = configSW cfg
 
-saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
-saveBin cfg fi = when (binary cfg) $ saveBinaryFile cfg fi
-  -- putStrLn $ "Saving Binary File to: " ++ binaryFile cfg
+-- saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
+-- saveBin cfg fi = when (binary cfg) $ saveQuery cfg fi
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
@@ -236,6 +238,7 @@ parseFI f = do
   return $ mempty { quals = quals  fi
                   , lits  = lits   fi }
 
+{-
 ---------------------------------------------------------------------------
 -- | Save Query to Binary File
 ---------------------------------------------------------------------------
@@ -244,27 +247,39 @@ saveBinary :: Config -> IO ExitCode
 saveBinary cfg
   | isBinary f = return ExitSuccess
   | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
-                                        saveBinaryFile cfg >>
+                                        saveQuery cfg >>
                                         return ExitSuccess
   where
     f          = inFile cfg
+-}
 
-saveBinaryFile :: Config -> FInfo a -> IO ()
-saveBinaryFile cfg fi = do
+--------------------------------------------------------------------------------
+saveQuery :: Config -> FInfo a -> IO ()
+--------------------------------------------------------------------------------
+saveQuery cfg fi = when (save cfg) $ do
   let fi'  = void fi
-  let file = binaryFile cfg
-  -- putStrLn $ "Saving Binary File: " ++ file ++ "\n"
-  ensurePath file
-  encodeFile file fi'
+  saveBinaryQuery cfg fi'
+  saveTextQuery cfg   fi'
 
-binaryFile :: Config -> FilePath
-binaryFile cfg = extFileName BinFq f
+saveBinaryQuery cfg fi = do
+  let bfq  = queryFile BinFq cfg
+  putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
+  ensurePath bfq
+  encodeFile bfq fi
+
+saveTextQuery cfg fi = do
+  let fq   = queryFile Fq cfg
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
+  ensurePath fq
+  writeFile fq $ render (toFixpoint cfg fi)
+
+queryFile :: Ext -> Config -> FilePath
+queryFile e cfg = extFileName e f
   where
-    f          = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
+    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
-
 
 ---------------------------------------------------------------------------
 -- | Initialize Progress Bar
