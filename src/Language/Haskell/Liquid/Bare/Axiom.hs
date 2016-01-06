@@ -72,7 +72,8 @@ makeAxiom lmap cbs _ _ x
                              insertAxiom v (val x)
                              updateLMap lmap x x v
                              updateLMap lmap (x{val = (symbol . showPpr . getName) v}) x v
-                             return ((val x, makeType v), (v, makeAssumeType v):vts, defAxioms v def)
+                             return ((val x, makeType v), 
+                                     (v, makeAssumeType v):vts, defAxioms v def)
     (Rec [(v, def)]:_) -> do vts <- zipWithM (makeAxiomType lmap x) (reverse $ findAxiomNames x cbs) (defAxioms v def)
                              insertAxiom v (val x)
                              updateLMap lmap x x v -- (reverse $ findAxiomNames x cbs) (defAxioms v def)
@@ -92,6 +93,8 @@ makeAxiom lmap cbs _ _ x
 
     makeType v       = x{val = ufType    $ varType v}
     makeAssumeType v = x{val = axiomType x $ varType v}
+
+    
 
 binders (NonRec x _) = [x]
 binders (Rec xes)    = fst <$> xes

@@ -271,6 +271,7 @@ measEnv sp xts cbs lts asms hs autosizes
         , lcb   = M.empty
         , holes = fromListHEnv hs
         , lcs   = mempty
+        , aenv  = axiom_map $ logicMap sp
         }
     where
       tce = tcEmbeds sp
@@ -1017,7 +1018,8 @@ castTy _ _ e
   = errorstar $ "castTy cannot handle expr " ++ showPpr e
 
 
-singletonReft = uTop . F.symbolReft . F.symbol
+singletonReft (Just x) _ = uTop $ F.symbolReft x
+singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
 
 -- | @consElimE@ is used to *synthesize* types by **existential elimination**
 --   instead of *checking* via a fresh template. That is, assuming
@@ -1228,7 +1230,7 @@ varRefType' γ x t'
   | otherwise
   = t' `strengthenS` xr
   where
-    xr = singletonReft x
+    xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
