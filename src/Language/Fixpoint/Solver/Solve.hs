@@ -50,12 +50,25 @@ solve_ :: (NFData a, F.Fixpoint a)
        -> SolveM (F.Result a, Stats)
 --------------------------------------------------------------------------------
 solve_ fi s0 wkl = do
-  let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
-  s   <- {-# SCC "sol-refine" #-} refine s0' wkl
-  st  <- stats
-  res <- {-# SCC "sol-result" #-} result wkl s
-  return $!! (res, st)
+  let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
+  s       <- {-# SCC "sol-refine" #-} refine s0' wkl
+  st      <- stats
+  res     <- {-# SCC "sol-result" #-} result wkl s
+  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
+  return $!! (tidyResult res', st)
 
+-- | tidyResult ensures we replace the temporary kVarArg names
+--   introduced to ensure uniqueness with the original names
+--   appearing in the supplied WF constraints.
+
+tidyResult :: F.Result a -> F.Result a
+tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
+
+tidySolution :: F.FixSolution -> F.FixSolution
+tidySolution = fmap tidyPred
+
+tidyPred :: F.Pred -> F.Pred
+tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
