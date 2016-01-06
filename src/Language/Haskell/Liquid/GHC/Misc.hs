@@ -58,24 +58,18 @@ import           Data.Char                    (isLower, isSpace)
 import           Data.Maybe                   (fromMaybe)
 import           Data.Hashable
 import qualified Data.HashSet                 as S
--- import qualified Data.List                    as L
 import           Data.Aeson
 import qualified Data.Text.Encoding           as T
--- import qualified Data.Text.Unsafe             as T
 import qualified Data.Text                    as T
--- import           Control.Applicative          ((<$>), (<*>))
 import           Control.Arrow                (second)
 import           Control.Monad                ((>=>))
 import           Outputable                   (Outputable (..), text, ppr)
 import qualified Outputable                   as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ    as PJ
--- import           Data.Monoid                  (mempty, mappend)
 import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
--- import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
---import qualified HscMain as GHC
 
 
 
@@ -444,8 +438,9 @@ varSymbol ::  Var -> Symbol
 varSymbol v
   | us `isSuffixOfSym` vs = vs
   | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
-  where us  = symbol $ showPpr $ getDataConVarUnique v
-        vs  = symbol $ getName v
+  where
+    us  = symbol $ showPpr $ getDataConVarUnique v
+    vs  = symbol $ getName v
 
 
 qualifiedNameSymbol n = symbol $
