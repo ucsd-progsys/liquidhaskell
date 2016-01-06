@@ -42,7 +42,7 @@ module Language.Fixpoint.Types.Names (
   , unconsSym
   , dropSym
   , headSym
-  , takeWhileSym
+  -- , takeWhileSym
   , lengthSym
 
   -- * Transforms
@@ -355,7 +355,12 @@ dropSym n (symbolText -> t) = symbol $ T.drop n t
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
+--------------------------------------------------------------------------------
+suffixSymbol :: Symbol -> Symbol -> Symbol
+suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
+
 
 vv                  :: Maybe Integer -> Symbol
 -- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
@@ -377,9 +382,6 @@ unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i = x `suffixSymbol` (symbol $ show i)
-
-suffixSymbol :: Symbol -> Symbol -> Symbol
-suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
