@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-
 module Language.Fixpoint.Types.PrettyPrint where
 
 import           Debug.Trace               (trace)
@@ -101,7 +100,7 @@ instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
   pprint = pprintKVs . M.toList
 
 pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
-pprintKVs = vcat . punctuate (text "\n") . map pp1 -- . M.toList
+pprintKVs = vcat . punctuate (text "\n") . map pp1
   where
     pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
 
@@ -130,7 +129,7 @@ instance PPrint Int where
 instance PPrint Integer where
   pprint = integer
 
-instance PPrint T.Text where 
+instance PPrint T.Text where
   pprint = text . T.unpack
 
 newtype DocTable = DocTable [(Doc, Doc)]

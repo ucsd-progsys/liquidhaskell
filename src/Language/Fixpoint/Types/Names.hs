@@ -41,7 +41,7 @@ module Language.Fixpoint.Types.Names (
   , consSym
   , unconsSym
   , dropSym
-  , singletonSym
+  -- , singletonSym
   , headSym
   , takeWhileSym
   , lengthSym
@@ -49,22 +49,30 @@ module Language.Fixpoint.Types.Names (
   -- * Transforms
   , nonSymbol
   , vvCon
+  , tidySymbol
 
   -- * Widely used prefixes
   , anfPrefix
-  , litPrefix
   , tempPrefix
   , vv
   , symChars
-  , kArgPrefix
+  -- , kArgPrefix
+  -- , litPrefix
 
   -- * Creating Symbols
   , dummySymbol
   , intSymbol
   , tempSymbol
+
+  -- * Wrapping Symbols
+  , litSymbol
   , renameSymbol
   , kArgSymbol
   , existSymbol
+  , suffixSymbol
+
+  -- * Unwrapping Symbols
+  , unLitSymbol
 
   -- * Hardwired global names
   , dummyName
@@ -95,6 +103,7 @@ module Language.Fixpoint.Types.Names (
 import           Control.DeepSeq             (NFData (..))
 import           Control.Arrow               (second)
 import           Data.Char                   (ord)
+import           Data.Maybe                  (fromMaybe)
 import           Data.Generics               (Data)
 import           Data.Hashable               (Hashable (..))
 import qualified Data.HashSet                as S
@@ -178,12 +187,14 @@ instance IsString Symbol where
 instance Show Symbol where
   show = show . symbolRaw
 
-instance Monoid Symbol where
-  mempty        = ""
-  mappend s1 s2 = textSymbol $ mappend s1' s2'
+--instance Monoid Symbol where
+-- mempty        = ""
+
+mappendSym :: Symbol -> Symbol -> Symbol
+mappendSym s1 s2 = textSymbol $ mappend s1' s2'
     where
-      s1'       = symbolText s1
-      s2'       = symbolText s2
+      s1'        = symbolText s1
+      s2'        = symbolText s2
 
 instance PPrint Symbol where
   pprint = text . symbolString
@@ -335,8 +346,8 @@ consSym c (symbolText -> s) = symbol $ T.cons c s
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
-singletonSym :: Char -> Symbol -- Yuck
-singletonSym = (`consSym` "")
+-- singletonSym :: Char -> Symbol -- Yuck
+-- singletonSym = (`consSym` "")
 
 lengthSym :: Symbol -> Int
 lengthSym (symbolText -> t) = T.length t
@@ -357,23 +368,32 @@ isNontrivialVV      :: Symbol -> Bool
 isNontrivialVV      = not . (vv Nothing ==)
 
 vvCon, dummySymbol :: Symbol
-vvCon       = vvName `mappend` symbol [symSepName] `mappend` "F"
+vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
 
+litSymbol :: Symbol -> Symbol
+litSymbol s = litPrefix `mappendSym` s
+
+unLitSymbol :: Symbol -> Maybe Symbol
+unLitSymbol = stripPrefix litPrefix
+
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `mappend` symbol ('#' : show i)
+intSymbol x i = x `suffixSymbol` (symbol $ show i)
+
+suffixSymbol :: Symbol -> Symbol -> Symbol
+suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
 
 tempSymbol :: Symbol -> Integer -> Symbol
-tempSymbol prefix = intSymbol (tempPrefix `mappend` prefix)
+tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
 
 renameSymbol :: Symbol -> Int -> Symbol
-renameSymbol prefix = intSymbol (renamePrefix `mappend` prefix)
+renameSymbol prefix = intSymbol (renamePrefix `mappendSym` prefix)
 
-kArgSymbol :: Symbol -> Symbol
-kArgSymbol x = kArgPrefix `mappend` x
+kArgSymbol :: Symbol -> Symbol -> Symbol
+kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 
 existSymbol :: Symbol -> Integer -> Symbol
-existSymbol prefix = intSymbol (existPrefix `mappend` prefix)
+existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)
 
 tempPrefix, anfPrefix, renamePrefix, litPrefix, kArgPrefix, existPrefix :: Symbol
 tempPrefix   = "lq_tmp$"
@@ -382,6 +402,13 @@ renamePrefix = "lq_rnm$"
 litPrefix    = "lit$"
 kArgPrefix   = "lq_karg$"
 existPrefix  = "lq_ext$"
+
+-------------------------------------------------------------------------
+tidySymbol :: Symbol -> Symbol
+-------------------------------------------------------------------------
+tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
+
+dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
 
 
 
