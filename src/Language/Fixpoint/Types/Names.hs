@@ -85,7 +85,7 @@ module Language.Fixpoint.Types.Names (
   , nilName
   , consName
   , vvName
-  , symSepName
+  -- , symSepName
   , size32Name
   , size64Name
   , bitVecName
@@ -200,7 +200,7 @@ instance Fixpoint T.Text where
   toFix = text . T.unpack
 
 instance Fixpoint Symbol where
-  toFix = toFix . symbolSafeText
+  toFix = toFix . symbolText
 
 ---------------------------------------------------------------------------
 -- | Located Symbols -----------------------------------------------------
@@ -358,7 +358,8 @@ stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 ---------------------------------------------------------------------
 
 vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
+-- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
+vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
 isNontrivialVV      :: Symbol -> Bool
