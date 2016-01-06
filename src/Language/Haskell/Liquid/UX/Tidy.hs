@@ -45,18 +45,9 @@ import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Text.PrettyPrint.HughesPJ
 
 -------------------------------------------------------------------------
-tidySymbol :: Symbol -> Symbol
--------------------------------------------------------------------------
-tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
-
-
-dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
-
--------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
 isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
-
 
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
