@@ -102,8 +102,8 @@ config = cmdArgsMode $ Config {
     = def &= help "Exact Type for Data Constructors"
           &= name "exact-data-cons"
 
- -- , extSolver
- --    = def &= help "Use external (OCaml) fixpoint constraint solver"
+ , saveQuery
+    = def &= help "Save fixpoint query to file (slow)"
 
  , binders
     = def &= help "Check a specific set of binders"
@@ -317,7 +317,7 @@ defConfig = Config { files          = def
                    , fullcheck      = def
                    , real           = def
                    , diffcheck      = def
-                   -- , extSolver      = def
+                   , saveQuery      = def
                    , binders        = def
                    , noCheckUnknown = def
                    , notermination  = def
