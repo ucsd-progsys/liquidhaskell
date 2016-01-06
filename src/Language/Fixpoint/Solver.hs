@@ -82,13 +82,12 @@ solveFQ cfg = do
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
 solve cfg fi
-  | parts cfg = partition  cfg     $!! fi
-  | stats cfg = statistics cfg     $!! fi
-  | otherwise = do saveQuery cfg   $!! fi
-                   res <- sW s cfg $!! fi
-                   return          $!! res
+  | parts cfg = partition  cfg               $!! fi
+  | stats cfg = statistics cfg               $!! fi
+  | otherwise = do saveQuery cfg             $!! fi
+                   res <- sW solveNative cfg $!! fi
+                   return                    $!! res
   where
-    s         = solveNative
     sW        = configSW cfg
 
 -- saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
@@ -191,7 +190,9 @@ solveNative' !cfg !fi0 = do
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
-  writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
+  saveSolution cfg res
+  -- when (save cfg) $ saveSolution cfg
+  -- writeLoud $ "\nSolution:\n"  ++ showpp (resSolution res)
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
@@ -252,6 +253,13 @@ saveBinary cfg
   where
     f          = inFile cfg
 -}
+
+saveSolution :: Config -> Result a -> IO ()
+saveSolution cfg res = when (save cfg) $ do
+  let f = queryFile Out cfg
+  putStrLn $ "Saving Solution: " ++ f ++ "\n"
+  ensurePath f
+  writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res)
 
 --------------------------------------------------------------------------------
 saveQuery :: Config -> FInfo a -> IO ()
