@@ -188,6 +188,8 @@ instance Show Symbol where
 
 --instance Monoid Symbol where
 -- mempty        = ""
+
+mappendSym :: Symbol -> Symbol -> Symbol
 mappendSym s1 s2 = textSymbol $ mappend s1' s2'
     where
       s1'        = symbolText s1
@@ -365,7 +367,7 @@ isNontrivialVV      :: Symbol -> Bool
 isNontrivialVV      = not . (vv Nothing ==)
 
 vvCon, dummySymbol :: Symbol
-vvCon       = vvName `mappendSym` symbol [symSepName] `mappendSym` "F"
+vvCon       = vvName `suffixSymbol` "F"
 dummySymbol = dummyName
 
 litSymbol :: Symbol -> Symbol
@@ -375,7 +377,10 @@ unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `mappendSym` symbol ('#' : show i)
+intSymbol x i = x `suffixSymbol` (symbol $ show i)
+
+suffixSymbol :: Symbol -> Symbol -> Symbol
+suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
@@ -383,8 +388,8 @@ tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
 renameSymbol :: Symbol -> Int -> Symbol
 renameSymbol prefix = intSymbol (renamePrefix `mappendSym` prefix)
 
-kArgSymbol :: Symbol -> Symbol
-kArgSymbol x = kArgPrefix `mappendSym` x
+kArgSymbol :: Symbol -> Symbol -> Symbol
+kArgSymbol x k = (kArgPrefix `mappendSym` x) `suffixSymbol` k
 
 existSymbol :: Symbol -> Integer -> Symbol
 existSymbol prefix = intSymbol (existPrefix `mappendSym` prefix)

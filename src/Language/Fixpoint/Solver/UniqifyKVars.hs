@@ -1,7 +1,7 @@
 {-
 This module creates new bindings for each argument of each kvar.
 It also makes sure that all arguments to each kvar are explicit.
-For example, 
+For example,
 
 '''
 bind 0 x
@@ -62,8 +62,10 @@ remakeSubst fi k su = foldl' (updateSubst k) su kDom
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym
-  | sym `M.member` su = Su $ M.delete sym $ M.insert (kArgSymbol' sym k) (su M.! sym) su
-  | otherwise         = Su $ M.insert (kArgSymbol' sym k) (eVar sym) su
+  | sym `M.member` su = Su $ M.delete sym $ M.insert (kArgSymbol sym kx) (su M.! sym) su
+  | otherwise         = Su $ M.insert (kArgSymbol sym kx) (eVar sym) su
+  where
+    kx                = kv k
 
 --------------------------------------------------------------
 updateWfcs :: SInfo a -> SInfo a
@@ -71,12 +73,12 @@ updateWfcs :: SInfo a -> SInfo a
 updateWfcs fi = M.foldl' updateWfc fi (ws fi)
 
 updateWfc :: SInfo a -> WfC a -> SInfo a
-updateWfc fi w = fi' { ws = M.insert k w' (ws fi) }
+updateWfc fi w    = fi' { ws = M.insert k w' (ws fi) }
   where
-    (v, t, k) = wrft w
+    (v, t, k)     = wrft w
     (fi', newIds) = insertNewBinds w fi k
-    env' = insertsIBindEnv newIds emptyIBindEnv
-    w' = w { wenv = env', wrft = (kArgSymbol' v k, t, k) }
+    env'          = insertsIBindEnv newIds emptyIBindEnv
+    w'            = w { wenv = env', wrft = (kArgSymbol v (kv k), t, k) }
 
 insertNewBinds :: WfC a -> SInfo a -> KVar -> (SInfo a, [BindId])
 insertNewBinds w fi k = foldl' (accumBindsIfValid k) (fi, []) (elemsIBindEnv $ wenv w)
@@ -92,12 +94,9 @@ accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)
   where
     --TODO: could we ignore the old SortedReft? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
-    newSym = kArgSymbol' oldSym k
+    newSym = kArgSymbol oldSym (kv k)
     (i', be') = insertBindEnv newSym sr (bs fi)
 --------------------------------------------------------------
-
-kArgSymbol' :: Symbol -> KVar -> Symbol
-kArgSymbol' sym k = (kArgSymbol sym) `mappend` (symbol "_") `mappend` (kv k)
 
 isValidInRefinements :: Sort -> Bool
 isValidInRefinements FInt        = True

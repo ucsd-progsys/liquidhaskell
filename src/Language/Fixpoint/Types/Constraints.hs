@@ -255,7 +255,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
-    shiftR i r@(Reft (v, _)) = shiftVV r (v `mappend` symbol (show i))
+    shiftR i r@(Reft (v, _)) = shiftVV r (intSymbol v i)
 
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------

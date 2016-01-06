@@ -140,7 +140,7 @@ refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
 -- | Kvars ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-newtype KVar = KV {kv :: Symbol }
+newtype KVar = KV { kv :: Symbol }
                deriving (Eq, Ord, Data, Typeable, Generic, IsString)
 
 
@@ -248,7 +248,7 @@ encodeSymConst        :: SymConst -> Symbol
 encodeSymConst (SL s) = litSymbol $ symbol s
 
 decodeSymConst :: Symbol -> Maybe SymConst
-decodeSymConst = fmap (SL . symbolText) . unLitSymbol 
+decodeSymConst = fmap (SL . symbolText) . unLitSymbol
 
 instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
