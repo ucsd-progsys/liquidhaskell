@@ -36,9 +36,8 @@ import           TypeRep
 import qualified Data.HashMap.Strict             as M
 import           Data.List                       (foldl', partition)
 import           Data.Monoid                     (mappend, mconcat, mempty)
-
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types.Names         (symbolString)
+import           Language.Fixpoint.Types.Names   (suffixSymbol, symbolString)
 import           Language.Fixpoint.Types         hiding (Expr, Predicate)
 import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GHC.Misc
@@ -62,7 +61,8 @@ dataConPSpecType :: DataCon -> DataConP -> SpecType
 dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
   where
     (xs, ts) = unzip $ reverse yts
-    mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
+    -- mkDSym   = (`mappend` symbol dc) . (`mappend` "_") . symbol
+    mkDSym z = (symbol z) `suffixSymbol` (symbol dc)
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t, mempty)

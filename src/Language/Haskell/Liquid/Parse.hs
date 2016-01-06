@@ -870,9 +870,9 @@ dataConNameP
   =  try upperIdP
  <|> pwr <$> parens (idP bad)
   where
-     idP p  = symbol <$> many1 (satisfy (not . p))
+     idP p  = many1 (satisfy (not . p))
      bad c  = isSpace c || c `elem` ("(,)" :: String)
-     pwr s  = "(" <> s <> ")"
+     pwr s  = symbol $ "(" <> s <> ")"
 
 dataSizeP
   = (brackets $ (Just . mkFun) <$> locLowerIdP)

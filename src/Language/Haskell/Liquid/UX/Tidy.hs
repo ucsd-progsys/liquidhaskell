@@ -45,18 +45,9 @@ import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Text.PrettyPrint.HughesPJ
 
 -------------------------------------------------------------------------
-tidySymbol :: Symbol -> Symbol
--------------------------------------------------------------------------
-tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
-
-
-dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
-
--------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
 -------------------------------------------------------------------------
 isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
-
 
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
@@ -251,6 +242,20 @@ ppPropInContext p c
                 , pprint p]
       , nests 2 [ text "Not provable in context"
                 , pprint c                 ]]
+
+{-
+pprintCtx :: (PTable c) => c -> Doc
+pprintCtx = pprint . ptable
+
+instance (PPrint a, PPrint b) => PTable (M.HashMap a b) where
+  ptable t = DocTable [ (pprint k, pprint v) | (k, v) <- M.toList t]
+
+
+pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
+pprintKVs = vcat . punctuate (text "\n") . map pp1
+  where
+    pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
+-}
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc

@@ -1,5 +1,5 @@
--- FAILING TEST: see tests/neg/AbsApp.hs
-
+-- FAILING TEST: this test SHOULD FAIL BUT DOESN'T
+-- issue #519
 
 {-# LANGUAGE DeriveFunctor #-}
 module Main where
