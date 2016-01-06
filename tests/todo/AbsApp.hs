@@ -1,6 +1,7 @@
 -- FAILING TEST: This should be rejected if we wish to disallow applying
 -- concrete refinements to non-refined types (e.g. Int) where they are currently
 -- silently dropped.
+-- issue #519
 
 module Main where
 
