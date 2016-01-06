@@ -1,7 +1,9 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TupleSections #-}
 
--- | Solve a system of horn-clause constraints ----------------------------
+--------------------------------------------------------------------------------
+-- | Solve a system of horn-clause constraints ---------------------------------
+--------------------------------------------------------------------------------
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
@@ -22,9 +24,9 @@ import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
     (res, stat) <- runSolverM cfg fi n act
@@ -42,22 +44,22 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
     ppTs          = putStrLn . showpp . mconcat
 
 
----------------------------------------------------------------------------
-solve_ :: (NFData a, F.Fixpoint a) => F.SInfo a -> S.Solution -> W.Worklist a -> SolveM (F.Result a, Stats)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+solve_ :: (NFData a, F.Fixpoint a)
+       => F.SInfo a -> S.Solution -> W.Worklist a
+       -> SolveM (F.Result a, Stats)
+--------------------------------------------------------------------------------
 solve_ fi s0 wkl = do
   let s0' = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s   <- {-# SCC "sol-refine" #-} refine s0' wkl
-  -- donePhase' "Solution: Fixpoint"
   st  <- stats
   res <- {-# SCC "sol-result" #-} result wkl s
-  -- donePhase' "Solution: Check"
   return $!! (res, st)
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 refine s w
   | Just (c, w', newScc) <- W.pop w = do
      i       <- tickIter newScc
