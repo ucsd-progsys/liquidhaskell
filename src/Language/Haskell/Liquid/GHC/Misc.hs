@@ -437,7 +437,7 @@ instance Symbolic Var where
 varSymbol ::  Var -> Symbol
 varSymbol v
   | us `isSuffixOfSym` vs = vs
-  | otherwise             = vs `mappend` singletonSym symSepName `mappend` us
+  | otherwise             = suffixSymbol vs us
   where
     us  = symbol $ showPpr $ getDataConVarUnique v
     vs  = symbol $ getName v
