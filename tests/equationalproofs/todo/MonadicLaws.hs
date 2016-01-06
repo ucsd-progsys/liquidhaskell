@@ -1,150 +1,98 @@
-module Monadic where
 
-import Language.Haskell.Liquid.Prelude ((==>))
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ExtendedDefaultRules #-}
 
+{-@ LIQUID "--autoproofs"      @-}
+{-@ LIQUID "--totality"        @-}
+{-@ LIQUID "--exact-data-cons" @-}
+module Append where
 
-
-
-class MyMonad m where
-  unit :: Arrow a (m a)
-  bind :: Arrow (m a) (Arrow (Arrow a (m b)) (m b))
-
-
-instance MyMonad L where
-  unit = lunit
-  bind = lbind
+import Axiomatize
+import Equational
+import Prelude hiding (return, (>>=))
 
 
+data L a = N |  C a (L a)
 
-lunit = A $ \x -> C x N  -- axiom: runFun unit x == C x N
+-- | Definition of the list monad
 
-lbind = A $ \xs -> A $ \f ->
-    case xs of
-      N        -> N       -- axiom: runFun (runFun bind N) f == N
-      (C x xs) ->         -- axiom: runFun (runFun bind (C x xs)) f
-                          --        == runFun f x `append` runFun (runFun bind xs) f
-        runFun f x `append` runFun (runFun lbind xs) f
+{-@ axiomatize return @-}
+$(axiomatize
+  [d| return :: a -> L a
+      return x = C x N
+    |])
 
---   bind N f        = N
---   bind (C x xs) f = f x `append` bind xs f
+{-@ axiomatize append @-}
+$(axiomatize
+  [d| append :: L a -> L a -> L a
+      append N ys        = ys
+      append (C x xs) ys = C x (append xs ys)
+    |])
 
-data Arrow a b = A {runFun ::  a -> b}
-
-{-@ data Arrow a b <p :: a -> b -> Prop> = A {runFun ::  x:a -> b<p x>} @-}
-
-
--- | Express Left Identity
-
-{-@ measure runFun :: (Arrow a b) -> a -> b @-}
-
-
-
--- use abstract refinements to do this:
--- unit and bind should have the appropriate properties to prove left Identity.
-prop_left_identity_List :: a -> Arrow a (L b) -> Proof
-prop_left_identity_List = prop_left_identity lunit lbind
+{-@ axiomatize bind @-}
+$(axiomatize
+  [d| bind :: L a -> (a -> L a) -> L a
+      bind N        f = N
+      bind (C x xs) f = append (f x) (xs `bind` f)
+    |])
 
 
+-- NV TODO:
+-- 1. remove the manual runFun there
+-- 2. check why failure to prove takes so long
+
+-- | Left identity: return a >>= f ≡ f a
+
+prop_left_identity :: Eq a => a -> (a -> L a) -> Proof
+{-@ prop_left_identity :: x:a -> f:(a -> L a)
+                       -> {v:Proof | bind (return x) f == runFun f x} @-}
+prop_left_identity x f = undefined -- auto 2 (bind (return x) f == f x)
+  where
+    e1  = bind (return x) f
+    pr1 = axiom_return x
+    e2  = bind (C x N) f
+    pr2 = axiom_bind_C f x N
+    e3  = append (f x) (bind N f)
+    pr3 = axiom_bind_N f
+    e4  = append (f x) N
+    pr4 = prop_app_nil (f x)
+    e5  = f x
+
+-- | Right Identity m >>= return ≡  m
+{-@ prop_right_identity :: Eq a => L a -> {v:Proof | bind N return == N } @-}
+prop_right_identity :: Eq a => L a -> Proof
+prop_right_identity N =  refl (bind N returnZZZ) `by` pr1 -- auto 1 (bind N return == N) --  `by` pr1
+  where
+    e1  = bind N return
+    pr1 = axiom_bind_N returnZZZ
+    e2  = N
+    returnZZZ = undefined
+
+prop_right_identity (C x xs) = undefined
+
+{-@ f :: x:Int -> {v:Int | v < x} @-}
+f :: Int -> Int
+f x = x
 
 
-{-@ type ProofLeftIdentity Unit Bind F X = {v:Proof | runFun (runFun Bind (runFun Unit X)) F  == runFun F X } @-}
 
-{-@ prop_left_identity :: forall <p :: a -> m a -> Prop,
-                                  q :: m a -> Arrow (Arrow a (m b)) (m b) -> Prop>.
-                          {unit::Arrow<p> a (m a),bind :: Arrow<q> (m a) (Arrow (Arrow a (m b)) (m b)), x :: a, f :: Arrow a (m b)  |- Proof  <: ProofLeftIdentity unit bind f x}
-                        unit: Arrow<p> a (m a) -> bind: Arrow<q> (m a) (Arrow (Arrow a (m b)) (m b))
-                      -> x:a -> f:Arrow a (m b)
-                      -> ProofLeftIdentity unit bind f x
-  @-}
-
-prop_left_identity :: (Arrow a (m a)) -> (Arrow (m a) (Arrow (Arrow a (m b)) (m b)))
-                    -> a -> (Arrow a (m b))
-                    -> Proof
-prop_left_identity iunit ibind x f = Proof
-
--- | Express Left Identity in Haskell
-
-prop_left_identity_HS :: (Eq (m a), Eq (m b)) => (Arrow a (m a)) -> (Arrow (m a) (Arrow (Arrow a (m b)) (m b)))
-                      -> a -> (Arrow a (m b))
-                      -> Bool
-prop_left_identity_HS unit bind x f
-  = runFun (runFun bind (runFun unit x)) f == runFun f x
+{-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
+prop_app_nil :: (Eq a) => L a -> Proof
+prop_app_nil N        = auto 1 (append N N        == N     )
+prop_app_nil (C x xs) = auto 1 (append (C x xs) N == C x xs)
 
 
-
--- | Proof library:
-
-data Proof = Proof
+-- | List definition
 
 
-{-@ toProof :: l:a -> r:{a|l = r} -> {v:Proof | l = r } @-}
-toProof :: a -> a -> Proof
-toProof x y = Proof
-
-
-{-@ (===) :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
-(===) :: a -> a -> Proof -> a
-(===) x y _ = y
-
--- | Proof: map
-{-@ type Equal X Y = {v:Proof | X == Y} @-}
-
-{- invariant {v:Proof | v == Proof } @-}
-
-{-@ bound chain @-}
-chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool) -> Proof -> Bool
-chain p q r v = p v ==> q v ==> r v
-
-{-@  assume by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-                 (Chain p q r) => Proof<p> -> Proof<q> -> Proof<r>
-@-}
-by :: Proof -> Proof -> Proof
-by p r = r
-
-{-@ refl :: x:a -> Equal x x @-}
-refl :: a -> Proof
-refl x = Proof
-
--- | End library
-
-
--- | Append
-
-data L a = N |  C a (L a) deriving (Eq)
-
-{-@ N :: {v:L a | llen v == 0 && v == N } @-}
-{-@ C :: x:a -> xs:L a -> {v:L a | llen v == llen xs + 1 && v == C x xs } @-}
+instance Eq a => Eq (L a) where
+  N == N                 = True
+  (C x xs) == (C x' xs') = x == x' && xs == xs'
 
 {-@ data L [llen] @-}
 {-@ invariant {v: L a | llen v >= 0} @-}
 
-{-@ measure llen :: L a -> Int @-}
+{-@ measure llen @-}
 llen :: L a -> Int
 llen N = 0
 llen (C x xs) = 1 + llen xs
-
-
-append :: L a -> L a -> L a
-append N xs        = xs
-append (C y ys) xs = C y (append ys xs)
-
-
--- | All the followin will be autocatically generated by the definition of append
--- |  and a liquid annotation
--- |
--- |  axiomatize append
--- |
-
-{-@ measure append :: L a -> L a -> L a @-}
-{-@ assume append :: xs:L a -> ys:L a -> {v:L a | v == append xs ys } @-}
-
-{-@ assume axiom_append_nil :: xs:L a -> {v:Proof | append N xs == xs} @-}
-axiom_append_nil :: L a -> Proof
-axiom_append_nil xs = Proof
-
-{-@ assume axiom_append_cons :: x:a -> xs: L a -> ys: L a
-          -> {v:Proof | append (C x xs) ys == C x (append xs ys) } @-}
-axiom_append_cons :: a -> L a -> L a -> Proof
-axiom_append_cons x xs ys = Proof
-
--- | End  append
