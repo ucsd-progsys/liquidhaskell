@@ -41,7 +41,7 @@ module Language.Fixpoint.Types.Names (
   , consSym
   , unconsSym
   , dropSym
-  , singletonSym
+  -- , singletonSym
   , headSym
   , takeWhileSym
   , lengthSym
@@ -346,8 +346,8 @@ consSym c (symbolText -> s) = symbol $ T.cons c s
 unconsSym :: Symbol -> Maybe (Char, Symbol)
 unconsSym (symbolText -> s) = second symbol <$> T.uncons s
 
-singletonSym :: Char -> Symbol -- Yuck
-singletonSym = (`consSym` "")
+-- singletonSym :: Char -> Symbol -- Yuck
+-- singletonSym = (`consSym` "")
 
 lengthSym :: Symbol -> Int
 lengthSym (symbolText -> t) = T.length t
