@@ -72,23 +72,23 @@ addC !c _msg
 
 
 --------------------------------------------------------------------------------
--- | addPost: RJ: what does this function do?
+-- | addPost: RJ: what DOES this function do?
 --------------------------------------------------------------------------------
 addPost :: CGEnv -> SpecType -> CG SpecType
 --------------------------------------------------------------------------------
-addPost γ t = addPost' γ t >> return t
+addPost γ (RRTy e r OInv t)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
+       addC (SubR γ' OInv r) "precondition" >> return t
 
-addPost' :: CGEnv -> SpecType -> CG ()
-addPost' γ (RRTy e r OInv _)
-  = do γ' <- foldM (\γ' (x, t) -> γ' `addSEnv` ("addPost", x, t)) γ e
-       addC (SubR γ' OInv r) "precondition" -- >> return t
+addPost γ (RRTy e r OTerm t)
+  = do γ' <- foldM (\γ (x, t) -> γ ++= ("addPost", x,t)) γ e
+       addC (SubR γ' OTerm r) "precondition" >> return t
 
-addPost' γ (RRTy e r OTerm _)
-  = do γ' <- foldM (\γ' (x, t) -> γ' ++= ("addPost", x, t)) γ e
-       addC (SubR γ' OTerm r) "precondition" -- >> return t
+addPost _ (RRTy _ _ OCons t)
+  = return t
 
-addPost' _ _
-  = return ()
+addPost _ t
+  = return t
 
 --------------------------------------------------------------------------------
 -- | Add Well formedness Constraint
