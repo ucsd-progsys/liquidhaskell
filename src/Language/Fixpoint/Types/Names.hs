@@ -41,7 +41,6 @@ module Language.Fixpoint.Types.Names (
   , consSym
   , unconsSym
   , dropSym
-  -- , singletonSym
   , headSym
   , takeWhileSym
   , lengthSym
@@ -56,8 +55,6 @@ module Language.Fixpoint.Types.Names (
   , tempPrefix
   , vv
   , symChars
-  -- , kArgPrefix
-  -- , litPrefix
 
   -- * Creating Symbols
   , dummySymbol
