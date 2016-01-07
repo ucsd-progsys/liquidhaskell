@@ -346,10 +346,11 @@ makeDataConType ds | isNothing (dataConWrapId_maybe dc)
     ts   = defRefType t <$> ds 
 
 makeDataConType ds 
-  = [(woId, extend woRType wrRType), (wrId, extend wrRType woRType)]
+  = [(woId, extend loci woRType wrRType), (wrId, extend loci wrRType woRType)]
   where
     (wo, wr) = partition isWorkerDef ds 
     dc       = ctor $ head ds 
+    loci     = loc $ measure $ head ds 
     woId     = dataConWorkId dc 
     wot      = varType woId
     wrId     = dataConWrapId dc 
@@ -370,8 +371,8 @@ makeDataConType ds
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
-extend t1' t2 
-  | Just su <- mapArgumens t1 t2 
+extend lc t1' t2 
+  | Just su <- mapArgumens lc t1 t2 
   = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
   | otherwise
   = t1
@@ -397,8 +398,9 @@ noDummySyms t
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
 combineDCTypes t = foldl' strengthenRefTypeGen (ofType t) 
-mapArgumens :: RRType Reft -> RRType Reft -> Maybe Subst  
-mapArgumens t1 t2 = go xts1' xts2' 
+
+mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst  
+mapArgumens lc t1 t2 = go xts1' xts2' 
   where
     xts1 = zip (ty_binds rep1) (ty_args rep1)
     xts2 = zip (ty_binds rep2) (ty_args rep2)
@@ -414,8 +416,8 @@ mapArgumens t1 t2 = go xts1' xts2'
       | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2')) 
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
-      = traceShow ("\nWARNING: The types for the wrapper and worker data constroctors cannot be merged\n"
-          ++ show t1 ++ "\n" ++ show t2 ) Nothing 
+      = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constroctors cannot be merged\n"
+          ++ show t1 ++ "\n" ++ show t2 )  
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
