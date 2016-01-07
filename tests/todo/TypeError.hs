@@ -1,6 +1,6 @@
-
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ExtendedDefaultRules #-}
+
 
 {-@ LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--totality"        @-}
