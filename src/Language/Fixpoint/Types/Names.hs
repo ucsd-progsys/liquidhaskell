@@ -351,6 +351,7 @@ dropSym n (symbolText -> t) = symbol $ T.drop n t
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
+
 --------------------------------------------------------------------------------
 -- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
 --------------------------------------------------------------------------------
@@ -401,21 +402,17 @@ existPrefix  = "lq_ext$"
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = unSuffixSymbol . unPrefixSymbol kArgPrefix
+tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 
 unPrefixSymbol :: Symbol -> Symbol -> Symbol
 unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
 
 unSuffixSymbol :: Symbol -> Symbol
-unSuffixSymbol (symbolText -> t) = symbol $ fst $ T.breakOn symSepName t
+unSuffixSymbol s@(symbolText -> t)
+  = maybe s symbol $ T.stripSuffix symSepName $ fst $ T.breakOnEnd symSepName t
 
--- unSuffixSymbol = takeWhileSym (/= symSepName)
-
-takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
-takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
-
-
-
+-- takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
+-- takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
 
 nonSymbol :: Symbol
