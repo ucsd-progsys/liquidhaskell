@@ -144,9 +144,9 @@ solveCs cfg tgt cgi info dc
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.real        = real        cfg
                        , FC.newcheck    = newcheck    cfg
-                       -- , FC.extSolver   = extSolver   cfg
+                    -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
-                       -- , FC.binary      = not (extSolver cfg)
+                       , FC.save        = saveQuery cfg
                        , FC.srcFile     = tgt
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg

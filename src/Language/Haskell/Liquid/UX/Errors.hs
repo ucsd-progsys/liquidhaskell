@@ -13,27 +13,17 @@ module Language.Haskell.Liquid.UX.Errors
  ) where
 
 import           Control.Arrow                       (second)
-import           Control.Exception                   (Exception (..))
-import           Data.Aeson
--- import           Data.Generics                       (everywhere, mkT)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
-import qualified Data.Text                           as T
 import           Data.Hashable
-import           Data.List                           (intersperse)
 import           Data.Maybe                          (fromMaybe, maybeToList)
-import           Language.Fixpoint.Misc              (dcolon)
+import           Language.Fixpoint.Misc              (traceShow)
 import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
-import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Misc        (single)
-import           SrcLoc                              (SrcSpan)
-import           Text.PrettyPrint.HughesPJ
-import qualified Control.Exception as Ex
--- import           System.Console.ANSI
 
 type Ctx = M.HashMap Symbol SpecType
 
@@ -44,6 +34,7 @@ tidyError sol
   = fmap (tidySpecType Full)
   . tidyErrContext sol
   . applySolution sol
+
 
 tidyErrContext :: FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
@@ -67,8 +58,9 @@ tidyErrContext _ e
 --------------------------------------------------------------------------------
 tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
 --------------------------------------------------------------------------------
-tidyCtx xs m  = (θ, M.fromList yts)
+tidyCtx xs m  = (θ, M.fromList yts')
   where
+    yts'      = {- traceShow ("tidyCtx: xs = " ++ show xs ++ "\nm = " ++ show m) -} yts
     yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
     tBind x t = (x', shiftVV t x') where x' = tidySymbol x
@@ -86,7 +78,7 @@ stripRType st = (t', ro)
     ro        = stripRTypeBase  t
     t         = simplifyBounds st
 
-tidyREnv      :: [Symbol] -> M.HashMap Symbol SpecType -> [(Symbol, SpecType)]
+tidyREnv      :: [Symbol] -> Ctx -> [(Symbol, SpecType)]
 tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
@@ -94,7 +86,7 @@ tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
     ok        = not . isFunTy
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
-expandFix f xs            = S.toList $ go S.empty xs
+expandFix f               = S.toList . go S.empty
   where
     go seen []            = seen
     go seen (x:xs)
