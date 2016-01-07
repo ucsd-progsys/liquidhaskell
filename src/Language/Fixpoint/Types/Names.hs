@@ -42,7 +42,6 @@ module Language.Fixpoint.Types.Names (
   , unconsSym
   , dropSym
   , headSym
-  -- , takeWhileSym
   , lengthSym
 
   -- * Transforms
@@ -85,7 +84,6 @@ module Language.Fixpoint.Types.Names (
   , nilName
   , consName
   , vvName
-  -- , symSepName
   , size32Name
   , size64Name
   , bitVecName
@@ -331,8 +329,6 @@ isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
 isSuffixOfSym :: Symbol -> Symbol -> Bool
 isSuffixOfSym (symbolText -> p) (symbolText -> x) = p `T.isSuffixOf` x
 
-takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
-takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
 headSym :: Symbol -> Char
 headSym (symbolText -> t) = T.head t
@@ -359,8 +355,7 @@ stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 -- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
 --------------------------------------------------------------------------------
 suffixSymbol :: Symbol -> Symbol -> Symbol
-suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
-
+suffixSymbol  x y = x `mappendSym` symSepName `mappendSym` y
 
 vv                  :: Maybe Integer -> Symbol
 -- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
@@ -406,9 +401,19 @@ existPrefix  = "lq_ext$"
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
+tidySymbol = unSuffixSymbol . unPrefixSymbol kArgPrefix
 
-dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
+unPrefixSymbol :: Symbol -> Symbol -> Symbol
+unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
+
+unSuffixSymbol :: Symbol -> Symbol
+unSuffixSymbol (symbolText -> t) = symbol $ fst $ T.breakOn symSepName t
+
+-- unSuffixSymbol = takeWhileSym (/= symSepName)
+
+takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
+takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
+
 
 
 
@@ -454,8 +459,11 @@ hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
 
-symSepName   :: Char
-symSepName   = '#' -- DO NOT EVER CHANGE THIS
+-- symSepName   :: Char
+-- symSepName   = '#' -- DO NOT EVER CHANGE THIS
+
+symSepName   :: (IsString a) => a -- Symbol
+symSepName   = "##"
 
 nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
 nilName      = "nil"
