@@ -346,7 +346,7 @@ traverseBinds b k = withExtendedEnv (bindersOf b) $ do
   mapM_ traverseExprs (rhssOfBind b)
   k
 
-
+-- RJ: this function is incomprehensible, what does it do?!
 withExtendedEnv vs k
   = do RE env' fenv' emb tyi <- ask
        let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
@@ -358,6 +358,7 @@ withExtendedEnv vs k
 varShortSymbol :: Var -> Symbol
 varShortSymbol = symbol . takeWhile (/= '#') . showPpr . getName
 
+-- RJ: this function is incomprehensible
 replaceLocalBindsOne :: Var -> ReplaceM ()
 replaceLocalBindsOne v
   = do mt <- gets (M.lookup v . fst)
