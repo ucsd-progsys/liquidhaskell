@@ -414,7 +414,8 @@ mapArgumens t1 t2 = go xts1' xts2'
       | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2')) 
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
-      = Nothing
+      = traceShow ("\nWARNING: The types for the wrapper and worker data constroctors cannot be merged\n"
+          ++ show t1 ++ "\n" ++ show t2 ) Nothing 
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
