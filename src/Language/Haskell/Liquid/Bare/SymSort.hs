@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Language.Haskell.Liquid.Bare.SymSort (
     txRefSort
   ) where
@@ -5,8 +7,10 @@ module Language.Haskell.Liquid.Bare.SymSort (
 import Prelude hiding (error)
 
 import qualified Data.List as L
+import Data.Maybe              (fromMaybe)
 
-import Language.Fixpoint.Misc (fst3, snd3)
+
+import Language.Fixpoint.Misc  (fst3, snd3)
 import Language.Fixpoint.Types (meet)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
@@ -29,7 +33,7 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RProp _ (RHole r')) = r' `meet` r
-    go r (RProp  _ _ ) = r -- is this correct?
+    go r (RProp  _ t' )       = let r' = fromMaybe mempty (stripRTypeBase t') in r `meet` r'
 
 addSymSort _ _ t
   = t
@@ -57,7 +61,12 @@ addSymSortRef' _ _ p (RProp s t)
     where
       xs = spliceArgs "addSymSortRef 2" s p
 
-spliceArgs msg s p = safeZipWithError msg (fst <$> s) (fst3 <$> pargs p)
+spliceArgs msg s p = go (fst <$> s) (pargs p)
+  where
+    go []     []           = [] 
+    go []     ((s,x,_):as) = (x, s):go [] as
+    go (x:xs) ((s,_,_):as) = (x,s):go xs as
+    go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs 
 
 intToString 1 = "1st"
 intToString 2 = "2nd"
