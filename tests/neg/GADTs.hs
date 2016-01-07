@@ -18,4 +18,4 @@ isBool (SomeInt   _) = False
 a = SomeBool True
 
 {-@ b :: SomeBool @-}
-b = SomeBool True
+b = SomeInt 5
