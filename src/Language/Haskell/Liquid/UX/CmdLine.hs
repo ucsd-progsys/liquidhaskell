@@ -129,7 +129,7 @@ config = cmdArgsMode $ Config {
           &= name "trust-internals"
 
  , nocaseexpand
-    = def &= help "Disable Termination Check"
+    = def &= help "Don't expand the default case in a case-expression"
           &= name "no-case-expand"
  , strata
     = def &= help "Enable Strata Analysis"

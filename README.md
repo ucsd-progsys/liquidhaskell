@@ -421,6 +421,23 @@ use the `no-prune-unsorted` flag.
     liquid --no-prune-unsorted test.hs
 
 
+Case Expansion
+-------------------------
+
+By default LiquidHaskell expands all data constructors to the case statements. 
+For example, 
+if `F = A1 | A2 | .. | A10`, 
+then liquidHAskell will expand the code 
+`case f of {A1 -> True; _ -> False}` 
+to `case f of {A1 -> True; A2 -> False; ...; A10 -> False}`. 
+This expansion can lead to more precise code analysis
+but it can get really expensive due to code explosion. 
+The `no-case-expand` flag prevents this expansion and keeps the user
+provided cases for the case expression. 
+
+    liquid --no-case-expand test.hs
+
+
 
 Ignore False Predicates
 -----------------------
