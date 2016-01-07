@@ -33,7 +33,7 @@ import Data.Monoid hiding ((<>))
 import Data.Bifunctor
 import Control.Applicative      ((<$>))
 
-import Data.Maybe (fromMaybe, isNothing, fromJust)
+import Data.Maybe (fromMaybe, isNothing, fromJust, catMaybes)
 
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types hiding (Def, R)
@@ -346,7 +346,7 @@ makeDataConType ds | isNothing (dataConWrapId_maybe dc)
     ts   = defRefType t <$> ds 
 
 makeDataConType ds 
-  = [(woId, woRType `extendWo` wrRType), (wrId, wrRType)]
+  = [(woId, extend woRType wrRType), (wrId, extend wrRType woRType)]
   where
     (wo, wr) = partition isWorkerDef ds 
     dc       = ctor $ head ds 
@@ -360,11 +360,6 @@ makeDataConType ds
     wrRType  = combineDCTypes wrt wrts
     woRType  = combineDCTypes wot wots
 
-    extendWo t1 t2 
-      | Just su <- mapArgumens t1 t2 
-      = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
-      | otherwise
-      = t1
 
     isWorkerDef def
       -- types are missing for arguments, so definition came from a logical measure
@@ -375,11 +370,31 @@ makeDataConType ds
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
+extend t1' t2 
+  | Just su <- mapArgumens t1 t2 
+  = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
+  | otherwise
+  = t1
+  where 
+    t1 = noDummySyms t1' 
+
+
 resultTy = ty_res . toRTypeRep 
 
 strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
   where
     rep = toRTypeRep t
+
+
+noDummySyms t 
+  | any isDummy (ty_binds rep)
+  = subst su $ fromRTypeRep $ rep{ty_binds = xs'} 
+  | otherwise
+  = t 
+  where
+    rep = toRTypeRep t
+    xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
+    su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
 combineDCTypes t = foldl' strengthenRefTypeGen (ofType t) 
 mapArgumens :: RRType Reft -> RRType Reft -> Maybe Subst  
