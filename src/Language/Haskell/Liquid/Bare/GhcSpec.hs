@@ -101,11 +101,11 @@ postProcess cbs specEnv sp@(SP {..})
   -- HEREHEREHEREHERE (addTyConInfo stuff)
   where
     (sigs, ts) = replaceLocalBinds tcEmbeds tyconEnv tySigs texprs specEnv cbs
-    tySigs'  = traceShow "\nSIGS = \n" $ mapSnd (addTyConInfo "postProcess.tySigs" tcEmbeds tyconEnv <$>) <$> sigs
-    asmSigs' = mapSnd (addTyConInfo "postProcess.asmSigs" tcEmbeds tyconEnv <$>) <$> asmSigs
-    dicts'   = dmapty (addTyConInfo "postProcess.dicts" tcEmbeds tyconEnv) dicts
-    invs'    = (addTyConInfo "postProcess.invs" tcEmbeds tyconEnv <$>) <$> invariants
-    meas'    = mapSnd (addTyConInfo "postProcess.meas" tcEmbeds tyconEnv .  txRefSort tyconEnv tcEmbeds <$>) <$> meas
+    tySigs'  = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> sigs
+    asmSigs' = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> asmSigs
+    dicts'   = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
+    invs'    = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
+    meas'    = mapSnd (addTyConInfo tcEmbeds tyconEnv .  txRefSort tyconEnv tcEmbeds <$>) <$> meas
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -214,7 +214,7 @@ makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
        lmap        <- logicEnv <$> get
        inlmap      <- inlines  <$> get
        let ctors'   = [ (x, txRefToLogic lmap inlmap <$> t) | (x, t) <- ctors ]
-       return $ sp { tySigs     = traceShow ("\nOLD SIGS=\n" ++ show sigs ++ "\ntySigs\n") tySigs
+       return $ sp { tySigs     = tySigs
                    , asmSigs    = asmSigs
                    , ctors      = ctors'
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
@@ -260,7 +260,7 @@ makeGhcSpec4 defVars specs name su sp
                      , lvars      = lvars'
                      , autosize   = asize'
                      , lazy       = lazies
-                     , tySigs     = traceShow "\ntySigs2\n" (tx  <$> sigs)
+                     , tySigs     = tx  <$> sigs
                      , asmSigs    = tx  <$> asmSigs sp
                      , measures   = mtx <$> measures sp
                      }
@@ -286,7 +286,7 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        tyi     <- gets tcEnv
        let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- sigs' ++ mts ++ dms ]
        let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- asms' ]
-       return     (invs, ialias, traceShow ("\nOLD SIGS = \n" ++ show sigs' ++ "\nSIGS\n") sigs, asms)
+       return     (invs, ialias, sigs, asms)
 
 makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
@@ -370,7 +370,7 @@ replaceLocalBindsOne v
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
            let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
-           case checkTy ("checking " ++ show v) msg emb tyi fenv t' of
+           case checkTy msg emb tyi fenv t' of
              Just err -> Ex.throw err
              Nothing -> modify (first $ M.insert v (Loc l l' t'))
            mes <- gets (M.lookup v . snd)
