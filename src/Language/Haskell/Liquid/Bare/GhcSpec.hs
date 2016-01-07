@@ -34,7 +34,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
 import Language.Fixpoint.Misc (thd3, traceShow)
-import Language.Fixpoint.Types.Names (takeWhileSym, nilName, consName)
+import Language.Fixpoint.Types.Names (nilName, consName)
 import Language.Fixpoint.Types hiding (Error)
 
 import Language.Haskell.Liquid.Types.Dictionaries
@@ -346,13 +346,17 @@ traverseBinds b k = withExtendedEnv (bindersOf b) $ do
   mapM_ traverseExprs (rhssOfBind b)
   k
 
+
 withExtendedEnv vs k
   = do RE env' fenv' emb tyi <- ask
-       let env  = L.foldl' (\m v -> M.insert (takeWhileSym (/='#') $ symbol v) (symbol v) m) env' vs
+       let env  = L.foldl' (\m v -> M.insert (varShortSymbol v) (symbol v) m) env' vs
            fenv = L.foldl' (\m v -> insertSEnv (symbol v) (rTypeSortedReft emb (ofType $ varType v :: RSort)) m) fenv' vs
        withReaderT (const (RE env fenv emb tyi)) $ do
          mapM_ replaceLocalBindsOne vs
          k
+
+varShortSymbol :: Var -> Symbol
+varShortSymbol = symbol . takeWhile (/= '#') . showPpr . getName
 
 replaceLocalBindsOne :: Var -> ReplaceM ()
 replaceLocalBindsOne v

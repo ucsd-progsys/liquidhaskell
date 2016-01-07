@@ -428,11 +428,11 @@ instance Symbolic TyCon where
   symbol = symbol . qualifiedNameSymbol . getName
 
 instance Symbolic Name where
-  symbol = symbol . showPpr -- qualifiedNameSymbol
-
+  symbol = symbol . showPpr
 
 instance Symbolic Var where
   symbol = varSymbol
+
 
 varSymbol ::  Var -> Symbol
 varSymbol v
