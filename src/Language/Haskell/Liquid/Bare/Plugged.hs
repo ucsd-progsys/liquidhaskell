@@ -33,6 +33,7 @@ import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
+import Language.Haskell.Liquid.Misc (zipWithDefM)
 
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
@@ -101,7 +102,9 @@ plugHoles tce tyi x f t (Loc l l' st)
     go t                (REx b x t')       = REx b x <$> go t t'
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
-    go (RApp _ t _ _)   (RApp c t' p r)    = RApp c <$> (zipWithM go t t') <*> return p <*> return r
+    -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different
+    -- keep different types for now, as a pretty error message will be created at Bare.Check
+    go (RApp _ ts _ _)  (RApp c ts' p r)   = RApp c <$> (zipWithDefM go ts ts') <*> return p <*> return r
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
