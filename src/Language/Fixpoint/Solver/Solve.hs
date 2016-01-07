@@ -55,7 +55,7 @@ solve_ fi s0 wkl = do
   st      <- stats
   res     <- {-# SCC "sol-result" #-} result wkl s
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
-  return $!! (tidyResult res', st)
+  return $!! (res', st)
 
 -- | tidyResult ensures we replace the temporary kVarArg names
 --   introduced to ensure uniqueness with the original names

@@ -42,7 +42,6 @@ module Language.Fixpoint.Types.Names (
   , unconsSym
   , dropSym
   , headSym
-  , takeWhileSym
   , lengthSym
 
   -- * Transforms
@@ -85,7 +84,6 @@ module Language.Fixpoint.Types.Names (
   , nilName
   , consName
   , vvName
-  , symSepName
   , size32Name
   , size64Name
   , bitVecName
@@ -200,7 +198,7 @@ instance Fixpoint T.Text where
   toFix = text . T.unpack
 
 instance Fixpoint Symbol where
-  toFix = toFix . symbolSafeText
+  toFix = toFix . symbolText
 
 ---------------------------------------------------------------------------
 -- | Located Symbols -----------------------------------------------------
@@ -331,8 +329,6 @@ isPrefixOfSym (symbolText -> p) (symbolText -> x) = p `T.isPrefixOf` x
 isSuffixOfSym :: Symbol -> Symbol -> Bool
 isSuffixOfSym (symbolText -> p) (symbolText -> x) = p `T.isSuffixOf` x
 
-takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
-takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
 headSym :: Symbol -> Char
 headSym (symbolText -> t) = T.head t
@@ -355,10 +351,16 @@ dropSym n (symbolText -> t) = symbol $ T.drop n t
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
 
----------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | Use this **EXCLUSIVELY** when you want to add stuff in front of a Symbol
+--------------------------------------------------------------------------------
+suffixSymbol :: Symbol -> Symbol -> Symbol
+suffixSymbol  x y = x `mappendSym` symSepName `mappendSym` y
 
 vv                  :: Maybe Integer -> Symbol
-vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
+-- vv (Just i)         = symbol $ symbolSafeText vvName `T.snoc` symSepName `mappend` T.pack (show i)
+vv (Just i)         = intSymbol vvName i
 vv Nothing          = vvName
 
 isNontrivialVV      :: Symbol -> Bool
@@ -376,9 +378,6 @@ unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
 intSymbol x i = x `suffixSymbol` (symbol $ show i)
-
-suffixSymbol :: Symbol -> Symbol -> Symbol
-suffixSymbol  x y = x `mappendSym` symbol [symSepName] `mappendSym` y
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
@@ -403,11 +402,17 @@ existPrefix  = "lq_ext$"
 -------------------------------------------------------------------------
 tidySymbol :: Symbol -> Symbol
 -------------------------------------------------------------------------
-tidySymbol = takeWhileSym (/= symSepName) . dropKArgPrefix
+tidySymbol = unSuffixSymbol . unSuffixSymbol . unPrefixSymbol kArgPrefix
 
-dropKArgPrefix s = fromMaybe s (stripPrefix kArgPrefix s)
+unPrefixSymbol :: Symbol -> Symbol -> Symbol
+unPrefixSymbol p s = fromMaybe s (stripPrefix p s)
 
+unSuffixSymbol :: Symbol -> Symbol
+unSuffixSymbol s@(symbolText -> t)
+  = maybe s symbol $ T.stripSuffix symSepName $ fst $ T.breakOnEnd symSepName t
 
+-- takeWhileSym :: (Char -> Bool) -> Symbol -> Symbol
+-- takeWhileSym p (symbolText -> t) = symbol $ T.takeWhile p t
 
 
 nonSymbol :: Symbol
@@ -451,8 +456,11 @@ hpropConName = "HProp"
 strConName   = "Str"
 vvName       = "VV"
 
-symSepName   :: Char
-symSepName   = '#' -- DO NOT EVER CHANGE THIS
+-- symSepName   :: Char
+-- symSepName   = '#' -- DO NOT EVER CHANGE THIS
+
+symSepName   :: (IsString a) => a -- Symbol
+symSepName   = "##"
 
 nilName, consName, size32Name, size64Name, bitVecName, bvOrName, bvAndName :: Symbol
 nilName      = "nil"
