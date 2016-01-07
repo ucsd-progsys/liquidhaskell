@@ -5,7 +5,7 @@ module Compose where
 
 data ST s = ST {runState :: s -> s}
 
-{-@ data ST s t <p :: s -> Prop, q :: s -> s -> Prop> = ST (runState :: x:s<p> -> s<q x>) @-}
+{-@ data ST s <p :: s -> Prop, q :: s -> s -> Prop> = ST (runState :: x:s<p> -> s<q x>) @-}
 
  {-@ runState :: forall <p :: s -> Prop, q :: s -> s -> Prop>. ST <p, q> s -> x:s<p> -> s<q x> @-}
 

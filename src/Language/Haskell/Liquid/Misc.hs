@@ -2,6 +2,7 @@
 
 module Language.Haskell.Liquid.Misc where
 
+import Control.Monad (liftM2)
 import Control.Applicative
 import Control.Arrow (first)
 import System.FilePath
@@ -86,6 +87,12 @@ mapN 0 f (x:xs) = f x : xs
 mapN n f (x:xs) = x : mapN (n-1) f xs
 mapN _ _ []     = []
 
+
+zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
+zipWithDefM _ []     []     = return []
+zipWithDefM _ xs     []     = return xs 
+zipWithDefM _ []     ys     = return ys 
+zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys) 
 
 --------------------------------------
 -- Originally part of Fixpoint's Misc:

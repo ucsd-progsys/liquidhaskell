@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
-  , isClassRTyCon, isClassType
+  , isClassRTyCon, isClassType, isEqType
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -207,6 +207,7 @@ import GHC                                      (HscEnv, ModuleName, moduleNameS
 import GHC.Generics
 import CoreSyn (CoreBind, CoreExpr)
 import PrelInfo         (isNumericClass)
+import TysPrim          (eqPrimTyCon)
 import TysWiredIn                               (listTyCon)
 
 import            Control.Arrow                            (second)
@@ -517,6 +518,8 @@ rTyConPVs     = rtc_pvars
 rTyConPropVs  = filter isPropPV . rtc_pvars
 isPropPV      = isProp . ptype
 
+isEqType (RApp c _ _ _) = isEqual c
+isEqType _              = False
 
 
 isClassType (RApp c _ _ _) = isClass c
@@ -653,7 +656,7 @@ ppOblig OInv  = text "Invariant Check"
 --   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
 --   directly to any type and has semantics _independent of_ the data-type.
 
-data Ref τ t
+data Ref τ t 
   = RProp  {
       rf_args :: [(Symbol, τ)]
     , rf_body :: t
@@ -724,11 +727,13 @@ class (Eq c) => TyConable c where
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
   isClass  :: c -> Bool
+  isEqual  :: c -> Bool
 
   isNumCls  :: c -> Bool
   isFracCls :: c -> Bool
 
   isClass   = const False
+  isEqual   = const False
   isNumCls  = const False
   isFracCls = const False
 
@@ -753,6 +758,7 @@ instance TyConable RTyCon where
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc
   isClass    = isClassRTyCon
+  isEqual    = (eqPrimTyCon ==) . rtc_tc
   ppTycon    = toFix
 
   isNumCls c  = maybe False isNumericClass    (tyConClass_maybe $ rtc_tc c)

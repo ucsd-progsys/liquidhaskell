@@ -37,29 +37,14 @@ data AstF f = Lit Int    AstIndex
 
 newtype Fix f = In { out :: f (Fix f) }
 
-{-@ In :: f (Fix f) -> Fix f @-}
-{- In :: f (Fix f) -> Fix f @-}
-
 type Ast = Fix AstF
 
 {-@ type AstE = Fix AstFE @-}
 {-@ type AstT = Fix AstFT @-}
 
-{-@ astExprF :: AstF <{\ix -> isExprIndex ix}> (Fix (AstF <{\ix -> isExprIndex ix}>)) @-}
-astExprF :: AstF Ast
-astExprF = Lit 10 IxExpr
-
 {-@ astExpr :: Fix (AstF <{\ix -> isExprIndex ix}>)  @-}
 astExpr :: Ast
-astExpr = In astExprF
-
-
-{-@ astType :: AstT @-}
-astType :: Ast 
-astType = In (Lit 10 IxType)
-
-{-@ app :: forall <p :: AstIndex -> Prop>. Fix (AstF <p>) -> Fix (AstF <p>) -> Fix (AstF <p>) @-}
-app f x = In $ App f x
+astExpr = undefined 
 
 {-@ id1 :: forall <p :: AstIndex -> Prop>. Fix (AstF <p>) -> Fix (AstF <p>)  @-}
 id1 :: Fix AstF -> Fix AstF
