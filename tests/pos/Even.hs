@@ -1,9 +1,9 @@
-module Even () where
+{-@ LIQUID "--real" @-}
 
-{-@ isEven, isOdd :: Nat -> Bool @-}
-isEven :: Int -> Bool
-isEven 0 = True
-isEven n = isOdd  $ n - 1
+module Even where 
 
-isOdd  0 = False
-isOdd  m = isEven $ m - 1
+{-@ type Even = {v:Int | v mod 2 = 0} @-}
+
+{-@ notEven :: Int -> Even @-}
+notEven :: Int -> Int
+notEven x = x * 2
