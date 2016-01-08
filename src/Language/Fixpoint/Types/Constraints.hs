@@ -31,7 +31,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Constraints
   , WfC (..)
-  , SubC, subcId, sid, senv, slhs, srhs, subC, wfC
+  , SubC, mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -231,6 +231,8 @@ wfC be sr x
   | otherwise = []
   where
     msg       = "wfKvar: malformed wfC " ++ show sr
+
+mkSubC = SubC 
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
