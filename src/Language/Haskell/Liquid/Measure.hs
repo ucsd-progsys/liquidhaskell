@@ -9,7 +9,6 @@ module Language.Haskell.Liquid.Measure (
   , MSpec (..)
   , mkM, mkMSpec, mkMSpec'
   , qualifySpec
-  , mapTy
   , dataConTypes
   , defRefType
   , strLen
@@ -47,8 +46,8 @@ import Language.Haskell.Liquid.Types.Bounds
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
 
-data Spec ty bndr  = Spec {
-    measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+data Spec ty bndr  = Spec
+  { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types
   , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
@@ -80,36 +79,6 @@ data Spec ty bndr  = Spec {
   , bounds     :: !(RRBEnv ty)
   }
 
-
--- MOVE TO TYPES
-data MSpec ty ctor = MSpec {
-    ctorMap  :: M.HashMap Symbol [Def ty ctor]
-  , measMap  :: M.HashMap LocSymbol (Measure ty ctor)
-  , cmeasMap :: M.HashMap LocSymbol (Measure ty ())
-  , imeas    :: ![Measure ty ctor]
-  }
-
-
-instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
-  show (MSpec ct m cm im)
-    = "\nMSpec:\n" ++
-      "\nctorMap:\t "  ++ show ct ++
-      "\nmeasMap:\t "  ++ show m  ++
-      "\ncmeasMap:\t " ++ show cm ++
-      "\nimeas:\t "    ++ show im ++
-      "\n"
-
-instance Eq ctor => Monoid (MSpec ty ctor) where
-  mempty = MSpec M.empty M.empty M.empty []
-
-  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2)
-    | null dups
-    = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
-           (cm1 `M.union` cm2) (im1 ++ im2)
-    | otherwise
-    = errorstar $ err (head dups)
-    where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
-          err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
 
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
@@ -179,7 +148,7 @@ instance Monoid (Spec ty bndr) where
            , aliases    =           aliases s1    ++ aliases s2
            , paliases   =           paliases s1   ++ paliases s2
            , ealiases   =           ealiases s1   ++ ealiases s2
-           , embeds     = M.union   (embeds s1)     (embeds s2)
+           , embeds     = M.union   (embeds s1)      (embeds s2)
            , qualifiers =           qualifiers s1 ++ qualifiers s2
            , decr       =           decr s1       ++ decr s2
            , lvars      =           lvars s1      ++ lvars s2
@@ -231,100 +200,6 @@ instance Monoid (Spec ty bndr) where
            , dvariance  = []
            , bounds     = M.empty
            }
-
--- MOVE TO TYPES
-instance Functor (Def t) where
-  fmap f def = def { ctor = f (ctor def) }
-
--- MOVE TO TYPES
-instance Functor (Measure t) where
-  fmap f (M n s eqs) = M n s (fmap (fmap f) eqs)
-
-instance Functor CMeasure where
-  fmap f (CM n t) = CM n (f t)
-
--- MOVE TO TYPES
-instance Functor (MSpec t) where
-  fmap f (MSpec c m cm im) = MSpec (fc c) (fm m) cm (fmap (fmap f) im)
-     where fc = fmap $ fmap $ fmap f
-           fm = fmap $ fmap f
-
--- MOVE TO TYPES
-instance Bifunctor Def where
-  first  f def  = def { dparams = mapSnd f <$> dparams def
-                      , dsort = f <$> dsort def
-                      , binds = mapSnd (f <$>) <$> binds def}
-  second f def  = def {ctor    = f $ ctor def}
-
--- MOVE TO TYPES
-instance Bifunctor Measure where
-  first f (M n s eqs)  = M n (f s) (first f <$> eqs)
-  second f (M n s eqs) = M n s (second f <$> eqs)
-
--- MOVE TO TYPES
-instance Bifunctor MSpec   where
-  first f (MSpec c m cm im) = MSpec (fmap (fmap (first f)) c) (fmap (first f) m) (fmap (first f) cm) (fmap (first f) im)
-  second                    = fmap
-
--- MOVE TO TYPES
-instance Bifunctor Spec    where
-  first f s
-    = s { measures   = first  f <$> (measures s)
-        , asmSigs    = second f <$> (asmSigs s)
-        , sigs       = second f <$> (sigs s)
-        , localSigs  = second f <$> (localSigs s)
-        , invariants = fmap   f <$> (invariants s)
-        , ialiases   = fmapP  f <$> (ialiases s)
-        , cmeasures  = first f  <$> (cmeasures s)
-        , imeasures  = first f  <$> (imeasures s)
-        , classes    = fmap f   <$> (classes s)
-        , rinstance  = fmap f   <$> (rinstance s)
-        , bounds     = fmap (first f) (bounds s)
-        }
-    where fmapP f (x, y)       = (fmap f x, fmap f y)
-
-  second f s
-    = s { measures   = fmap (second f) (measures s)
-        , imeasures  = fmap (second f) (imeasures s)
-        }
-
--- MOVE TO TYPES
-instance PPrint Body where
-  pprint (E e)   = pprint e
-  pprint (P p)   = pprint p
-  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)
-
--- instance PPrint a => Fixpoint (PPrint a) where
---   toFix (BDc c)  = toFix c
---   toFix (BTup n) = parens $ toFix n
-
--- MOVE TO TYPES
-instance PPrint a => PPrint (Def t a) where
-  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body
-    where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
-
--- MOVE TO TYPES
-instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprint (M n s eqs) =  pprint n <> text " :: " <> pprint s
-                     $$ vcat (pprint `fmap` eqs)
-
--- MOVE TO TYPES
-instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
-  pprint =  vcat . fmap pprint . fmap snd . M.toList . measMap
-
--- MOVE TO TYPES
-instance PPrint (Measure t a) => Show (Measure t a) where
-  show = showpp
-
-instance PPrint t => PPrint (CMeasure t) where
-  pprint (CM n s) =  pprint n <> text " :: " <> pprint s
-
-instance PPrint (CMeasure t) => Show (CMeasure t) where
-  show = showpp
-
--- MOVE TO TYPES
-mapTy :: (tya -> tyb) -> Measure tya c -> Measure tyb c
-mapTy = first
 
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)

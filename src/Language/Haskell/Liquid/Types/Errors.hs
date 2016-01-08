@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.Types.Errors (
 import           Type
 import           SrcLoc                       (SrcSpan (..), noSrcSpan)
 import           GHC.Generics
+import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import           Data.Maybe
@@ -48,10 +49,10 @@ import qualified Control.Monad.Error as Ex
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
 --------------------------------------------------------------------------------
-data CtxError t = CtxError {
-    ctErr :: TError t
+data CtxError t = CtxError
+  { ctErr :: TError t
   , ctCtx :: Doc
-  }
+  } deriving (Functor)
 
 instance Eq (CtxError t) where
   e1 == e2 = ctErr e1 == ctErr e2
@@ -108,11 +109,13 @@ data Oblig
   | OCons -- ^ Obligation that proves subtyping constraints
   deriving (Generic, Data, Typeable)
 
-
 instance Show Oblig where
   show OTerm = "termination-condition"
   show OInv  = "invariant-obligation"
   show OCons = "constraint-obligation"
+
+instance NFData Oblig
+
 
 --------------------------------------------------------------------------------
 -- | Generic Type for Error Messages -------------------------------------------
@@ -256,6 +259,14 @@ data TError t =
 
   deriving (Typeable, Generic, Functor)
 
+instance NFData a => NFData (TError a)
+
+instance NFData ParseError where
+  rnf t = seq t ()
+
+-- FIXME ES: this is very suspicious, why can't we have multiple errors
+-- arising from the same span?
+
 instance Eq (TError a) where
   e1 == e2 = errSpan e1 == errSpan e2
 
@@ -276,7 +287,7 @@ instance Ex.Error (TError a) where
 data Panic = Panic { ePos :: !SrcSpan
                    , eMsg :: !Doc
                    } -- ^ Unexpected PANIC
-  deriving (Typeable)
+  deriving (Typeable, Generic)
 
 instance PPrint SrcSpan where
   pprint = pprDoc

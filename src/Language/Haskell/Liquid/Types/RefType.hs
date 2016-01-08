@@ -615,28 +615,6 @@ tyClasses (RHole _)       = []
 tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
 
 
-----------------------------------------------------------------
----------------------- Strictness ------------------------------
-----------------------------------------------------------------
-
-instance (NFData b, NFData t) => NFData (Ref t b) where
-  rnf (RProp s b) = rnf s `seq` rnf b
-
-instance (NFData b, NFData c, NFData e) => NFData (RType b c e) where
-  rnf (RVar α r)       = rnf α `seq` rnf r
-  rnf (RAllT α t)      = rnf α `seq` rnf t
-  rnf (RAllP π t)      = rnf π `seq` rnf t
-  rnf (RAllS s t)      = rnf s `seq` rnf t
-  rnf (RFun x t t' r)  = rnf x `seq` rnf t `seq` rnf t' `seq` rnf r
-  rnf (RApp _ ts rs r) = rnf ts `seq` rnf rs `seq` rnf r
-  rnf (RAllE x t t')   = rnf x `seq` rnf t `seq` rnf t'
-  rnf (REx x t t')     = rnf x `seq` rnf t `seq` rnf t'
-  rnf (RExprArg e)     = rnf e
-  rnf (RAppTy t t' r)  = rnf t `seq` rnf t' `seq` rnf r
-  rnf (RRTy _ r _ t)   = rnf r `seq` rnf t
-  rnf (RHole r)        = rnf r
-
-
 --------------------------------------------------------------------------------
 -- TODO: Rewrite subsTyvars with Traversable
 --------------------------------------------------------------------------------

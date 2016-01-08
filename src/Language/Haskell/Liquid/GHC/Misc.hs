@@ -70,7 +70,7 @@ import qualified Text.PrettyPrint.HughesPJ    as PJ
 import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
-
+import           Control.DeepSeq
 
 
 -----------------------------------------------------------------------
@@ -272,26 +272,6 @@ showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
-instance Fixpoint Var where
-  toFix = pprDoc
-
-instance Fixpoint Name where
-  toFix = pprDoc
-
-instance Fixpoint Type where
-  toFix = pprDoc
-
-instance Show Name where
-  show = showPpr
-
-instance Show Var where
-  show = showPpr
-
-instance Show Class where
-  show = showPpr
-
-instance Show TyCon where
-  show = showPpr
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
 sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
@@ -374,12 +354,6 @@ kindArity _
   = 0
 
 
-instance Hashable Var where
-  hashWithSalt = uniqueHash
-
-instance Hashable TyCon where
-  hashWithSalt = uniqueHash
-
 uniqueHash i = hashWithSalt i . getKey . getUnique
 
 -- slightly modified version of DynamicLoading.lookupRdrNameInModule
@@ -424,14 +398,6 @@ symbolTyConWithKind k x i n = stringTyConWithKind k x i (symbolString n)
 symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar n = stringTyVar (symbolString n)
 
-instance Symbolic TyCon where
-  symbol = symbol . qualifiedNameSymbol . getName
-
-instance Symbolic Name where
-  symbol = symbol . showPpr
-
-instance Symbolic Var where
-  symbol = varSymbol
 
 
 varSymbol ::  Var -> Symbol
@@ -457,6 +423,60 @@ tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- ty
 tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
 tyConTyVarsDef c = TC.tyConTyVars c
 
+----------------------------------------------------------------------
+-- Myriad Instances
+----------------------------------------------------------------------
+
+instance Symbolic TyCon where
+  symbol = symbol . qualifiedNameSymbol . getName
+
+instance Symbolic Name where
+  symbol = symbol . showPpr
+
+instance Symbolic Var where
+  symbol = varSymbol
+
+instance Hashable Var where
+  hashWithSalt = uniqueHash
+
+instance Hashable TyCon where
+  hashWithSalt = uniqueHash
+
+instance Fixpoint Var where
+  toFix = pprDoc
+
+instance Fixpoint Name where
+  toFix = pprDoc
+
+instance Fixpoint Type where
+  toFix = pprDoc
+
+instance Show Name where
+  show = showPpr
+
+instance Show Var where
+  show = showPpr
+
+instance Show Class where
+  show = showPpr
+
+instance Show TyCon where
+  show = showPpr
+
+instance NFData Class where
+  rnf t = seq t ()
+
+instance NFData SrcSpan where
+  rnf t = seq t ()
+
+instance NFData TyCon where
+  rnf t = seq t ()
+
+instance NFData Type where
+  rnf t = seq t ()
+
+instance NFData Var where
+  rnf t = seq t ()
 
 
 ----------------------------------------------------------------------
