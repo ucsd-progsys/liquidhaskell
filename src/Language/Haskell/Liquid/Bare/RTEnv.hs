@@ -159,28 +159,6 @@ buildTypeEdges table = ordNub . go
     go_ref (RProp  _ t) = Just t
 
 
--- NV: This returns the empty list 
-{-
-buildPredEdges :: AliasTable Expr -> Expr -> [Symbol]
-buildPredEdges table = ordNub . go
-  where
-    go :: Expr -> [Symbol]
---     go (PBexp (EApp lf _)) = [ f | let f = val lf, M.member f table]
-    go (PAnd ps)           = concatMap go ps
-    go (POr ps)            = concatMap go ps
-    go (PNot p)            = go p
-    go (PImp p q)          = go p ++ go q
-    go (PIff p q)          = go p ++ go q
-    go (PAll _ p)          = go p
-    go _                   = []
-
-    -- go (PBexp _)           = []
-    -- go (PAtom _ _ _)       = []
-    -- go PTrue               = []
-    -- go PFalse              = []
-    -- go PTop                = []
--}
-
 buildExprEdges table  = ordNub . go
   where
     go :: Expr -> [Symbol]
@@ -189,15 +167,27 @@ buildExprEdges table  = ordNub . go
     go (EBin _ e1 e2) = go e1 ++ go e2
     go (EIte _ e1 e2) = go e1 ++ go e2
     go (ECst e _)     = go e
-    go _              = []
 
-    -- go (ELit _ _)     = []
-    -- go (ESym _)       = []
-    -- go (ECon _)       = []
-    -- go (EVar _)       = []
-    -- go EBot           = []
+    go (ESym _)       = []
+    go (ECon _)       = []
+    go (EVar _)       = []
+    go EBot           = []
+
+    go (PAnd ps)           = concatMap go ps
+    go (POr ps)            = concatMap go ps
+    go (PNot p)            = go p
+    go (PImp p q)          = go p ++ go q
+    go (PIff p q)          = go p ++ go q
+    go (PAll _ p)          = go p
+
+    go (PAtom _ e1 e2)     = go e1 ++ go e2 
+    go PTrue               = []
+    go PFalse              = []
+    go PTop                = []
+
+    go (ETApp e _)         = go e 
+    go (ETAbs e _)         = go e 
+    go (PKVar _ _)         = []
+    go (PExist _ e)        = go e 
 
     go_alias f           = [f | M.member f table ]
-    --   = case M.lookup f table of
-    --       Just _  -> [f]
-    --       Nothing -> [ ]
