@@ -189,7 +189,7 @@ bareAtomP ref
  <|> holeP
  <|> try (dummyP (bbaseP <* spaces))
 
-refBindP :: Subable a => Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
+refBindP :: Subable a => Parser Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
@@ -503,7 +503,7 @@ data Pspec ty ctor
   | Invt    (Located ty)
   | IAlias  (Located ty, Located ty)
   | Alias   (RTAlias Symbol BareType)
-  | PAlias  (RTAlias Symbol Pred)
+  | PAlias  (RTAlias Symbol Expr)
   | EAlias  (RTAlias Symbol Expr)
   | Embed   (LocSymbol, FTycon)
   | Qualif  Qualifier
@@ -515,7 +515,7 @@ data Pspec ty ctor
   | Inline  LocSymbol
   | ASize   LocSymbol
   | HBound  LocSymbol
-  | PBound  (Bound ty Pred)
+  | PBound  (Bound ty Expr)
   | Pragma  (Located String)
   | CMeas   (Measure ty ())
   | IMeas   (Measure ty ctor)

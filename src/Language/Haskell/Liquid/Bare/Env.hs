@@ -35,7 +35,7 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
 
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
+import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 
 import Language.Haskell.Liquid.UX.Errors ()
 import Language.Haskell.Liquid.Types
@@ -56,7 +56,7 @@ type TCEnv = M.HashMap TyCon RTyCon
 type InlnEnv = M.HashMap Symbol TInline
 
 data TInline = TI { tiargs :: [Symbol]
-                  , tibody :: Either Pred Expr
+                  , tibody :: Expr
                   } deriving (Show)
 
 

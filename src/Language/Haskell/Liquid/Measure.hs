@@ -57,7 +57,7 @@ data Spec ty bndr  = Spec
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
-  , paliases   :: ![RTAlias Symbol Pred]        -- ^ Refinement/Predicate aliases
+  , paliases   :: ![RTAlias Symbol Expr]        -- ^ Refinement/Predicate aliases
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
   , embeds     :: !(TCEmb (LocSymbol))          -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
@@ -316,9 +316,9 @@ refineWithCtorBody dc f as body t =
       errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 
-bodyPred ::  Expr -> Body -> Pred
+bodyPred ::  Expr -> Body -> Expr
 bodyPred fv (E e)    = PAtom Eq fv e
-bodyPred fv (P p)    = PIff  (PBexp fv) p
+bodyPred fv (P p)    = PIff  fv p
 bodyPred fv (R v' p) = subst1 p (v', fv)
 
 

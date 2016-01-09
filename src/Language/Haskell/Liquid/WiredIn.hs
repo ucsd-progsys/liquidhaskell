@@ -68,6 +68,8 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
+runFunName :: Symbol
+runFunName = "runApp"
 
 arrowTyCon, propTyCon, hpropTyCon :: TyCon
 

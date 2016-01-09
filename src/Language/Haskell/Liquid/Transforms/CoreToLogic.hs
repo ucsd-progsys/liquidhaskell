@@ -80,7 +80,7 @@ strengthenResult v
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
         r'  = MkUReft (exprReft (EApp f (mkA <$> vxs)))         mempty mempty
-        r   = MkUReft (propReft (PBexp $ EApp f (mkA <$> vxs))) mempty mempty
+        r   = MkUReft (propReft (EApp f (mkA <$> vxs))) mempty mempty
         vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
@@ -152,7 +152,7 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
 
     inline_preds = inline (eqType boolTy . varType)
 
-coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Pred Expr)
+coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
 coreToFun _ v e = go [] $ normalize e
   where
     go acc (C.Lam x e)  | isTyVar    x = go acc e
@@ -167,11 +167,11 @@ coreToFun _ v e = go [] $ normalize e
 
     rty = snd $ splitFunTys $ snd $ splitForAllTys $ varType v
 
-coreToPred :: C.CoreExpr -> LogicM Pred
+coreToPred :: C.CoreExpr -> LogicM Expr
 coreToPred e = coreToPd $ normalize e
 
 
-coreToPd :: C.CoreExpr -> LogicM Pred
+coreToPd :: C.CoreExpr -> LogicM Expr
 coreToPd (C.Let b p)  = subst1 <$> coreToPd p <*>  makesub b
 coreToPd (C.Tick _ p) = coreToPd p
 coreToPd (C.App (C.Var v) e) | ignoreVar v = coreToPd e
@@ -181,10 +181,10 @@ coreToPd (C.Var x)
   | x == trueDataConId
   = return PTrue
   | eqType boolTy (varType x)
-  = return $ PBexp $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
+  = return $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToPd p@(C.App _ _) = toPredApp p
 coreToPd e
-  = PBexp <$> coreToLg e
+  = coreToLg e
 -- coreToPd e
 --  = throw ("Cannot transform to Logical Predicate:\t" ++ showPpr e)
 
@@ -204,10 +204,18 @@ coreToLg (C.Lit l)
   = case mkLit l of
      Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
      Just i -> return i
+coreToLg (C.Var x)
+  | x == falseDataConId
+  = return PFalse
+  | x == trueDataConId
+  = return PTrue
+  | eqType boolTy (varType x)
+  = return $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
+-- coreToLg p@(C.App _ _) = toPredApp p
 coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
@@ -226,7 +234,7 @@ coreToIte e (efalse, etrue)
        e2 <- coreToLg etrue
        return $ EIte p e2 e1
 
-toPredApp :: C.CoreExpr -> LogicM Pred
+toPredApp :: C.CoreExpr -> LogicM Expr
 toPredApp p
   = do let (f, es) = splitArgs p
        f'         <- tosymbol f
@@ -251,7 +259,7 @@ toPredApp p
       | val f == symbol ("and" :: String)
       = PAnd <$> mapM coreToPd es
       | otherwise
-      = PBexp <$> toLogicApp p
+      = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e

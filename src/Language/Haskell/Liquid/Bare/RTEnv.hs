@@ -14,7 +14,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import Language.Fixpoint.Misc (fst3)
-import Language.Fixpoint.Types (Expr(..), Pred(..), Symbol)
+import Language.Fixpoint.Types (Expr(..), Symbol)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
 import Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
@@ -51,13 +51,13 @@ makeRTAliases
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
 
 makeRPAliases
-  = graphExpand buildPredEdges expBody
+  = graphExpand (const $ const []) expBody
   where
     expBody (mod, xt)
       = inModule mod $
           do let l  = rtPos  xt
              let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandPred $ rtBody xt)
+             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandExpr $ rtBody xt)
              setRPAlias (rtName xt) $ xt { rtBody = body }
 
 makeREAliases
@@ -170,11 +170,14 @@ buildTypeEdges table = ordNub . go
     go_ref (RProp _ (RHole _)) = Nothing
     go_ref (RProp  _ t) = Just t
 
-buildPredEdges :: AliasTable Pred -> Pred -> [Symbol]
+
+-- NV: This returns the empty list 
+{-
+buildPredEdges :: AliasTable Expr -> Expr -> [Symbol]
 buildPredEdges table = ordNub . go
   where
-    go :: Pred -> [Symbol]
-    go (PBexp (EApp lf _)) = [ f | let f = val lf, M.member f table]
+    go :: Expr -> [Symbol]
+--     go (PBexp (EApp lf _)) = [ f | let f = val lf, M.member f table]
     go (PAnd ps)           = concatMap go ps
     go (POr ps)            = concatMap go ps
     go (PNot p)            = go p
@@ -188,6 +191,7 @@ buildPredEdges table = ordNub . go
     -- go PTrue               = []
     -- go PFalse              = []
     -- go PTop                = []
+-}
 
 buildExprEdges table  = ordNub . go
   where
