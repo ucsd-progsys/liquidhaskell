@@ -87,6 +87,7 @@ instance SMTLIB2 Brel where
   smt2 Le    = "<="
   smt2 _     = errorstar "SMTLIB2 Brel"
 
+-- NV TODO: change the way EApp is printed 
 instance SMTLIB2 Expr where
   smt2 (ESym z)         = smt2 (symbol z)
   smt2 (ECon c)         = smt2 c
@@ -96,7 +97,18 @@ instance SMTLIB2 Expr where
   smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
   smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
   smt2 (ECst e _)       = smt2 e
-  smt2 e                = errorstar  $ "TODO: SMTLIB2 Expr: " ++ show e
+  smt2 (PTrue)          = "true"
+  smt2 (PFalse)         = "false"
+  smt2 (PAnd [])        = "true"
+  smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps)
+  smt2 (POr [])         = "false"
+  smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
+  smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
+  smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
+  smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
+  smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
+  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 _                = errorstar "smtlib2 Pred"
 
 smt2Bop o e1 e2
   | o == Times || o == Div = smt2App (uOp o) [e1, e2]
@@ -113,20 +125,6 @@ smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
 smt2App' f [] = smt2 f
 smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
 
-instance SMTLIB2 Pred where
-  smt2 (PTrue)          = "true"
-  smt2 (PFalse)         = "false"
-  smt2 (PAnd [])        = "true"
-  smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps)
-  smt2 (POr [])         = "false"
-  smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
-  smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
-  smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
-  smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
-  smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PBexp e)        = smt2 e
-  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 _                = errorstar "smtlib2 Pred"
 
 
 mkRel Ne  e1 e2         = mkNe e1 e2

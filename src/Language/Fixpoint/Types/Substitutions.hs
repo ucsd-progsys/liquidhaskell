@@ -103,7 +103,16 @@ instance Subable Expr where
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
   substf f (ECst e so)     = ECst (substf f e) so
   substf f (EVar x)        = f x
-  substf _ e               = e
+  substf f (PAnd ps)       = PAnd $ map (substf f) ps
+  substf f (POr  ps)       = POr  $ map (substf f) ps
+  substf f (PNot p)        = PNot $ substf f p
+  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
+  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
+  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
+  substf _ p@(PKVar _ _)   = p
+  substf _  (PAll _ _)     = errorstar "substf: FORALL"
+  substf _  p              = p
+
 
   subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es
   subst su (ENeg e)        = ENeg (subst su e)
@@ -111,29 +120,11 @@ instance Subable Expr where
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
   subst su (ECst e so)     = ECst (subst su e) so
   subst su (EVar x)        = appSubst su x
-  subst _ e                = e
-
-
-instance Subable Pred where
-  syms                     = predSymbols
-  substa f                 = substf (EVar . f)
-  substf f (PAnd ps)       = PAnd $ map (substf f) ps
-  substf f (POr  ps)       = POr  $ map (substf f) ps
-  substf f (PNot p)        = PNot $ substf f p
-  substf f (PImp p1 p2)    = PImp (substf f p1) (substf f p2)
-  substf f (PIff p1 p2)    = PIff (substf f p1) (substf f p2)
-  substf f (PBexp e)       = PBexp $ substf f e
-  substf f (PAtom r e1 e2) = PAtom r (substf f e1) (substf f e2)
-  substf _ p@(PKVar _ _)   = p
-  substf _  (PAll _ _)     = errorstar "substf: FORALL"
-  substf _  p              = p
-
   subst su (PAnd ps)       = PAnd $ map (subst su) ps
   subst su (POr  ps)       = POr  $ map (subst su) ps
   subst su (PNot p)        = PNot $ subst su p
   subst su (PImp p1 p2)    = PImp (subst su p1) (subst su p2)
   subst su (PIff p1 p2)    = PIff (subst su p1) (subst su p2)
-  subst su (PBexp e)       = PBexp $ subst su e
   subst su (PAtom r e1 e2) = PAtom r (subst su e1) (subst su e2)
   subst su (PKVar k su')   = PKVar k $ su' `catSubst` su
   subst _  (PAll _ _)      = errorstar "subst: FORALL"
@@ -148,7 +139,7 @@ disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
     suSyms = S.fromList $ (syms $ M.elems su) ++ (syms $ M.keys su)
     bsSyms = S.fromList $ syms $ fst <$> bs
 
-instance Monoid Pred where
+instance Monoid Expr where
   mempty      = PTrue
   mappend p q = pAnd [p, q]
   mconcat     = pAnd
@@ -253,23 +244,17 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
-    go (EVar x)        = [x]
-    go (EApp f es)     = val f : concatMap go es
-    go (ENeg e)        = go e
-    go (EBin _ e1 e2)  = go e1 ++ go e2
-    go (EIte p e1 e2)  = predSymbols p ++ go e1 ++ go e2
-    go (ECst e _)      = go e
-    go _               = []
-
-predSymbols :: Pred -> [Symbol]
-predSymbols = go
-  where
+    go (EVar x)           = [x]
+    go (EApp f es)        = val f : concatMap go es
+    go (ENeg e)           = go e
+    go (EBin _ e1 e2)     = go e1 ++ go e2
+    go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
+    go (ECst e _)         = go e
     go (PAnd ps)          = concatMap go ps
     go (POr ps)           = concatMap go ps
     go (PNot p)           = go p
     go (PIff p1 p2)       = go p1 ++ go p2
     go (PImp p1 p2)       = go p1 ++ go p2
-    go (PBexp e)          = exprSymbols e
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
     go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
     go (PAll xts p)       = (fst <$> xts) ++ go p

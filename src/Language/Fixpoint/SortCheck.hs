@@ -47,6 +47,8 @@ import           Language.Fixpoint.Types.Visitor (foldSort)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
+import Debug.Trace
+
 -------------------------------------------------------------------------
 -- | Predicates on Sorts ------------------------------------------------
 -------------------------------------------------------------------------
@@ -161,15 +163,15 @@ checkSorted γ t
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
   where
-    tx   = pAnd . mapMaybe (checkPred' f) . conjuncts
+    tx   = pAnd . mapMaybe (checkPred' wmsg f) . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
-    -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
+    wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
-checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
+checkPred' wmsg f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
-                   Left _ -> {- trace (wmsg war p) -} Nothing
+                   Left err -> trace (wmsg err p) Nothing
                    Right _  -> Just p
 
 class Checkable a where
@@ -193,10 +195,6 @@ checkEqSort s t
                            ++ "\n\t\t with actual type '"
                            ++ show t ++ "'"
 
-instance Checkable Pred where
-  check γ = checkPred f
-   where f = (`lookupSEnvWithDistance` γ)
-
 instance Checkable SortedReft where
   check γ (RR s (Reft (v, ra))) = check γ' ra
    where
@@ -219,6 +217,7 @@ checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
 checkExpr f (EApp g es)    = checkApp f Nothing g es
+checkExpr f p              = checkPred f p >> return boolSort
 
 -- | Helper for checking symbol occurrences
 
@@ -307,11 +306,9 @@ checkNumeric f l
 -- | Checking Predicates ------------------------------------------------
 -------------------------------------------------------------------------
 
-checkPred                  :: Env -> Pred -> CheckM ()
+checkPred                  :: Env -> Expr -> CheckM ()
 checkPred _ PTrue          = return ()
 checkPred _ PFalse         = return ()
-checkPred f (PBexp e)      = checkPredBExp f e
-checkPred f (PNot p)       = checkPred f p
 checkPred f (PImp p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
 checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
@@ -319,11 +316,6 @@ checkPred f (POr ps)       = mapM_ (checkPred f) ps
 checkPred f (PAtom r e e') = checkRel f r e e'
 checkPred _ (PKVar {})     = return ()
 checkPred _ p              = throwError $ errUnexpectedPred p
-
-checkPredBExp :: Env -> Expr -> CheckM ()
-checkPredBExp f e          = do t <- checkExpr f e
-                                unless (t == boolSort) (throwError $ errBExp e t)
-                                return ()
 
 
 -- | Checking Relations

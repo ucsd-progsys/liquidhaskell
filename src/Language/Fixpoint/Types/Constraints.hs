@@ -98,7 +98,7 @@ data SubC a = SubC { _senv  :: !IBindEnv
               deriving (Eq, Generic, Functor)
 
 data SimpC a = SimpC { _cenv  :: !IBindEnv
-                     , _crhs  :: !Pred
+                     , _crhs  :: !Expr
                      , _cid   :: !(Maybe Integer)
                      , _ctag  :: !Tag
                      , _cinfo :: !a
@@ -111,7 +111,7 @@ class TaggedC c a where
   stag  :: c a -> Tag
   sinfo :: c a -> a
   clhs  :: BindEnv -> c a -> [(Symbol, SortedReft)]
-  crhs  :: c a -> Pred
+  crhs  :: c a -> Expr
 
 instance TaggedC SimpC a where
   senv      = _cenv
@@ -141,7 +141,7 @@ subcId = mfromJust "subCId" . sid
 -- | Solutions and Results
 ---------------------------------------------------------------------------
 
-type FixSolution = M.HashMap KVar Pred
+type FixSolution = M.HashMap KVar Expr
 
 data Result a = Result { resStatus   :: FixResult a
                        , resSolution :: FixSolution }
@@ -265,7 +265,7 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 
 data Qualifier = Q { q_name   :: Symbol           -- ^ Name
                    , q_params :: [(Symbol, Sort)] -- ^ Parameters
-                   , q_body   :: Pred             -- ^ Predicate
+                   , q_body   :: Expr             -- ^ Predicate
                    , q_pos    :: !SourcePos       -- ^ Source Location
                    }
                deriving (Eq, Show, Data, Typeable, Generic)

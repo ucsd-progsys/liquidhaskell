@@ -71,7 +71,7 @@ data Error = Error { errLoc :: SrcSpan
                deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance PPrint Error where
-  pprint (Error l msg) = pprint l <> text (": Error: " ++ msg)
+  pprint (Error l msg) = pprint l <> text (": Error: " ++ take 50 msg)
 
 instance Fixpoint Error where
   toFix = pprint

@@ -116,7 +116,7 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: F.Pred -> Cand a -> SolveM [a]
+filterValid :: F.Expr -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
@@ -130,7 +130,7 @@ filterValid p qs = do
 
 
 
-filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
+filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
