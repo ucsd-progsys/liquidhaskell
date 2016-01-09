@@ -217,7 +217,14 @@ checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
 checkExpr f (EApp g es)    = checkApp f Nothing g es
-checkExpr f p              = checkPred f p >> return boolSort
+checkExpr _ PTrue          = return boolSort
+checkExpr _ PFalse         = return boolSort
+checkExpr f (PImp p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
+checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
+checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
+checkExpr _ (PKVar {})     = return boolSort
 
 -- | Helper for checking symbol occurrences
 
@@ -307,16 +314,12 @@ checkNumeric f l
 -------------------------------------------------------------------------
 
 checkPred                  :: Env -> Expr -> CheckM ()
-checkPred _ PTrue          = return ()
-checkPred _ PFalse         = return ()
-checkPred f (PImp p p')    = mapM_ (checkPred f) [p, p']
-checkPred f (PIff p p')    = mapM_ (checkPred f) [p, p']
-checkPred f (PAnd ps)      = mapM_ (checkPred f) ps
-checkPred f (POr ps)       = mapM_ (checkPred f) ps
-checkPred f (PAtom r e e') = checkRel f r e e'
-checkPred _ (PKVar {})     = return ()
-checkPred _ p              = throwError $ errUnexpectedPred p
+checkPred f e = checkExpr f e >>= checkBoolSort e
 
+checkBoolSort :: Expr -> Sort -> CheckM ()
+checkBoolSort e s 
+ | s == boolSort = return ()
+ | otherwise     = throwError $ errBoolSort e s 
 
 -- | Checking Relations
 checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
@@ -515,3 +518,4 @@ errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
 errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showpp p)
+errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)
