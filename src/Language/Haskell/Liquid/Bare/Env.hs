@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Bare.Env (
   , withVArgs
 
   , setRTAlias
-  , setRPAlias
   , setREAlias
 
   , execBare
@@ -101,8 +100,6 @@ mkExprAlias l l' v
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
 
-setRPAlias s a =
-  modify $ \b -> b { rtEnv = mapRP (M.insert s a) $ rtEnv b }
 
 setREAlias s a =
   modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }

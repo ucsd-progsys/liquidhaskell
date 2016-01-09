@@ -32,11 +32,9 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 makeRTEnv specs
   = do makeREAliases ets
-       makeRPAliases pts
        makeRTAliases rts
     where
        rts = (concat [(m,) <$> Ms.aliases  s | (m, s) <- specs])
-       pts = (concat [(m,) <$> Ms.paliases s | (m, s) <- specs])
        ets = (concat [(m,) <$> Ms.ealiases s | (m, s) <- specs])
 
 
@@ -49,16 +47,6 @@ makeRTAliases
              let l' = rtPosE xt
              body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
              setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body}
-
-makeRPAliases
-  = graphExpand (const $ const []) expBody
-  where
-    expBody (mod, xt)
-      = inModule mod $
-          do let l  = rtPos  xt
-             let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< (expandExpr $ rtBody xt)
-             setRPAlias (rtName xt) $ xt { rtBody = body }
 
 makeREAliases
   = graphExpand buildExprEdges expBody

@@ -24,41 +24,12 @@ import Language.Haskell.Liquid.Bare.Env
 --------------------------------------------------------------------------------
 
 expandReft :: RReft -> BareM RReft
-expandReft = txPredReft expandExpr expandExpr
+expandReft = txPredReft expandExpr
 
-txPredReft :: (Expr -> BareM Expr) -> (Expr -> BareM Expr) -> RReft -> BareM RReft
-txPredReft f fe u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
+txPredReft :: (Expr -> BareM Expr) -> RReft -> BareM RReft
+txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
   where
-    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> txPredRefa ra
-    txPredRefa                 = (f <=< mapPredM fe)
-
-mapPredM :: (Expr -> BareM Expr) -> Expr -> BareM Expr
-mapPredM f = go
-  where
-    go PTrue           = return PTrue
-    go PFalse          = return PFalse
-    go p@(PKVar _ _)   = return p
-    go (PAnd ps)       = PAnd <$> mapM go ps
-    go (POr ps)        = POr  <$> mapM go ps
-    go (PNot p)        = PNot <$> go p
-    go (PImp p q)      = PImp <$> go p <*> go q
-    go (PIff p q)      = PIff <$> go p <*> go q
-    go (PAtom b e1 e2) = PAtom b <$> f e1 <*> f e2
-    go (PAll xs p)     = PAll xs <$> go p
-    go (PExist _ _)    = panic Nothing "mapPredM: PExist is for fixpoint internals only"
-    -- go (PExist xs p)   = PExist xs <$> go p
-    go PTop            = return PTop
-    go (ESym s)        = return $ ESym s 
-    go (ECon c)        = return $ ECon c 
-    go (EVar v)        = return $ EVar v 
-    go (EApp s es)     = EApp s <$> mapM go es 
-    go (ENeg e)        = ENeg <$> go e 
-    go (EBin b e1 e2)  = EBin b <$> go e1 <*> go e2 
-    go (EIte e e1 e2)  = EIte <$> go e <*> go e1 <*> go e2 
-    go (ECst e s)      = (`ECst` s) <$> go e 
-    go EBot            = return EBot
-    go (ETApp e s)     = (`ETApp` s) <$> go e 
-    go (ETAbs e s)     = (`ETAbs` s) <$> go e 
+    txPredReft' (Reft (v, ra)) = Reft . (v,) <$> f ra 
 
 --------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
@@ -70,16 +41,16 @@ expandExpr (EApp f@(Loc l _ f') es)
   = do env <- gets (exprAliases.rtEnv)
        case M.lookup f' env of
          Just re ->
-           expandApp l re <$> mapM expandExpr es
+           expandApp l re <$> mapM expandExpr es 
          Nothing ->
-           EApp f <$> mapM expandExpr es
+           EApp f <$> mapM expandExpr es 
 
 expandExpr (ENeg e)
   = ENeg <$> expandExpr e
 expandExpr (EBin op e1 e2)
   = EBin op <$> expandExpr e1 <*> expandExpr e2
 expandExpr (EIte p e1 e2)
-  = EIte p <$> expandExpr e1 <*> expandExpr e2
+  = EIte <$> expandExpr p <*> expandExpr e1 <*> expandExpr e2
 expandExpr (ECst e s)
   = (`ECst` s) <$> expandExpr e
 
@@ -89,8 +60,6 @@ expandExpr e@(ECon _)
   = return e
 expandExpr e@(EVar _)
   = return e
---expandExpr e@(ELit _ _)
---  = return e
 
 expandExpr EBot
   = return EBot
@@ -107,10 +76,27 @@ expandExpr (PIff p q)
   = PIff <$> expandExpr p <*> expandExpr q
 expandExpr (PAll xs p)
   = PAll xs <$> expandExpr p
--- expandExpr (PExist xs p)
---   = PExist xs <$> expandExpr p
-expandExpr p
-  = return p
+
+expandExpr (ETApp e s)
+  = (`ETApp` s) <$> expandExpr e 
+expandExpr (ETAbs e s)
+  = (`ETAbs` s) <$> expandExpr e 
+
+expandExpr PTrue 
+  = return PTrue
+expandExpr PFalse
+  = return PFalse
+expandExpr PTop
+  = return PTop
+
+expandExpr (PAtom b e1 e2)
+  = PAtom b <$> expandExpr e1 <*> expandExpr e2 
+
+expandExpr (PKVar k s)
+  = return $ PKVar k s 
+
+expandExpr (PExist s e)
+  = PExist s <$> expandExpr e 
 
 --------------------------------------------------------------------------------
 -- Expand Alias Application ----------------------------------------------------
