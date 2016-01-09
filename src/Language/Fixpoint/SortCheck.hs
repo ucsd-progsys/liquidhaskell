@@ -35,7 +35,7 @@ module Language.Fixpoint.SortCheck  (
 
 
 import           Control.Monad
-import           Control.Monad.Error       (MonadError(..))
+import           Control.Monad.Error       (MonadError(..)) 
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
@@ -219,12 +219,20 @@ checkExpr f (ECst e t)     = checkCst f t e
 checkExpr f (EApp g es)    = checkApp f Nothing g es
 checkExpr _ PTrue          = return boolSort
 checkExpr _ PFalse         = return boolSort
+checkExpr f (PNot p)       = checkPred f p >> return boolSort
 checkExpr f (PImp p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
 checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
 checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
+checkExpr _ PTop           = return boolSort
+
+checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
+checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
+
+checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
+checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
 -- | Helper for checking symbol occurrences
 
