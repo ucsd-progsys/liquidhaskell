@@ -42,7 +42,7 @@ module Language.Fixpoint.Types.Errors (
   ) where
 
 import           Control.Exception
-import qualified Control.Monad.Error           as E
+-- import qualified Control.Monad.Error           as E
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Typeable
@@ -78,8 +78,9 @@ instance Fixpoint Error where
 
 instance Exception Error
 instance Exception (FixResult Error)
-instance E.Error Error where
-  strMsg = Error dummySpan
+
+-- instance E.Error Error where
+--   strMsg = Error dummySpan
 
 ---------------------------------------------------------------------
 catMessage :: Error -> String -> Error

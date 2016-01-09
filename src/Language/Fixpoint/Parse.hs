@@ -70,8 +70,6 @@ module Language.Fixpoint.Parse (
   , isSmall
   ) where
 
-import Debug.Trace (trace)
-
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
@@ -234,6 +232,7 @@ fastIfP f bodyP
        b2 <- bodyP
        return $ f p b1 b2
 
+{-
 qmIfP f bodyP
   = parens $ do
       p  <- predP
@@ -242,7 +241,7 @@ qmIfP f bodyP
       colon
       b2 <- bodyP
       return $ f p b1 b2
-
+-}
 
 expr1P :: Parser Expr
 expr1P
@@ -278,7 +277,7 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
 
-eMinus     = EBin Minus (expr (0 :: Integer))
+-- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
 -- eNil       = EVar nilName
 
@@ -301,10 +300,12 @@ sortP    = sortP' (sepBy sortArgP blanks)
 sortArgP :: Parser Sort
 sortArgP = sortP' (return [])
 
+{-
 sortFunP :: Parser Sort
 sortFunP
    =  try (string "@" >> varSortP)
   <|> (fTyconSort <$> fTyConP)
+-}
 
 sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP

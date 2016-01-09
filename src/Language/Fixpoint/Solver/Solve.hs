@@ -7,7 +7,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
-import           Control.Concurrent (threadDelay)
+-- import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
@@ -150,6 +150,8 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 rhsPred :: S.Solution -> F.SimpC a -> F.Expr
 rhsPred s c = S.apply s $ F.crhs c
 
+
+{-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()
 ---------------------------------------------------------------------------
@@ -157,3 +159,4 @@ donePhase' msg = lift $ do
   threadDelay 25000
   putBlankLn
   donePhase Loud msg
+-}

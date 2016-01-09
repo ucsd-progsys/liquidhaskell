@@ -16,7 +16,6 @@ module Language.Fixpoint.Partition (
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
-import           Debug.Trace (trace)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
 import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
@@ -28,7 +27,7 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
-import           Data.Maybe                     (isJust, mapMaybe, listToMaybe, fromMaybe)
+import           Data.Maybe                     (fromMaybe)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
@@ -117,6 +116,7 @@ partitionN mi fi cp
                                 || cpartSize a + cpartSize b >= maxThresh)
       sortedParts = sortBy sortPredicate cp
       unionFirstTwo (a:b:xs) = (a `mappend` b, xs)
+      unionFirstTwo _        = errorstar "Partition.partitionN.unionFirstTwo called on bad arguments"
       sortPredicate lhs rhs
          | cpartSize lhs < cpartSize rhs = GT
          | cpartSize lhs > cpartSize rhs = LT

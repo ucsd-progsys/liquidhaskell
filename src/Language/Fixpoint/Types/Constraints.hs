@@ -292,12 +292,6 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
 instance Fixpoint Kuts where
   toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
 
-ksEmpty :: Kuts
-ksEmpty = KS S.empty
-
-ksUnion :: [KVar] -> Kuts -> Kuts
-ksUnion kvs (KS s') = KS (S.union (S.fromList kvs) s')
-
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
 

@@ -205,7 +205,7 @@ instance Reftable SortedReft where
 
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
-  pprint r@(Reft (_,ra))
+  pprint r@(Reft (_,_))
     | isTauto r        = text "true"
     | otherwise        = pprintReft r
 

@@ -30,7 +30,7 @@ import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor      as V
@@ -204,8 +204,7 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = eqPred eq
-    tc            = {- tracepp msg $ -} So.checkSorted env sr
-    msg           = "okInst [p := " ++ show p ++ " ]"
+    tc            = So.checkSorted env sr
 
 ---------------------------------------------------------------------
 -- | Apply Solution -------------------------------------------------

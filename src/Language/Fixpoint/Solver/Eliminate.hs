@@ -7,7 +7,7 @@ module Language.Fixpoint.Solver.Eliminate
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
 import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
-import           Language.Fixpoint.Misc            (fst3)
+import           Language.Fixpoint.Misc            (fst3, errorstar)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
 import qualified Data.HashMap.Strict as M
@@ -53,6 +53,7 @@ bindPred (sym, sr) = subst1 (reftPred rft) sub
 -- k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: [Symbol] -> Expr -> [Expr]
 substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
+substPreds _ _ = errorstar "Eliminate.substPreds called on bad input"
 
 nonFunction :: BindEnv -> Symbol -> Bool
 nonFunction be sym = sym `notElem` funcs
@@ -68,6 +69,7 @@ renameQuantified i (PExist bs p) = PExist bs' p'
     su  = substFromQBinds i bs
     bs' = (first $ subst su) <$> bs
     p'  = subst su p
+renameQuantified _ _ = errorstar "Eliminate.renameQuantified called on bad input"
 
 substFromQBinds :: Integer -> [(Symbol, Sort)] -> Subst
 substFromQBinds i bs = Su $ M.fromList [(s, EVar $ existSymbol s i) | s <- fst <$> bs]

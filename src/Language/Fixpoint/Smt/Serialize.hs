@@ -116,6 +116,7 @@ smt2Bop o e1 e2
 
 uOp o | o == Times = dummyLoc mulFuncName
       | o == Div   = dummyLoc divFuncName
+      | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
 smt2App :: LocSymbol -> [Expr] -> T.Text
 smt2App f es = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)

@@ -166,12 +166,11 @@ instance Fixpoint FTycon where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-numSort, boolSort, intSort, realSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, strSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
-numSort  = fTyconSort numFTyCon
 funcSort = fTyconSort funcFTyCon
 
 fTyconSort :: FTycon -> Sort

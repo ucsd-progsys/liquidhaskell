@@ -278,8 +278,9 @@ versionGreater (x:xs) (y:ys)
   | x >  y = True
   | x == y = versionGreater xs ys
   | x <  y = False
-versionGreater xs [] = True
-versionGreater [] ys = False
+versionGreater _  [] = True
+versionGreater [] _  = False
+versionGreater _ _ = errorstar "Interface.versionGreater called with bad arguments"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------

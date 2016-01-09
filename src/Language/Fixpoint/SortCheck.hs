@@ -35,7 +35,7 @@ module Language.Fixpoint.SortCheck  (
 
 
 import           Control.Monad
-import           Control.Monad.Error       (MonadError(..)) 
+import           Control.Monad.Except      (MonadError(..)) 
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
@@ -108,7 +108,7 @@ instance Applicative CheckM where
   pure x     = CM $ \i -> (i, Right x)
   (CM f) <*> (CM m) = CM $ \i -> case m i of
                              (j, Left s)  -> (j, Left s)
-                             (j, Right x) -> case f i of
+                             (_, Right x) -> case f i of
                                  (k, Left s)  -> (k, Left s)
                                  (k, Right g) -> (k, Right $ g x)
 
@@ -188,13 +188,6 @@ instance Checkable Expr where
     where
       f           =  (`lookupSEnvWithDistance` γ)
 
-checkEqSort s t
-  | s == t    = return ()
-  | otherwise = throwError $ "Couldn't match expected type '"
-                           ++ show s ++ "'"
-                           ++ "\n\t\t with actual type '"
-                           ++ show t ++ "'"
-
 instance Checkable SortedReft where
   check γ (RR s (Reft (v, ra))) = check γ' ra
    where
@@ -247,7 +240,7 @@ checkLocSym f x = checkSym f (val x)
 -- | Helper for checking if-then-else expressions
 
 checkIte f p e1 e2
-  = do tp <- checkPred f p
+  = do checkPred f p
        t1 <- checkExpr f e1
        t2 <- checkExpr f e2
        ((`apply` t1) <$> unifys [t1] [t2]) `catchError` (\_ -> throwError $ errIte e1 e2 t1 t2)
@@ -294,17 +287,17 @@ checkOp f e1 o e2
        t2 <- checkExpr f e2
        checkOpTy f (EBin o e1 e2) t1 t2
 
-checkOpTy f _ FReal FReal
+checkOpTy _ _ FReal FReal
   = return FReal
 
-checkOpTy f _ FInt FInt
+checkOpTy _ _ FInt FInt
   = return FInt
 
-checkOpTy f e t@(FObj l) t'@(FObj l')
+checkOpTy f _ t@(FObj l) (FObj l')
   | l == l'
   = checkNumeric f l >> return t
 
-checkOpTy f e t t'
+checkOpTy _ e t t'
   = throwError $ errOp e t t'
 
 checkFractional f l
@@ -352,11 +345,11 @@ checkRelTy _ e Eq t1 t2
 checkRelTy _ e Ne t1 t2
   | t1 == boolSort ||
     t2 == boolSort                 = throwError $ errRel e t1 t2
-checkRelTy _ e Eq t1 t2            = void $ unifys [t1] [t2]
-checkRelTy _ e Ne t1 t2            = void $ unifys [t1] [t2]
+checkRelTy _ _ Eq t1 t2            = void $ unifys [t1] [t2]
+checkRelTy _ _ Ne t1 t2            = void $ unifys [t1] [t2]
 
-checkRelTy _ e Ueq t1 t2           = return ()
-checkRelTy _ e Une t1 t2           = return ()
+checkRelTy _ _ Ueq _ _             = return ()
+checkRelTy _ _ Une _ _             = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
 
 
@@ -365,11 +358,6 @@ checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwErr
 checkRelEqVar f x g es             = do tx <- checkSym f x
                                         _  <- checkApp f (Just tx) g es
                                         return ()
-
--- | Special case for Unsorted Dis/Equality
-isAppTy :: Sort -> Bool
-isAppTy (FApp _ _) = True
-isAppTy _          = False
 
 
 -------------------------------------------------------------------------
@@ -505,7 +493,6 @@ errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %
                          (showpp ts) (showpp ts')
 errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
-errBExp e t          = printf "BExp %s with non-propositional type %s" (showpp e) (showpp t)
 errOp e t t'
   | t == t'          = printf "Operands have non-numeric types %s in %s"
                          (showpp t) (showpp e)
@@ -517,7 +504,6 @@ errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
                          (showpp e) (showpp t') (showpp t)
-errUnbound x         = printf "Unbound Symbol %s" (showpp x)
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
@@ -525,5 +511,4 @@ errNonFunction t     = printf "Sort %s is not a function" (showpp t)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
-errUnexpectedPred p  = printf "Sort Checking: Unexpected Predicate %s" (showpp p)
 errBoolSort     e s  = printf "Expressions %s should have bool sort, but has %s" (showpp e) (showpp s)

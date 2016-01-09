@@ -67,7 +67,6 @@ module Language.Fixpoint.Types.Refinements (
   , vv_
   ) where
 
-import           Debug.Trace               (trace)
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
@@ -294,6 +293,8 @@ instance Fixpoint Expr where
   toFix (PKVar k su)     = toFix k <> toFix su
   toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
+  toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
+  toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -460,6 +461,8 @@ instance PPrint Expr where
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ (PExist xts p)  = text "exists" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ p@(PKVar {})    = toFix p
+  pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
+  pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
 
 trueD  = text "true"
 falseD = text "false"
@@ -470,7 +473,7 @@ pprintBin _ b _ [] = b
 pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
 
 pprintReft :: Reft -> Doc
-pprintReft r@(Reft (_,ra)) = {- intersperse comma -} pprintBin z trueD andD flat
+pprintReft (Reft (_,ra)) = pprintBin z trueD andD flat
   where
     flat = flattenRefas [ra]
     z    = if length flat > 1 then 3 else 0

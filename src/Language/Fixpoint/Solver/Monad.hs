@@ -76,7 +76,7 @@ instance PTable Stats where
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi t act = do
+runSolverM cfg fi _ act = do
   ctx <-  makeContext (not $ real cfg) (solver cfg) file
   fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
   where

@@ -41,14 +41,14 @@ import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Types.Config           (multicore, Config (..), command, withTarget)
+import           Language.Fixpoint.Types.Config           (multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
-import           Language.Fixpoint.Parse            (rr, rr', mkQual)
+import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
 import           Control.DeepSeq
 
@@ -212,8 +212,8 @@ elim cfg fi
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
-  where
-    msg      = "REMAKEQUAL: " ++ show q
+--   where
+--     msg      = "REMAKEQUAL: " ++ show q
 
 ---------------------------------------------------------------------------
 -- | Extract ExitCode from Solver Result ----------------------------------

@@ -16,7 +16,7 @@ import           Control.Monad                    (forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       -- (f romMaybe)
+import           Data.Maybe                       
 import           Data.Array                hiding (indices)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
@@ -25,9 +25,7 @@ import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
--- import           System.ProgressBar
-import           System.IO ( hSetBuffering, BufferMode(NoBuffering), stdout, hFlush )
--- import Control.Concurrent
+import           System.IO                       (stdout, hFlush )
 import Control.Concurrent.Async
  
 

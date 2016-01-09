@@ -114,9 +114,6 @@ instance Visitable (SInfo a) where
     return x { cm = cm', bs = bs' }
 ---------------------------------------------------------------------------------
 
-visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
-visitMany v c xs = visit v c <$$> xs
-
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where
@@ -140,6 +137,8 @@ visitExpr v = vE
     step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
     step c (PAll xts p)    = PAll   xts <$> vE c p
     step c (PExist xts p)  = PExist xts <$> vE c p
+    step c (ETApp e s)     = (`ETApp` s) <$> vE c e
+    step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
     step _ p@PTrue         = return p
     step _ p@PFalse        = return p
