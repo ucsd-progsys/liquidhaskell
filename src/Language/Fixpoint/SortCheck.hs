@@ -166,12 +166,12 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
     tx   = pAnd . mapMaybe (checkPred' wmsg f) . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
-    wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
+--     wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
 checkPred' wmsg f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
-                   Left err -> trace (wmsg err p) Nothing
+                   Left err -> {- trace (wmsg err p) -} Nothing
                    Right _  -> Just p
 
 class Checkable a where
