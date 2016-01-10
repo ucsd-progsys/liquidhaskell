@@ -7,7 +7,7 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
-import           Control.Concurrent (threadDelay)
+-- import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
@@ -67,7 +67,7 @@ tidyResult r = r { F.resSolution = tidySolution (F.resSolution r) }
 tidySolution :: F.FixSolution -> F.FixSolution
 tidySolution = fmap tidyPred
 
-tidyPred :: F.Pred -> F.Pred
+tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
@@ -100,7 +100,7 @@ refineC _i s c
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
-lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Pred
+lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Expr
 lhsPred s c be = F.pAnd pBinds
   where
     pBinds     = S.apply s <$> xts
@@ -113,7 +113,7 @@ rhsCands s c   = (fst <$> ks, kqs)
     ks         = predKs . F.crhs $ c
     cnd k su q = (F.subst su (S.eqPred q), (k, q))
 
-predKs :: F.Pred -> [(F.KVar, F.Subst)]
+predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
 predKs (F.PKVar k su) = [(k, su)]
 predKs _              = []
@@ -144,12 +144,14 @@ isUnsat s c = do
   let rp = rhsPred s c
   not   <$> isValid lp rp
 
-isValid :: F.Pred -> F.Pred -> SolveM Bool
+isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
 
-rhsPred :: S.Solution -> F.SimpC a -> F.Pred
+rhsPred :: S.Solution -> F.SimpC a -> F.Expr
 rhsPred s c = S.apply s $ F.crhs c
 
+
+{-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()
 ---------------------------------------------------------------------------
@@ -157,3 +159,4 @@ donePhase' msg = lift $ do
   threadDelay 25000
   putBlankLn
   donePhase Loud msg
+-}

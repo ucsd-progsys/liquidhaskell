@@ -50,7 +50,7 @@ data Command      = Push
                   | CheckSat
                   | Declare   Symbol [Sort] Sort
                   | Define    Sort
-                  | Assert    (Maybe Int) Pred
+                  | Assert    (Maybe Int) Expr
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
                   deriving (Eq, Show)

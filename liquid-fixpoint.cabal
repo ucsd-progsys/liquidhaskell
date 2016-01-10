@@ -42,13 +42,14 @@ Source-Repository head
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
-  ghc-options:   -threaded
+  ghc-options:   -threaded -Werror -W -fno-warn-missing-methods 
   hs-source-dirs: bin
   Build-Depends: base >= 4.7 && < 5
                , liquid-fixpoint
 
 Library
   default-language: Haskell98
+  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods 
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -117,7 +118,7 @@ Library
                , transformers
                , hashable
                , unordered-containers
-               , cereal
+               , cereal >= 0.5
                , text-format
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
@@ -126,7 +127,7 @@ test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tests
-  ghc-options:      -O2 -threaded
+  ghc-options:      -O2 -threaded 
   main-is:          test.hs
   build-depends:    base,
                     directory,

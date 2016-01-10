@@ -7,7 +7,7 @@
 module Language.Fixpoint.Types.Spans (
 
   -- * Concrete Location Type
-    SourcePos (..)
+    SourcePos
   , SrcSpan (..)
 
   -- * Located Values

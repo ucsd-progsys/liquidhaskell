@@ -102,7 +102,7 @@ makeZ3Context f xts
        smtDecls me xts
        return me
 
-checkValidWithContext :: Context -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValidWithContext :: Context -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValidWithContext me xts p q
   = smtBracket me $ do smtDecls me xts
                        smtAssert me $ pAnd [p, PNot q]
@@ -111,7 +111,7 @@ checkValidWithContext me xts p q
 
 -- | type ClosedPred E = {v:Pred | subset (vars v) (keys E) }
 -- checkValid :: e:Env -> ClosedPred e -> ClosedPred e -> IO Bool
-checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Pred -> Pred -> IO Bool
+checkValid :: Bool -> FilePath -> [(Symbol, Sort)] -> Expr -> Expr -> IO Bool
 checkValid u f xts p q
   = do me <- makeContext u Z3 f
        smtDecls me xts
@@ -122,7 +122,7 @@ checkValid u f xts p q
 --   (e.g. if you want to make MANY repeated Queries)
 
 -- checkValid :: e:Env -> [ClosedPred e] -> IO [Bool]
-checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Pred] -> IO [Bool]
+checkValids :: Bool -> FilePath -> [(Symbol, Sort)] -> [Expr] -> IO [Bool]
 checkValids u f xts ps
   = do me <- makeContext u Z3 f
        smtDecls me xts
@@ -278,8 +278,9 @@ versionGreater (x:xs) (y:ys)
   | x >  y = True
   | x == y = versionGreater xs ys
   | x <  y = False
-versionGreater xs [] = True
-versionGreater [] ys = False
+versionGreater _  [] = True
+versionGreater [] _  = False
+versionGreater _ _ = errorstar "Interface.versionGreater called with bad arguments"
 
 -----------------------------------------------------------------------------
 -- | SMT Commands -----------------------------------------------------------
@@ -303,7 +304,7 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
 
-smtAssert :: Context -> Pred -> IO ()
+smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
 
 smtDistinct :: Context -> [Expr] -> IO ()

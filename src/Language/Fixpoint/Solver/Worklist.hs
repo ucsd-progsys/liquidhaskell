@@ -23,7 +23,6 @@ module Language.Fixpoint.Solver.Worklist
        )
        where
 
-import           Debug.Trace (trace)
 import           Prelude hiding (init)
 import           Language.Fixpoint.Types.PrettyPrint -- (PTable (..), PPrint (..))
 import qualified Language.Fixpoint.Types   as F
@@ -51,7 +50,7 @@ data Worklist a = WL { wCs     :: !WorkSet
 
 data Stats = Stats { numKvarCs  :: !Int
                    , numConcCs  :: !Int
-                   , numSccs    :: !Int
+                   , _numSccs   :: !Int
                    } deriving (Eq, Show)
 
 

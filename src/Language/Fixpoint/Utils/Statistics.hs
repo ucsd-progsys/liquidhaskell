@@ -69,11 +69,5 @@ mkStats ns  = Stats {
 frequency :: (Ord a) => [a] -> [(a, Int)]
 frequency = map (head &&& length) . group . sort
 
-stdDev :: [Float] -> Float
-stdDev xs   = sqrt (sum [(x - μ)^2 | x <- xs] / n)
-  where
-    μ       = mean   xs
-    n       = fromIntegral $ length xs
-
 mean :: [Float] -> Float
 mean ns  = sum ns / fromIntegral (length ns)

@@ -29,7 +29,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortFTycon
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
-  , intSort, realSort, propSort, boolSort, strSort, funcSort
+  , intSort, realSort, boolSort, strSort, funcSort
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
@@ -60,14 +60,13 @@ import qualified Data.HashMap.Strict       as M
 newtype FTycon = TC LocSymbol deriving (Eq, Ord, Show, Data, Typeable, Generic)
 type TCEmb a   = M.HashMap a FTycon
 
-intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, propFTyCon, listFTyCon :: FTycon
+intFTyCon, boolFTyCon, realFTyCon, funcFTyCon, numFTyCon, strFTyCon, listFTyCon :: FTycon
 intFTyCon  = TC $ dummyLoc "int"
 boolFTyCon = TC $ dummyLoc "bool"
 realFTyCon = TC $ dummyLoc "real"
 numFTyCon  = TC $ dummyLoc "num"
 funcFTyCon = TC $ dummyLoc "function"
 strFTyCon  = TC $ dummyLoc strConName
-propFTyCon = TC $ dummyLoc propConName
 listFTyCon = TC $ dummyLoc listConName
 
 isListConName :: LocSymbol -> Bool
@@ -167,13 +166,11 @@ instance Fixpoint FTycon where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-numSort, boolSort, intSort, propSort, realSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, strSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
-propSort = fTyconSort propFTyCon
-numSort  = fTyconSort numFTyCon
 funcSort = fTyconSort funcFTyCon
 
 fTyconSort :: FTycon -> Sort

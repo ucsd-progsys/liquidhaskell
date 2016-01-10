@@ -44,15 +44,12 @@ import           Language.Fixpoint.Types
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
     ctxExpr :: ctx -> Expr -> ctx
-  , ctxPred :: ctx -> Pred -> ctx
 
   -- | Transforms can access current @ctx@
   , txExpr  :: ctx -> Expr -> Expr
-  , txPred  :: ctx -> Pred -> Pred
 
   -- | Accumulations can access current @ctx@; @acc@ value is monoidal
   , accExpr :: ctx -> Expr -> acc
-  , accPred :: ctx -> Pred -> acc
   }
 
 ---------------------------------------------------------------------------------
@@ -60,11 +57,8 @@ defaultVisitor :: Monoid acc => Visitor acc ctx
 ---------------------------------------------------------------------------------
 defaultVisitor = Visitor {
     ctxExpr    = const -- \c _ -> c
-  , ctxPred    = const -- \c _ -> c
   , txExpr     = \_ x -> x
-  , txPred     = \_ x -> x
   , accExpr    = \_ _ -> mempty
-  , accPred    = \_ _ -> mempty
   }
 
 ------------------------------------------------------------------------
@@ -93,9 +87,6 @@ class Visitable t where
 instance Visitable Expr where
   visit = visitExpr
 
-instance Visitable Pred where
-  visit = visitPred
-
 instance Visitable Reft where
   visit v c (Reft (x, ra)) = (Reft . (x, )) <$> visit v c ra
 
@@ -123,59 +114,45 @@ instance Visitable (SInfo a) where
     return x { cm = cm', bs = bs' }
 ---------------------------------------------------------------------------------
 
-visitMany :: (Monoid a, Visitable t) => Visitor a ctx -> ctx -> [t] -> VisitM a [t]
-visitMany v c xs = visit v c <$$> xs
-
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr v = vE
   where
-    vP     = visitPred v
     vE c e = accum acc >> step c' e' where c'  = ctxExpr v c e
                                            e'  = txExpr v c' e
                                            acc = accExpr v c' e
-    step _ e@EBot         = return e
-    step _ e@(ESym _)     = return e
-    step _ e@(ECon _)     = return e
-    step _ e@(EVar _)     = return e
-    step c (EApp f es)    = EApp f     <$> (vE c <$$> es)
-    step c (ENeg e)       = ENeg       <$> vE c e
-    step c (EBin o e1 e2) = EBin o     <$> vE c e1 <*> vE c e2
-    step c (EIte p e1 e2) = EIte       <$> vP c p  <*> vE c e1 <*> vE c e2
-    step c (ECst e t)     = (`ECst` t) <$> vE c e
-
-visitPred :: (Monoid a) => Visitor a ctx -> ctx -> Pred -> VisitM a Pred
-visitPred v = vP
-  where
-    -- vS1 c (x, e)  = (x,) <$> vE c e
-    -- vS c (Su xes) = Su <$> vS1 c <$$> xes
-    vE      = visitExpr v
-    vP c p  = accum acc >> step c' p' where c'   = ctxPred v c p
-                                            p'   = txPred v c' p
-                                            acc  = accPred v c' p
-    step c (PAnd  ps)      = PAnd     <$> (vP c <$$> ps)
-    step c (POr  ps)       = POr      <$> (vP c <$$> ps)
-    step c (PNot p)        = PNot     <$> vP c p
-    step c (PImp p1 p2)    = PImp     <$> vP c p1 <*> vP c p2
-    step c (PIff p1 p2)    = PIff     <$> vP c p1 <*> vP c p2
-    step c (PBexp  e)      = PBexp    <$> vE c e
-    step c (PAtom r e1 e2) = PAtom r  <$> vE c e1 <*> vE c e2
-    step c (PAll xts p)    = PAll   xts <$> vP c p
-    step c (PExist xts p)  = PExist xts <$> vP c p
+    step _ e@EBot          = return e
+    step _ e@(ESym _)      = return e
+    step _ e@(ECon _)      = return e
+    step _ e@(EVar _)      = return e
+    step c (EApp f es)     = EApp f     <$> (vE c <$$> es)
+    step c (ENeg e)        = ENeg       <$> vE c e
+    step c (EBin o e1 e2)  = EBin o     <$> vE c e1 <*> vE c e2
+    step c (EIte p e1 e2)  = EIte       <$> vE c p  <*> vE c e1 <*> vE c e2
+    step c (ECst e t)      = (`ECst` t) <$> vE c e
+    step c (PAnd  ps)      = PAnd       <$> (vE c <$$> ps)
+    step c (POr  ps)       = POr        <$> (vE c <$$> ps)
+    step c (PNot p)        = PNot       <$> vE c p
+    step c (PImp p1 p2)    = PImp       <$> vE c p1 <*> vE c p2
+    step c (PIff p1 p2)    = PIff       <$> vE c p1 <*> vE c p2
+    step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
+    step c (PAll xts p)    = PAll   xts <$> vE c p
+    step c (PExist xts p)  = PExist xts <$> vE c p
+    step c (ETApp e s)     = (`ETApp` s) <$> vE c e
+    step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
     step _ p@PTrue         = return p
     step _ p@PFalse        = return p
     step _ p@PTop          = return p
 
-
-mapKVars :: Visitable t => (KVar -> Maybe Pred) -> t -> t
+mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
   where
     f' (kv', _) = f kv'
 
-mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Pred) -> t -> t
+mapKVars' :: Visitable t => ((KVar, Subst) -> Maybe Expr) -> t -> t
 mapKVars' f            = trans kvVis () []
   where
-    kvVis              = defaultVisitor { txPred = txK }
+    kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su)
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
@@ -183,14 +160,14 @@ mapKVars' f            = trans kvVis () []
 mapKVarSubsts :: Visitable t => (KVar -> Subst -> Subst) -> t -> t
 mapKVarSubsts f        = trans kvVis () []
   where
-    kvVis              = defaultVisitor { txPred = txK }
+    kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su) = PKVar k $ f k su
     txK _ p            = p
 
 kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
   where
-    kvVis            = defaultVisitor { accPred = kv' }
+    kvVis            = (defaultVisitor :: Visitor [KVar] t) { accExpr = kv' }
     kv' _ (PKVar k _) = [k]
     kv' _ _           = []
 
@@ -215,11 +192,11 @@ isKvarC = all isKvar . conjuncts . crhs
 isConcC :: (TaggedC c a) => c a -> Bool
 isConcC = all isConc . conjuncts . crhs
 
-isKvar :: Pred -> Bool
+isKvar :: Expr -> Bool
 isKvar (PKVar {}) = True
 isKvar _          = False
 
-isConc :: Pred -> Bool
+isConc :: Expr -> Bool
 isConc = null . kvars
 
 ---------------------------------------------------------------------------------
@@ -271,13 +248,14 @@ instance SymConsts SortedReft where
 instance SymConsts Reft where
   symConsts (Reft (_, ra)) = getSymConsts ra
 
-instance SymConsts Pred where
+
+instance SymConsts Expr where
   symConsts = getSymConsts
 
 getSymConsts :: Visitable t => t -> [SymConst]
 getSymConsts         = fold scVis () []
   where
-    scVis            = defaultVisitor { accExpr = sc }
+    scVis            = (defaultVisitor :: Visitor [SymConst] t)  { accExpr = sc }
     sc _ (ESym c)    = [c]
     sc _ _           = []
 

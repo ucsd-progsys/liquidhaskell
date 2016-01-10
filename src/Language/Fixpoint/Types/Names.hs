@@ -138,7 +138,7 @@ type SafeText = T.Text
 
 
 data Symbol
-  = S { symbolId      :: !Id
+  = S { _symbolId      :: !Id
       , symbolRaw     :: !T.Text
       , symbolEncoded :: !T.Text
       } deriving (Data, Typeable, Generic)

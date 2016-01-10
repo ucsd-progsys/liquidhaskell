@@ -76,7 +76,7 @@ instance PTable Stats where
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi t act = do
+runSolverM cfg fi _ act = do
   ctx <-  makeContext (not $ real cfg) (solver cfg) file
   fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
   where
@@ -116,7 +116,7 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: F.Pred -> Cand a -> SolveM [a]
+filterValid :: F.Expr -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
@@ -130,7 +130,7 @@ filterValid p qs = do
 
 
 
-filterValid_ :: F.Pred -> Cand a -> Context -> IO [a]
+filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->

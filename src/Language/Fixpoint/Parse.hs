@@ -70,8 +70,6 @@ module Language.Fixpoint.Parse (
   , isSmall
   ) where
 
-import Debug.Trace (trace)
-
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
@@ -234,6 +232,7 @@ fastIfP f bodyP
        b2 <- bodyP
        return $ f p b1 b2
 
+{-
 qmIfP f bodyP
   = parens $ do
       p  <- predP
@@ -242,7 +241,7 @@ qmIfP f bodyP
       colon
       b2 <- bodyP
       return $ f p b1 b2
-
+-}
 
 expr1P :: Parser Expr
 expr1P
@@ -278,7 +277,7 @@ bops = [ [ Prefix (reservedOp "-"   >> return ENeg)]
        , [ Infix  (reservedOp "mod"  >> return (EBin Mod  )) AssocLeft]
        ]
 
-eMinus     = EBin Minus (expr (0 :: Integer))
+-- eMinus     = EBin Minus (expr (0 :: Integer))
 -- eCons x xs = EApp (dummyLoc consName) [x, xs]
 -- eNil       = EVar nilName
 
@@ -301,10 +300,12 @@ sortP    = sortP' (sepBy sortArgP blanks)
 sortArgP :: Parser Sort
 sortArgP = sortP' (return [])
 
+{-
 sortFunP :: Parser Sort
 sortFunP
    =  try (string "@" >> varSortP)
   <|> (fTyconSort <$> fTyConP)
+-}
 
 sortP' :: Parser [Sort] -> Parser Sort
 sortP' appArgsP
@@ -348,25 +349,25 @@ keyWordSyms = ["if", "then", "else", "mod"]
 ---------------------------------------------------------------------
 
 
-pred0P :: Parser Pred
+pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
       <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP
       <|> try (parens predP)
-      <|> try (PBexp <$> (reserved "?" *> exprP))
-      <|> try (PBexp <$> funAppP)
+      <|> try (reserved "?" *> exprP)
+      <|> try funAppP
       <|> try (reservedOp "&&" >> PAnd <$> predsP)
       <|> try (reservedOp "||" >> POr  <$> predsP)
 
 -- qmP    = reserved "?" <|> reserved "Bexp"
 
-trueP, falseP :: Parser Pred
+trueP, falseP :: Parser Expr
 trueP  = reserved "true"  >> return PTrue
 falseP = reserved "false" >> return PFalse
 
-kvarPredP :: Parser Pred
+kvarPredP :: Parser Expr
 kvarPredP = PKVar <$> kvarP <*> substP
 
 kvarP :: Parser KVar
@@ -377,7 +378,7 @@ substP = mkSubst <$> many (brackets $ pairP symbolP aP exprP)
   where
     aP = reserved ":="
 
-predP  :: Parser Pred
+predP  :: Parser Expr
 predP  = buildExpressionParser lops pred0P
 
 
@@ -397,7 +398,7 @@ predrP = do e1    <- exprP
             e2    <- exprP
             return $ r e1 e2
 
-brelP ::  Parser (Expr -> Expr -> Pred)
+brelP ::  Parser (Expr -> Expr -> Expr)
 brelP =  (reservedOp "==" >> return (PAtom Eq))
      <|> (reservedOp "="  >> return (PAtom Eq))
      <|> (reservedOp "~~" >> return (PAtom Ueq))
@@ -413,13 +414,13 @@ brelP =  (reservedOp "==" >> return (PAtom Eq))
 ------------------------------------ BareTypes -----------------------------------
 ----------------------------------------------------------------------------------
 
-refaP :: Parser Pred
+refaP :: Parser Expr
 refaP =  try (pAnd <$> brackets (sepBy predP semi))
      <|> predP
 
 
 
-refBindP :: Parser Symbol -> Parser Pred -> Parser (Reft -> a) -> Parser a
+refBindP :: Parser Symbol -> Parser Expr -> Parser (Reft -> a) -> Parser a
 refBindP bp rp kindP
   = braces $ do
       x  <- bp
@@ -452,7 +453,7 @@ sortBindP = pairP symbolP colon
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
-mkQual :: Symbol -> [(Symbol, Sort)] -> Pred -> SourcePos -> Qualifier
+mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
 mkQual n xts p = Q n ((v, t) : yts) (subst su p)
   where
     (v, t):zts = gSorts xts
@@ -491,7 +492,7 @@ sortVars = foldSort go []
 -- Entities in Query File
 data Def a
   = Srt Sort
-  | Axm Pred
+  | Axm Expr
   | Cst (SubC a)
   | Wfc (WfC a)
   | Con Symbol Sort
@@ -608,7 +609,7 @@ solution1P
     where
       kvP = try kvarP <|> (KV <$> symbolP)
 
-solutionP :: Parser (M.HashMap KVar Pred)
+solutionP :: Parser (M.HashMap KVar Expr)
 solutionP
   = M.fromList <$> sepBy solution1P whiteSpace
 
@@ -675,9 +676,6 @@ instance Inputable Symbol where
 
 instance Inputable Constant where
   rr' = doParse' constantP
-
-instance Inputable Pred where
-  rr' = doParse' refaP
 
 instance Inputable Expr where
   rr' = doParse' exprP

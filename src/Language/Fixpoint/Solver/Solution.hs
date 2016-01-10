@@ -30,7 +30,7 @@ import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor      as V
@@ -46,7 +46,7 @@ import           Prelude                        hiding (init, lookup)
 type Solution = Sol KBind
 type Sol a    = M.HashMap F.KVar a
 type KBind    = [EQual]
-type Cand a   = [(F.Pred, a)]
+type Cand a   = [(F.Expr, a)]
 
 
 ---------------------------------------------------------------------
@@ -63,11 +63,11 @@ lookup s k = M.lookupDefault [] k s
 
 dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
 
-mkJVar :: F.Pred -> KBind
+mkJVar :: F.Expr -> KBind
 mkJVar p = [EQL dummyQual p []]
 
 data EQual = EQL { eqQual :: !F.Qualifier
-                 , eqPred :: !F.Pred
+                 , eqPred :: !F.Expr
                  , eqArgs :: ![F.Expr]
                  }
              deriving (Eq, Show, Data, Typeable, Generic)
@@ -204,15 +204,14 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = eqPred eq
-    tc            = {- tracepp msg $ -} So.checkSorted env sr
-    msg           = "okInst [p := " ++ show p ++ " ]"
+    tc            = So.checkSorted env sr
 
 ---------------------------------------------------------------------
 -- | Apply Solution -------------------------------------------------
 ---------------------------------------------------------------------
 
 class Solvable a where
-  apply :: Solution -> a -> F.Pred
+  apply :: Solution -> a -> F.Expr
 
 instance Solvable EQual where
   apply s = apply s . eqPred
@@ -236,8 +235,8 @@ instance Solvable F.KVar where
 instance Solvable (F.KVar, F.Subst) where
   apply s (k, su) = F.subst su (apply s k)
 
-instance Solvable F.Pred where
-  apply s = V.trans (V.defaultVisitor {V.txPred = tx}) () ()
+instance Solvable F.Expr where
+  apply s = V.trans (V.defaultVisitor {V.txExpr = tx}) () ()
     where
       tx _ (F.PKVar k su) = apply s (k, su)
       tx _ p              = p

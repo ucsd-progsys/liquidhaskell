@@ -61,7 +61,7 @@ newtype IBindEnv   = FB (S.HashSet BindId) deriving (Eq, Data, Typeable, Generic
 newtype SEnv a     = SE { seBinds :: M.HashMap Symbol a }
                      deriving (Eq, Data, Typeable, Generic, Foldable, Traversable)
 
-data SizedEnv a    = BE { beSize  :: Int
+data SizedEnv a    = BE { _beSize  :: Int
                         , beBinds :: BindMap a
                         } deriving (Eq, Show, Functor, Foldable, Generic, Traversable)
 

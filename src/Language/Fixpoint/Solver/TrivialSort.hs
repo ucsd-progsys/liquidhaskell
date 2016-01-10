@@ -123,11 +123,11 @@ trivOrSingR (Reft (v, p)) = all trivOrSingP $ conjuncts p
   where
     trivOrSingP p         = trivP p || singP v p
 
-trivP :: Pred -> Bool
+trivP :: Expr -> Bool
 trivP (PKVar {}) = True
 trivP p          = isTautoPred p
 
-singP :: Symbol -> Pred -> Bool
+singP :: Symbol -> Expr -> Bool
 singP v (PAtom Eq (EVar x) _)
   | v == x                    = True
 singP v (PAtom Eq _ (EVar x))
