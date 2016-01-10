@@ -47,7 +47,7 @@ import           Language.Fixpoint.Types.Visitor (foldSort)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
-import Debug.Trace
+-- import Debug.Trace
 
 -------------------------------------------------------------------------
 -- | Predicates on Sorts ------------------------------------------------
@@ -163,15 +163,15 @@ checkSorted γ t
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
   where
-    tx   = pAnd . mapMaybe (checkPred' wmsg f) . conjuncts
+    tx   = pAnd . mapMaybe (checkPred' f) . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
---     wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
+    -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
-checkPred' wmsg f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
+checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
-                   Left err -> {- trace (wmsg err p) -} Nothing
+                   Left _   -> {- trace (_wmsg err p) -} Nothing
                    Right _  -> Just p
 
 class Checkable a where
