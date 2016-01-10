@@ -743,7 +743,7 @@ killSubst = fmap killSubstReft
 killSubstReft :: F.Reft -> F.Reft
 killSubstReft = trans kv () ()
   where
-    kv    = defaultVisitor { txPred = ks }
+    kv    = defaultVisitor { txExpr = ks }
     ks _ (F.PKVar k _) = F.PKVar k mempty
     ks _ p             = p
 

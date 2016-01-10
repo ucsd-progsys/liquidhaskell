@@ -95,8 +95,11 @@ makeMeasureInline lmap cbs  x
     binders (Rec xes)    = fst <$> xes
 
     coreToFun' x v def = case runToLogic lmap mkError $ coreToFun x v def of
-                           Left (xs, e)  -> return (TI (symbol <$> xs) e)
+                           Left (xs, e)  -> return (TI (symbol <$> xs) (fromLR e))
                            Right e -> throwError e
+
+    fromLR (Left l)  = l 
+    fromLR (Right r) = r
 
     mkError :: String -> Error
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
@@ -234,7 +237,7 @@ makeHaskellBound lmap  cbs (v, x) = case filter ((v  `elem`) . binders) cbs of
     mkError str = ErrHMeas (sourcePosSrcSpan $ loc x) (val x) (text str)
 
 
-toBound :: Var -> LocSymbol -> ([Var], Either F.Pred F.Expr) -> (LocSymbol, RBound)
+toBound :: Var -> LocSymbol -> ([Var], Either F.Expr F.Expr) -> (LocSymbol, RBound)
 toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
   where
     x'         = capitalizeBound x
@@ -244,7 +247,7 @@ toBound v x (vs, Left p) = (x', Bound x' fvs ps xs p)
     txx v      = (dummyLoc $ symbol v,          ofType $ varType v)
     fvs        = (((`RVar` mempty) . RTV) <$> fst (splitForAllTys $ varType v)) :: [RSort]
 
-toBound v x (vs, Right e) = toBound v x (vs, Left $ F.PBexp e)
+toBound v x (vs, Right e) = toBound v x (vs, Left e)
 
 capitalizeBound = fmap (symbol . toUpperHead . symbolString)
   where
@@ -266,6 +269,6 @@ expandMeasureDef d
        return $ d { body = body }
 
 expandMeasureBody :: SourcePos -> Body -> BareM Body
-expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandPred p)
-expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandPred p)
+expandMeasureBody l (P p)   = P   <$> (resolve l =<< expandExpr p)
+expandMeasureBody l (R x p) = R x <$> (resolve l =<< expandExpr p)
 expandMeasureBody l (E e)   = E   <$> resolve l e

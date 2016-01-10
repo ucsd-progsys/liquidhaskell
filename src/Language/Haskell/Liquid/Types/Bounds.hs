@@ -41,7 +41,7 @@ data Bound t e
           }
 
 type RBound        = RRBound RSort
-type RRBound tv    = Bound tv Pred
+type RRBound tv    = Bound tv Expr
 
 type RBEnv         = M.HashMap LocSymbol RBound
 type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
@@ -90,7 +90,7 @@ makeBound (Bound _  vs ps xs p) ts qs t
 
 makeBoundType :: (PPrint r, UReftable r)
               => [(Symbol, Symbol)]
-              -> [Pred]
+              -> [Expr]
               -> [(LocSymbol, RSort)]
               -> [(Symbol, RRType r)]
 makeBoundType penv (q:qs) xts = go xts
@@ -114,21 +114,21 @@ makeBoundType penv (q:qs) xts = go xts
 makeBoundType _ _ _           = errorstar "Bound with empty predicates"
 
 
-partitionPs :: [(Symbol, Symbol)] -> [Pred] -> (M.HashMap Symbol [UsedPVar], [Pred])
+partitionPs :: [(Symbol, Symbol)] -> [Expr] -> (M.HashMap Symbol [UsedPVar], [Expr])
 partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
-isPApp penv (PBexp (EApp p _))  = isJust $ lookup (val p) penv
-isPApp _    _                   = False
+isPApp penv (EApp p _)  = isJust $ lookup (val p) penv
+isPApp _    _           = False
 
-toUsedPVars penv q@(PBexp (EApp _ es)) = (x, [toUsedPVar penv q])
+toUsedPVars penv q@(EApp _ es) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
     x = (\(EVar x) -> x) $ last es
 toUsedPVars _ _ = error "This cannot happen"
 
-toUsedPVar penv (PBexp (EApp p es))
+toUsedPVar penv (EApp p es)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
      EVar e = last es
@@ -140,7 +140,7 @@ toUsedPVar _ _ = error "This cannot happen"
 -- `makeRef` is used to make the refinement of the last implication,
 -- thus it can contain both concrete and abstract refinements
 
-makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Pred -> r
+makeRef :: (UReftable r) => [(Symbol, Symbol)] -> LocSymbol -> Expr -> r
 makeRef penv v (PAnd rs) = ofUReft (MkUReft (Reft (val v, pAnd rrs)) r mempty)
   where
     r                    = Pr  (toUsedPVar penv <$> pps)

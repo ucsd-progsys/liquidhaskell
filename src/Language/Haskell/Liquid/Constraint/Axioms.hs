@@ -211,7 +211,7 @@ updateLMap _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x vv
-  = insertLogicEnv x' ys (applyArrow (val x) ys)
+  = insertLogicEnv x' ys (applyArrow (F.EVar $ val x) (F.EVar <$> ys))
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
@@ -242,7 +242,7 @@ makeEnvironment avs vs
 
 
 
-makeQuery :: FilePath -> Integer -> F.Pred -> [HAxiom] -> [HVarCtor] -> [F.Pred] -> [P.LVar] ->  [HVar] -> HQuery
+makeQuery :: FilePath -> Integer -> F.Expr -> [HAxiom] -> [HVarCtor] -> [F.Expr] -> [P.LVar] ->  [HVar] -> HQuery
 makeQuery fn i p axioms cts ds env vs
  = Query   { q_depth  = fromInteger i
            , q_goal   = P.Pred p
@@ -284,7 +284,7 @@ makeGoalPredicate e =
        _                      -> error "makeGoalPredicate: panic"
 
 
-makeRefinement :: Maybe SpecType -> [Var] -> F.Pred
+makeRefinement :: Maybe SpecType -> [Var] -> F.Expr
 makeRefinement Nothing  _ = F.PTrue
 makeRefinement (Just t) xs = rr
   where trep = toRTypeRep t
@@ -358,7 +358,7 @@ varToPAxiomWithGuard tce sigs recs v
                                    vs'   = [P.Var x (rTypeSortArrow tce t) () | (x, t) <- xts]
                                in  (vs', xts, bd')
 
-makeGuard :: [(F.Symbol, (F.Symbol, SpecType))] -> F.Pred
+makeGuard :: [(F.Symbol, (F.Symbol, SpecType))] -> F.Expr
 makeGuard xs = F.POr $ go [] xs
   where
     go _ []
@@ -407,7 +407,7 @@ data AEnv = AE { ae_axioms  :: [T.HAxiom]            -- axiomatized functions
                , ae_target  :: FilePath              -- file name of target source coude
                , ae_recs    :: [(Var, [Var])]        -- axioms that are used recursively:
                                                      -- these axioms are guarded to used only with "smaller" arguments
-               , ae_assert  :: [F.Pred]              --
+               , ae_assert  :: [F.Expr]              --
                , ae_cmb     :: CoreExpr -> CoreExpr -> CoreExpr  -- how to combine proofs
                }
 

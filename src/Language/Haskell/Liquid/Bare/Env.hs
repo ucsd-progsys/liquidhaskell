@@ -13,7 +13,6 @@ module Language.Haskell.Liquid.Bare.Env (
   , withVArgs
 
   , setRTAlias
-  , setRPAlias
   , setREAlias
 
   , execBare
@@ -35,7 +34,7 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 
 
-import Language.Fixpoint.Types (Expr(..), Symbol, symbol, Pred)
+import Language.Fixpoint.Types (Expr(..), Symbol, symbol)
 
 import Language.Haskell.Liquid.UX.Errors ()
 import Language.Haskell.Liquid.Types
@@ -56,7 +55,7 @@ type TCEnv = M.HashMap TyCon RTyCon
 type InlnEnv = M.HashMap Symbol TInline
 
 data TInline = TI { tiargs :: [Symbol]
-                  , tibody :: Either Pred Expr
+                  , tibody :: Expr
                   } deriving (Show)
 
 
@@ -101,8 +100,6 @@ mkExprAlias l l' v
 setRTAlias s a =
   modify $ \b -> b { rtEnv = mapRT (M.insert s a) $ rtEnv b }
 
-setRPAlias s a =
-  modify $ \b -> b { rtEnv = mapRP (M.insert s a) $ rtEnv b }
 
 setREAlias s a =
   modify $ \b -> b { rtEnv = mapRE (M.insert s a) $ rtEnv b }

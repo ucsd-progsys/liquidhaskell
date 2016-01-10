@@ -108,7 +108,7 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = insertLogicEnv (val x) ys (applyArrow (val y) ys)
+  = insertLogicEnv (val x) ys (applyArrow (F.EVar $ val y) (F.EVar <$> ys))
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 

@@ -140,7 +140,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Refinement Type Aliases
   , RTEnv (..)
-  , mapRT, mapRP, mapRE
+  , mapRT, mapRE
 
   -- * Final Result
   , Result (..)
@@ -941,7 +941,7 @@ addInvCond t r'
     r    = r' {ur_reft = Reft (v, rx)}
     su   = (v, EVar x')
     x'   = "xInv"
-    rx   = PIff (PBexp $ EVar v) $ subst1 rv su
+    rx   = PIff (EVar v) $ subst1 rv su
     Reft(v, rv) = ur_reft r'
 
 -------------------------------------------
@@ -1056,8 +1056,8 @@ instance Reftable Predicate where
 
 pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 
-pApp      :: Symbol -> [Expr] -> Pred
-pApp p es = PBexp $ EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
+pApp      :: Symbol -> [Expr] -> Expr
+pApp p es = EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
 pappSym n  = symbol $ "papp" ++ show n
 
@@ -1380,17 +1380,15 @@ getModString = moduleNameString . getModName
 -------------------------------------------------------------------------------
 
 data RTEnv   = RTE { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
-                   , predAliases :: M.HashMap Symbol (RTAlias Symbol Pred)
                    , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
                    }
 
 instance Monoid RTEnv where
-  (RTE ta1 pa1 ea1) `mappend` (RTE ta2 pa2 ea2)
-    = RTE (ta1 `M.union` ta2) (pa1 `M.union` pa2) (ea1 `M.union` ea2)
-  mempty = RTE M.empty M.empty M.empty
+  (RTE ta1 ea1) `mappend` (RTE ta2 ea2)
+    = RTE (ta1 `M.union` ta2) (ea1 `M.union` ea2)
+  mempty = RTE M.empty M.empty
 
 mapRT f e = e { typeAliases = f $ typeAliases e }
-mapRP f e = e { predAliases = f $ predAliases e }
 mapRE f e = e { exprAliases = f $ exprAliases e }
 
 cinfoError (Ci _ (Just e)) = e
@@ -1402,8 +1400,8 @@ cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 --------------------------------------------------------------------------------
 data Body
   = E Expr          -- ^ Measure Refinement: {v | v = e }
-  | P Pred          -- ^ Measure Refinement: {v | (? v) <=> p }
-  | R Symbol Pred   -- ^ Measure Refinement: {v | p}
+  | P Expr          -- ^ Measure Refinement: {v | (? v) <=> p }
+  | R Symbol Expr   -- ^ Measure Refinement: {v | p}
   deriving (Show, Data, Typeable, Generic, Eq)
 
 data Def ty ctor = Def
@@ -1576,10 +1574,10 @@ instance PPrint KVProf where
 
 instance NFData KVProf
 
-hole :: Pred
+hole :: Expr
 hole = PKVar "HOLE" mempty
 
-isHole :: Pred -> Bool
+isHole :: Expr -> Bool
 isHole (PKVar ("HOLE") _) = True
 isHole _                  = False
 

@@ -142,7 +142,7 @@ uRTypeGen       = fmap $ const mempty
 uPVar           :: PVar t -> UsedPVar
 uPVar           = void
 
-uReft           :: (Symbol, Pred) -> UReft Reft
+uReft           :: (Symbol, Expr) -> UReft Reft
 uReft           = uTop . Reft
 
 uTop            ::  r -> UReft r
@@ -1067,7 +1067,7 @@ cmpLexRef vxs (v, x, g)
          ++ [PAtom Ge (f y) zero  | (y, _, f) <- vxs]
   where zero = ECon $ I 0
 
-makeLexRefa es' es = uTop $ Reft (vv, PIff (PBexp $ EVar vv) $ pOr rs)
+makeLexRefa es' es = uTop $ Reft (vv, PIff (EVar vv) $ pOr rs)
   where
     rs = makeLexReft [] [] es es'
     vv = "vvRec"

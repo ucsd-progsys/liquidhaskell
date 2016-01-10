@@ -338,7 +338,7 @@ splitC (SubR γ o r)
     γ'' = feEnv $ fenv γ
     γ'  = feBinds $ fenv γ
     r1  = F.RR F.boolSort rr
-    r2  = F.RR F.boolSort $ F.Reft (vv, F.PBexp $ F.EVar vv)
+    r2  = F.RR F.boolSort $ F.Reft (vv, F.EVar vv)
     vv  = "vvRec"
     ci  = Ci src err
     err = Just $ ErrAssType src o (text $ show o ++ "type error") g rr -- (F.toReft r)

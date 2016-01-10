@@ -69,13 +69,13 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkDuplicate                             (asmSigs sp)
                      ++ checkDupIntersect                          (tySigs sp) (asmSigs sp)
                      ++ checkRTAliases "Type Alias" env            tAliases
-                     ++ checkRTAliases "Pred Alias" env            pAliases
+                     ++ checkRTAliases "Pred Alias" env            eAliases
                      ++ checkDuplicateFieldNames                   (dconsP sp)
                      ++ checkRefinedClasses                        (concatMap (Ms.classes . snd) specs) (concatMap (Ms.rinstance . snd) specs)
 
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
-    pAliases         =  concat [Ms.paliases sp | (_, sp) <- specs]
+    eAliases         =  concat [Ms.ealiases sp | (_, sp) <- specs]
     dcons spec       =  [(v, Loc l l' t) | (v,t)   <- dataConSpec (dconsP spec)
                                          | (_,dcp) <- dconsP spec
                                          , let l    = dc_loc  dcp
@@ -91,7 +91,7 @@ checkQualifiers      :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers env  = catMaybes . map (checkQualifier env)
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ propSort  (q_body q)
+checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
   where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (q_params q ++ wiredSortedSyms)
         mkE = ErrBadQual (sourcePosSrcSpan $ q_pos q) (pprint $ q_name q)
 
@@ -398,8 +398,8 @@ checkMBodyUnify                 = go
 
 checkMBody' emb sort γ body = case body of
     E e   -> checkSortFull γ (rTypeSort emb sort') e
-    P p   -> checkSortFull γ propSort  p
-    R s p -> checkSortFull (insertSEnv s sty γ) propSort p
+    P p   -> checkSortFull γ boolSort  p
+    R s p -> checkSortFull (insertSEnv s sty γ) boolSort p
   where
     -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'

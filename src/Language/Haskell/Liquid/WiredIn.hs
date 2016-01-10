@@ -68,6 +68,8 @@ combineProofsName = "combineProofs"
 proofTyConName :: Symbol
 proofTyConName = "Proof"
 
+runFunName :: Symbol
+runFunName = "runApp"
 
 arrowTyCon, propTyCon, hpropTyCon :: TyCon
 
@@ -111,8 +113,7 @@ wiredDataCons   = snd wiredTyDataCons
 wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
 wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
   where
-    (tcs, dcs)  = unzip l
-    l           = listTyDataCons : map tupleTyDataCons [2..maxArity]
+    (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
 listTyDataCons   = ( [(c, TyConP [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
