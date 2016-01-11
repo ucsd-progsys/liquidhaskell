@@ -125,14 +125,14 @@ isPApp _    _           = False
 toUsedPVars penv q@(EApp _ es) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = (\y -> case unProp y of {EVar x -> x; e -> todo  ("Bound fails in " ++ show e) }) $ last es
+    x = (\y -> case unProp y of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }) $ last es
 toUsedPVars _ _ = error "This cannot happen"
 
-unProp (EApp f [e]) 
-  | val f == propConName 
-  = e 
-unProp e                 
-  = e 
+unProp (EApp f [e])
+  | val f == propConName
+  = e
+unProp e
+  = e
 
 toUsedPVar penv (EApp p es)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')

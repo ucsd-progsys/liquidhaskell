@@ -191,10 +191,6 @@ instance Ex.Exception Error
 instance Ex.Exception [Error]
 
 
-
-
-
-
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (pos e)
                     , "msg" .= (render $ ppError' Full empty empty e)
