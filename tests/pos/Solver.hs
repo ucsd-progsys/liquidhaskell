@@ -34,7 +34,7 @@ witness p w = \ y b v -> b ==> w y b ==> (v == y) ==> p v
 {-@ bound witness @-}
 
 {-@ find :: forall <p :: a -> Prop, w :: a -> Bool -> Prop>. 
-            {y::a, z::{v:Bool<w y> | Prop v}|- {v:a | v == y } <: a<p>}
+            (Witness a p w) => 
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing

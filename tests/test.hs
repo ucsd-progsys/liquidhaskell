@@ -112,7 +112,8 @@ dirTests root ignored code
        return    $ mkTest code root <$> tests
 
 isTest   :: FilePath -> Bool
-isTest f = takeExtension f == ".hs"
+isTest f =  takeExtension f == ".hs"
+         || takeExtension f == ".lhs"
 
 ---------------------------------------------------------------------------
 mkTest :: ExitCode -> FilePath -> FilePath -> TestTree
