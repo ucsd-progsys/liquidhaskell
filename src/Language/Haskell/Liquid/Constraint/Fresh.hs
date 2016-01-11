@@ -9,7 +9,7 @@
 
 module Language.Haskell.Liquid.Constraint.Fresh (Freshable(..)) where
 
-import           Control.Applicative           (Applicative, (<$>), (<*>))
+import           Prelude                hiding (error)
 import           Data.Monoid                   (mempty)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types
@@ -35,14 +35,14 @@ instance Freshable m Integer => Freshable m [Expr] where
   fresh = single <$> fresh
 
 instance Freshable m Integer => Freshable m Reft where
-  fresh                = errorstar "fresh Reft"
+  fresh                = panic Nothing "fresh Reft"
   true    (Reft (v,_)) = return $ Reft (v, mempty)
   refresh (Reft (_,_)) = (Reft .) . (,) <$> freshVV <*> fresh
     where
       freshVV          = vv . Just <$> fresh
 
 instance Freshable m Integer => Freshable m RReft where
-  fresh             = errorstar "fresh RReft"
+  fresh             = panic Nothing "fresh RReft"
   true (MkUReft r _ s)    = MkUReft <$> true r    <*> return mempty <*> true s
   refresh (MkUReft r _ s) = MkUReft <$> refresh r <*> return mempty <*> refresh s
 
@@ -54,7 +54,7 @@ instance Freshable m Integer => Freshable m Strata where
   refresh s  = return s
 
 instance (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => Freshable m (RRType r) where
-  fresh   = errorstar "fresh RefType"
+  fresh   = panic Nothing "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType
 
@@ -94,7 +94,7 @@ trueRefType (RRTy e o r t)
 trueRefType t
   = return t
 
-trueRef (RProp _ (RHole _)) = errorstar "trueRef: unexpected RProp _ (RHole _))"
+trueRef (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
 trueRef (RProp s t) = RProp s <$> trueRefType t
 
 
@@ -136,7 +136,7 @@ refreshRefType (RRTy e o r t)
 refreshRefType t
   = return t
 
-refreshRef (RProp _ (RHole _)) = errorstar "refreshRef: unexpected (RProp _ (RHole _))"
+refreshRef (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
 refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
 
 freshSym (_, t)        = (, t) <$> fresh

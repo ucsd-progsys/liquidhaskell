@@ -43,6 +43,7 @@ module Language.Haskell.Liquid.Constraint.Types
   , mkRTyConIAl
   ) where
 
+import Prelude hiding (error)
 import CoreSyn
 import SrcLoc
 

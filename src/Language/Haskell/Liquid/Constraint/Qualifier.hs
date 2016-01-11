@@ -8,6 +8,8 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
 
 import TyCon
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
@@ -90,7 +92,7 @@ refTopQuals lEnv l tce t0 γ t
     where
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
-      msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showpp t
+      msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
 
 mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
   where
