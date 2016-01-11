@@ -1,4 +1,6 @@
 \begin{code}
+{-# LANGUAGE FlexibleContexts #-}
+
 module OverView where 
 
 import Prelude hiding ((.), filter)
