@@ -9,7 +9,7 @@ module Language.Haskell.Liquid.Bare.GhcSpec (
   ) where
 
 -- import Debug.Trace (trace)
--- import Prelude hiding (error)
+import Prelude hiding (error)
 import CoreSyn hiding (Expr)
 import HscTypes
 import Id
