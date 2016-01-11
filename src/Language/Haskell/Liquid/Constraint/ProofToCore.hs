@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.Constraint.ProofToCore where
 import Prelude hiding (error)
 import CoreSyn hiding (Expr, Var)
 import qualified CoreSyn as H
+import Language.Haskell.Liquid.Types.Errors
 
 import Var hiding (Var)
 import qualified Var as V

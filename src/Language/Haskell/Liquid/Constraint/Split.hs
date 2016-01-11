@@ -42,6 +42,7 @@ import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
+import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
@@ -459,8 +460,8 @@ envToSub :: [(a, b)] -> ([(a, b)], b, b)
 --------------------------------------------------------------------------------
 envToSub = go []
   where
-    go _   []              = error "This cannot happen: envToSub on 0 elems"
-    go _   [(_,_)]         = error "This cannot happen: envToSub on 1 elem"
+    go _   []              = impossible Nothing "This cannot happen: envToSub on 0 elems"
+    go _   [(_,_)]         = impossible Nothing "This cannot happen: envToSub on 1 elem"
     go ack [(_,l), (_, r)] = (reverse ack, l, r)
     go ack (x:xs)          = go (x:ack) xs
 

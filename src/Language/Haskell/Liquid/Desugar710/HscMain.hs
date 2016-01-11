@@ -29,8 +29,8 @@
 module Language.Haskell.Liquid.Desugar710.HscMain (hscDesugarWithLoc) where
 
 import Language.Haskell.Liquid.Desugar710.Desugar (deSugarWithLoc)
-
-import Module 
+import Prelude hiding (error)
+import Module
 import Lexer
 import TcRnMonad
 
@@ -58,7 +58,7 @@ logWarnings w = Hsc $ \_ w0 -> return ((), w0 `unionBags` w)
 throwErrors :: ErrorMessages -> Hsc a
 throwErrors = liftIO . throwIO . mkSrcErr
 
--- 
+--
 -- | Convert a typechecked module to Core
 hscDesugarWithLoc :: HscEnv -> ModSummary -> TcGblEnv -> IO ModGuts
 hscDesugarWithLoc hsc_env mod_summary tc_result =

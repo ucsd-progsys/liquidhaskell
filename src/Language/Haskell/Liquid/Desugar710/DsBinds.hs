@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Desugar710.DsBinds ( dsTopLHsBinds, dsLHsBinds, d
 import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar710.DsExpr( dsLExpr )
 import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar710.Match( matchWrapper )
 
+import Prelude hiding (error)
 import DsMonad
 import Language.Haskell.Liquid.Desugar710.DsGRHSs
 import Language.Haskell.Liquid.Desugar710.DsUtils

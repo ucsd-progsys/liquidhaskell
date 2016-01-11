@@ -190,7 +190,7 @@ strictMatchOnly _ = False -- I hope!  Checked immediately by caller in fact
 
 dsLExpr :: LHsExpr Id -> DsM CoreExpr
 
-dsLExpr (L loc e) 
+dsLExpr (L loc e)
   = do ce <- putSrcSpanDs loc $ dsExpr e
        m  <- getModule
        return $ Tick (srcSpanTick m loc) ce
@@ -299,7 +299,7 @@ dsExpr (ExplicitTuple tup_args boxity)
        ; (lam_vars, args) <- foldM go ([], []) (reverse tup_args)
                 -- The reverse is because foldM goes left-to-right
 
-       ; return $ mkCoreLams lam_vars $ 
+       ; return $ mkCoreLams lam_vars $
                   mkConApp (tupleCon (boxityNormalTupleSort boxity) (length tup_args))
                            (map (Type . exprType) args ++ args) }
 
