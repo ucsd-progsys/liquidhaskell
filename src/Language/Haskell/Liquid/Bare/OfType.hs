@@ -160,7 +160,7 @@ ofBRType appRTAlias resolveReft
             rs' <- mapM go_ref rs
             ts' <- mapM go ts
             bareTCApp r' lc' rs' ts'
-    goRApp _ _ = impossible "goRApp failed through to final case"
+    goRApp _ _ = impossible Nothing "goRApp failed through to final case"
 
 
 matchTyCon :: LocSymbol -> Int -> BareM TyCon
