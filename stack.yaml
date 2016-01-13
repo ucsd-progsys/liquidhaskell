@@ -14,3 +14,5 @@ extra-deps:
 - ascii-progress-0.3.2.0
 - concurrent-output-1.7.1
 - daemons-0.2.1
+- cereal-0.5.1.0
+- megaparsec-4.3.0

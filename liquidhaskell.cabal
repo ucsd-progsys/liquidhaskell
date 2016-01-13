@@ -139,6 +139,8 @@ Library
                 , Cabal >= 1.18
                 , bifunctors >= 5.1 && < 6.0
                 , cereal
+                , ansi-wl-pprint >= 0.6 && < 0.7
+                , megaparsec >= 4.2 && < 5
 
    hs-source-dirs:  src, include
 
@@ -215,6 +217,17 @@ Library
                     Language.Haskell.Liquid.Bare.Spec,
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,
+
+                    Language.Haskell.Liquid.Parse2,
+                    Language.Haskell.Liquid.Parse2.Base,
+                    Language.Haskell.Liquid.Parse2.Declarations,
+                    Language.Haskell.Liquid.Parse2.Refinements,
+                    Language.Haskell.Liquid.Parse2.Types,
+
+                    Language.Haskell.Liquid.Unparse,
+                    Language.Haskell.Liquid.Unparse.Base,
+                    Language.Haskell.Liquid.Unparse.Fixpoint,
+                    Language.Haskell.Liquid.Unparse.LH,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar710.Check,
