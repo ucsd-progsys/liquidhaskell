@@ -33,7 +33,7 @@ module Language.Fixpoint.Types.Sorts (
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
-  , fApp, fAppTC
+  , fApp, fApp', fAppTC
   , fObj
 
   , sortSubst
