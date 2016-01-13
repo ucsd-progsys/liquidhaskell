@@ -118,7 +118,7 @@ Library
                , transformers
                , hashable
                , unordered-containers
-               , cereal >= 0.5
+               , cereal
                , text-format
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
