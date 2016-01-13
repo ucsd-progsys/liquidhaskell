@@ -1,4 +1,7 @@
 \begin{code}
+
+{-# LANGUAGE FlexibleContexts #-}
+
 module OverView where 
 
 import Prelude hiding ((.), filter)
@@ -86,9 +89,11 @@ primes     = filter isPrime
 \end{code}
 
 \begin{code}
-data Vec a = Nil | Cons a (Vec a)
+data Vec a = Nil | Cons a (Vec a) deriving (Eq)
 
 {-@ bound inductive @-}
+-- inductive :: (Eq a) => (Vec a -> b -> Bool) -> (a -> b -> b -> Bool)
+--          -> a -> Vec a -> b -> Vec a -> b -> Bool
 inductive inv1 step1 = 
     \y ys acc z v -> 
      (z == Cons y ys) ==> 
@@ -96,7 +101,6 @@ inductive inv1 step1 =
      step1 y acc v ==>
      inv1 ys acc ==>
      inv1 z v 
-
 
 
 {-@

@@ -656,7 +656,7 @@ ppOblig OInv  = text "Invariant Check"
 --   In contrast, the `Predicate` argument in `ur_pred` in the @UReft@ applies
 --   directly to any type and has semantics _independent of_ the data-type.
 
-data Ref τ t 
+data Ref τ t
   = RProp  {
       rf_args :: [(Symbol, τ)]
     , rf_body :: t
@@ -1552,9 +1552,9 @@ instance Monoid (Output a) where
                     , o_result =             mappend (o_result o1) (o_result o2)
                     }
 
------------------------------------------------------------
--- | KVar Profile -----------------------------------------
------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | KVar Profile --------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data KVKind
   = RecBindE
