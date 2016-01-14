@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Desugar710.Match ( match, matchEquations, matchWr
 -- #include "HsVersions.h"
 
 import {-#SOURCE#-} Language.Haskell.Liquid.Desugar710.DsExpr (dsLExpr, dsExpr)
-
+import Prelude hiding (error)
 import DynFlags
 import HsSyn
 import TcHsSyn

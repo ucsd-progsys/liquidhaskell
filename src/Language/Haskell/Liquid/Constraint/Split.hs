@@ -24,6 +24,8 @@ module Language.Haskell.Liquid.Constraint.Split (
   , panicUnbound
   ) where
 
+import           Prelude hiding (error)
+
 import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified TyCon  as TC
 
@@ -33,13 +35,14 @@ import           Control.Monad.State (get)
 import qualified Control.Exception as Ex
 
 import qualified Language.Fixpoint.Types            as F
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
+import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
@@ -96,10 +99,10 @@ splitW (WfC γ (REx x tx t))
         return $ ws ++ ws'
 
 splitW (WfC _ t)
-  = errorstar $ "splitW cannot handle: " ++ showpp t
+  = panic Nothing $ "splitW cannot handle: " ++ showpp t
 
 rsplitW _ (RProp _ (RHole _))
-  = errorstar "Constrains: rsplitW for RProp _ (RHole _)"
+  = panic Nothing "Constrains: rsplitW for RProp _ (RHole _)"
 rsplitW γ (RProp ss t0)
   = do γ' <- foldM (++=) γ [("rsplitW", x, ofRSort s) | (x, s) <- ss]
        splitW $ WfC γ' t0
@@ -164,7 +167,7 @@ splitS (SubC γ t1 (RAllP p t))
     su = (uPVar p, pVartoRConc p)
 
 splitS (SubC _ t1@(RAllP _ _) t2)
-  = errorstar $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+  = panic Nothing $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
@@ -194,7 +197,7 @@ splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitS t1 t2
 
 splitS (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test1!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = panic Nothing $ "(Another Broken Test1!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitS (SubR _ _ _)
   = return []
@@ -213,10 +216,10 @@ bsplitS t1 t2
   where [s1, s2]   = getStrata <$> [t1, t2]
 
 rsplitS _ (RProp _ (RHole _)) _
-   = errorstar "rsplitS RProp _ (RHole _)"
+   = panic Nothing "rsplitS RProp _ (RHole _)"
 
 rsplitS _ _ (RProp _ (RHole _))
-   = errorstar "rsplitS RProp _ (RHole _)"
+   = panic Nothing "rsplitS RProp _ (RHole _)"
 
 rsplitS γ (RProp s1 r1) (RProp s2 r2)
   = splitS (SubC γ (F.subst su r1) r2)
@@ -298,7 +301,7 @@ splitC (SubC γ t1 (RAllP p t))
     su = (uPVar p, pVartoRConc p)
 
 splitC (SubC _ t1@(RAllP _ _) t2)
-  = errorstar $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
+  = panic Nothing $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
   |  α1 ==  α2
@@ -328,7 +331,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2)
-  = errorstar $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = panic Nothing $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -397,13 +400,13 @@ unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )
 
 unifyVV _ _
-  = errorstar $ "Constraint.Generate.unifyVV called on invalid inputs"
+  = panic Nothing $ "Constraint.Generate.unifyVV called on invalid inputs"
 
 rsplitC _ _ (RProp _ (RHole _))
-  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
+  = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
 
 rsplitC _ (RProp _ (RHole _)) _
-  = errorstar "RefTypes.rsplitC on RProp _ (RHole _)"
+  = panic Nothing "RefTypes.rsplitC on RProp _ (RHole _)"
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
   = do γ'  <-  foldM (++=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
@@ -457,8 +460,8 @@ envToSub :: [(a, b)] -> ([(a, b)], b, b)
 --------------------------------------------------------------------------------
 envToSub = go []
   where
-    go _   []              = error "This cannot happen: envToSub on 0 elems"
-    go _   [(_,_)]         = error "This cannot happen: envToSub on 1 elem"
+    go _   []              = impossible Nothing "This cannot happen: envToSub on 0 elems"
+    go _   [(_,_)]         = impossible Nothing "This cannot happen: envToSub on 1 elem"
     go ack [(_,l), (_, r)] = (reverse ack, l, r)
     go ack (x:xs)          = go (x:ack) xs
 

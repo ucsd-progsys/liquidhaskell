@@ -11,6 +11,7 @@ module Language.Haskell.Liquid.Desugar710.Check ( check , ExhaustivePat ) where
 
 -- #include "HsVersions.h"
 
+import Prelude hiding (error)
 import HsSyn
 import TcHsSyn
 import Language.Haskell.Liquid.Desugar710.DsUtils

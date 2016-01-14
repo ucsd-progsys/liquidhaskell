@@ -56,7 +56,7 @@ instance Transformable RReft where
 
 instance Transformable Reft where
   tx s m (Reft (v, p)) = if v == s
-                         then impossible "Transformable: v != s"
+                         then impossible Nothing "Transformable: v != s"
                          else Reft(v, tx s m p)
 
 -- OLD instance Transformable Refa where
@@ -69,7 +69,7 @@ instance (Transformable a, Transformable b) => Transformable (Either a b) where
 
 
 txQuant xss s m p
-  | s `elem` (fst <$> xss) = impossible "Transformable.tx on Pred"
+  | s `elem` (fst <$> xss) = impossible Nothing "Transformable.tx on Pred"
   | otherwise              = tx s m p
 
 
@@ -99,8 +99,8 @@ instance Transformable Expr where
   tx _ _ (PExist _ _)    = panic Nothing "tx: PExist is for fixpoint internals only"
  --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p
-  tx _ _ p@(ETApp _ _)   = p  
-  tx _ _ p@(ETAbs _ _)   = p  
+  tx _ _ p@(ETApp _ _)   = p
+  tx _ _ p@(ETAbs _ _)   = p
 
 instance Transformable (Measure t c) where
   tx s m x = x{eqns = tx s m <$> (eqns x)}

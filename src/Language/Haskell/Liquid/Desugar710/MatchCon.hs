@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Desugar710.MatchCon ( matchConFamily, matchPatSyn
 -- #include "HsVersions.h"
 
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.Match     ( match )
-
+import Prelude hiding (error)
 import HsSyn
 import DsBinds
 import ConLike

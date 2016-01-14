@@ -46,7 +46,9 @@ module Language.Haskell.Liquid.Constraint.Env (
 
 ) where
 
+
 -- import Name (getSrcSpan)
+import Prelude hiding (error)
 import CoreSyn (CoreExpr)
 import SrcLoc
 import Var
@@ -64,7 +66,7 @@ import qualified Data.HashSet            as S
 import qualified Data.HashMap.Strict     as M
 import qualified Language.Fixpoint.Types as F
 
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 import           Language.Haskell.Liquid.Misc (firstJust)
@@ -181,10 +183,10 @@ normalizeVV _ t
   = err
   | otherwise
   =  γ ++= (msg, x, r)
-  where err = errorstar $ msg ++ " Duplicate binding for "
-                              ++ F.symbolString x
-                              ++ "\n New: " ++ showpp r
-                              ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
+  where err = panic Nothing $ msg ++ " Duplicate binding for "
+                                  ++ F.symbolString x
+                                  ++ "\n New: " ++ showpp r
+                                  ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
 
 
 --------------------------------------------------------------------------------

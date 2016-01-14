@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.Desugar710.DsMeta( dsBracket,
 -- #include "HsVersions.h"
 
 import Language.Haskell.Liquid.Desugar710.DsExpr ( dsExpr )
-
+import Prelude hiding (error)
 import Language.Haskell.Liquid.Desugar710.MatchLit
 import DsMonad
 
@@ -912,7 +912,7 @@ repTy (HsExplicitTupleTy _ tys) = do
 repTy (HsTyLit lit) = do
                         lit' <- repTyLit lit
                         repTLit lit'
-                          
+
 repTy ty                      = notHandled "Exotic form of type" (ppr ty)
 
 repTyLit :: HsTyLit -> DsM (Core TH.TyLitQ)

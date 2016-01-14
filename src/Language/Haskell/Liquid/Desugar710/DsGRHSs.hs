@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Desugar710.DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS )
 
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.DsExpr  ( dsLExpr, dsLocalBinds )
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.Match   ( matchSinglePat )
-
+import Prelude hiding (error)
 import HsSyn
 import MkCore
 import CoreSyn

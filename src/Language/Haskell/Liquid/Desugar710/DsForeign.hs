@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Desugar710.DsForeign ( dsForeigns
 
 -- #include "HsVersions.h"
 import TcRnMonad        -- temp
-
+import Prelude hiding (error)
 import TypeRep
 
 import CoreSyn

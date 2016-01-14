@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Desugar710.DsCCall
 
 -- #include "HsVersions.h"
 
-
+import Prelude hiding (error)
 import CoreSyn
 
 import DsMonad

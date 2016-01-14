@@ -25,6 +25,8 @@ module Language.Haskell.Liquid.Constraint.Axioms (
   ) where
 
 
+import Prelude hiding (error)
+
 import Literal
 
 import Coercion
@@ -47,6 +49,7 @@ import Language.Fixpoint.Utils.Files
 
 import qualified Language.Fixpoint.Types            as F
 
+import Language.Haskell.Liquid.UX.Tidy (panicError)
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def, HAxiom)
 import qualified Language.Haskell.Liquid.Types as T
@@ -55,7 +58,7 @@ import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.SpanStack                 (showSpan)
-import Language.Fixpoint.Misc
+import Language.Fixpoint.Misc                         hiding (errorstar)
 import Language.Haskell.Liquid.Constraint.ProofToCore
 import Language.Haskell.Liquid.Transforms.CoreToLogic
 import Language.Haskell.Liquid.Constraint.Types
@@ -258,11 +261,11 @@ makeQuery fn i p axioms cts ds env vs
 
 checkEnv pv@(P.Var x s _)
   | isBaseSort s = pv
-  | otherwise    = errorstar ("\nEnv:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
+  | otherwise    = panic Nothing ("\nEnv:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
 
 checkVar pv@(P.Var x s _)
   | isBaseSort s = pv
-  | otherwise    = errorstar ("\nVar:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
+  | otherwise    = panic Nothing ("\nVar:\nNon Basic " ++ show x ++ "  ::  " ++ show s)
 
 makeAxioms =
   do recs <- ae_recs    <$> get
@@ -280,9 +283,7 @@ makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
      case runToLogic lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
        Left p  -> return p
-       Right (ErrOther _ err) -> error $ show err
-       _                      -> error "makeGoalPredicate: panic"
-
+       Right err -> panicError err
 
 makeRefinement :: Maybe SpecType -> [Var] -> F.Expr
 makeRefinement Nothing  _ = F.PTrue
@@ -349,7 +350,7 @@ varToPAxiomWithGuard tce sigs recs v
     args = fromJust $ L.lookup v recs
     x = F.symbol v
     (vs, xts, bd) = case L.lookup x sigs of
-                     Nothing -> error ("haxiomToPAxiom: " ++ show x ++ " not found")
+                     Nothing -> panic Nothing ("haxiomToPAxiom: " ++ show x ++ " not found")
                      Just t -> let trep = toRTypeRep t
                                    bd'  = case stripRTypeBase $ ty_res trep of
                                             Nothing -> F.PTrue
@@ -379,7 +380,7 @@ varToPAxiom tce sigs v
   where
     x = F.symbol v
     (vs, bd) = case L.lookup x sigs of
-                Nothing -> error ("haxiomToPAxiom: " ++ show x ++ " not found")
+                Nothing -> panic Nothing ("haxiomToPAxiom: " ++ show x ++ " not found")
                 Just t -> let trep = toRTypeRep t
                               bd'  = case stripRTypeBase $ ty_res trep of
                                        Nothing -> F.PTrue
@@ -524,11 +525,11 @@ grapInt (Var v)
     go (Tick _ e) = go e
     go (App _ l)  = go l
     go (Lit l)    = litToInt l
-    go e          = error $ ("grapInt called with wrong argument " ++ showPpr e)
+    go e          = panic Nothing $ ("grapInt called with wrong argument " ++ showPpr e)
 
     litToInt (MachInt i) = i
     litToInt (MachInt64 i) = i
-    litToInt _             = error "litToInt: non integer literal"
+    litToInt _             = panic Nothing "litToInt: non integer literal"
 
 grapInt (Tick _ e) = grapInt e
 grapInt _          = return 2
@@ -539,7 +540,7 @@ grapInt _          = return 2
 -------------------------------------------------------------------------------
 
 makeCombineType Nothing
-  = error "proofType not found"
+  = panic Nothing "proofType not found"
 makeCombineType (Just τ)
   = FunTy τ (FunTy τ τ)
 

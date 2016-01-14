@@ -41,7 +41,7 @@
 -- > }
 --
 module StaticPtrTable (sptInitCode) where
-
+import Prelude hiding (error)
 import CoreSyn
 import Module
 import Outputable
