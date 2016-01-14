@@ -10,9 +10,9 @@ matrix:
 #   - SMT="z3"   GHC="7.10.1" CABAL="1.22"
 #   - SMT="cvc4" GHC="7.10.1" CABAL="1.22"
 
-branches:
-  only:
-    - master
+# branches:
+#   only:
+#     - master
 
 cache:
   directories:
