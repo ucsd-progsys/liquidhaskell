@@ -2,13 +2,15 @@ module BST () where
 
 import Language.Haskell.Liquid.Prelude
 
+
 {-@
 data Bst [blen] k v <l :: x0:k -> x1:k -> Prop, r :: x0:k -> x1:k -> Prop>
   = Empty
-  | Bind (key   :: k) 
-         (value :: v) 
-         (left  :: Bst <l, r> (k <l key>) v) 
-         (right :: Bst <l, r> (k <r key>) v)
+  | Bind { key   :: k 
+         , value :: v 
+         , left  :: Bst <l, r> (k <l key>) v 
+         , right :: Bst <l, r> (k <r key>) v
+         }
   @-}
 
 {-@ measure blen :: (Bst k v) -> Int
