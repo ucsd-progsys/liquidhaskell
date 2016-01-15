@@ -165,3 +165,9 @@ tryIgnore s a = catch a $ \e ->
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
 firstJust f xs = listToMaybe $ catMaybes $ map f xs
+
+
+tailOrEmpty :: [a] -> [a]
+tailOrEmpty [] = []
+tailOrEmpty xs = tail xs
+

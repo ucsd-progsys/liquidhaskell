@@ -1,15 +1,15 @@
-module Language.Haskell.Liquid.Unparse.LH (
-    -- * The Unparse Typeclass
-    Unparse(..)
+module Language.Haskell.Liquid.PPrint2.LH (
+    -- * Pretty-Printing Typeclass
+    PPrint(..)
   ) where
 
-import Language.Haskell.Liquid.Unparse.Base
+import Language.Haskell.Liquid.PPrint2.Base
 
 --------------------------------------------------------------------------------
--- Unparse Instances for LH AST ------------------------------------------------
+-- PPrint Instances for LH AST -------------------------------------------------
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
--- LH-Specific Unparsing Utilities ---------------------------------------------
+-- LH-Specific Pretty-Printing Utilities ---------------------------------------
 --------------------------------------------------------------------------------
 
