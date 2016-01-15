@@ -98,7 +98,7 @@ z3Preamble u
     , format "(define-fun {} ((m {}) (k {}) (v {})) {} (store m k v))"
         (sto, map, elt, elt, map)
     , uifDef u (symbolText mulFuncName) ("*"::T.Text)
-    , uifDef u (symbolText divFuncName) ("/"::T.Text)
+    , uifDef u (symbolText divFuncName) ("div"::T.Text)
     ]
 
 -- RJ: Am changing this to `Int` not `Real` as (1) we usually want `Int` and
