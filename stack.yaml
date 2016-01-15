@@ -1,4 +1,6 @@
 # GHC 7.10
+# resolver: nightly-2015-09-18
+
 resolver: nightly-2016-01-06
 
 compiler-check: newer-minor
