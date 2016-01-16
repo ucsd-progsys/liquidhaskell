@@ -1,3 +1,6 @@
+
+-- Issue overload-div-int-real #579
+
 module Div where
 
 {-@ LIQUID "--real" @-}
@@ -5,16 +8,16 @@ module Div where
 
 {-@ type Valid = {v:Bool | ( (Prop v) <=> true ) } @-}
 
-{-@ mulAssoc :: Double -> Double -> Double -> Valid @-}
-mulAssoc :: Double -> Double -> Double -> Bool
+{-@ mulAssoc :: (Eq a, Fractional a) => a -> a -> a -> Valid @-}
+mulAssoc :: (Eq a, Fractional a) => a -> a -> a -> Bool
 mulAssoc x y z = (x * y) * z == x * (y * z) 
 
-{-@ mulCommut :: Double -> Double -> Valid @-}
-mulCommut :: Double -> Double -> Bool
+{-@ mulCommut :: (Eq a, Fractional a) => a -> a -> Valid @-}
+mulCommut :: (Eq a, Fractional a) => a -> a -> Bool
 mulCommut x y = x * y == y * x 
 
-{-@ mulId :: Double -> Valid @-}
-mulId :: Double -> Bool
+{-@ mulId :: (Eq a, Fractional a) => a -> Valid @-}
+mulId :: (Eq a, Fractional a) => a -> Bool
 mulId x = x == 1 * x 
 
 {-@ mulDistr :: Double -> Double -> Double -> Valid @-}
