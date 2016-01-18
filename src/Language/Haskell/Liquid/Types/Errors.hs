@@ -41,7 +41,6 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types               (showpp, PPrint (..), Symbol, Expr, Reft)
-import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
 import qualified Control.Monad.Error as Ex
@@ -265,8 +264,6 @@ data TError t =
 
   deriving (Typeable, Generic, Functor)
 
-instance NFData a => NFData (TError a)
-
 instance NFData ParseError where
   rnf t = seq t ()
 
@@ -283,8 +280,12 @@ instance Ord (TError a) where
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
 
+showSpan' :: (Show a) => a -> SrcSpan
+showSpan' = mkGeneralSrcSpan . fsLit . show
+
 instance Ex.Error (TError a) where
-   strMsg = ErrOther (showSpan "Yikes! Exception!") . text
+   strMsg = ErrOther (showSpan' "Yikes! Exception!") . text
+
 
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
