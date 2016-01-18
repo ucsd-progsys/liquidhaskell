@@ -150,7 +150,6 @@ config = cmdArgsMode $ Config {
 
  , smtsolver
     = def &= help "Name of SMT-Solver"
-          &= explicit
 
  , newcheck
     = True &= help "New fixpoint check"
