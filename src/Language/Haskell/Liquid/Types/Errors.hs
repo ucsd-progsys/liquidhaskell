@@ -31,7 +31,8 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Type
-import           SrcLoc                       (SrcSpan (..), noSrcSpan)
+import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
+import           FastString
 import           GHC.Generics
 import           Control.DeepSeq
 import           Data.Typeable                (Typeable)
@@ -40,11 +41,12 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types               (showpp, PPrint (..), Symbol, Expr, Reft)
-import           Language.Haskell.Liquid.GHC.Misc      (pprDoc, unpackRealSrcSpan)
 import           Language.Haskell.Liquid.GHC.SpanStack (showSpan)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
 import qualified Control.Monad.Error as Ex
+import qualified Outputable as Out
+import           DynFlags (unsafeGlobalDynFlags)
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -77,7 +79,11 @@ srcSpanInfo (RealSrcSpan s)
   | l == l'           = Just (f, l, c, c')
   | otherwise         = Nothing
   where
-    (f, l, c, l', c') = unpackRealSrcSpan s
+     f  = unpackFS $ srcSpanFile s
+     l  = srcSpanStartLine s
+     c  = srcSpanStartCol  s
+     l' = srcSpanEndLine   s
+     c' = srcSpanEndCol    s
 srcSpanInfo _         = Nothing
 
 getFileLine :: FilePath -> Int -> IO (Maybe String)
@@ -290,7 +296,13 @@ data Panic = Panic { ePos :: !SrcSpan
   deriving (Typeable, Generic)
 
 instance PPrint SrcSpan where
-  pprint = pprDoc
+  pprint = text . showSDoc . Out.ppr
+     where
+        showSDoc sdoc = Out.renderWithStyle
+                        unsafeGlobalDynFlags
+                        sdoc (Out.mkUserStyle
+                              Out.alwaysQualify
+                              Out.AllTheWay)
 
 instance PPrint Panic where
   pprint (Panic sp d) = pprint sp <+> text "Unexpected panic (!)"
@@ -308,20 +320,20 @@ panic sp d = Ex.throw $ Panic (sspan sp) (text d)
     sspan  = fromMaybe noSrcSpan
 
 
--- | Construct and show an Error with no SrcSpan, then crash
+-- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
 todo :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
-todo sp m  = panic sp $ unlines
-             [ "This functionality is currently unimplemented. "
-             , "If this functionality is critical to you, please contact us at: "
-             , "https://github.com/ucsd-progsys/liquidhaskell/issues"
-             , m
-             ]
+todo s m  = panic s $ unlines
+            [ "This functionality is currently unimplemented. "
+            , "If this functionality is critical to you, please contact us at: "
+            , "https://github.com/ucsd-progsys/liquidhaskell/issues"
+            , m
+            ]
 
--- | Construct and show an Error with no SrcSpan, then crash
+-- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
 impossible :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
-impossible sp m = panic sp $ unlines msg ++ m
+impossible s m = panic s $ unlines msg ++ m
    where
       msg = [ "This should never happen! If you are seeing this message, "
             , "please submit a bug report at "
