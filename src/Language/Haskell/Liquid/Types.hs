@@ -1329,6 +1329,8 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 type ErrorResult = FixResult Error
 type Error       = TError SpecType
 
+instance NFData a => NFData (TError a)
+
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------
