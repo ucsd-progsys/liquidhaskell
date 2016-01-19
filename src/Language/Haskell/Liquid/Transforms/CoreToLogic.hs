@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic (
 
   ) where
 
+import Prelude hiding (error)
 import GHC hiding (Located)
 import Var
 import Type
@@ -190,7 +191,7 @@ coreToPd e
 
 
 instance Show C.CoreExpr where
-  show = showPpr 
+  show = showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
 coreToLogic = coreToLg . simplify

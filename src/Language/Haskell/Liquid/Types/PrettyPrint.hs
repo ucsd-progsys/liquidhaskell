@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
+import           Prelude hiding (error)
 import           TypeRep hiding (maybeParen)
 import           ErrUtils                         (ErrMsg)
 import           HscTypes                         (SourceError)

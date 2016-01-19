@@ -3,6 +3,7 @@
 
 module Language.Haskell.Liquid.Types.Variance ( Variance(..), VarianceInfo ) where
 
+import Prelude hiding (error)
 import Control.DeepSeq
 import Data.Typeable
 import Data.Data
