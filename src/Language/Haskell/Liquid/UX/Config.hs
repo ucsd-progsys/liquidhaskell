@@ -10,7 +10,8 @@ module Language.Haskell.Liquid.UX.Config (
 
    -- * Configuration Options
      Config (..)
-
+   , HasConfig (..)
+   , hasOpt
    ) where
 
 import Data.Serialize ( Serialize )
@@ -52,7 +53,18 @@ data Config = Config {
   , eliminate      :: Bool
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
+  , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
 instance Serialize Config
+
+
+class HasConfig t where
+  getConfig :: t -> Config
+
+hasOpt :: HasConfig t => t -> (Config -> Bool) -> Bool
+hasOpt t f = f (getConfig t)
+
+instance HasConfig Config where
+  getConfig = id
