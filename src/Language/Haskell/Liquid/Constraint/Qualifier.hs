@@ -31,10 +31,16 @@ specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
   = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (ctors $ spec info)
-        -- FIXME: this mines extra, useful qualifiers but causes a significant increase in running time
-        -- , ((isClassOp x || isDataCon x) && x `S.member` (S.fromList $ impVars info ++ defVars info)) || x `S.member` (S.fromList $ defVars info)
-        , x `S.member` (S.fromList $ defVars info)
+        , x `S.member` (S.fromList $ defVars info ++
+                                     if info `hasOpt` scrapeImports
+                                     -- NOTE: this mines extra, useful qualifiers but causes
+                                     -- a significant increase in running time, so we hide it
+                                     -- behind `--scrape-imports`
+                                     then impVars info
+                                     else [])
         , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
+        -- NOTE: large qualifiers are VERY expensive, so we only mine
+        -- qualifiers up to a given size, controlled with --max-params
         , length (q_params q) <= k + 1
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'

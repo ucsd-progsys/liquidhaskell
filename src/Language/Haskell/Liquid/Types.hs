@@ -21,6 +21,8 @@ module Language.Haskell.Liquid.Types (
 
   -- * Options
     Config (..)
+  , HasConfig (..)
+  , hasOpt
 
   -- * Ghc Information
   , GhcInfo (..)
@@ -290,6 +292,10 @@ data GhcInfo = GI {
   , spec     :: !GhcSpec
   }
 
+instance HasConfig GhcInfo where
+  getConfig = getConfig . spec
+
+
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 
@@ -329,6 +335,9 @@ data GhcSpec = SP {
   , logicMap   :: LogicMap
   , proofType  :: Maybe Type
   }
+
+instance HasConfig GhcSpec where
+  getConfig = config
 
 data LogicMap = LM { logic_map :: M.HashMap Symbol LMap
                    , axiom_map :: M.HashMap Var Symbol
