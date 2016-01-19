@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.Interactive.Types
 
   ) where
 
+import Prelude        hiding (error)
 import Data.Serialize        ( Serialize )
 import GHC.Generics
 import System.Console.CmdArgs
