@@ -40,6 +40,8 @@ import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
 
+import           Control.Exception.Base (bracket)
+
 ---------------------------------------------------------------------------
 -- | Solver Monadic API ---------------------------------------------------
 ---------------------------------------------------------------------------
@@ -77,12 +79,10 @@ instance PTable Stats where
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi _ act = do
-  ctx <-  makeContext (not $ real cfg) (solver cfg) file
-  res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
-
-  -- add the following line to make delta debug minimize work
-  cleanupContext ctx
-  return $ fst res
+  bracket
+    (makeContext (not $ real cfg) (solver cfg) file)
+    (cleanupContext)
+    (\ctx -> fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi))
   where
     be   = F.bs     fi
     file = F.fileName fi -- (inFile cfg)
