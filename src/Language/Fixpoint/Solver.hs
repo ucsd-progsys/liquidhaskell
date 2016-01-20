@@ -30,7 +30,7 @@ import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Text.Printf                        (printf)
-import           Control.Monad                      (when, void)
+import           Control.Monad                      (when, void, filterM, forM)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
@@ -84,6 +84,7 @@ solve :: (NFData a, Fixpoint a) => Solver a
 solve cfg fi
   | parts cfg = partition  cfg               $!! fi
   | stats cfg = statistics cfg               $!! fi
+  | minimize cfg = minimizeFQ cfg  $!! fi
   | otherwise = do saveQuery cfg             $!! fi
                    res <- sW solveNative cfg $!! fi
                    return                    $!! res
@@ -295,3 +296,72 @@ isBinary = isExtFile BinFq
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
 withProgressFI = withProgress . fromIntegral . gSccs . cGraph
+
+
+---------------------------------------------------------------------------
+-- | Delta Debugging minimization
+---------------------------------------------------------------------------
+isUnsafe :: Result a -> Bool
+isUnsafe (Result Safe _)  = False
+isUnsafe _                = True
+
+type ConsList a = [(Integer, SubC a)]
+
+-- polymorphic delta debugging implementation
+deltaDebug :: (Config -> FInfo a -> [c] -> IO Bool) -> Config -> FInfo a -> [c] -> [c] -> IO [c]
+deltaDebug testSet cfg finfo set r = do
+  let (s1, s2) = splitAt ((length set) `div` 2) set
+  if length set == 1
+    then return set
+    else do
+      test1 <- testSet cfg finfo (s1 ++ r)
+      if test1
+        then deltaDebug testSet cfg finfo s1 r
+        else do
+          test2 <- testSet cfg finfo (s2 ++ r)
+          if test2
+            then deltaDebug testSet cfg finfo s2 r
+            else do
+              d1 <- deltaDebug testSet cfg finfo s1 (s2 ++ r)
+              d2 <- deltaDebug testSet cfg finfo s2 (s1 ++ r)
+              return (d1 ++ d2)
+
+testConstraints :: (NFData a, Fixpoint a) => Config -> FInfo a -> ConsList a -> IO Bool
+testConstraints cfg fi cons  = do
+  let fi' = fi { cm = M.fromList cons }
+  res <- solve cfg fi'
+  return $ isUnsafe res
+
+-- run delta debugging on a failing partition
+-- to find minimal set of failing constraints
+getMinFailingCons :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (ConsList a)
+getMinFailingCons cfg fi = do
+  let cons = M.toList $ cm fi
+  deltaDebug testConstraints cfg fi cons []
+
+minimizeFQ :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
+minimizeFQ cfg fi = do
+  let cfg' = cfg { minimize = False }
+  let (_, parts) = partition' Nothing fi
+
+  -- filter out partitions that aren't failing
+  failingParts <- flip filterM parts $ \part -> do
+    res <- solve cfg' part
+    return $ isUnsafe res
+
+  -- only run delta debugging on failing partitions
+  -- then append results together
+  partres <- forM failingParts (getMinFailingCons cfg')
+  let partres' = concat partres
+
+  -- create new minimized finfo file
+  let minfi = fi {
+    cm = M.fromList partres',
+    fileName = extFileName Min $ fileName fi
+  }
+ 
+  -- write minimized finfo file
+  writeFile (fileName minfi) $ render $ toFixpoint cfg' minfi
+  
+  return $ Result { resStatus = Safe, resSolution = M.empty }
+

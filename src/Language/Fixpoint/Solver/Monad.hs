@@ -78,7 +78,11 @@ runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi _ act = do
   ctx <-  makeContext (not $ real cfg) (solver cfg) file
-  fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+  res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+
+  -- add the following line to make delta debug minimize work
+  cleanupContext ctx
+  return $ fst res
   where
     be   = F.bs     fi
     file = F.fileName fi -- (inFile cfg)

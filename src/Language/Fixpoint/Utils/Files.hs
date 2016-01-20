@@ -86,6 +86,7 @@ data Ext = Cgi      -- ^ Constraint Generation Information
          | Dat
          | BinFq    -- ^ Binary representation of .fq / FInfo
          | Smt2     -- ^ SMTLIB2 query file
+         | Min      -- ^ filter constraints with delta debug
          deriving (Eq, Ord, Show)
 
 extMap          = go
@@ -117,6 +118,7 @@ extMap          = go
     go Dot      = ".dot"
     go BinFq    = ".bfq"
     go (Part n) = "." ++ show n
+    go Min      = ".minfq"
     -- go _      = errorstar $ "extMap: Unknown extension " ++ show e
 
 withExt         :: FilePath -> Ext -> FilePath
