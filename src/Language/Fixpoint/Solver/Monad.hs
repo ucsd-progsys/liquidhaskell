@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | This is a wrapper around IO that permits SMT queries
 
@@ -79,13 +80,16 @@ instance PTable Stats where
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi _ act = do
-  bracket
-    (makeContext (not $ real cfg) (solver cfg) file)
-    (cleanupContext)
-    (\ctx -> fst <$> runStateT (declare fi >> act) (SS ctx be $ stats0 fi))
+  bracket acquire release $ \ctx -> do
+    res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+    smtWrite ctx "(exit)"
+    return $ fst res
+      
   where
-    be   = F.bs     fi
-    file = F.fileName fi -- (inFile cfg)
+    acquire = makeContext (not $ real cfg) (solver cfg) file
+    release = cleanupContext
+    be      = F.bs     fi
+    file    = F.fileName fi -- (inFile cfg)
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
