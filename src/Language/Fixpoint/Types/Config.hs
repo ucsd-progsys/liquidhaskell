@@ -56,6 +56,7 @@ data Config
     , stats       :: Bool                -- ^ compute constraint statistics
     , parts       :: Bool                -- ^ partition FInfo into separate fq files
     , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
+    , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
     } deriving (Eq,Data,Typeable,Show)
 
@@ -78,6 +79,7 @@ instance Default Config where
                , stats       = def
                , parts       = def
                , save        = def
+               , minimize    = def
                }
 
 instance Command Config where
@@ -150,6 +152,7 @@ config = Config {
   , cores       = def   &= help "(numeric) Number of threads to use"
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
+  , minimize    = False &= help "Use delta debug to minimize fq file"
   }
   &= verbosity
   &= program "fixpoint"
