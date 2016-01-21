@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Liquid (
   , MbEnv
   ) where
 
+import           Prelude hiding (error)
 import           Data.Maybe
 import           System.Exit
 import           Control.DeepSeq

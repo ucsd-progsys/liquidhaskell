@@ -20,6 +20,7 @@ import Class     (classKey)
 
 import           Debug.Trace
 
+import           Prelude                      hiding (error)
 import           Avail                        (availsToNameSet)
 import           BasicTypes                   (Arity)
 import           CoreSyn                      hiding (Expr, sourceName)
@@ -71,6 +72,7 @@ import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Cons
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
+import           Language.Haskell.Liquid.Types.Errors
 
 
 -----------------------------------------------------------------------
@@ -419,8 +421,8 @@ instance Symbolic FastString where
 fastStringText = T.decodeUtf8 . fastStringToByteString
 
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
-tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
-tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
+tyConTyVarsDef c | TC.isPromotedTyCon   c = panic Nothing ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
+tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
 tyConTyVarsDef c = TC.tyConTyVars c
 
 ----------------------------------------------------------------------

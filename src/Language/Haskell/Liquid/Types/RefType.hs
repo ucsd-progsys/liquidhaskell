@@ -67,6 +67,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   ) where
 
+import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Var
@@ -90,7 +91,7 @@ import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
 
-
+import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (shiftVV, Predicate)
@@ -126,7 +127,7 @@ findPVar :: [PVar (RType c tv ())] -> UsedPVar -> PVar (RType c tv ())
 findPVar ps p
   = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
   where PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
-        msg p = errorstar $ "RefType.findPVar" ++ showpp p ++ "not found"
+        msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
@@ -164,7 +165,7 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , FreeVar c tv
          )
         => Monoid (RType c tv r)  where
-  mempty  = errorstar "mempty: RType"
+  mempty  = panic Nothing "mempty: RType"
   mappend = strengthenRefType
 
 
@@ -176,7 +177,7 @@ instance ( SubsTy tv (RType c tv ()) c
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ()))
          => Monoid (RTProp c tv r) where
-  mempty         = errorstar "mempty: RTProp"
+  mempty         = panic Nothing "mempty: RTProp"
 
   mappend (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
     | isTauto r1 = RProp s2 (RHole r2)
@@ -199,14 +200,14 @@ instance ( OkRT c tv r
          , SubsTy tv (RType c tv ()) c) => Reftable (RTProp c tv r) where
   isTauto (RProp _ (RHole r)) = isTauto r
   isTauto (RProp _ t)         = isTrivial t
-  top (RProp _ (RHole _))     = errorstar "RefType: Reftable top called on (RProp _ (RHole _))"
+  top (RProp _ (RHole _))     = panic Nothing "RefType: Reftable top called on (RProp _ (RHole _))"
   top (RProp xs t)            = RProp xs $ mapReft top t
   ppTy (RProp _ (RHole r)) d  = ppTy r d
-  ppTy (RProp _ _) _          = errorstar "RefType: Reftable ppTy in RProp"
-  toReft                      = errorstar "RefType: Reftable toReft"
-  params                      = errorstar "RefType: Reftable params for Ref"
-  bot                         = errorstar "RefType: Reftable bot    for Ref"
-  ofReft                      = errorstar "RefType: Reftable ofReft for Ref"
+  ppTy (RProp _ _) _          = panic Nothing "RefType: Reftable ppTy in RProp"
+  toReft                      = panic Nothing "RefType: Reftable toReft"
+  params                      = panic Nothing "RefType: Reftable params for Ref"
+  bot                         = panic Nothing "RefType: Reftable bot    for Ref"
+  ofReft                      = panic Nothing "RefType: Reftable ofReft for Ref"
 
 
 ----------------------------------------------------------------------------
@@ -235,11 +236,11 @@ instance Subable (RRProp Reft) where
 
 instance (PPrint r, Reftable r) => Reftable (RType RTyCon RTyVar r) where
   isTauto     = isTrivial
-  ppTy        = errorstar "ppTy RProp Reftable"
-  toReft      = errorstar "toReft on RType"
-  params      = errorstar "params on RType"
-  bot         = errorstar "bot on RType"
-  ofReft      = errorstar "ofReft on RType"
+  ppTy        = panic Nothing "ppTy RProp Reftable"
+  toReft      = panic Nothing "toReft on RType"
+  params      = panic Nothing "params on RType"
+  bot         = panic Nothing "bot on RType"
+  ofReft      = panic Nothing "ofReft on RType"
 
 
 
@@ -380,7 +381,7 @@ nlzP ps t@(RRTy _ _ _ t')
 nlzP ps t@(RAllE _ _ _)
  = (t, ps)
 nlzP _ t
- = errorstar $ "RefType.nlzP: cannot handle " ++ show t
+ = panic Nothing $ "RefType.nlzP: cannot handle " ++ show t
 
 strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
@@ -407,7 +408,7 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
     f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
-    f t1 t2           = error $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
+    f t1 t2           = panic Nothing $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                          (pprt_raw t1) (showpp (toRSort t1)) (pprt_raw t2) (showpp (toRSort t2))
 
 pprt_raw :: (OkRT c tv r) => RType c tv r -> String
@@ -423,7 +424,7 @@ strengthenRefType t1 t2
   | eqt t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
-  = errorstar msg
+  = panic Nothing msg
   where
     eqt t1 t2 = {- render -} toRSort t1 == {- render -} toRSort t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
@@ -490,7 +491,7 @@ meets [] rs                 = rs
 meets rs []                 = rs
 meets rs rs'
   | length rs == length rs' = zipWith meet rs rs'
-  | otherwise               = errorstar "meets: unbalanced rs"
+  | otherwise               = panic Nothing "meets: unbalanced rs"
 
 
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
@@ -532,7 +533,7 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
     choosen 0 _ _           = []
     choosen i (x:xs) (_:ys) = x:choosen (i-1) xs ys
     choosen i []     (y:ys) = y:choosen (i-1) [] ys
-    choosen _ _ _           = errorstar "choosen: this cannot happen"
+    choosen _ _ _           = impossible Nothing "choosen: this cannot happen"
 
 expandRApp _ _ t               = t
 
@@ -612,7 +613,7 @@ tyClasses (RApp c ts _ _)
 tyClasses (RVar _ _)      = []
 tyClasses (RRTy _ _ _ t)  = tyClasses t
 tyClasses (RHole _)       = []
-tyClasses t               = errorstar ("RefType.tyClasses cannot handle" ++ show t)
+tyClasses t               = panic Nothing ("RefType.tyClasses cannot handle" ++ show t)
 
 
 --------------------------------------------------------------------------------
@@ -675,7 +676,7 @@ mkRApp m s c ts rs r r'
 
 refAppTyToFun r
   | isTauto r = r
-  | otherwise = errorstar "RefType.refAppTyToFun"
+  | otherwise = panic Nothing "RefType.refAppTyToFun"
 
 subsFreeRef _ _ (α', τ', _) (RProp ss (RHole r))
   = RProp (mapSnd (subt (α', τ')) <$> ss) (RHole r)
@@ -843,11 +844,11 @@ toType (RAppTy t (RExprArg _) _)
 toType (RAppTy t t' _)
   = AppTy (toType t) (toType t')
 toType t@(RExprArg _)
-  = errorstar $ "CANNOT HAPPEN: RefType.toType called with: " ++ show t
+  = impossible Nothing $ "CANNOT HAPPEN: RefType.toType called with: " ++ show t
 toType (RRTy _ _ _ t)
   = toType t
 toType t
-  = errorstar $ "RefType.toType cannot handle: " ++ show t
+  = impossible Nothing $ "RefType.toType cannot handle: " ++ show t
 
 
 --------------------------------------------------------------------------------
@@ -1046,7 +1047,7 @@ mkDType autoenv xvs acc ((v, (x, t)):vxts)
 
 
 mkDType _ _ _ _
-  = errorstar "RefType.mkDType called on invalid input"
+  = panic Nothing "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
 isSizeable autoenv tc =  S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
@@ -1059,7 +1060,7 @@ mkDecrFun autoenv (RApp c _ _ _)
 mkDecrFun _ (RVar _ _)
   = EVar
 mkDecrFun _ _
-  = errorstar "RefType.mkDecrFun called on invalid input"
+  = panic Nothing "RefType.mkDecrFun called on invalid input"
 
 cmpLexRef vxs (v, x, g)
   = pAnd $  (PAtom Lt (g x) (g v)) : (PAtom Ge (g x) zero)
@@ -1083,7 +1084,7 @@ makeLexReft old acc (e:es) (e':es')
                 ++ [PAtom Ge o' zero | (_,o') <- old]
     zero = ECon $ I 0
 makeLexReft _ _ _ _
-  = errorstar "RefType.makeLexReft on invalid input"
+  = panic Nothing "RefType.makeLexReft on invalid input"
 
 -------------------------------------------------------------------------------
 
@@ -1113,7 +1114,7 @@ mkTyConInfo c usertyvar userprvariance f
         varLookup v m = fromMaybe (errmsg v) $ L.lookup v m
         tyvars        = tyConTyVarsDef c
         n             = (TC.tyConArity c) - 1
-        errmsg v      = error $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
+        errmsg v      = panic Nothing $ "GhcMisc.getTyConInfo: var not found" ++ showPpr v
         dindex        = -1
 
 

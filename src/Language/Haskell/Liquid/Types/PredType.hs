@@ -27,6 +27,7 @@ module Language.Haskell.Liquid.Types.PredType (
   , pappSort, pappArity
   ) where
 
+import           Prelude                         hiding (error)
 import           DataCon
 import           Text.PrettyPrint.HughesPJ
 import qualified TyCon                           as TC
@@ -47,6 +48,7 @@ import           Language.Haskell.Liquid.Types
 
 import           Control.Applicative             ((<$>))
 import           Data.List                       (nub)
+import           Language.Haskell.Liquid.Types.Errors
 
 import           Data.Default
 
@@ -67,7 +69,7 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
     tx _  []     []     []     = []
     tx su (x:xs) (y:ys) (t:ts) = (y, subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
-    tx _ _ _ _ = errorstar "PredType.dataConPSpecType.tx called on invalid inputs"
+    tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
     yts'     = tx [] xs ys ts
     ts'      = map ("" , , mempty) cs ++ yts'
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
@@ -103,7 +105,7 @@ dataConTy m (ForAllTy α t)
 dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
-  = error "ofTypePAppTy"
+  = panic Nothing "ofTypePAppTy"
 
 ----------------------------------------------------------------------------
 ----- Interface: Replace Predicate With Uninterprented Function Symbol -----
@@ -166,7 +168,7 @@ replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> Spe
 -------------------------------------------------------------------------------------
 replacePreds msg             = foldl' go
   where
-     go _ (_, RProp _ (RHole _)) = error "replacePreds on RProp _ (RHole _)"
+     go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
      go z (π, t) = substPred msg   (π, t)     z
 
 
@@ -185,7 +187,7 @@ substPred :: String -> (RPVar, SpecProp) -> SpecType -> SpecType
 
 substPred _   (π, RProp ss (RVar a1 r1)) t@(RVar a2 r2)
   | isPredInReft && a1 == a2    = RVar a1 $ meetListWithPSubs πs ss r1 r2'
-  | isPredInReft                = errorstar ("substPred RVar Var Mismatch" ++ show (a1, a2))
+  | isPredInReft                = panic Nothing ("substPred RVar Var Mismatch" ++ show (a1, a2))
   | otherwise                   = t
   where
     (r2', πs)                   = splitRPvar π r2
@@ -231,19 +233,19 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
     rvs      = foldReft (\_ r acc -> rvReft r : acc) []
     rvReft r = let Reft(s,_) = toReft r in s
 
-substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
+substRCon msg su t _ _        = panic Nothing $ msg ++ " substRCon " ++ showpp (su, t)
 
 pad _ f [] ys   = (f <$> ys, ys)
 pad _ f xs []   = (xs, f <$> xs)
 pad msg _ xs ys
   | nxs == nys  = (xs, ys)
-  | otherwise   = errorstar $ "pad: " ++ msg
+  | otherwise   = panic Nothing $ "pad: " ++ msg
   where
     nxs         = length xs
     nys         = length ys
 
 substPredP _ su p@(RProp _ (RHole _))
-  = errorstar ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
+  = panic Nothing ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where
@@ -298,21 +300,21 @@ meetListWithPSub ss r1 r2 π
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = r2 `meet` (subst su r1)
   | otherwise
-  = errorstar $ "PredType.meetListWithPSub partial application to " ++ showpp π
+  = panic Nothing $ "PredType.meetListWithPSub partial application to " ++ showpp π
   where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
 
 meetListWithPSubRef _ (RProp _ (RHole _)) _ _ -- TODO: Is this correct?
-  = errorstar "PredType.meetListWithPSubRef called with invalid input"
+  = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef _ _ (RProp _ (RHole _)) _
-  = errorstar "PredType.meetListWithPSubRef called with invalid input"
+  = panic Nothing "PredType.meetListWithPSubRef called with invalid input"
 meetListWithPSubRef ss (RProp s1 r1) (RProp s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
   = RProp s1 $ (subst su' r2) `meet` r1
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
   = RProp s2 $ r2 `meet` (subst su r1)
   | otherwise
-  = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
+  = panic Nothing $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where
     su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> ss) (pargs π)]
     su' = mkSubst [(x, EVar y) | (x, y) <- zip (fst <$> s2) (fst <$> s1)]

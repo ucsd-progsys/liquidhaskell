@@ -13,6 +13,7 @@
 
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
+import           Prelude                          hiding (error)
 import           CoreSyn
 import           CoreUtils                        (exprType)
 import qualified DsMonad

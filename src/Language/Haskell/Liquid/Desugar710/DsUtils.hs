@@ -42,6 +42,7 @@ module Language.Haskell.Liquid.Desugar710.DsUtils (
 
 import {-# SOURCE #-}   Language.Haskell.Liquid.Desugar710.Match ( matchSimply )
 
+import Prelude hiding (error)
 import HsSyn
 import TcHsSyn
 import Coercion( Coercion, isReflCo )
@@ -49,6 +50,7 @@ import TcType( tcSplitTyConApp )
 import CoreSyn
 import DsMonad
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.DsExpr ( dsLExpr )
+import Language.Haskell.Liquid.Types.Errors (impossible)
 
 import CoreUtils
 import MkCore
@@ -192,7 +194,7 @@ cantFailMatchResult expr = MatchResult CantFail (\_ -> return expr)
 
 extractMatchResult :: MatchResult -> CoreExpr -> DsM CoreExpr
 extractMatchResult (MatchResult CantFail match_fn) _
-  = match_fn (error "It can't fail!")
+  = match_fn (impossible Nothing "It can't fail!")
 
 extractMatchResult (MatchResult CanFail match_fn) fail_expr = do
     (fail_bind, if_it_fails) <- mkFailurePair fail_expr

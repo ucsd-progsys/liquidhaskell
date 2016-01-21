@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.Types.Errors (
 
   ) where
 
+import           Prelude                      hiding (error)
 import           Type
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString

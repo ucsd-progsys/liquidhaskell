@@ -5,6 +5,7 @@
 
 module Language.Haskell.Liquid.GHC.Play where
 
+import Prelude hiding (error)
 import GHC
 import CoreSyn
 import Var
@@ -16,6 +17,7 @@ import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 
 import Language.Haskell.Liquid.GHC.Misc ()
+import Language.Haskell.Liquid.Types.Errors
 
 class Subable a where
   sub   :: M.HashMap CoreBndr CoreExpr -> a -> a
@@ -51,7 +53,7 @@ instance Subable CoreExpr where
 
 instance Subable Coercion where
   sub _ c                = c
-  subTy _ _              = error "subTy Coercion"
+  subTy _ _              = panic Nothing "subTy Coercion"
 
 instance Subable (Alt Var) where
  sub s (a, b, e)   = (a, map (sub s) b,   sub s e)
@@ -63,7 +65,7 @@ instance Subable Var where
  subTy s v = setVarType v (subTy s (varType v))
 
 subVar (Var x) = x
-subVar  _      = error "sub Var"
+subVar  _      = panic Nothing "sub Var"
 
 instance Subable (Bind Var) where
  sub s (NonRec x e)   = NonRec (sub s x) (sub s e)

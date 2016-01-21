@@ -12,6 +12,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- * printer
   , pprintCBs
   ) where
+
+import Prelude hiding (error)
 import IdInfo
 import InstEnv
 import Bag (bagToList)
@@ -56,6 +58,7 @@ import Language.Haskell.Liquid.UX.Cabal   (withCabal)
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
+import Language.Haskell.Liquid.Types.Errors
 
 
 type GhcResult = Either ErrorResult (GhcInfo, HscEnv)
@@ -500,7 +503,7 @@ specIncludes ext paths reqs
          mfile <- getFileInDirs f paths
          case mfile of
            Just file -> return file
-           Nothing -> errorstar $ "cannot find " ++ f ++ " in " ++ show paths
+           Nothing -> panic Nothing $ "cannot find " ++ f ++ " in " ++ show paths
 
 reqFile ext s
   | isExtFile ext s

@@ -2,6 +2,7 @@
 
 module Language.Haskell.Liquid.Misc where
 
+import Prelude hiding (error)
 import Control.Monad (liftM2)
 import Control.Applicative
 import Control.Arrow (first)
@@ -18,6 +19,7 @@ import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import           Text.PrettyPrint.HughesPJ ((<>), char)
 import           Debug.Trace (trace)
+import           Language.Haskell.Liquid.Types.Errors
 
 import Language.Fixpoint.Misc
 
@@ -30,7 +32,7 @@ import Paths_liquidhaskell
 (_:xs) !? n = xs !? (n-1)
 
 safeFromJust _  (Just x) = x
-safeFromJust err _       = errorstar err
+safeFromJust err _       = panic Nothing err
 
 fst4 (a,_,_,_) = a
 snd4 (_,b,_,_) = b
@@ -75,11 +77,11 @@ getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 {-@ safeZipWithError :: _ -> xs:[a] -> ListL b xs -> ListL (a,b) xs / [xs] @-}
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
-safeZipWithError msg _      _      = errorstar msg
+safeZipWithError msg _      _      = panic Nothing msg
 
 safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
 safeZip3WithError _   []     []     []     = []
-safeZip3WithError msg _      _      _      = errorstar msg
+safeZip3WithError msg _      _      _      = panic Nothing msg
 
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 
@@ -90,9 +92,9 @@ mapN _ _ []     = []
 
 zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
 zipWithDefM _ []     []     = return []
-zipWithDefM _ xs     []     = return xs 
-zipWithDefM _ []     ys     = return ys 
-zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys) 
+zipWithDefM _ xs     []     = return xs
+zipWithDefM _ []     ys     = return ys
+zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
 
 --------------------------------------
 -- Originally part of Fixpoint's Misc:

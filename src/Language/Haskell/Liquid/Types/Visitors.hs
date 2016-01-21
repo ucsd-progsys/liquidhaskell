@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Types.Visitors (
 
   ) where
 
-
+import Prelude hiding (error)
 import DataCon
 import Literal
 import CoreSyn

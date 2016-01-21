@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Measure (
   , wiredInMeasures
   ) where
 
+import Prelude hiding (error)
 import GHC hiding (Located)
 import Var
 import Type
@@ -23,6 +24,7 @@ import TysWiredIn
 import Text.PrettyPrint.HughesPJ hiding (first)
 import Text.Printf (printf)
 import DataCon
+import Language.Haskell.Liquid.Types.Errors
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -91,7 +93,7 @@ mkM name typ eqns
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
-  = errorstar $ "invalid measure definition for " ++ (show name)
+  = panic Nothing $ "invalid measure definition for " ++ (show name)
 
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
@@ -123,7 +125,7 @@ mkMSpec ms cms ims = MSpec cm mm cmm ims
 checkDuplicateMeasure ms
   = case M.toList dups of
       []         -> ms
-      mms        -> errorstar $ concatMap err mms
+      mms        -> panic Nothing $ concatMap err mms
     where
       gms        = group [(name m , m) | m <- ms]
       dups       = M.filter ((1 <) . length) gms
@@ -207,28 +209,28 @@ dataConTypes  s = (ctorTys, measTys)
 
 
 makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
-makeDataConType [] 
+makeDataConType []
   = []
 makeDataConType ds | isNothing (dataConWrapId_maybe dc)
   = [(woId, combineDCTypes t ts)]
   where
-    dc   = ctor $ head ds  
-    woId = dataConWorkId dc 
+    dc   = ctor $ head ds
+    woId = dataConWorkId dc
     t    = varType woId
-    ts   = defRefType t <$> ds 
+    ts   = defRefType t <$> ds
 
-makeDataConType ds 
+makeDataConType ds
   = [(woId, extend loci woRType wrRType), (wrId, extend loci wrRType woRType)]
   where
-    (wo, wr) = partition isWorkerDef ds 
-    dc       = ctor $ head ds 
-    loci     = loc $ measure $ head ds 
-    woId     = dataConWorkId dc 
+    (wo, wr) = partition isWorkerDef ds
+    dc       = ctor $ head ds
+    loci     = loc $ measure $ head ds
+    woId     = dataConWorkId dc
     wot      = varType woId
-    wrId     = dataConWrapId dc 
+    wrId     = dataConWrapId dc
     wrt      = varType wrId
-    wots     = defRefType wot <$> wo 
-    wrts     = defRefType wrt <$> wr 
+    wots     = defRefType wot <$> wo
+    wrts     = defRefType wrt <$> wr
 
     wrRType  = combineDCTypes wrt wrts
     woRType  = combineDCTypes wot wots
@@ -238,58 +240,58 @@ makeDataConType ds
       -- types are missing for arguments, so definition came from a logical measure
       -- and it is for the worker datacon
       | any isNothing (snd <$> binds def)
-      = True 
-      | otherwise 
+      = True
+      | otherwise
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
 
 
-extend lc t1' t2 
-  | Just su <- mapArgumens lc t1 t2 
+extend lc t1' t2
+  | Just su <- mapArgumens lc t1 t2
   = t1 `strengthenResult` (subst su $ fromMaybe mempty (stripRTypeBase $ resultTy t2))
   | otherwise
   = t1
-  where 
-    t1 = noDummySyms t1' 
+  where
+    t1 = noDummySyms t1'
 
 
-resultTy = ty_res . toRTypeRep 
+resultTy = ty_res . toRTypeRep
 
 strengthenResult t r = fromRTypeRep $ rep{ty_res = ty_res rep `strengthen` r}
   where
     rep = toRTypeRep t
 
 
-noDummySyms t 
+noDummySyms t
   | any isDummy (ty_binds rep)
-  = subst su $ fromRTypeRep $ rep{ty_binds = xs'} 
+  = subst su $ fromRTypeRep $ rep{ty_binds = xs'}
   | otherwise
-  = t 
+  = t
   where
     rep = toRTypeRep t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
-combineDCTypes t = foldl' strengthenRefTypeGen (ofType t) 
+combineDCTypes t = foldl' strengthenRefTypeGen (ofType t)
 
-mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst  
-mapArgumens lc t1 t2 = go xts1' xts2' 
+mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
+mapArgumens lc t1 t2 = go xts1' xts2'
   where
     xts1 = zip (ty_binds rep1) (ty_args rep1)
     xts2 = zip (ty_binds rep2) (ty_args rep2)
-    rep1 = toRTypeRep t1 
-    rep2 = toRTypeRep t2 
+    rep1 = toRTypeRep t1
+    rep2 = toRTypeRep t2
 
-    xts1' = dropWhile canDrop xts1 
-    xts2' = dropWhile canDrop xts2 
+    xts1' = dropWhile canDrop xts1
+    xts2' = dropWhile canDrop xts2
 
     canDrop (_, t) = isClassType t || isEqType t
 
-    go xs ys 
-      | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2')) 
+    go xs ys
+      | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2'))
       = Just $ mkSubst $ zipWith (\y x -> (fst x, EVar $ fst y)) xts1' xts2'
       | otherwise
       = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constroctors cannot be merged\n"
-          ++ show t1 ++ "\n" ++ show t2 )  
+          ++ show t1 ++ "\n" ++ show t2 )
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
@@ -299,7 +301,7 @@ defRefType tdc (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
     g (x, Nothing) t = (x, t, mempty)
     g (x, Just t)  _ = (x, t, mempty)
     t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    msg = "defRefType dc = " ++ showPpr dc 
+    msg = "defRefType dc = " ++ showPpr dc
 
     mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
@@ -310,7 +312,7 @@ refineWithCtorBody dc f as body t =
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, bodyPred (EApp f (eVar <$> (as ++ [v]))) body)
     Nothing ->
-      errorstar $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
+      panic Nothing $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 
 
 bodyPred ::  Expr -> Body -> Expr

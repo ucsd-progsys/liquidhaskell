@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Desugar710.DsExpr ( dsExpr, dsLExpr, dsLocalBinds
 
 -- #include "HsVersions.h"
 
+import Prelude hiding (error)
 import Language.Haskell.Liquid.Desugar710.Match
 import Language.Haskell.Liquid.Desugar710.MatchLit
 import Language.Haskell.Liquid.Desugar710.DsBinds
@@ -23,7 +24,7 @@ import DsMonad
 import Name
 import NameEnv
 import FamInstEnv( topNormaliseType )
-
+import Language.Haskell.Liquid.Types.Errors (impossible)
 
 import HsSyn
 
@@ -899,7 +900,7 @@ handle_failure pat match fail_op
        ; fail_msg <- mkStringExpr (mk_fail_msg dflags pat)
        ; extractMatchResult match (App fail_op' fail_msg) }
   | otherwise
-  = extractMatchResult match (error "It can't fail")
+  = extractMatchResult match (impossible Nothing "It can't fail")
 
 mk_fail_msg :: DynFlags -> Located e -> String
 mk_fail_msg dflags pat = "Pattern match failure in do expression at " ++

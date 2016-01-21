@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Desugar710.DsListComp ( dsListComp, dsPArrComp, d
 
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.DsExpr ( dsExpr, dsLExpr, dsLocalBinds )
 
+import Prelude hiding (error)
 import HsSyn
 import TcHsSyn
 import CoreSyn
@@ -21,6 +22,7 @@ import MkCore
 
 import DsMonad          -- the monadery used in the desugarer
 import Language.Haskell.Liquid.Desugar710.DsUtils
+import Language.Haskell.Liquid.Types.Errors (impossible)
 
 import DynFlags
 import CoreUtils
@@ -817,7 +819,7 @@ dsMcBindStmt pat rhs' bind_op fail_op stmts
              ; fail_msg <- mkStringExpr (mk_fail_msg dflags pat)
              ; extractMatchResult match (App fail_op' fail_msg) }
       | otherwise
-        = extractMatchResult match (error "It can't fail")
+        = extractMatchResult match (impossible Nothing "It can't fail")
 
     mk_fail_msg :: DynFlags -> Located e -> String
     mk_fail_msg dflags pat
