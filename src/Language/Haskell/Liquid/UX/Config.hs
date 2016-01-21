@@ -56,6 +56,7 @@ data Config = Config {
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
+  , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
