@@ -23,6 +23,8 @@ module Language.Haskell.Liquid.UX.Tidy (
   , panicError
   ) where
 
+import           Prelude             hiding (error)
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L

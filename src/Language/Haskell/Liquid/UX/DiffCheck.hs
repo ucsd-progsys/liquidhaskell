@@ -24,8 +24,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    )
    where
 
---import            Debug.Trace (trace)
-import            Control.Applicative          ((<$>), (<*>))
+import            Prelude                       hiding (error)
+
 import            Data.Aeson
 import qualified  Data.Text as T
 import            Data.Algorithm.Diff
@@ -50,6 +50,7 @@ import            Language.Haskell.Liquid.Types.Visitors
 import            Language.Haskell.Liquid.UX.Errors   ()
 import            Text.Parsec.Pos                  (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import            Text.PrettyPrint.HughesPJ        (text, render, Doc)
+import            Language.Haskell.Liquid.Types.Errors
 
 import qualified  Data.ByteString               as B
 import qualified  Data.ByteString.Lazy          as LB
@@ -258,7 +259,7 @@ meetSpans _ (Just (l,l')) (Just (m,_))
 lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan _ _                = Nothing
 
-catSpans b []               = error $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
+catSpans b []               = panic Nothing $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
 catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
 
 bindFile (NonRec x _) = varFile x
@@ -266,7 +267,7 @@ bindFile (Rec xes)    = varFile $ fst $ head xes
 
 varFile b = case getSrcSpan b of
               RealSrcSpan z -> srcSpanFile z
-              _             -> error $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
+              _             -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
 
 
 bindSpans (NonRec x e)    = getSrcSpan x : exprSpans e

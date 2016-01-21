@@ -28,6 +28,8 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 ) where
 
+import Prelude hiding (error)
+
 import Control.Monad
 import Data.Maybe
 import Data.Traversable (mapM)

@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.UX.Config (
    , hasOpt
    ) where
 
+import Prelude hiding (error)
+
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
 import Data.Typeable  (Typeable)
