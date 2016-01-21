@@ -202,6 +202,11 @@ config = cmdArgsMode $ Config {
             &= name "scrape-imports"
             &= explicit
 
+ , scrapeUsedImports
+    = False &= help "Scrape qualifiers from used, imported specifications"
+            &= name "scrape-used-imports"
+            &= explicit
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -348,6 +353,7 @@ defConfig = Config { files          = def
                    , eliminate      = def
                    , port           = defaultPort
                    , scrapeImports  = False
+                   , scrapeUsedImports  = False
                    }
 
 

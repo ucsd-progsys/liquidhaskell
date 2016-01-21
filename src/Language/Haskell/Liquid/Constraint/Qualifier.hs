@@ -32,10 +32,12 @@ specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 specificationQualifiers k info lEnv
   = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (ctors $ spec info)
         , x `S.member` (S.fromList $ defVars info ++
-                                     if info `hasOpt` scrapeImports
                                      -- NOTE: this mines extra, useful qualifiers but causes
                                      -- a significant increase in running time, so we hide it
-                                     -- behind `--scrape-imports`
+                                     -- behind `--scrape-imports` and `--scrape-used-imports`
+                                     if info `hasOpt` scrapeUsedImports
+                                     then useVars info
+                                     else if info `hasOpt` scrapeImports
                                      then impVars info
                                      else [])
         , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
