@@ -74,17 +74,17 @@ tidyPred = F.substf (F.eVar . F.tidySymbol)
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 --------------------------------------------------------------------------------
 refine s w
-  | Just (c, w', newScc) <- W.pop w = do
+  | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
      (b, s') <- refineC i s c
-     lift $ writeLoud $ refineMsg i c b
+     lift $ writeLoud $ refineMsg i c b rnk
      let w'' = if b then W.push c w' else w'
      refine s' w''
   | otherwise = return s
 
 -- DEBUG
-refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
-                    i (F.subcId c) (show b)
+refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
+                        i (F.subcId c) (show b) rnk
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
