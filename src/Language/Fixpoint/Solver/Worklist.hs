@@ -151,7 +151,7 @@ newSCC oldW i = (rScc <$> oldRank) /= (rScc <$> newRank)
     rankm     = wRankm oldW
 
 rank :: Worklist a -> CId -> Int
-rank = maybe 0 rScc . lookupCMap . wRankm
+rank w i = rScc $ lookupCMap (wRankm w) i
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a
