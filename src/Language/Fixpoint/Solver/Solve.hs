@@ -11,7 +11,7 @@ module Language.Fixpoint.Solver.Solve (solve) where
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
-import           Language.Fixpoint.Utils.Progress
+-- import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.PrettyPrint
