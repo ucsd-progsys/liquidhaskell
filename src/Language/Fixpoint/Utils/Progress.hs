@@ -19,7 +19,7 @@ pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
 withProgress n act = displayConsoleRegions $ do
-  putStrLn $ "withProgress: " ++ show n
+  -- putStrLn $ "withProgress: " ++ show n
   progressInit n
   r <- act
   progressClose
@@ -42,9 +42,7 @@ mkPB n = newProgressBar def { pgWidth       = 80
                             }
 
 progressTick :: IO ()
-progressTick    = do
-    putStrLn "PROGRESS-TICK"
-    go =<< readIORef pbRef
+progressTick    = go =<< readIORef pbRef
   where
    go (Just pr) = tick pr
    go _         = return ()

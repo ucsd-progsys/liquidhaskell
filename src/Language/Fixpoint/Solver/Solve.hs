@@ -129,12 +129,12 @@ result wkl s = do
   return   $ F.Result (F.sinfo <$> stat) sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_  w s   = res <$> filterM isUnsat' cs
+result_  w s   = res <$> filterM (isUnsat s) cs
   where
     cs         = W.unsatCandidates w
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
-    isUnsat' c = lift progressTick >> isUnsat s c
+    -- isUnsat' c = lift progressTick >> isUnsat s c
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
