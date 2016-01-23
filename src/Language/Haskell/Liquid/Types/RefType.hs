@@ -155,18 +155,19 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
-
+{-
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , RefTypable c tv ()
          , RefTypable c tv r
-         -- , PPrint (RType c tv r)
          , OkRT c tv r
          , FreeVar c tv
          )
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
   mappend = strengthenRefType
+
+-}
 
 
 -- MOVE TO TYPES
@@ -386,7 +387,6 @@ nlzP _ t
 strengthenRefTypeGen, strengthenRefType ::
          ( RefTypable c tv ()
          , RefTypable c tv r
-         -- , PPrint (RType c tv r)
          , OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
@@ -426,7 +426,7 @@ strengthenRefType t1 t2
   | otherwise
   = panic Nothing msg
   where
-    eqt t1 t2 = {- render -} toRSort t1 == {- render -} toRSort t2
+    eqt t1 t2 = toRSort t1 == toRSort t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 

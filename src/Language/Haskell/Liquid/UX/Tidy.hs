@@ -287,6 +287,11 @@ ppError' _ dSp _ (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
         $+$ (pprint v <+> dcolon <+> pprint s)
 
+ppError' _ dSp dCtx (ErrDataCon _ d s)
+  = dSp <+> "Malformed Data-Constructor Refinement for" <+> pprint d
+        $+$ dCtx
+        $+$ s
+
 ppError' _ dSp dCtx (ErrBadQual _ n d)
   = dSp <+> text "Bad Qualifier Specification for" <+> n
         $+$ dCtx

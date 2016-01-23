@@ -37,13 +37,14 @@ import Control.Applicative      ((<$>))
 import Data.Maybe (fromMaybe, isNothing, fromJust, catMaybes)
 
 import Language.Fixpoint.Misc
-import Language.Fixpoint.Types hiding (Def, R)
+import Language.Fixpoint.Types hiding (Def, R, SrcSpan)
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types    hiding (GhcInfo(..), GhcSpec (..))
 import Language.Haskell.Liquid.Misc     (mapSnd)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Types.Bounds
+import Language.Haskell.Liquid.UX.Tidy
 
 -- MOVE TO TYPES
 type BareSpec      = Spec BareType LocSymbol
@@ -60,10 +61,10 @@ data Spec ty bndr  = Spec
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
   , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
-  , embeds     :: !(TCEmb (LocSymbol))          -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]         -- ^ Information on decreasing arguments
-  , lvars      :: ![(LocSymbol)]                -- ^ Variables that should be checked in the environment they are used
+  , lvars      :: ![LocSymbol]                  -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)        -- ^ Ignore Termination Check in these Functions
   , axioms     :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into axiomatized functions
   , hmeas      :: !(S.HashSet LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
@@ -93,7 +94,7 @@ mkM name typ eqns
   | all ((name ==) . measure) eqns
   = M name typ eqns
   | otherwise
-  = panic Nothing $ "invalid measure definition for " ++ (show name)
+  = panic Nothing $ "invalid measure definition for " ++ show name
 
 -- mkMSpec :: [Measure ty LocSymbol] -> [Measure ty ()] -> [Measure ty LocSymbol]
 --         -> MSpec ty LocSymbol
@@ -294,18 +295,54 @@ mapArgumens lc t1 t2 = go xts1' xts2'
           ++ show t1 ++ "\n" ++ show t2 )
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
-defRefType tdc (Def f args dc mt xs body) = generalize $ mkArrow [] [] [] xts t'
+defRefType tdc (Def f args dc mt xs body)
+                     = traceShow "defRefType: " $ generalize $ mkArrow [] [] [] xts t'
   where
-    t   = fromMaybe (ofType tr) mt
-    xts = safeZipWith msg g xs $ ofType `fmap` ts
-    g (x, Nothing) t = (x, t, mempty)
-    g (x, Just t)  _ = (x, t, mempty)
-    t'  = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    msg = "defRefType dc = " ++ showPpr dc
+    xts              = stitchArgs (fSrcSpan f) dc xs ts
+    t                = fromMaybe (ofType tr) mt
+    t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
+    mkForAlls xts t  = foldl' (\t (x, tx) -> RAllE x tx t) t xts
+    (ts, tr)         = splitFunTys $ snd $ splitForAllTys tdc
 
-    mkForAlls xts t = foldl' (\t (x, tx) -> RAllE x tx t) t xts
 
-    (ts, tr) = splitFunTys $ snd $ splitForAllTys tdc
+stitchArgs sp dc xs ts
+  | valid              = zipWith g xs $ ofType `fmap` ts
+  | otherwise          = panicDataCon sp dc ""
+    where
+      valid            = validArgs sp dc xs ts
+      g (x, Just t) _  = (x, t, mempty)
+      g (x, _)      t  = (x, t, mempty)
+
+
+validArgs :: SrcSpan -> DataCon -> [(Symbol, Maybe (RRType Reft))] -> [Type] -> Bool
+validArgs sp dc xs ts
+  | nXs /= nTs              = panicFieldNumMismatch sp dc nXs nTs
+  | otherwise               = and (zipWith eqBSort xs ts)
+  where
+    nXs                     = length xs
+    nTs                     = length ts
+    eqBSort (_, Nothing) _  = True
+    eqBSort (x, Just t)  t'
+      | eqSort t t'         = True
+      | otherwise           = panicFieldSortMismatch sp dc x
+
+eqSort :: RRType Reft -> Type -> Bool
+eqSort t t'             = s == s'
+  where
+    s  = traceShow "sort1" $ toRSort t
+    s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
+
+panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
+  where
+    msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
+
+panicFieldSortMismatch sp dc x = panicDataCon sp dc msg
+  where
+    msg = "Field type mismatch for" <+> pprint x
+
+panicDataCon sp dc d
+  = panicError $ ErrDataCon sp (pprint dc) d
+
 
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
