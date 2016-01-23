@@ -296,7 +296,7 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
-                     = traceShow "defRefType: " $ generalize $ mkArrow [] [] [] xts t'
+                     = {- traceShow "defRefType: " $ -} generalize $ mkArrow [] [] [] xts t'
   where
     xts              = stitchArgs (fSrcSpan f) dc xs ts
     t                = fromMaybe (ofType tr) mt
