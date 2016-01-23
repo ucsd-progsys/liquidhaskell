@@ -155,7 +155,6 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
-{-
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , RefTypable c tv ()
@@ -166,8 +165,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
   mappend = strengthenRefType
-
--}
 
 
 -- MOVE TO TYPES
