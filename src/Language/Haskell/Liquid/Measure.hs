@@ -306,43 +306,40 @@ defRefType tdc (Def f args dc mt xs body)
 
 
 stitchArgs sp dc xs ts
-  | valid              = zipWith g xs $ ofType `fmap` ts
-  | otherwise          = panicDataCon sp dc ""
+  | nXs == nTs         = zipWith g xs $ ofType `fmap` ts
+  | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      valid            = validArgs sp dc xs ts
+      nXs              = length xs
+      nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
 
+-- validArgs :: [(Symbol, Maybe (RRType Reft))] -> [Type] -> Bool
+-- validArgs xs ts = nXs == nTs
+--   where
+--    otherwise               = and (zipWith eqBSort xs ts)
+--   nXs /= nTs            = panicFieldNumMismatch sp dc nXs nTs
+--     eqBSort (_, Nothing) _  = True
+--     eqBSort (x, Just t)  t'
+--       | eqSort t t'         = True
+--       | otherwise           = panicFieldSortMismatch sp dc x
 
-validArgs :: SrcSpan -> DataCon -> [(Symbol, Maybe (RRType Reft))] -> [Type] -> Bool
-validArgs sp dc xs ts
-  | nXs /= nTs              = panicFieldNumMismatch sp dc nXs nTs
-  | otherwise               = and (zipWith eqBSort xs ts)
-  where
-    nXs                     = length xs
-    nTs                     = length ts
-    eqBSort (_, Nothing) _  = True
-    eqBSort (x, Just t)  t'
-      | eqSort t t'         = True
-      | otherwise           = panicFieldSortMismatch sp dc x
-
-eqSort :: RRType Reft -> Type -> Bool
-eqSort t t'             = s == s'
-  where
-    s  = traceShow "sort1" $ toRSort t
-    s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
+-- eqSort :: RRType Reft -> Type -> Bool
+-- eqSort t t'             = s == s'
+  -- where
+    -- s  = traceShow "sort1" $ toRSort t
+    -- s' = traceShow "sort2" $ toRSort (ofType t' :: RRType Reft)
 
 panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
 
-panicFieldSortMismatch sp dc x = panicDataCon sp dc msg
-  where
-    msg = "Field type mismatch for" <+> pprint x
+-- panicFieldSortMismatch sp dc x = panicDataCon sp dc msg
+  -- where
+    -- msg = "Field type mismatch for" <+> pprint x
 
 panicDataCon sp dc d
   = panicError $ ErrDataCon sp (pprint dc) d
-
 
 refineWithCtorBody dc f as body t =
   case stripRTypeBase t of
