@@ -224,10 +224,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos  :: !SrcSpan
-                , var  :: !Doc
-                , hs   :: !Doc
-                , lq   :: !Doc 
+  | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
+                , var   :: !Doc
+                , hs    :: !Doc
+                , lq    :: !Doc
+                , lqPos :: !SrcSpan -- ^ lq type location
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrAliasCycle { pos    :: !SrcSpan

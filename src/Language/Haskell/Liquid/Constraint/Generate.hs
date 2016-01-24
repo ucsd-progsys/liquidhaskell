@@ -85,6 +85,7 @@ import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
+import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
                                                  , hasBaseTypeVar, showPpr, isDataConId
                                                  , symbolFastString, stringVar, stringTyVar)
@@ -217,9 +218,10 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
     merge [] ys = ys
     merge xs [] = xs
     merge (xt@(x, tx):xs) (yt@(y, ty):ys)
-      | x == y    = (x, meetVarTypes x tx ty) : merge xs ys
-      | x <  y    = xt:merge xs (yt:ys)
-      | otherwise = yt:merge (xt:xs) ys
+      | x == y    = (x, mXY x tx y ty) : merge xs ys
+      | x <  y    = xt : merge xs (yt : ys)
+      | otherwise = yt : merge (xt : xs) ys
+    mXY x tx y ty = meetVarTypes (pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)

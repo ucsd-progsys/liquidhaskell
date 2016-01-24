@@ -419,12 +419,11 @@ pprt_raw = render . rtypeDoc Full
 
 -- OLD: without unifying type variables, but checking α-equivalence
 strengthenRefType t1 t2
-  | meetable t1 t2 -- eqt t1 t2
+  | meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = panic Nothing msg
   where
-    -- eqt t1 t2 = toRSort t1 == toRSort t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
@@ -981,7 +980,7 @@ grabArgs τs (FunTy τ1 τ2 )
 grabArgs τs τ              = reverse (τ:τs)
 
 
-mkDataConIdsTy (dc, t) = [expandProductType id t | id <- dataConImplicitIds dc]
+mkDataConIdsTy (dc, t) = [ expandProductType x t | x <- dataConImplicitIds dc]
 
 expandProductType x t
   | ofType (varType x) == toRSort t = (x, t)

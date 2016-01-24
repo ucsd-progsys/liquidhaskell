@@ -5,22 +5,24 @@
 module Language.Haskell.Liquid.Types.Meet
      ( meetVarTypes ) where
 
-import           Name
+import           SrcLoc
+import           Text.PrettyPrint.HughesPJ (Doc)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Tidy
 
-meetVarTypes :: (PPrint v, NamedThing v)
-             => v -> SpecType -> SpecType  -> SpecType
-meetVarTypes v t1 t2 = meetError err t1 t2
+meetVarTypes :: Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
+meetVarTypes v hs lq = meetError err hsT lqT
   where
-    err              = ErrMismatch (getSrcSpan v) (F.pprint v) d1 d2
-    d1               = pprint (toRSort t1)
-    d2               = pprint (toRSort t2)
+    (hsSp, hsT)      = hs
+    (lqSp, lqT)      = lq
+    err              = ErrMismatch lqSp v hsD lqD hsSp
+    hsD              = pprint (toRSort hsT)
+    lqD              = pprint (toRSort lqT)
 
 meetError :: Error -> SpecType -> SpecType -> SpecType
-meetError e t1 t2
-  | meetable t1 t2   = t1 `F.meet` t2
-  | otherwise        = panicError e
+meetError e t t'
+  | meetable t t' = t `F.meet` t'
+  | otherwise     = panicError e

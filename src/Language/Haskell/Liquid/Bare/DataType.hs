@@ -13,6 +13,8 @@ import Prelude hiding (error)
 import DataCon
 import TyCon
 import Var
+import SrcLoc (SrcSpan)
+import Name (getSrcSpan)
 
 import Data.Maybe
 import Data.Monoid
@@ -22,7 +24,7 @@ import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types (Symbol, TCEmb, meet)
 
-import Language.Haskell.Liquid.GHC.Misc (symbolTyVar)
+import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
 import Language.Haskell.Liquid.Types
@@ -56,14 +58,20 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
         merge []     vs  = ((Nothing,) . Just) <$> vs
         merge ds     []  = ((,Nothing) . Just) <$> ds
 
-dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
-dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
+dataConSpec :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
+dataConSpec dcs = concatMap tx dcs
+  where
+    tx (a, b)   = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
+    sspan z     = sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
+meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
-    dcm                  = M.fromList $ dataConSpec dcs
-    upd dcm (x, t)       = M.insert x (maybe t (meetVarTypes x t) (M.lookup x dcm)) dcm
+    dcm0                 = M.fromList $ dataConSpec dcs
+    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
+    upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
+                             where
+                               tx' = maybe t (meetX x t) (M.lookup x dcm)
 
 ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info

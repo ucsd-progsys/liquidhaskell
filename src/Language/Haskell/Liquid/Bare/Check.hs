@@ -21,6 +21,7 @@ import Control.Applicative ((<|>))
 import Control.Arrow ((&&&))
 import Control.Monad.Writer
 import Data.Maybe
+import Data.Function (on)
 import Text.PrettyPrint.HughesPJ
 
 import qualified Data.List           as L
@@ -189,7 +190,7 @@ checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] 
 checkDupIntersect xts mxts = concatMap mkWrn dups
   where
     mkWrn (x, t)     = pprWrn x (sourcePosSrcSpan $ loc t)
-    dups             = L.intersectBy (\x y -> (fst x == fst y)) mxts xts
+    dups             = L.intersectBy ((==) `on` fst) mxts xts
     pprWrn v l       = trace ("WARNING: Assume Overwrites Specifications for "++ show v ++ " : " ++ showPpr l) []
 
 checkDuplicate        :: [(Var, Located SpecType)] -> [Error]
@@ -206,8 +207,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
                                           (pprint $ rtName x)
                                           (sourcePosSrcSpan . rtPos <$> xs)
     mkErr []                = panic Nothing "mkError: called on empty list"
-    dups                    = [z | z@(_:_:_) <- L.groupBy (\x y -> rtName x == rtName y) tas]
-
+    dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` rtName) tas]
 
 
 checkMismatch        :: (Var, Located SpecType) -> Maybe Error
@@ -222,10 +222,12 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) d1 d2
+errTypeMismatch x t = ErrMismatch lqSp (pprint x) d1 d2 hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t
+    lqSp            = sourcePosSrcSpan $ loc t
+    hsSp            = getSrcSpan x
 
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------

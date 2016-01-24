@@ -62,7 +62,6 @@ makePluggedDataCons embs tcEnv dcs
                                 , tyArgs     = reverse tyArgs
                                 , tyRes      = tyRes})
 
-
 plugHoles tce tyi x f t (Loc l l' st)
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
@@ -79,7 +78,9 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
-    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) (pprint t) (pprint $ toType st)
+    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (pprint t) (pprint $ toType st) hsSp
+    hsSp              = getSrcSpan x
+    lqSp              = sourcePos2SrcSpan l l'
 
     go :: SpecType -> SpecType -> BareM SpecType
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }

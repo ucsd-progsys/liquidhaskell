@@ -269,16 +269,19 @@ fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
 fSrcSpanSrcSpan :: F.SrcSpan -> SrcSpan
-fSrcSpanSrcSpan (F.SS p p') = RealSrcSpan $ realSrcSpan f l c l' c'
-  where
-    (f, l,  c)              = F.sourcePosElts p
-    (_, l', c')             = F.sourcePosElts p'
+fSrcSpanSrcSpan (F.SS p p') = sourcePos2SrcSpan p p'
 
 srcSpanFSrcSpan :: SrcSpan -> F.SrcSpan
 srcSpanFSrcSpan sp = F.SS p p'
   where
     p              = srcSpanSourcePos sp
     p'             = srcSpanSourcePosE sp
+
+sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
+sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
+  where
+    (f, l,  c)         = F.sourcePosElts p
+    (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
 sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
