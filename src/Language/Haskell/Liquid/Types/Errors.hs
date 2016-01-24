@@ -189,7 +189,7 @@ data TError t =
                 , var :: !Doc
                 , msg :: !Doc
                 } -- ^ refined datacon mismatches haskell datacon
-                
+
   | ErrInvt     { pos :: !SrcSpan
                 , inv :: !t
                 , msg :: !Doc
@@ -226,8 +226,8 @@ data TError t =
 
   | ErrMismatch { pos  :: !SrcSpan
                 , var  :: !Doc
-                , hs   :: !Type
-                , lq   :: !Type
+                , hs   :: !Doc
+                , lq   :: !Doc 
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrAliasCycle { pos    :: !SrcSpan

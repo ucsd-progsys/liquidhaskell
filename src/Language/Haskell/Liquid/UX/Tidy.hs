@@ -288,7 +288,7 @@ ppError' _ dSp _ (ErrBadData _ v s)
         $+$ (pprint v <+> dcolon <+> pprint s)
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
-  = dSp <+> "Malformed Data-Constructor Refinement for" <+> pprint d
+  = dSp <+> "Malformed refined data constructor" <+> pprint d
         $+$ dCtx
         $+$ s
 
@@ -343,8 +343,8 @@ ppError' _ dSp dCtx (ErrGhc _ s)
 ppError' _ dSp dCtx (ErrMismatch _ x τ t)
   = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
         $+$ dCtx
-        $+$ text "Haskell:" <+> pprint τ
-        $+$ text "Liquid :" <+> pprint t
+        $+$ text "Haskell:" <+> τ
+        $+$ text "Liquid :" <+> t
 
 ppError' _ dSp _ (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic Alias Definitions"

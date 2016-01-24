@@ -63,6 +63,7 @@ import Text.Printf
 import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors
+import           Language.Haskell.Liquid.UX.Tidy (panicError)
 import Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Names (symbolString)
@@ -209,14 +210,14 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
-
+mergeDataConTypes ::  [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
     f (x,_) (y,_) = compare x y
     merge [] ys = ys
     merge xs [] = xs
     merge (xt@(x, tx):xs) (yt@(y, ty):ys)
-      | x == y    = (x, tx `F.meet` ty):merge xs ys
+      | x == y    = (x, meetVarTypes x tx ty) : merge xs ys
       | x <  y    = xt:merge xs (yt:ys)
       | otherwise = yt:merge (xt:xs) ys
 
@@ -1165,7 +1166,7 @@ instantiatePvs = L.foldl' go
         go _ _               = panic Nothing "Constraint.instanctiatePv"
 
 checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkTyCon x t                = checkErr x t
 
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t

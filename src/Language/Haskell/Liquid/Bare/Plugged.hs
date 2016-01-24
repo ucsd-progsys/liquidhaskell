@@ -79,7 +79,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
     cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
-    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) t (toType st)
+    initvmap          = initMapSt $ ErrMismatch (sourcePosSrcSpan l) (pprint x) (pprint t) (pprint $ toType st)
 
     go :: SpecType -> SpecType -> BareM SpecType
     go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }

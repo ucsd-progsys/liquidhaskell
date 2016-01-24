@@ -26,6 +26,7 @@ import Language.Haskell.Liquid.GHC.Misc (symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import Language.Haskell.Liquid.Types.RefType (mkDataConIdsTy, ofType, rApp, rVar, uPVar)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.WiredIn
@@ -55,15 +56,14 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
         merge []     vs  = ((Nothing,) . Just) <$> vs
         merge ds     []  = ((,Nothing) . Just) <$> ds
 
-
-
-dataConSpec :: [(DataCon, DataConP)]-> [(Var, (RType RTyCon RTyVar RReft))]
+dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
 dataConSpec dcs = concatMap mkDataConIdsTy [(dc, dataConPSpecType dc t) | (dc, t) <- dcs]
 
+meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ L.foldl' upd dcm xts
   where
     dcm                  = M.fromList $ dataConSpec dcs
-    upd dcm (x, t)       = M.insert x (maybe t (meet t) (M.lookup x dcm)) dcm
+    upd dcm (x, t)       = M.insert x (maybe t (meetVarTypes x t) (M.lookup x dcm)) dcm
 
 ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info

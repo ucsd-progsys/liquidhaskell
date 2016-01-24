@@ -59,7 +59,7 @@ module Language.Haskell.Liquid.Types.RefType (
   , mkDataConIdsTy
   , mkTyConInfo
 
-
+  , meetable
   , strengthenRefTypeGen
   , strengthenDataConType
 
@@ -152,6 +152,7 @@ uTop r          = MkUReft r mempty mempty
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
 --------------------------------------------------------------------
+
 
 -- Monoid Instances ---------------------------------------------------------
 
@@ -418,15 +419,17 @@ pprt_raw = render . rtypeDoc Full
 
 -- OLD: without unifying type variables, but checking α-equivalence
 strengthenRefType t1 t2
-  | eqt t1 t2
+  | meetable t1 t2 -- eqt t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = panic Nothing msg
   where
-    eqt t1 t2 = toRSort t1 == toRSort t2
+    -- eqt t1 t2 = toRSort t1 == toRSort t2
     msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                   (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
+meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
+meetable t1 t2 = toRSort t1 == toRSort t2
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
   = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (a2, toRSort t, t) t2)

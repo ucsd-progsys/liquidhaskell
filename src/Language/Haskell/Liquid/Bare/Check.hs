@@ -222,7 +222,10 @@ tyCompat x t         = lhs == rhs
     rhs :: RSort     = ofType $ varType x
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) (varType x) (toType $ val t)
+errTypeMismatch x t = ErrMismatch (sourcePosSrcSpan $ loc t) (pprint x) d1 d2
+  where
+    d1              = pprint $ varType x
+    d2              = pprint $ toType $ val t
 
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
