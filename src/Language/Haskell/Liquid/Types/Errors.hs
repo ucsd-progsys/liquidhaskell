@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Panic (unexpected failures)
   , Panic (..)
   , panic
+  , panicDoc
   , todo
   , impossible
 
@@ -182,7 +183,12 @@ data TError t =
   | ErrBadData  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
-                } -- ^ multiple specs for same binder error
+                } -- ^ bad data type specification (?)
+
+  | ErrDataCon  { pos :: !SrcSpan
+                , var :: !Doc
+                , msg :: !Doc
+                } -- ^ refined datacon mismatches haskell datacon
 
   | ErrInvt     { pos :: !SrcSpan
                 , inv :: !t
@@ -218,10 +224,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrMismatch { pos  :: !SrcSpan
-                , var  :: !Doc
-                , hs   :: !Type
-                , lq   :: !Type
+  | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
+                , var   :: !Doc
+                , hs    :: !Doc
+                , lq    :: !Doc
+                , lqPos :: !SrcSpan -- ^ lq type location
                 } -- ^ Mismatch between Liquid and Haskell types
 
   | ErrAliasCycle { pos    :: !SrcSpan
@@ -320,6 +327,12 @@ panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
 panic sp d = Ex.throw $ Panic (sspan sp) (text d)
   where
     sspan  = fromMaybe noSrcSpan
+
+-- | Construct and show an Error, then crash
+panicDoc :: {-(?callStack :: CallStack) =>-} SrcSpan -> Doc -> a
+panicDoc sp d = Ex.throw $ Panic sp d
+  -- where
+    -- sspan  = fromMaybe noSrcSpan
 
 
 -- | Construct and show an Error with an optional SrcSpan, then crash
