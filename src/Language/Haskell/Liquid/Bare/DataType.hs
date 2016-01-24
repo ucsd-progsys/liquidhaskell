@@ -58,16 +58,19 @@ makeConTypes' dcs vdcs = unzip <$> mapM (uncurry ofBDataDecl) (group dcs vdcs)
         merge []     vs  = ((Nothing,) . Just) <$> vs
         merge ds     []  = ((,Nothing) . Just) <$> ds
 
-dataConSpec :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
-dataConSpec dcs = concatMap tx dcs
+dataConSpec :: [(DataCon, DataConP)] -> [(Var, SpecType)]
+dataConSpec x = [ (v, t) | (v, (_, t)) <- dataConSpec' x ]
+
+dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
+dataConSpec' dcs = concatMap tx dcs
   where
-    tx (a, b)   = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
-    sspan z     = sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    tx (a, b)    = [ (x, (sspan b, t)) | (x, t) <- mkDataConIdsTy (a, dataConPSpecType a b) ]
+    sspan z      = sourcePos2SrcSpan (dc_loc z) (dc_locE z)
 
 meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
 meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
-    dcm0                 = M.fromList $ dataConSpec dcs
+    dcm0                 = M.fromList $ dataConSpec' dcs
     meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
     upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
                              where

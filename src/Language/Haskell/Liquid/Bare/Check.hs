@@ -62,7 +62,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkBind "measure"      emb tcEnv env) (meas       sp)
                      ++ mapMaybe (checkBind "assumed type" emb tcEnv env) (asmSigs    sp)
                      ++ mapMaybe (checkInv  emb tcEnv env)               (invariants sp)
-                     ++ (checkIAl  emb tcEnv env) (ialiases   sp)
+                     ++ checkIAl  emb tcEnv env (ialiases   sp)
                      ++ checkMeasures emb env ms
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                             (tySigs sp)
@@ -77,10 +77,10 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
 
     tAliases         =  concat [Ms.aliases sp  | (_, sp) <- specs]
     eAliases         =  concat [Ms.ealiases sp | (_, sp) <- specs]
-    dcons spec       =  [(v, Loc l l' t) | (v,t)   <- dataConSpec (dconsP spec)
-                                         | (_,dcp) <- dconsP spec
-                                         , let l    = dc_loc  dcp
-                                         , let l'   = dc_locE dcp
+    dcons spec       =  [(v, Loc l l' t) | (v, t)   <- dataConSpec (dconsP spec)
+                                         | (_, dcp) <- dconsP spec
+                                         , let l     = dc_loc  dcp
+                                         , let l'    = dc_locE dcp
                                          ]
     emb              =  tcEmbeds sp
     tcEnv            =  tyconEnv sp
