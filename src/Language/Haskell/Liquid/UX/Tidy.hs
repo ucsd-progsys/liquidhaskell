@@ -343,11 +343,13 @@ ppError' _ dSp dCtx (ErrGhc _ s)
 ppError' _ dSp dCtx (ErrMismatch _ x τ t hsSp)
   = dSp <+> "Specified Type Does Not Refine Haskell Type for" <+> pprint x
         $+$ dCtx
-        $+$ "The Liquid type"
-        $+$ (nest 4 t)
-        $+$ "is inconsistent with the Haskell type"
-        $+$ (nest 4 τ)
-        $+$ "defined at:" <+> pprint hsSp
+        $+$ (sepVcat blankLine
+              [ "The Liquid type"
+              , nest 4 t
+              , "is inconsistent with the Haskell type"
+              , nest 4 τ
+              , "defined at" <+> pprint hsSp
+              ])
 
 ppError' _ dSp _ (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic Alias Definitions"
