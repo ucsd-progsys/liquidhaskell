@@ -71,6 +71,9 @@ chooseCut vs (KS ks) = (v, [x | x@(u,_,_) <- vs, u /= v])
     vs' = [x | (x,_,_) <- vs]
     is  = S.intersection (S.fromList vs') ks
     v   = head $ if S.null is then vs' else S.toList is
+       -- ^ -- we select a RANDOM element,
+       ------- instead pick the "first" element.
+
 
 subcEdges :: BindEnv -> SimpC a -> [(KVar, KVar)]
 subcEdges be c = [(k1, k2) | k1 <- envKVars be c , k2 <- kvars $ crhs c]
