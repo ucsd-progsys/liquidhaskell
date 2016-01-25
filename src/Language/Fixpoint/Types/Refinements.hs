@@ -67,7 +67,7 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
-  , mkEApp, splitEApp 
+  , mkEApp, eApps, splitEApp 
   ) where
 
 import qualified Data.Binary as B
@@ -221,7 +221,10 @@ pattern PFalse = POr []
 pattern EBot   = POr []
 
 mkEApp :: LocSymbol -> [Expr] -> Expr 
-mkEApp f es = foldl EApp (EVar $ val f) es 
+mkEApp f = eApps (EVar $ val f)
+
+eApps :: Expr -> [Expr] -> Expr 
+eApps f es  = foldl EApp f es 
 
 splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go [] 
