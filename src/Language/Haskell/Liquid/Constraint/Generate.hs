@@ -196,7 +196,7 @@ makeAutoDecrDataCons dcts specenv dcs
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
     invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
 
-lenOf x = F.EApp lenLocSymbol [F.EVar x]
+lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where

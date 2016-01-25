@@ -92,8 +92,8 @@ listLMap = toLogicMap [(nilName, [], hNil),
   where
     x  = symbol "x"
     xs = symbol "xs"
-    hNil    = EApp (dummyLoc $ symbol nilDataCon ) []
-    hCons   = EApp (dummyLoc $ symbol consDataCon)
+    hNil    = mkEApp (dummyLoc $ symbol nilDataCon ) []
+    hCons   = mkEApp (dummyLoc $ symbol consDataCon)
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..}) 
@@ -179,7 +179,7 @@ makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
     x'   = symbol x --  simpleSymbolVar x
     ref  = Reft (vv, PAtom Eq (EVar vv) eq)
     eq   | null (ty_vars trep) && null xs = EVar x'
-         | otherwise = EApp (dummyLoc x') (EVar <$> xs)
+         | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
 
 
 makeGhcAxioms :: [CoreBind] -> ModName -> [(ModName, Ms.BareSpec)] -> GhcSpec -> BareM GhcSpec

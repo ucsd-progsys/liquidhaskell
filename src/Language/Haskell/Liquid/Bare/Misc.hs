@@ -33,7 +33,7 @@ import Data.Maybe (isNothing)
 import qualified Data.List as L
 
 import Language.Fixpoint.Misc  (sortNub)
-import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), emptySEnv, memberSEnv, symbol, syms, toReft)
+import Language.Fixpoint.Types (Symbol, Expr(..), Reft(..), Reftable(..), mkEApp, emptySEnv, memberSEnv, symbol, syms, toReft)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.RefType
@@ -125,7 +125,7 @@ mapTyRVar α a s@(MTVST αas err)
 
 
 mkVarExpr v
-  | isFunVar v = EApp (varFunSymbol v) []
+  | isFunVar v = mkEApp (varFunSymbol v) []
   | otherwise  = EVar (symbol v)
 
 varFunSymbol = dummyLoc . symbol . idDataCon

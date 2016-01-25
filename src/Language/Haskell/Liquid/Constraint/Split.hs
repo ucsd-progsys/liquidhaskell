@@ -421,19 +421,21 @@ forallExprRefType γ t = t `strengthen` (uTop r')
     r                 = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
-forallExprReft γ r = F.isSingletonReft r >>= forallExprReft_ γ
+forallExprReft γ r = 
+  do e <- F.isSingletonReft r
+     forallExprReft_ γ $ F.splitEApp e 
 
-forallExprReft_ :: CGEnv -> F.Expr -> Maybe F.Reft
-forallExprReft_ γ (F.EApp f es)
-  = case forallExprReftLookup γ (val f) of
-      Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
-                       Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
-      Nothing       -> Nothing
-
-forallExprReft_ γ (F.EVar x)
+forallExprReft_ :: CGEnv -> (F.Expr, [F.Expr]) -> Maybe F.Reft
+forallExprReft_ γ (F.EVar x, [])
   = case forallExprReftLookup γ x of
       Just (_,_,_,t)  -> Just $ F.sr_reft $ rTypeSortedReft (emb γ) t
       Nothing         -> Nothing
+
+forallExprReft_ γ (F.EVar f, es)
+  = case forallExprReftLookup γ f of
+      Just (xs,_,_,t) -> let su = F.mkSubst $ safeZip "fExprRefType" xs es in
+                       Just $ F.subst su $ F.sr_reft $ rTypeSortedReft (emb γ) t
+      Nothing       -> Nothing
 
 forallExprReft_ _ _
   = Nothing

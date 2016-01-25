@@ -119,21 +119,23 @@ partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
-isPApp penv (EApp p _)  = isJust $ lookup (val p) penv
-isPApp _    _           = False
+isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
+isPApp penv (EApp e _)         = isPApp penv e 
+isPApp _    _                  = False
 
-toUsedPVars penv q@(EApp _ es) = (x, [toUsedPVar penv q])
+toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = (\(EVar x) -> x) $ last es
+    x = (\(EVar x) -> x) e
 toUsedPVars _ _ = error "This cannot happen"
 
-toUsedPVar penv (EApp p es)
+toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
-     EVar e = last es
-     es'    = init es
-     Just q = lookup (val p) penv
+     EVar e  = last es
+     es'     = init es
+     Just q  = lookup p penv
+     (EVar p, es) = splitEApp ee 
 
 toUsedPVar _ _ = error "This cannot happen"
 

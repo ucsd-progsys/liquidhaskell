@@ -65,7 +65,6 @@ import System.IO.Unsafe
 import Prover.Types (Axiom(..), Query(..))
 import qualified Prover.Types as P
 import Prover.Solve (solve)
-import Prover.Defunctionalize
 
 import Debug.Trace (trace)
 import qualified Data.HashSet        as S
@@ -211,7 +210,7 @@ updateLMap _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x vv
-  = insertLogicEnv x' ys (applyArrow (F.EVar $ val x) (F.EVar <$> ys))
+  = insertLogicEnv x' ys (F.eApps (F.EVar $ val x) (F.EVar <$> ys))
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
@@ -307,12 +306,12 @@ makeCtor c
 
 makeCtor' :: F.TCEmb TyCon -> LogicMap -> [(F.Symbol, SpecType)] -> Bool -> Var -> HVarCtor
 makeCtor' tce _ _ islocal  v | islocal
-  = P.VarCtor (P.Var (F.symbol v) (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
+  = P.VarCtor (P.Var (F.symbol v) (typeSort tce $ varType v) v) [] (P.Pred F.PTrue)
 
 makeCtor' tce lmap sigs _  v
   = case M.lookup v (axiom_map lmap) of
     Nothing -> P.VarCtor (P.Var (F.symbol v) (typeSort tce $ varType v)      v) vs r
-    Just x  -> P.VarCtor (P.Var x            (typeSortArrow tce $ varType v) v) [] (P.Pred F.PTrue)
+    Just x  -> P.VarCtor (P.Var x            (typeSort tce $ varType v) v) [] (P.Pred F.PTrue)
 
   where
     x    = F.symbol v
@@ -323,18 +322,18 @@ makeCtor' tce lmap sigs _  v
                                Nothing -> ([], P.Pred F.PTrue)
                                Just r  -> let (F.Reft(v, p)) = F.toReft r
                                               xts = [(x,t) | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
-                                              e  = F.EApp (dummyLoc x) (F.EVar . fst  <$> xts)
-                                          in ([P.Var x (rTypeSortArrow tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
+                                              e  = F.mkEApp (dummyLoc x) (F.EVar . fst  <$> xts)
+                                          in ([P.Var x (rTypeSort tce t) ()  | (x, t) <- xts], P.Pred $ F.subst1 p (v, e))
 
 makeVar :: Var -> Pr HVar
 makeVar v = do {tce <- ae_emb <$> get; return $ makeVar' tce v}
 
-makeVar'  tce v = P.Var (F.symbol v) (typeSortArrow tce $ varType v) v
+makeVar'  tce v = P.Var (F.symbol v) (typeSort tce $ varType v) v
 
 makeLVar :: Var -> Pr P.LVar
 makeLVar v = do {tce <- ae_emb <$> get; return $ makeLVar' tce v}
 
-makeLVar' tce v = P.Var (F.symbol v) (typeSortArrow tce $ varType v) ()
+makeLVar' tce v = P.Var (F.symbol v) (typeSort tce $ varType v) ()
 
 
 
@@ -355,7 +354,7 @@ varToPAxiomWithGuard tce sigs recs v
                                             Nothing -> F.PTrue
                                             Just r  -> let (F.Reft(_, p)) = F.toReft r in p
                                    xts   = filter (not . isClassType . snd) $ zip (ty_binds trep) (ty_args trep)
-                                   vs'   = [P.Var x (rTypeSortArrow tce t) () | (x, t) <- xts]
+                                   vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- xts]
                                in  (vs', xts, bd')
 
 makeGuard :: [(F.Symbol, (F.Symbol, SpecType))] -> F.Expr
@@ -384,7 +383,7 @@ varToPAxiom tce sigs v
                               bd'  = case stripRTypeBase $ ty_res trep of
                                        Nothing -> F.PTrue
                                        Just r  -> let (F.Reft(_, p)) = F.toReft r in p
-                              vs'   = [P.Var x (rTypeSortArrow tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
+                              vs'   = [P.Var x (rTypeSort tce t) () | (x, t) <- zip (ty_binds trep) (ty_args trep), not $ isClassType t]
                           in  (vs', bd')
 
 

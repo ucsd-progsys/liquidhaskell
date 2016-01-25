@@ -162,7 +162,7 @@ buildTypeEdges table = ordNub . go
 buildExprEdges table  = ordNub . go
   where
     go :: Expr -> [Symbol]
-    go (EApp lf es)   = go_alias (val lf) ++ concatMap go es
+    go (EApp e1 e2)   = go e1 ++ go e2
     go (ENeg e)       = go e
     go (EBin _ e1 e2) = go e1 ++ go e2
     go (EIte _ e1 e2) = go e1 ++ go e2
@@ -170,8 +170,7 @@ buildExprEdges table  = ordNub . go
 
     go (ESym _)       = []
     go (ECon _)       = []
-    go (EVar _)       = []
-    go EBot           = []
+    go (EVar v)       = go_alias v 
 
     go (PAnd ps)           = concatMap go ps
     go (POr ps)            = concatMap go ps
@@ -181,9 +180,6 @@ buildExprEdges table  = ordNub . go
     go (PAll _ p)          = go p
 
     go (PAtom _ e1 e2)     = go e1 ++ go e2 
-    go PTrue               = []
-    go PFalse              = []
-    go PTop                = []
 
     go (ETApp e _)         = go e 
     go (ETAbs e _)         = go e 

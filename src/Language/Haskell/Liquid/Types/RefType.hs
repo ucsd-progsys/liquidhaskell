@@ -51,9 +51,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , isSizeable
 
   -- * Manipulating Refinements in RTypes
-  , rTypeSortedReft, rTypeSortedReftArrow
-  , rTypeSort, rTypeSortArrow
-  , typeSortArrow
+  , rTypeSortedReft
+  , rTypeSort
   , shiftVV
 
   , mkDataConIdsTy
@@ -106,8 +105,6 @@ import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, string
 import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
 import Data.List (sort, foldl')
 
-import Prover.Defunctionalize
-
 
 strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
     where
@@ -117,8 +114,8 @@ strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
       as   = ty_vars  trep
       x'   = symbol x
       expr | null xs && null as = EVar x'
-           | null xs            = EApp (dummyLoc x') []
-           | otherwise          = EApp (dummyLoc x') (EVar <$> xs)
+           | null xs            = mkEApp (dummyLoc x') []
+           | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
 
 pdVar v        = Pr [uPVar v]
 
@@ -795,7 +792,7 @@ dataConReft c xs
       | null xs && null (dataConUnivTyVars c)
       = EVar $ symbol c
       | otherwise
-      = EApp (dummyLoc $ symbol c) (eVar <$> xs)
+      = mkEApp (dummyLoc $ symbol c) (eVar <$> xs)
 
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 
@@ -854,17 +851,11 @@ toType t
 -- | Annotations and Solutions -------------------------------------------------
 --------------------------------------------------------------------------------
 
-rTypeSortedReftArrow ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
-rTypeSortedReftArrow emb t = RR (rTypeSortArrow emb t) (rTypeReft t)
-
 rTypeSortedReft ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> SortedReft
 rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
 rTypeSort tce = typeSort tce . toType
-
-rTypeSortArrow     ::  (PPrint r, Reftable r) => TCEmb TyCon -> RRType r -> Sort
-rTypeSortArrow tce = typeSortArrow tce . toType
 
 -------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
@@ -919,20 +910,6 @@ instance (Show tv, Show ty) => Show (RTAlias tv ty) where
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
 
-
-typeSortArrow :: TCEmb TyCon -> Type -> Sort
-typeSortArrow tce τ@(ForAllTy _ _)
-  = typeSortForAllArrow tce τ
-typeSortArrow tce (FunTy tx t)
-  = arrowSort (typeSortArrow tce tx) (typeSortArrow tce t)
-typeSortArrow tce (TyConApp c τs)
-  = fAppTC (tyConFTyCon tce c) (typeSortArrow tce <$> τs)
-typeSortArrow tce (AppTy t1 t2)
-  = fApp (typeSortArrow tce t1) [typeSortArrow tce t2]
-typeSortArrow _ τ
-  = FObj $ typeUniqueSymbol τ
-
-
 typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce τ@(ForAllTy _ _)
   = typeSortForAll tce τ
@@ -949,15 +926,6 @@ tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.look
 
 typeSortForAll tce τ
   = genSort $ typeSort tce tbody
-  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
-        genSort t           = FFunc n [sortSubst su t]
-        (as, tbody)         = splitForAllTys τ
-        su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = (typeUniqueSymbol . TyVarTy) <$> as
-        n                   = length as
-
-typeSortForAllArrow tce τ
-  = genSort $ typeSortArrow tce tbody
   where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
         genSort t           = FFunc n [sortSubst su t]
         (as, tbody)         = splitForAllTys τ
@@ -1055,7 +1023,7 @@ mkDecrFun autoenv (RApp c _ _ _)
   | Just f <- sizeFunction $ rtc_info c
   = f
   | isSizeable autoenv $ rtc_tc c
-  = \v -> F.EApp lenLocSymbol [F.EVar v]
+  = \v -> F.mkEApp lenLocSymbol [F.EVar v]
 mkDecrFun _ (RVar _ _)
   = EVar
 mkDecrFun _ _

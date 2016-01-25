@@ -353,15 +353,9 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
 
 eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
-  = subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
+  = subst (mkSubst $ zip xs es) e
   | otherwise
   = def
-
--- HACK for currying, but it only works on runFun things
--- TODO: make it work for any curried function
-dropArgs 0 e = e
-dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
-dropArgs n e = error $ "dropArgs on " ++ show (n, e)
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
@@ -1057,7 +1051,7 @@ instance Reftable Predicate where
 pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 
 pApp      :: Symbol -> [Expr] -> Expr
-pApp p es = EApp (dummyLoc $ pappSym $ length es) (EVar p:es)
+pApp p es = mkEApp (dummyLoc $ pappSym $ length es) (EVar p:es)
 
 pappSym n  = symbol $ "papp" ++ show n
 

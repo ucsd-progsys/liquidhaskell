@@ -62,14 +62,10 @@ instance Resolvable Expr where
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
   resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 
-  resolve _ PTrue           = return PTrue
-  resolve _ PFalse          = return PFalse
   resolve _ (PKVar k s)     = return $ PKVar k s 
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
-  resolve _ PTop            = return PTop
   resolve _ (ESym s)        = return $ ESym s 
   resolve _ (ECon c)        = return $ ECon c 
-  resolve _ EBot            = return EBot
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)
