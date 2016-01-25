@@ -209,7 +209,7 @@ checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
-checkExpr f (EApp g es)    = checkApp f Nothing g es
+checkExpr f (EApp g e)     = checkApp f Nothing g e
 checkExpr _ PTrue          = return boolSort
 checkExpr _ PFalse         = return boolSort
 checkExpr f (PNot p)       = checkPred f p >> return boolSort
@@ -235,7 +235,7 @@ checkSym f x
      Alts xs -> throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
-checkLocSym f x = checkSym f (val x)
+-- checkLocSym f x = checkSym f (val x)
 
 -- | Helper for checking if-then-else expressions
 
@@ -247,21 +247,23 @@ checkIte f p e1 e2
 
 -- | Helper for checking cast expressions
 
-checkCst f t (EApp g es)
-  = checkApp f (Just t) g es
+checkCst f t (EApp g e)
+  = checkApp f (Just t) g e
 checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
+
+checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort 
 checkApp f to g es
   = snd <$> checkApp' f to g es
 
 -- | Helper for checking uninterpreted function applications
-checkApp' f to g es
-  = do gt           <- checkLocSym f g
+checkApp' f to g' e
+  = do gt           <- checkExpr f g
        gt'          <- generalize gt
        (_, its, ot) <- sortFunction gt'
-       unless (length its == length es) $ throwError (errArgArity g its es)
+       unless (length its == length es) $ throwError (errArgArity g its es (EApp g' e))
        ets          <- mapM (checkExpr f) es
        θ            <- unifys its ets
        let t         = apply θ ot
@@ -269,6 +271,8 @@ checkApp' f to g es
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany θ [t] [t']
                           return (θ', apply θ' t)
+  where
+    (g, es) = splitEApp $ EApp g' e
 
 
 -- | Helper for checking binary (numeric) operations
@@ -498,8 +502,8 @@ errOp e t t'
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
-errArgArity g its es = printf "Measure %s expects %d args but gets %d in %s"
-                         (showpp g) (length its) (length es) (showpp (EApp g es))
+errArgArity g its es e = printf "Measure %s expects %d args but gets %d in %s"
+                           (showpp g) (length its) (length es) (showpp e)
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"

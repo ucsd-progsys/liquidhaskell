@@ -183,11 +183,11 @@ smt2Sort (FApp (FTC bv) (FTC s))
   , Just n <- sizeBv s          = Just $ format "(_ BitVec {})" (Only n)
 smt2Sort _                      = Nothing
 
-smt2App :: LocSymbol -> [T.Text] -> Maybe T.Text
-smt2App f [d]
-  | val f == setEmpty = Just $ format "{}"             (Only emp)
-  | val f == setEmp   = Just $ format "(= {} {})"      (emp, d)
-  | val f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+smt2App :: Expr -> [T.Text] -> Maybe T.Text
+smt2App (EVar f) [d]
+  | f == setEmpty = Just $ format "{}"             (Only emp)
+  | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
+  | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
 smt2App _ _           = Nothing
 
 

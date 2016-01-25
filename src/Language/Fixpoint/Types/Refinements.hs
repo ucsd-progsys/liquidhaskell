@@ -12,6 +12,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE PatternGuards              #-}
+{-# LANGUAGE PatternSynonyms            #-}
 
 -- | This module contains the data types for representing terms in the
 --   refinement logic; currently split into @Expr@ and @Pred@ but which
@@ -25,6 +26,7 @@ module Language.Fixpoint.Types.Refinements (
   , Bop (..)
   , Brel (..)
   , Expr (..)
+  , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
   , Reft (..)
@@ -65,6 +67,7 @@ module Language.Fixpoint.Types.Refinements (
   , reftConjuncts
   , intKvar
   , vv_
+  , mkEApp, splitEApp 
   ) where
 
 import qualified Data.Binary as B
@@ -192,19 +195,16 @@ data Expr = ESym !SymConst
           | ECon !Constant
           | EVar !Symbol
           -- NV TODO: change this to `EApp !Expr !Expr`
-          | EApp !LocSymbol ![Expr]
+          | EApp !Expr !Expr
           | ENeg !Expr
           | EBin !Bop !Expr !Expr
           | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
-          | EBot
           | ETApp !Expr !Sort 
           | ETAbs !Expr !Symbol
 
 --- Used to be predicates
-          | PTrue
-          | PFalse
-          | PAnd   !(ListNE Expr)
+          | PAnd   ![Expr]
           | POr    ![Expr]
           | PNot   !Expr
           | PImp   !Expr !Expr
@@ -213,10 +213,22 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
-          | PTop
           deriving (Eq, Show, Data, Typeable, Generic)
 
-{-@ PAnd :: ListNE Pred -> Pred @-}
+pattern PTrue  = PAnd []
+pattern PTop   = PAnd []
+pattern PFalse = POr []
+pattern EBot   = POr []
+
+mkEApp :: LocSymbol -> [Expr] -> Expr 
+mkEApp f es = foldl EApp (EVar $ val f) es 
+
+splitEApp :: Expr -> (Expr, [Expr])
+splitEApp = go [] 
+  where
+    go acc (EApp f e) = go (e:acc) f 
+    go acc e          = (e, reverse acc)
+
 
 newtype Reft = Reft (Symbol, Expr)
                deriving (Eq, Data, Typeable, Generic)
@@ -416,8 +428,7 @@ instance PPrint Expr where
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   intersperse empty $
-                                     pprint f : (pprintPrec (za+1) <$> es)
+                                   pprint f <> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -541,7 +552,7 @@ pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = EApp (dummyLoc propConName) . (: [])
+mkProp        = EApp (EVar propConName) 
 
 
 --------------------------------------------------------------------------------

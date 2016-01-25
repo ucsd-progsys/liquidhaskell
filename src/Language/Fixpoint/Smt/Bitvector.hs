@@ -57,11 +57,11 @@ instance Expression Bv where
 
 -- | Apply some bitvector operator to a list of arguments
 eOp :: BvOp -> [Expr] -> Expr
-eOp = EApp . opName
+eOp b es = foldl EApp (EVar $ opName b) es
 
-opName :: BvOp -> LocSymbol
-opName BvAnd = dummyLoc bvAndName
-opName BvOr  = dummyLoc bvOrName
+opName :: BvOp -> Symbol
+opName BvAnd = bvAndName
+opName BvOr  = bvOrName
 
 
 -- sizeSort     = (`FApp` [fObj $ dummyLoc $ symbol "obj"]) . sizeTC
