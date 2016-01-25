@@ -199,7 +199,6 @@ instance Checkable SortedReft where
 
 checkExpr                  :: Env -> Expr -> CheckM Sort
 
-checkExpr _ EBot           = throwError "Type Error: Bot"
 checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
@@ -210,8 +209,6 @@ checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
 checkExpr f (ECst e t)     = checkCst f t e
 checkExpr f (EApp g e)     = checkApp f Nothing g e
-checkExpr _ PTrue          = return boolSort
-checkExpr _ PFalse         = return boolSort
 checkExpr f (PNot p)       = checkPred f p >> return boolSort
 checkExpr f (PImp p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
 checkExpr f (PIff p p')    = mapM_ (checkPred f) [p, p'] >> return boolSort
@@ -219,7 +216,6 @@ checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
-checkExpr _ PTop           = return boolSort
 
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
 checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
@@ -273,7 +269,6 @@ checkApp' f to g' e
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
-
 
 -- | Helper for checking binary (numeric) operations
 

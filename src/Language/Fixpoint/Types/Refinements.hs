@@ -230,7 +230,7 @@ splitEApp :: Expr -> (Expr, [Expr])
 splitEApp = go [] 
   where
     go acc (EApp f e) = go (e:acc) f 
-    go acc e          = (e, reverse acc)
+    go acc e          = (e, acc)
 
 
 newtype Reft = Reft (Symbol, Expr)
