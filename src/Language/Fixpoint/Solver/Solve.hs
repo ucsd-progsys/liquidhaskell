@@ -11,7 +11,7 @@ module Language.Fixpoint.Solver.Solve (solve) where
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
 import qualified Data.HashMap.Strict  as M
-import           Language.Fixpoint.Utils.Progress
+-- import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.PrettyPrint
@@ -74,17 +74,17 @@ tidyPred = F.substf (F.eVar . F.tidySymbol)
 refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 --------------------------------------------------------------------------------
 refine s w
-  | Just (c, w', newScc) <- W.pop w = do
+  | Just (c, w', newScc, rnk) <- W.pop w = do
      i       <- tickIter newScc
      (b, s') <- refineC i s c
-     lift $ writeLoud $ refineMsg i c b
+     lift $ writeLoud $ refineMsg i c b rnk
      let w'' = if b then W.push c w' else w'
      refine s' w''
   | otherwise = return s
 
 -- DEBUG
-refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
-                    i (F.subcId c) (show b)
+refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
+                        i (F.subcId c) (show b) rnk
 
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
@@ -129,12 +129,12 @@ result wkl s = do
   return   $ F.Result (F.sinfo <$> stat) sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_  w s   = res <$> filterM isUnsat' cs
+result_  w s   = res <$> filterM (isUnsat s) cs
   where
     cs         = W.unsatCandidates w
     res []     = F.Safe
     res cs'    = F.Unsafe cs'
-    isUnsat' c = lift progressTick >> isUnsat s c
+    -- isUnsat' c = lift progressTick >> isUnsat s c
 
 ---------------------------------------------------------------------------
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool

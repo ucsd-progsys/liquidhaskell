@@ -96,6 +96,10 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , val  :: a
                      } deriving (Data, Typeable, Generic)
 
+instance Loc (Located a) where 
+  srcSpan (Loc l l' _) = SS l l'
+
+
 instance (NFData a) => NFData (Located a)
 
 instance Fixpoint a => Fixpoint (Located a) where

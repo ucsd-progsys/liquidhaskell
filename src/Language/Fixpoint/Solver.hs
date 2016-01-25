@@ -135,7 +135,7 @@ solveParWith :: (Fixpoint a) => Solver a -> Solver a
 solveParWith s c fi0 = do
   -- putStrLn "Using Parallel Solver \n"
   let fi       = slice fi0
-  withProgressFI fi $ do --progressInitFI fi
+  withProgressFI fi $ do
     mci <- mcInfo c
     let (_, fis) = partition' (Just mci) fi
     writeLoud $ "Number of partitions : " ++ show (length fis)

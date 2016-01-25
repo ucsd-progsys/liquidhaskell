@@ -87,18 +87,18 @@ instance Ord WorkItem where
               , compare i1         i2         -- Otherwise Set drops items
               ]
 
--- | Ranks ----------------------------------------------------------------
+-- | Ranks ---------------------------------------------------------------------
 
 data Rank = Rank { rScc  :: !Int    -- ^ SCC number with ALL dependencies
                  , rIcc  :: !Int    -- ^ SCC number without CUT dependencies
                  , rTag  :: !F.Tag  -- ^ The constraint's Tag
                  } deriving (Eq, Show)
 
----------------------------------------------------------------------------
--- | Initialize worklist and slice out irrelevant constraints -------------
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Initialize worklist and slice out irrelevant constraints ------------------
+--------------------------------------------------------------------------------
 init :: F.SInfo a -> Worklist a
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 init fi    = WL { wCs     = items
                 , wPend   = addPends M.empty kvarCs
                 , wDeps   = cSucc cd
@@ -127,13 +127,14 @@ unsatCandidates w = [ lookupCMap (wCm w) i | i <- wConcCs w ]
 
 
 ---------------------------------------------------------------------------
-pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool)
+pop  :: Worklist a -> Maybe (F.SimpC a, Worklist a, Bool, Int)
 ---------------------------------------------------------------------------
 pop w = do
   (i, is) <- sPop $ wCs w
   Just ( lookupCMap (wCm w) i
        , popW w i is
        , newSCC w i
+       , rank w i
        )
 
 popW :: Worklist a -> CId -> WorkSet -> Worklist a
@@ -143,11 +144,14 @@ popW w i is = w { wCs   = is
 
 
 newSCC :: Worklist a -> CId -> Bool
-newSCC oldW i = oldRank /= newRank
+newSCC oldW i = (rScc <$> oldRank) /= (rScc <$> newRank)
   where
     oldRank   = lookupCMap rankm <$> wLast oldW
     newRank   = Just              $  lookupCMap rankm i
     rankm     = wRankm oldW
+
+rank :: Worklist a -> CId -> Int
+rank w i = rScc $ lookupCMap (wRankm w) i
 
 ---------------------------------------------------------------------------
 push :: F.SimpC a -> Worklist a -> Worklist a

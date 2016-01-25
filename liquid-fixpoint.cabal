@@ -11,7 +11,6 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
 
-
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types.
@@ -20,17 +19,13 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  1. Types for Expressions, Predicates, Constraints, Solutions
                  .
-                 2. Code for serializing the above
-                 .
-                 3. Code for parsing the results from the fixpoint binary
+                 2. Code for solving constraints 
                  .
                  Requirements
                  .
                  In addition to the .cabal dependencies you require
                  .
                  - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-                   If on Windows, please make sure to place the binary and any associated DLLs
-                   in your "cabal/bin" folder, right next to the fixpoint.native.exe binary.
 
 Extra-Source-Files: tests/neg/*.fq
                   , tests/pos/*.fq
