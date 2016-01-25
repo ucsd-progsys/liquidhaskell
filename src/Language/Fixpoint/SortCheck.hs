@@ -398,12 +398,9 @@ unify1 θ (FApp t1 t2) (FApp t1' t2')
                             = unifyMany θ [t1, t2] [t1', t2']
 unify1 θ (FTC l1) (FTC l2)
   | isListTC l1 && isListTC l2          = return θ
-unify1 θ t1@(FFunc _ _ ) t2@(FFunc _ _) = do FFunc _ ts1 <- generalize t1
-                                             FFunc _ ts2 <- generalize t2
-                                             unifyMany θ ts1 ts2
-unify1 θ t1@(FFunc _ [_]) t2            = do FFunc _ [t1'] <- generalize t1
+unify1 θ t1@(FAbs _ _) t2               = do t1'<- generalize t1
                                              unifyMany θ [t1'] [t2]
-unify1 θ t1 t2@(FFunc _ [_])            = do FFunc _ [t2'] <- generalize t2
+unify1 θ t1 t2@(FAbs _ _)               = do t2' <- generalize t2
                                              unifyMany θ [t1] [t2']
 unify1 θ t1 t2
   | t1 == t2                = return θ
@@ -411,16 +408,21 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst su t@(FVar i)   = fromMaybe t (lookup i su)
-subst su (FApp t1 t2) = FApp (subst su t1) (subst su t2)
-subst _  (FTC l)      = FTC l
-subst su (FFunc i ts) = FFunc i (subst su <$> ts)
-subst _  s            = s
+subst (j,tj) t@(FVar i)   
+  | i == j    = tj
+  | otherwise = t 
+subst su (FApp t1 t2)  = FApp (subst su t1) (subst su t2)
+subst _  (FTC l)       = FTC l
+subst su (FFunc t1 t2) = FFunc (subst su t1) (subst su t2)
+subst (j,tj) (FAbs i t) 
+  | i == j    = FAbs i t
+  | otherwise = FAbs i $ subst (j,tj) t
+subst _  s             = s
 
-generalize (FFunc n ts)
-  = do vs     <- refresh [0..n-1]
-       let sub = zip [0..n-1] (FVar <$> vs)
-       return $ FFunc 0 $ subst sub <$> ts
+generalize (FAbs i t)
+  = do v      <- refresh 0
+       let sub = (i, FVar v)
+       subst sub <$> generalize t 
 generalize t
   = return t
 
@@ -449,23 +451,20 @@ apply θ          = sortMap f
 -------------------------------------------------------------------------
 sortMap :: (Sort -> Sort) -> Sort -> Sort
 -------------------------------------------------------------------------
-sortMap f (FFunc n ts) = FFunc n (sortMap f <$> ts)
-sortMap f (FApp t1 t2) = FApp  (sortMap f t1) (sortMap f t2)
-sortMap f t            = f t
+sortMap f (FAbs i t)    = FAbs i (sortMap f t)
+sortMap f (FFunc t1 t2) = FFunc (sortMap f t1) (sortMap f t2)
+sortMap f (FApp t1 t2)  = FApp  (sortMap f t1) (sortMap f t2)
+sortMap f t             = f t
 
 ------------------------------------------------------------------------
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
 
 sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
-sortFunction (FFunc n ts') = return (n, ts, t)
-  where
-    ts                     = take numArgs ts'
-    t                      = last ts'
-    numArgs                = length ts' - 1
-
-sortFunction t             = throwError $ errNonFunction t
-
+sortFunction t 
+  = case functionSort t of 
+     Nothing          -> throwError $ errNonFunction t
+     Just (vs, ts, t) -> return (length vs, ts, t)
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------

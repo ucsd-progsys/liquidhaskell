@@ -106,5 +106,6 @@ isValidInRefinements FFrac       = False
 isValidInRefinements (FObj _)    = True
 isValidInRefinements (FVar _)    = True
 isValidInRefinements (FFunc _ _) = False
+isValidInRefinements (FAbs  _ _) = False
 isValidInRefinements (FTC _)     = True --TODO is this true? seems to be required for e.g. ResolvePred.hs
 isValidInRefinements (FApp _ _)  = True
