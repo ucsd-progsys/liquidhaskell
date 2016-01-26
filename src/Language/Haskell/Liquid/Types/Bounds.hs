@@ -126,33 +126,22 @@ isPApp _    _                  = False
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-<<<<<<< HEAD
-    x = (\(EVar x) -> x) e
-toUsedPVars _ _ = error "This cannot happen"
-=======
-    x = (\y -> case unProp y of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }) $ last es
+    x = case unProp e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
-unProp (EApp f [e])
-  | val f == propConName
+unProp (EApp (EVar f) e)
+  | f == propConName
   = e
 unProp e
   = e
->>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
 
 toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
-<<<<<<< HEAD
-     EVar e  = last es
-     es'     = init es
-     Just q  = lookup p penv
-     (EVar p, es) = splitEApp ee 
-=======
      EVar e = unProp $ last es
      es'    = init es
-     Just q = lookup (val p) penv
->>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
+     Just q = lookup p penv
+     (EVar p, es) = splitEApp ee 
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 
