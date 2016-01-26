@@ -363,15 +363,6 @@ eAppWithMap lmap f es def
   | otherwise
   = def
 
-<<<<<<< HEAD
-=======
--- HACK for currying, but it only works on runFun things
--- TODO: make it work for any curried function
-dropArgs 0 e = e
-dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
-dropArgs n e = panic Nothing $ "dropArgs on " ++ show (n, e)
-
->>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
