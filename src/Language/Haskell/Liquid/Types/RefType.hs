@@ -926,8 +926,7 @@ tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.look
 
 typeSortForAll tce τ
   = genSort $ typeSort tce tbody
-  where genSort (FFunc _ t) = FFunc n (sortSubst su <$> t)
-        genSort t           = FFunc n [sortSubst su t]
+  where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1] 
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
@@ -939,7 +938,7 @@ tyConName c
   | otherwise         = symbol c
 
 typeSortFun tce t -- τ1 τ2
-  = FFunc 0  sos
+  = mkFFunc 0  sos
   where sos  = typeSort tce <$> τs
         τs   = grabArgs [] t
 grabArgs τs (FunTy τ1 τ2 )

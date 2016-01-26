@@ -482,12 +482,7 @@ freshFilePath =
 -------------------------------------------------------------------------------
 
 
-isBaseSort (F.FFunc _ ss) = and $ map notFFunc ss
-isBaseSort (F.FApp s1 s2) = isBaseSort s1 && isBaseSort s2
-isBaseSort  _             = True
-
-notFFunc (F.FFunc _ _) = False
-notFFunc _ = True
+isBaseSort _ = True 
 
 
 

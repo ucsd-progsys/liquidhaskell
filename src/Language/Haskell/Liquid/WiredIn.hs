@@ -88,7 +88,7 @@ hpropTyCon = symbolTyCon 'w' 26 hpropConName
 
 
 runFunSort :: Sort
-runFunSort = FFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
+runFunSort = mkFFunc 2 [FApp (FApp (FTC arrowFTyCon) (FVar 0)) (FVar 1), FVar 0, FVar 1]
 
 
 -----------------------------------------------------------------------
