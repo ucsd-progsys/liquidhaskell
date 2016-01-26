@@ -121,7 +121,7 @@ mexpr _ (Right (TI _ e)) = e
 txEApp (s,m) e = go f
   where
     (f, es) = splitEApp e 
-    go (EVar x) = txEApp' (s,m) x es 
+    go (EVar x) = txEApp' (s,m) x  (tx s m <$> es) 
     go f        = eApps (tx s m f) (tx s m <$> es)
 
 txEApp' (s, (Left (LMap _ xs e))) f es
