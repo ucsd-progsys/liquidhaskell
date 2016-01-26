@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.UX.Config (
    , hasOpt
    ) where
 
+import Prelude hiding (error)
+
 import Data.Serialize ( Serialize )
 import Language.Fixpoint.Types.Config hiding (Config)
 import Data.Typeable  (Typeable)
@@ -54,6 +56,7 @@ data Config = Config {
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
+  , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

@@ -33,6 +33,7 @@ import CoreFVs
 import CoreUtils
 import MkCore
 import Language.Haskell.Liquid.Desugar710.DsBinds (dsHsWrapper)
+import qualified Language.Haskell.Liquid.Types.Errors as Err
 
 import Name
 import Var
@@ -1084,7 +1085,7 @@ replaceLeavesGRHS [] _ = panic "replaceLeavesGRHS []"
 -- Balanced fold of a non-empty list.
 
 foldb :: (a -> a -> a) -> [a] -> a
-foldb _ [] = error "foldb of empty list"
+foldb _ [] = Err.panic Nothing "foldb of empty list"
 foldb _ [x] = x
 foldb f xs = foldb f (fold_pairs xs)
   where

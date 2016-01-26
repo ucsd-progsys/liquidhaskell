@@ -20,6 +20,7 @@ import Class     (classKey)
 
 import           Debug.Trace
 
+import           Prelude                      hiding (error)
 import           Avail                        (availsToNameSet)
 import           BasicTypes                   (Arity)
 import           CoreSyn                      hiding (Expr, sourceName)
@@ -68,9 +69,11 @@ import qualified Outputable                   as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ    as PJ
 import           Language.Fixpoint.Types      hiding (L, Loc (..), SrcSpan, Constant, SESearch (..))
+import qualified Language.Fixpoint.Types      as F
 import           Language.Fixpoint.Misc       (safeHead, safeLast, safeInit)
 import           Language.Haskell.Liquid.Desugar710.HscMain
 import           Control.DeepSeq
+import           Language.Haskell.Liquid.Types.Errors
 
 
 -----------------------------------------------------------------------
@@ -106,15 +109,6 @@ miModGuts cls mg  = MI {
 --------------------------------------------------------------------------------
 srcSpanTick :: Module -> SrcSpan -> Tickish a
 srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
-
-{-
-tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
-tickSrcSpan z
-  | sp == noSrcSpan = traceShow ("tickSrcSpan:" ++ showPpr z) sp
-  | otherwise       = sp
-  where
-    sp              = tickSrcSpan' z
--}
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
@@ -237,12 +231,11 @@ instance FromJSON RealSrcSpan where
                                      <*> v .: "endCol"
   parseJSON _          = mempty
 
+realSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
 realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
   where
     loc1                  = mkRealSrcLoc (fsLit f) l1 c1
     loc2                  = mkRealSrcLoc (fsLit f) l2 c2
-
-
 
 instance ToJSON SrcSpan where
   toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
@@ -272,6 +265,23 @@ showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
 
 typeUniqueString = {- ("sort_" ++) . -} showSDocDump . ppr
 
+fSrcSpan :: (F.Loc a) => a -> SrcSpan
+fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
+
+fSrcSpanSrcSpan :: F.SrcSpan -> SrcSpan
+fSrcSpanSrcSpan (F.SS p p') = sourcePos2SrcSpan p p'
+
+srcSpanFSrcSpan :: SrcSpan -> F.SrcSpan
+srcSpanFSrcSpan sp = F.SS p p'
+  where
+    p              = srcSpanSourcePos sp
+    p'             = srcSpanSourcePosE sp
+
+sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
+sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
+  where
+    (f, l,  c)         = F.sourcePosElts p
+    (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
 sourcePosSrcSpan = srcLocSpan . sourcePosSrcLoc
@@ -419,8 +429,8 @@ instance Symbolic FastString where
 fastStringText = T.decodeUtf8 . fastStringToByteString
 
 tyConTyVarsDef c | TC.isPrimTyCon c || isFunTyCon c = []
-tyConTyVarsDef c | TC.isPromotedTyCon   c = error ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
-tyConTyVarsDef c | TC.isPromotedDataCon c = error ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
+tyConTyVarsDef c | TC.isPromotedTyCon   c = panic Nothing ("TyVars on " ++ show c) -- tyConTyVarsDef $ TC.ty_con c
+tyConTyVarsDef c | TC.isPromotedDataCon c = panic Nothing ("TyVars on " ++ show c) -- DC.dataConUnivTyVars $ TC.datacon c
 tyConTyVarsDef c = TC.tyConTyVars c
 
 ----------------------------------------------------------------------

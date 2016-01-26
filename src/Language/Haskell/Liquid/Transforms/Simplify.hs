@@ -1,5 +1,6 @@
 module Language.Haskell.Liquid.Transforms.Simplify (simplifyBounds) where
 
+import Prelude hiding (error)
 import Language.Haskell.Liquid.Types
 import Language.Fixpoint.Types
 import Language.Fixpoint.Types.Visitor

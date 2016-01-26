@@ -164,6 +164,7 @@ Library
                     Language.Haskell.Liquid.Types.PrettyPrint,
                     Language.Haskell.Liquid.Types.Specifications,
                     Language.Haskell.Liquid.Types.PredType,
+                    Language.Haskell.Liquid.Types.Meet,
                     Language.Haskell.Liquid.UX.ACSS,
                     Language.Haskell.Liquid.UX.DiffCheck,
                     Language.Haskell.Liquid.Transforms.ANF,

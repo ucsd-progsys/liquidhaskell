@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Transforms.Rec (
      transformRecExpr, transformScope
      ) where
 
+import           Prelude             hiding (error)
 import           Bag
 import           Coercion
 import           Control.Arrow       (second)
@@ -30,6 +31,7 @@ import           Name (isSystemName)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc (mapSndM, mapSnd)
+import           Language.Haskell.Liquid.Types.Errors
 
 import           Data.List                (foldl', isInfixOf)
 import           Control.Applicative      ((<$>))
@@ -42,7 +44,7 @@ transformRecExpr cbs
   | isEmptyBag $ filterBag isTypeError e
   =  {-trace "new cbs"-} pg
   | otherwise
-  = error ("Type-check" ++ showSDoc (pprMessageBag e))
+  = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
   where pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
         (_, e) = lintCoreBindings [] pg
         pg     = inlineFailCases pg0
@@ -88,7 +90,7 @@ inlineFailCases = (go [] <$>)
     getFailExpr = L.lookup
 
     addFailExpr x (Lam _ e) su = (x, e):su
-    addFailExpr _ _         _  = error "internal error" -- this cannot happen
+    addFailExpr _ _         _  = impossible Nothing "internal error" -- this cannot happen
 
 isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
 isTypeError _ = True
@@ -152,7 +154,7 @@ trans vs ids bs (Let (Rec xes) e)
         e'      = Let (Rec xes') e
         xes'    = (second mkLet) <$> xes
 
-trans _ _ _ _ = error "TransformRec.trans called with invalid input"
+trans _ _ _ _ = panic Nothing "TransformRec.trans called with invalid input"
 
 makeTrans vs ids (Let (Rec xes) e)
  = do fids    <- mapM (mkFreshIds vs ids) xs
@@ -169,7 +171,7 @@ makeTrans vs ids (Let (Rec xes) e)
    mkSu ys ids'   = mkSubs ids vs ids' (zip xs ys)
    mkE ys ids' e' = mkCoreLams (vs ++ ids') (sub (mkSu ys ids') e')
 
-makeTrans _ _ _ = error "TransformRec.makeTrans called with invalid input"
+makeTrans _ _ _ = panic Nothing "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
 mkRecBinds xes rs e = Let rs (foldl' f e xes)

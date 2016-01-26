@@ -17,6 +17,7 @@
 
 module Language.Haskell.Liquid.UX.Annotate (specAnchor, mkOutput, annotate) where
 
+import           Prelude                  hiding (error)
 import           GHC                      ( SrcSpan (..)
                                           , srcSpanStartCol
                                           , srcSpanEndCol
@@ -58,6 +59,7 @@ import           Language.Haskell.Liquid.UX.Errors ()
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types hiding (Located(..), Def(..))
 import           Language.Haskell.Liquid.Types.Specifications
+import           Language.Haskell.Liquid.Types.Errors
 
 
 -- | @output@ creates the pretty printed output
@@ -136,7 +138,7 @@ renderPandoc' pandocPath htmlFile srcFile css body
           cmd    = pandocCmd pandocPath mdFile htmlFile
 
 checkExitCode _   (ExitSuccess)   = return ()
-checkExitCode cmd (ExitFailure n) = errorstar $ "cmd: " ++ cmd ++ " failure code " ++ show n
+checkExitCode cmd (ExitFailure n) = panic Nothing $ "cmd: " ++ cmd ++ " failure code " ++ show n
 
 pandocCmd pandocPath mdFile htmlFile
   = printf "%s -f markdown -t html %s > %s" pandocPath mdFile htmlFile
@@ -246,7 +248,7 @@ closeA a@(AI m)   = cf <$> a
                       [(_, AnnUse t)] -> t
                       [(_, AnnDef t)] -> t
                       [(_, AnnRDf t)] -> t
-                      _               -> errorstar $ "malformed AnnInfo: " ++ showPpr l
+                      _               -> panic Nothing $ "malformed AnnInfo: " ++ showPpr l
     cf (AnnUse t) = t
     cf (AnnDef t) = t
     cf (AnnRDf t) = t

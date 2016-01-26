@@ -15,13 +15,14 @@ module Language.Haskell.Liquid.GHC.SpanStack
    , showSpan
    ) where
 
+import           Prelude                   hiding (error)
 import           SrcLoc
 import qualified Var
-import           CoreSyn                hiding (Tick, Var)
-import           Name                   (getSrcSpan)
-import           FastString             (fsLit)
-import Data.Maybe                       (listToMaybe, fromMaybe)
-import Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
+import           CoreSyn                   hiding (Tick, Var)
+import           Name                             (getSrcSpan)
+import           FastString                       (fsLit)
+import           Data.Maybe                       (listToMaybe, fromMaybe)
+import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
 
 -- | Opaque type for a stack of spans
 newtype SpanStack = SpanStack { unStack :: [(Span, SrcSpan)] }

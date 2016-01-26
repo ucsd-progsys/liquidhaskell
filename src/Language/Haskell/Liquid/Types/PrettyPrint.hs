@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
   ) where
 
+import           Prelude hiding (error)
 import           TypeRep hiding (maybeParen)
 import           ErrUtils                         (ErrMsg)
 import           HscTypes                         (SourceError)
@@ -132,6 +133,8 @@ type OkRT c tv r = ( TyConable c
                    , Reftable r
                    , Reftable (RTProp c tv ())
                    , Reftable (RTProp c tv r)
+                   , RefTypable c tv ()
+                   , RefTypable c tv r
                    )
 
 --------------------------------------------------------------------------------
