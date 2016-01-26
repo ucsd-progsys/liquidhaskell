@@ -204,7 +204,7 @@ foldSort f = step
     step b t           = go (f b t) t
     go b (FFunc t1 t2) = L.foldl' step b [t1, t2]
     go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
-    go b (FAbs _ t)    = step b t 
+    go b (FAbs _ t)    = go b t 
     go b _             = b
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort

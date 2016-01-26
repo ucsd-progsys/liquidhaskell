@@ -56,12 +56,13 @@ import           Text.Printf
 -------------------------------------------------------------------------
 isFirstOrder :: Sort -> Bool
 -------------------------------------------------------------------------
-isFirstOrder t      = foldSort f 0 t <= 1
-  where
-    f :: Int -> Sort -> Int
-    f n (FFunc _ _) = n + 1
-    f n _           = n
+isFirstOrder (FAbs _ t)    = isFirstOrder t 
+isFirstOrder (FFunc s1 s2) = noFun s1 && isFirstOrder s2
+isFirstOrder _             = True
 
+noFun (FFunc _ _) = False
+noFun (FAbs _ _)  = False
+noFun _           = True
 
 -------------------------------------------------------------------------
 isMono :: Sort -> Bool

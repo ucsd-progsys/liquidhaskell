@@ -118,7 +118,7 @@ functionSort s
   = Just (is, ss, r)
   where
     (is, ss, r) = go [] [] s  
-    go vs ss (FAbs i s)    = go (i:vs) ss s 
+    go vs ss (FAbs i t)    = go (i:vs) ss t 
     go vs ss (FFunc s1 s2) = go vs (s1:ss) s2 
     go vs ss t             = (reverse vs, reverse ss, t)
 
@@ -141,7 +141,15 @@ data Sort = FInt
 {-@ FFunc :: Nat -> ListNE Sort -> Sort @-}
 
 mkFFunc :: Int -> [Sort] -> Sort 
-mkFFunc i ss = foldl (flip FAbs) (foldl1 FFunc ss) [0..i-1]
+mkFFunc i ss = go [0..i-1] ss 
+  where
+    go [] [s] = s
+    go [] (s:ss)   = FFunc s $ go [] ss
+    go (i:is) ss   = FAbs i $ go is ss
+    go _ _ = error "cannot happen"
+
+
+   -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 instance Hashable FTycon where
   hashWithSalt i (TC s) = hashWithSalt i s
