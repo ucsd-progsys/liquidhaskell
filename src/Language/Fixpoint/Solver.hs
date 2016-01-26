@@ -36,7 +36,7 @@ import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
-import           Language.Fixpoint.Solver.Deps      (deps, Deps (..))
+import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
@@ -74,7 +74,7 @@ solveFQ cfg = do
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc . fmap (const ())
+    statStr = render . resultDoc . void
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
@@ -359,9 +359,8 @@ minimizeFQ cfg fi = do
     cm = M.fromList partres',
     fileName = extFileName Min $ fileName fi
   }
- 
+
   -- write minimized finfo file
   writeFile (fileName minfi) $ render $ toFixpoint cfg' minfi
-  
-  return $ Result { resStatus = Safe, resSolution = M.empty }
 
+  return $ Result { resStatus = Safe, resSolution = M.empty }
