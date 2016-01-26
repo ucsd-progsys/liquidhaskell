@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- | This module implements functions that print out
 --   statistics about the constraints.
@@ -212,13 +213,15 @@ groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data CVertex = KVar F.KVar
-             | Cstr Integer
+data CVertex = KVar  F.KVar  -- ^ real kvar vertex
+             | DKVar F.KVar  -- ^ dummy to ensure each kvar has a successor
+             | Cstr  Integer -- ^ constraint-id which creates a dependency
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
-  pprint (KVar k) = pprint k
-  pprint (Cstr i) = text "id:" <+> pprint i
+  pprint (KVar k)  = pprint k
+  pprint (DKVar k) = pprint k    <> text "*"
+  pprint (Cstr i)  = text "id:" <+> pprint i
 
 instance Hashable CVertex
 
@@ -250,8 +253,10 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
     bs     = F.bs fi
     cs     = M.elems (F.cm fi)
-    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c] ++
-             [(KVar k, KVar k) | k <- fiKVars fi]
+    ks     = fiKVars fi
+    selfes =  [(Cstr i, Cstr i)   | c <- cs, let i = F.subcId c]
+           ++ [(KVar k, DKVar k)  | k <- ks]
+           ++ [(DKVar k, DKVar k) | k <- ks]
 
 fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
@@ -286,10 +291,19 @@ deps :: (F.TaggedC c a) => F.GInfo c a -> GDeps F.KVar
 --------------------------------------------------------------------------------
 deps si         = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gDeps (cuts si) (kvGraph si)
+    Deps cs ns  = gDeps (cutter si) (kvGraph si)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
+
+-- crash _ = undefined
+
+cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
+cutter si = chooseCut isK (cuts si)
+
+isK :: CVertex -> Bool
+isK (KVar _) = True
+isK _        = False
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
@@ -298,30 +312,39 @@ cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
 cuts = S.map KVar . F.ksVars . F.kuts
 
 --------------------------------------------------------------------------------
-gDeps :: (Eq a, Ord a, Hashable a) => S.HashSet a -> [(a,a,[a])] -> GDeps a
+type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
+type Cutable a = (Eq a, Ord a, Hashable a, Show a)
 --------------------------------------------------------------------------------
-gDeps ks g = sccsToDeps ks (G.stronglyConnCompR g)
+gDeps :: (Cutable a) => Cutter a -> [(a, a, [a])] -> GDeps a
+--------------------------------------------------------------------------------
+gDeps f g = sccsToDeps f (G.stronglyConnCompR g)
 
-sccsToDeps :: (Ord a, Eq a, Hashable a) => S.HashSet a -> [G.SCC (a, a, [a])] -> GDeps a
-sccsToDeps ks xs = mconcat $ sccDep ks <$> xs
 
-sccDep :: (Ord a, Hashable a, Eq a) =>  S.HashSet a -> G.SCC (a, a, [a]) -> GDeps a
+sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> GDeps a
+sccsToDeps f xs = mconcat $ sccDep f <$> xs
+
+sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> GDeps a
 sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
-sccDep ks (G.CyclicSCC vs)      = cycleDep ks vs
+sccDep f (G.CyclicSCC vs)      = cycleDep f vs
 
-cycleDep :: (Ord a, Hashable a) => S.HashSet a -> [(a,a,[a])] -> GDeps a
-cycleDep _ []  = mempty
-cycleDep ks vs = mconcat $ dCut v : (sccDep ks <$> sccs)
-  where
-    (v, vs')   = chooseCut ks vs
-    sccs       = G.stronglyConnCompR vs'
 
-chooseCut :: (Eq a, Hashable a) => S.HashSet a -> [(a, a, [a])] -> (a, [(a, a, [a])])
-chooseCut ks vs = (v, [x | x@(u,_,_) <- vs, u /= v])
+cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> GDeps a
+cycleDep _ [] = mempty
+cycleDep f vs = addCut f (f vs)
+
+addCut _ Nothing         = mempty
+addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
-    vs' = [x | (x,_,_) <- vs]
-    is  = S.intersection (S.fromList vs') ks
-    v   = head $ if S.null is then vs' else S.toList is
+    sccs                 = G.stronglyConnCompR vs'
+
+chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
+chooseCut f ks vs = case vs'' of
+                      []  -> Nothing
+                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+  where
+    vs'           = [x | (x,_,_) <- vs, f x]
+    is            = S.intersection (S.fromList vs') ks
+    vs''          = if S.null is then vs' else S.toList is
        -- ^ -- we select a RANDOM element,
        ------- instead pick the "first" element.
 

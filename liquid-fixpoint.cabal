@@ -19,7 +19,7 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  1. Types for Expressions, Predicates, Constraints, Solutions
                  .
-                 2. Code for solving constraints 
+                 2. Code for solving constraints
                  .
                  Requirements
                  .
@@ -44,7 +44,7 @@ Executable fixpoint
 
 Library
   default-language: Haskell98
-  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods 
+  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -121,7 +121,7 @@ test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tests
-  ghc-options:      -O2 -threaded 
+  ghc-options:      -O2 -threaded
   main-is:          test.hs
   build-depends:    base,
                     directory,
