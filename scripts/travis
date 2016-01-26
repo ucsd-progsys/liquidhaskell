@@ -129,7 +129,7 @@ function install_dependencies {
   loud stack solver --update-config
 
   echo "Installing dependencies..."
-  loud stack build liquidhaskell --only-dependencies --test --no-run-tests --no-haddoc-deps
+  loud stack build liquidhaskell --only-dependencies --test --no-run-tests --no-haddock-deps
 }
 
 ## Building & Testing Stages
