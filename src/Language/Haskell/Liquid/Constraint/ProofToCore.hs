@@ -4,11 +4,13 @@
 
 module Language.Haskell.Liquid.Constraint.ProofToCore where
 
+import Prelude hiding (error)
 import CoreSyn hiding (Expr, Var)
 import qualified CoreSyn as H
+import Language.Haskell.Liquid.Types.Errors
 
 import Var hiding (Var)
-import qualified Var as V 
+import qualified Var as V
 import CoreUtils
 
 import Type hiding (Var)
@@ -17,7 +19,7 @@ import TypeRep
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.WiredIn
 
-import Language.Fixpoint.Misc 
+import Language.Fixpoint.Misc
 
 import Prover.Types
 import Language.Haskell.Liquid.Transforms.CoreToLogic ()
@@ -79,8 +81,8 @@ combine _ c e' [e]           = c e' e
 combine (i:uniq) c e' (e:es) = Let (NonRec v (c e' e)) (combine uniq c (H.Var v) es)
   where
      v = varCombine i (exprType $ c e' e)
-combine _ _ _ _              = errorstar err -- TODO: Does this case have a
-   where                                     -- sane implementation?
+combine _ _ _ _              = impossible Nothing err -- TODO: Does this case have a
+   where                                              -- sane implementation?
      err = "Language.Haskell.Liquid.Constraint.ProofToCore.combine called with"
            ++ " empty first argument and non-empty fourth argument. This should"
            ++ " never happen!"
@@ -107,8 +109,8 @@ makeApp f es = foldl (flip Let) (foldl App f' (reverse es')) (reverse  bs)
 
 
 instance Show Type where
-  show (TyVarTy v) = show $ tvId v 
-  show t           = showPpr t 
+  show (TyVarTy v) = show $ tvId v
+  show t           = showPpr t
 
 -- | ANF
 anf :: ([CoreBind], [CoreExpr], [Int]) -> CoreExpr -> ([CoreBind], [CoreExpr], [Int])
@@ -130,12 +132,12 @@ makeDictionary dname t = App (H.Var dname) (Type t)
 -- | Filling up types
 instantiateVars vts e = go e (exprType e)
   where
-    go e (ForAllTy a t) = go (App e (Type $ fromMaybe (TyVarTy a) $ L.lookup a vts)) t 
+    go e (ForAllTy a t) = go (App e (Type $ fromMaybe (TyVarTy a) $ L.lookup a vts)) t
     go e _              = e
 
 resolveVs :: [Id] -> [(Type, Type)] -> [(Id, Type)]
-resolveVs as  ts = go as ts 
-  where 
+resolveVs as  ts = go as ts
+  where
     go _   []                                     = []
     go fvs ((ForAllTy v t1, t2):ts)               = go (v:fvs) ((t1, t2):ts)
     go fvs ((t1, ForAllTy v t2):ts)               = go (v:fvs) ((t1, t2):ts)
@@ -146,7 +148,7 @@ resolveVs as  ts = go as ts
     go fvs ((t, TyVarTy a):ts) | a `elem` fvs     = let vts = (go fvs (substTyV (a, t) <$> ts)) in (a, resolveVar a t vts) : vts
     go fvs ((TyConApp _ cts,TyConApp _ cts'):ts)  = go fvs (zip cts cts' ++ ts)
     go fvs ((LitTy _, LitTy _):ts)                = go fvs ts
-    go _   (tt:_)                                 = errorstar $ ("cannot resolve " ++ show tt ++ (" for ") ++ show ts)
+    go _   (tt:_)                                 = panic Nothing $ ("cannot resolve " ++ show tt ++ (" for ") ++ show ts)
 
 resolveVar _ t [] = t
 resolveVar a t ((a', t'):ats)

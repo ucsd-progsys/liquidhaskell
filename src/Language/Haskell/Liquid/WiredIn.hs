@@ -16,6 +16,8 @@ module Language.Haskell.Liquid.WiredIn
        , proofTyConName, combineProofsName
        ) where
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Types.RefType
@@ -41,6 +43,7 @@ import Data.Monoid
 import Control.Applicative
 
 import Prover.Names
+import Language.Haskell.Liquid.Types.Errors
 
 wiredSortedSyms = (runFunName, runFunSort) : [(pappSym n, pappSort n) | n <- [1..pappArity]]
 
@@ -163,11 +166,11 @@ tupleTyDataCons n = ( [(c, TyConP (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothi
 pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
 
 mkps ns (t:ts) ((f,x):fxs) = reverse $ mkps_ ns ts fxs [(t, f, x)] []
-mkps _  _      _           = error "Bare : mkps"
+mkps _  _      _           = panic Nothing "Bare : mkps"
 
 mkps_ []     _       _          _    ps = ps
 mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
   where
     p                                   = PV n (PVProp t) (vv Nothing) args
     a                                   = (t, f, x)
-mkps_ _     _       _          _    _ = error "Bare : mkps_"
+mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"

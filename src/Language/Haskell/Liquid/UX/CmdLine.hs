@@ -28,6 +28,8 @@ module Language.Haskell.Liquid.UX.CmdLine (
 
 ) where
 
+import Prelude hiding (error)
+
 import Control.Monad
 import Data.Maybe
 import Data.Traversable (mapM)
@@ -97,10 +99,6 @@ config = cmdArgsMode $ Config {
  , real
     = def
           &= help "Supports real number arithmetic"
-
- , exactDC
-    = def &= help "Exact Type for Data Constructors"
-          &= name "exact-data-cons"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -196,6 +194,20 @@ config = cmdArgsMode $ Config {
      = defaultPort
           &= name "port"
           &= help "Port at which lhi should listen"
+
+ , exactDC
+    = def &= help "Exact Type for Data Constructors"
+          &= name "exact-data-cons"
+
+ , scrapeImports
+    = False &= help "Scrape qualifiers from imported specifications"
+            &= name "scrape-imports"
+            &= explicit
+
+ , scrapeUsedImports
+    = False &= help "Scrape qualifiers from used, imported specifications"
+            &= name "scrape-used-imports"
+            &= explicit
 
  } &= verbosity
    &= program "liquid"
@@ -342,14 +354,9 @@ defConfig = Config { files          = def
                    , cFiles         = def
                    , eliminate      = def
                    , port           = defaultPort
+                   , scrapeImports  = False
+                   , scrapeUsedImports  = False
                    }
-
-instance Monoid SMTSolver where
-  mempty        = def
-  mappend s1 s2
-    | s1 == s2  = s1
-    | s2 == def = s1
-    | otherwise = s2
 
 
 ------------------------------------------------------------------------

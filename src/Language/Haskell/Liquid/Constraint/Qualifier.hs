@@ -8,6 +8,8 @@ module Language.Haskell.Liquid.Constraint.Qualifier (
 
 import TyCon
 
+import Prelude hiding (error)
+
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.GHC.Misc  (getSourcePos)
@@ -29,10 +31,18 @@ specificationQualifiers :: Int -> GhcInfo -> SEnv Sort -> [Qualifier]
 -----------------------------------------------------------------------------------
 specificationQualifiers k info lEnv
   = [ q | (x, t) <- (tySigs $ spec info) ++ (asmSigs $ spec info) ++ (ctors $ spec info)
-        -- FIXME: this mines extra, useful qualifiers but causes a significant increase in running time
-        -- , ((isClassOp x || isDataCon x) && x `S.member` (S.fromList $ impVars info ++ defVars info)) || x `S.member` (S.fromList $ defVars info)
-        , x `S.member` (S.fromList $ defVars info)
+        , x `S.member` (S.fromList $ defVars info ++
+                                     -- NOTE: this mines extra, useful qualifiers but causes
+                                     -- a significant increase in running time, so we hide it
+                                     -- behind `--scrape-imports` and `--scrape-used-imports`
+                                     if info `hasOpt` scrapeUsedImports
+                                     then useVars info
+                                     else if info `hasOpt` scrapeImports
+                                     then impVars info
+                                     else [])
         , q <- refTypeQuals lEnv (getSourcePos x) (tcEmbeds $ spec info) (val t)
+        -- NOTE: large qualifiers are VERY expensive, so we only mine
+        -- qualifiers up to a given size, controlled with --max-params
         , length (q_params q) <= k + 1
     ]
     -- where lEnv = trace ("Literals: " ++ show lEnv') lEnv'
@@ -90,7 +100,7 @@ refTopQuals lEnv l tce t0 γ t
     where
       mkQ   = mkQual  lEnv l     t0 γ
       mkP   = mkPQual lEnv l tce t0 γ
-      msg t = errorstar $ "Qualifier.refTopQuals: no typebase" ++ showpp t
+      msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
 
 mkPQual lEnv l tce t0 γ t e = mkQual lEnv l t0 γ' v so pa
   where

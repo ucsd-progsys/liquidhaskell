@@ -10,14 +10,13 @@ module Language.Haskell.Liquid.Types.Dictionaries (
   , dhasinfo
   ) where
 
-import Control.Applicative      ((<$>))
+import Prelude hiding (error)
 
 import Var
 
 
 import Language.Fixpoint.Types.Names      (symbolString)
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc       (errorstar)
 
 import Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 import Language.Haskell.Liquid.Types
@@ -38,7 +37,7 @@ makeDictionaryName t (RApp c _ _ _) = symbol ("$f" ++ symbolString (val t) ++ c'
   where
         c' = symbolString (dropModuleNames $ symbol $ rtc_tc c)
 
-makeDictionaryName _ _              = errorstar "makeDictionaryName: called with invalid type"
+makeDictionaryName _ _              = panic Nothing "makeDictionaryName: called with invalid type"
 
 ------------------------------------------------------------------------------
 ------------------------------------------------------------------------------

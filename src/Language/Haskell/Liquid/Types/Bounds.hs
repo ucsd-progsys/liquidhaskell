@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Types.Bounds (
 
     ) where
 
+import Prelude hiding (error)
 import Text.PrettyPrint.HughesPJ
 
 import Data.List (partition)
@@ -25,7 +26,6 @@ import qualified Data.HashMap.Strict as M
 -- import Control.Applicative           ((<$>))
 
 import Language.Fixpoint.Types
-import Language.Fixpoint.Misc        (errorstar)
 
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc  (mapFst, mapSnd)
@@ -96,7 +96,7 @@ makeBoundType :: (PPrint r, UReftable r)
 makeBoundType penv (q:qs) xts = go xts
   where
     -- NV TODO: Turn this into a proper error
-    go [] = errorstar "Bound with empty symbols"
+    go [] = panic Nothing "Bound with empty symbols"
 
     go [(x, t)]      = [(dummySymbol, tp t x), (dummySymbol, tq t x)]
     go ((x, t):xtss) = (val x, mkt t x):(go xtss)
@@ -111,7 +111,7 @@ makeBoundType penv (q:qs) xts = go xts
 
 
 -- NV TODO: Turn this into a proper error
-makeBoundType _ _ _           = errorstar "Bound with empty predicates"
+makeBoundType _ _ _           = panic Nothing "Bound with empty predicates"
 
 
 partitionPs :: [(Symbol, Symbol)] -> [Expr] -> (M.HashMap Symbol [UsedPVar], [Expr])
@@ -126,18 +126,35 @@ isPApp _    _                  = False
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
+<<<<<<< HEAD
     x = (\(EVar x) -> x) e
 toUsedPVars _ _ = error "This cannot happen"
+=======
+    x = (\y -> case unProp y of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }) $ last es
+toUsedPVars _ _ = impossible Nothing "This cannot happen"
+
+unProp (EApp f [e])
+  | val f == propConName
+  = e
+unProp e
+  = e
+>>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
 
 toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
+<<<<<<< HEAD
      EVar e  = last es
      es'     = init es
      Just q  = lookup p penv
      (EVar p, es) = splitEApp ee 
+=======
+     EVar e = unProp $ last es
+     es'    = init es
+     Just q = lookup (val p) penv
+>>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
 
-toUsedPVar _ _ = error "This cannot happen"
+toUsedPVar _ _ = impossible Nothing "This cannot happen"
 
 -- `makeRef` is used to make the refinement of the last implication,
 -- thus it can contain both concrete and abstract refinements

@@ -6,6 +6,7 @@ module Language.Haskell.Liquid.Types.Literals (
        , literalConst
        ) where
 
+import Prelude hiding (error)
 import TypeRep
 import Literal
 import qualified TyCon  as TC
@@ -13,6 +14,7 @@ import Language.Haskell.Liquid.Measure
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit)
+import Language.Haskell.Liquid.Types.Errors
 
 import qualified Language.Fixpoint.Types as F
 
@@ -30,7 +32,7 @@ makeRTypeBase (TyVarTy α)    x
 makeRTypeBase (TyConApp c ts) x
   = rApp c ((`makeRTypeBase` mempty) <$> ts) [] x
 makeRTypeBase _              _
-  = error "RefType : makeRTypeBase"
+  = panic Nothing "RefType : makeRTypeBase"
 
 literalFRefType l
   = makeRTypeBase (literalType l) (literalFReft l)

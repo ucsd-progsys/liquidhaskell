@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.UX.CTags (
 
 import Var
 import CoreSyn
+import Prelude hiding (error)
 
 import qualified Data.HashSet           as S
 import qualified Data.HashMap.Strict    as M

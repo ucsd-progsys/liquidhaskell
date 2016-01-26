@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Constraint.Constraint (
 , addConstraints
 ) where
 
+import Prelude hiding (error)
 import Data.Maybe
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Constraint.Types
@@ -22,7 +23,7 @@ addConstraints γ t = γ {lcs = mappend (t2c t) (lcs γ)}
     t2c z          = LC [z]
 
 --------------------------------------------------------------------------------
-constraintToLogic :: CGEnv -> LConstraint -> Expr 
+constraintToLogic :: CGEnv -> LConstraint -> Expr
 --------------------------------------------------------------------------------
 constraintToLogic γ (LC ts) = pAnd (constraintToLogicOne γ  <$> ts)
 

@@ -21,6 +21,8 @@ module Language.Haskell.Liquid.Types (
 
   -- * Options
     Config (..)
+  , HasConfig (..)
+  , hasOpt
 
   -- * Ghc Information
   , GhcInfo (..)
@@ -149,10 +151,6 @@ module Language.Haskell.Liquid.Types (
   , module Language.Haskell.Liquid.Types.Errors
   , Error
   , ErrorResult
-  -- , panic
-  -- , panicError
-  -- , todo
-  -- , impossible
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -199,6 +197,7 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
+import Prelude                          hiding  (error)
 import SrcLoc                                   (noSrcSpan, SrcSpan)
 import TyCon
 import DataCon
@@ -290,6 +289,10 @@ data GhcInfo = GI {
   , spec     :: !GhcSpec
   }
 
+instance HasConfig GhcInfo where
+  getConfig = getConfig . spec
+
+
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 
@@ -330,6 +333,9 @@ data GhcSpec = SP {
   , proofType  :: Maybe Type
   }
 
+instance HasConfig GhcSpec where
+  getConfig = config
+
 data LogicMap = LM { logic_map :: M.HashMap Symbol LMap
                    , axiom_map :: M.HashMap Var Symbol
                    } deriving (Show)
@@ -357,6 +363,15 @@ eAppWithMap lmap f es def
   | otherwise
   = def
 
+<<<<<<< HEAD
+=======
+-- HACK for currying, but it only works on runFun things
+-- TODO: make it work for any curried function
+dropArgs 0 e = e
+dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
+dropArgs n e = panic Nothing $ "dropArgs on " ++ show (n, e)
+
+>>>>>>> a592a3b6fb3b76796d80a99a0e0279913afefc7f
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
                      , freeLabelTy  :: ![Symbol]
@@ -405,7 +420,7 @@ instance Hashable (PVar a) where
 pvType :: PVar t -> t
 pvType p = case ptype p of
              PVProp t -> t
-             PVHProp  -> errorstar "pvType on HProp-PVar"
+             PVHProp  -> panic Nothing "pvType on HProp-PVar"
 
 data PVKind t
   = PVProp t
@@ -898,8 +913,8 @@ bkArrowDeep t               = ([], [], [], t)
 bkArrow (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrow t'  in (x:xs, t:ts, r:rs, t'')
 bkArrow t               = ([], [], [], t)
 
-safeBkArrow (RAllT _ _) = errorstar "safeBkArrow on RAllT"
-safeBkArrow (RAllP _ _) = errorstar "safeBkArrow on RAllP"
+safeBkArrow (RAllT _ _) = panic Nothing "safeBkArrow on RAllT"
+safeBkArrow (RAllP _ _) = panic Nothing "safeBkArrow on RAllP"
 safeBkArrow (RAllS _ t) = safeBkArrow t
 safeBkArrow t           = bkArrow t
 
@@ -960,13 +975,13 @@ instance Reftable Strata where
   isTauto []         = True
   isTauto _          = False
 
-  ppTy _             = error "ppTy on Strata"
+  ppTy _             = panic Nothing "ppTy on Strata"
   toReft _           = mempty
   params s           = [l | SVar l <- s]
   bot _              = []
   top _              = []
 
-  ofReft = error "TODO: Strata.ofReft"
+  ofReft = todo Nothing "TODO: Strata.ofReft"
 
 
 class Reftable r => UReftable r where
@@ -1035,7 +1050,7 @@ instance (Subable r, RefTypable c tv r) => Subable (RType c tv r) where
 instance Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
-  bot (Pr _)           = errorstar "No BOT instance for Predicate"
+  bot (Pr _)           = panic Nothing "No BOT instance for Predicate"
   -- NV: This does not print abstract refinements....
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | isTauto r        = d
@@ -1044,9 +1059,9 @@ instance Reftable Predicate where
 
   toReft (Pr ps@(p:_))        = Reft (parg p, pAnd $ pToRef <$> ps)
   toReft _                    = mempty
-  params                      = errorstar "TODO: instance of params for Predicate"
+  params                      = todo Nothing "TODO: instance of params for Predicate"
 
-  ofReft = error "TODO: Predicate.ofReft"
+  ofReft = todo Nothing "TODO: Predicate.ofReft"
 
 pToRef p = pApp (pname p) $ (EVar $ parg p) : (thd3 <$> pargs p)
 
@@ -1314,6 +1329,8 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 type ErrorResult = FixResult Error
 type Error       = TError SpecType
 
+instance NFData a => NFData (TError a)
+
 ------------------------------------------------------------------------
 -- | Source Information Associated With Constraints --------------------
 ------------------------------------------------------------------------
@@ -1530,9 +1547,9 @@ instance Monoid (Output a) where
                     , o_result =             mappend (o_result o1) (o_result o2)
                     }
 
------------------------------------------------------------
--- | KVar Profile -----------------------------------------
------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | KVar Profile --------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data KVKind
   = RecBindE
@@ -1633,7 +1650,7 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
     = MSpec (M.unionWith (++) c1 c2) (m1 `M.union` m2)
            (cm1 `M.union` cm2) (im1 ++ im2)
     | otherwise
-    = errorstar $ err (head dups)
+    = panic Nothing $ err (head dups)
     where dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, val k1 == val k2]
           err (k1, k2) = printf "\nDuplicate Measure Definitions for %s\n%s" (showpp k1) (showpp $ map loc [k1, k2])
 

@@ -8,6 +8,8 @@ module Language.Haskell.Liquid.UX.ACSS (
   , Status (..)
   ) where
 
+import Prelude hiding (error)
+
 import Language.Haskell.HsColour.Anchors
 import Language.Haskell.HsColour.Classify as Classify
 import Language.Haskell.HsColour.HTML (renderAnchors, escape)
@@ -20,6 +22,7 @@ import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
 import Language.Haskell.Liquid.GHC.Misc
+import Language.Haskell.Liquid.Types.Errors (panic, impossible, todo)
 
 data AnnMap  = Ann {
     types  :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
@@ -147,11 +150,11 @@ stitch ((x,y):xys) ((Right x'):rest)
   | x == x'
   = (Right y) : stitch xys rest
   | otherwise
-  = error "stitch"
+  = panic Nothing "stitch"
 stitch _ []
   = []
 stitch _ _
-  = error "stitch: cannot happen"
+  = impossible Nothing "stitch: cannot happen"
 
 splitSrcAndAnns ::  String -> (String, AnnMap)
 splitSrcAndAnns s =
@@ -206,7 +209,7 @@ parseLines mname i (x:f:l:c:n:rest)
           rest' = drop num rest
 
 parseLines _ i _
-  = error $ "Error Parsing Annot Input on Line: " ++ show i
+  = panic Nothing $ "Error Parsing Annot Input on Line: " ++ show i
 
 instance Show AnnMap where
   show (Ann ts es _ ) =  "\n\n" ++ (concatMap ppAnnotTyp $ M.toList ts)

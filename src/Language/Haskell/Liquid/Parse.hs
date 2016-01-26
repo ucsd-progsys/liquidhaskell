@@ -12,6 +12,7 @@ module Language.Haskell.Liquid.Parse
   )
   where
 
+import Prelude hiding (error)
 import Control.Monad
 import Text.Parsec
 import Text.Parsec.Error (newErrorMessage, Message (..))
@@ -43,7 +44,6 @@ import Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure as Measure
 import Language.Fixpoint.Types.Names (symbolString, listConName, hpropConName, propConName, tupConName, headSym)
-import Language.Fixpoint.Misc (safeLast, errorstar)
 import Language.Fixpoint.Parse hiding (angles, refBindP, refP, refDefP)
 
 ----------------------------------------------------------------------------
@@ -317,6 +317,8 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
   where
     (_, τ) = safeLast "bPVar last" xts
     τxs    = [ (τ, x, EVar x) | (x, τ) <- init xts ]
+    safeLast _ xs@(_:_) = last xs
+    safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
 predVarTypeP :: Parser [(Symbol, BSort)]
 predVarTypeP = bareTypeP >>= either parserFail return . mkPredVarType
@@ -452,7 +454,7 @@ boundP = do
 ----------------------- Wrapped Constructors ---------------------------
 ------------------------------------------------------------------------
 
-bRProp []    _    = errorstar "Parse.bRProp empty list"
+bRProp []    _    = panic Nothing "Parse.bRProp empty list"
 bRProp syms' expr = RProp ss $ bRVar dummyName mempty mempty r
   where
     (ss, (v, _))  = (init syms, last syms)

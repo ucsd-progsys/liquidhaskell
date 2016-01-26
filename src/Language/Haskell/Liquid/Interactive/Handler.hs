@@ -6,6 +6,7 @@ module Language.Haskell.Liquid.Interactive.Handler (
   , handler
   ) where
 
+import Prelude hiding (error)
 import Control.Concurrent.MVar
 import Language.Haskell.Liquid.Interactive.Types
 import Language.Haskell.Liquid.Liquid

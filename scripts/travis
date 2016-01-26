@@ -126,7 +126,7 @@ function setup_ghc {
 function install_dependencies {
   echo "Solving dependency constraints..."
   loud stack update
-  loud stack solver --modify-stack-yaml
+  loud stack solver --update-config
 
   echo "Installing dependencies..."
   loud stack build liquidhaskell --only-dependencies --test --no-run-tests

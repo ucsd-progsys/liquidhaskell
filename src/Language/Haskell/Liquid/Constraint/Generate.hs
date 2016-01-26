@@ -20,6 +20,7 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
+import Prelude hiding (error)
 import GHC.Err.Located hiding (error)
 import GHC.Stack
 import CoreUtils     (exprType)
@@ -62,6 +63,7 @@ import Text.Printf
 import           Language.Haskell.Liquid.Types.PrettyPrint -- (pprint)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors
+import           Language.Haskell.Liquid.UX.Tidy (panicError)
 import Language.Fixpoint.SortCheck (pruneUnsortedReft)
 import Language.Fixpoint.Types.Visitor
 import Language.Fixpoint.Types.Names (symbolString)
@@ -83,6 +85,7 @@ import Language.Haskell.Liquid.Types.Bounds
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Visitors         hiding (freeVars)
 import Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
+import Language.Haskell.Liquid.Types.Meet
 import Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan
                                                  , hasBaseTypeVar, showPpr, isDataConId
                                                  , symbolFastString, stringVar, stringTyVar)
@@ -201,23 +204,24 @@ lenOf x = F.mkEApp lenLocSymbol [F.EVar x]
 makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_res = tres}))
     where
       x      = dataConWorkId x'
-      t      = fromMaybe (errorstar "makeSizedDataCons: this should never happen") $ L.lookup x dcts
+      t      = fromMaybe (impossible Nothing "makeSizedDataCons: this should never happen") $ L.lookup x dcts
       trep   = toRTypeRep t
       tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
-
+mergeDataConTypes ::  [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
 mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
     f (x,_) (y,_) = compare x y
     merge [] ys = ys
     merge xs [] = xs
     merge (xt@(x, tx):xs) (yt@(y, ty):ys)
-      | x == y    = (x, tx `F.meet` ty):merge xs ys
-      | x <  y    = xt:merge xs (yt:ys)
-      | otherwise = yt:merge (xt:xs) ys
+      | x == y    = (x, mXY x tx y ty) : merge xs ys
+      | x <  y    = xt : merge xs (yt : ys)
+      | otherwise = yt : merge (xt : xs) ys
+    mXY x tx y ty = meetVarTypes (pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)
@@ -696,7 +700,7 @@ consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
        extender γ' (x, Assumed t)
    where
        f t' (RAllT α te) = subsTyVar_meet' (α, t') te
-       f _ _ = error "consCB on Dictionary: this should not happen"
+       f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
        isDictionary = isJust . dlookup (denv γ)
 
 consCB _ _ γ (NonRec x e)
@@ -769,14 +773,14 @@ deriving instance (Show a) => (Show (Template a))
 
 unTemplate (Asserted t) = t
 unTemplate (Assumed t) = t
-unTemplate _ = errorstar "Constraint.Generate.unTemplate called on `Unknown`"
+unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate γ (Asserted t) = Asserted <$> addPost γ t
 addPostTemplate γ (Assumed  t) = Assumed  <$> addPost γ t
 addPostTemplate _ Unknown      = return Unknown
 
 safeFromAsserted _ (Asserted t) = t
-safeFromAsserted msg _ = errorstar $ "safeFromAsserted:" ++ msg
+safeFromAsserted msg _ = panic Nothing $ "safeFromAsserted:" ++ msg
 
 -- | @varTemplate@ is only called with a `Just e` argument when the `e`
 -- corresponds to the body of a @Rec@ binder.
@@ -898,7 +902,7 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
        x' = F.symbol x
 
 cconsLazyLet _ _ _
-  = errorstar "Constraint.Generate.cconsLazyLet called on invalid inputs"
+  = panic Nothing "Constraint.Generate.cconsLazyLet called on invalid inputs"
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis ------------------------------------------------------------
@@ -942,7 +946,7 @@ consE γ e'@(App e a) | isDictionary a
   where
     grepfunname (App x (Type _)) = grepfunname x
     grepfunname (Var x)          = x
-    grepfunname e                = errorstar $ "grepfunname on \t" ++ showPpr e
+    grepfunname e                = panic Nothing $ "grepfunname on \t" ++ showPpr e
     mdict w                      = case w of
                                      Var x    -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
                                      Tick _ e -> mdict e
@@ -1005,7 +1009,7 @@ consE _ e@(Coercion _)
    = trueTy $ exprType e
 
 consE _ e@(Type t)
-  = errorstar $ "consE cannot handle type " ++ showPpr (e, t)
+  = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
 
 castTy _ τ (Var x)
   = do t <- trueTy τ
@@ -1015,7 +1019,7 @@ castTy g t (Tick _ e)
   = castTy g t e
 
 castTy _ _ e
-  = errorstar $ "castTy cannot handle expr " ++ showPpr e
+  = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
 
 
 singletonReft (Just x) _ = uTop $ F.symbolReft x
@@ -1140,7 +1144,7 @@ caseEnv γ x acs a _
 altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
   where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
-altReft _ _ _            = error "Constraint : altReft"
+altReft _ _ _            = panic Nothing "Constraint : altReft"
 
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
@@ -1153,18 +1157,18 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
         tvs'               = rVar <$> αs
         tvys               = ofType . varType <$> αs
 
-unfoldR _  _                _  = error "Constraint.hs : unfoldR"
+unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 
 instantiateTys = L.foldl' go
   where go (RAllT α tbody) t = subsTyVar_meet' (α, t) tbody
-        go _ _               = errorstar "Constraint.instanctiateTy"
+        go _ _               = panic Nothing "Constraint.instanctiateTy"
 
 instantiatePvs = L.foldl' go
   where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
-        go _ _               = errorstar "Constraint.instanctiatePv"
+        go _ _               = panic Nothing "Constraint.instanctiatePv"
 
 checkTyCon _ t@(RApp _ _ _ _) = t
-checkTyCon x t                = checkErr x t --errorstar $ showPpr x ++ "type: " ++ showPpr t
+checkTyCon x t                = checkErr x t
 
 checkFun _ t@(RFun _ _ _ _)   = t
 checkFun x t                  = checkErr x t
@@ -1172,7 +1176,7 @@ checkFun x t                  = checkErr x t
 checkAll _ t@(RAllT _ _)      = t
 checkAll x t                  = checkErr x t
 
-checkErr (msg, e) t          = errorstar $ msg ++ showPpr e ++ ", type: " ++ showpp t
+checkErr (msg, e) t          = panic Nothing $ msg ++ showPpr e ++ ", type: " ++ showpp t
 
 varAnn γ x t
   | x `S.member` recs γ      = AnnLoc (getSrcSpan x)
@@ -1192,7 +1196,7 @@ freshPredRef γ e (PV _ (PVProp τ) _ as)
        return $ RProp targs t
 
 freshPredRef _ _ (PV _ PVHProp _ _)
-  = errorstar "TODO:EFFECTS:freshPredRef"
+  = todo Nothing "EFFECTS:freshPredRef"
 
 --------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
@@ -1202,7 +1206,7 @@ argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
-argExpr _ e           = errorstar $ "argExpr: " ++ showPpr e
+argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
 
 
 --------------------------------------------------------------------------------

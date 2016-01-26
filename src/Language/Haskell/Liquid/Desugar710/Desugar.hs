@@ -10,6 +10,7 @@ The Desugarer: turning HsSyn into Core.
 
 module Language.Haskell.Liquid.Desugar710.Desugar ( deSugarWithLoc, deSugar, deSugarExpr ) where
 
+import Prelude hiding (error)
 import DynFlags
 import HscTypes
 import HsSyn
@@ -66,7 +67,7 @@ import Control.Monad( when )
 deSugarWithLoc, deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 -- Can modify PCS by faulting in more declarations
 
-deSugarWithLoc = deSugar 
+deSugarWithLoc = deSugar
 
 deSugar hsc_env
         mod_loc

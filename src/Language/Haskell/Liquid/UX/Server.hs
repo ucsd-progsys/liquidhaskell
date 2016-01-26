@@ -1,5 +1,7 @@
 module Language.Haskell.Liquid.UX.Server (getType) where
 
+import           Prelude hiding (error)
+
 -- import           Control.Monad ((<<))
 import           Language.Haskell.Liquid.Types (Output(..))
 import qualified Language.Haskell.Liquid.UX.ACSS as A

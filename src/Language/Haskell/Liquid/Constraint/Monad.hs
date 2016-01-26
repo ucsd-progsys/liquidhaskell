@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Constraint.Monad  where
 
 
 -- import           Text.PrettyPrint.HughesPJ hiding (first)
+import           Prelude hiding (error)
 -- import qualified TyCon  as TC
 import           Var
 import           Name (getSrcSpan)
@@ -34,7 +35,7 @@ import           Language.Haskell.Liquid.Constraint.Env
 -- import           Language.Haskell.Liquid.Constraint.Fresh
 -- import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
 -- import           Language.Haskell.Liquid.Types.RefType
-import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc hiding (errorstar)
 -- import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 

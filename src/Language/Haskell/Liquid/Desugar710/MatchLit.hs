@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Desugar710.MatchLit ( dsLit, dsOverLit, hsLitKey,
 
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.Match  ( match )
 import {-# SOURCE #-} Language.Haskell.Liquid.Desugar710.DsExpr ( dsExpr )
-
+import Prelude hiding (error)
 import DsMonad
 import Language.Haskell.Liquid.Desugar710.DsUtils
 

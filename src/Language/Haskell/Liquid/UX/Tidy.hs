@@ -23,6 +23,8 @@ module Language.Haskell.Liquid.UX.Tidy (
   , panicError
   ) where
 
+import           Prelude             hiding (error)
+
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -191,10 +193,6 @@ instance Ex.Exception Error
 instance Ex.Exception [Error]
 
 
-
-
-
-
 instance ToJSON Error where
   toJSON e = object [ "pos" .= (pos e)
                     , "msg" .= (render $ ppError' Full empty empty e)
@@ -289,6 +287,11 @@ ppError' _ dSp _ (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
         $+$ (pprint v <+> dcolon <+> pprint s)
 
+ppError' _ dSp dCtx (ErrDataCon _ d s)
+  = dSp <+> "Malformed refined data constructor" <+> pprint d
+        $+$ dCtx
+        $+$ s
+
 ppError' _ dSp dCtx (ErrBadQual _ n d)
   = dSp <+> text "Bad Qualifier Specification for" <+> n
         $+$ dCtx
@@ -337,11 +340,16 @@ ppError' _ dSp dCtx (ErrGhc _ s)
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp dCtx (ErrMismatch _ x τ t)
-  = dSp <+> text "Specified Type Does Not Refine Haskell Type for" <+> pprint x
+ppError' _ dSp dCtx (ErrMismatch _ x τ t hsSp)
+  = dSp <+> "Specified Type Does Not Refine Haskell Type for" <+> pprint x
         $+$ dCtx
-        $+$ text "Haskell:" <+> pprint τ
-        $+$ text "Liquid :" <+> pprint t
+        $+$ (sepVcat blankLine
+              [ "The Liquid type"
+              , nest 4 t
+              , "is inconsistent with the Haskell type"
+              , nest 4 τ
+              , "defined at" <+> pprint hsSp
+              ])
 
 ppError' _ dSp _ (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic Alias Definitions"
