@@ -36,7 +36,7 @@ import           Control.Exception                  (catch)
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
 import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
-import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
+-- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
@@ -47,7 +47,7 @@ import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Utils.Statistics (statistics)
-import           Language.Fixpoint.Partition        (mcInfo, partition, partition')
+import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
 import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
 import           Control.DeepSeq
@@ -197,7 +197,7 @@ solveNative' !cfg !fi0 = do
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
-printElimStats :: Deps -> IO ()
+printElimStats :: GDeps KVar -> IO ()
 printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
   where
     total        = postElims + S.size (depNonCuts d)
@@ -363,4 +363,4 @@ minimizeFQ cfg fi = do
   -- write minimized finfo file
   writeFile (fileName minfi) $ render $ toFixpoint cfg' minfi
 
-  return $ Result { resStatus = Safe, resSolution = M.empty }
+  return Result { resStatus = Safe, resSolution = M.empty }

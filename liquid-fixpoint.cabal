@@ -75,7 +75,6 @@ Library
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
-                   Language.Fixpoint.Solver.Deps,
                    Language.Fixpoint.Solver.TrivialSort,
                    Language.Fixpoint.Solver.UniqifyKVars,
                    Language.Fixpoint.Solver.UniqifyBinds,
