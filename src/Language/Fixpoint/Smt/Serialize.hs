@@ -42,111 +42,112 @@ import           Language.Fixpoint.Misc (errorstar)
 
 -}
 instance SMTLIB2 Sort where
-  smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
-  smt2 FInt                    = "Int"
-  smt2 FReal                   = "Real"
-  smt2 t
+  smt2 _ s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
+  smt2 _ FInt                    = "Int"
+  smt2 _ FReal                   = "Real"
+  smt2 _ t
     | t == boolSort            = "Bool"
-  smt2 t
+  smt2 _ t
     | Just d <- Thy.smt2Sort t = d
-  smt2 _                       = "Int"
+  smt2 _ _                       = "Int"
 
 
 instance SMTLIB2 Symbol where
-  smt2 s
+  smt2 _ s
     | Just t <- Thy.smt2Symbol s = t
-  smt2 s                         = symbolSafeText  s
+  smt2 _ s                         = symbolSafeText  s
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 (sym, t) = format "({} {})"  (smt2 sym, smt2 t)
+  smt2 env (sym, t) = format "({} {})"  (smt2 env sym, smt2 env t)
 
 instance SMTLIB2 SymConst where
-  smt2 = smt2 . symbol
+  smt2 env = smt2 env . symbol
 
 instance SMTLIB2 Constant where
-  smt2 (I n)   = format "{}" (Only n)
-  smt2 (R d)   = format "{}" (Only d)
-  smt2 (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
+  smt2 _ (I n)   = format "{}" (Only n)
+  smt2 _ (R d)   = format "{}" (Only d)
+  smt2 _ (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
-  smt2 = smt2 . val
+  smt2 env = smt2 env . val
 
 instance SMTLIB2 Bop where
-  smt2 Plus  = "+"
-  smt2 Minus = "-"
-  smt2 Times = "*"
-  smt2 Div   = "/"
-  smt2 Mod   = "mod"
+  smt2 _ Plus  = "+"
+  smt2 _ Minus = "-"
+  smt2 _ Times = "*"
+  smt2 _ Div   = "/"
+  smt2 _ Mod   = "mod"
 
 instance SMTLIB2 Brel where
-  smt2 Eq    = "="
-  smt2 Ueq   = "="
-  smt2 Gt    = ">"
-  smt2 Ge    = ">="
-  smt2 Lt    = "<"
-  smt2 Le    = "<="
-  smt2 _     = errorstar "SMTLIB2 Brel"
+  smt2 _ Eq    = "="
+  smt2 _ Ueq   = "="
+  smt2 _ Gt    = ">"
+  smt2 _ Ge    = ">="
+  smt2 _ Lt    = "<"
+  smt2 _ Le    = "<="
+  smt2 _ _     = errorstar "SMTLIB2 Brel"
 
 -- NV TODO: change the way EApp is printed 
 instance SMTLIB2 Expr where
-  smt2 (ESym z)         = smt2 (symbol z)
-  smt2 (ECon c)         = smt2 c
-  smt2 (EVar x)         = smt2 x
-  smt2 e@(EApp _ _)     = smt2App e
-  smt2 (ENeg e)         = format "(- {})"         (Only $ smt2 e)
-  smt2 (EBin o e1 e2)   = smt2Bop o e1 e2
-  smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
-  smt2 (ECst e _)       = smt2 e
-  smt2 (PTrue)          = "true"
-  smt2 (PFalse)         = "false"
-  smt2 (PAnd [])        = "true"
-  smt2 (PAnd ps)        = format "(and {})"    (Only $ smt2s ps)
-  smt2 (POr [])         = "false"
-  smt2 (POr ps)         = format "(or  {})"    (Only $ smt2s ps)
-  smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
-  smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
-  smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
-  smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
-  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
-  smt2 _                = errorstar "smtlib2 Pred"
+  smt2 env (ESym z)         = smt2 env (symbol z)
+  smt2 env (ECon c)         = smt2 env c
+  smt2 env (EVar x)         = smt2 env x
+  smt2 env e@(EApp _ _)     = smt2App env e
+  smt2 env (ENeg e)         = format "(- {})"         (Only $ smt2 env e)
+  smt2 env (EBin o e1 e2)   = smt2Bop env o e1 e2
+  smt2 env (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
+  smt2 env (ECst e _)       = smt2 env e
+  smt2 _   (PTrue)          = "true"
+  smt2 _   (PFalse)         = "false"
+  smt2 _   (PAnd [])        = "true"
+  smt2 env (PAnd ps)        = format "(and {})"    (Only $ smt2s env ps)
+  smt2 _   (POr [])         = "false"
+  smt2 env (POr ps)         = format "(or  {})"    (Only $ smt2s env ps)
+  smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
+  smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
+  smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
+  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env p)
+  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
+  smt2 _   _                = errorstar "smtlib2 Pred"
 
-smt2Bop o e1 e2
-  | o == Times || o == Div = smt2App (mkEApp (uOp o) [e1, e2])
-  | otherwise  = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
+smt2Bop env o e1 e2
+  | o == Times || o == Div = smt2App env (mkEApp (uOp o) [e1, e2])
+  | otherwise  = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
 
 uOp o | o == Times = dummyLoc mulFuncName
       | o == Div   = dummyLoc divFuncName
       | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
-smt2App :: Expr  -> T.Text
-smt2App e = fromMaybe (smt2App' f ds) (Thy.smt2App f ds)
+smt2App :: SMTEnv -> Expr  -> T.Text
+smt2App env e = fromMaybe (smt2App' env f ds) (Thy.smt2App f ds)
   where
     (f, es) = splitEApp e 
-    ds      = smt2 <$> es
+    ds      = smt2 env <$> es
 
-smt2App' f [] = smt2 f
-smt2App' f ds = format "({} {})" (smt2 f, smt2many ds)
+smt2App' :: SMTEnv -> Expr -> [T.Text] -> T.Text
+smt2App' env f [] = smt2 env f
+smt2App' env f ds = format "({} {})" (smt2 env f, smt2many ds)
 
 
 
-mkRel Ne  e1 e2         = mkNe e1 e2
-mkRel Une e1 e2         = mkNe e1 e2
-mkRel r   e1 e2         = format "({} {} {})"      (smt2 r, smt2 e1, smt2 e2)
-mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
+mkRel env Ne  e1 e2         = mkNe env e1 e2
+mkRel env Une e1 e2         = mkNe env e1 e2
+mkRel env r   e1 e2         = format "({} {} {})"      (smt2 env r , smt2 env e1, smt2 env e2)
+mkNe  env e1 e2             = format "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 (Declare x ts t)    = format "(declare-fun {} ({}) {})"  (smt2 x, smt2s ts, smt2 t)
-  smt2 (Define t)          = format "(declare-sort {})"         (Only $ smt2 t)
-  smt2 (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 p)
-  smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
-  smt2 (Distinct az)       = format "(assert (distinct {}))"    (Only $ smt2s az)
-  smt2 (Push)              = "(push 1)"
-  smt2 (Pop)               = "(pop 1)"
-  smt2 (CheckSat)          = "(check-sat)"
-  smt2 (GetValue xs)       = T.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+  smt2 env (Declare x ts t)    = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
+  smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
+  smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env p)
+  smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env p, i)
+  smt2 env (Distinct az)       = format "(assert (distinct {}))"    (Only $ smt2s env az)
+  smt2 _   (Push)              = "(push 1)"
+  smt2 _   (Pop)               = "(pop 1)"
+  smt2 _   (CheckSat)          = "(check-sat)"
+  smt2 env (GetValue xs)       = T.unwords $ ["(get-value ("] ++ fmap (smt2 env) xs ++ ["))"]
 
-smt2s    :: SMTLIB2 a => [a] -> T.Text
-smt2s    = smt2many . fmap smt2
+smt2s     :: SMTLIB2 a => SMTEnv -> [a] -> T.Text
+smt2s env = smt2many . fmap (smt2 env)
 
 smt2many :: [T.Text] -> T.Text
 smt2many = T.intercalate " "

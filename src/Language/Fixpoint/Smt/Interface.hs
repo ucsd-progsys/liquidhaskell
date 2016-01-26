@@ -143,7 +143,7 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say               = smtWrite me . smt2
+    say               = smtWrite me . smt2 (smtenv me)
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -243,7 +243,8 @@ makeProcess s
                   , cIn     = hIn
                   , cOut    = hOut
                   , cLog    = Nothing
-                  , verbose = loud    }
+                  , verbose = loud
+                  , smtenv  = emptySMTEnv }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode
