@@ -294,11 +294,11 @@ sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
     col           = sourceColumn p
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
-srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos"
+srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "<no source information>"
 srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
 
 srcSpanSourcePosE :: SrcSpan -> SourcePos
-srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "LH.GhcMisc.srcSpanSourcePos"
+srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "<no source information>"
 srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
 
 
