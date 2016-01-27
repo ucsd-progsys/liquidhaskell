@@ -291,7 +291,10 @@ deps :: (F.TaggedC c a) => F.GInfo c a -> GDeps F.KVar
 --------------------------------------------------------------------------------
 deps si         = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gDeps (cutter si) (kvGraph si)
+    Deps cs ns  = gDeps cutF g
+    g           = kvGraph si
+    -- cutF        = cutter si
+    cutF        = edgeRankCut (edgeRank g)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
@@ -312,7 +315,33 @@ cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
 cuts = S.map KVar . F.ksVars . F.kuts
 
 --------------------------------------------------------------------------------
+type EdgeRank = M.HashMap F.KVar Integer
+--------------------------------------------------------------------------------
+edgeRank :: KVGraph -> EdgeRank
+edgeRank = undefined
+
+edgeRankCut :: EdgeRank -> Cutter CVertex
+edgeRankCut = undefined
+
+
+--------------------------------------------------------------------------------
 type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
+--------------------------------------------------------------------------------
+chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
+--------------------------------------------------------------------------------
+chooseCut f ks vs = case vs'' of
+                      []  -> Nothing
+                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+  where
+    vs'           = [x | (x,_,_) <- vs, f x]
+    is            = S.intersection (S.fromList vs') ks
+    vs''          = if S.null is then vs' else S.toList is
+       -- ^ -- we select a RANDOM element,
+       ------- instead pick the "first" element.
+
+
+
+--------------------------------------------------------------------------------
 type Cutable a = (Eq a, Ord a, Hashable a, Show a)
 --------------------------------------------------------------------------------
 gDeps :: (Cutable a) => Cutter a -> [(a, a, [a])] -> GDeps a
@@ -337,16 +366,6 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
 
-chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
-chooseCut f ks vs = case vs'' of
-                      []  -> Nothing
-                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
-  where
-    vs'           = [x | (x,_,_) <- vs, f x]
-    is            = S.intersection (S.fromList vs') ks
-    vs''          = if S.null is then vs' else S.toList is
-       -- ^ -- we select a RANDOM element,
-       ------- instead pick the "first" element.
 
 --------------------------------------------------------------------------------
 dumpEdges :: Config -> KVGraph -> IO ()
