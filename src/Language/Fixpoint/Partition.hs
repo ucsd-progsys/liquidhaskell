@@ -82,8 +82,6 @@ mcInfo c = do
                  , mcMaxPartSize = maxPartSize c
                  }
 
-
-
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
   = do dumpPartitions cfg fis
@@ -401,7 +399,7 @@ isReducible :: F.SInfo a -> Bool
 --------------------------------------------------------------------------------
 isReducible fi = all (isReducibleWithStart g) vs
   where
-    g = convertToGraph fi
+    g  = convertToGraph fi
     vs = trace (showDot $ fglToDotGeneric g show (const "") id) nodes g
 
 isReducibleWithStart :: Gr a b -> Node -> Bool
@@ -412,11 +410,11 @@ isReducibleWithStart g x = all (isBackEdge domList) rEdges
     domList = dom g x
 
 convertToGraph :: F.SInfo a -> Gr Int ()
-convertToGraph fi = mkGraph vs es 
+convertToGraph fi = mkGraph vs es
   where
     subCs = M.elems (F.cm fi)
     es = labelUEdge <$> concatMap (subcEdges' $ F.bs fi) subCs
-    vs = labelNode . kvInt <$> (M.keys $ F.ws fi)
+    vs = labelNode . kvInt <$> M.keys (F.ws fi)
     labelNode i = (i,i)
     labelUEdge (i,j) = (i,j,())
 
@@ -434,7 +432,8 @@ isBackEdge t (u,v) = v `elem` xs
     (Just xs) = lookup u t
 
 subcEdges' :: F.BindEnv -> F.SimpC a -> [(Node, Node)]
-subcEdges' be c = [(kvInt k1, kvInt k2) | k1 <- V.envKVars be c , k2 <- V.kvars $ F.crhs c]
+subcEdges' be c = [(kvInt k1, kvInt k2) | k1 <- V.envKVars be c
+                                        , k2 <- V.kvars $ F.crhs c]
 
 kvInt :: F.KVar -> Node
 kvInt (F.KV k) = read $ drop 4 kStr
