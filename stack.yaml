@@ -1,18 +1,15 @@
-# GHC 7.10
-# resolver: nightly-2015-09-18
-
-resolver: nightly-2016-01-06
-
-compiler-check: newer-minor
-
+flags: {}
 packages:
 - ./prover
 - ./liquid-fixpoint
-- .
-
+- '.'
 extra-deps:
-- intern-0.9.1.4
-- located-base-0.1.0.0
-- ascii-progress-0.3.2.0
 - concurrent-output-1.7.1
 - daemons-0.2.1
+- dotgen-0.4.2
+- fgl-visualize-0.1.0.1
+- intern-0.9.1.4
+- located-base-0.1.0.0
+- text-1.2.2.0
+compiler-check: newer-minor
+resolver: nightly-2016-01-06
