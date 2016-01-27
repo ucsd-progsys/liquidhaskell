@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 -- | This module implements functions that print out
 --   statistics about the constraints.
@@ -13,12 +14,20 @@ module Language.Fixpoint.Partition (
   , MCInfo (..)
   , mcInfo
 
+    -- * KV-Dependencies
+  , deps
+
+    -- * Generic Dependencies
+  , gDeps
+  , GDeps (..)
+
+  , isReducible
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
-import           Language.Fixpoint.Misc         hiding (group)-- (fst3, safeLookup, mlookup, groupList)
+import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
@@ -27,14 +36,21 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
-import           Data.Maybe                     (fromMaybe)
+import           Data.Function (on)
+import           Data.Maybe                     (mapMaybe, fromMaybe)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
+import qualified Data.HashSet              as S
 
--------------------------------------------------------------------------
--- | Constraint Partition Container -------------------------------------
--------------------------------------------------------------------------
+import Data.Graph.Inductive
+import Data.Graph.Inductive.Dot
+import Debug.Trace
+
+
+--------------------------------------------------------------------------------
+-- | Constraint Partition Container --------------------------------------------
+--------------------------------------------------------------------------------
 
 data CPart a = CPart { pws :: M.HashMap F.KVar (F.WfC a)
                      , pcm :: M.HashMap Integer (F.SubC a)
@@ -48,9 +64,9 @@ instance Monoid (CPart a) where
                        , cFileName = cFileName l
                        }
 
--------------------------------------------------------------------------
--- | Multicore info -----------------------------------------------------
--------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Multicore info ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data MCInfo = MCInfo { mcCores :: Int
                      , mcMinPartSize :: Int
@@ -65,8 +81,6 @@ mcInfo c = do
                  , mcMinPartSize = minPartSize c
                  , mcMaxPartSize = maxPartSize c
                  }
-
-
 
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
@@ -88,8 +102,7 @@ partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
    (Just mi) -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
   where
-    es             = kvEdges   fi
-    g              = kvGraph   es
+    g              = kvGraph   fi
     css            = decompose g
     fis partF ctor = applyNonNull [ctor fi] (pbc partF) css
     pbc partF      = partitionByConstraints partF fi
@@ -157,22 +170,8 @@ dumpPartitions cfg fis =
     writeFile (F.fileName fi) (render $ F.toFixpoint cfg fi)
 
 partFile :: F.FInfo a -> Int -> FilePath
-partFile fi j = {- trace ("partFile: " ++ fjq) -} fjq
-  where
-    fjq = extFileName (Part j) (F.fileName fi)
+partFile fi j = extFileName (Part j) (F.fileName fi)
 
--------------------------------------------------------------------------------------
-dumpEdges :: Config -> KVGraph -> IO ()
--------------------------------------------------------------------------------------
-dumpEdges cfg = writeFile f . render . ppGraph
-  where
-    f         = extFileName Dot (inFile cfg)
-
-ppGraph :: KVGraph -> Doc
-ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
-
-ppEdges :: [CEdge] -> Doc
-ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
 
 -- | Type alias for a function to construct a partition. mkPartition and
 -- mkPartition' are the two primary functions that conform to this interface
@@ -215,23 +214,24 @@ mkPartition' fi icM iwM j
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
 groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-data CVertex = KVar F.KVar
-             | Cstr Integer
+data CVertex = KVar  F.KVar  -- ^ real kvar vertex
+             | DKVar F.KVar  -- ^ dummy to ensure each kvar has a successor
+             | Cstr  Integer -- ^ constraint-id which creates a dependency
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
-  pprint (KVar k) = pprint k
-  pprint (Cstr i) = text "id:" <+> pprint i
+  pprint (KVar k)  = pprint k
+  pprint (DKVar k) = pprint k    <> text "*"
+  pprint (Cstr i)  = text "id:" <+> pprint i
 
 instance Hashable CVertex
 
 type CEdge    = (CVertex, CVertex)
 type KVGraph  = [(CVertex, CVertex, [CVertex])]
-
 type Comps a  = [[a]]
 type KVComps  = Comps CVertex
 
@@ -243,22 +243,199 @@ decompose kg = map (fst3 . f) <$> vss
     (g,f,_)  = G.graphFromEdges kg
     vss      = T.flatten <$> G.components g
 
-kvGraph :: [CEdge] -> KVGraph
-kvGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
+-------------------------------------------------------------------------------
+-- kvGraph :: F.FInfo a -> KVGraph
+kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
+-------------------------------------------------------------------------------
+kvGraph = edgeGraph . kvEdges
 
-kvEdges :: F.FInfo a -> [CEdge]
+edgeGraph :: [CEdge] -> KVGraph
+edgeGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
+
+-- kvEdges :: F.FInfo a -> [CEdge]
+kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
     bs     = F.bs fi
     cs     = M.elems (F.cm fi)
-    selfes = [(Cstr i, Cstr i) | c <- cs, let i = F.subcId c] ++
-             [(KVar k, KVar k) | k <- fiKVars fi]
+    ks     = fiKVars fi
+    selfes =  [(Cstr i, Cstr i)   | c <- cs, let i = F.subcId c]
+           ++ [(KVar k, DKVar k)  | k <- ks]
+           ++ [(DKVar k, DKVar k) | k <- ks]
 
-fiKVars :: F.FInfo a -> [F.KVar]
+fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
 
-subcEdges :: F.BindEnv -> F.SubC a -> [CEdge]
+subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c
+
+--------------------------------------------------------------------------------
+-- | Generic Dependencies ------------------------------------------------------
+--------------------------------------------------------------------------------
+data GDeps a
+  = Deps { depCuts    :: !(S.HashSet a)
+         , depNonCuts :: !(S.HashSet a)
+         }
+    deriving (Show)
+
+instance (Eq a, Hashable a) => Monoid (GDeps a) where
+  mempty                            = Deps S.empty S.empty
+  mappend (Deps d1 n1) (Deps d2 n2) = Deps (S.union d1 d2) (S.union n1 n2)
+
+dCut, dNonCut :: (Hashable a) => a -> GDeps a
+dNonCut v = Deps S.empty (S.singleton v)
+dCut    v = Deps (S.singleton v) S.empty
+
+--------------------------------------------------------------------------------
+-- | Compute Dependencies and Cuts ---------------------------------------------
+--------------------------------------------------------------------------------
+deps :: (F.TaggedC c a) => F.GInfo c a -> GDeps F.KVar
+--------------------------------------------------------------------------------
+deps si         = Deps (takeK cs) (takeK ns)
+  where
+    Deps cs ns  = gDeps cutF (edgeGraph es)
+    es          = kvEdges si
+    -- ORIG cutF = chooseCut isK (cuts si)
+    cutF        = edgeRankCut (edgeRank es)
+    takeK       = sMapMaybe tx
+    tx (KVar z) = Just z
+    tx _        = Nothing
+
+-- crash _ = undefined
+-- cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
+-- cutter si = chooseCut isK (cuts si)
+
+-- ORIG isK :: CVertex -> Bool
+-- ORIG isK (KVar _) = True
+-- ORIG isK _        = False
+-- ORIG cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
+-- ORIG cuts = S.map KVar . F.ksVars . F.kuts
+
+
+sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
+sMapMaybe f = S.fromList . mapMaybe f . S.toList
+
+--------------------------------------------------------------------------------
+type EdgeRank = M.HashMap F.KVar Integer
+--------------------------------------------------------------------------------
+edgeRank :: [CEdge] -> EdgeRank
+edgeRank es = minimum . (n :) <$> kiM
+  where
+    n       = 1 + maximum [ i | (Cstr i, _)     <- es ]
+    kiM     = group [ (k, i) | (KVar k, Cstr i) <- es ]
+
+edgeRankCut :: EdgeRank -> Cutter CVertex
+edgeRankCut km vs = case ks of
+                      [] -> Nothing
+                      k:_ -> Just (KVar k, [x | x@(u,_,_) <- vs, u /= KVar k])
+  where
+    ks            = orderBy [k | (KVar k, _ ,_) <- vs]
+    rank          = (km M.!)
+    orderBy       = sortBy (compare `on` rank)
+
+--------------------------------------------------------------------------------
+type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
+--------------------------------------------------------------------------------
+-- ORIG chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
+-- ORIG --------------------------------------------------------------------------------
+-- ORIG chooseCut f ks vs = case vs'' of
+                      -- ORIG []  -> Nothing
+                      -- ORIG v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+  -- ORIG where
+    -- ORIG vs'           = [x | (x,_,_) <- vs, f x]
+    -- ORIG is            = S.intersection (S.fromList vs') ks
+    -- ORIG vs''          = if S.null is then vs' else S.toList is
+       -- ORIG -- ^ -- we select a RANDOM element,
+       -- ORIG ------- instead pick the "first" element.
+
+
+
+--------------------------------------------------------------------------------
+type Cutable a = (Eq a, Ord a, Hashable a, Show a)
+--------------------------------------------------------------------------------
+gDeps :: (Cutable a) => Cutter a -> [(a, a, [a])] -> GDeps a
+--------------------------------------------------------------------------------
+gDeps f g = sccsToDeps f (G.stronglyConnCompR g)
+
+
+sccsToDeps :: (Cutable a) => Cutter a -> [G.SCC (a, a, [a])] -> GDeps a
+sccsToDeps f xs = mconcat $ sccDep f <$> xs
+
+sccDep :: (Cutable a) =>  Cutter a -> G.SCC (a, a, [a]) -> GDeps a
+sccDep _ (G.AcyclicSCC (v,_,_)) = dNonCut v
+sccDep f (G.CyclicSCC vs)      = cycleDep f vs
+
+
+cycleDep :: (Cutable a) => Cutter a -> [(a,a,[a])] -> GDeps a
+cycleDep _ [] = mempty
+cycleDep f vs = addCut f (f vs)
+
+addCut _ Nothing         = mempty
+addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
+  where
+    sccs                 = G.stronglyConnCompR vs'
+
+
+--------------------------------------------------------------------------------
+dumpEdges :: Config -> KVGraph -> IO ()
+--------------------------------------------------------------------------------
+dumpEdges cfg = writeFile f . render . ppGraph
+  where
+    f         = extFileName Dot (inFile cfg)
+
+ppGraph :: KVGraph -> Doc
+ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
+
+ppEdges :: [CEdge] -> Doc
+ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
+
+
+
+--------------------------------------------------------------------------------
+isReducible :: F.SInfo a -> Bool
+--------------------------------------------------------------------------------
+isReducible fi = all (isReducibleWithStart g) vs
+  where
+    g  = convertToGraph fi
+    vs = trace (showDot $ fglToDotGeneric g show (const "") id) nodes g
+
+isReducibleWithStart :: Gr a b -> Node -> Bool
+isReducibleWithStart g x = all (isBackEdge domList) rEdges
+  where
+    dfsTree = head $ dff [x] g --head because only care about nodes reachable from 'start node'?
+    rEdges = [e | e@(a,b) <- edges g, isDescendant a b dfsTree]
+    domList = dom g x
+
+convertToGraph :: F.SInfo a -> Gr Int ()
+convertToGraph fi = mkGraph vs es
+  where
+    subCs = M.elems (F.cm fi)
+    es = labelUEdge <$> concatMap (subcEdges' $ F.bs fi) subCs
+    vs = labelNode . kvInt <$> M.keys (F.ws fi)
+    labelNode i = (i,i)
+    labelUEdge (i,j) = (i,j,())
+
+isDescendant :: Node -> Node -> T.Tree Node -> Bool
+isDescendant x y (T.Node z f) | z == y    = f `contains` x
+                              | z == x    = False
+                              | otherwise = any (isDescendant x y) f
+
+contains :: [T.Tree Node] -> Node -> Bool
+contains t x = x `elem` concatMap T.flatten t
+
+isBackEdge :: [(Node, [Node])] -> Edge -> Bool
+isBackEdge t (u,v) = v `elem` xs
+  where
+    (Just xs) = lookup u t
+
+subcEdges' :: F.BindEnv -> F.SimpC a -> [(Node, Node)]
+subcEdges' be c = [(kvInt k1, kvInt k2) | k1 <- V.envKVars be c
+                                        , k2 <- V.kvars $ F.crhs c]
+
+kvInt :: F.KVar -> Node
+kvInt (F.KV k) = read $ drop 4 kStr
+  where
+    kStr = F.symbolString k

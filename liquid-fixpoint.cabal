@@ -11,7 +11,6 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
 
-
 description:     This package is a Haskell wrapper to the SMTLIB-based
                  Horn-Clause/Logical Implication constraint solver used
                  for Liquid Types.
@@ -20,17 +19,13 @@ description:     This package is a Haskell wrapper to the SMTLIB-based
                  .
                  1. Types for Expressions, Predicates, Constraints, Solutions
                  .
-                 2. Code for serializing the above
-                 .
-                 3. Code for parsing the results from the fixpoint binary
+                 2. Code for solving constraints
                  .
                  Requirements
                  .
                  In addition to the .cabal dependencies you require
                  .
                  - A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-                   If on Windows, please make sure to place the binary and any associated DLLs
-                   in your "cabal/bin" folder, right next to the fixpoint.native.exe binary.
 
 Extra-Source-Files: tests/neg/*.fq
                   , tests/pos/*.fq
@@ -49,7 +44,7 @@ Executable fixpoint
 
 Library
   default-language: Haskell98
-  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods 
+  ghc-options:     -threaded -Werror -W -fno-warn-missing-methods
   hs-source-dirs:  src
   Exposed-Modules: Language.Fixpoint.Types.Names,
                    Language.Fixpoint.Types.Errors,
@@ -80,7 +75,6 @@ Library
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
                    Language.Fixpoint.Solver.Monad,
-                   Language.Fixpoint.Solver.Deps,
                    Language.Fixpoint.Solver.TrivialSort,
                    Language.Fixpoint.Solver.UniqifyKVars,
                    Language.Fixpoint.Solver.UniqifyBinds,
@@ -120,6 +114,9 @@ Library
                , unordered-containers
                , cereal
                , text-format
+               , fgl
+               , fgl-visualize
+               , dotgen
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
 
@@ -127,7 +124,7 @@ test-suite test
   default-language: Haskell98
   type:             exitcode-stdio-1.0
   hs-source-dirs:   tests
-  ghc-options:      -O2 -threaded 
+  ghc-options:      -O2 -threaded
   main-is:          test.hs
   build-depends:    base,
                     directory,
