@@ -86,7 +86,7 @@ runSolverM cfg fi _ act = do
     return $ fst res
       
   where
-    acquire = makeContext (not $ real cfg) (solver cfg) file
+    acquire = makeContextWithSEnv (not $ real cfg) (solver cfg) file (F.lits fi)
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)

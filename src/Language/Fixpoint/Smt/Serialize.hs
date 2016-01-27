@@ -19,6 +19,8 @@ import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc (errorstar)
 
+import           Language.Fixpoint.SortCheck (sortExpr)
+
 {-
     (* (L t1 t2 t3) is now encoded as
         ---> (((L @ t1) @ t2) @ t3)
@@ -166,3 +168,70 @@ smt2many = T.intercalate " "
 (check-sat)
 (pop 1)
 -}
+
+
+
+
+-- make Application is called on uninterpreted functions 
+-- 
+-- makeApplication e [e1, ..., en] =  apply^n_s (e, toInt e1, ..., toInt en) 
+-- where
+-- applyn :: (Int, Int, ..., Int) -> s
+-- e      :: (Int, ..., Int) -> s
+-- toInt e = e, if e :: s, s is smt uninterpeted  
+-- toInt e = s_to_Int (e), otherwise
+
+-- s_to_Int :: s -> Int
+
+makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text 
+makeApplication env e es 
+  = format "({} {})" (smt2 env f, smt2many ds) 
+  where 
+    f = makeFunSymbol env e $ length es
+    ds = smt2 env e:(toInt env <$> es)
+
+
+makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol 
+makeFunSymbol env e i 
+  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
+  = setApplyName i
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
+  = mapApplyName i 
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
+  = bitVecApplyName i
+  | FTC c                     <- s, c == boolFTyCon 
+  = boolApplyName i
+  | FTC c                     <- s, c == realFTyCon 
+  = realApplyName i 
+  | otherwise
+  = intApplyName i 
+  where
+    s = dropArgs i $ sortExpr env e
+
+    dropArgs 0 t           = t 
+    dropArgs i (FAbs _ t)  = dropArgs i t 
+    dropArgs i (FFunc _ t) = dropArgs (i-1) t 
+    dropArgs _ _           = errorstar "dropArgs: the impossible happened"
+
+toInt ::  SMTEnv -> Expr -> T.Text 
+toInt env e
+  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
+  = castWith env setToIntName e 
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
+  = castWith env mapToIntName e 
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
+  = castWith env bitVecToIntName e 
+  | FTC c                     <- s, c == boolFTyCon 
+  = castWith env boolToIntName e
+  | FTC c                     <- s, c == realFTyCon 
+  = castWith env realToIntName e
+  | otherwise
+  = smt2 env e 
+  where
+    s = sortExpr env e
+     
+castWith :: SMTEnv -> Symbol -> Expr -> T.Text 
+castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
+
+
+

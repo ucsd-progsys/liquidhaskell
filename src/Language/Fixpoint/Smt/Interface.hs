@@ -28,6 +28,7 @@ module Language.Fixpoint.Smt.Interface (
     , Context (..)
     , makeContext
     , makeContextNoLog
+    , makeContextWithSEnv
     , cleanupContext
 
     -- * Execute Queries
@@ -227,6 +228,10 @@ makeContext u s f
        return me'
     where
        smtFile = extFileName Smt2 f
+
+makeContextWithSEnv :: Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context 
+makeContextWithSEnv u s f env 
+  = (\cxt -> cxt {smtenv = env}) <$> makeContext u s f
 
 makeContextNoLog :: Bool -> SMTSolver -> IO Context
 makeContextNoLog u s

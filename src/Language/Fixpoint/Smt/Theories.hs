@@ -15,6 +15,9 @@ module Language.Fixpoint.Smt.Theories
        -- * Preamble to initialize SMT
      , preamble
 
+       -- * Bit Vector Operations
+     , isBv, sizeBv 
+
      ) where
 
 import           Prelude hiding (map)

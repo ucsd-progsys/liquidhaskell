@@ -41,9 +41,6 @@ import qualified Data.Text.Lazy           as LT
 import           System.IO                (Handle)
 import           System.Process
 
-
-import qualified Data.HashMap.Strict       as M
-
 --------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------
 --------------------------------------------------------------------------
@@ -93,10 +90,10 @@ data TheorySymbol  = Thy { tsSym  :: Symbol
 format :: Params ps => DTF.Format -> ps -> T.Text
 format f x = LT.toStrict $ DTF.format f x
 
-type SMTEnv = M.HashMap Symbol Sort 
+type SMTEnv = SEnv Sort 
 
 
-emptySMTEnv = M.empty 
+emptySMTEnv = emptySEnv 
 
 -- | Types that can be serialized
 class SMTLIB2 a where

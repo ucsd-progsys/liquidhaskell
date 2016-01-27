@@ -17,6 +17,9 @@ module Language.Fixpoint.SortCheck  (
   , checkSortFull
   , pruneUnsortedReft
 
+  -- * Sort inference 
+  , sortExpr
+
   -- * Unify
   , unify
   , unifyFast
@@ -77,6 +80,18 @@ isMono             = null . foldSort fv []
 -- NUKE  fVars (FFunc _ ts) = concatMap fVars ts
 -- NUKE  fVars (FApp t1 t2) = fVars t1 ++ fVars t2
 -- NUKE  fVars _            = []
+
+-------------------------------------------------------------------------
+-- | Sort Inference       -----------------------------------------------
+-------------------------------------------------------------------------
+
+sortExpr :: SEnv Sort -> Expr -> Sort 
+sortExpr γ e 
+  = case runCM0 $ checkExpr f e of 
+      Left err -> errorstar $ ("sortExpr failed for " ++ showFix e ++ "\n" ++ err)
+      Right s  -> s 
+  where
+    f = (`lookupSEnvWithDistance` γ)
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
