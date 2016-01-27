@@ -20,6 +20,8 @@ module Language.Fixpoint.Partition (
     -- * Generic Dependencies
   , gDeps
   , GDeps (..)
+
+  , isReducible
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
@@ -40,6 +42,10 @@ import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
 import           Data.List (sortBy)
 import qualified Data.HashSet              as S
+
+import Data.Graph.Inductive
+import Data.Graph.Inductive.Dot
+import Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -387,3 +393,50 @@ ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 
 ppEdges :: [CEdge] -> Doc
 ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
+
+
+
+--------------------------------------------------------------------------------
+isReducible :: F.SInfo a -> Bool
+--------------------------------------------------------------------------------
+isReducible fi = all (isReducibleWithStart g) vs
+  where
+    g = convertToGraph fi
+    vs = trace (showDot $ fglToDotGeneric g show (const "") id) nodes g
+
+isReducibleWithStart :: Gr a b -> Node -> Bool
+isReducibleWithStart g x = all (isBackEdge domList) rEdges
+  where
+    dfsTree = head $ dff [x] g --head because only care about nodes reachable from 'start node'?
+    rEdges = [e | e@(a,b) <- edges g, isDescendant a b dfsTree]
+    domList = dom g x
+
+convertToGraph :: F.SInfo a -> Gr Int ()
+convertToGraph fi = mkGraph vs es 
+  where
+    subCs = M.elems (F.cm fi)
+    es = labelUEdge <$> concatMap (subcEdges' $ F.bs fi) subCs
+    vs = labelNode . kvInt <$> (M.keys $ F.ws fi)
+    labelNode i = (i,i)
+    labelUEdge (i,j) = (i,j,())
+
+isDescendant :: Node -> Node -> T.Tree Node -> Bool
+isDescendant x y (T.Node z f) | z == y    = f `contains` x
+                              | z == x    = False
+                              | otherwise = any (isDescendant x y) f
+
+contains :: [T.Tree Node] -> Node -> Bool
+contains t x = x `elem` concatMap T.flatten t
+
+isBackEdge :: [(Node, [Node])] -> Edge -> Bool
+isBackEdge t (u,v) = v `elem` xs
+  where
+    (Just xs) = lookup u t
+
+subcEdges' :: F.BindEnv -> F.SimpC a -> [(Node, Node)]
+subcEdges' be c = [(kvInt k1, kvInt k2) | k1 <- V.envKVars be c , k2 <- V.kvars $ F.crhs c]
+
+kvInt :: F.KVar -> Node
+kvInt (F.KV k) = read $ drop 4 kStr
+  where
+    kStr = F.symbolString k

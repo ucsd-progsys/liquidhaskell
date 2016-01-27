@@ -114,6 +114,9 @@ Library
                , unordered-containers
                , cereal
                , text-format
+               , fgl
+               , fgl-visualize
+               , dotgen
   if impl(ghc >= 7.10.2)
     Build-Depends: located-base
 
