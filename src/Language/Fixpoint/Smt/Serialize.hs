@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar, traceShow)
 
 import           Language.Fixpoint.SortCheck (sortExpr)
 
@@ -121,14 +121,14 @@ uOp o | o == Times = dummyLoc mulFuncName
       | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
 smt2App :: SMTEnv -> Expr  -> T.Text
-smt2App env e = fromMaybe (smt2App' env f ds) (Thy.smt2App f ds)
+smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
   where
     (f, es) = splitEApp e 
     ds      = smt2 env <$> es
 
-smt2App' :: SMTEnv -> Expr -> [T.Text] -> T.Text
+smt2App' :: SMTEnv -> Expr -> [Expr] -> T.Text
 smt2App' env f [] = smt2 env f
-smt2App' env f ds = format "({} {})" (smt2 env f, smt2many ds)
+smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es 
 
 
 
@@ -138,7 +138,11 @@ mkRel env r   e1 e2         = format "({} {} {})"      (smt2 env r , smt2 env e1
 mkNe  env e1 e2             = format "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 env (Declare x ts t)    = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
+  smt2 env (Declare x ts t)    
+     | isSMTSymbol x 
+     = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
+     | otherwise
+     = format "(declare-fun {} () {})"  (smt2 env x, smt2 env intSort)    
   smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
   smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env p)
   smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env p, i)
@@ -153,6 +157,9 @@ smt2s env = smt2many . fmap (smt2 env)
 
 smt2many :: [T.Text] -> T.Text
 smt2many = T.intercalate " "
+
+
+isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 
 {-
 (declare-fun x () Int)
@@ -171,6 +178,10 @@ smt2many = T.intercalate " "
 
 
 
+-------------------------------------------------------------------------------------
+----------------  Defunctionalizaion ------------------------------------------------
+-------------------------------------------------------------------------------------
+
 
 -- make Application is called on uninterpreted functions 
 -- 
@@ -185,10 +196,10 @@ smt2many = T.intercalate " "
 
 makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text 
 makeApplication env e es 
-  = format "({} {})" (smt2 env f, smt2many ds) 
+  = traceShow ("\n\nmakeApplication for " ++ show (e, es)) $ format "({} {})" (smt2 env f, smt2many ds) 
   where 
     f = makeFunSymbol env e $ length es
-    ds = smt2 env e:(toInt env <$> es)
+    ds = smt2 env e:(traceShow ("HERE HERE\n\n" ++ show (e, es)) (toInt env <$> es))
 
 
 makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol 
@@ -234,4 +245,30 @@ castWith :: SMTEnv -> Symbol -> Expr -> T.Text
 castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
 
 
+setSort    = FApp (FTC $ symbolFTycon' "Set_Set") intSort
+bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
+mapSort    = FApp (FApp (FTC $ symbolFTycon' "Map_t") intSort) intSort
+
+symbolFTycon' = symbolFTycon . dummyLoc
+
+initSMTEnv = fromListSEnv $ 
+  [ (setToIntName,    FFunc setSort    intSort)
+  , (bitVecToIntName, FFunc bitVecSort intSort)
+  , (mapToIntName,    FFunc mapSort    intSort)
+  , (boolToIntName,   FFunc boolSort   intSort)
+  , (realToIntName,   FFunc realSort   intSort)
+  ] 
+  ++ concatMap makeApplies [1..7]
+
+makeApplies i = 
+  [ (intApplyName i,    go i intSort)
+  , (setApplyName i,    go i setSort)
+  , (bitVecApplyName i, go i bitVecSort)
+  , (mapApplyName i,    go i mapSort)
+  , (realApplyName i,   go i realSort)
+  , (boolApplyName i,   go i boolSort)
+  ]
+  where
+    go 0 s = FFunc intSort s
+    go i s = FFunc intSort $ go (i-1) s
 

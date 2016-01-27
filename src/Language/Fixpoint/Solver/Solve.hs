@@ -36,7 +36,7 @@ solve cfg s0 fi = do
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ fi s0 wkl
+    act  = solve_ fi (traceShow "\nInit solution\n" s0) wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
@@ -76,7 +76,7 @@ refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 refine s w
   | Just (c, w', newScc) <- W.pop w = do
      i       <- tickIter newScc
-     (b, s') <- refineC i s c
+     (b, s') <- refineC i (traceShow "\nSOLUTION\n" s) c
      lift $ writeLoud $ refineMsg i c b
      let w'' = if b then W.push c w' else w'
      refine s' w''

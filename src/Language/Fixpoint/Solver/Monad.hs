@@ -32,6 +32,7 @@ import           Language.Fixpoint.Types.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
+import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
@@ -81,7 +82,7 @@ runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
 runSolverM cfg fi _ act = do
   bracket acquire release $ \ctx -> do
-    res <- runStateT (declare fi >> act) (SS ctx be $ stats0 fi)
+    res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
       
@@ -150,6 +151,10 @@ filterValid_ p qs me = catMaybes <$> do
 ---------------------------------------------------------------------------
 declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
+declareInitEnv :: SolveM ()
+declareInitEnv = withContext $ \me -> do 
+                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me 
+
 declare fi  = withContext $ \me -> do
   xts      <- either E.die return $ declSymbols fi
   let ess   = declLiterals fi

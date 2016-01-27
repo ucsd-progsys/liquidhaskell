@@ -59,8 +59,8 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
-import           Language.Fixpoint.Smt.Theories (preamble)
-import           Language.Fixpoint.Smt.Serialize()
+import           Language.Fixpoint.Smt.Theories  (preamble)
+import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
 
 
 
@@ -249,7 +249,7 @@ makeProcess s
                   , cOut    = hOut
                   , cLog    = Nothing
                   , verbose = loud
-                  , smtenv  = emptySMTEnv }
+                  , smtenv  = initSMTEnv }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode

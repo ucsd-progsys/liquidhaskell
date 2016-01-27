@@ -18,6 +18,8 @@ module Language.Fixpoint.Smt.Theories
        -- * Bit Vector Operations
      , isBv, sizeBv 
 
+     , isTheorySymbol
+
      ) where
 
 import           Prelude hiding (map)
@@ -138,6 +140,10 @@ mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 -- smt_set_funs = M.fromList [ (setEmp, emp), (setAdd, add), (setCup, cup)
 --                           , (setCap, cap), (setMem, mem), (setDif, dif)
 --                           , (setSub, sub), (setCom, com)]
+
+
+isTheorySymbol :: Symbol -> Bool
+isTheorySymbol x = M.member x theorySymbols
 
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
