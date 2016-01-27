@@ -6,7 +6,7 @@ module Language.Fixpoint.Solver.Eliminate
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
-import           Language.Fixpoint.Solver.Deps     (depNonCuts, deps)
+import           Language.Fixpoint.Partition       (depNonCuts, deps)
 import           Language.Fixpoint.Misc            (fst3, errorstar)
 import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
 
