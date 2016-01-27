@@ -263,7 +263,7 @@ fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
-subcEdges bs c =  [(kvar k, cstr i ) | k  <- V.envKVars bs c]
+subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c
@@ -304,15 +304,15 @@ deps si         = Deps (takeK cs) (takeK ns)
 -- cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
 -- cutter si = chooseCut isK (cuts si)
 
-isK :: CVertex -> Bool
-isK (KVar _) = True
-isK _        = False
+-- ORIG isK :: CVertex -> Bool
+-- ORIG isK (KVar _) = True
+-- ORIG isK _        = False
+-- ORIG cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
+-- ORIG cuts = S.map KVar . F.ksVars . F.kuts
+
 
 sMapMaybe :: (Hashable b, Eq b) => (a -> Maybe b) -> S.HashSet a -> S.HashSet b
 sMapMaybe f = S.fromList . mapMaybe f . S.toList
-
-cuts :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet CVertex
-cuts = S.map KVar . F.ksVars . F.kuts
 
 --------------------------------------------------------------------------------
 type EdgeRank = M.HashMap F.KVar Integer
@@ -324,28 +324,28 @@ edgeRank es = minimum . (n :) <$> kiM
     kiM     = group [ (k, i) | (KVar k, Cstr i) <- es ]
 
 edgeRankCut :: EdgeRank -> Cutter CVertex
-edgeRankCut km vs = case vs' of
+edgeRankCut km vs = case ks of
                       [] -> Nothing
-                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+                      k:_ -> Just (KVar k, [x | x@(u,_,_) <- vs, u /= KVar k])
   where
-    vs'           = orderBy km [x | (x,_,_) <- vs, isK x]
-    rank          = (M.! km)
+    ks            = orderBy [k | (KVar k, _ ,_) <- vs]
+    rank          = (km M.!)
     orderBy       = sortBy (compare `on` rank)
 
 --------------------------------------------------------------------------------
 type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
 --------------------------------------------------------------------------------
-chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
---------------------------------------------------------------------------------
-chooseCut f ks vs = case vs'' of
-                      []  -> Nothing
-                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
-  where
-    vs'           = [x | (x,_,_) <- vs, f x]
-    is            = S.intersection (S.fromList vs') ks
-    vs''          = if S.null is then vs' else S.toList is
-       -- ^ -- we select a RANDOM element,
-       ------- instead pick the "first" element.
+-- ORIG chooseCut :: (Cutable a) => (a -> Bool) -> S.HashSet a -> Cutter a
+-- ORIG --------------------------------------------------------------------------------
+-- ORIG chooseCut f ks vs = case vs'' of
+                      -- ORIG []  -> Nothing
+                      -- ORIG v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+  -- ORIG where
+    -- ORIG vs'           = [x | (x,_,_) <- vs, f x]
+    -- ORIG is            = S.intersection (S.fromList vs') ks
+    -- ORIG vs''          = if S.null is then vs' else S.toList is
+       -- ORIG -- ^ -- we select a RANDOM element,
+       -- ORIG ------- instead pick the "first" element.
 
 
 
