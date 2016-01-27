@@ -46,16 +46,22 @@ addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
     where
       t  = ofRSort (pvType p) `strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
+
 addSymSortRef' rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
-  = RProp xts (RHole r) -- (ofRSort (pvType p) `strengthen` r)
+  | length xs == length ts
+  = RProp xts (RHole r)
+  | otherwise
+  = panic Nothing msg
     where
       xts = safeZipWithError msg xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
       msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up)
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
+
 addSymSortRef' _ _ _ (RProp s (RHole r))
-  = RProp s (RHole r) -- (ofRSort (pvType p) `strengthen` r)
+  = RProp s (RHole r)
+
 addSymSortRef' _ _ p (RProp s t)
   = RProp xs t
     where
@@ -63,10 +69,10 @@ addSymSortRef' _ _ p (RProp s t)
 
 spliceArgs msg s p = go (fst <$> s) (pargs p)
   where
-    go []     []           = [] 
+    go []     []           = []
     go []     ((s,x,_):as) = (x, s):go [] as
     go (x:xs) ((s,_,_):as) = (x,s):go xs as
-    go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs 
+    go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs
 
 intToString 1 = "1st"
 intToString 2 = "2nd"
