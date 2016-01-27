@@ -25,7 +25,7 @@ module Language.Fixpoint.Partition (
 import           GHC.Conc                  (getNumProcessors)
 import           Control.Monad (forM_)
 import           GHC.Generics                   (Generic)
-import           Language.Fixpoint.Misc         hiding (group)
+import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
@@ -34,6 +34,7 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Data.HashMap.Strict            as M
 import qualified Data.Graph                     as G
 import qualified Data.Tree                      as T
+import           Data.Function (on)
 import           Data.Maybe                     (mapMaybe, fromMaybe)
 import           Data.Hashable
 import           Text.PrettyPrint.HughesPJ
@@ -242,12 +243,12 @@ decompose kg = map (fst3 . f) <$> vss
 -- kvGraph :: F.FInfo a -> KVGraph
 kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
 -------------------------------------------------------------------------------
-kvGraph fi = [(v,v,vs) | (v, vs) <- groupList es ]
-  where
-    es     = kvEdges fi
+kvGraph = edgeGraph . kvEdges
+
+edgeGraph :: [CEdge] -> KVGraph
+edgeGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
 
 -- kvEdges :: F.FInfo a -> [CEdge]
-
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
@@ -262,7 +263,7 @@ fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
-subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
+subcEdges bs c =  [(kvar k, cstr i ) | k  <- V.envKVars bs c]
                ++ [(Cstr i, KVar k') | k' <- V.rhsKVars c ]
   where
     i          = F.subcId c
@@ -291,18 +292,17 @@ deps :: (F.TaggedC c a) => F.GInfo c a -> GDeps F.KVar
 --------------------------------------------------------------------------------
 deps si         = Deps (takeK cs) (takeK ns)
   where
-    Deps cs ns  = gDeps cutF g
-    g           = kvGraph si
-    -- cutF        = cutter si
-    cutF        = edgeRankCut (edgeRank g)
+    Deps cs ns  = gDeps cutF (edgeGraph es)
+    es          = kvEdges si
+    -- ORIG cutF = chooseCut isK (cuts si)
+    cutF        = edgeRankCut (edgeRank es)
     takeK       = sMapMaybe tx
     tx (KVar z) = Just z
     tx _        = Nothing
 
 -- crash _ = undefined
-
-cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
-cutter si = chooseCut isK (cuts si)
+-- cutter :: F.TaggedC c a => F.GInfo c a -> Cutter CVertex
+-- cutter si = chooseCut isK (cuts si)
 
 isK :: CVertex -> Bool
 isK (KVar _) = True
@@ -317,12 +317,20 @@ cuts = S.map KVar . F.ksVars . F.kuts
 --------------------------------------------------------------------------------
 type EdgeRank = M.HashMap F.KVar Integer
 --------------------------------------------------------------------------------
-edgeRank :: KVGraph -> EdgeRank
-edgeRank = undefined
+edgeRank :: [CEdge] -> EdgeRank
+edgeRank es = minimum . (n :) <$> kiM
+  where
+    n       = 1 + maximum [ i | (Cstr i, _)     <- es ]
+    kiM     = group [ (k, i) | (KVar k, Cstr i) <- es ]
 
 edgeRankCut :: EdgeRank -> Cutter CVertex
-edgeRankCut = undefined
-
+edgeRankCut km vs = case vs' of
+                      [] -> Nothing
+                      v:_ -> Just (v, [x | x@(u,_,_) <- vs, u /= v])
+  where
+    vs'           = orderBy km [x | (x,_,_) <- vs, isK x]
+    rank          = (M.! km)
+    orderBy       = sortBy (compare `on` rank)
 
 --------------------------------------------------------------------------------
 type Cutter a = [(a, a, [a])] -> Maybe (a, [(a, a, [a])])
