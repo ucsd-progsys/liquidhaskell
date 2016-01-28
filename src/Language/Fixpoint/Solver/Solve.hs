@@ -36,7 +36,7 @@ solve cfg s0 fi = do
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ fi (traceShow "\nInit solution\n" s0) wkl
+    act  = solve_ fi s0 wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
@@ -75,12 +75,12 @@ refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
 --------------------------------------------------------------------------------
 refine s w
   | Just (c, w', newScc) <- W.pop w = do
-     i       <- tickIter newScc
+     i       <- tickIter $ traceShow "HERE 1\n\n" newScc
      (b, s') <- refineC i (traceShow "\nSOLUTION\n" s) c
-     lift $ writeLoud $ refineMsg i c b
+     lift $ writeLoud $ refineMsg i c (traceShow "\nWRITE\n" b)
      let w'' = if b then W.push c w' else w'
-     refine s' w''
-  | otherwise = return s
+     refine (traceShow "\nSOLUTION2\n" s') w''
+  | otherwise = return $ traceShow "\nSolution 2\n" s
 
 -- DEBUG
 refineMsg i c b = printf "\niter=%d id=%d change=%s\n"
@@ -94,20 +94,20 @@ refineC :: Int -> S.Solution -> F.SimpC a -> SolveM (Bool, S.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do lhs   <- lhsPred  s c <$> getBinds
-                   kqs   <- filterValid lhs rhs
+                   kqs   <- filterValid lhs (traceShow ("\nCalling filterValid with \n" ++ show (lhs, rhs)) rhs)
                    return $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
 lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Expr
-lhsPred s c be = F.pAnd pBinds
+lhsPred s c be = traceShow ("\nlhsPred\n") $ F.pAnd pBinds
   where
     pBinds     = S.apply s <$> xts
     xts        = F.envCs be $  F.senv c
 
 rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
-rhsCands s c   = (fst <$> ks, kqs)
+rhsCands s c   = (traceShow ("\nrhsCands1\n") (fst <$> ks), traceShow "\nrhsCands2\n" kqs)
   where
     kqs        = [ cnd k su q | (k, su) <- ks, q <- S.lookup s k]
     ks         = predKs . F.crhs $ c
@@ -145,10 +145,10 @@ isUnsat s c = do
   not   <$> isValid lp rp
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
-isValid p q = (not . null) <$> filterValid p [(q, ())]
+isValid p q = (not . null) <$> filterValid (traceShow ("\ncheck isValid on \n" ++ show q) p) [(q, ())]
 
 rhsPred :: S.Solution -> F.SimpC a -> F.Expr
-rhsPred s c = S.apply s $ F.crhs c
+rhsPred s c = traceShow ("\nrhsPred\n") $ S.apply s $ F.crhs c
 
 
 {-

@@ -81,6 +81,8 @@ import           System.IO                (IOMode (..), hClose, hFlush, openFile
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 
+import Language.Fixpoint.Misc (traceShow)
+
 {-
 runFile f
   = readFile f >>= runString
@@ -142,9 +144,9 @@ checkValids u f xts ps
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
+command me !cmd      = {-# SCC "command" #-} putStrLn "TO SAY" >> say cmd >> putStrLn "TO HEAD" >> hear cmd
   where
-    say               = smtWrite me . smt2 (smtenv me)
+    say p             = smtWrite me $ traceShow ("\nSMT2 for \n" ++ show p) $  smt2 (smtenv me) (traceShow "\np = \n" p) 
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -310,7 +312,7 @@ deconSort t = case functionSort t of
                 Nothing            -> ([] , t  )
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert me p    = interact' me (Assert Nothing p)
+smtAssert !me !p    = interact' me (Assert Nothing p)
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)
@@ -329,7 +331,10 @@ respSat Sat     = False
 respSat Unknown = False
 respSat r       = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
 
-interact' me cmd  = void $ command me cmd
+interact' me cmd  = evalvoid <$> command me cmd
+
+
+evalvoid !_ = ()
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options

@@ -197,6 +197,9 @@ smt2App (EVar f) [d]
   | f == setEmpty = Just $ format "{}"             (Only emp)
   | f == setEmp   = Just $ format "(= {} {})"      (emp, d)
   | f == setSng   = Just $ format "({} {} {})"     (add, emp, d)
+smt2App (EVar f) ds
+  | Just s <- M.lookup f theorySymbols
+  = Just $ format "({} {})" (tsRaw s, T.intercalate " " ds) 
 smt2App _ _           = Nothing
 
 

@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns      #-}
 
 -- | This is a wrapper around IO that permits SMT queries
 
@@ -27,7 +28,7 @@ module Language.Fixpoint.Solver.Monad
 import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
-import           Language.Fixpoint.Misc    (groupList)
+import           Language.Fixpoint.Misc    (groupList, traceShow)
 import           Language.Fixpoint.Types.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -87,14 +88,17 @@ runSolverM cfg fi _ act = do
     return $ fst res
       
   where
-    acquire = makeContextWithSEnv (not $ real cfg) (solver cfg) file (F.lits fi)
+    acquire = makeContextWithSEnv (not $ real cfg) (solver cfg) file env 
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
+    env     = F.fromListSEnv ( (F.toListSEnv $ F.lits fi)
+                            ++ [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi])
+ 
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
-getBinds = ssBinds <$> get
+getBinds = traceShow ("\ngetBinds\n") .  ssBinds <$> get
 
 ---------------------------------------------------------------------------
 getIter :: SolveM Int
@@ -125,12 +129,12 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: F.Expr -> Cand a -> SolveM [a]
+filterValid :: (Show a) => F.Expr -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid p qs = do
+filterValid !p !qs = do
   qs' <- withContext $ \me ->
            smtBracket me $
-             filterValid_ p qs me
+             filterValid_ p (traceShow ("\nfilterValid for \n" ++ show p) qs) me
   -- stats
   incBrkt
   incChck (length qs)
@@ -139,14 +143,20 @@ filterValid p qs = do
 
 
 
-filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
-filterValid_ p qs me = catMaybes <$> do
+filterValid_ :: (Show a) => F.Expr -> Cand a -> Context -> IO [a]
+filterValid_ !p !qs !me = catMaybes <$> do
+  putStrLn ("\nTODO  Asserted \n" ++ show p) 
   smtAssert me p
+  putStrLn ("\nAsserted \n" ++ show p) 
   forM qs $ \(q, x) ->
     smtBracket me $ do
       smtAssert me (F.PNot q)
-      valid <- smtCheckUnsat me
+      valid <- eval <$> smtCheckUnsat me
+      putStrLn ("\nQuery filter Valid on \n" ++ show (p, qs) ++ "\nReturns\n" ++ show valid) 
       return $ if valid then Just x else Nothing
+
+eval :: Show a => a -> a 
+eval !x = traceShow ("\neval for \n" ++ show x) x 
 
 ---------------------------------------------------------------------------
 declare :: F.GInfo c a -> SolveM ()
@@ -166,7 +176,7 @@ declLiterals fi = [es | (_, es) <- tess ]
   where
     notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
-
+                             
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where

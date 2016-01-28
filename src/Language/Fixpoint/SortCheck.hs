@@ -219,7 +219,7 @@ checkExpr _ (ESym _)       = return strSort
 checkExpr _ (ECon (I _))   = return FInt
 checkExpr _ (ECon (R _))   = return FReal
 checkExpr _ (ECon (L _ s)) = return s
-checkExpr f (EVar x)       = checkSym f x
+checkExpr f (EVar x)       = checkSym f (traceShow "\ncall checkSym\n" x)
 checkExpr f (ENeg e)       = checkNeg f e
 checkExpr f (EBin o e1 e2) = checkOp f e1 o e2
 checkExpr f (EIte p e1 e2) = checkIte f p e1 e2
@@ -244,7 +244,7 @@ checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 checkSym f x
   = case f x of
      Found s -> return s
-     Alts xs -> throwError $ errUnboundAlts x xs
+     Alts xs -> errorstar ("\ndie die!\n" ++ show xs )  -- $ throwError $ errUnboundAlts x xs
 --   $ traceFix ("checkSym: x = " ++ showFix x) (f x)
 
 -- checkLocSym f x = checkSym f (val x)
@@ -518,9 +518,9 @@ errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
                          (showpp e) (showpp t') (showpp t)
-errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
-                        (showpp x)
-                        (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
+-- errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
+--                         (showpp x)
+--                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
 errNonFunction t     = printf "Sort %s is not a function" (showpp t)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')

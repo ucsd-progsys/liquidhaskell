@@ -107,9 +107,9 @@ instance SMTLIB2 Expr where
   smt2 env (POr ps)         = format "(or  {})"    (Only $ smt2s env ps)
   smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
   smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
+  smt2 env (PIff p q)       = traceShow "\nsmt2 iff\n" $ format "(=  {} {})"  (traceShow "\nsmt2 iff1\n" $ smt2 env p, traceShow "\niff2 rel\n" $ smt2 env q)
   smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env p)
-  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
+  smt2 env (PAtom r e1 e2)  = traceShow "\nsmt2 rel\n" $ mkRel env r e1 e2
   smt2 _   _                = errorstar "smtlib2 Pred"
 
 smt2Bop env o e1 e2
@@ -142,8 +142,11 @@ instance SMTLIB2 Command where
   smt2 env (Declare x ts t)    
      | isSMTSymbol x 
      = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
+     | null ts && isSMTSort t
+     = format "(declare-fun {} () {})"  (smt2 env x, smt2 env t)
      | otherwise
      = format "(declare-fun {} () {})"  (smt2 env x, smt2 env intSort)    
+
   smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
   smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env p)
   smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env p, i)
@@ -197,10 +200,10 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 
 makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text 
 makeApplication env e es 
-  = traceShow ("\n\nmakeApplication for " ++ show (e, es)) $ format "({} {})" (smt2 env f, smt2many ds) 
+  = format "({} {})" (smt2 env f, smt2many ds) 
   where 
-    f = makeFunSymbol env e $ length es
-    ds = smt2 env e:(traceShow ("HERE HERE\n\n" ++ show (e, es)) (toInt env <$> es))
+    f  = makeFunSymbol env e $ length es
+    ds = smt2 env e:(toInt env <$> es)
 
 
 makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol 
@@ -241,6 +244,22 @@ toInt env e
   = smt2 env e 
   where
     s = sortExpr env e
+
+isSMTSort :: Sort -> Bool 
+isSMTSort s
+  | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
+  = True
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
+  = True
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
+  = True
+  | FTC c                     <- s, c == boolFTyCon 
+  = True
+  | FTC c                     <- s, c == realFTyCon 
+  = True
+  | otherwise
+  = traceShow ("\n\nnot SMTSort" ++ show s) False      
+
      
 castWith :: SMTEnv -> Symbol -> Expr -> T.Text 
 castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
