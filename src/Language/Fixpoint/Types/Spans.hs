@@ -50,9 +50,6 @@ import           Text.Printf
 class Loc a where
   srcSpan :: a -> SrcSpan
 
-instance Loc (Located a) where
-  srcSpan v = SS (loc v) (locE v)
-
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------
 -----------------------------------------------------------------------
