@@ -81,8 +81,6 @@ import           System.IO                (IOMode (..), hClose, hFlush, openFile
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
 
-import Language.Fixpoint.Misc (traceShow)
-
 {-
 runFile f
   = readFile f >>= runString
@@ -144,9 +142,9 @@ checkValids u f xts ps
 --------------------------------------------------------------------------
 command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
-command me !cmd      = {-# SCC "command" #-} putStrLn "TO SAY" >> say cmd >> putStrLn "TO HEAD" >> hear cmd
+command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say p             = smtWrite me $ traceShow ("\nSMT2 for \n" ++ show p) $  smt2 (smtenv me) (traceShow "\np = \n" p) 
+    say p             = smtWrite me $ smt2 (smtenv me) p 
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok

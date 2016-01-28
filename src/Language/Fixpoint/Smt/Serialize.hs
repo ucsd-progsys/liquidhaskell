@@ -17,7 +17,7 @@ import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
-import           Language.Fixpoint.Misc (errorstar, traceShow)
+import           Language.Fixpoint.Misc (errorstar)
 
 import           Language.Fixpoint.SortCheck (sortExpr)
 
@@ -107,9 +107,9 @@ instance SMTLIB2 Expr where
   smt2 env (POr ps)         = format "(or  {})"    (Only $ smt2s env ps)
   smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
   smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PIff p q)       = traceShow "\nsmt2 iff\n" $ format "(=  {} {})"  (traceShow "\nsmt2 iff1\n" $ smt2 env p, traceShow "\niff2 rel\n" $ smt2 env q)
+  smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
   smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env p)
-  smt2 env (PAtom r e1 e2)  = traceShow "\nsmt2 rel\n" $ mkRel env r e1 e2
+  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 _   _                = errorstar "smtlib2 Pred"
 
 smt2Bop env o e1 e2
@@ -258,7 +258,7 @@ isSMTSort s
   | FTC c                     <- s, c == realFTyCon 
   = True
   | otherwise
-  = traceShow ("\n\nnot SMTSort" ++ show s) False      
+  = False      
 
      
 castWith :: SMTEnv -> Symbol -> Expr -> T.Text 

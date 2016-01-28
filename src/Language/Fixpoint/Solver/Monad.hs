@@ -28,7 +28,7 @@ module Language.Fixpoint.Solver.Monad
 import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
-import           Language.Fixpoint.Misc    (groupList, traceShow)
+import           Language.Fixpoint.Misc    (groupList)
 import           Language.Fixpoint.Types.Config  (Config, solver, real)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -98,7 +98,7 @@ runSolverM cfg fi _ act = do
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
-getBinds = traceShow ("\ngetBinds\n") .  ssBinds <$> get
+getBinds = ssBinds <$> get
 
 ---------------------------------------------------------------------------
 getIter :: SolveM Int
@@ -134,7 +134,7 @@ filterValid :: (Show a) => F.Expr -> Cand a -> SolveM [a]
 filterValid !p !qs = do
   qs' <- withContext $ \me ->
            smtBracket me $
-             filterValid_ p (traceShow ("\nfilterValid for \n" ++ show p) qs) me
+             filterValid_ p qs me
   -- stats
   incBrkt
   incChck (length qs)
@@ -145,18 +145,12 @@ filterValid !p !qs = do
 
 filterValid_ :: (Show a) => F.Expr -> Cand a -> Context -> IO [a]
 filterValid_ !p !qs !me = catMaybes <$> do
-  putStrLn ("\nTODO  Asserted \n" ++ show p) 
   smtAssert me p
-  putStrLn ("\nAsserted \n" ++ show p) 
   forM qs $ \(q, x) ->
     smtBracket me $ do
       smtAssert me (F.PNot q)
-      valid <- eval <$> smtCheckUnsat me
-      putStrLn ("\nQuery filter Valid on \n" ++ show (p, qs) ++ "\nReturns\n" ++ show valid) 
+      valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
-
-eval :: Show a => a -> a 
-eval !x = traceShow ("\neval for \n" ++ show x) x 
 
 ---------------------------------------------------------------------------
 declare :: F.GInfo c a -> SolveM ()

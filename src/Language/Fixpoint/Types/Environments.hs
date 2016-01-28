@@ -86,12 +86,12 @@ intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
 filterSEnv f (SE m)     = SE (M.filter f m)
 
 lookupSEnvWithDistance x (SE env)
-  = case M.lookup (traceShow ("checking env for" ++ show env) x) env of
+  = case M.lookup x env of
      Just z  -> Found z
      Nothing -> Alts $ symbol <$> alts
   where
-    alts       = takeMin $ zip (traceShow ("\n\neditDistance for " ++ show x) (editDistance x' <$> ss)) ss
-    ss         = symbolString <$> (traceShow ("\nEnv for \n" ++ show x) (fst <$> M.toList env))
+    alts       = takeMin $ zip (editDistance x' <$> ss) ss
+    ss         = symbolString <$> (fst <$> M.toList env)
     x'         = symbolString x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)
