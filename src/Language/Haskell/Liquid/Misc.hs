@@ -169,6 +169,7 @@ tryIgnore s a = catch a $ \e ->
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
 firstJust f xs = listToMaybe $ mapMaybe f xs
 
+intToString :: Int -> String
 intToString 1 = "1st"
 intToString 2 = "2nd"
 intToString 3 = "3rd"

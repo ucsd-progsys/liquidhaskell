@@ -32,7 +32,7 @@ import Language.Fixpoint.Misc (applyNonNull, group, safeHead)
 import Language.Fixpoint.SortCheck  (checkSorted, checkSortedReftFull, checkSortFull)
 import Language.Fixpoint.Types      hiding (Error, R)
 
-import Language.Haskell.Liquid.GHC.Misc (realTcArity, showPpr, sourcePosSrcSpan)
+import Language.Haskell.Liquid.GHC.Misc (realTcArity, showPpr, fSrcSpan, sourcePosSrcSpan)
 import Language.Haskell.Liquid.Misc (snd4, mapSnd)
 import Language.Haskell.Liquid.Types.PredType (pvarRType)
 import Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
@@ -89,8 +89,8 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     sigs             =  tySigs sp ++ asmSigs sp
 
 
-checkQualifiers      :: SEnv SortedReft -> [Qualifier] -> [Error]
-checkQualifiers env  = catMaybes . map (checkQualifier env)
+checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
+checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (q_body q)
@@ -163,7 +163,7 @@ checkRTAliases msg _ as = err1s
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
 checkBind s emb tcEnv env (v, t) = checkTy msg emb tcEnv env' t
   where
-    msg                      = ErrTySpec (srcSpan t) (text s <+> pprint v) t
+    msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error
@@ -185,7 +185,7 @@ checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' 
     cmpZero = PAtom Le $ expr (0 :: Int) -- zero
 
 checkTy :: (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (txRefSort tcEnv emb t)
+checkTy mkE emb tcEnv env t = mkE <$> checkRType emb env (val $ txRefSort tcEnv emb t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
 checkDupIntersect xts mxts = concatMap mkWrn dups

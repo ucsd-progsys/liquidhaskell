@@ -14,6 +14,7 @@ import Language.Fixpoint.Types (srcSpan, atLoc, meet, TCEmb)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Misc (intToString, safeZipWithError)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Types.Errors (panic)
@@ -24,7 +25,7 @@ import Language.Haskell.Liquid.Types.Errors (panic)
 --     e.g. tests/pos/multi-pred-app-00.hs
 
 txRefSort :: TCEnv -> TCEmb TyCon -> Located SpecType -> Located SpecType
-txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (srcSpan t) tce tyi) (val t)
+txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (fSrcSpan t) tce tyi) (val t)
 
 addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
