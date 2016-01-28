@@ -105,7 +105,7 @@ postProcess cbs specEnv sp@(SP {..})
     asmSigs'    = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
     dicts'      = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'       = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
-    meas'       = mapSnd (addTyConInfo tcEmbeds tyconEnv .  txRefSort tyconEnv tcEmbeds <$>) <$> meas
+    meas'       = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -284,9 +284,10 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        ialias  <- mconcat <$> mapM makeIAliases   specs
        let dms  = makeDefaultMethods vars mts
        tyi     <- gets tcEnv
-       let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-       let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- asms' ]
+       let sigs = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
+       let asms = [ (x, txRefSort tyi embs . fmap txExpToBind <$> t) | (_, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
+
 
 makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
   = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
@@ -299,7 +300,7 @@ makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
        let cms          = makeClassMeasureSpec measures
        let cms'         = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
        let ms'          = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-       let cs'          = [ (v, Loc (getSourcePos v) (getSourcePosE v) (txRefSort tyi embs t)) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
+       let cs'          = [ (v, atLoc v (txRefSort tyi embs (val t))) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
        let xs'          = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
 
