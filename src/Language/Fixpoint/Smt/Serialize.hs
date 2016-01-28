@@ -128,7 +128,8 @@ smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
 
 smt2App' :: SMTEnv -> Expr -> [Expr] -> T.Text
 smt2App' env f [] = smt2 env f
-smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es 
+smt2App' env f es = makeApplication env f es 
+-- smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es 
 
 
 
