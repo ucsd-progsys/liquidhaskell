@@ -146,7 +146,8 @@ grepClassAsserts  = concatMap go
     goOne = mapFst (fmap (symbol . (".$c" ++ ) . symbolString))
 
 
-makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)] -> [(ModName, Var ,Located SpecType)]
+makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)]
+                   -> [(ModName, Var ,Located SpecType)]
 makeDefaultMethods defVs sigs
   = [ (m,dmv,t)
     | dmv <- defVs
