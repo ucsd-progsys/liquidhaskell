@@ -79,7 +79,7 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv
        let renv = ghcSpecEnv sp
-       throwLeft $ checkGhcSpec specs renv $ postProcess cbs renv sp
+       throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
     throwLeft = either Ex.throw return
@@ -138,8 +138,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
-       return (emptySpec cfg)
-         >>= makeGhcSpec0 cfg defVars exports name
+       makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
          >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
          >>= makeGhcSpec3 datacons tycons embs syms
@@ -167,7 +166,7 @@ makeExactDataCons n flag vs spec
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
-makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
     t    = ofType $ varType x

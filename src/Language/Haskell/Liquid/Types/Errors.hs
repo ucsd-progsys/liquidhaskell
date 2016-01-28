@@ -63,6 +63,8 @@ import           DynFlags (unsafeGlobalDynFlags)
 import Data.List    (intersperse )
 import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 
+import           GHC.Stack
+
 instance PPrint ParseError where
   pprint e = vcat $ tail $ map text ls
     where
@@ -359,18 +361,18 @@ uError :: UserError -> a
 uError = Ex.throw
 
 -- | Construct and show an Error, then crash
-panicDoc :: {-(?callStack :: CallStack) =>-} SrcSpan -> Doc -> a
+panicDoc :: {- (?callStack :: CallStack) => -} SrcSpan -> Doc -> a
 panicDoc sp d = Ex.throw (ErrOther sp d :: UserError)
 
 -- | Construct and show an Error, then crash
-panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+panic :: {- (?callStack :: CallStack) => -} Maybe SrcSpan -> String -> a
 panic sp d = panicDoc (sspan sp) (text d)
   where
     sspan  = fromMaybe noSrcSpan
 
 -- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
-todo :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+todo :: {- (?callStack :: CallStack) => -} Maybe SrcSpan -> String -> a
 todo s m  = panic s $ unlines
             [ "This functionality is currently unimplemented. "
             , "If this functionality is critical to you, please contact us at: "
@@ -380,7 +382,7 @@ todo s m  = panic s $ unlines
 
 -- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark impossible-to-reach codepaths
-impossible :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+impossible :: {- (?callStack :: CallStack) => -} Maybe SrcSpan -> String -> a
 impossible s m = panic s $ unlines msg ++ m
    where
       msg = [ "This should never happen! If you are seeing this message, "
