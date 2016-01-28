@@ -334,20 +334,7 @@ instance Ex.Error (TError a) where
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
 --------------------------------------------------------------------------------
--- data HiddenType = HiddenType
-type UserError  = TError Doc -- HiddenType
-
--- instance PPrint HiddenType where
-  -- pprint _ = "<type>"
-
--- data Panic = Panic { ePos :: !SrcSpan
-                   -- , eMsg :: !Doc
-                   -- } -- ^ Unexpected PANIC
-  -- deriving (Typeable, Generic)
-
--- instance PPrint Panic where
-  -- pprint (Panic sp d) = pprint sp <+> text "Unexpected panic (!)"
-                                  -- $+$ nest 4 d
+type UserError  = TError Doc
 
 instance PPrint SrcSpan where
   pprint = text . showSDoc . Out.ppr
@@ -360,7 +347,7 @@ instance PPrint SrcSpan where
 
 instance PPrint UserError where
   pprint       = pprintTidy Full
-  pprintTidy k = ppError k empty . fmap pprint --  ppSpecTypeErr
+  pprintTidy k = ppError k empty . fmap pprint
 
 instance Show UserError where
   show = showpp
