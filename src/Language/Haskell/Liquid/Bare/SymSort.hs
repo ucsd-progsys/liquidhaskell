@@ -8,22 +8,23 @@ import Prelude hiding (error)
 
 import qualified Data.List as L
 import Data.Maybe              (fromMaybe)
-
-
+import TyCon            (TyCon)
 import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (meet)
+import Language.Fixpoint.Types (meet, TCEmb)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (safeZipWithError)
-
+import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Types.Errors (panic)
 
 -- EFFECTS: TODO is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
 -- (2) gathers _extra_ RProp at turnst them into refinements,
 --     e.g. tests/pos/multi-pred-app-00.hs
-txRefSort tyi tce = mapBot (addSymSort tce tyi)
+
+txRefSort :: TCEnv -> TCEmb TyCon -> Located SpecType -> Located SpecType
+txRefSort tyi tce t = t { val = mapBot (addSymSort tce tyi) (val t) }
 
 addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef rc) pvs rargs [1..]) r'

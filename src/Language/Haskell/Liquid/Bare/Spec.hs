@@ -229,7 +229,7 @@ makeSpecDictionary embs vars (_, spec)
 makeSpecDictionaryOne embs vars (RI x t xts)
   = do t'  <-  mkTy t
        tyi <- gets tcEnv
-       ts' <- (map (txRefSort tyi embs . txExpToBind)) <$> mapM mkTy' ts
+       ts' <- map (txRefSort tyi embs . txExpToBind) <$> mapM mkTy' ts
        let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
        let v = lookupName d
        return ((, dts) <$> v)
