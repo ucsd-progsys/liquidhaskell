@@ -19,8 +19,7 @@ module Language.Fixpoint.Types.Spans (
   , locAt
   , dummyLoc
   , dummyPos
-  -- , dummyName
-  -- , isDummy
+  , atLoc 
 
   -- * Destructing spans
   , sourcePosElts
@@ -168,6 +167,9 @@ instance Hashable SrcSpan where
 
 dummySpan = SS l l
   where l = initialPos ""
+
+atLoc :: Located a -> b -> Located b
+atLoc (Loc l l' _) x = Loc l l' x
 
 locAt :: String -> a -> Located a
 locAt s  = Loc l l
