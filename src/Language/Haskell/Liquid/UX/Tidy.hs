@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE ImplicitParams    #-}
 
 ---------------------------------------------------------------------
 -- | This module contains functions for cleaning up types before
@@ -38,13 +37,13 @@ import Language.Haskell.Liquid.Misc      (intToString)
 import Language.Fixpoint.Types      hiding (SrcSpan, Error)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
--- import Language.Haskell.Liquid.Types.PrettyPrint ()
+import Language.Haskell.Liquid.Types.PrettyPrint
+import Language.Haskell.Liquid.Types.Errors
 import Language.Fixpoint.Misc hiding (intersperse)
 
 import SrcLoc
 import Data.List    (intersperse )
 import Data.Generics                       (everywhere, mkT)
-import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Text.PrettyPrint.HughesPJ
 
 -------------------------------------------------------------------------

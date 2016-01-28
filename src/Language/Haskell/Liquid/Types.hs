@@ -621,13 +621,6 @@ instance (NFData c, NFData tv, NFData r) => NFData (RType c tv r)
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
-instance PPrint Oblig where
-  pprint = ppOblig
-
-ppOblig :: Oblig -> Doc
-ppOblig OCons = text "Constraint Check"
-ppOblig OTerm = text "Termination Check"
-ppOblig OInv  = text "Invariant Check"
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
 --   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)

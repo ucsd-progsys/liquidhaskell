@@ -29,6 +29,9 @@ module Language.Haskell.Liquid.Types.Errors (
   , todo
   , impossible
 
+  -- * Printing Errors
+  , ppError
+  , ppError'
   ) where
 
 import           Prelude                      hiding (error)
@@ -51,6 +54,14 @@ import qualified Control.Monad.Error as Ex
 import qualified Outputable as Out
 import           DynFlags (unsafeGlobalDynFlags)
 import Data.List    (intersperse )
+import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
+
+instance PPrint ParseError where
+  pprint e = vcat $ tail $ map text ls
+    where
+      ls = lines $ showErrorMessages "or" "unknown parse error"
+                                     "expecting" "unexpected" "end of input"
+                                     (errorMessages e)
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -126,6 +137,13 @@ instance Show Oblig where
 
 instance NFData Oblig
 
+instance PPrint Oblig where
+  pprint = ppOblig
+
+ppOblig :: Oblig -> Doc
+ppOblig OCons = text "Constraint Check"
+ppOblig OTerm = text "Termination Check"
+ppOblig OInv  = text "Invariant Check"
 
 --------------------------------------------------------------------------------
 -- | Generic Type for Error Messages -------------------------------------------
@@ -240,7 +258,6 @@ data TError t =
                 , argN :: !Int
                 , expN :: !Int
                 , actN :: !Int
-                , msg  :: !Doc
                 } -- ^ Mismatch in expected/actual args of abstract refinement
 
   | ErrAliasCycle { pos    :: !SrcSpan
@@ -264,7 +281,7 @@ data TError t =
                 } -- ^ Previously saved error, that carries over after DiffCheck
 
   | ErrTermin   { pos  :: !SrcSpan
-                , bind :: ![Var]
+                , bind :: ![Doc]
                 , msg  :: !Doc
                 } -- ^ Termination Error
 
@@ -509,7 +526,7 @@ ppError' _ dSp dCtx (ErrGhc _ s)
 ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
   = dSp <+> text "Malformed Predicate Application"
         $+$ dCtx
-        $+$ (nest 4 $ vcat [ "The" <+> intToString i <+> "argument of" <+> c <+> "is predicate" <+> p
+        $+$ (nest 4 $ vcat [ "The" <+> text (intToString i) <+> "argument of" <+> c <+> "is predicate" <+> p
                            , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
                            , "See: https://github.com/ucsd-progsys/liquidhaskell/issues/594 for possible fix."
                            ])
@@ -557,7 +574,7 @@ ppError' _ dSp dCtx (ErrOther _ s)
 
 ppError' _ dSp _ (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"
-        <+> (hsep $ intersperse comma $ map pprint xs) $+$ s
+        <+> (hsep $ intersperse comma xs) $+$ s
 
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"

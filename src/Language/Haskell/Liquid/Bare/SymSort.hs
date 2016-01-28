@@ -10,7 +10,7 @@ import qualified Data.List as L
 import Data.Maybe              (fromMaybe)
 import TyCon            (TyCon)
 import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (atLoc, meet, TCEmb)
+import Language.Fixpoint.Types (srcSpan, atLoc, meet, TCEmb)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types

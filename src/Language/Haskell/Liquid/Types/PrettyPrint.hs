@@ -31,7 +31,6 @@ import           TyCon            (TyCon)
 import           Data.Maybe
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
-import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
 import           Text.PrettyPrint.HughesPJ
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Misc
@@ -64,13 +63,6 @@ instance PPrint ErrMsg where
 
 instance PPrint SourceError where
   pprint = text . show
-
-instance PPrint ParseError where
-  pprint e = vcat $ tail $ map text ls
-    where
-      ls = lines $ showErrorMessages "or" "unknown parse error"
-                                     "expecting" "unexpected" "end of input"
-                                     (errorMessages e)
 
 instance PPrint Var where
   pprint = pprDoc
