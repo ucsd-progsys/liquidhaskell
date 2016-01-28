@@ -253,9 +253,9 @@ exprP = buildExpressionParser bops expr1P
 
 funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
   where
-    exprFunSpacesP = EApp <$> funSymbolP <*> sepBy1 expr0P blanks
-    exprFunCommasP = EApp <$> funSymbolP <*> parens        (sepBy exprP comma)
-    exprFunSemisP  = EApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
+    exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
+    exprFunCommasP = mkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
+    exprFunSemisP  = mkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
     funSymbolP     = locParserP symbolP
 
 
@@ -290,7 +290,7 @@ exprCastP
 dcolon = string "::" <* spaces
 
 varSortP  = FVar  <$> parens intP
-funcSortP = parens $ FFunc <$> intP <* comma <*> sortsP
+funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
 sortsP = brackets $ sepBy sortP semi
 

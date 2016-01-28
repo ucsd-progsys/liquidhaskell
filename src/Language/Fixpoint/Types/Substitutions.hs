@@ -16,7 +16,6 @@ import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
@@ -97,7 +96,7 @@ subSymbol a               b = errorstar (printf "Cannot substitute symbol %s wit
 instance Subable Expr where
   syms                     = exprSymbols
   substa f                 = substf (EVar . f)
-  substf f (EApp s es)     = EApp (substf f s) $ map (substf f) es
+  substf f (EApp s e)      = EApp (substf f s) (substf f e)
   substf f (ENeg e)        = ENeg (substf f e)
   substf f (EBin op e1 e2) = EBin op (substf f e1) (substf f e2)
   substf f (EIte p e1 e2)  = EIte (substf f p) (substf f e1) (substf f e2)
@@ -114,7 +113,7 @@ instance Subable Expr where
   substf _  p              = p
 
 
-  subst su (EApp f es)     = EApp (subst su f) $ map (subst su) es
+  subst su (EApp f e)      = EApp (subst su f) (subst su e)
   subst su (ENeg e)        = ENeg (subst su e)
   subst su (EBin op e1 e2) = EBin op (subst su e1) (subst su e2)
   subst su (EIte p e1 e2)  = EIte (subst su p) (subst su e1) (subst su e2)
@@ -245,7 +244,7 @@ exprSymbols :: Expr -> [Symbol]
 exprSymbols = go
   where
     go (EVar x)           = [x]
-    go (EApp f es)        = val f : concatMap go es
+    go (EApp f e)         = go f ++ go e
     go (ENeg e)           = go e
     go (EBin _ e1 e2)     = go e1 ++ go e2
     go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
