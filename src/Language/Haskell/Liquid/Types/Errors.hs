@@ -603,7 +603,9 @@ ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
         $+$ dCtx
         $+$ (nest 4 $ vcat [ "The" <+> text (intToString i) <+> "argument of" <+> c <+> "is predicate" <+> p
                            , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
-                           , "See: https://github.com/ucsd-progsys/liquidhaskell/issues/594 for possible fix."
+                           , "Abstract predicates cannot be partially applied, see "
+                           , nest 2 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
+                           , "for possible fix."
                            ])
 
 ppError' _ dSp dCtx (ErrMismatch _ x τ t hsSp)
