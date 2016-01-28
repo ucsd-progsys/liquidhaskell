@@ -248,7 +248,6 @@ strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
 
 predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
 predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
-
   where
     tce            = tcEmbeds sp
     tyi            = tyconEnv sp
@@ -442,7 +441,7 @@ makeDecrIndexTy x t
        ts         = ty_args trep
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
-       msg        = ErrTermin (getSrcSpan x) [x] (text "No decreasing parameter")
+       msg        = ErrTermin (getSrcSpan x) [pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
@@ -457,14 +456,16 @@ recType autoenv ((vs, indexc), (_, index, t))
         xts  = zip (ty_binds trep) (ty_args trep)
         trep = toRTypeRep $ unOCons t
 
+-- checkIndex :: (Var, _, _ , _) -> _
 checkIndex (x, vs, t, index)
-  = do mapM_ (safeLogIndex msg' vs) index
-       mapM  (safeLogIndex msg  ts) index
+  = do mapM_ (safeLogIndex msg1 vs) index
+       mapM  (safeLogIndex msg2 ts) index
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg'  = ErrTermin loc [x] (text $ "No decreasing " ++ show index ++ "-th argument on " ++ (showPpr x) ++ " with " ++ (showPpr vs))
-       msg   = ErrTermin loc [x] (text "No decreasing parameter")
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+>  pprint index <> "-th argument on" <+> xd <+> "with" <+> (pprint vs))
+       msg2  = ErrTermin loc [xd] "No decreasing parameter"
+       xd    = pprint x
 
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
@@ -500,8 +501,10 @@ checkHint _ _ _ Nothing
   = return Nothing
 
 checkHint x _ _ (Just ns) | L.sort ns /= ns
-  = addWarning (ErrTermin loc [x] (text "The hints should be increasing")) >> return Nothing
-  where loc = getSrcSpan x
+  = addWarning (ErrTermin loc [dx] (text "The hints should be increasing")) >> return Nothing
+  where
+    loc = getSrcSpan x
+    dx  = pprint x
 
 checkHint x ts f (Just ns)
   = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
@@ -511,8 +514,11 @@ checkValidHint x ts f n
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
   where
-    err = ErrTermin loc [x] (text $ "Invalid Hint " ++ show (n+1) ++ " for " ++ (showPpr x) ++  "\nin\n" ++ show (ts))
+    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> pprint (n+1) <+> "for" <+> xd
+                                   , "in"
+                                   , pprint ts ])
     loc = getSrcSpan x
+    xd  = pprint x
 
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
@@ -582,13 +588,14 @@ consCBSizedTys γ xes
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where
-       (xs, es) = unzip xes
+       (xs, es)       = unzip xes
+       dxs            = pprint <$> xs
        collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
-       err1           = ErrTermin loc xs $ text "The decreasing parameters should be of same type"
-       err2           = ErrTermin loc xs $ text "All Recursive functions should have the same number of decreasing parameters"
+       err1           = ErrTermin loc dxs $ text "The decreasing parameters should be of same type"
+       err2           = ErrTermin loc dxs $ text "All Recursive functions should have the same number of decreasing parameters"
        loc            = getSrcSpan (head xs)
 
        checkAll _   _ []            = return []

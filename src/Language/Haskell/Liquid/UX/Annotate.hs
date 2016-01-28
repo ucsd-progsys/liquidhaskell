@@ -64,7 +64,7 @@ import           Language.Haskell.Liquid.Types.Errors
 
 -- | @output@ creates the pretty printed output
 --------------------------------------------------------------------------------------------
-mkOutput :: Config -> FixResult Error -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
+mkOutput :: Config -> ErrorResult -> FixSolution -> AnnInfo (Annot SpecType) -> Output Doc
 --------------------------------------------------------------------------------------------
 mkOutput cfg res sol anna
   = O { o_vars   = Nothing
@@ -210,7 +210,7 @@ cssHTML css = unlines
 --   is required by `Language.Haskell.Liquid.ACSS` to generate mouseover
 --   annotations.
 
-mkAnnMap :: Config -> FixResult Error -> AnnInfo Doc -> ACSS.AnnMap
+mkAnnMap :: Config -> ErrorResult -> AnnInfo Doc -> ACSS.AnnMap
 mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
 
 mkStatus (Safe)          = ACSS.Safe
