@@ -166,4 +166,9 @@ tryIgnore s a = catch a $ \e ->
 
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
-firstJust f xs = listToMaybe $ catMaybes $ map f xs
+firstJust f xs = listToMaybe $ mapMaybe f xs
+
+intToString 1 = "1st"
+intToString 2 = "2nd"
+intToString 3 = "3rd"
+intToString n = show n ++ "th"

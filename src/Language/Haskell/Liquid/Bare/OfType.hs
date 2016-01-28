@@ -63,10 +63,10 @@ ofBSort
 
 ofBPVar :: BPVar -> BareM RPVar
 ofBPVar
-  = mapM_pvar ofBSort
+  = mapMPvar ofBSort
 
-mapM_pvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
-mapM_pvar f (PV x t v txys)
+mapMPvar :: (Monad m) => (a -> m b) -> PVar a -> m (PVar b)
+mapMPvar f (PV x t v txys)
   = do t'    <- forM t f
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys
        return $ PV x t' v txys'

@@ -11,6 +11,7 @@ module Language.Haskell.Liquid.Bare.Check (
 
 import Debug.Trace
 
+
 import Prelude hiding (error)
 import DataCon
 import Name (getSrcSpan)
@@ -117,10 +118,10 @@ checkRefinedClasses definitions instances
       = sourcePosSrcSpan . loc . riclass &&& pprint . ritype
 
 checkDuplicateFieldNames :: [(DataCon, DataConP)]  -> [Error]
-checkDuplicateFieldNames = catMaybes . map go
+checkDuplicateFieldNames = mapMaybe go
   where
-    go (d, dts)        = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
-    checkNoDups l d xs = mkErr l d <$> firstDuplicate xs
+    go (d, dts)          = checkNoDups (dc_loc dts) d (fst <$> tyArgs dts)
+    checkNoDups l d xs   = mkErr l d <$> firstDuplicate xs
 
     mkErr l d x = ErrBadData (sourcePosSrcSpan l)
                              (pprint d)
@@ -134,7 +135,7 @@ firstDuplicate = go . L.sort
     go _                    = Nothing
 
 checkInv :: TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkInv emb tcEnv env t   = checkTy err emb tcEnv env (val t)
+checkInv emb tcEnv env t   = checkTy err emb tcEnv env t
   where
     err              = ErrInvt (sourcePosSrcSpan $ loc t) (val t)
 
@@ -143,13 +144,13 @@ checkIAl emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne emb tcEnv env) 
 
 checkIAlOne emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where
-    tcheck t = checkTy (err t) emb tcEnv env (val t)
+    tcheck t = checkTy (err t) emb tcEnv env t
     err    t = ErrIAl (sourcePosSrcSpan $ loc t) (val t)
     t1'      :: RSort
     t1'      = toRSort $ val t1
     t2'      :: RSort
     t2'      = toRSort $ val t2
-    checkEq  = if (t1' == t2') then Nothing else Just errmis
+    checkEq  = if t1' == t2' then Nothing else Just errmis
     errmis   = ErrIAlMis (sourcePosSrcSpan $ loc t1) (val t1) (val t2) emsg
     emsg     = pprint t1 <+> text "does not match with" <+> pprint t2
 
@@ -160,9 +161,9 @@ checkRTAliases msg _ as = err1s
     err1s                  = checkDuplicateRTAlias msg as
 
 checkBind :: (PPrint v) => String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
-checkBind s emb tcEnv env (v, Loc l _ t) = checkTy msg emb tcEnv env' t
+checkBind s emb tcEnv env (v, t) = checkTy msg emb tcEnv env' t
   where
-    msg                      = ErrTySpec (sourcePosSrcSpan l) (text s <+> pprint v) t
+    msg                      = ErrTySpec (srcSpan t) (text s <+> pprint v) t
     env'                     = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, Located SpecType, [Expr])-> Maybe Error
@@ -177,8 +178,8 @@ checkTerminationExpr emb env (v, Loc l _ t, es) = (mkErr <$> go es) <|> (mkErr' 
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
-    mkClass (_, (RApp c ts _ _)) | isClass c = classBinds (rRCls c ts)
-    mkClass (x, t)                           = [(x, rSort t)]
+    mkClass (_, RApp c ts _ _) | isClass c = classBinds (rRCls c ts)
+    mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
     cmpZero = PAtom Le $ expr (0 :: Int) -- zero

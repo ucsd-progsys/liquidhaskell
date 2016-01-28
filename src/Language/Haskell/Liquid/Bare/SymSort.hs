@@ -10,11 +10,11 @@ import qualified Data.List as L
 import Data.Maybe              (fromMaybe)
 import TyCon            (TyCon)
 import Language.Fixpoint.Misc  (fst3, snd3)
-import Language.Fixpoint.Types (meet, TCEmb)
+import Language.Fixpoint.Types (atLoc, meet, TCEmb)
 
 import Language.Haskell.Liquid.Types.RefType (appRTyCon, strengthen)
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Misc (safeZipWithError)
+import Language.Haskell.Liquid.Misc (intToString, safeZipWithError)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Types.Errors (panic)
 
@@ -24,10 +24,10 @@ import Language.Haskell.Liquid.Types.Errors (panic)
 --     e.g. tests/pos/multi-pred-app-00.hs
 
 txRefSort :: TCEnv -> TCEmb TyCon -> Located SpecType -> Located SpecType
-txRefSort tyi tce t = t { val = mapBot (addSymSort tce tyi) (val t) }
+txRefSort tyi tce t = atLoc t $ mapBot (addSymSort (srcSpan t) tce tyi) (val t)
 
-addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
-  = RApp rc ts (zipWith3 (addSymSortRef rc) pvs rargs [1..]) r'
+addSymSort sp tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
+  = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
     rc'                = appRTyCon tce tyi rc ts
     pvs                = rTyConPVs rc'
@@ -36,34 +36,37 @@ addSymSort tce tyi (RApp rc@(RTyCon _ _ _) ts rs r)
     go r (RProp _ (RHole r')) = r' `meet` r
     go r (RProp  _ t' )       = let r' = fromMaybe mempty (stripRTypeBase t') in r `meet` r'
 
-addSymSort _ _ t
+addSymSort _ _ _ t
   = t
 
+addSymSortRef sp rc p r i
+  | isPropPV p
+  = addSymSortRef' sp rc i p r
+  | otherwise
+  = panic Nothing "addSymSortRef: malformed ref application"
 
-addSymSortRef rc p r i | isPropPV p = addSymSortRef' rc i p r
-                       | otherwise  = panic Nothing "addSymSortRef: malformed ref application"
-addSymSortRef' _ _ p (RProp s (RVar v r)) | isDummy v
+addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
       t  = ofRSort (pvType p) `strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise
-  = panic Nothing msg
+  = panic (Just sp) msg
     where
-      xts = safeZipWithError msg xs ts
+      xts = safeZipWithError "addSymSortRef'" xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
       msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up)
             ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
-addSymSortRef' _ _ _ (RProp s (RHole r))
+addSymSortRef' _ _ _ _ (RProp s (RHole r))
   = RProp s (RHole r)
 
-addSymSortRef' _ _ p (RProp s t)
+addSymSortRef' _ _ _ p (RProp s t)
   = RProp xs t
     where
       xs = spliceArgs "addSymSortRef 2" s p
@@ -74,8 +77,3 @@ spliceArgs msg s p = go (fst <$> s) (pargs p)
     go []     ((s,x,_):as) = (x, s):go [] as
     go (x:xs) ((s,_,_):as) = (x,s):go xs as
     go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs
-
-intToString 1 = "1st"
-intToString 2 = "2nd"
-intToString 3 = "3rd"
-intToString n = show n ++ "th"

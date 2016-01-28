@@ -229,13 +229,13 @@ makeSpecDictionary embs vars (_, spec)
 makeSpecDictionaryOne embs vars (RI x t xts)
   = do t'  <-  mkTy t
        tyi <- gets tcEnv
-       ts' <- map (txRefSort tyi embs . txExpToBind) <$> mapM mkTy' ts
-       let (d, dts) = makeDictionary $ RI x t' $ zip xs ts'
+       ts' <- map (txRefSort tyi embs . fmap txExpToBind) <$> mapM mkTy' ts
+       let (d, dts) = makeDictionary $ RI x (val t') $ zip xs ts'
        let v = lookupName d
        return ((, dts) <$> v)
   where
-    mkTy  t  = mkSpecType (loc x) t
-    mkTy' t  = generalize  <$> mkTy t
+    mkTy  t  = atLoc x    <$> mkSpecType (loc x) t
+    mkTy' t  = generalize <$> mkTy t
     (xs, ts) = unzip xts
     lookupName x
              = case filter ((==x) . fst) ((\x -> (dropModuleNames $ symbol $ show x, x)) <$> vars) of
