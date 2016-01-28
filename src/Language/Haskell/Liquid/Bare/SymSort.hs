@@ -56,13 +56,11 @@ addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise
-  = panic (Just sp) msg
+  = uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
     where
       xts = safeZipWithError "addSymSortRef'" xs ts
       xs  = snd3 <$> pargs up
       ts  = fst3 <$> pargs p
-      msg = intToString i ++ " argument of " ++ show rc ++ " is " ++ show (pname up)
-            ++ " that expects " ++ show (length ts) ++ " arguments, but it has " ++ show (length xs)
 
 addSymSortRef' _ _ _ _ (RProp s (RHole r))
   = RProp s (RHole r)

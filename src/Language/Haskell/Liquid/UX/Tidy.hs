@@ -20,6 +20,12 @@ module Language.Haskell.Liquid.UX.Tidy (
 
     -- * Panic and Exit
   , panicError
+
+    -- * Final result
+  , Result (..)
+
+    -- * MOVE TO TYPES
+  , cinfoError
   ) where
 
 import           Prelude             hiding (error)
@@ -29,12 +35,12 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import qualified Data.Text           as T
 import           Data.Maybe                 (fromMaybe)
-import           Data.Aeson
+import           Data.Aeson hiding (Result)
 import qualified Control.Exception  as Ex
 
-import Language.Haskell.Liquid.GHC.Misc      (stringTyVar)
+import Language.Haskell.Liquid.GHC.Misc      (showPpr, stringTyVar)
 import Language.Haskell.Liquid.Misc      (intToString)
-import Language.Fixpoint.Types      hiding (SrcSpan, Error)
+import Language.Fixpoint.Types      hiding (Result, SrcSpan, Error)
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.RefType (rVar, subsTyVars_meet)
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -45,6 +51,34 @@ import SrcLoc
 import Data.List    (intersperse )
 import Data.Generics                       (everywhere, mkT)
 import Text.PrettyPrint.HughesPJ
+
+
+------------------------------------------------------------------------
+-- | Converting Results To Answers -------------------------------------
+------------------------------------------------------------------------
+
+class Result a where
+  result :: a -> FixResult UserError
+
+instance Result UserError where
+  result e = Crash [e] ""
+
+instance Result [Error] where
+  result es = Crash (e2u <$> es) ""
+
+instance Result Error where
+  result e  = result [e] --  Crash [pprint e] ""
+
+instance Result (FixResult Cinfo) where
+  result = fmap (e2u . cinfoError)
+
+e2u :: Error -> UserError
+e2u = fmap ppSpecTypeErr
+
+-- TODO: move to Types.hs
+cinfoError :: Cinfo -> Error
+cinfoError (Ci _ (Just e)) = e
+cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 
 -------------------------------------------------------------------------
 isTmpSymbol    :: Symbol -> Bool
@@ -132,7 +166,7 @@ tyVars (RHole _)       = []
 
 subsTyVarsAll ats = go
   where
-    abm            = M.fromList [(a, b) | (a, _, (RVar b _)) <- ats]
+    abm            = M.fromList [(a, b) | (a, _, RVar b _) <- ats]
     go (RAllT a t) = RAllT (M.lookupDefault a a abm) (go t)
     go t           = subsTyVars_meet ats t
 
@@ -170,6 +204,10 @@ panicError = Ex.throw
 -- | Need to put @PPrint Error@ instance here (instead of in Types),
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
+instance PPrint (CtxError Doc) where
+  pprint          = pprintTidy Full
+  pprintTidy k ce = ppError k (ctCtx ce) $ ctErr ce
+
 instance PPrint (CtxError SpecType) where
   pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ppSpecTypeErr <$> ctErr ce
@@ -191,17 +229,3 @@ instance Show Error where
 
 instance Ex.Exception Error
 instance Ex.Exception [Error]
-
-
-instance ToJSON Error where
-  toJSON e = object [ "pos" .= (pos e)
-                    , "msg" .= (render $ ppError' Full empty empty e)
-                    ]
-
-instance FromJSON Error where
-  parseJSON (Object v) = errSaved <$> v .: "pos"
-                                  <*> v .: "msg"
-  parseJSON _          = mempty
-
-errSaved :: SrcSpan -> String -> Error
-errSaved x = ErrSaved x . text

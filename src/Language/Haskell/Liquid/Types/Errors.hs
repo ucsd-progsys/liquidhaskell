@@ -23,15 +23,21 @@ module Language.Haskell.Liquid.Types.Errors (
   , Oblig (..)
 
   -- * Panic (unexpected failures)
-  , Panic (..)
+  , UserError
+  --, HiddenType (..)
   , panic
   , panicDoc
   , todo
   , impossible
+  , uError
 
   -- * Printing Errors
   , ppError
   , ppError'
+
+  -- * SrcSpan Helpers
+  , realSrcSpan
+  , unpackRealSrcSpan
   ) where
 
 import           Prelude                      hiding (error)
@@ -44,6 +50,7 @@ import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
+import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), Symbol, Expr, Reft)
 import           Language.Fixpoint.Misc (dcolon)
@@ -327,11 +334,20 @@ instance Ex.Error (TError a) where
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------
 --------------------------------------------------------------------------------
+-- data HiddenType = HiddenType
+type UserError  = TError Doc -- HiddenType
 
-data Panic = Panic { ePos :: !SrcSpan
-                   , eMsg :: !Doc
-                   } -- ^ Unexpected PANIC
-  deriving (Typeable, Generic)
+-- instance PPrint HiddenType where
+  -- pprint _ = "<type>"
+
+-- data Panic = Panic { ePos :: !SrcSpan
+                   -- , eMsg :: !Doc
+                   -- } -- ^ Unexpected PANIC
+  -- deriving (Typeable, Generic)
+
+-- instance PPrint Panic where
+  -- pprint (Panic sp d) = pprint sp <+> text "Unexpected panic (!)"
+                                  -- $+$ nest 4 d
 
 instance PPrint SrcSpan where
   pprint = text . showSDoc . Out.ppr
@@ -342,28 +358,28 @@ instance PPrint SrcSpan where
                               Out.alwaysQualify
                               Out.AllTheWay)
 
-instance PPrint Panic where
-  pprint (Panic sp d) = pprint sp <+> text "Unexpected panic (!)"
-                                  $+$ nest 4 d
+instance PPrint UserError where
+  pprint       = pprintTidy Full
+  pprintTidy k = ppError k empty . fmap pprint --  ppSpecTypeErr
 
-instance Show Panic where
+instance Show UserError where
   show = showpp
 
-instance Ex.Exception Panic
-
+instance Ex.Exception UserError
 
 -- | Construct and show an Error, then crash
-panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
-panic sp d = Ex.throw $ Panic (sspan sp) (text d)
-  where
-    sspan  = fromMaybe noSrcSpan
+uError :: UserError -> a
+uError = Ex.throw
 
 -- | Construct and show an Error, then crash
 panicDoc :: {-(?callStack :: CallStack) =>-} SrcSpan -> Doc -> a
-panicDoc sp d = Ex.throw $ Panic sp d
-  -- where
-    -- sspan  = fromMaybe noSrcSpan
+panicDoc sp d = Ex.throw (ErrOther sp d :: UserError)
 
+-- | Construct and show an Error, then crash
+panic :: {-(?callStack :: CallStack) =>-} Maybe SrcSpan -> String -> a
+panic sp d = panicDoc (sspan sp) (text d)
+  where
+    sspan  = fromMaybe noSrcSpan
 
 -- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
@@ -437,6 +453,65 @@ pprintKVs = vcat . punctuate (text "\n") . map pp1
   where
     pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
 -}
+
+
+
+instance ToJSON RealSrcSpan where
+  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
+                     , "startLine" .= l1 -- srcSpanStartLine sp
+                     , "startCol"  .= c1 -- srcSpanStartCol  sp
+                     , "endLine"   .= l2 -- srcSpanEndLine   sp
+                     , "endCol"    .= c2 -- srcSpanEndCol    sp
+                     ]
+    where
+      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
+
+unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
+  where
+    f                 = unpackFS $ srcSpanFile rsp
+    l1                = srcSpanStartLine rsp
+    c1                = srcSpanStartCol  rsp
+    l2                = srcSpanEndLine   rsp
+    c2                = srcSpanEndCol    rsp
+
+
+instance FromJSON RealSrcSpan where
+  parseJSON (Object v) = realSrcSpan <$> v .: "filename"
+                                     <*> v .: "startLine"
+                                     <*> v .: "startCol"
+                                     <*> v .: "endLine"
+                                     <*> v .: "endCol"
+  parseJSON _          = mempty
+
+realSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
+realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
+  where
+    loc1                  = mkRealSrcLoc (fsLit f) l1 c1
+    loc2                  = mkRealSrcLoc (fsLit f) l2 c2
+
+instance ToJSON SrcSpan where
+  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
+  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
+
+instance FromJSON SrcSpan where
+  parseJSON (Object v) = do tag <- v .: "realSpan"
+                            case tag of
+                              False -> return noSrcSpan
+                              True  -> RealSrcSpan <$> v .: "spanInfo"
+  parseJSON _          = mempty
+
+instance (PPrint a, Show a) => ToJSON (TError a) where
+  toJSON e = object [ "pos" .= (pos e)
+                    , "msg" .= (render $ ppError' Full empty empty e)
+                    ]
+
+instance FromJSON (TError a) where
+  parseJSON (Object v) = errSaved <$> v .: "pos"
+                                  <*> v .: "msg"
+  parseJSON _          = mempty
+
+errSaved :: SrcSpan -> String -> TError a
+errSaved x = ErrSaved x . text
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc

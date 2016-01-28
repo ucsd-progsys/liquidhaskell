@@ -55,25 +55,17 @@ import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine (withPragmas)
 import Language.Haskell.Liquid.UX.Cabal   (withCabal)
+import Language.Haskell.Liquid.UX.Tidy
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
 import Language.Haskell.Liquid.Types.Errors
 
 
-type GhcResult = Either ErrorResult (GhcInfo, HscEnv)
-
---------------------------------------------------------------------
-getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO GhcResult
---------------------------------------------------------------------
-getGhcInfo hEnv cfg f =
-    (Right <$> getGhcInfo' hEnv cfg f)
-      `Ex.catch` (\(e :: SourceError) -> handle e)
-      `Ex.catch` (\(e :: Error)       -> handle e)
-      `Ex.catch` (\(e :: [Error])     -> handle e)
-  where
-    handle = return . Left . result
-
+--------------------------------------------------------------------------------
+getGhcInfo :: Maybe HscEnv -> Config -> FilePath -> IO (GhcInfo, HscEnv)
+--------------------------------------------------------------------------------
+getGhcInfo = getGhcInfo'
 
 addRootTarget x = setTargets [x]
 

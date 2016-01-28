@@ -1,4 +1,5 @@
-{-# LANGUAGE TupleSections  #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-@ LIQUID "--diff"     @-}
 
@@ -20,25 +21,27 @@ import           Control.DeepSeq
 import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
 import           Var
+import           HscTypes                         (SourceError)
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Console.CmdArgs.Default
 import           GHC (HscEnv)
 
+import qualified Control.Exception as Ex
 import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
-import           Language.Fixpoint.Types (sinfo, Result (..)) -- , FixResult (..))
+import qualified Language.Fixpoint.Types as F -- (Result (..)) -- , FixResult (..))
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
+import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
-
 
 type MbEnv = Maybe HscEnv
 
@@ -59,11 +62,6 @@ runLiquid mE cfg = do
     ec     = resultExit . o_result
 
 
--- filesTimes3 cfg = case files cfg of
---                    [f] -> [f, f, f]
---                     fs  -> fs
-
-
 ------------------------------------------------------------------------------
 checkMany :: Config -> Output Doc -> MbEnv -> [FilePath] -> IO (Output Doc, MbEnv)
 ------------------------------------------------------------------------------
@@ -78,15 +76,32 @@ checkMany _   d mE [] =
 checkOne :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
 ------------------------------------------------------------------------------
 checkOne mE cfg t = do
-  z <- getGhcInfo mE cfg t
+  z <- actOrDie (checkOne' mE cfg t)
   case z of
     Left e -> do
       d <- exitWithResult cfg t $ mempty { o_result = e }
       return (d, Nothing)
-    Right (gInfo, hEnv) -> do
-      d <- liquidOne t gInfo
-      return (d, Just hEnv)
+    Right r ->
+      return r
 
+
+checkOne' :: MbEnv -> Config -> FilePath -> IO (Output Doc, Maybe HscEnv)
+checkOne' mE cfg t = do
+  (gInfo, hEnv) <- getGhcInfo mE cfg t
+  d <- liquidOne t gInfo
+  return (d, Just hEnv)
+
+
+actOrDie :: IO a -> IO (Either ErrorResult a)
+actOrDie act =
+    (Right <$> act)
+      `Ex.catch` (\(e :: SourceError) -> handle e)
+      `Ex.catch` (\(e :: Error)       -> handle e)
+      `Ex.catch` (\(e :: UserError)   -> handle e)
+      `Ex.catch` (\(e :: [Error])     -> handle e)
+
+handle :: (Result a) => a -> IO (Either ErrorResult b)
+handle = return . Left . result
 
 ------------------------------------------------------------------------------
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
@@ -131,16 +146,19 @@ prune cfg cbinds tgt info
     vs            = tgtVars sp
     sp            = spec info
 
+
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
   = do finfo        <- cgInfoFInfo info cgi tgt
-       Result r sol <- solve fx finfo
+       F.Result r sol <- solve fx finfo
        let names = checkedNames dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res   = ferr sol r
        let out0  = mkOutput cfg res sol annm
-       return    $ out0 { o_vars = names } { o_errors  = warns} { o_result = res }
+       return    $ out0 { o_vars    = names             }
+                        { o_errors  = e2u sol <$> warns }
+                        { o_result  = res               }
     where
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.real        = real        cfg
@@ -154,8 +172,13 @@ solveCs cfg tgt cgi info dc
                        , FC.maxPartSize = maxPartSize cfg
                        -- , FC.stats   = True
                        }
-       ferr s r  = tidyError s <$> result r
+       ferr s  = fmap (cinfoUserError s)
 
+cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
+cinfoUserError s =  e2u s . cinfoError
+
+e2u :: F.FixSolution -> Error -> UserError
+e2u s = fmap pprint . tidyError s
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where
