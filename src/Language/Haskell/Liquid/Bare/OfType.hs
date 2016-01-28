@@ -31,7 +31,7 @@ import Text.Printf
 import qualified Control.Exception as Ex
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol)
+import Language.Fixpoint.Types (Expr(..), Reftable, Symbol, meet, mkSubst, subst, symbol, mkEApp)
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc (secondM)
@@ -209,9 +209,9 @@ exprArg _   (RVar x _)
 exprArg _   (RApp x [] [] _)
   = EVar (symbol x)
 exprArg msg (RApp f ts [] _)
-  = EApp (symbol <$> f) (exprArg msg <$> ts)
+  = mkEApp (symbol <$> f) (exprArg msg <$> ts)
 exprArg msg (RAppTy (RVar f _) t _)
-  = EApp (dummyLoc $ symbol f) [exprArg msg t]
+  = mkEApp (dummyLoc $ symbol f) [exprArg msg t]
 exprArg msg z
   = panic Nothing $ printf "Unexpected expression parameter: %s in %s" (show z) msg
 

@@ -423,8 +423,8 @@ predVarUseP
 funArgsP  = try realP <|> empP
   where
     empP  = (,[]) <$> predVarIdP
-    realP = do EApp lp xs <- funAppP
-               return (val lp, xs)
+    realP = do (EVar lp, xs) <- splitEApp <$> funAppP
+               return (lp, xs)
 
 
 
@@ -877,7 +877,7 @@ dataSizeP
   = (brackets $ (Just . mkFun) <$> locLowerIdP)
   <|> return Nothing
   where
-    mkFun s x = EApp (symbol <$> s) [EVar x]
+    mkFun s x = mkEApp (symbol <$> s) [EVar x]
 
 dataDeclP :: Parser DataDecl
 dataDeclP = try dataDeclFullP <|> dataDeclSizeP

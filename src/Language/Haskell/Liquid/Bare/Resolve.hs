@@ -62,14 +62,10 @@ instance Resolvable Expr where
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
   resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 
-  resolve _ PTrue           = return PTrue
-  resolve _ PFalse          = return PFalse
   resolve _ (PKVar k s)     = return $ PKVar k s 
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
-  resolve _ PTop            = return PTop
   resolve _ (ESym s)        = return $ ESym s 
   resolve _ (ECon c)        = return $ ECon c 
-  resolve _ EBot            = return EBot
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)
@@ -94,16 +90,17 @@ instance Resolvable Symbol where
   resolve l x = fmap val $ resolve l $ Loc l l x
 
 instance Resolvable Sort where
-  resolve _ FInt         = return FInt
-  resolve _ FReal        = return FReal
-  resolve _ FNum         = return FNum
-  resolve _ FFrac        = return FFrac
-  resolve _ s@(FObj _)   = return s --FObj . S <$> lookupName env m s
-  resolve _ s@(FVar _)   = return s
-  resolve l (FFunc i ss) = FFunc i <$> resolve l ss
+  resolve _ FInt          = return FInt
+  resolve _ FReal         = return FReal
+  resolve _ FNum          = return FNum
+  resolve _ FFrac         = return FFrac
+  resolve _ s@(FObj _)    = return s --FObj . S <$> lookupName env m s
+  resolve _ s@(FVar _)    = return s
+  resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
+  resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
-    | tcs' `elem` prims  = FTC <$> return c
-    | otherwise          = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
+    | tcs' `elem` prims   = FTC <$> return c
+    | otherwise           = FTC <$> (symbolFTycon . Loc l l' . symbol <$> lookupGhcTyCon tcs)
     where
       tcs@(Loc l l' tcs') = fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2

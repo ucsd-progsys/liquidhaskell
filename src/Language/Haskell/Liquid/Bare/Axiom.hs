@@ -60,8 +60,6 @@ import Language.Haskell.Liquid.Bare.RefToLogic
 
 import Language.Haskell.Liquid.UX.Errors
 
-import Prover.Defunctionalize
-
 import Debug.Trace (trace)
 
 makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
@@ -108,7 +106,7 @@ updateLMap _ _ _ v | not (isFun $ varType v)
     isFun  _             = False
 
 updateLMap _ x y vv -- v axm@(Axiom (vv, _) xs _ lhs rhs)
-  = insertLogicEnv (val x) ys (applyArrow (F.EVar $ val y) (F.EVar <$> ys))
+  = insertLogicEnv (val x) ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
   where
     nargs = dropWhile isClassType $ ty_args $ toRTypeRep $ ((ofType $ varType vv) :: RRType ())
 
@@ -222,7 +220,7 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
     ref = F.Reft (x, F.PAtom F.Eq (F.EVar x) (mkApp xs))
 
-    mkApp = F.EApp s . map F.EVar
+    mkApp = F.mkEApp s . map F.EVar
 
 
 -- | Type for uninterpreted function that approximated Haskell function into logic

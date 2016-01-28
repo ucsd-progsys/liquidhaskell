@@ -77,7 +77,7 @@ instance Transformable Expr where
   tx s m (EVar s')
     | cmpSymbol s s'    = mexpr s' m
     | otherwise         = EVar s'
-  tx s m (EApp f es)    = txEApp (s, m) f (tx s m <$> es)
+  tx s m e@(EApp _ _)   = txEApp (s, m) e -- f (tx s m es)
   tx _ _ (ESym c)       = ESym c
   tx _ _ (ECon c)       = ECon c
   --tx _ _ (ELit l s')    = ELit l s'
@@ -118,25 +118,24 @@ mexpr s (Left  (LMap _ _  _)) = EVar s
 mexpr _ (Right (TI _ e)) = e
 -- mexpr s s' = panic Nothing ("mexpr on " ++ show s ++ "\t" ++ show s')
 
+txEApp (s,m) e = go f
+  where
+    (f, es) = splitEApp e 
+    go (EVar x) = txEApp' (s,m) x  (tx s m <$> es) 
+    go f        = eApps (tx s m f) (tx s m <$> es)
 
-txEApp (s, (Left (LMap _ xs e))) f es
-  | cmpSymbol s (val f)
-  = {- traceShow ("\ntxEapp\n" ++ show (f, es)) $ -} subst (mkSubst $ zip xs es) $ dropArgs (length xs - length es) e
-  | otherwise
-  = EApp f es
-
-txEApp (s, (Right (TI xs e))) f es
-  | cmpSymbol s (val f)
+txEApp' (s, (Left (LMap _ xs e))) f es
+  | cmpSymbol s f
   = subst (mkSubst $ zip xs es) e
   | otherwise
-  = EApp f es
+  = mkEApp (dummyLoc f) es
 
+txEApp' (s, (Right (TI xs e))) f es
+  | cmpSymbol s f
+  = subst (mkSubst $ zip xs es) e
+  | otherwise
+  = mkEApp (dummyLoc f) es
 
--- HACK for currying, but it only works on runFun things
--- TODO: make it work for any curried function
-dropArgs 0 e = e
-dropArgs n (EApp _ [e,_]) = dropArgs (n-1) e
-dropArgs n e = panic Nothing $ "dropArgs on " ++ show (n, e)
 
 {-
 txPApp (s, (Right (TI xs e))) f es

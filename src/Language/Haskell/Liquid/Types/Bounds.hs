@@ -119,27 +119,29 @@ partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
-isPApp penv (EApp p _)  = isJust $ lookup (val p) penv
-isPApp _    _           = False
+isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
+isPApp penv (EApp e _)         = isPApp penv e 
+isPApp _    _                  = False
 
-toUsedPVars penv q@(EApp _ es) = (x, [toUsedPVar penv q])
+toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
   where
     -- NV : TODO make this a better error
-    x = (\y -> case unProp y of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }) $ last es
+    x = case unProp e of {EVar x -> x; e -> todo Nothing ("Bound fails in " ++ show e) }
 toUsedPVars _ _ = impossible Nothing "This cannot happen"
 
-unProp (EApp f [e])
-  | val f == propConName
+unProp (EApp (EVar f) e)
+  | f == propConName
   = e
 unProp e
   = e
 
-toUsedPVar penv (EApp p es)
+toUsedPVar penv ee@(EApp _ _)
   = PV q (PVProp ()) e (((), dummySymbol,) <$> es')
    where
      EVar e = unProp $ last es
      es'    = init es
-     Just q = lookup (val p) penv
+     Just q = lookup p penv
+     (EVar p, es) = splitEApp ee 
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 

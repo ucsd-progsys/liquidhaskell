@@ -44,7 +44,7 @@ mkReft e = case e of
               -- FIXME: unsorted equality is shady, better to not embed Add# as int..
               F.meet (F.uexprReft e)
                      (F.reft "v" (F.PAtom F.Eq
-                                  (F.EApp (name strLen) [F.EVar "v"])
+                                  (F.mkEApp (name strLen) [F.EVar "v"])
                                   (F.ECon (F.I (fromIntegral (T.length str))))))
             _ -> F.exprReft e
 

@@ -80,8 +80,8 @@ strengthenResult v
   where rep = toRTypeRep t
         res = ty_res rep
         xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-        r'  = MkUReft (exprReft (EApp f (mkA <$> vxs)))         mempty mempty
-        r   = MkUReft (propReft (EApp f (mkA <$> vxs))) mempty mempty
+        r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs)))         mempty mempty
+        r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
         vxs = dropWhile (isClassType.snd) $ zip xs (ty_args rep)
         f   = dummyLoc $ dropModuleNames $ simplesymbol v
         t   = (ofType $ varType v) :: SpecType
@@ -182,7 +182,7 @@ coreToPd (C.Var x)
   | x == trueDataConId
   = return PTrue
   | eqType boolTy (varType x)
-  = return $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
+  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToPd p@(C.App _ _) = toPredApp p
 coreToPd e
   = coreToLg e
@@ -211,7 +211,7 @@ coreToLg (C.Var x)
   | x == trueDataConId
   = return PTrue
   | eqType boolTy (varType x)
-  = return $ EApp (dummyLoc propConName) [(EVar $ symbol x)]
+  = return $ mkEApp (dummyLoc propConName) [(EVar $ symbol x)]
 coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
@@ -267,7 +267,7 @@ toLogicApp e
   =  do let (f, es) = splitArgs e
         args       <- mapM coreToLg es
         lmap       <- symbolMap <$> getState
-        def         <- (`EApp` args) <$> tosymbol f
+        def         <- (`mkEApp` args) <$> tosymbol f
         (\x -> makeApp def lmap x args) <$> tosymbol' f
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
@@ -285,7 +285,7 @@ eVarWithMap x lmap
   = do f' <- tosymbol' (C.Var x :: C.CoreExpr)
        return $ eAppWithMap lmap f' [] (eVar x )
   where
-    eVar x | isPolyCst $ varType x  = EApp (dummyLoc $ symbol x) []
+    eVar x | isPolyCst $ varType x  = mkEApp (dummyLoc $ symbol x) []
            | otherwise              = EVar $ symbol x
 
     isPolyCst (ForAllTy _ t) = isCst t

@@ -346,7 +346,7 @@ pappArity :: Int
 pappArity  = 7
 
 pappSort :: Int -> Sort
-pappSort n = FFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
+pappSort n = mkFFunc (2 * n) $ [ptycon] ++ args ++ [boolSort]
   where
     ptycon = fAppTC predFTyCon $ FVar <$> [0..n-1]
     args   = FVar <$> [n..(2*n-1)]

@@ -11,7 +11,7 @@ import Control.Monad.State hiding (forM)
 
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst)
+import Language.Fixpoint.Types (Expr(..), Reft(..), mkSubst, subst, mkEApp, eApps, splitEApp)
 
 import Language.Haskell.Liquid.Misc (safeZipWithError)
 import Language.Haskell.Liquid.Types
@@ -35,15 +35,12 @@ txPredReft f u = (\r -> u {ur_reft = r}) <$> txPredReft' (ur_reft u)
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+
+
 expandExpr :: Expr -> BareM Expr
 
-expandExpr (EApp f@(Loc l _ f') es)
-  = do env <- gets (exprAliases.rtEnv)
-       case M.lookup f' env of
-         Just re ->
-           expandApp l re <$> mapM expandExpr es 
-         Nothing ->
-           EApp f <$> mapM expandExpr es 
+expandExpr e@(EApp _ _)
+  = expandEApp $ splitEApp e 
 
 expandExpr (ENeg e)
   = ENeg <$> expandExpr e
@@ -54,15 +51,12 @@ expandExpr (EIte p e1 e2)
 expandExpr (ECst e s)
   = (`ECst` s) <$> expandExpr e
 
+expandExpr e@(EVar _)
+  = return e
 expandExpr e@(ESym _)
   = return e
 expandExpr e@(ECon _)
   = return e
-expandExpr e@(EVar _)
-  = return e
-
-expandExpr EBot
-  = return EBot
 
 expandExpr (PAnd ps)
   = PAnd <$> mapM expandExpr ps
@@ -82,13 +76,6 @@ expandExpr (ETApp e s)
 expandExpr (ETAbs e s)
   = (`ETAbs` s) <$> expandExpr e 
 
-expandExpr PTrue 
-  = return PTrue
-expandExpr PFalse
-  = return PFalse
-expandExpr PTop
-  = return PTop
-
 expandExpr (PAtom b e1 e2)
   = PAtom b <$> expandExpr e1 <*> expandExpr e2 
 
@@ -98,14 +85,25 @@ expandExpr (PKVar k s)
 expandExpr (PExist s e)
   = PExist s <$> expandExpr e 
 
+
+expandEApp (EVar f, es)
+  = do env <- gets (exprAliases.rtEnv)
+       case M.lookup f env of
+         Just re ->
+           expandApp re <$> mapM expandExpr es 
+         Nothing ->
+           eApps (EVar f) <$> mapM expandExpr es 
+expandEApp (f, es)
+  = return $ eApps f es 
+
 --------------------------------------------------------------------------------
 -- Expand Alias Application ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-expandApp l re es
+expandApp re es
   = subst su $ rtBody re
   where su  = mkSubst $ safeZipWithError msg (rtVArgs re) es
-        msg = "Malformed alias application at " ++ show l ++ "\n\t"
+        msg = "Malformed alias application" ++ "\n\t"
                ++ show (rtName re)
                ++ " defined at " ++ show (rtPos re)
                ++ "\n\texpects " ++ show (length $ rtVArgs re)
