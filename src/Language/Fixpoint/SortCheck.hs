@@ -40,6 +40,7 @@ module Language.Fixpoint.SortCheck  (
 import           Control.Monad
 import           Control.Monad.Except      (MonadError(..)) 
 import qualified Data.HashMap.Strict       as M
+import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe)
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -234,10 +235,14 @@ checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
 
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
-checkExpr _ (PExist _ _)   = error "SortCheck.checkExpr: TODO: implement PExist"
-
+checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e 
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
+
+addEnv f bs x
+  = case L.lookup x bs of 
+      Just s  -> Found s 
+      Nothing -> f x 
 
 -- | Helper for checking symbol occurrences
 

@@ -60,7 +60,13 @@ instance SMTLIB2 Symbol where
   smt2 _ s                         = symbolSafeText  s
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 env (sym, t) = format "({} {})"  (smt2 env sym, smt2 env t)
+  smt2 env (sym, t) = format "({} {})"  (smt2 env sym, smt2 env $ defunc t)
+
+
+defunc (FAbs _ t) = defunc t 
+defunc (FFunc _ _) = intSort
+defunc t | isSMTSort t = t 
+defunc _               = intSort
 
 instance SMTLIB2 SymConst where
   smt2 env = smt2 env . symbol
@@ -108,7 +114,9 @@ instance SMTLIB2 Expr where
   smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
   smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
   smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env p)
+  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env' p)
+    where
+      env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
   smt2 _   _                = errorstar "smtlib2 Pred"
 
