@@ -103,7 +103,7 @@ plugHoles tce tyi x f t (Loc l l' st)
     go t                (REx b x t')       = REx b x <$> go t t'
     go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy <$> go t1 t1' <*> go t2 t2' <*> return r
-    -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different
+    -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
     go (RApp _ ts _ _)  (RApp c ts' p r)   = RApp c <$> (zipWithDefM go ts ts') <*> return p <*> return r
     -- If we reach the default case, there's probably an error, but we defer

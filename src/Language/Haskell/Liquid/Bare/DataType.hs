@@ -76,7 +76,11 @@ meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                              where
                                tx' = maybe t (meetX x t) (M.lookup x dcm)
 
-ofBDataDecl :: Maybe DataDecl  -> (Maybe (LocSymbol, [Variance])) -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
+
+-- FIXME: ES: why the maybes?
+ofBDataDecl :: Maybe DataDecl
+            -> (Maybe (LocSymbol, [Variance]))
+            -> BareM ((TyCon, TyConP), [(DataCon, Located DataConP)])
 ofBDataDecl (Just (D tc as ps ls cts _ sfun)) maybe_invariance_info
   = do πs         <- mapM ofBPVar ps
        tc'        <- lookupGhcTyCon tc

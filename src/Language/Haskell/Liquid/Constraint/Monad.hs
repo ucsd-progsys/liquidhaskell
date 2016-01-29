@@ -4,6 +4,7 @@
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE FlexibleContexts          #-}
 
 module Language.Haskell.Liquid.Constraint.Monad  where
@@ -15,7 +16,9 @@ import           Prelude hiding (error)
 import           Var
 import           Name (getSrcSpan)
 import           SrcLoc -- (SrcSpan)
-import           Outputable hiding (showPpr) -- (SrcSpan)
+import           Outputable hiding (showPpr, panic) -- (SrcSpan)
+
+import GHC.Stack
 
 import qualified Data.HashMap.Strict as M
 -- import qualified Data.HashSet        as S
@@ -38,6 +41,10 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
 -- import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
+import           Language.Haskell.Liquid.Types.RefType
+
+
+import Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -56,9 +63,11 @@ pushConsBind act
 --------------------------------------------------------------------------------
 addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
-addC !c@(SubC γ t1 t2) _msg
-  = do -- trace ("addC at " ++ show (loc γ) ++ _msg++ showpp t1 ++ "\n <: \n" ++ showpp t2 ) $
-       modify $ \s -> s { hsCs  = c : (hsCs s) }
+addC c@(SubC γ t1 t2) _msg
+  | toType t1 /= toType t2
+  = panic Nothing $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2
+  | otherwise
+  = do modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
        sflag <- scheck                 <$> get
        if bflag && sflag
@@ -68,7 +77,7 @@ addC !c@(SubC γ t1 t2) _msg
     headDefault a []    = a
     headDefault _ (x:_) = x
 
-addC !c _msg
+addC c _msg
   = modify $ \s -> s { hsCs  = c : hsCs s }
 
 
