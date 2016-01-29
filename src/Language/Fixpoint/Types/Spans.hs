@@ -19,8 +19,7 @@ module Language.Fixpoint.Types.Spans (
   , locAt
   , dummyLoc
   , dummyPos
-  -- , dummyName
-  -- , isDummy
+  , atLoc 
 
   -- * Destructing spans
   , sourcePosElts
@@ -49,9 +48,6 @@ import           Text.Printf
 
 class Loc a where
   srcSpan :: a -> SrcSpan
-
-instance Loc (Located a) where
-  srcSpan v = SS (loc v) (locE v)
 
 -----------------------------------------------------------------------
 -- | Retrofitting instances to SourcePos ------------------------------
@@ -98,6 +94,10 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , locE :: !SourcePos -- ^ End Position
                      , val  :: a
                      } deriving (Data, Typeable, Generic)
+
+instance Loc (Located a) where 
+  srcSpan (Loc l l' _) = SS l l'
+
 
 instance (NFData a) => NFData (Located a)
 
@@ -167,6 +167,9 @@ instance Hashable SrcSpan where
 
 dummySpan = SS l l
   where l = initialPos ""
+
+atLoc :: Located a -> b -> Located b
+atLoc (Loc l l' _) x = Loc l l' x
 
 locAt :: String -> a -> Located a
 locAt s  = Loc l l

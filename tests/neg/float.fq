@@ -6,6 +6,6 @@ bind 56 y : {v2 : real | [(v2 = 0.9 + x)]}
 constraint:
   env [50;
        56]
-  lhs {VV#F3 : int | []}
-  rhs {VV#F3 : int | [(y = 1.0)]}
+  lhs {VV#F3 : real | []}
+  rhs {VV#F3 : real | [(y = 1.0)]}
   id 3 tag [1]
