@@ -20,7 +20,7 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-import Prelude hiding (error)
+import Prelude hiding (error, undefined)
 import GHC.Err.Located hiding (error)
 import GHC.Stack
 import CoreUtils     (exprType)
@@ -41,6 +41,8 @@ import Id
 import IdInfo
 import Name
 import NameSet
+import Unify
+import VarSet
 -- import Unique
 
 
@@ -97,7 +99,7 @@ import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
--- import Debug.Trace (trace)
+import Debug.Trace
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -698,17 +700,17 @@ consCB _ _ γ (NonRec x _) | isDictionary x
     isDictionary = isJust . dlookup (denv γ)
 
 
-consCB _ _ γ (NonRec x (App (Var w) (Type τ))) | isDictionary w
+consCB _ _ γ (NonRec x (App (Var w) (Type τ)))
+  | Just d <- dlookup (denv γ) w
   = do t      <- trueTy τ
        addW    $ WfC γ t
-       let xts = dmap (f t) $ safeFromJust (show w ++ "Not a dictionary"  ) $ dlookup (denv γ) w
+       let xts = dmap (f t) d
        let  γ' = γ{denv = dinsert (denv γ) x xts }
        t      <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
        f t' (RAllT α te) = subsTyVar_meet' (α, t') te
        f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
-       isDictionary = isJust . dlookup (denv γ)
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
@@ -806,7 +808,13 @@ varTemplate γ (x, eo)
 --------------------------------------------------------------------------------
 cconsE :: CGEnv -> Expr Var -> SpecType -> CG ()
 --------------------------------------------------------------------------------
-cconsE γ e@(Let b@(NonRec x _) ee) t
+cconsE g e t = do
+  -- Note: tracing goes here
+  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
+  cconsE' g e t
+
+cconsE' :: CGEnv -> Expr Var -> SpecType -> CG ()
+cconsE' γ e@(Let b@(NonRec x _) ee) t
   = do sp <- specLVars <$> get
        if (x `S.member` sp) || isDefLazyVar x
         then cconsLazyLet γ e t
@@ -815,7 +823,7 @@ cconsE γ e@(Let b@(NonRec x _) ee) t
   where
        isDefLazyVar = L.isPrefixOf "fail" . showPpr
 
-cconsE γ e (RAllP p t)
+cconsE' γ e (RAllP p t)
   = cconsE γ' e t''
   where
     t'         = replacePredsWithRefs su <$> t
@@ -823,50 +831,44 @@ cconsE γ e (RAllP p t)
     (css, t'') = splitConstraints t'
     γ'         = L.foldl' addConstraints γ css
 
-cconsE γ (Let b e) t
+cconsE' γ (Let b e) t
   = do γ'  <- consCBLet γ b
        cconsE γ' e t
 
-cconsE γ (Case e x _ cases) t
+cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
        forM_ cases $ cconsCase γ' x t nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
 
-cconsE γ (Lam α e) (RAllT _ t) | isKindVar α
+cconsE' γ (Lam α e) (RAllT _ t) | isKindVar α
   = cconsE γ e t
 
-cconsE γ (Lam α e) (RAllT α' t) | isTyVar α
+cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
   = cconsE γ e $ subsTyVar_meet' (α', rVar α) t
 
-cconsE γ (Lam x e) (RFun y ty t _)
+cconsE' γ (Lam x e) (RFun y ty t _)
   | not (isTyVar x)
   = do γ' <- (γ, "cconsE") += (F.symbol x, ty)
        cconsE γ' e (t `F.subst1` (y, F.EVar $ F.symbol x))
        addIdA x (AnnDef ty)
 
-cconsE γ (Tick tt e) t
+cconsE' γ (Tick tt e) t
   = cconsE (γ `setLocation` (Sp.Tick tt)) e t
 
--- GHC 7.10 encodes type classes with a single method as newtypes and
--- `cast`s between the method and class type instead of applying the
--- class constructor. Just rewrite the core to what we're used to
--- seeing..
-cconsE γ (Cast e co) t
-  | Pair _t1 t2 <- coercionKind co
-  , isClassPred t2
-  , (tc,ts) <- splitTyConApp t2
-  , [dc]   <- tyConDataCons tc
-  = cconsE γ (mkCoreConApps dc $ map Type ts ++ [e]) t
+cconsE' γ (Cast e co) t
+  -- See Note [Type classes with a single method]
+  | Just f <- isClassConCo co
+  = cconsE γ (f e) t
 
-cconsE γ e@(Cast e' _) t
+cconsE' γ e@(Cast e' _) t
   = do t' <- castTy γ (exprType e) e'
-       addC (SubC γ t' t) ("cconsE Cast" ++ showPpr e)
+       addC (SubC γ t' t) ("cconsE Cast: " ++ showPpr e)
 
-cconsE γ e t
+cconsE' γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE" ++ showPpr e)
+       addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
 
 
 splitConstraints (RRTy cs _ OCons t)
@@ -998,16 +1000,10 @@ consE γ (Tick tt e)
        addLocA Nothing (tickSrcSpan tt) (AnnUse t)
        return t
 
--- GHC 7.10 encodes type classes with a single method as newtypes and
--- `cast`s between the method and class type instead of applying the
--- class constructor. Just rewrite the core to what we're used to
--- seeing..
 consE γ (Cast e co)
-  | Pair _t1 t2 <- coercionKind co
-  , isClassPred t2
-  , (tc,ts) <- splitTyConApp t2
-  , [dc]   <- tyConDataCons tc
-  = consE γ (mkCoreConApps dc $ map Type ts ++ [e])
+  -- See Note [Type classes with a single method]
+  | Just f <- isClassConCo co
+  = consE γ (f e)
 
 consE γ e@(Cast e' _)
   = castTy γ (exprType e) e'
@@ -1028,6 +1024,43 @@ castTy g t (Tick _ e)
 castTy _ _ e
   = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
 
+isClassConCo :: Coercion -> Maybe (Expr Var -> Expr Var)
+-- See Note [Type classes with a single method]
+isClassConCo co
+  --- | trace ("isClassConCo: " ++ showPpr (coercionKind co)) False
+  --- = undefined
+
+  | Pair t1 t2 <- coercionKind co
+  , isClassPred t2
+  , (tc,ts) <- splitTyConApp t2
+  , [dc]    <- tyConDataCons tc
+  , [tm]    <- dataConOrigArgTys dc
+               -- tcMatchTy because we have to instantiate the class tyvars
+  , Just _  <- tcMatchTy (mkVarSet $ tyConTyVars tc) tm t1
+  = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])
+
+  | otherwise
+  = Nothing
+
+----------------------------------------------------------------------
+-- Note [Type classes with a single method]
+----------------------------------------------------------------------
+-- GHC 7.10 encodes type classes with a single method as newtypes and
+-- `cast`s between the method and class type instead of applying the
+-- class constructor. Just rewrite the core to what we're used to
+-- seeing..
+--
+-- specifically, we want to rewrite
+--
+--   e `cast` ((a -> b) ~ C)
+--
+-- to
+--
+--   D:C e
+--
+-- but only when
+--
+--   D:C :: (a -> b) -> C
 
 singletonReft (Just x) _ = uTop $ F.symbolReft x
 singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v

@@ -1,4 +1,4 @@
-
+{-# LANGUAGE ImplicitParams        #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
@@ -25,6 +25,8 @@ module Language.Haskell.Liquid.Constraint.Split (
   ) where
 
 import           Prelude hiding (error)
+
+import           GHC.Stack
 
 import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified TyCon  as TC
@@ -331,7 +333,7 @@ splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   = bsplitC γ t1 t2
 
 splitC (SubC _ t1 t2)
-  = panic Nothing $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n\n" ++ showpp t2
+  = panic Nothing $ "(Another Broken Test!!!) splitc unexpected:\n" ++ showpp t1 ++ "\n  <:\n" ++ showpp t2
 
 splitC (SubR γ o r)
   = do fg     <- pruneRefs <$> get
@@ -424,9 +426,9 @@ forallExprRefType γ t = t `strengthen` (uTop r')
     r                 = F.sr_reft $ rTypeSortedReft (emb γ) t
 
 forallExprReft :: CGEnv -> F.Reft -> Maybe F.Reft
-forallExprReft γ r = 
+forallExprReft γ r =
   do e <- F.isSingletonReft r
-     forallExprReft_ γ $ F.splitEApp e 
+     forallExprReft_ γ $ F.splitEApp e
 
 forallExprReft_ :: CGEnv -> (F.Expr, [F.Expr]) -> Maybe F.Reft
 forallExprReft_ γ (F.EVar x, [])

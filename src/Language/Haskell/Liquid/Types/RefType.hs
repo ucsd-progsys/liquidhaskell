@@ -941,10 +941,11 @@ typeSortFun tce t -- τ1 τ2
   = mkFFunc 0  sos
   where sos  = typeSort tce <$> τs
         τs   = grabArgs [] t
-grabArgs τs (FunTy τ1 τ2 )
+
+grabArgs τs (FunTy τ1 τ2)
   | not $ isClassPred τ1 = grabArgs (τ1:τs) τ2
   | otherwise            = grabArgs τs τ2
-grabArgs τs τ              = reverse (τ:τs)
+grabArgs τs τ            = reverse (τ:τs)
 
 
 mkDataConIdsTy (dc, t) = [ expandProductType x t | x <- dataConImplicitIds dc]
