@@ -255,7 +255,7 @@ isSMTSort s
   = True
   | FTC c                     <- s, c == boolFTyCon 
   = True
-  | FTC c                     <- s, c == realFTyCon 
+  | s == FReal
   = True
   | otherwise
   = False      
