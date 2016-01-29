@@ -18,14 +18,14 @@ dependencies:
     - cabal sandbox add-source ./liquid-fixpoint
     - cabal sandbox add-source ./prover
     - cabal install --upgrade-dependencies --constraint="template-haskell installed" --dependencies-only --enable-tests
-    - cabal configure --enable-tests
+    - cabal configure --enable-tests -finclude
 
 test:
   pre:
     - mkdir -p $CIRCLE_TEST_REPORTS/tasty
   override:
     - cabal build
-    - cabal exec -- sh -c "./dist/build/test/test --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml"
+    - cabal exec -- sh -c "./dist/build/test/test -j2 --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml"
   post:
     - cabal haddock
     - cp -r dist/doc $CIRCLE_ARTIFACTS
