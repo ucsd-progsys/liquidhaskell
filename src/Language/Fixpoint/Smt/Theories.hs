@@ -157,6 +157,8 @@ theorySymbols = M.fromList
   , tSym setCom com undefined
   , tSym mapSel sel undefined
   , tSym mapSto sto undefined
+  , tSym bvOrName "bvor" undefined 
+  , tSym bvAndName "bvand" undefined 
   ]
 
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
