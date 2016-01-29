@@ -255,7 +255,8 @@ makeProcess s
 cleanupContext :: Context -> IO ExitCode
 --------------------------------------------------------------------------
 cleanupContext (Ctx {..})
-  = do code <- waitForProcess pId
+  = do terminateProcess pId
+       code <- waitForProcess pId
        hClose cIn
        hClose cOut
        maybe (return ()) hClose cLog
