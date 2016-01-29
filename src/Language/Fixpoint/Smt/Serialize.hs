@@ -113,12 +113,9 @@ instance SMTLIB2 Expr where
   smt2 _   _                = errorstar "smtlib2 Pred"
 
 smt2Bop env o e1 e2
-  | o == Times || o == Div = smt2App env (mkEApp (uOp o) [e1, e2])
+  | o == Times = format "({} {} {})" (symbolSafeText mulFuncName , smt2 env e1, smt2 env e2)
+  | o == Div   = format "({} {} {})" (symbolSafeText divFuncName , smt2 env e1, smt2 env e2)
   | otherwise  = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
-
-uOp o | o == Times = dummyLoc mulFuncName
-      | o == Div   = dummyLoc divFuncName
-      | otherwise  = errorstar "Serialize.uOp called with bad arguments"
 
 smt2App :: SMTEnv -> Expr  -> T.Text
 smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
