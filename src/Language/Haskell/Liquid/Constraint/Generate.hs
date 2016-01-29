@@ -20,7 +20,7 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
 
-import Prelude hiding (error)
+import Prelude hiding (error, undefined)
 import GHC.Err.Located hiding (error)
 import GHC.Stack
 import CoreUtils     (exprType)
@@ -41,6 +41,8 @@ import Id
 import IdInfo
 import Name
 import NameSet
+import Unify
+import VarSet
 -- import Unique
 
 
@@ -97,7 +99,7 @@ import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
--- import Debug.Trace
+import Debug.Trace
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -1025,12 +1027,16 @@ castTy _ _ e
 isClassConCo :: Coercion -> Maybe (Expr Var -> Expr Var)
 -- See Note [Type classes with a single method]
 isClassConCo co
+  --- | trace ("isClassConCo: " ++ showPpr (coercionKind co)) False
+  --- = undefined
+
   | Pair t1 t2 <- coercionKind co
   , isClassPred t2
   , (tc,ts) <- splitTyConApp t2
   , [dc]    <- tyConDataCons tc
   , [tm]    <- dataConOrigArgTys dc
-  , t1 == tm
+               -- tcMatchTy because we have to instantiate the class tyvars
+  , Just _  <- tcMatchTy (mkVarSet $ tyConTyVars tc) tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])
 
   | otherwise
