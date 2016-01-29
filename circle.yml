@@ -1,0 +1,27 @@
+machine:
+  ghc:
+    version: 7.10.2
+  pre:
+    - sudo add-apt-repository -y ppa:hvr/z3
+    - sudo apt-get -y update
+    - sudo apt-get -y install z3
+
+checkout:
+  post:
+    - git submodule sync
+    - git submodule update --init
+
+dependencies:
+  pre:
+    - cabal sandbox add-source ./liquid-fixpoint
+    - cabal sandbox add-source ./prover
+
+test:
+  pre:
+    - mkdir -p $CIRCLE_TEST_REPORTS/tasty
+  override:
+    - cabal build
+    - cabal exec -- sh -c "./dist/build/test/test --xml=$CIRCLE_TEST_REPORTS/tasty/junit.xml"
+  post:
+    - cabal haddock
+    - cp -r dist/doc $CIRCLE_ARTIFACTS

@@ -256,6 +256,7 @@ test-suite test
                      stm >= 2.4 && < 2.5,
                      tagged >= 0.7.3 && < 0.9,
                      tasty >= 0.10 && < 0.12,
+                     tasty-ant-xml,
                      tasty-hunit >= 0.9 && < 0.10,
                      tasty-rerun >= 1.1 && < 1.2,
                      transformers >= 0.3 && < 0.5
