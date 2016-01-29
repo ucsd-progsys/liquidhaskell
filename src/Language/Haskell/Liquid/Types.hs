@@ -144,9 +144,6 @@ module Language.Haskell.Liquid.Types (
   , RTEnv (..)
   , mapRT, mapRE
 
-  -- * Final Result
-  , Result (..)
-
   -- * Errors and Error Messages
   , module Language.Haskell.Liquid.Types.Errors
   , Error
@@ -375,8 +372,8 @@ data DataConP = DataConP { dc_loc     :: !SourcePos
                          , freeTyVars :: ![RTyVar]
                          , freePred   :: ![PVar RSort]
                          , freeLabels :: ![Symbol]
-                         , tyConsts   :: ![SpecType] -- ^ FIXME: WHAT IS THIS??
-                         , tyArgs     :: ![(Symbol, SpecType)] -- ^ These are backwards, why??
+                         , tyConsts   :: ![SpecType] -- FIXME: WHAT IS THIS??
+                         , tyArgs     :: ![(Symbol, SpecType)] -- FIXME: These are backwards, why??
                          , tyRes      :: !SpecType
                          , dc_locE    :: !SourcePos
                          } deriving (Generic, Data, Typeable)
@@ -621,13 +618,6 @@ instance (NFData c, NFData tv, NFData r) => NFData (RType c tv r)
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
-instance PPrint Oblig where
-  pprint = ppOblig
-
-ppOblig :: Oblig -> Doc
-ppOblig OCons = text "Constraint Check"
-ppOblig OTerm = text "Termination Check"
-ppOblig OInv  = text "Invariant Check"
 
 -- | @Ref@ describes `Prop τ` and `HProp` arguments applied to type constructors.
 --   For example, in [a]<{\h -> v > h}>, we apply (via `RApp`)
@@ -1317,7 +1307,7 @@ newtype REnv = REnv  (M.HashMap Symbol SpecType)
 -- | Error Data Type ---------------------------------------------------
 ------------------------------------------------------------------------
 
-type ErrorResult = FixResult Error
+type ErrorResult = FixResult UserError
 type Error       = TError SpecType
 
 instance NFData a => NFData (TError a)
@@ -1332,22 +1322,6 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
                 deriving (Eq, Ord, Generic)
 
 instance NFData Cinfo
-
-------------------------------------------------------------------------
--- | Converting Results To Answers -------------------------------------
-------------------------------------------------------------------------
-
-class Result a where
-  result :: a -> FixResult Error
-
-instance Result [Error] where
-  result es = Crash es ""
-
-instance Result Error where
-  result e  = Crash [e] ""
-
-instance Result (FixResult Cinfo) where
-  result = fmap cinfoError
 
 --------------------------------------------------------------------------------
 --- Module Names
@@ -1392,9 +1366,6 @@ instance Monoid RTEnv where
 
 mapRT f e = e { typeAliases = f $ typeAliases e }
 mapRE f e = e { exprAliases = f $ exprAliases e }
-
-cinfoError (Ci _ (Just e)) = e
-cinfoError (Ci l _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
 
 
 --------------------------------------------------------------------------------
@@ -1513,17 +1484,17 @@ instance NFData a => NFData (AnnInfo a)
 
 instance NFData a => NFData (Annot a)
 
-------------------------------------------------------------------------
--- | Output ------------------------------------------------------------
-------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Output --------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data Output a = O
   { o_vars   :: Maybe [String]
-  , o_errors :: ![Error]
+  , o_errors :: ![UserError]
   , o_types  :: !(AnnInfo a)
   , o_templs :: !(AnnInfo a)
   , o_bots   :: ![SrcSpan]
-  , o_result :: FixResult Error
+  , o_result :: ErrorResult
   } deriving (Typeable, Generic, Functor)
 
 emptyOutput = O Nothing [] mempty mempty [] mempty

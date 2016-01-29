@@ -378,7 +378,7 @@ exitWithResult cfg target out
        r         = o_result out `addErrors` o_errors out
 
 
-resultWithContext :: FixResult Error -> IO (FixResult CError)
+resultWithContext :: ErrorResult -> IO (FixResult CError)
 resultWithContext = mapM errorWithContext
 
 
@@ -386,7 +386,7 @@ writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
 writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
-type CError = CtxError SpecType
+type CError = CtxError Doc -- SpecType
 
 writeResult :: Config -> Moods -> FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy

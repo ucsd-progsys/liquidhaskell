@@ -79,7 +79,7 @@ makeGhcSpec cfg name cbs vars defVars exports env lmap specs
 
   = do sp <- throwLeft =<< execBare act initEnv
        let renv = ghcSpecEnv sp
-       throwLeft $ checkGhcSpec specs renv $ postProcess cbs renv sp
+       throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg cbs vars defVars exports specs
     throwLeft = either Ex.throw return
@@ -105,7 +105,7 @@ postProcess cbs specEnv sp@(SP {..})
     asmSigs'    = mapSnd (addTyConInfo tcEmbeds tyconEnv <$>) <$> assms
     dicts'      = dmapty (addTyConInfo tcEmbeds tyconEnv) dicts
     invs'       = (addTyConInfo tcEmbeds tyconEnv <$>) <$> invariants
-    meas'       = mapSnd (addTyConInfo tcEmbeds tyconEnv .  txRefSort tyconEnv tcEmbeds <$>) <$> meas
+    meas'       = mapSnd (fmap (addTyConInfo tcEmbeds tyconEnv) . txRefSort tyconEnv tcEmbeds) <$> meas
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp        = fromListSEnv binds
@@ -138,8 +138,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        (invs, ialias, sigs, asms)              <- makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
-       return (emptySpec cfg)
-         >>= makeGhcSpec0 cfg defVars exports name
+       makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
          >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
          >>= makeGhcSpec3 datacons tycons embs syms
@@ -167,7 +166,7 @@ makeExactDataCons n flag vs spec
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 makeExact :: Var -> (Var, Located SpecType)
-makeExact x = (x, dummyLoc $ fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
+makeExact x = (x, dummyLoc . fromRTypeRep $ trep{ty_res = res, ty_binds = xs})
   where
     t    :: SpecType
     t    = ofType $ varType x
@@ -284,25 +283,29 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs
        ialias  <- mconcat <$> mapM makeIAliases   specs
        let dms  = makeDefaultMethods vars mts
        tyi     <- gets tcEnv
-       let sigs = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-       let asms = [ (x, txRefSort tyi embs . txExpToBind <$> t) | (_, x, t) <- asms' ]
+       let sigs = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
+       let asms = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
        return     (invs, ialias, sigs, asms)
 
+
 makeGhcSpecCHOP2 cbs specs dcSelectors datacons cls embs
-  = do measures'       <- mconcat <$> mapM makeMeasureSpec specs
-       tyi             <- gets tcEnv
-       name            <- gets modName
+  = do measures'   <- mconcat <$> mapM makeMeasureSpec specs
+       tyi         <- gets tcEnv
+       name        <- gets modName
        mapM_ (makeHaskellInlines  cbs name) specs
-       hmeans          <- mapM (makeHaskellMeasures cbs name) specs
-       let measures     = mconcat (Ms.wiredInMeasures:measures':Ms.mkMSpec' dcSelectors:hmeans)
-       let (cs, ms)     = makeMeasureSpec' measures
-       let cms          = makeClassMeasureSpec measures
-       let cms'         = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
-       let ms'          = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-       let cs'          = [ (v, Loc (getSourcePos v) (getSourcePosE v) (txRefSort tyi embs t)) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
-       let xs'          = val . fst <$> ms
+       hmeans      <- mapM (makeHaskellMeasures cbs name) specs
+       let measures = mconcat (Ms.wiredInMeasures:measures':Ms.mkMSpec' dcSelectors:hmeans)
+       let (cs, ms) = makeMeasureSpec' measures
+       let cms      = makeClassMeasureSpec measures
+       let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
+       let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
+       let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
+       let xs'      = val . fst <$> ms
        return (measures, cms', ms', cs', xs')
 
+txRefSort' v tyi embs t = txRefSort tyi embs (atLoc' v t)
+
+atLoc' v = Loc (getSourcePos v) (getSourcePosE v)
 
 data ReplaceEnv = RE { _re_env  :: M.HashMap Symbol Symbol
                      , _re_fenv :: SEnv SortedReft
@@ -370,12 +373,12 @@ replaceLocalBindsOne v
          Just (Loc l l' (toRTypeRep -> t@(RTypeRep {..}))) -> do
            (RE env' fenv emb tyi) <- ask
            let f m k = M.lookupDefault k k m
-           let (env,args) = L.mapAccumL (\e (v,t) -> (M.insert v v e, substa (f e) t))
+           let (env,args) = L.mapAccumL (\e (v, t) -> (M.insert v v e, substa (f e) t))
                              env' (zip ty_binds ty_args)
            let res  = substa (f env) ty_res
            let t'   = fromRTypeRep $ t { ty_args = args, ty_res = res }
            let msg  = ErrTySpec (sourcePosSrcSpan l) (pprint v) t'
-           case checkTy msg emb tyi fenv t' of
+           case checkTy msg emb tyi fenv (Loc l l' t') of
              Just err -> Ex.throw err
              Nothing -> modify (first $ M.insert v (Loc l l' t'))
            mes <- gets (M.lookup v . snd)

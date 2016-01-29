@@ -43,7 +43,7 @@ import qualified  Data.List                     as L
 import            System.Directory                (copyFile, doesFileExist)
 import            Language.Fixpoint.Types         (FixResult (..), Located (..))
 import            Language.Fixpoint.Utils.Files
-import            Language.Haskell.Liquid.Types   (SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
+import            Language.Haskell.Liquid.Types   (ErrorResult, SpecType, GhcSpec (..), AnnInfo (..), DataConP (..), Error, TError (..), Output (..))
 import            Language.Haskell.Liquid.Misc    (mkGraph)
 import            Language.Haskell.Liquid.GHC.Misc
 import            Language.Haskell.Liquid.Types.Visitors
@@ -372,7 +372,7 @@ adjustTypes lm cm (AI m)          = AI $ M.fromList
                                     [(sp', v) | (sp, v)  <- M.toList m
                                               , Just sp' <- [adjustSrcSpan lm cm sp]]
 
-adjustResult :: LMap -> ChkItv -> FixResult Error -> FixResult Error
+adjustResult :: LMap -> ChkItv -> ErrorResult -> ErrorResult
 adjustResult lm cm (Unsafe es)    = errorsResult Unsafe      $ adjustErrors lm cm es
 adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
 adjustResult _  _  r              = r
@@ -407,7 +407,7 @@ adjustReal lm rsp
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp
-
+    
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
 -- in the diff and returns @Nothing@ otherwise.
@@ -445,9 +445,8 @@ instance FromJSON SourcePos where
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
 
-
-instance ToJSON (FixResult Error)
-instance FromJSON (FixResult Error)
+instance ToJSON   ErrorResult
+instance FromJSON ErrorResult
 
 instance ToJSON Doc where
   toJSON = String . T.pack . render

@@ -204,49 +204,6 @@ instance Hashable SrcSpan where
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
 
-instance ToJSON RealSrcSpan where
-  toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)
-                     , "startLine" .= l1 -- srcSpanStartLine sp
-                     , "startCol"  .= c1 -- srcSpanStartCol  sp
-                     , "endLine"   .= l2 -- srcSpanEndLine   sp
-                     , "endCol"    .= c2 -- srcSpanEndCol    sp
-                     ]
-    where
-      (f, l1, c1, l2, c2) = unpackRealSrcSpan sp
-
-unpackRealSrcSpan rsp = (f, l1, c1, l2, c2)
-  where
-    f                 = unpackFS $ srcSpanFile rsp
-    l1                = srcSpanStartLine rsp
-    c1                = srcSpanStartCol  rsp
-    l2                = srcSpanEndLine   rsp
-    c2                = srcSpanEndCol    rsp
-
-
-instance FromJSON RealSrcSpan where
-  parseJSON (Object v) = realSrcSpan <$> v .: "filename"
-                                     <*> v .: "startLine"
-                                     <*> v .: "startCol"
-                                     <*> v .: "endLine"
-                                     <*> v .: "endCol"
-  parseJSON _          = mempty
-
-realSrcSpan :: FilePath -> Int -> Int -> Int -> Int -> RealSrcSpan
-realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
-  where
-    loc1                  = mkRealSrcLoc (fsLit f) l1 c1
-    loc2                  = mkRealSrcLoc (fsLit f) l2 c2
-
-instance ToJSON SrcSpan where
-  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
-  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
-
-instance FromJSON SrcSpan where
-  parseJSON (Object v) = do tag <- v .: "realSpan"
-                            case tag of
-                              False -> return noSrcSpan
-                              True  -> RealSrcSpan <$> v .: "spanInfo"
-  parseJSON _          = mempty
 
 
 -------------------------------------------------------

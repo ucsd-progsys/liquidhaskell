@@ -12,18 +12,14 @@ import           Control.Exception     (catch, IOException)
 import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
--- import           Data.Maybe            (fromJust)
-import           Data.Maybe              -- (fromMaybe)
+import           Data.Maybe
 import           Data.Hashable
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
 import           Text.PrettyPrint.HughesPJ ((<>), char)
 import           Debug.Trace (trace)
-import           Language.Haskell.Liquid.Types.Errors
-
-import Language.Fixpoint.Misc
-
-import Paths_liquidhaskell
+import           Language.Fixpoint.Misc
+import           Paths_liquidhaskell
 
 
 (!?) :: [a] -> Int -> Maybe a
@@ -32,7 +28,7 @@ import Paths_liquidhaskell
 (_:xs) !? n = xs !? (n-1)
 
 safeFromJust _  (Just x) = x
-safeFromJust err _       = panic Nothing err
+safeFromJust err _       = errorstar err
 
 fst4 (a,_,_,_) = a
 snd4 (_,b,_,_) = b
@@ -62,7 +58,7 @@ third3M  f (a,b,c) = (a,b,) <$> f c
 
 third3 f (a,b,c) = (a,b,f c)
 
-zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : (zip4 xs1 xs2 xs3 xs4)
+zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
 
 
@@ -77,11 +73,11 @@ getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
 {-@ safeZipWithError :: _ -> xs:[a] -> ListL b xs -> ListL (a,b) xs / [xs] @-}
 safeZipWithError msg (x:xs) (y:ys) = (x,y) : safeZipWithError msg xs ys
 safeZipWithError _   []     []     = []
-safeZipWithError msg _      _      = panic Nothing msg
+safeZipWithError msg _      _      = errorstar msg
 
 safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
 safeZip3WithError _   []     []     []     = []
-safeZip3WithError msg _      _      _      = panic Nothing msg
+safeZip3WithError msg _      _      _      = errorstar msg
 
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns
 
@@ -89,16 +85,15 @@ mapN 0 f (x:xs) = f x : xs
 mapN n f (x:xs) = x : mapN (n-1) f xs
 mapN _ _ []     = []
 
-
 zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
 zipWithDefM _ []     []     = return []
 zipWithDefM _ xs     []     = return xs
 zipWithDefM _ []     ys     = return ys
 zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
 
---------------------------------------
+--------------------------------------------------------------------------------
 -- Originally part of Fixpoint's Misc:
---------------------------------------
+--------------------------------------------------------------------------------
 
 single x = [x]
 
@@ -166,4 +161,10 @@ tryIgnore s a = catch a $ \e ->
 
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
-firstJust f xs = listToMaybe $ catMaybes $ map f xs
+firstJust f xs = listToMaybe $ mapMaybe f xs
+
+intToString :: Int -> String
+intToString 1 = "1st"
+intToString 2 = "2nd"
+intToString 3 = "3rd"
+intToString n = show n ++ "th"
