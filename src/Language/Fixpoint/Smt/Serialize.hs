@@ -229,7 +229,7 @@ makeFunSymbol env e i
     dropArgs 0 t           = t 
     dropArgs i (FAbs _ t)  = dropArgs i t 
     dropArgs i (FFunc _ t) = dropArgs (i-1) t 
-    dropArgs _ _           = errorstar "dropArgs: the impossible happened"
+    dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
 
 toInt ::  SMTEnv -> Expr -> T.Text 
 toInt env e
