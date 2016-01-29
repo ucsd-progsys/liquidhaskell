@@ -139,7 +139,7 @@ makeGhcSpec' cfg cbs vars defVars exports specs
        syms                                    <- makeSymbols (varInModule name) (vars ++ map fst cs') xs' (sigs ++ asms ++ cs') ms' (invs ++ (snd <$> ialias))
        let su  = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms]
        makeGhcSpec0 cfg defVars exports name (emptySpec cfg)
-         >>= makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su
+         >>= makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su
          >>= makeGhcSpec2 invs ialias measures su
          >>= makeGhcSpec3 datacons tycons embs syms
          >>= makeSpecDictionaries embs vars specs
@@ -206,20 +206,21 @@ makeGhcSpec0 cfg defVars exports name sp
                         , exports = exports
                         , tgtVars = targetVars }
 
-makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
+makeGhcSpec1 vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- makePluggedAsmSigs embs tyi $ tx asms
        ctors       <- makePluggedAsmSigs embs tyi $ tx cs'
        lmap        <- logicEnv <$> get
        inlmap      <- inlines  <$> get
        let ctors'   = [ (x, txRefToLogic lmap inlmap <$> t) | (x, t) <- ctors ]
-       return $ sp { tySigs     = filter (\(v,_) -> v `elem` vars) tySigs
-                   , asmSigs    = filter (\(v,_) -> v `elem` vars) asmSigs
-                   , ctors      = ctors'
+       return $ sp { tySigs     = filter (\(v,_) -> v `elem` vs) tySigs
+                   , asmSigs    = filter (\(v,_) -> v `elem` vs) asmSigs
+                   , ctors      = filter (\(v,_) -> v `elem` vs) ctors'
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where
       tx   = fmap . mapSnd . subst $ su
       tx'  = fmap (mapSnd $ fmap uRType)
+      vs   = vars ++ defVars
 
 makeGhcSpec2 invs ialias measures su sp
   = return $ sp { invariants = subst su invs
