@@ -255,12 +255,10 @@ makeProcess s
 cleanupContext :: Context -> IO ExitCode
 --------------------------------------------------------------------------
 cleanupContext (Ctx {..})
-  = do terminateProcess pId
-       code <- waitForProcess pId
-       hClose cIn
+  = do hClose cIn
        hClose cOut
        maybe (return ()) hClose cLog
-       return code
+       waitForProcess pId
 
 {- "z3 -smt2 -in"                   -}
 {- "z3 -smtc SOFT_TIMEOUT=1000 -in" -}
