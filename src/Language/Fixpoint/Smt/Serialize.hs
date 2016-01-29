@@ -224,7 +224,7 @@ makeFunSymbol env e i
   = bitVecApplyName i
   | FTC c                     <- s, c == boolFTyCon 
   = boolApplyName i
-  | FTC c                     <- s, c == realFTyCon 
+  | s == FReal
   = realApplyName i 
   | otherwise
   = intApplyName i 
