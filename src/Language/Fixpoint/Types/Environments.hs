@@ -91,7 +91,7 @@ lookupSEnvWithDistance x (SE env)
      Nothing -> Alts $ symbol <$> alts
   where
     alts       = takeMin $ zip (editDistance x' <$> ss) ss
-    ss         = symbolString <$> (fst <$> M.toList env)
+    ss         = symbolString <$> fst <$> M.toList env
     x'         = symbolString x
     takeMin xs = [z | (d, z) <- xs, d == getMin xs]
     getMin     = minimum . (fst <$>)

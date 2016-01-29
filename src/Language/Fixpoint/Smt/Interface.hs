@@ -144,7 +144,7 @@ command              :: Context -> Command -> IO Response
 --------------------------------------------------------------------------
 command me !cmd      = {-# SCC "command" #-} say cmd >> hear cmd
   where
-    say p             = smtWrite me $ smt2 (smtenv me) p 
+    say               = smtWrite me . smt2 (smtenv me)
     hear CheckSat     = smtRead me
     hear (GetValue _) = smtRead me
     hear _            = return Ok
@@ -310,7 +310,7 @@ deconSort t = case functionSort t of
                 Nothing            -> ([] , t  )
 
 smtAssert :: Context -> Expr -> IO ()
-smtAssert !me !p    = interact' me (Assert Nothing p)
+smtAssert me p    = interact' me (Assert Nothing p)
 
 smtDistinct :: Context -> [Expr] -> IO ()
 smtDistinct me az = interact' me (Distinct az)
@@ -329,10 +329,7 @@ respSat Sat     = False
 respSat Unknown = False
 respSat r       = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
 
-interact' me cmd  = evalvoid <$> command me cmd
-
-
-evalvoid !_ = ()
+interact' me cmd  = void $ command me cmd
 
 -- DON'T REMOVE THIS! z3 changed the names of options between 4.3.1 and 4.3.2...
 z3_432_options

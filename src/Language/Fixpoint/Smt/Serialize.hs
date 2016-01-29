@@ -139,13 +139,14 @@ mkRel env r   e1 e2         = format "({} {} {})"      (smt2 env r , smt2 env e1
 mkNe  env e1 e2             = format "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 env (Declare x ts t)    
-     | isSMTSymbol x 
+  -- NIKI TODO: formalize this transformation
+  smt2 env (Declare x ts t)
+     | isSMTSymbol x  
      = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
      | null ts && isSMTSort t
-     = format "(declare-fun {} () {})"  (smt2 env x, smt2 env t)
+     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env t)
      | otherwise
-     = format "(declare-fun {} () {})"  (smt2 env x, smt2 env intSort)    
+     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env intSort)    
 
   smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
   smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env p)
@@ -186,6 +187,8 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 ----------------  Defunctionalizaion ------------------------------------------------
 -------------------------------------------------------------------------------------
 
+-- NIKI: This is new code, check and formalize!
+
 
 -- make Application is called on uninterpreted functions 
 -- 
@@ -221,7 +224,7 @@ makeFunSymbol env e i
   | otherwise
   = intApplyName i 
   where
-    s = dropArgs i $ sortExpr env e
+    s = dropArgs i $ sortExpr dummySpan env e
 
     dropArgs 0 t           = t 
     dropArgs i (FAbs _ t)  = dropArgs i t 
@@ -243,7 +246,7 @@ toInt env e
   | otherwise
   = smt2 env e 
   where
-    s = sortExpr env e
+    s = sortExpr dummySpan env e
 
 isSMTSort :: Sort -> Bool 
 isSMTSort s

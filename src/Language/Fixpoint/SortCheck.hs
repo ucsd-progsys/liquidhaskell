@@ -85,10 +85,10 @@ isMono             = null . foldSort fv []
 -- | Sort Inference       -----------------------------------------------
 -------------------------------------------------------------------------
 
-sortExpr :: SEnv Sort -> Expr -> Sort 
-sortExpr γ e 
+sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort 
+sortExpr l γ e
   = case runCM0 $ checkExpr f e of 
-      Left err -> errorstar $ ("sortExpr failed for " ++ showFix e ++ "\n" ++ err)
+      Left msg -> die $ err l ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
       Right s  -> s 
   where
     f = (`lookupSEnvWithDistance` γ)

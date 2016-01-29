@@ -92,8 +92,8 @@ runSolverM cfg fi _ act = do
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
-    env     = F.fromListSEnv ( (F.toListSEnv $ F.lits fi)
-                            ++ [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi])
+    env     = F.fromListSEnv ((F.toListSEnv $ F.lits fi) ++ binds)
+    binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
  
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
@@ -129,9 +129,9 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: (Show a) => F.Expr -> Cand a -> SolveM [a]
+filterValid :: F.Expr -> Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
-filterValid !p !qs = do
+filterValid p qs = do
   qs' <- withContext $ \me ->
            smtBracket me $
              filterValid_ p qs me
@@ -143,8 +143,8 @@ filterValid !p !qs = do
 
 
 
-filterValid_ :: (Show a) => F.Expr -> Cand a -> Context -> IO [a]
-filterValid_ !p !qs !me = catMaybes <$> do
+filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
+filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
     smtBracket me $ do
