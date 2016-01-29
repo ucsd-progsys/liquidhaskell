@@ -213,8 +213,8 @@ makeGhcSpec1 vars embs tyi exports name sigs asms cs' ms' cms' su sp
        lmap        <- logicEnv <$> get
        inlmap      <- inlines  <$> get
        let ctors'   = [ (x, txRefToLogic lmap inlmap <$> t) | (x, t) <- ctors ]
-       return $ sp { tySigs     = tySigs
-                   , asmSigs    = asmSigs
+       return $ sp { tySigs     = filter (\(v,_) -> v `elem` vars) tySigs
+                   , asmSigs    = filter (\(v,_) -> v `elem` vars) asmSigs
                    , ctors      = ctors'
                    , meas       = tx' $ tx $ ms' ++ varMeasures vars ++ cms' }
     where
