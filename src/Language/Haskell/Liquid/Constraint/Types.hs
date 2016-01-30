@@ -64,10 +64,10 @@ import Control.Monad.State
 
 
 import Var
-import Type   (Type)
-import Class  (Class)
 
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
+
+
+
 
 import Language.Haskell.Liquid.GHC.SpanStack
 import Language.Haskell.Liquid.Types hiding   (binds)

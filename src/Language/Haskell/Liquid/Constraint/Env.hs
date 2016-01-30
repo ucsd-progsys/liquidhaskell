@@ -66,11 +66,11 @@ import qualified Data.HashSet            as S
 import qualified Data.HashMap.Strict     as M
 import qualified Language.Fixpoint.Types as F
 
-import           Language.Fixpoint.Misc hiding (errorstar)
+
 import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
-import           Language.Haskell.Liquid.Misc (firstJust)
-import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan)
+
+
 import           Language.Haskell.Liquid.Types.RefType
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)

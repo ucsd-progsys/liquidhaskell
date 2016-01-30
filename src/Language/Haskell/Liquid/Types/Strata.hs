@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Types.Strata (
   ) where
 
 import Prelude hiding (error)
-import Control.Applicative      ((<$>))
+
 
 import Language.Fixpoint.Types (Symbol)
 import Language.Haskell.Liquid.Types hiding (Def, Loc)

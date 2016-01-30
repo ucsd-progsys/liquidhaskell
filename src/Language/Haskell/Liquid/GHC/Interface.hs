@@ -46,7 +46,7 @@ import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
 
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.UX.Errors
+
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
@@ -59,7 +59,7 @@ import Language.Haskell.Liquid.UX.Tidy
 import Language.Haskell.Liquid.Parse
 import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Fixpoint.Utils.Files
-import Language.Haskell.Liquid.Types.Errors
+
 
 
 --------------------------------------------------------------------------------

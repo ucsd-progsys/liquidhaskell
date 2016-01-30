@@ -15,7 +15,7 @@ import Data.Char (isUpper)
 import Text.Parsec.Pos
 
 import qualified Data.List           as L
-import qualified Data.Text           as T
+
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (prims, unconsSym)
@@ -26,9 +26,7 @@ import Language.Fixpoint.Types (Expr(..),
                                 Symbol,
                                 fTyconSymbol,
                                 symbol,
-                                symbolFTycon,
-                                fAppTC,
-                                fApp)
+                                symbolFTycon)
 
 import Language.Haskell.Liquid.Misc (secondM, third3M)
 import Language.Haskell.Liquid.Types

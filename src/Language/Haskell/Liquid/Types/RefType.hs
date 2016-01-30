@@ -85,7 +85,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-import Control.DeepSeq
+
 import Control.Monad  (void)
 import Text.Printf
 import Text.PrettyPrint.HughesPJ
@@ -103,7 +103,7 @@ import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
 import Language.Haskell.Liquid.GHC.Misc (typeUniqueString, tvId, showPpr, stringTyVar, tyConTyVarsDef)
-import Language.Fixpoint.Types.Names (symbolString, listConName, tupConName)
+
 import Data.List (sort, foldl')
 
 

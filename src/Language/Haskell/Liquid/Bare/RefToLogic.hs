@@ -13,12 +13,12 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.Bare.Env
 
-import Language.Fixpoint.Types hiding (Def, R)
-import Language.Fixpoint.Misc  (traceShow)
-import Language.Fixpoint.Types.Names
+import Language.Fixpoint.Types hiding (R)
+
+
 import Language.Haskell.Liquid.GHC.Misc (dropModuleUnique)
 
-import Language.Haskell.Liquid.Types.Errors (panic, impossible)
+
 
 import qualified Data.HashMap.Strict as M
 

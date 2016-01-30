@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE OverlappingInstances       #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -195,7 +194,7 @@ module Language.Haskell.Liquid.Types (
   where
 
 import Prelude                          hiding  (error)
-import SrcLoc                                   (noSrcSpan, SrcSpan)
+import SrcLoc                                   (SrcSpan)
 import TyCon
 import DataCon
 import NameSet
@@ -209,18 +208,18 @@ import PrelInfo         (isNumericClass)
 import TysPrim          (eqPrimTyCon)
 import TysWiredIn                               (listTyCon)
 
-import            Control.Arrow                            (second)
+
 import            Control.Monad                            (liftM, liftM2, liftM3, liftM4)
-import qualified  Control.Exception
-import qualified  Control.Monad.Error as Ex
+
+
 import            Control.DeepSeq
-import            Control.Applicative                      ((<$>))
+
 import            Data.Bifunctor
 import            Data.Bifunctor.TH
 import            Data.Typeable                            (Typeable)
 import            Data.Generics                            (Data)
 
-import            Data.Monoid                              hiding ((<>))
+
 
 
 import qualified  Data.Foldable as F
@@ -228,20 +227,20 @@ import            Data.Hashable
 import qualified  Data.HashMap.Strict as M
 import qualified  Data.HashSet as S
 import            Data.Maybe                   (fromMaybe)
-import            Data.Traversable             hiding (mapM)
+
 import            Data.List                    (nub)
 import            Data.Text                    (Text)
 import qualified  Data.Text                    as T
-import            Text.Parsec.Pos              (SourcePos)
-import            Text.Parsec.Error            (ParseError)
+
+
 import            Text.PrettyPrint.HughesPJ    hiding (first)
 import            Text.Printf
 
 import           Language.Fixpoint.Misc
-import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, Def, R)
-import           Language.Fixpoint.Types.Names      (symbolText, symbolString, funConName, listConName, tupConName)
-import qualified Language.Fixpoint.Types.PrettyPrint as F
-import           Language.Fixpoint.Types.Config     hiding (Config)
+import           Language.Fixpoint.Types      hiding (Error (..), SrcSpan, Result, Predicate, R)
+
+
+
 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Variance
@@ -464,10 +463,6 @@ mapQualBody f q = q { q_body = f (q_body q) }
 
 instance NFData r => NFData (UReft r)
 
-instance NFData Strata
-
-instance NFData PrType
-
 instance NFData RTyVar
 
 
@@ -687,7 +682,7 @@ type Strata = [Stratum]
 isSVar (SVar _) = True
 isSVar _        = False
 
-instance Monoid Strata where
+instance {-# OVERLAPPING #-} Monoid Strata where
   mempty        = []
   mappend s1 s2 = nub $ s1 ++ s2
 
@@ -945,12 +940,6 @@ instance Subable Stratum where
   substf _ s        = s
   substa f (SVar s) = SVar $ substa f s
   substa _ s        = s
-
-instance Subable Strata where
-  syms s     = concatMap syms s
-  subst su   = (subst su <$>)
-  substf f   = (substf f <$>)
-  substa f   = (substa f <$>)
 
 instance Reftable Strata where
   isTauto []         = True
@@ -1281,7 +1270,7 @@ instance Show Stratum where
 instance PPrint Stratum where
   pprint = text . show
 
-instance PPrint Strata where
+instance {-# OVERLAPPING #-} PPrint Strata where
   pprint [] = empty
   pprint ss = hsep (pprint <$> nub ss)
 

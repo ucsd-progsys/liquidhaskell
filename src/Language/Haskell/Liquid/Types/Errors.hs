@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-import           Type
+
 import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
 import           FastString
 import           GHC.Generics
@@ -57,13 +57,12 @@ import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
-import qualified Control.Monad.Error as Ex
 import qualified Outputable as Out
 import           DynFlags (unsafeGlobalDynFlags)
 import Data.List    (intersperse )
-import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages)
+import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
-import           GHC.Stack
+
 
 instance PPrint ParseError where
   pprint e = vcat $ tail $ map text ls
@@ -325,13 +324,6 @@ instance Ord (TError a) where
 
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
-
-showSpan' :: (Show a) => a -> SrcSpan
-showSpan' = mkGeneralSrcSpan . fsLit . show
-
-instance Ex.Error (TError a) where
-   strMsg = ErrOther (showSpan' "Yikes! Exception!") . text
-
 
 --------------------------------------------------------------------------------
 -- | Simple unstructured type for panic ----------------------------------------

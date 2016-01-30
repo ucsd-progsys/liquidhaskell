@@ -155,6 +155,7 @@ solveCs cfg tgt cgi info dc
        let warns = logErrors cgi
        let annm  = annotMap cgi
        let res   = ferr sol r
+       -- TODO: grab unsafes from `cinfoError` and generate c-exs
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }

@@ -8,15 +8,15 @@ import qualified Language.Fixpoint.Types        as F
 import Language.Haskell.Liquid.Constraint.Types
 
 import Language.Haskell.Liquid.Types hiding     ( binds )
-import Language.Haskell.Liquid.Misc             ( mapSnd )
+
 import Language.Fixpoint.Solver                 ( parseFInfo )
 
-import           Control.Applicative ((<$>))
-import qualified Data.HashMap.Strict            as M
+
+
 import           Data.Monoid
-import           Debug.Trace
+
 import Language.Haskell.Liquid.Constraint.Qualifier
-import Language.Haskell.Liquid.Types.RefType          ( rTypeSortedReft )
+
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> FilePath  -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi fi = do

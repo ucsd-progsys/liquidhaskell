@@ -26,7 +26,7 @@ import HscTypes
 import TyCon
 import Var
 
-import Control.Monad.Error hiding (Error)
+import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
 
@@ -46,7 +46,7 @@ import Language.Haskell.Liquid.Types.Bounds
 -----------------------------------------------------------------------------------
 
 -- FIXME: don't use WriterT [], very slow
-type BareM = WriterT [Warn] (ErrorT Error (StateT BareEnv IO))
+type BareM = WriterT [Warn] (ExceptT Error (StateT BareEnv IO))
 
 type Warn  = String
 
@@ -108,7 +108,7 @@ setREAlias s a =
 execBare :: BareM a -> BareEnv -> IO (Either Error a)
 ------------------------------------------------------------------
 execBare act benv =
-   do z <- evalStateT (runErrorT (runWriterT act)) benv `Ex.catch` (return . Left)
+   do z <- evalStateT (runExceptT (runWriterT act)) benv `Ex.catch` (return . Left)
       case z of
         Left s        -> return $ Left s
         Right (x, ws) -> do forM_ ws $ putStrLn . ("WARNING: " ++)

@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.Constraint.Split (
 
 import           Prelude hiding (error)
 
-import           GHC.Stack
+
 
 import           Text.PrettyPrint.HughesPJ hiding (first)
 import qualified TyCon  as TC
@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
-import           Language.Haskell.Liquid.Types.Errors
+
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)

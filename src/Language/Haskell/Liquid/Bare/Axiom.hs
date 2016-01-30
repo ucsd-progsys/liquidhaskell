@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.Bare.Axiom (makeAxiom) where
 
 import Prelude hiding (error)
 import CoreSyn
-import DataCon
+
 import Id
 import Name
 import Type hiding (isFunTy)
@@ -16,51 +16,51 @@ import Var
 import TypeRep
 
 import Prelude hiding (mapM)
-import Control.Arrow ((&&&))
+
 
 import Control.Monad hiding (forM, mapM)
-import Control.Monad.Error hiding (Error, forM, mapM)
+import Control.Monad.Except hiding (forM, mapM)
 import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
-import Data.Maybe
-import Data.Char (toUpper)
-import Data.Monoid
-import Data.Traversable (forM, mapM)
+
+
+
+
 import Text.PrettyPrint.HughesPJ (text)
-import Text.Parsec.Pos (SourcePos)
+
 
 import qualified Data.List as L
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
+
+
+
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
-import Language.Fixpoint.SortCheck (isFirstOrder)
+
 import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePos, getSourcePosE, sourcePosSrcSpan, isDataConId, dropModuleNames)
+
+import Language.Haskell.Liquid.GHC.Misc (showPpr, sourcePosSrcSpan, dropModuleNames)
 -- import Language.Haskell.Liquid.Types.RefType (generalize, ofType, uRType, typeSort)
 
 import Language.Haskell.Liquid.Types hiding (binders)
-import Language.Haskell.Liquid.Types.Bounds
+
 import Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
 import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult)
-import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.Lookup
-import Language.Haskell.Liquid.Bare.OfType
-import Language.Haskell.Liquid.Bare.Resolve
-import Language.Haskell.Liquid.Bare.RefToLogic
 
-import Language.Haskell.Liquid.UX.Errors
 
-import Debug.Trace (trace)
+
+
+
+
+
+
+
+
 
 makeAxiom :: LogicMap -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> LocSymbol
           -> BareM ((Symbol, Located SpecType), [(Var, Located SpecType)], [HAxiom])

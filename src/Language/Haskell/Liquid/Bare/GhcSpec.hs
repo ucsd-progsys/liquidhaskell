@@ -23,9 +23,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
 import Data.Maybe
-import Data.Monoid
 
-import Control.Monad.Error (catchError)
+
+import Control.Monad.Except (catchError)
 import TypeRep (Type(TyConApp))
 
 import qualified Control.Exception   as Ex
@@ -33,19 +33,19 @@ import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (thd3, traceShow)
-import Language.Fixpoint.Types.Names (nilName, consName)
+import Language.Fixpoint.Misc (thd3)
+
 import Language.Fixpoint.Types hiding (Error)
 
 import Language.Haskell.Liquid.Types.Dictionaries
-import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId, dropModuleNames)
+import Language.Haskell.Liquid.GHC.Misc (showPpr, getSourcePosE, getSourcePos, sourcePosSrcSpan, isDataConId)
 import Language.Haskell.Liquid.Types.PredType (makeTyConInfo)
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Misc (mapSnd)
 import Language.Haskell.Liquid.WiredIn
-import Language.Haskell.Liquid.Types.Visitors
-import Language.Haskell.Liquid.Transforms.CoreToLogic
+
+
 
 import qualified Language.Haskell.Liquid.Measure as Ms
 
