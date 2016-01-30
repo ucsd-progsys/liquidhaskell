@@ -24,12 +24,12 @@ import           Data.Binary
 -- import           Data.Maybe                         (fromMaybe)
 -- import           Data.List                          hiding (partition)
 import qualified Data.HashMap.Strict                as M
-import qualified Data.HashSet                       as S
+-- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
-import           Text.Printf                        (printf)
+-- import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void, filterM, forM)
 import           Control.Exception                  (catch)
 
@@ -162,7 +162,9 @@ inParallelUsing f xs = do
 ---------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
+solveNative !cfg !fi0 = (solveNative' cfg fi0)
+                          `catch`
+                             (return . result)
 
 result :: Error -> Result a
 result e = Result (Crash [] msg) mempty
@@ -182,7 +184,7 @@ solveNative' !cfg !fi0 = do
   let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
-  when (elimStats cfg) $ printElimStats (deps si1)
+  graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
@@ -197,11 +199,6 @@ solveNative' !cfg !fi0 = do
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
-printElimStats :: GDeps KVar -> IO ()
-printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
-  where
-    total        = postElims + S.size (depNonCuts d)
-    postElims    = S.size $ depCuts d
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
@@ -306,7 +303,7 @@ type ConsList a = [(Integer, SubC a)]
 -- polymorphic delta debugging implementation
 deltaDebug :: (Config -> FInfo a -> [c] -> IO Bool) -> Config -> FInfo a -> [c] -> [c] -> IO [c]
 deltaDebug testSet cfg finfo set r = do
-  let (s1, s2) = splitAt ((length set) `div` 2) set
+  let (s1, s2) = splitAt (length set `div` 2) set
   if length set == 1
     then return set
     else do

@@ -1,5 +1,7 @@
-{-# LANGUAGE DeriveGeneric   #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | This module implements functions to build constraint / kvar
 --   dependency graphs, partition them and print statistics about
@@ -16,14 +18,15 @@ module Language.Fixpoint.Partition (
   , mcInfo
 
   -- * Queries over dependencies
+  , graphStatistics
   , GDeps (..)
   , deps
-  , isReducible
+  -- , isReducible
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
-import           Control.Monad (forM_)
-import           GHC.Generics                   (Generic)
+import           Control.Monad             (when, forM_)
+import           GHC.Generics              (Generic)
 import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
@@ -41,8 +44,9 @@ import           Data.List (sortBy)
 import qualified Data.HashSet              as S
 
 import Data.Graph.Inductive
-import Data.Graph.Inductive.Dot
-import Debug.Trace
+
+-- import Data.Graph.Inductive.Dot
+-- import Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -82,10 +86,11 @@ mcInfo c = do
 partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
 partition cfg fi
   = do dumpPartitions cfg fis
-       dumpEdges      cfg es
+       dumpGraph      f   g
        return mempty
     where
-       (es, fis) = partition' Nothing fi
+      f        = queryFile Dot cfg
+      (g, fis) = partition' Nothing fi
 
 ------------------------------------------------------------------------------
 -- | Partition an FInfo into multiple disjoint FInfos
@@ -97,7 +102,7 @@ partition' :: Maybe MCInfo -- ^ Nothing to produce the maximum possible
 ------------------------------------------------------------------------------
 partition' mn fi  = case mn of
    Nothing -> (g, fis mkPartition id)
-   (Just mi) -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
+   Just mi -> (g, partitionN mi fi $ fis mkPartition' finfoToCpart)
   where
     g              = kvGraph   fi
     css            = decompose g
@@ -221,9 +226,9 @@ data CVertex = KVar  F.KVar  -- ^ real kvar vertex
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
-  pprint (KVar k)  = pprint k
-  pprint (DKVar k) = pprint k    <> text "*"
-  pprint (Cstr i)  = text "id:" <+> pprint i
+  pprint (KVar k)  = pprint $ F.kv k
+  pprint (Cstr i)  = text "id_" <> pprint i
+  pprint (DKVar k) = pprint k   <> text "*"
 
 instance Hashable CVertex
 
@@ -375,21 +380,26 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
   where
     sccs                 = G.stronglyConnCompR vs'
 
-
 --------------------------------------------------------------------------------
-dumpEdges :: Config -> KVGraph -> IO ()
+dumpGraph :: FilePath -> KVGraph -> IO ()
 --------------------------------------------------------------------------------
-dumpEdges cfg = writeFile f . render . ppGraph
-  where
-    f         = queryFile Dot cfg -- extFileName Dot (queryFile cfg)
+dumpGraph f = writeFile f . render . ppGraph
 
 ppGraph :: KVGraph -> Doc
 ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
 
 ppEdges :: [CEdge] -> Doc
-ppEdges es = vcat [pprint v <+> text "-->" <+> pprint v' | (v, v') <- es]
+ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]
+                           . map ppE
+                           . filter (not . isJunkEdge)
+  where
+    ppE (v, v')     = pprint v <+> "->" <+> pprint v'
 
-
+isJunkEdge :: CEdge -> Bool
+isJunkEdge (DKVar _, _)     = True
+isJunkEdge (_, DKVar _)     = True
+isJunkEdge (Cstr _, Cstr _) = True
+isJunkEdge _                = False
 
 --------------------------------------------------------------------------------
 isReducible :: F.SInfo a -> Bool
@@ -397,7 +407,7 @@ isReducible :: F.SInfo a -> Bool
 isReducible fi = all (isReducibleWithStart g) vs
   where
     g  = convertToGraph fi
-    vs = trace (showDot $ fglToDotGeneric g show (const "") id) nodes g
+    vs = {- trace (showDot $ fglToDotGeneric g show (const "") id) -} nodes g
 
 isReducibleWithStart :: Gr a b -> Node -> Bool
 isReducibleWithStart g x = all (isBackEdge domList) rEdges
@@ -409,11 +419,14 @@ isReducibleWithStart g x = all (isBackEdge domList) rEdges
 convertToGraph :: F.SInfo a -> Gr Int ()
 convertToGraph fi = mkGraph vs es
   where
-    subCs = M.elems (F.cm fi)
-    es = labelUEdge <$> concatMap (subcEdges' $ F.bs fi) subCs
-    vs = labelNode . kvInt <$> M.keys (F.ws fi)
-    labelNode i = (i,i)
-    labelUEdge (i,j) = (i,j,())
+    subCs        = M.elems (F.cm fi)
+    es           = lUEdge <$> concatMap (subcEdges' kvI $ F.bs fi) subCs
+    ks           = M.keys (F.ws fi)
+    kiM          = M.fromList $ zip ks [0..]
+    kvI k        = safeLookup ("convertToGraph: " ++ show k) k kiM
+    vs           = lNode . kvI <$> M.keys (F.ws fi)
+    lNode i      = (i, i)
+    lUEdge (i,j) = (i, j, ())
 
 isDescendant :: Node -> Node -> T.Tree Node -> Bool
 isDescendant x y (T.Node z f) | z == y    = f `contains` x
@@ -428,11 +441,42 @@ isBackEdge t (u,v) = v `elem` xs
   where
     (Just xs) = lookup u t
 
-subcEdges' :: F.BindEnv -> F.SimpC a -> [(Node, Node)]
-subcEdges' be c = [(kvInt k1, kvInt k2) | k1 <- V.envKVars be c
+subcEdges' :: (F.KVar -> Node) -> F.BindEnv -> F.SimpC a -> [(Node, Node)]
+subcEdges' kvI be c = [(kvI k1, kvI k2) | k1 <- V.envKVars be c
                                         , k2 <- V.kvars $ F.crhs c]
 
-kvInt :: F.KVar -> Node
-kvInt (F.KV k) = read $ drop 4 kStr
+-- kvInt :: F.KVar -> Node
+-- kvInt (F.KV k) = read $ drop 4 kStr
+  -- where
+    -- kStr = F.symbolString k
+
+--------------------------------------------------------------------------------
+graphStatistics :: Config -> F.SInfo a -> IO ()
+--------------------------------------------------------------------------------
+graphStatistics cfg si = when (elimStats cfg) $ do
+  dumpGraph f  (kvGraph si)
+  appendFile f . ppc . ptable $ graphStats si
   where
-    kStr = F.symbolString k
+    f     = queryFile Dot cfg
+    ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
+
+data Stats = Stats {
+    stNumKVCuts   :: !Int
+  , stNumKVTotal  :: !Int
+  , stIsReducible :: !Bool
+  }
+
+instance PTable Stats where
+  ptable (Stats {..})  = DocTable [
+      ("# KVars [Cuts/Total]", pprint stNumKVCuts <+> "/" <+> pprint stNumKVTotal)
+    , ("# Reducible"         , pprint stIsReducible)
+    ]
+
+graphStats :: F.SInfo a -> Stats
+graphStats si     = Stats {
+    stNumKVCuts   = S.size (depCuts d)
+  , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
+  , stIsReducible = isReducible si
+  }
+  where
+    d             = deps si

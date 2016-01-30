@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 module Language.Fixpoint.Misc where
 
@@ -18,6 +18,7 @@ import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
 import           Data.Maybe
 import           Data.Array                hiding (indices)
+import           Data.Function                    (on)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -46,7 +47,7 @@ traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
-hashMapToAscList = L.sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
@@ -101,7 +102,6 @@ donePhase c str
 putBlankLn = putStrLn "" >> hFlush stdout
 
 -----------------------------------------------------------------------------------
-
 wrap l r s = l ++ s ++ r
 
 repeats n  = concat . replicate n
