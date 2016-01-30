@@ -22,9 +22,9 @@ module Language.Fixpoint.Solver (
 import           Control.Concurrent
 import           Data.Binary
 -- import           Data.Maybe                         (fromMaybe)
+-- import           Data.List                          hiding (partition)
 import qualified Data.HashMap.Strict                as M
 import qualified Data.HashSet                       as S
--- import           Data.List                          hiding (partition)
 import           System.Exit                        (ExitCode (..))
 
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
