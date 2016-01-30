@@ -136,10 +136,13 @@ smt2Bop env o e1 e2
     s2 = sortExpr e2 
 
 smt2App :: SMTEnv -> Expr  -> T.Text
-smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
+smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App (eliminate f) ds)
   where
     (f, es) = splitEApp e 
     ds      = smt2 env <$> es
+
+eliminate (ECst e _) = e 
+eliminate e          = e 
 
 smt2App' :: SMTEnv -> Expr -> [Expr] -> T.Text
 smt2App' env f [] = smt2 env f
@@ -282,17 +285,10 @@ isSMTSort s
 castWith :: SMTEnv -> Symbol -> Expr -> T.Text 
 castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
 
-
-setSort    = FApp (FTC $ symbolFTycon' "Set_Set") intSort
-bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
-mapSort    = FApp (FApp (FTC $ symbolFTycon' "Map_t") intSort) intSort
-
-symbolFTycon' = symbolFTycon . dummyLoc
-
 initSMTEnv = fromListSEnv $ 
-  [ (setToIntName,    FFunc setSort    intSort)
+  [ (setToIntName,    FFunc (setSort intSort)   intSort)
   , (bitVecToIntName, FFunc bitVecSort intSort)
-  , (mapToIntName,    FFunc mapSort    intSort)
+  , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
   ] 
@@ -300,9 +296,9 @@ initSMTEnv = fromListSEnv $
 
 makeApplies i = 
   [ (intApplyName i,    go i intSort)
-  , (setApplyName i,    go i setSort)
+  , (setApplyName i,    go i (setSort intSort))
   , (bitVecApplyName i, go i bitVecSort)
-  , (mapApplyName i,    go i mapSort)
+  , (mapApplyName i,    go i $ mapSort intSort intSort)
   , (realApplyName i,   go i realSort)
   , (boolApplyName i,   go i boolSort)
   ]

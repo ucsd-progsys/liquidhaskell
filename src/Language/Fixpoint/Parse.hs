@@ -88,7 +88,7 @@ import           Language.Fixpoint.Misc      (sortNub, thd3)
 import           Language.Fixpoint.Smt.Types
 --import           Language.Fixpoint.Types.Names     (headSym)
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types hiding    (mapSort)
 
 type Parser = Parsec String Integer
 

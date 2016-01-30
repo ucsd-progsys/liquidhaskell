@@ -19,6 +19,7 @@ module Language.Fixpoint.Smt.Theories
      , isBv, sizeBv 
 
      , isTheorySymbol
+     , theoryEnv
 
      ) where
 
@@ -147,21 +148,35 @@ mkSetSub _ s t = format "({} {} {})" (sub, s, t)
 isTheorySymbol :: Symbol -> Bool
 isTheorySymbol x = M.member x theorySymbols
 
+theoryEnv = M.map tsSort theorySymbols 
+
 theorySymbols :: M.HashMap Symbol TheorySymbol
 theorySymbols = M.fromList
-  [ tSym setEmp emp undefined
-  , tSym setAdd add undefined
-  , tSym setCup cup undefined
-  , tSym setCap cap undefined
-  , tSym setMem mem undefined
-  , tSym setDif dif undefined
-  , tSym setSub sub undefined
-  , tSym setCom com undefined
-  , tSym mapSel sel undefined
-  , tSym mapSto sto undefined
-  , tSym bvOrName "bvor" undefined 
-  , tSym bvAndName "bvand" undefined 
+  [ tSym setEmp   emp (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
+  , tSym setEmpty emp (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , tSym setAdd add   setbopSort 
+  , tSym setCup cup   setbopSort
+  , tSym setCap cap   setbopSort
+  , tSym setMem mem   setmemSort
+  , tSym setDif dif   setbopSort
+  , tSym setSub sub   setcmpSort
+  , tSym setCom com   setcmpSort
+  , tSym mapSel sel   mapselSort
+  , tSym mapSto sto   mapstoSort
+  , tSym bvOrName "bvor"   bvbopSort
+  , tSym bvAndName "bvand" bvbopSort
   ]
+  where
+    setbopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
+    setmemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    setcmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort
+    mapselSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) $ FFunc (FVar 0) (FVar 0)
+    mapstoSort = FAbs 0 $ FAbs 1 $ FFunc (mapSort (FVar 0) (FVar 1)) 
+                                 $ FFunc (FVar 0) 
+                                 $ FFunc (FVar 1) 
+                                         (mapSort (FVar 0) (FVar 1))
+    bvbopSort  = FFunc bitVecSort $ FFunc bitVecSort bitVecSort
+
 
 tSym :: Symbol -> Raw -> Sort -> (Symbol, TheorySymbol)
 tSym x n t = (x, Thy x n t)

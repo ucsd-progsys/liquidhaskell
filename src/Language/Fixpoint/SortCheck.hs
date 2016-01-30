@@ -50,6 +50,8 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding (subst)
 import           Language.Fixpoint.Types.Visitor (foldSort)
 
+import           Language.Fixpoint.Smt.Theories (theoryEnv)
+
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -104,7 +106,8 @@ elaborate γ e
       Left msg -> die $ err dummySpan ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
       Right s  -> fst s 
   where
-    f = (`lookupSEnvWithDistance` γ)
+    f = (`lookupSEnvWithDistance` γ')
+    γ' =  unionSEnv γ theoryEnv 
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -264,10 +267,15 @@ elab f e@(EBin o e1 e2)
        (e2', s2) <- elab f e2
        s <- checkExpr f e
        return $ (EBin o (ECst e1' s1) (ECst e2' s2), s)
-elab f e@(EApp e1 e2)
+elab f (EApp e1@(EApp _ _) e2)
   = do (e1', s1) <- elab f e1 
        (e2', s2) <- elab f e2
-       s <- checkExpr f e 
+       s <- elabApp s1 s2  
+       return $ (EApp e1' (ECst e2' s2), s)
+elab f (EApp e1 e2)
+  = do (e1', s1) <- elab f e1 
+       (e2', s2) <- elab f e2
+       s <- elabApp s1 s2  
        return $ (EApp (ECst e1' s1) (ECst e2' s2), s)
 elab _ e@(ESym _)       
   = return (e, strSort)
@@ -349,6 +357,15 @@ checkCst f t (EApp g e)
 checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
+
+
+elabApp :: Sort -> Sort -> CheckM Sort 
+elabApp s1 s2 = 
+  do s1' <- generalize s1 
+     case s1' of 
+        FFunc sx s -> do θ <- unifys [sx] [s2]
+                         return $ apply θ s 
+        _ -> errorstar "Foo" 
 
 
 checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort 
