@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Types.Config           (multicore, Config (..))
+import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
