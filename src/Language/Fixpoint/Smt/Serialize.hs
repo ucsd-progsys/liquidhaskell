@@ -121,9 +121,19 @@ instance SMTLIB2 Expr where
   smt2 _   _                = errorstar "smtlib2 Pred"
 
 smt2Bop env o e1 e2
-  | o == Times = format "({} {} {})" (symbolSafeText mulFuncName , smt2 env e1, smt2 env e2)
-  | o == Div   = format "({} {} {})" (symbolSafeText divFuncName , smt2 env e1, smt2 env e2)
-  | otherwise  = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
+  | o == Times, s1 == FReal, s2 == FReal
+   = format "(* {} {})" (smt2 env e1, smt2 env e2)
+  | o == Div, s1 == FReal, s2 == FReal
+   = format "(/ {} {})" (smt2 env e1, smt2 env e2)
+  | o == Times 
+  = format "({} {} {})" (symbolSafeText mulFuncName , smt2 env e1, smt2 env e2)
+  | o == Div   
+  = format "({} {} {})" (symbolSafeText divFuncName , smt2 env e1, smt2 env e2)
+  | otherwise  
+  = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
+  where
+    s1 = sortExpr dummySpan env e1 
+    s2 = sortExpr dummySpan env e2 
 
 smt2App :: SMTEnv -> Expr  -> T.Text
 smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
