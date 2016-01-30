@@ -24,7 +24,7 @@ constraint:
 
 
 constraint:
-  env [ 1 ]
+  env [ 2 ]
   lhs {v : int | [v =  z]}
   rhs {v : int | [0 <= v]}
   id 4 tag [0]

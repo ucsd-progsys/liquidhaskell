@@ -246,7 +246,6 @@ decompose kg = map (fst3 . f) <$> vss
     vss      = T.flatten <$> G.components g
 
 -------------------------------------------------------------------------------
--- kvGraph :: F.FInfo a -> KVGraph
 kvGraph :: (F.TaggedC c a) => F.GInfo c a -> KVGraph
 -------------------------------------------------------------------------------
 kvGraph = edgeGraph . kvEdges
@@ -254,7 +253,6 @@ kvGraph = edgeGraph . kvEdges
 edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = [(v,v,vs) | (v, vs) <- groupList es ]
 
--- kvEdges :: F.FInfo a -> [CEdge]
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
 kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
   where
@@ -264,6 +262,7 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
     selfes =  [(Cstr i, Cstr i)   | c <- cs, let i = F.subcId c]
            ++ [(KVar k, DKVar k)  | k <- ks]
            ++ [(DKVar k, DKVar k) | k <- ks]
+
 
 fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
@@ -461,9 +460,10 @@ graphStatistics cfg si = when (elimStats cfg) $ do
     ppc d = showpp $ vcat [" ", " ", "/*", pprint d, "*/"]
 
 data Stats = Stats {
-    stNumKVCuts   :: !Int
-  , stNumKVTotal  :: !Int
-  , stIsReducible :: !Bool
+    stNumKVCuts   :: !Int   -- ^ number of kvars whose removal makes deps acyclic
+  , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
+  , stNumKVTotal  :: !Int   -- ^ number of kvars
+  , stIsReducible :: !Bool  -- ^ is dep-graph reducible
   }
 
 instance PTable Stats where
@@ -475,8 +475,18 @@ instance PTable Stats where
 graphStats :: F.SInfo a -> Stats
 graphStats si     = Stats {
     stNumKVCuts   = S.size (depCuts d)
+  , stNumKVNonLin = numNLKVars si
   , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
   , stIsReducible = isReducible si
   }
   where
     d             = deps si
+
+numNLKVars :: (F.TaggedC c a) => F.GInfo c a -> Int
+numNLKVars fi = S.size $ S.unions $ nlKVars bs <$> cs
+  where
+    bs        = F.bs fi
+    cs        = M.elems (F.cm fi)
+
+nlKVars :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
+nlKVars bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
