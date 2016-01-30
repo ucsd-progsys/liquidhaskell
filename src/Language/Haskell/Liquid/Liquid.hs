@@ -170,7 +170,9 @@ solveCs cfg tgt cgi info dc
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
-                       -- , FC.stats   = True
+                    -- DEBUG
+                    -- , FC.stats   = True
+                       , FC.elimstats   = True 
                        }
        ferr s  = fmap (cinfoUserError s)
 
