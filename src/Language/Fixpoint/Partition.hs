@@ -384,7 +384,7 @@ dumpEdges :: Config -> KVGraph -> IO ()
 --------------------------------------------------------------------------------
 dumpEdges cfg = writeFile f . render . ppGraph
   where
-    f         = extFileName Dot (inFile cfg)
+    f         = queryFile Dot cfg -- extFileName Dot (queryFile cfg)
 
 ppGraph :: KVGraph -> Doc
 ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
