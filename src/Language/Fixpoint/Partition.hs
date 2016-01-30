@@ -1,26 +1,23 @@
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE ConstraintKinds #-}
 
--- | This module implements functions that print out
---   statistics about the constraints.
+-- | This module implements functions to build constraint / kvar
+--   dependency graphs, partition them and print statistics about
+--   their structure.
 
 module Language.Fixpoint.Partition (
-    CPart (..)
 
   -- * Split constraints
+    CPart (..)
   , partition, partition', partitionN
 
   -- * Information about cores
   , MCInfo (..)
   , mcInfo
 
-    -- * KV-Dependencies
-  , deps
-
-    -- * Generic Dependencies
-  , gDeps
+  -- * Queries over dependencies
   , GDeps (..)
-
+  , deps
   , isReducible
   ) where
 
@@ -168,7 +165,7 @@ dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
 dumpPartitions cfg fis =
   forM_ (zip [0..] fis) $ \(i, fi) ->
     writeFile (partFile fi i) (render $ F.toFixpoint cfg fi)
-    
+
 partFile :: F.FInfo a -> Int -> FilePath
 partFile fi j = extFileName (Part j) (F.fileName fi)
 

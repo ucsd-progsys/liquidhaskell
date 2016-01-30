@@ -16,7 +16,7 @@ import           Control.Monad                    (forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       
+import           Data.Maybe
 import           Data.Array                hiding (indices)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
@@ -27,7 +27,7 @@ import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                       (stdout, hFlush )
 import Control.Concurrent.Async
- 
+
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -145,8 +145,12 @@ mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
--- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
+count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
+count = M.toList . fmap sum . group . fmap (, 1)
+
+group         :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k [v]
 group         = groupBase M.empty
+
 groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
