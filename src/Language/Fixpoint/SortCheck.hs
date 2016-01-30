@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -30,6 +31,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Exported Sorts
   , boolSort
   , strSort
+  , elaborate
 
   -- * Predicates on Sorts
   , isFirstOrder
@@ -91,6 +93,16 @@ sortExpr l γ e
   = case runCM0 $ checkExpr f e of 
       Left msg -> die $ err l ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
       Right s  -> s 
+  where
+    f = (`lookupSEnvWithDistance` γ)
+
+
+
+elaborate :: SEnv Sort -> Expr -> Expr 
+elaborate γ e
+  = case runCM0 $ elab f e of 
+      Left msg -> die $ err dummySpan ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
+      Right s  -> fst s 
   where
     f = (`lookupSEnvWithDistance` γ)
 
@@ -243,6 +255,77 @@ addEnv f bs x
   = case L.lookup x bs of 
       Just s  -> Found s 
       Nothing -> f x 
+
+
+-- | Elaborate expressions with their types 
+
+elab f e@(EBin o e1 e2)
+  = do (e1', s1) <- elab f e1
+       (e2', s2) <- elab f e2
+       s <- checkExpr f e
+       return $ (EBin o (ECst e1' s1) (ECst e2' s2), s)
+elab f e@(EApp e1 e2)
+  = do (e1', s1) <- elab f e1 
+       (e2', s2) <- elab f e2
+       s <- checkExpr f e 
+       return $ (EApp (ECst e1' s1) (ECst e2' s2), s)
+elab _ e@(ESym _)       
+  = return (e, strSort)
+elab _ e@(ECon (I _))   
+  = return (e, FInt)
+elab _ e@(ECon (R _))   
+  = return (e, FReal)
+elab _ e@(ECon (L _ s)) 
+  = return (e, s)
+elab _ e@(PKVar _ _)     
+  = return (e, boolSort)
+elab f e@(EVar x)     
+  = (e,) <$> checkSym f x
+elab f (ENeg e)       
+  = do (e', s) <- elab f e 
+       return (ENeg e', s)
+elab f (EIte p e1 e2) 
+  = do (p', _)  <- elab f p 
+       (e1', _) <- elab f e1
+       (e2', _) <- elab f e2
+       s <- checkIte f p e1 e2
+       return (EIte p' e1' e2', s)
+elab f (ECst e t)    
+   = do (e', _) <- elab f e
+        return (ECst e' t, t)
+elab f (PNot p)       
+  = do (e', _) <- elab f p 
+       return (e', boolSort)
+elab f (PImp p1 p2)    
+  = do (p1', _) <- elab f p1
+       (p2', _) <- elab f p2
+       return (PImp p1' p2', boolSort)
+elab f (PIff p1 p2)    
+  = do (p1', _) <- elab f p1
+       (p2', _) <- elab f p2
+       return (PIff p1' p2', boolSort)
+elab f (PAnd ps)      
+  = do ps' <- mapM (elab f) ps 
+       return (PAnd (fst <$> ps'), boolSort)
+elab f (POr ps)      
+  = do ps' <- mapM (elab f) ps 
+       return (POr (fst <$> ps'), boolSort)
+elab f (PAtom r e1 e2) 
+  = do (e1', _) <- elab f e1 
+       (e2', _) <- elab f e2
+       return (PAtom r e1' e2', boolSort)
+elab f (PExist bs e)  
+  = do (e', s) <- elab (addEnv f bs) e 
+       return (PExist bs e', s)
+elab _ (PAll _ _)     
+  = error "SortCheck.elab: TODO: implement PAll"
+elab _ (ETApp _ _)    
+  = error "SortCheck.elab: TODO: implement ETApp"
+elab _ (ETAbs _ _)    
+  = error "SortCheck.elab: TODO: implement ETAbs"
+
+
+
 
 -- | Helper for checking symbol occurrences
 

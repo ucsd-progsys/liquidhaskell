@@ -19,7 +19,7 @@ import           Data.Text.Format               hiding (format)
 import           Data.Maybe (fromMaybe)
 import           Language.Fixpoint.Misc (errorstar)
 
-import           Language.Fixpoint.SortCheck (sortExpr)
+import           Language.Fixpoint.SortCheck (elaborate)
 
 {-
     (* (L t1 t2 t3) is now encoded as
@@ -132,8 +132,8 @@ smt2Bop env o e1 e2
   | otherwise  
   = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   where
-    s1 = sortExpr dummySpan env e1 
-    s2 = sortExpr dummySpan env e2 
+    s1 = sortExpr e1 
+    s2 = sortExpr e2 
 
 smt2App :: SMTEnv -> Expr  -> T.Text
 smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App f ds)
@@ -164,8 +164,8 @@ instance SMTLIB2 Command where
      = format "(declare-fun {} () {})"    (smt2 env x, smt2 env intSort)    
 
   smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
-  smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env p)
-  smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env p, i)
+  smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env $ elaborate env p)
+  smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env $ elaborate env p, i)
   smt2 env (Distinct az)       = format "(assert (distinct {}))"    (Only $ smt2s env az)
   smt2 _   (Push)              = "(push 1)"
   smt2 _   (Pop)               = "(pop 1)"
@@ -225,7 +225,7 @@ makeApplication env e es
 
 
 makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol 
-makeFunSymbol env e i 
+makeFunSymbol _ e i 
   |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
   = setApplyName i
   | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
@@ -239,7 +239,7 @@ makeFunSymbol env e i
   | otherwise
   = intApplyName i 
   where
-    s = dropArgs i $ sortExpr dummySpan env e
+    s = dropArgs i $ sortExpr e
 
     dropArgs 0 t           = t 
     dropArgs i (FAbs _ t)  = dropArgs i t 
@@ -261,7 +261,7 @@ toInt env e
   | otherwise
   = smt2 env e 
   where
-    s = sortExpr dummySpan env e
+    s = sortExpr e
 
 isSMTSort :: Sort -> Bool 
 isSMTSort s
@@ -310,3 +310,6 @@ makeApplies i =
     go 0 s = FFunc intSort s
     go i s = FFunc intSort $ go (i-1) s
 
+
+sortExpr (ECst _ s) = s 
+sortExpr e          = errorstar $ ("\nsortExpr on unexpected expressions" ++ show e)
