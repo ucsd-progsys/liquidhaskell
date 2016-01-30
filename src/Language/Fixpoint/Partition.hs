@@ -468,8 +468,10 @@ data Stats = Stats {
 
 instance PTable Stats where
   ptable (Stats {..})  = DocTable [
-      ("# KVars [Cuts/Total]", pprint stNumKVCuts <+> "/" <+> pprint stNumKVTotal)
-    , ("# Reducible"         , pprint stIsReducible)
+      ("# Cut KVars"        , pprint stNumKVCuts)
+    , ("# Non-linear KVars" , pprint stNumKVNonLin)
+    , ("# Total KVars"      , pprint stNumKVTotal)
+    , ("# Reducible"        , pprint stIsReducible)
     ]
 
 graphStats :: F.SInfo a -> Stats
