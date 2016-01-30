@@ -103,7 +103,7 @@ sortExpr l γ e
 elaborate :: SEnv Sort -> Expr -> Expr 
 elaborate γ e
   = case runCM0 $ elab f e of 
-      Left msg -> die $ err dummySpan ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
+      Left msg -> die $ err dummySpan ("elaborate failed for " ++ showFix e ++ "\n with error\n" ++ msg)
       Right s  -> fst s 
   where
     f = (`lookupSEnvWithDistance` γ')
@@ -424,7 +424,7 @@ checkFractional f l
 
 checkNumeric f l
   = do t <- checkSym f l
-       unless (t == FNum) (throwError $ errNonNumeric l)
+       unless (t == FNum || t == FFrac) (throwError $ errNonNumeric l)
        return ()
 
 -------------------------------------------------------------------------
