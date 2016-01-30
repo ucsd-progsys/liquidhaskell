@@ -295,7 +295,7 @@ elab f (ECst e t)
         return (ECst e' t, t)
 elab f (PNot p)       
   = do (e', _) <- elab f p 
-       return (e', boolSort)
+       return (PNot e', boolSort)
 elab f (PImp p1 p2)    
   = do (p1', _) <- elab f p1
        (p2', _) <- elab f p2
