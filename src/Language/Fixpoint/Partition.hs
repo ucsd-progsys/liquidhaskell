@@ -166,9 +166,9 @@ finfoToCpart fi = CPart { pcm = F.cm fi
 dumpPartitions :: (F.Fixpoint a) => Config -> [F.FInfo a] -> IO ()
 -------------------------------------------------------------------------------------
 dumpPartitions cfg fis =
-  forM_ fis $ \fi ->
-    writeFile (F.fileName fi) (render $ F.toFixpoint cfg fi)
-
+  forM_ (zip [0..] fis) $ \(i, fi) ->
+    writeFile (partFile fi i) (render $ F.toFixpoint cfg fi)
+    
 partFile :: F.FInfo a -> Int -> FilePath
 partFile fi j = extFileName (Part j) (F.fileName fi)
 
