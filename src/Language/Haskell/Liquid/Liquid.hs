@@ -124,11 +124,19 @@ liquidOne tgt info = do
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
   cgi `deepseq` donePhase Loud "generateConstraints"
+  whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
   donePhase Loud "solve"
   let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
   DC.saveResult tgt out'
   exitWithResult cfg tgt out'
+
+dumpCs :: CGInfo -> IO ()
+dumpCs cgi = do
+  putStrLn "***************************** SubCs *******************************"
+  putStrLn $ render $ pprint (hsCs cgi)
+  putStrLn "***************************** WfCs ********************************"
+  putStrLn $ render $ pprint (hsWfs cgi)
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
@@ -145,6 +153,7 @@ prune cfg cbinds tgt info
   where
     vs            = tgtVars sp
     sp            = spec info
+
 
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
@@ -173,7 +182,7 @@ solveCs cfg tgt cgi info dc
                     -- DEBUG
                     -- , FC.stats   = True
                     -- DEBUG (get non-linear KVAR stats)
-                       , FC.elimStats   = True 
+                       , FC.elimStats   = True
                        }
        ferr s  = fmap (cinfoUserError s)
 
