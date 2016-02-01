@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -39,6 +40,7 @@ module Language.Fixpoint.Types.Sorts (
   , sortSubst
   , functionSort
   , mkFFunc
+  , bkFFunc
   ) where
 
 import qualified Data.Binary as B
@@ -151,10 +153,9 @@ mkFFunc i ss     = go [0..i-1] ss
    -- foldl (flip FAbs) (foldl1 (flip FFunc) ss) [0..i-1]
 
 bkFFunc :: Sort -> Maybe (Int, [Sort])
-bkFFunc t = do
-  let (as, t')  = bkAbs t
-  (ts, ts)     <- bkFun t'
-  return (maximum (0:as), ts)
+bkFFunc t    = (maximum (0 : as),) <$> bkFun t' 
+  where 
+    (as, t') = bkAbs t 
 
 bkAbs :: Sort -> ([Int], Sort)
 bkAbs (FAbs i t) = (i:is, t') where (is, t') = bkAbs t
