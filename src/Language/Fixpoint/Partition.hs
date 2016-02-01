@@ -465,31 +465,35 @@ data Stats = Stats {
   , stNumKVNonLin :: !Int   -- ^ number of kvars that appear >= 2 in some LHS
   , stNumKVTotal  :: !Int   -- ^ number of kvars
   , stIsReducible :: !Bool  -- ^ is dep-graph reducible
+  , stSetKVNonLin :: S.HashSet F.KVar -- ^ set of non-linear kvars
   }
 
 instance PTable Stats where
   ptable (Stats {..})  = DocTable [
-      ("# Cut KVars"        , pprint stNumKVCuts)
-    , ("# Non-linear KVars" , pprint stNumKVNonLin)
-    , ("# Total KVars"      , pprint stNumKVTotal)
-    , ("# Reducible"        , pprint stIsReducible)
+      ("# KVars [Cut]"    , pprint stNumKVCuts)
+    , ("# KVars [NonLin]" , pprint stNumKVNonLin)
+    , ("# KVars [All]"    , pprint stNumKVTotal)
+    , ("# Reducible"      , pprint stIsReducible)
+    , ("KVars NonLin"     , pprint stSetKVNonLin)
     ]
 
 graphStats :: F.SInfo a -> Stats
 graphStats si     = Stats {
     stNumKVCuts   = S.size (depCuts d)
-  , stNumKVNonLin = numNLKVars si
+  , stNumKVNonLin = S.size  nlks
   , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
   , stIsReducible = isReducible si
+  , stSetKVNonLin = nlks
   }
   where
+    nlks          = nlKVarsASA si
     d             = deps si
 
-numNLKVars :: (F.TaggedC c a) => F.GInfo c a -> Int
-numNLKVars fi = S.size $ S.unions $ nlKVars bs <$> cs
+nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
+nlKVars fi = S.unions $ nlKVarsC bs <$> cs
   where
-    bs        = F.bs fi
-    cs        = M.elems (F.cm fi)
+    bs     = F.bs fi
+    cs     = M.elems (F.cm fi)
 
-nlKVars :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
-nlKVars bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
+nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
+nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
