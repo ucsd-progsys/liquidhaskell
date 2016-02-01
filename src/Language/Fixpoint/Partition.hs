@@ -486,7 +486,7 @@ graphStats si     = Stats {
   , stSetKVNonLin = nlks
   }
   where
-    nlks          = nlKVarsASA si
+    nlks          = nlKVars si
     d             = deps si
 
 nlKVars :: (F.TaggedC c a) => F.GInfo c a -> S.HashSet F.KVar
