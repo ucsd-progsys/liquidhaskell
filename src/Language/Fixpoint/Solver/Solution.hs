@@ -39,6 +39,9 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Prelude                        hiding (init, lookup)
 
+-- DEBUG
+-- import Text.Printf (printf)
+
 ---------------------------------------------------------------------
 -- | Types ----------------------------------------------------------
 ---------------------------------------------------------------------
@@ -61,6 +64,7 @@ lookup s k = M.lookupDefault [] k s
 -- | Expanded or Instantiated Qualifier -----------------------------
 ---------------------------------------------------------------------
 
+dummyQual :: F.Qualifier
 dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
 
 mkJVar :: F.Expr -> KBind
@@ -76,8 +80,6 @@ instance PPrint EQual where
   pprint = pprint . eqPred
 
 instance NFData EQual
---  where
-  -- rnf (EQL q p _) = rnf q `seq` rnf p
 
 {- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
 
@@ -139,15 +141,15 @@ refine :: F.SInfo a
 refine fi qs w = refineK env qs $ F.wrft w
   where
     env        = wenv <> genv
-    wenv       = F.sr_sort <$> (F.fromListSEnv $ F.envCs (F.bs fi) (F.wenv w))
+    wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.lits fi
 
 refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
-refineK env qs (v, t, k) = (k, eqs')
+refineK env qs (v, t, k) = {- tracepp msg -} (k, eqs')
    where
     eqs                  = instK env v t qs
     eqs'                 = filter (okInst env v t) eqs
-    -- msg                  = "refineK: " ++ show k
+    -- msg                  = printf "refineK: k = %s, eqs = %s" (showpp k) (showpp eqs)
 
 --------------------------------------------------------------------
 instK :: F.SEnv F.Sort
@@ -172,6 +174,7 @@ instKQ env v t q
     where
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
+
 
 instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands env = filter isOk tyss

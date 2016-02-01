@@ -84,7 +84,7 @@ solve :: (NFData a, Fixpoint a) => Solver a
 solve cfg fi
   | parts cfg = partition  cfg               $!! fi
   | stats cfg = statistics cfg               $!! fi
-  | minimize cfg = minimizeFQ cfg  $!! fi
+  | minimize cfg = minimizeFQ cfg            $!! fi
   | otherwise = do saveQuery cfg             $!! fi
                    res <- sW solveNative cfg $!! fi
                    return                    $!! res
@@ -236,21 +236,6 @@ parseFI f = do
   let fi = rr' f str :: FInfo ()
   return $ mempty { quals = quals  fi
                   , lits  = lits   fi }
-
-{-
----------------------------------------------------------------------------
--- | Save Query to Binary File
----------------------------------------------------------------------------
-saveBinary :: Config -> IO ExitCode
----------------------------------------------------------------------------
-saveBinary cfg
-  | isBinary f = return ExitSuccess
-  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
-                                        saveQuery cfg >>
-                                        return ExitSuccess
-  where
-    f          = inFile cfg
--}
 
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do
