@@ -192,6 +192,7 @@ Library
                     Language.Haskell.Liquid.WiredIn,
                     Language.Haskell.Liquid.Types.Names,
                     Language.Haskell.Liquid.Liquid,
+                    Language.Haskell.Liquid.Model,
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...

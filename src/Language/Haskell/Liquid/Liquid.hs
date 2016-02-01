@@ -1,3 +1,6 @@
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -31,7 +34,8 @@ import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
-import qualified Language.Fixpoint.Types as F -- (Result (..)) -- , FixResult (..))
+import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Model
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -156,6 +160,7 @@ solveCs cfg tgt cgi info dc
        let annm  = annotMap cgi
        let res   = ferr sol r
        -- TODO: grab unsafes from `cinfoError` and generate c-exs
+       getModels cfg r
        let out0  = mkOutput cfg res sol annm
        return    $ out0 { o_vars    = names             }
                         { o_errors  = e2u sol <$> warns }
@@ -164,7 +169,7 @@ solveCs cfg tgt cgi info dc
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
                        , FC.real        = real        cfg
                        , FC.newcheck    = newcheck    cfg
-                    -- , FC.extSolver   = extSolver   cfg
+                       -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
                        , FC.save        = saveQuery cfg
                        , FC.srcFile     = tgt
@@ -174,6 +179,7 @@ solveCs cfg tgt cgi info dc
                        -- , FC.stats   = True
                        }
        ferr s  = fmap (cinfoUserError s)
+
 
 cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
 cinfoUserError s =  e2u s . cinfoError
