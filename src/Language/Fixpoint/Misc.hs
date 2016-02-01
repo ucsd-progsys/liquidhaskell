@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
-{-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE ImplicitParams            #-} -- ignore hlint
 
 module Language.Fixpoint.Misc where
 
@@ -16,8 +16,9 @@ import           Control.Monad                    (forM_)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
 import           Data.Tuple                       (swap)
-import           Data.Maybe                       
+import           Data.Maybe
 import           Data.Array                hiding (indices)
+import           Data.Function                    (on)
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
 import           System.Console.CmdArgs.Verbosity (whenLoud)
@@ -27,7 +28,7 @@ import           System.FilePath                  (takeDirectory)
 import           Text.PrettyPrint.HughesPJ        hiding (first)
 import           System.IO                       (stdout, hFlush )
 import Control.Concurrent.Async
- 
+
 
 #ifdef MIN_VERSION_located_base
 import Prelude hiding (error, undefined)
@@ -46,7 +47,7 @@ traceShow     ::  Show a => String -> a -> a
 traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
-hashMapToAscList = L.sortBy (\x y -> compare (fst x) (fst y)) . M.toList
+hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 
 ---------------------------------------------------------------
 -- | Edit Distance --------------------------------------------
@@ -101,7 +102,6 @@ donePhase c str
 putBlankLn = putStrLn "" >> hFlush stdout
 
 -----------------------------------------------------------------------------------
-
 wrap l r s = l ++ s ++ r
 
 repeats n  = concat . replicate n
@@ -145,8 +145,12 @@ mfromJust s Nothing  = errorstar $ "mfromJust: Nothing " ++ s
 -- inserts       ::  Hashable k => k -> v -> M.HashMap k [v] -> M.HashMap k [v]
 inserts k v m = M.insert k (v : M.lookupDefault [] k m) m
 
--- group         :: Hashable k => [(k, v)] -> M.HashMap k [v]
+count :: (Eq k, Hashable k) => [k] -> [(k, Int)]
+count = M.toList . fmap sum . group . fmap (, 1)
+
+group         :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k [v]
 group         = groupBase M.empty
+
 groupBase     = L.foldl' (\m (k, v) -> inserts k v m)
 
 groupList     = M.toList . group
