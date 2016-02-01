@@ -21,6 +21,7 @@ module Language.Fixpoint.Types.Environments (
   , mapSEnvWithKey, mapSEnv
   , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
   , intersectWithSEnv
+  , differenceSEnv
   , filterSEnv
   , lookupSEnvWithDistance
   , envCs
@@ -83,6 +84,7 @@ lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
+differenceSEnv      (SE m1) (SE m2) = SE (M.difference m1 m2)
 filterSEnv f (SE m)     = SE (M.filter f m)
 
 lookupSEnvWithDistance x (SE env)
