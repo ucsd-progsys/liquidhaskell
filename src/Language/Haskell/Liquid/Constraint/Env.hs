@@ -12,6 +12,7 @@
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE PartialTypeSignatures     #-}
 
 -- | This module defines the representation for Environments needed
 --   during constraint generation.
@@ -114,7 +115,7 @@ extendEnvWithVV γ t
   where
     vv = rTypeValueVar t
 
-
+addBinders :: CGEnv -> F.Symbol -> [(F.Symbol, SpecType)] -> CG CGEnv
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)

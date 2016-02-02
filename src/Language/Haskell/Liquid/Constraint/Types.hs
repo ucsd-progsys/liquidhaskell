@@ -1,5 +1,6 @@
 
-{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -141,13 +142,16 @@ type FixSubC  = F.SubC Cinfo
 type FixWfC   = F.WfC Cinfo
 
 instance PPrint SubC where
-  pprint c = pprint (senv c)
-             $+$ (text " |- " <+> (pprint (lhs c) $+$
-                                   text "<:"      $+$
-                                   pprint (rhs c)))
+  -- pprint c = pprint (senv c)
+  --           $+$ (text " |- " <+> (pprint (lhs c) $+$
+  --                                 text "<:"      $+$
+  --                                 pprint (rhs c)))
+  pprint c = "<...> |-" <+> vcat [ pprint (lhs c)
+                                 , "<:"
+                                 , pprint (rhs c) ]
 
 instance PPrint WfC where
-  pprint (WfC w r) = pprint w <> text " |- " <> pprint r
+  pprint (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprint r
 
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)

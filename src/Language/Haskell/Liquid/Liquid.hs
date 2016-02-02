@@ -134,9 +134,12 @@ liquidOne tgt info = do
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
   putStrLn "***************************** SubCs *******************************"
-  putStrLn $ render $ pprint (hsCs cgi)
+  putStrLn $ render $ pprintMany (hsCs cgi)
   putStrLn "***************************** WfCs ********************************"
-  putStrLn $ render $ pprint (hsWfs cgi)
+  putStrLn $ render $ pprintMany (hsWfs cgi)
+
+pprintMany :: (PPrint a) => [a] -> Doc
+pprintMany xs = vcat [ pprint x $+$ text " " | x <- xs ]
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
