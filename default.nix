@@ -7,6 +7,7 @@
 , stdenv, stm, syb, tagged, tasty, tasty-hunit, tasty-rerun
 , template-haskell, text, time, transformers, unix
 , unordered-containers, vector, z3
+, tasty-ant-xml
 }:
 mkDerivation {
   pname = "liquidhaskell";
@@ -19,7 +20,7 @@ mkDerivation {
     containers cpphs data-default deepseq Diff directory filepath
     fingertree ghc ghc-paths hashable hpc hscolour liquid-fixpoint
     located-base mtl parsec pretty process prover syb template-haskell
-    text time unordered-containers vector
+    text time unordered-containers vector hscolour
   ];
   executableHaskellDepends = [
     base bytestring cereal cmdargs daemons data-default deepseq
@@ -28,7 +29,7 @@ mkDerivation {
   ];
   testHaskellDepends = [
     base containers directory filepath mtl optparse-applicative process
-    stm tagged tasty tasty-hunit tasty-rerun transformers
+    stm tagged tasty tasty-hunit tasty-rerun transformers tasty-ant-xml
   ];
   testSystemDepends = [ z3 ];
   homepage = "http://goto.ucsd.edu/liquidhaskell";

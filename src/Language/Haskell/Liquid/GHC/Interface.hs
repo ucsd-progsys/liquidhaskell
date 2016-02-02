@@ -40,7 +40,7 @@ import Data.List (find, nub, (\\))
 import Data.Maybe (catMaybes, maybeToList)
 import qualified Data.HashSet        as S
 
-import System.Console.CmdArgs.Verbosity (whenLoud)
+import System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import System.Directory (removeFile, createDirectoryIfMissing, doesFileExist)
 import Language.Fixpoint.Types hiding (Error, Result, Expr)
 import Language.Fixpoint.Misc
@@ -88,7 +88,7 @@ getGhcInfo'' :: Config -> FilePath -> Ghc GhcInfo
 getGhcInfo'' cfg0 target
   = {- runGhc (Just libdir) $ -} do
       liftIO              $ cleanFiles target
-      liftIO $ donePhase Loud "Cleaned Files"
+      liftIO $ whenNormal $ donePhase Loud "Cleaned Files"
       addRootTarget     =<< guessTarget target Nothing
       (name, tgtSpec)    <- liftIO $ parseSpec target
       cfg                <- liftIO $ withPragmas cfg0 target $ Ms.pragmas tgtSpec
@@ -99,14 +99,14 @@ getGhcInfo'' cfg0 target
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
       impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
-      liftIO $ donePhase Loud "Parsed All Specifications"
+      liftIO $ whenNormal $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
                               unless (isSpecImport n) $
                                 addTarget =<< guessTarget f Nothing
                               return (n,s)
       load LoadAllTargets
-      liftIO $ donePhase Loud "Loaded Targets"
+      liftIO $ whenNormal $ donePhase Loud "Loaded Targets"
       modguts            <- getGhcModGuts1 target
       hscEnv             <- getSession
       coreBinds          <- liftIO $ anormalize (not $ nocaseexpand cfg) hscEnv modguts

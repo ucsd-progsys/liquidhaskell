@@ -1618,8 +1618,9 @@ ppr_tyvar       = text . tvId
 ppr_tyvar_short = text . showPpr
 
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+  -- pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
+  -- pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 
 ppRefArgs :: [Symbol] -> Doc

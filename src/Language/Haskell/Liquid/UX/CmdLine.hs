@@ -15,7 +15,7 @@
 
 module Language.Haskell.Liquid.UX.CmdLine (
    -- * Get Command Line Configuration
-     getOpts, mkOpts
+     getOpts, mkOpts, defConfig
 
    -- * Update Configuration With Pragma
    , withPragmas

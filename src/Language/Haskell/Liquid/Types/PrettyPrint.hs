@@ -127,6 +127,8 @@ type OkRT c tv r = ( TyConable c
                    , Reftable (RTProp c tv r)
                    , RefTypable c tv ()
                    , RefTypable c tv r
+                   , PPrint (RType c tv r)
+                   , PPrint (RType c tv ())
                    )
 
 --------------------------------------------------------------------------------
@@ -236,8 +238,8 @@ ppAllExpr bb p t
           split zs t                = (reverse zs, t)
 
 ppReftPs _ _ rs
-  | all isTauto rs   = empty
-  | not (ppPs ppEnv) = empty
+  --- | all isTauto rs   = empty
+  --- | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
 -- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
@@ -309,8 +311,8 @@ ppr_pvar_sort :: (OkRT c tv ()) => PPEnv -> Prec -> RType c tv () -> Doc
 ppr_pvar_sort bb p t = ppr_rtype bb p t
 
 ppr_ref :: (OkRT c tv r) => Ref (RType c tv ()) (RType c tv r) -> Doc
-ppr_ref  (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
+-- ppr_ref (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
 
 ppRefArgs :: [Symbol] -> Doc
 ppRefArgs [] = empty
@@ -323,8 +325,8 @@ dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
   pprint (MkUReft r p _)
-    | isTauto r  = pprint p
-    | isTauto p  = pprint r
+    --- | isTauto r  = pprint p
+    --- | isTauto p  = pprint r
     | otherwise  = pprint p <> text " & " <> pprint r
 
 --------------------------------------------------------------------------------

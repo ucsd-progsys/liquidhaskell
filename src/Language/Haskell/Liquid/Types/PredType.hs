@@ -245,7 +245,7 @@ pad msg _ xs ys
     nys         = length ys
 
 substPredP _ su p@(RProp _ (RHole _))
-  = panic Nothing ("PredType.substPredP1 called on invalid inputs" ++ showpp (su, p))
+  = panic Nothing ("PredType.substPredP1 called on invalid inputs: " ++ showpp (su, p))
 substPredP msg su@(p, RProp ss _) (RProp s t)
   = RProp ss' $ substPred (msg ++ ": substPredP") su t
  where

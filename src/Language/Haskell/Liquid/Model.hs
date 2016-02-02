@@ -36,7 +36,7 @@ getModel cfg Ci { ci_err = Just (ErrSubType { ctx, tact, texp }) } = do
   print r
   r <- command smt (GetValue [vv])
   print r
-  undefined
+  _ <- undefined
   return ()
 
 getModel _ _ = return ()
