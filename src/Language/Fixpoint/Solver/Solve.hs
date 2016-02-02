@@ -174,7 +174,7 @@ gradualSolveOne c =
      if hasGradual 
       then do let vc = makeGradualExpression γ γ' (F.crhs c) 
               s <- checkSat vc 
-              return {- $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
+              return {- traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
                  $ if s then Nothing else Just c 
       else return $ Just c 
 
