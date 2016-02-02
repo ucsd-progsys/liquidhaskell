@@ -8,7 +8,7 @@
 
 - Added support for theory of Arrays `Map_t`, `Map_select`, `Map_store`
 
-- Added support for theory of Bitvectors -- see `Language.Fixpoint.Bitvector`
+- Added support for theory of Bitvectors -- see `Language.Fixpoint.Smt.Bitvector`
 
 - Added support for string literals
 
