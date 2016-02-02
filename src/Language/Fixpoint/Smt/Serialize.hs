@@ -106,8 +106,10 @@ instance SMTLIB2 Expr where
   smt2 (PNot p)         = format "(not {})"    (Only $ smt2 p)
   smt2 (PImp p q)       = format "(=> {} {})"  (smt2 p, smt2 q)
   smt2 (PIff p q)       = format "(=  {} {})"  (smt2 p, smt2 q)
+  smt2 (PAll   bs p)    = format "(forall ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
   smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 PGrad            = "true"
   smt2 _                = errorstar "smtlib2 Pred"
 
 smt2Bop o e1 e2

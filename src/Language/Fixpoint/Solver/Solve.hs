@@ -24,6 +24,10 @@ import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
 
+
+import Data.List  (sort)
+import Data.Maybe (catMaybes)
+
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
 --------------------------------------------------------------------------------
@@ -126,7 +130,8 @@ result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 result wkl s = do
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ wkl s
-  return   $ F.Result (F.sinfo <$> stat) sol
+  stat' <- gradualSolve stat 
+  return   $ F.Result (F.sinfo <$> stat') sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s   = res <$> filterM (isUnsat s) cs
@@ -151,6 +156,60 @@ rhsPred :: S.Solution -> F.SimpC a -> F.Expr
 rhsPred s c = S.apply s $ F.crhs c
 
 
+
+gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))
+gradualSolve (F.Unsafe cs) 
+  = makeResult . catMaybes <$> mapM gradualSolveOne cs 
+  where 
+    makeResult [] = F.Safe 
+    makeResult cs = F.Unsafe cs 
+
+gradualSolve r 
+  = return r
+
+gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
+gradualSolveOne c = 
+  do γ0 <- makeEnvironment c 
+     let (γ, γ') = splitLastGradual γ0 
+     let vc      = makeGradualExpression γ γ' (F.crhs c) 
+     s <- checkUnsat vc 
+     return $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) )
+            $ if s then Nothing else Just c 
+
+makeGradualExpression γ γ' p 
+  = F.PAnd [F.PAll bs (F.PImp gs p), gs]
+  where
+    bs = [ (x, s) | (x, F.RR s _) <- γ']
+    gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
+    bindToLogic (x, F.RR _ (F.Reft (v, e))) = e `F.subst1` (v, F.EVar x)
+
+
+
+makeEnvironment  c 
+  = do lp <- getBinds
+       return [ F.lookupBindEnv i lp | i <- bs ]
+  where 
+    bs = sort $ F.elemsIBindEnv $ F.senv c 
+
+splitLastGradual = go [] . reverse
+  where
+    go acc (xe@(x, (F.RR s (F.Reft(v, e)))):xss) 
+      | Just es <- removePGrads e 
+      = (reverse $ ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc)
+      | otherwise
+      = go (xe:acc) xss 
+    go acc [] 
+      = ([], reverse acc)
+
+removePGrads (F.PAnd es)
+  | any (==F.PGrad) es
+  = Just $ filter (/= F.PGrad) es
+  | otherwise
+  = Nothing 
+removePGrads F.PGrad     
+  = Just [] 
+removePGrads _ 
+  = Nothing 
 {-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()
