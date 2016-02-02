@@ -119,11 +119,11 @@ addBinders :: CGEnv -> F.Symbol -> [(F.Symbol, SpecType)] -> CG CGEnv
 addBinders γ0 x' cbs   = foldM (++=) (γ0 -= x') [("addBinders", x, t) | (x, t) <- cbs]
 
 addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.BindId)
-addBind l x r
-  = do st          <- get
-       let (i, bs') = F.insertBindEnv x r (binds st)
-       put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
-       return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
+addBind l x r = do
+  st          <- get
+  let (i, bs') = F.insertBindEnv x r (binds st)
+  put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
+  return ((x, F.sr_sort r), i) -- traceShow ("addBind: " ++ showpp x) i
 
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds

@@ -135,6 +135,8 @@ dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
   putStrLn "***************************** SubCs *******************************"
   putStrLn $ render $ pprintMany (hsCs cgi)
+  putStrLn "***************************** FixCs *******************************"
+  putStrLn $ render $ pprintMany (fixCs cgi)
   putStrLn "***************************** WfCs ********************************"
   putStrLn $ render $ pprintMany (hsWfs cgi)
 
