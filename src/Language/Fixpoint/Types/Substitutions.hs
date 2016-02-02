@@ -204,7 +204,7 @@ instance Reftable SortedReft where
 
 -- RJ: this depends on `isTauto` hence, here.
 instance PPrint Reft where
-  pprint r@(Reft (_,_))
+  pprint r
     | isTauto r        = text "true"
     | otherwise        = pprintReft r
 
@@ -255,6 +255,6 @@ exprSymbols = go
     go (PIff p1 p2)       = go p1 ++ go p2
     go (PImp p1 p2)       = go p1 ++ go p2
     go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.keys su) ++ syms (M.elems su)
+    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.elems su)
     go (PAll xts p)       = (fst <$> xts) ++ go p
     go _                  = []
