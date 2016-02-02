@@ -311,7 +311,7 @@ instance Fixpoint Expr where
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
-  toFix PGrad            = text "?"
+  toFix PGrad            = text "??"
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse

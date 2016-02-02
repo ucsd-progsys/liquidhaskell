@@ -173,7 +173,7 @@ gradualSolveOne c =
      let (γ, γ') = splitLastGradual γ0 
      let vc      = makeGradualExpression γ γ' (F.crhs c) 
      s <- checkUnsat vc 
-     return $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) )
+     return -- $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) )
             $ if s then Nothing else Just c 
 
 makeGradualExpression γ γ' p 
