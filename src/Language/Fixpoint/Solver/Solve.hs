@@ -170,11 +170,11 @@ gradualSolve r
 gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
 gradualSolveOne c = 
   do γ0 <- makeEnvironment c 
-     let (γ, γ') = splitLastGradual γ0 
+     let (γ, γ', hasGradual) = splitLastGradual γ0 
      let vc      = makeGradualExpression γ γ' (F.crhs c) 
-     s <- checkUnsat vc 
+     s <- checkSat vc 
      return -- $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) )
-            $ if s then Nothing else Just c 
+            $ if hasGradual && s then Nothing else Just c 
 
 makeGradualExpression γ γ' p 
   = F.PAnd [F.PAll bs (F.PImp gs p), gs]
@@ -195,11 +195,11 @@ splitLastGradual = go [] . reverse
   where
     go acc (xe@(x, (F.RR s (F.Reft(v, e)))):xss) 
       | Just es <- removePGrads e 
-      = (reverse $ ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc)
+      = (reverse $ ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
       | otherwise
       = go (xe:acc) xss 
     go acc [] 
-      = ([], reverse acc)
+      = ([], reverse acc, False)
 
 removePGrads (F.PAnd es)
   | any (==F.PGrad) es
