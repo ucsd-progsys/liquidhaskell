@@ -174,10 +174,10 @@ instance Fixpoint a => Show (SimpC a) where
 
 instance Fixpoint a => PPrint (SubC a) where
   pprint = toFix
-instance Fixpoint a => Fixpoint (SimpC a) where
+instance Fixpoint a => PPrint (SimpC a) where
   pprint = toFix
-instance Fixpoint a => Fixpoint (WfC a) where
-  pprint = toFix 
+instance Fixpoint a => PPrint (WfC a) where
+  pprint = toFix
 
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
