@@ -47,7 +47,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, --extSolver,
+import Language.Fixpoint.Types.Config      hiding (Config, real, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -209,6 +209,10 @@ config = cmdArgsMode $ Config {
             &= name "scrape-used-imports"
             &= explicit
 
+ , elimStats
+    = False &= name "elimStats"
+            &= help "Print eliminate stats"
+
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -356,6 +360,7 @@ defConfig = Config { files          = def
                    , port           = defaultPort
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
+                   , elimStats      = False
                    }
 
 
