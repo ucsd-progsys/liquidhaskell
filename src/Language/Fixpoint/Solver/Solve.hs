@@ -171,10 +171,12 @@ gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
 gradualSolveOne c = 
   do γ0 <- makeEnvironment c 
      let (γ, γ', hasGradual) = splitLastGradual γ0 
-     let vc      = makeGradualExpression γ γ' (F.crhs c) 
-     s <- checkSat vc 
-     return {- $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
-            $ if hasGradual && s then Nothing else Just c 
+     if hasGradual 
+      then do let vc = makeGradualExpression γ γ' (F.crhs c) 
+              s <- checkSat vc 
+              return {- $ traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
+                 $ if s then Nothing else Just c 
+      else return $ Just c 
 
 makeGradualExpression γ γ' p 
   = F.PAnd [F.PAll bs (F.PImp gs p), gs]
