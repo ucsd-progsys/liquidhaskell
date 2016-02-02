@@ -172,6 +172,13 @@ instance Fixpoint a => Show (SubC a) where
 instance Fixpoint a => Show (SimpC a) where
   show = showFix
 
+instance Fixpoint a => PPrint (SubC a) where
+  pprint = toFix
+instance Fixpoint a => Fixpoint (SimpC a) where
+  pprint = toFix
+instance Fixpoint a => Fixpoint (WfC a) where
+  pprint = toFix 
+
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
      where bd =   toFix (senv c)
@@ -232,7 +239,7 @@ wfC be sr x
   where
     msg       = "wfKvar: malformed wfC " ++ show sr
 
-mkSubC = SubC 
+mkSubC = SubC
 
 subC :: IBindEnv -> SortedReft -> SortedReft -> Maybe Integer -> Tag -> a -> [SubC a]
 subC γ sr1 sr2 i y z = [SubC γ sr1' (sr2' r2') i y z | r2' <- reftConjuncts r2]
