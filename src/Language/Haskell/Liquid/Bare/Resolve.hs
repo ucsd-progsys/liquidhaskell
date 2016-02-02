@@ -66,6 +66,7 @@ instance Resolvable Expr where
   resolve l (PExist ss e)   = PExist ss <$> resolve l e
   resolve _ (ESym s)        = return $ ESym s 
   resolve _ (ECon c)        = return $ ECon c 
+  resolve _ PGrad           = return PGrad 
 
 instance Resolvable LocSymbol where
   resolve _ ls@(Loc l l' s)

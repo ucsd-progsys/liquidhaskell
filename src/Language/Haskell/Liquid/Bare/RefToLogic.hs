@@ -101,6 +101,8 @@ instance Transformable Expr where
   tx _ _ p@(PKVar _ _)   = p
   tx _ _ p@(ETApp _ _)   = p
   tx _ _ p@(ETAbs _ _)   = p
+  tx _ _ p@PGrad         = p
+
 
 instance Transformable (Measure t c) where
   tx s m x = x{eqns = tx s m <$> (eqns x)}
