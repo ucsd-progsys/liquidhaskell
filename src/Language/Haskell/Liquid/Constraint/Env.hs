@@ -27,6 +27,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , addBinders
   , addSEnv
   , (-=)
+  , globalize
 
   -- * Construction
   , fromListREnv
@@ -119,6 +120,11 @@ lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
 
 memberREnv :: F.Symbol -> REnv -> Bool
 memberREnv x rE = or   $ M.member x <$> renvMaps rE
+
+globalREnv :: REnv -> REnv
+globalREnv (REnv gM lM) = REnv gM' M.empty
+  where
+    gM'  = M.unionWith (\_ t -> t) gM lM
 
 renvMaps rE = [reLocal rE, reGlobal rE]
 
@@ -219,11 +225,17 @@ normalizeVV _ t
 
 
 --------------------------------------------------------------------------------
+globalize :: CGEnv -> CGEnv
+--------------------------------------------------------------------------------
+globalize γ = γ {renv = globalREnv (renv γ)}
+
+
+--------------------------------------------------------------------------------
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
 (++=) γ (msg, x, t)
-  = trace ("++= " ++ show x)
-  $ addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (msg, x, t)
+  = -- trace ("++= " ++ show x) $
+    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (msg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv

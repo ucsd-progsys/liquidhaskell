@@ -316,6 +316,7 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
 
+-- HEREHEREHEREHEREHERE
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
@@ -396,7 +397,6 @@ bsplitC' γ t1 t2 pflag
     g   = reLocal $ renv γ
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
-
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )

@@ -149,7 +149,6 @@ addCombine τ γ
     combineVar    = makeCombineVar  combineType
     combineSymbol = F.symbol combineVar
 
--- HEREHEREHEREHEREHEREHERE 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
 ------------------------------------------------------------------------------------
@@ -179,7 +178,7 @@ initEnv info
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -331,8 +330,7 @@ initCGI cfg info = CGInfo {
   where
     tce        = tcEmbeds spc
     spc        = spec info
-    tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-
+    tyi        = tyconEnv spc
     mkSort = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
@@ -1266,7 +1264,7 @@ varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
 varRefType γ x = do
   xt <- varRefType' γ x <$> (γ ??= x)
-  return {- $ F.tracepp (printf "varRefType x = [%s]" (showpp x)) -} xt
+  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
