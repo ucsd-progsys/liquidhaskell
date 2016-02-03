@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Monad
 
          -- * SMT Query
        , filterValid
-       , checkSat
+       , checkSat, smtEnablrmbqi
 
          -- * Debug
        , Stats
@@ -152,6 +152,11 @@ filterValid_ p qs me = catMaybes <$> do
       smtAssert me (F.PNot q)
       valid <- smtCheckUnsat me
       return $ if valid then Just x else Nothing
+
+
+smtEnablrmbqi
+  = withContext $ \me ->  
+            smtWrite me "(set-option :smt.mbqi true)"
 
 
 checkSat :: F.Expr -> SolveM  Bool 

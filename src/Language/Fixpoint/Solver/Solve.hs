@@ -159,11 +159,10 @@ rhsPred s c = S.apply s $ F.crhs c
 
 gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))
 gradualSolve (F.Unsafe cs) 
-  = makeResult . catMaybes <$> mapM gradualSolveOne cs 
+  = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
   where 
     makeResult [] = F.Safe 
     makeResult cs = F.Unsafe cs 
-
 gradualSolve r 
   = return r
 

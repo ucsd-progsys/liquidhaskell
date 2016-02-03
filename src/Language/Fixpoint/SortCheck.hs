@@ -328,8 +328,9 @@ elab f (PAtom r e1 e2)
 elab f (PExist bs e)  
   = do (e', s) <- elab (addEnv f bs) e 
        return (PExist bs e', s)
-elab _ (PAll _ _)     
-  = error "SortCheck.elab: TODO: implement PAll"
+elab f (PAll bs e)  
+  = do (e', s) <- elab (addEnv f bs) e 
+       return (PAll bs e', s)
 elab _ (ETApp _ _)    
   = error "SortCheck.elab: TODO: implement ETApp"
 elab _ (ETAbs _ _)    

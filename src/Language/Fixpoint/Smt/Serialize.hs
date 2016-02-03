@@ -118,6 +118,9 @@ instance SMTLIB2 Expr where
     where
       env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
+  smt2 env (PAll bs p)     = format "(forall ({}) {})"  (smt2s env bs, smt2 env' p)
+    where
+      env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   smt2  _  PGrad            = "true"
   smt2 _   _                = errorstar "smtlib2 Pred"
 
