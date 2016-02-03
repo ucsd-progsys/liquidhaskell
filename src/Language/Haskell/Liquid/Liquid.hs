@@ -184,10 +184,8 @@ solveCs cfg tgt cgi info dc
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
-                    -- DEBUG
-                    -- , FC.stats   = True
-                    -- DEBUG (get non-linear KVAR stats)
-                    -- , FC.elimStats   = True
+                       , FC.elimStats   = elimStats   cfg
+                       -- , FC.stats   = True
                        }
        ferr s  = fmap (cinfoUserError s)
 

@@ -57,6 +57,7 @@ data Config = Config {
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , scrapeImports  :: Bool       -- ^ scrape qualifiers from imported specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
+  , elimStats      :: Bool       -- ^ print eliminate stats
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
