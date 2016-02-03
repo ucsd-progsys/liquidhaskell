@@ -352,6 +352,7 @@ keyWordSyms = ["if", "then", "else", "mod"]
 pred0P :: Parser Expr
 pred0P =  trueP
       <|> falseP
+      <|> try (reserved "??" >> return PGrad)
       <|> try kvarPredP
       <|> try (fastIfP pIte predP)
       <|> try predrP

@@ -213,6 +213,7 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
+          | PGrad 
           deriving (Eq, Show, Data, Typeable, Generic)
 
 pattern PTrue  = PAnd []
@@ -310,6 +311,7 @@ instance Fixpoint Expr where
   toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
+  toFix PGrad            = text "??"
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -477,7 +479,8 @@ instance PPrint Expr where
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
-
+  pprintPrec _ PGrad           = text "?"
+  
 trueD  = text "true"
 falseD = text "false"
 andD   = text " &&"
