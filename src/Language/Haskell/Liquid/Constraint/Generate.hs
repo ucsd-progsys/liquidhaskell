@@ -1265,7 +1265,7 @@ varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
 varRefType γ x = do
   xt <- varRefType' γ x <$> (γ ??= x)
-  return $ F.tracepp (printf "varRefType x = [%s]" (showpp x)) xt
+  return {- $ F.tracepp (printf "varRefType x = [%s]" (showpp x)) -} xt
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'

@@ -187,7 +187,7 @@ solveCs cfg tgt cgi info dc
                     -- DEBUG
                     -- , FC.stats   = True
                     -- DEBUG (get non-linear KVAR stats)
-                       , FC.elimStats   = True
+                    -- , FC.elimStats   = True
                        }
        ferr s  = fmap (cinfoUserError s)
 
