@@ -22,6 +22,9 @@ module Language.Fixpoint.Smt.Types (
     -- * SMTLIB2 Process Context
     , Context (..)
 
+    -- * SMTLIB2 symbol environment 
+    , SMTEnv, emptySMTEnv
+
     -- * Theory Symbol
     , TheorySymbol (..)
 
@@ -70,6 +73,7 @@ data Context      = Ctx { pId     :: ProcessHandle
                         , cOut    :: Handle
                         , cLog    :: Maybe Handle
                         , verbose :: Bool
+                        , smtenv  :: SMTEnv
                         }
 
 -- | Theory Symbol
@@ -86,6 +90,11 @@ data TheorySymbol  = Thy { tsSym  :: Symbol
 format :: Params ps => DTF.Format -> ps -> T.Text
 format f x = LT.toStrict $ DTF.format f x
 
+type SMTEnv = SEnv Sort 
+
+
+emptySMTEnv = emptySEnv 
+
 -- | Types that can be serialized
 class SMTLIB2 a where
-  smt2 :: a -> T.Text
+  smt2 :: SMTEnv -> a -> T.Text

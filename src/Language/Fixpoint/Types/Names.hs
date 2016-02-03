@@ -93,6 +93,10 @@ module Language.Fixpoint.Types.Names (
   , mulFuncName
   , divFuncName
 
+  -- * Casting function names
+  , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName
+  , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
+
 ) where
 
 import           Control.DeepSeq             (NFData (..))
@@ -440,6 +444,23 @@ instance Symbolic Symbol where
 ----------------------------------------------------------------------------
 --------------- Global Name Definitions ------------------------------------
 ----------------------------------------------------------------------------
+
+setToIntName, bitVecToIntName, mapToIntName, boolToIntName , realToIntName:: Symbol
+setToIntName    = "set_to_int"
+bitVecToIntName = "bitvec_to_int"
+mapToIntName    = "map_to_int"
+boolToIntName   = "bool_to_int"
+realToIntName   = "real_to_int"
+
+
+setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName :: Int -> Symbol
+setApplyName    = intSymbol "set_apply_"   
+bitVecApplyName = intSymbol "bitvec_apply"  
+mapApplyName    = intSymbol "map_apply_"    
+boolApplyName   = intSymbol "bool_apply_"   
+realApplyName   = intSymbol "real_apply_"   
+intApplyName    = intSymbol "int_apply_" 
+
 
 preludeName, dummyName, boolConName, funConName :: Symbol
 preludeName  = "Prelude"

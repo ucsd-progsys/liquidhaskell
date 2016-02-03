@@ -433,7 +433,7 @@ instance PPrint Expr where
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <> (pprintPrec (za+1) es)
+                                   pprint f <+> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>

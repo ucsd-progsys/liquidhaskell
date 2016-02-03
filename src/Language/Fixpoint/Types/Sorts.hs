@@ -31,6 +31,7 @@ module Language.Fixpoint.Types.Sorts (
   , intFTyCon, boolFTyCon, realFTyCon, numFTyCon  -- TODO: hide these
 
   , intSort, realSort, boolSort, strSort, funcSort
+  , setSort, bitVecSort, mapSort
   , listFTyCon
   , isListTC
   , fTyconSymbol, symbolFTycon, fTyconSort
@@ -217,6 +218,18 @@ strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
 funcSort = fTyconSort funcFTyCon
+
+bitVecSort :: Sort 
+mapSort :: Sort -> Sort -> Sort
+
+setSort :: Sort -> Sort 
+setSort    = FApp (FTC $ symbolFTycon' "Set_Set")
+
+bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Name)
+mapSort k v = FApp (FApp (FTC $ symbolFTycon' "Map_t") k) v
+
+symbolFTycon' = symbolFTycon . dummyLoc
+
 
 fTyconSort :: FTycon -> Sort
 fTyconSort c
