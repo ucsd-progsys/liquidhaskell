@@ -85,17 +85,17 @@ import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 type CG = State CGInfo
 
 data CGEnv
-  = CGE { cgLoc  :: !SpanStack         -- ^ Location in original source file
-        , renv   :: !REnv              -- ^ SpecTypes for Bindings in scope
-        , syenv  :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
-        , denv   :: !RDEnv             -- ^ Dictionary Environment
-        , fenv   :: !FEnv              -- ^ Fixpoint Environment
-        , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-        , invs   :: !RTyConInv         -- ^ Datatype invariants
-        , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants
-        , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
-        , assms  :: !REnv              -- ^ Top-level variables with assumed types
-        , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+  = CGE { cgLoc :: !SpanStack         -- ^ Location in original source file
+        , renv  :: !REnv              -- ^ SpecTypes for Bindings in scope
+        , syenv :: !(F.SEnv Var)      -- ^ Map from free Symbols (e.g. datacons) to Var
+        , denv  :: !RDEnv             -- ^ Dictionary Environment
+        , fenv  :: !FEnv              -- ^ Fixpoint Environment
+        , recs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
+        , invs  :: !RTyConInv         -- ^ Datatype invariants
+        , ial   :: !RTyConIAl         -- ^ Datatype checkable invariants
+        , grtys :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
+        , assms :: !REnv              -- ^ Top-level variables with assumed types
+        , emb   :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
         , tgEnv :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
         , tgKey :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
         , trec  :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints

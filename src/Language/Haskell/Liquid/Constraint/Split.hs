@@ -316,7 +316,6 @@ splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
 
--- HEREHEREHEREHEREHERE
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
@@ -364,13 +363,13 @@ rsplitsCWithVariance _ γ t1s t2s variants
 
 bsplitC γ t1 t2
   = do checkStratum γ t1 t2
-       pflag <- pruneRefs <$> get
-       γ' <- γ ++= ("bsplitC", v, t1)
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
+       pflag  <- pruneRefs <$> get
+       γ'     <- γ ++= ("bsplitC", v, t1)
+       let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
        let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
-       return $ bsplitC' γ' t1' t2 pflag
-  where
-    F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
+       return  $ bsplitC' γ' t1' t2 pflag
+    where
+       F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
