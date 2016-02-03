@@ -39,6 +39,7 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtAssert
     , smtCheckUnsat
+    , smtCheckSat
     , smtBracket
     , smtDistinct
 
@@ -307,6 +308,10 @@ deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
+
+smtCheckSat :: Context -> Expr -> IO Bool 
+smtCheckSat me p 
+ = smtAssert me p >> (not <$> smtCheckUnsat me)
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)

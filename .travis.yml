@@ -1,6 +1,12 @@
 language: c
 sudo: false
 
+# Only build master, develop, and PRs
+branches:
+  only:
+  - master
+  - develop
+
 matrix:
   include:
     - env: SMT="z3" CABAL=1.22 GHC=7.10.2
@@ -9,10 +15,6 @@ matrix:
 # env:
 #   - SMT="z3"   GHC="7.10.1" CABAL="1.22"
 #   - SMT="cvc4" GHC="7.10.1" CABAL="1.22"
-
-# branches:
-#   only:
-#     - master
 
 cache:
   directories:

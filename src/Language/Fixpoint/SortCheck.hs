@@ -248,6 +248,7 @@ checkExpr f (PAnd ps)      = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (POr ps)       = mapM_ (checkPred f) ps >> return boolSort
 checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
+checkExpr _ PGrad          = return boolSort
 
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e 

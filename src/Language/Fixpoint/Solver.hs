@@ -21,15 +21,15 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent
 import           Data.Binary
-import           Data.Maybe                         (fromMaybe)
+-- import           Data.Maybe                         (fromMaybe)
+-- import           Data.List                          hiding (partition)
 import qualified Data.HashMap.Strict                as M
-import qualified Data.HashSet                       as S
-import           Data.List                          hiding (partition)
+-- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
 import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
-import           Text.Printf                        (printf)
+-- import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void, filterM, forM)
 import           Control.Exception                  (catch)
 
@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
 import           Language.Fixpoint.Solver.Solution  (Solution)
-import           Language.Fixpoint.Types.Config           (multicore, Config (..))
+import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
 import           Language.Fixpoint.Misc
@@ -84,7 +84,7 @@ solve :: (NFData a, Fixpoint a) => Solver a
 solve cfg fi
   | parts cfg = partition  cfg               $!! fi
   | stats cfg = statistics cfg               $!! fi
-  | minimize cfg = minimizeFQ cfg  $!! fi
+  | minimize cfg = minimizeFQ cfg            $!! fi
   | otherwise = do saveQuery cfg             $!! fi
                    res <- sW solveNative cfg $!! fi
                    return                    $!! res
@@ -162,7 +162,9 @@ inParallelUsing f xs = do
 ---------------------------------------------------------------------------
 solveNative, solveNative' :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solveNative !cfg !fi0 = (solveNative' cfg fi0) `catch` (return . result)
+solveNative !cfg !fi0 = (solveNative' cfg fi0)
+                          `catch`
+                             (return . result)
 
 result :: Error -> Result a
 result e = Result (Crash [] msg) mempty
@@ -182,7 +184,7 @@ solveNative' !cfg !fi0 = do
   let si1 = either die id $ {-# SCC "validate" #-} sanitize $!! si0
   -- writeLoud $ "fq file after validate: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
-  when (elimStats cfg) $ printElimStats (deps si1)
+  graphStatistics cfg si1
   let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
@@ -197,11 +199,6 @@ solveNative' !cfg !fi0 = do
   -- colorStrLn (colorResult stat) (show stat)
   return res
 
-printElimStats :: GDeps KVar -> IO ()
-printElimStats d = putStrLn $ printf "KVars (Total/Post-Elim) = (%d, %d) \n" total postElims
-  where
-    total        = postElims + S.size (depNonCuts d)
-    postElims    = S.size $ depCuts d
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
@@ -240,21 +237,6 @@ parseFI f = do
   return $ mempty { quals = quals  fi
                   , lits  = lits   fi }
 
-{-
----------------------------------------------------------------------------
--- | Save Query to Binary File
----------------------------------------------------------------------------
-saveBinary :: Config -> IO ExitCode
----------------------------------------------------------------------------
-saveBinary cfg
-  | isBinary f = return ExitSuccess
-  | otherwise  = exit (ExitFailure 2) $ readFInfo f >>=
-                                        saveQuery cfg >>
-                                        return ExitSuccess
-  where
-    f          = inFile cfg
--}
-
 saveSolution :: Config -> Result a -> IO ()
 saveSolution cfg res = when (save cfg) $ do
   let f = queryFile Out cfg
@@ -282,10 +264,6 @@ saveTextQuery cfg fi = do
   ensurePath fq
   writeFile fq $ render (toFixpoint cfg fi)
 
-queryFile :: Ext -> Config -> FilePath
-queryFile e cfg = extFileName e f
-  where
-    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]
 
 isBinary :: FilePath -> Bool
 isBinary = isExtFile BinFq
@@ -310,7 +288,7 @@ type ConsList a = [(Integer, SubC a)]
 -- polymorphic delta debugging implementation
 deltaDebug :: (Config -> FInfo a -> [c] -> IO Bool) -> Config -> FInfo a -> [c] -> [c] -> IO [c]
 deltaDebug testSet cfg finfo set r = do
-  let (s1, s2) = splitAt ((length set) `div` 2) set
+  let (s1, s2) = splitAt (length set `div` 2) set
   if length set == 1
     then return set
     else do

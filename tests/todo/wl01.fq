@@ -1,0 +1,39 @@
+qualif Nat(v:int) : (0 <= v)
+
+bind 0 x : {v: int | [$k0]}
+bind 1 y : {v: int | [$k0]}
+bind 2 z : {v: int | [$k1]}
+
+constraint:
+  env [ ]
+  lhs {v : int | [v = 10]}
+  rhs {v : int | [$k0]}
+  id 1 tag [0]
+
+constraint:
+  env [ 0 ]
+  lhs {v : int | [v = x + x]}
+  rhs {v : int | [$k0]}
+  id 2 tag [0]
+
+constraint:
+  env [ 0; 1 ]
+  lhs {v : int | [v = x + y ]}
+  rhs {v : int | [$k1]}
+  id 3 tag [0]
+
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | [v =  z]}
+  rhs {v : int | [0 <= v]}
+  id 4 tag [0]
+
+wf:
+  env [ ]
+  reft {v: int | [$k0]}
+
+
+wf:
+  env [ ]
+  reft {v: int | [$k1]}

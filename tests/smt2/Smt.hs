@@ -4,7 +4,7 @@ module Smt where
 
 import qualified Data.Text.Lazy.IO as T
 
-import Language.Fixpoint.Config (SMTSolver (..))
+import Language.Fixpoint.Types.Config (SMTSolver (..))
 import Language.Fixpoint.Parse
 import Language.Fixpoint.SmtLib2
 import System.Environment

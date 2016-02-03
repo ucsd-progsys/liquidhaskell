@@ -15,8 +15,11 @@ module Language.Fixpoint.Types.Config (
   , defaultMinPartSize
   , defaultMaxPartSize
   , multicore
+  , queryFile
 ) where
 
+import Data.Maybe   (fromMaybe)
+import Data.List    (find)
 import GHC.Generics
 import System.Console.CmdArgs
 import Language.Fixpoint.Utils.Files
@@ -117,7 +120,7 @@ instance Command UeqAllSorts where
 
 ---------------------------------------------------------------------------------------
 
-data SMTSolver = Z3 | Cvc4 | Mathsat 
+data SMTSolver = Z3 | Cvc4 | Mathsat
                  deriving (Eq, Data, Typeable, Generic)
 
 instance Command SMTSolver where
@@ -175,3 +178,8 @@ banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of Ca
 
 multicore :: Config -> Bool
 multicore cfg = cores cfg /= Just 1
+
+queryFile :: Ext -> Config -> FilePath
+queryFile e cfg = extFileName e f
+  where
+    f           = fromMaybe "out" $ find (not . null) [srcFile cfg, inFile cfg]

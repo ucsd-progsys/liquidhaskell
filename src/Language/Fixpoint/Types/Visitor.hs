@@ -22,6 +22,7 @@ module Language.Fixpoint.Types.Visitor (
   -- * Clients
   , kvars
   , envKVars
+  , envKVarsN
   , rhsKVars
   , mapKVars, mapKVars', mapKVarSubsts
 
@@ -139,6 +140,7 @@ visitExpr v = vE
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
     step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
+    step _ PGrad           = return PGrad 
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -173,11 +175,11 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
     squish    = S.toList  . S.fromList . concat
     kvs       = kvars . sr_reft
 
--- lhsKVars :: BindEnv -> SubC a -> [KVar]
--- lhsKVars binds c = envKVs ++ lhsKVs
-  -- where
-    -- envKVs       = envKVars binds         c
-    -- lhsKVs       = kvars          $ lhsCs c
+envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
+envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
+  where
+    tally      = count . concat
+    kvs        = kvars . sr_reft
 
 rhsKVars :: (TaggedC c a) => c a -> [KVar]
 rhsKVars = kvars . crhs -- rhsCs
@@ -204,7 +206,7 @@ foldSort f = step
     step b t           = go (f b t) t
     go b (FFunc t1 t2) = L.foldl' step b [t1, t2]
     go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
-    go b (FAbs _ t)    = go b t 
+    go b (FAbs _ t)    = go b t
     go b _             = b
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort
