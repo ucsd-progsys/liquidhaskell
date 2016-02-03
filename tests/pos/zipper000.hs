@@ -47,23 +47,22 @@ q1 = undefined
 q0 :: a -> [a]
 q0 = undefined
 
-
 {-@ focusUp :: UStack a -> UStack a @-}
 focusUp :: Stack a -> Stack a
 focusUp (Stack t [] rs)     = Stack xiggety xs [] where (xiggety:xs) = reverse (t:rs)
 focusUp (Stack t (l:ls) rs) = Stack l ls (t:rs)
 
+{-@ reverse :: {v:[a] | Set_emp (listDup v)} -> {v:[a]|Set_emp (listDup v)} @-}
+reverse :: [a] -> [a]
+reverse = undefined
+
 {-@ focusDown :: UStack a -> UStack a @-}
 focusDown :: Stack a -> Stack a
-focusDown = reverseStack . focusUp . reverseStack
+focusDown = undefined
+-- focusDown = reverseStack . focusUp . reverseStack
 
 -- | reverse a stack: up becomes down and down becomes up.
 {-@ reverseStack :: UStack a -> UStack a @-}
 reverseStack :: Stack a -> Stack a
-reverseStack (Stack t ls rs) = Stack t rs ls
-
-
--- TODO ASSUMES
-{-@ reverse :: {v:[a] | (Set_emp (listDup v))} -> {v:[a]|(Set_emp (listDup v))} @-}
-reverse :: [a] -> [a]
-reverse = undefined
+reverseStack = undefined
+-- reverseStack (Stack t ls rs) = Stack t rs ls
