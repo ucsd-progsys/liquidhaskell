@@ -39,7 +39,7 @@ constraintToLogicOne γ binds -- env
    xts      = init binds
    (xs, ts) = unzip xts
    r        = snd $ last binds
-   xss      = combinations ((\t -> [(x, t) | x <- bindsOfType t γ]) <$> ts)
+   xss      = combinations ((\t -> [(x, t) | x <- localBindsOfType t γ]) <$> ts)
 
 subConstraintToLogicOne xts (x', (x, t)) = PImp (pAnd rs) r
   where

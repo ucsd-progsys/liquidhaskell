@@ -56,6 +56,7 @@ import Var
 -- import Outputable
 -- import FastString (fsLit)
 import Control.Monad.State
+import Control.Monad (msum)
 
 -- import           GHC.Err.Located hiding (error)
 import           GHC.Stack
@@ -90,18 +91,39 @@ instance Freshable CG Integer where
 -- | Refinement Type Environments ----------------------------------------------
 --------------------------------------------------------------------------------
 
-toListREnv (REnv env)     = M.toList env
-filterREnv f (REnv env)   = REnv $ M.filter f env
-fromListREnv              = REnv . M.fromList
-deleteREnv x (REnv env)   = REnv (M.delete x env)
-insertREnv x y (REnv env) = REnv (M.insert x y env)
-lookupREnv x (REnv env)   = M.lookup x env
-memberREnv x (REnv env)   = M.member x env
+updREnvLocal :: REnv -> (_ -> _) -> REnv
+updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
+
+-- RJ: REnv-Split-Bug?
+filterREnv :: (SpecType -> Bool) -> REnv -> REnv
+filterREnv f rE        = rE `updREnvLocal` (M.filter f)
+
+fromListREnv :: [(F.Symbol, SpecType)] -> [(F.Symbol, SpecType)] -> REnv
+fromListREnv gXts lXts = REnv (M.fromList gXts) (M.fromList lXts)
+
+-- RJ: REnv-Split-Bug?
+deleteREnv :: F.Symbol -> REnv -> REnv
+deleteREnv x rE = rE `updREnvLocal` (M.delete x)
+
+insertREnv :: F.Symbol -> SpecType -> REnv -> REnv
+insertREnv x y rE = rE `updREnvLocal` (M.insert x y)
+
+lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
+lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
+
+memberREnv :: F.Symbol -> REnv -> Bool
+memberREnv x rE = or   $ M.member x <$> renvMaps rE
+
+renvMaps rE = [reLocal rE, reGlobal rE]
 
 --------------------------------------------------------------------------------
-bindsOfType :: RRType r  -> CGEnv -> [F.Symbol]
+localBindsOfType :: RRType r  -> CGEnv -> [F.Symbol]
 --------------------------------------------------------------------------------
-bindsOfType tx γ = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+localBindsOfType tx γ = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+
+-- RJ: REnv-Split-Bug?
+toListREnv :: REnv -> [(F.Symbol, SpecType)]
+toListREnv = M.toList . reLocal
 
 
 --------------------------------------------------------------------------------
@@ -128,8 +150,6 @@ addBind l x r = do
 addClassBind :: SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]
 addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
-
-
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 addCGEnv tx γ (msg, x, REx y tyy tyx)
@@ -140,29 +160,26 @@ addCGEnv tx γ (msg, x, REx y tyy tyx)
 addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
   = addCGEnv tx γ (msg, x, t)
   where
-    xs    = bindsOfType tyy γ
-    t     = foldl F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
-
+    xs            = localBindsOfType tyy γ
+    t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
-addCGEnv tx γ (_, x, t')
-  = do idx   <- fresh
-       let t  = tx $ normalize idx t'
-       let l  = getLocation γ
-       let γ' = γ { renv = insertREnv x t (renv γ) }
-       pflag <- pruneRefs <$> get
-       is    <- if isBase t
-                  then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
-                  else return []
-       return $ γ' { fenv = insertsFEnv (fenv γ) is }
+addCGEnv tx γ (_, x, t') = do
+  idx   <- fresh
+  let t  = tx $ normalize idx t'
+  let l  = getLocation γ
+  let γ' = γ { renv = insertREnv x t (renv γ) }
+  pflag <- pruneRefs <$> get
+  is    <- if isBase t
+             then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
+             else return []
+  return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' pflag γ
-  | pflag
-  = pruneUnsortedReft (feEnv $ fenv γ) . f
-  | otherwise
-  = f
+  | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f
+  | otherwise = f
   where
-    f = rTypeSortedReft (emb γ)
+    f         = rTypeSortedReft (emb γ)
 
 normalize idx = normalizeVV idx . normalizePds
 

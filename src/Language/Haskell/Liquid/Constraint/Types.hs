@@ -150,7 +150,7 @@ instance PPrint SubC where
              $+$ ("|-" <+> vcat [ pprint (lhs c)
                                  , "<:"
                                  , pprint (rhs c) ] )
-                                 
+
 instance PPrint WfC where
   pprint (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprint r
 
@@ -295,12 +295,9 @@ initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
 -- | Forcing Strictness --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-instance NFData REnv where
-  rnf (REnv _) = () -- rnf m
-
 instance NFData CGEnv where
-  rnf (CGE x1 x2 x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _ _)
-    = x1 `seq` rnf x2 `seq` seq x3 `seq` rnf x5 `seq`
+  rnf (CGE x1 _ x3 _ x5 x6 x7 x8 x9 _ _ x10 _ _ _ _ _ _)
+    = x1 `seq` {- rnf x2 `seq` -} seq x3 `seq` rnf x5 `seq`
       rnf x6  `seq` x7 `seq` rnf x8 `seq` rnf x9 `seq` rnf x10
 
 instance NFData FEnv where

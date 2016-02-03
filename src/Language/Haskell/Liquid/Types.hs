@@ -83,7 +83,7 @@ module Language.Haskell.Liquid.Types (
   , SpecType, SpecProp
   , RSort
   , UsedPVar, RPVar, RReft
-  , REnv -- (..)
+  , REnv (..)
 
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
@@ -1299,9 +1299,20 @@ instance PPrint Predicate where
   pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
 
 
--- | The type used during constraint generation, used also to define contexts
--- for errors, hence in this file, and NOT in Constraint.hs
-newtype REnv = REnv  (M.HashMap Symbol SpecType)
+-- | The type used during constraint generation, used
+--   also to define contexts for errors, hence in this
+--   file, and NOT in elsewhere. **DO NOT ATTEMPT TO MOVE**
+--   Am splitting into
+--   + global : many bindings, shared across all constraints
+--   + local  : few bindings, relevant to particular constraints
+
+data REnv = REnv
+  { reGlobal :: M.HashMap Symbol SpecType -- ^ the "global" names for module
+  , reLocal  :: M.HashMap Symbol SpecType -- ^ the "local" names for sub-exprs
+  }
+
+instance NFData REnv where
+  rnf (REnv {}) = ()
 
 ------------------------------------------------------------------------
 -- | Error Data Type ---------------------------------------------------
