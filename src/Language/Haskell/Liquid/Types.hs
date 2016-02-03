@@ -83,7 +83,7 @@ module Language.Haskell.Liquid.Types (
   , SpecType, SpecProp
   , RSort
   , UsedPVar, RPVar, RReft
-  , REnv (..)
+  , REnv -- (..)
 
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
