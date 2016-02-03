@@ -99,7 +99,7 @@ import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
-import Debug.Trace
+-- import Debug.Trace (trace)
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -1062,9 +1062,6 @@ isClassConCo co
 --
 --   D:C :: (a -> b) -> C
 
-singletonReft (Just x) _ = uTop $ F.symbolReft x
-singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
-
 -- | @consElimE@ is used to *synthesize* types by **existential elimination**
 --   instead of *checking* via a fresh template. That is, assuming
 --      γ |- e1 ~> t1
@@ -1264,8 +1261,9 @@ argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-varRefType γ x = varRefType' γ x <$> (γ ??= x)
-
+varRefType γ x = do
+  xt <- varRefType' γ x <$> (γ ??= x)
+  return $ F.tracepp (printf "varRefType x = [%s]" (showpp x)) xt
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1277,18 +1275,25 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+singletonReft (Just x) _ = uTop $ F.symbolReft x
+singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
+
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenS :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
-topMeet r r' = F.top r `F.meet` r'
 
+topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
+topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+  -- where
+    -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 
+  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

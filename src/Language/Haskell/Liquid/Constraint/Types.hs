@@ -146,10 +146,11 @@ instance PPrint SubC where
   --           $+$ (text " |- " <+> (pprint (lhs c) $+$
   --                                 text "<:"      $+$
   --                                 pprint (rhs c)))
-  pprint c = "<...> |-" <+> vcat [ pprint (lhs c)
+  pprint c = pprint (senv c)
+             $+$ ("|-" <+> vcat [ pprint (lhs c)
                                  , "<:"
-                                 , pprint (rhs c) ]
-
+                                 , pprint (rhs c) ] )
+                                 
 instance PPrint WfC where
   pprint (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprint r
 

@@ -2,4 +2,7 @@ module IdNat where
 
 {-@ nat :: Nat @-}
 nat :: Int
-nat = id 0 -- (id (id (id (id 0))))
+nat = idd 0 
+
+idd :: a -> a
+idd = undefined 
