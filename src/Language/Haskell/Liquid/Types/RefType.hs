@@ -1113,4 +1113,5 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprint (REnv _ m)  = pprint m
+  pprint re = text "RENV" $+$ 
+              pprint (reLocal re)

@@ -149,6 +149,7 @@ addCombine τ γ
     combineVar    = makeCombineVar  combineType
     combineSymbol = F.symbol combineVar
 
+-- HEREHEREHEREHEREHEREHERE 
 ------------------------------------------------------------------------------------
 initEnv :: GhcInfo -> CG CGEnv
 ------------------------------------------------------------------------------------

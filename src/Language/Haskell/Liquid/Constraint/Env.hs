@@ -82,6 +82,8 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Transforms.RefSplit
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 
+import Debug.Trace (trace)
+
 instance Freshable CG Integer where
   fresh = do s <- get
              let n = freshIndex s
@@ -110,7 +112,7 @@ deleteREnv :: F.Symbol -> REnv -> REnv
 deleteREnv x rE = rE `updREnvLocal` (M.delete x)
 
 insertREnv :: F.Symbol -> SpecType -> REnv -> REnv
-insertREnv x y rE = rE `updREnvLocal` (M.insert x y)
+insertREnv x y rE = {- trace ("insertREnv: " ++ show x) $ -} rE `updREnvLocal` (M.insert x y)
 
 lookupREnv :: F.Symbol -> REnv -> Maybe SpecType
 lookupREnv x rE = msum $ M.lookup x <$> renvMaps rE
@@ -219,7 +221,9 @@ normalizeVV _ t
 --------------------------------------------------------------------------------
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(++=) γ = addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ
+(++=) γ (msg, x, t)
+  = trace ("++= " ++ show x)
+  $ addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (msg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
@@ -227,7 +231,7 @@ addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
-(γ, _) +++= (x, e, t) = (γ{lcb = M.insert x e (lcb γ)}, "+++=") += (x, t)
+(γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }, "+++=") += (x, t)
 
 γ -= x =  γ {renv = deleteREnv x (renv γ), lcb  = M.delete x (lcb γ)}
 
