@@ -311,7 +311,12 @@ deconSort t = case functionSort t of
 
 smtCheckSat :: Context -> Expr -> IO Bool 
 smtCheckSat me p 
- = smtAssert me p >> (not <$> smtCheckUnsat me)
+-- hack now this is used only for checking gradual condition. 
+ =     smtWrite me "(set-option :smt.mbqi true)"
+    >> smtAssert me p >> (ans <$> command me CheckSat)
+ where
+   ans Sat = True 
+   ans _   = False 
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)

@@ -39,8 +39,8 @@ import           Control.Monad.Trans.State (State, modify, runState)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import           Language.Fixpoint.Misc (sortNub)
 import           Language.Fixpoint.Types hiding (mapSort)
+import           Language.Fixpoint.Misc (count, sortNub)
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings

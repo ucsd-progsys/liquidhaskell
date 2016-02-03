@@ -288,6 +288,8 @@ elab _ e@(ECon (L _ s))
   = return (e, s)
 elab _ e@(PKVar _ _)     
   = return (e, boolSort)
+elab _ e@PGrad   
+  = return (e, boolSort)
 elab f e@(EVar x)     
   = (e,) <$> checkSym f x
 elab f (ENeg e)       
@@ -332,7 +334,6 @@ elab _ (ETApp _ _)
   = error "SortCheck.elab: TODO: implement ETApp"
 elab _ (ETAbs _ _)    
   = error "SortCheck.elab: TODO: implement ETAbs"
-
 
 
 
