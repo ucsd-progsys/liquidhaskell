@@ -133,11 +133,13 @@ consAct info
        let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
-    mkSigs γ = case (grtys γ,  assms γ, renv γ) of
-                (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
-    fixEnv   = feEnv . fenv
+    fixEnv           = feEnv . fenv
+    mkSigs γ         = toListREnv (grtys γ) ++
+                       toListREnv (assms γ) ++
+                       toListREnv (renv γ)
+
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -260,15 +262,15 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 
 measEnv sp xts cbs lts asms hs autosizes
   = CGE { cgLoc = Sp.empty
-        , renv  = fromListREnv $ second val <$> meas sp
+        , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
         , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
         , ial   = mkRTyConIAl    $ ialiases   sp
-        , grtys = fromListREnv xts
-        , assms = fromListREnv asms
+        , grtys = fromListREnv xts  []
+        , assms = fromListREnv asms []
         , emb   = tce
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing

@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.Constraint.Env (
 
   -- * Construction
   , fromListREnv
+  , toListREnv
 
   -- * Query
   , localBindsOfType
@@ -99,7 +100,10 @@ filterREnv :: (SpecType -> Bool) -> REnv -> REnv
 filterREnv f rE        = rE `updREnvLocal` (M.filter f)
 
 fromListREnv :: [(F.Symbol, SpecType)] -> [(F.Symbol, SpecType)] -> REnv
-fromListREnv gXts lXts = REnv (M.fromList gXts) (M.fromList lXts)
+fromListREnv gXts lXts = REnv
+  { reGlobal = M.fromList gXts
+  , reLocal  = M.fromList lXts
+  }
 
 -- RJ: REnv-Split-Bug?
 deleteREnv :: F.Symbol -> REnv -> REnv
@@ -119,12 +123,17 @@ renvMaps rE = [reLocal rE, reGlobal rE]
 --------------------------------------------------------------------------------
 localBindsOfType :: RRType r  -> CGEnv -> [F.Symbol]
 --------------------------------------------------------------------------------
-localBindsOfType tx γ = fst <$> toListREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+localBindsOfType tx γ = fst <$> localsREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
 
 -- RJ: REnv-Split-Bug?
-toListREnv :: REnv -> [(F.Symbol, SpecType)]
-toListREnv = M.toList . reLocal
+localsREnv :: REnv -> [(F.Symbol, SpecType)]
+localsREnv = M.toList . reLocal
 
+globalsREnv :: REnv -> [(F.Symbol, SpecType)]
+globalsREnv = M.toList . reGlobal
+
+toListREnv :: REnv -> [(F.Symbol, SpecType)]
+toListREnv re = globalsREnv re ++ localsREnv re
 
 --------------------------------------------------------------------------------
 extendEnvWithVV :: CGEnv -> SpecType -> CG CGEnv
