@@ -82,6 +82,9 @@ expandExpr (PAtom b e1 e2)
 expandExpr (PKVar k s)
   = return $ PKVar k s 
 
+expandExpr PGrad
+  = return PGrad
+
 expandExpr (PExist s e)
   = PExist s <$> expandExpr e 
 
