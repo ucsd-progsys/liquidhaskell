@@ -350,7 +350,7 @@ splitC (SubR γ o r)
     rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
-    REnv g = renv γ
+    g   = reLocal $ renv γ
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -386,14 +386,14 @@ bsplitC' γ t1 t2 pflag
   | otherwise
   = []
   where
-    γ'     = feBinds $ fenv γ
-    r1'    = rTypeSortedReft' pflag γ t1
-    r2'    = rTypeSortedReft' pflag γ t2
-    ci     = Ci src err
-    tag    = getTag γ
-    err    = Just $ ErrSubType src (text "subtype") g t1 t2
-    src    = getLocation γ
-    REnv g = renv γ
+    γ'  = feBinds $ fenv γ
+    r1' = rTypeSortedReft' pflag γ t1
+    r2' = rTypeSortedReft' pflag γ t2
+    ci  = Ci src err
+    tag = getTag γ
+    err = Just $ ErrSubType src (text "subtype") g t1 t2
+    src = getLocation γ
+    g   = reLocal $ renv γ
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 
