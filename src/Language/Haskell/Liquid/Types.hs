@@ -1237,6 +1237,7 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 rTypeReft :: (Reftable r) => RType c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase
 
+  
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)
   = Just x

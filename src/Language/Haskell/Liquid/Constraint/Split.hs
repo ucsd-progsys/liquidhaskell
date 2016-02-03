@@ -361,15 +361,24 @@ rsplitsCWithVariance False _ _ _ _
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
-bsplitC γ t1 t2
-  = do checkStratum γ t1 t2
-       pflag  <- pruneRefs <$> get
-       γ'     <- γ ++= ("bsplitC", v, t1)
-       let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
-       let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
-       return  $ bsplitC' γ' t1' t2 pflag
-    where
-       F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
+bsplitC γ t1 t2 = do
+  checkStratum γ t1 t2
+  pflag  <- pruneRefs <$> get
+  let t1' = addLhsInv γ t1
+  return  $ bsplitC' γ t1' t2 pflag
+
+addLhsInv :: CGEnv -> SpecType -> SpecType
+addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
+  where
+    r         = (mempty :: UReft F.Reft) { ur_reft = F.Reft (F.dummySymbol, p) }
+    p         = constraintToLogic rE' (lcs γ)
+    rE'       = insertREnv v t (renv γ)
+    v         = rTypeValueVar t
+
+     -- γ'     <- γ ++= ("bsplitC", v, t1)
+       -- let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
+       -- let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
+       -- let F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()

@@ -32,7 +32,8 @@ module Language.Haskell.Liquid.Constraint.Env (
   -- * Construction
   , fromListREnv
   , toListREnv
-
+  , insertREnv -- TODO: remove this ASAP
+    
   -- * Query
   , localBindsOfType
   , lookupREnv
@@ -129,9 +130,9 @@ globalREnv (REnv gM lM) = REnv gM' M.empty
 renvMaps rE = [reLocal rE, reGlobal rE]
 
 --------------------------------------------------------------------------------
-localBindsOfType :: RRType r  -> CGEnv -> [F.Symbol]
+localBindsOfType :: RRType r  -> REnv -> [F.Symbol]
 --------------------------------------------------------------------------------
-localBindsOfType tx γ = fst <$> localsREnv (filterREnv ((== toRSort tx) . toRSort) (renv γ))
+localBindsOfType tx γ = fst <$> localsREnv (filterREnv ((== toRSort tx) . toRSort) γ)
 
 -- RJ: REnv-Split-Bug?
 localsREnv :: REnv -> [(F.Symbol, SpecType)]
@@ -169,15 +170,15 @@ addClassBind l = mapM (uncurry (addBind l)) . classBinds
 
 {- see tests/pos/polyfun for why you need everything in fixenv -}
 addCGEnv :: (SpecType -> SpecType) -> CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
-addCGEnv tx γ (msg, x, REx y tyy tyx)
+addCGEnv tx γ (eMsg, x, REx y tyy tyx)
   = do y' <- fresh
-       γ' <- addCGEnv tx γ (msg, y', tyy)
-       addCGEnv tx γ' (msg, x, tyx `F.subst1` (y, F.EVar y'))
+       γ' <- addCGEnv tx γ (eMsg, y', tyy)
+       addCGEnv tx γ' (eMsg, x, tyx `F.subst1` (y, F.EVar y'))
 
-addCGEnv tx γ (msg, x, RAllE yy tyy tyx)
-  = addCGEnv tx γ (msg, x, t)
+addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
+  = addCGEnv tx γ (eMsg, x, t)
   where
-    xs            = localBindsOfType tyy γ
+    xs            = localBindsOfType tyy (renv γ)
     t             = L.foldl' F.meet ttrue [ tyx' `F.subst1` (yy, F.EVar x) | x <- xs]
     (tyx', ttrue) = splitXRelatedRefs yy tyx
 
@@ -211,14 +212,14 @@ normalizeVV _ t
 --------------------------------------------------------------------------------
 (+=) :: (CGEnv, String) -> (F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(γ, msg) += (x, r)
+(γ, eMsg) += (x, r)
   | x == F.dummySymbol
   = return γ
   | x `memberREnv` (renv γ)
   = err
   | otherwise
-  =  γ ++= (msg, x, r)
-  where err = panic Nothing $ msg ++ " Duplicate binding for "
+  =  γ ++= (eMsg, x, r)
+  where err = panic Nothing $ eMsg ++ " Duplicate binding for "
                                   ++ F.symbolString x
                                   ++ "\n New: " ++ showpp r
                                   ++ "\n Old: " ++ showpp (x `lookupREnv` (renv γ))
@@ -233,9 +234,9 @@ globalize γ = γ {renv = globalREnv (renv γ)}
 --------------------------------------------------------------------------------
 (++=) :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
-(++=) γ (msg, x, t)
+(++=) γ (eMsg, x, t)
   = -- trace ("++= " ++ show x) $
-    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (msg, x, t)
+    addCGEnv (addRTyConInv (M.unionWith mappend (invs γ) (ial γ))) γ (eMsg, x, t)
 
 --------------------------------------------------------------------------------
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
