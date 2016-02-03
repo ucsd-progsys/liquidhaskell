@@ -32,7 +32,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , fromListREnv
 
   -- * Query
-  , bindsOfType
+  , localBindsOfType
   , lookupREnv
   , (?=)
 
@@ -91,7 +91,7 @@ instance Freshable CG Integer where
 -- | Refinement Type Environments ----------------------------------------------
 --------------------------------------------------------------------------------
 
-updREnvLocal :: REnv -> (_ -> _) -> REnv
+-- updREnvLocal :: REnv -> (_ -> _) -> REnv
 updREnvLocal rE f      = rE { reLocal = f (reLocal rE) }
 
 -- RJ: REnv-Split-Bug?

@@ -289,7 +289,7 @@ insertFEnv (FE benv env) ((x, t), i)
 insertsFEnv :: FEnv -> [((F.Symbol, F.Sort), F.BindId)] -> FEnv
 insertsFEnv = L.foldl' insertFEnv
 
-initFEnv init = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ init)
+initFEnv xts = FE F.emptyIBindEnv $ F.fromListSEnv (wiredSortedSyms ++ xts)
 
 --------------------------------------------------------------------------------
 -- | Forcing Strictness --------------------------------------------------------
