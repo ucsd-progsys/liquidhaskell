@@ -265,15 +265,15 @@ addEnv f bs x
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
-elabWith :: Env -> Expr -> Sort -> CheckM Expr
+-- elabAs :: Env -> Expr -> Sort -> CheckM Expr
 --------------------------------------------------------------------------------
-elabWith = undefined
+-- elabAs = undefined
 
 elabEApp f e1 e2 = do
   (e1', s1) <- elab f e1
   (e2', s2) <- elab f e2
   s         <- elabApp s1 s2
-  return (e1', s1, e2, s2, s)
+  return (e1', s1, e2', s2, s)
 
 elab :: Env -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
@@ -284,7 +284,7 @@ elab f e@(EBin o e1 e2) = do
   return (EBin o (ECst e1' s1) (ECst e2' s2), s)
 
 elab f (EApp e1@(EApp _ _) e2) = do
-  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  (e1', _, e2', s2, s) <- elabEApp f e1 e2
   return (EApp e1' (ECst e2' s2), s)
 
 elab f (EApp e1 e2) = do
