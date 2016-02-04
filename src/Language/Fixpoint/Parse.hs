@@ -79,7 +79,7 @@ import           Text.Parsec
 import           Text.Parsec.Expr
 import           Text.Parsec.Language        (emptyDef)
 import qualified Text.Parsec.Token           as Token
-import           Text.Printf                 (printf)
+-- import           Text.Printf                 (printf)
 import           GHC.Generics                (Generic)
 
 import           Data.Char                   (isLower)

@@ -289,6 +289,9 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
   where
     args              = intersperse comma (toFix <$> xts)
 
+instance PPrint Qualifier where
+  pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
+
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -392,7 +395,7 @@ toFixConstant (c, so)
   = text "constant" <+> toFix c <+> text ":" <+> parens (toFix so)
 
 writeFInfo :: (Fixpoint a, Fixpoint (c a)) => Config -> GInfo c a -> FilePath -> IO ()
-writeFInfo cfg fi f = writeFile f (render $ toFixpoint cfg fi)
+writeFInfo cfg fq f = writeFile f (render $ toFixpoint cfg fq)
 
 --------------------------------------------------------------------------
 -- | Query Conversions: FInfo to SInfo
