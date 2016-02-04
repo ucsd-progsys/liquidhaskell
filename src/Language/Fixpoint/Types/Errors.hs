@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Fixpoint.Types.Errors (
   -- * Concrete Location Type
@@ -29,7 +30,6 @@ module Language.Fixpoint.Types.Errors (
   , errMsg
 
   -- * Adding Insult to Injury
-  , catMessage
   , catError
   , catErrors
 
@@ -55,8 +55,11 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
+import           Data.Function (on)
+
 -- import           Debug.Trace
 
+instance Serialize Error1
 instance Serialize Error
 instance Serialize (FixResult Error)
 
@@ -65,32 +68,38 @@ instance (B.Binary a) => B.Binary (FixResult a)
 -----------------------------------------------------------------------
 -- | A BareBones Error Type -------------------------------------------
 -----------------------------------------------------------------------
+newtype Error = Error [Error1]
+                deriving (Eq, Ord, Show, Typeable, Generic)
 
-data Error = Error { errLoc :: SrcSpan
-                   , errMsg :: String }
-               deriving (Eq, Ord, Show, Data, Typeable, Generic)
+data Error1 = Error1
+  { errLoc :: SrcSpan
+  , errMsg :: String
+  } deriving (Eq, Show, Data, Typeable, Generic)
+
+instance Ord Error1 where
+  compare = compare `on` errLoc
+
+instance PPrint Error1 where
+  pprint (Error1 l msg) = pprint l <> text (": Error:" ++ msg)
 
 instance PPrint Error where
-  pprint (Error l msg) = pprint l <> text (": Error: " ++ msg)
+  pprint (Error es) = vcat $ pprint <$> es
 
-instance Fixpoint Error where
+instance Fixpoint Error1 where
   toFix = pprint
 
 instance Exception Error
 instance Exception (FixResult Error)
 
--- instance E.Error Error where
---   strMsg = Error dummySpan
-
 ---------------------------------------------------------------------
-catMessage :: Error -> String -> Error
+-- catMessage :: Error -> String -> Error
 ---------------------------------------------------------------------
-catMessage e msg = e {errMsg = msg ++ errMsg e}
+-- catMessage e msg = e {errMsg = msg ++ errMsg e}
 
 ---------------------------------------------------------------------
 catError :: Error -> Error -> Error
 ---------------------------------------------------------------------
-catError e1 e2 = catMessage e1 $ show e2
+catError (Error e1) (Error e2) = Error (e1 ++ e2)
 
 ---------------------------------------------------------------------
 catErrors :: ListNE Error -> Error
@@ -98,9 +107,9 @@ catErrors :: ListNE Error -> Error
 catErrors = foldr1 catError
 
 ---------------------------------------------------------------------
-err :: SrcSpan -> String -> Error
+err :: SrcSpan -> Doc -> Error
 ---------------------------------------------------------------------
-err = Error
+err sp msg = Error [Error1 sp (render msg)]
 
 ---------------------------------------------------------------------
 die :: Error -> a
@@ -111,10 +120,11 @@ die = throw
 exit :: a -> IO a -> IO a
 ---------------------------------------------------------------------
 exit def act = catch act $ \(e :: Error) -> do
-  putStrLn $ "Unexpected Error: " ++ showpp e
+  putDocLn $ vcat ["Unexpected Errors!", pprint e]
   return def
 
-
+putDocLn :: Doc -> IO ()
+putDocLn = putStrLn . render
 ---------------------------------------------------------------------
 -- | Result ---------------------------------------------------------
 ---------------------------------------------------------------------
@@ -144,10 +154,11 @@ instance Functor FixResult where
   fmap f (Crash xs msg)   = Crash (f <$> xs) msg
   fmap f (Unsafe xs)      = Unsafe (f <$> xs)
   fmap _ Safe             = Safe
+
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc Safe             = text "Safe"
-resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : (((text "CRASH:" <+>) . toFix) <$> xs)
-resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : (((text "WARNING:" <+>) . toFix) <$> xs)
+resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : ((("CRASH:" <+>) . toFix) <$> xs)
+resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
 
 colorResult :: FixResult a -> Moods
 colorResult (Safe)      = Happy
@@ -158,7 +169,9 @@ colorResult (_)         = Sad
 -- | Catalogue of Errors --------------------------------------------
 ---------------------------------------------------------------------
 
-errFreeVarInQual  :: (Fixpoint a, Loc a) => a -> Error
-errFreeVarInQual q = err sp $ printf "Qualifier with free vars : %s \n" (showFix q)
+errFreeVarInQual :: (PPrint q, Loc q, PPrint x) => q -> x -> Error
+errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"
+                                     , pprint q
+                                     , pprint x ]
   where
-    sp             = srcSpan q
+    sp               = srcSpan q
