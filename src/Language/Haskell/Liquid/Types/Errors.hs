@@ -231,8 +231,8 @@ data TError t =
                 } -- ^ Using  sort error
 
   | ErrIAlMis   { pos :: !SrcSpan
-                , t1  :: !t
-                , t2  :: !t
+                , tAs :: !t
+                , tUs :: !t
                 , msg :: !Doc
                 } -- ^ Incompatible using error
 

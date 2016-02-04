@@ -350,7 +350,7 @@ splitC (SubR γ o r)
     rr  = F.toReft r
     tag = getTag γ
     src = getLocation γ
-    REnv g = renv γ
+    g   = reLocal $ renv γ
 
 splitsCWithVariance γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
@@ -361,15 +361,24 @@ rsplitsCWithVariance False _ _ _ _
 rsplitsCWithVariance _ γ t1s t2s variants
   = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
-bsplitC γ t1 t2
-  = do checkStratum γ t1 t2
-       pflag <- pruneRefs <$> get
-       γ' <- γ ++= ("bsplitC", v, t1)
-       let r = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
-       let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
-       return $ bsplitC' γ' t1' t2 pflag
+bsplitC γ t1 t2 = do
+  checkStratum γ t1 t2
+  pflag  <- pruneRefs <$> get
+  let t1' = addLhsInv γ t1
+  return  $ bsplitC' γ t1' t2 pflag
+
+addLhsInv :: CGEnv -> SpecType -> SpecType
+addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
   where
-    F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
+    r         = (mempty :: UReft F.Reft) { ur_reft = F.Reft (F.dummySymbol, p) }
+    p         = constraintToLogic rE' (lcs γ)
+    rE'       = insertREnv v t (renv γ)
+    v         = rTypeValueVar t
+
+     -- γ'     <- γ ++= ("bsplitC", v, t1)
+       -- let r   = (mempty :: UReft F.Reft){ur_reft = F.Reft (F.dummySymbol, constraintToLogic γ' (lcs γ'))}
+       -- let t1' = addRTyConInv (invs γ')  t1 `strengthen` r
+       -- let F.Reft(v, _) = ur_reft (fromMaybe mempty (stripRTypeBase t1))
 
 checkStratum γ t1 t2
   | s1 <:= s2 = return ()
@@ -386,17 +395,16 @@ bsplitC' γ t1 t2 pflag
   | otherwise
   = []
   where
-    γ'     = feBinds $ fenv γ
-    r1'    = rTypeSortedReft' pflag γ t1
-    r2'    = rTypeSortedReft' pflag γ t2
-    ci     = Ci src err
-    tag    = getTag γ
-    err    = Just $ ErrSubType src (text "subtype") g t1 t2
-    src    = getLocation γ
-    REnv g = renv γ
+    γ'  = feBinds $ fenv γ
+    r1' = rTypeSortedReft' pflag γ t1
+    r2' = rTypeSortedReft' pflag γ t2
+    ci  = Ci src err
+    tag = getTag γ
+    err = Just $ ErrSubType src (text "subtype") g t1 t2
+    src = getLocation γ
+    g   = reLocal $ renv γ
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
-
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)
   = do vv     <- (F.vv . Just) <$> fresh
        return  $ (shiftVV t1 vv,  (shiftVV t2 vv) )

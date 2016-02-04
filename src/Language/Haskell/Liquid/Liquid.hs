@@ -124,11 +124,24 @@ liquidOne tgt info = do
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
   cgi `deepseq` donePhase Loud "generateConstraints"
+  whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
   donePhase Loud "solve"
   let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
   DC.saveResult tgt out'
   exitWithResult cfg tgt out'
+
+dumpCs :: CGInfo -> IO ()
+dumpCs cgi = do
+  putStrLn "***************************** SubCs *******************************"
+  putStrLn $ render $ pprintMany (hsCs cgi)
+  putStrLn "***************************** FixCs *******************************"
+  putStrLn $ render $ pprintMany (fixCs cgi)
+  putStrLn "***************************** WfCs ********************************"
+  putStrLn $ render $ pprintMany (hsWfs cgi)
+
+pprintMany :: (PPrint a) => [a] -> Doc
+pprintMany xs = vcat [ pprint x $+$ text " " | x <- xs ]
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
@@ -145,6 +158,7 @@ prune cfg cbinds tgt info
   where
     vs            = tgtVars sp
     sp            = spec info
+
 
 
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
