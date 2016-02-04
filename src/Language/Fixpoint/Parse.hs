@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Fixpoint.Parse (
 
@@ -84,12 +85,12 @@ import           GHC.Generics                (Generic)
 import           Data.Char                   (isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (sortNub, thd3)
+import           Language.Fixpoint.Misc      (tshow, sortNub, thd3)
 import           Language.Fixpoint.Smt.Types
 --import           Language.Fixpoint.Types.Names     (headSym)
 import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
 import           Language.Fixpoint.Types hiding    (mapSort)
-
+import           Text.PrettyPrint.HughesPJ         (text, nest, vcat, (<+>))
 type Parser = Parsec String Integer
 
 --------------------------------------------------------------------
@@ -545,20 +546,14 @@ subCP = do pos <- getPosition
 subC' env lhs rhs i tag l l'
   = case cs of
       [c] -> c
-      _   -> die $ err (SS l l') $ printf "RHS without single conjunct at %s \n" (show l')
+      _   -> die $ err sp $ "RHS without single conjunct at" <+> pprint l'
     where
        cs = subC env lhs rhs (Just i) tag ()
-
--- idVV :: Integer -> SortedReft -> SortedReft
--- idVV i sr = sr {sr_reft = ri }
---   where
---     ri    = shiftVV r vvi
---     r     = sr_reft sr
---     vvi   = vv $ Just i
+       sp = SS l l'
 
 
 tagP  :: Parser [Int]
-tagP  = reserved "tag" >> spaces >> (brackets $ sepBy intP semi)
+tagP  = reserved "tag" >> spaces >> brackets (sepBy intP semi)
 
 envP  :: Parser IBindEnv
 envP  = do binds <- brackets $ sepBy (intP <* spaces) semi
@@ -586,7 +581,7 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
 fixResultP :: Parser a -> Parser (FixResult a)
 fixResultP pp
   =  (reserved "SAT"   >> return Safe)
- <|> (reserved "UNSAT" >> Unsafe <$> (brackets $ sepBy pp comma))
+ <|> (reserved "UNSAT" >> Unsafe <$> brackets (sepBy pp comma))
  <|> (reserved "CRASH" >> crashP pp)
 
 crashP pp
@@ -595,11 +590,11 @@ crashP pp
        return $ Crash [i] msg
 
 predSolP
-  = parens $ (predP  <* (comma >> iQualP))
+  = parens (predP  <* (comma >> iQualP))
 
 
 iQualP
-  = upperIdP >> (parens $ sepBy symbolP comma)
+  = upperIdP >> parens (sepBy symbolP comma)
 
 solution1P
   = do reserved "solution:"
@@ -627,10 +622,15 @@ remainderP p
 
 doParse' parser f s
   = case runParser (remainderP (whiteSpace >> parser)) 0 f s of
-      Left e            -> die $ err (errorSpan e) $ printf "parseError %s\n when parsing from %s\n" (show e) f
+      Left e            -> die $ err (errorSpan e) (dErr e)
       Right (r, "", _)  -> r
-      Right (_, rem, l) -> die $ err (SS l l)
-                               $ printf "doParse has leftover when parsing: %s\nfrom file %s\n" rem f
+      Right (_, r, l)   -> die $ err (SS l l) (dRem r)
+    where
+      dErr e = vcat [ "parseError"        <+> tshow e
+                    , "when parsing from" <+> text f ]
+      dRem r = vcat [ "doParse has leftover"
+                    , nest 4 (text r)
+                    , "when parsing from" <+> text f ]
 
 errorSpan e = SS l l where l = errorPos e
 
@@ -654,7 +654,7 @@ commandP
  <|> (reserved "pop"      >> return Pop)
  <|> (reserved "check"    >> return CheckSat)
  <|> (reserved "assert"   >> (Assert Nothing <$> predP))
- <|> (reserved "distinct" >> (Distinct <$> (brackets $ sepBy exprP comma)))
+ <|> (reserved "distinct" >> (Distinct <$> brackets (sepBy exprP comma)))
 
 cmdVarP
   = do x <- bindP

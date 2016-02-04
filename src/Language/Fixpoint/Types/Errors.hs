@@ -54,7 +54,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
-import           Text.Printf
+-- import           Text.Printf
 import           Data.Function (on)
 
 -- import           Debug.Trace
@@ -65,9 +65,10 @@ instance Serialize (FixResult Error)
 
 instance (B.Binary a) => B.Binary (FixResult a)
 
------------------------------------------------------------------------
--- | A BareBones Error Type -------------------------------------------
------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | A BareBones Error Type ----------------------------------------------------
+--------------------------------------------------------------------------------
+
 newtype Error = Error [Error1]
                 deriving (Eq, Ord, Show, Typeable, Generic)
 

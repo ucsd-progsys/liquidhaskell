@@ -81,7 +81,7 @@ import           System.FilePath
 import           System.IO                (IOMode (..), hClose, hFlush, openFile)
 import           System.Process
 import qualified Data.Attoparsec.Text     as A
-
+import           Text.PrettyPrint.HughesPJ (text)
 {-
 runFile f
   = readFile f >>= runString
@@ -230,8 +230,8 @@ makeContext u s f
     where
        smtFile = extFileName Smt2 f
 
-makeContextWithSEnv :: Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context 
-makeContextWithSEnv u s f env 
+makeContextWithSEnv :: Bool -> SMTSolver -> FilePath  -> SMTEnv -> IO Context
+makeContextWithSEnv u s f env
   = (\cxt -> cxt {smtenv = env}) <$> makeContext u s f
 
 makeContextNoLog :: Bool -> SMTSolver -> IO Context
@@ -309,13 +309,13 @@ deconSort t = case functionSort t of
                 Just (_, ins, out) -> (ins, out)
                 Nothing            -> ([] , t  )
 
-smtCheckSat :: Context -> Expr -> IO Bool 
-smtCheckSat me p 
--- hack now this is used only for checking gradual condition. 
+smtCheckSat :: Context -> Expr -> IO Bool
+smtCheckSat me p
+-- hack now this is used only for checking gradual condition.
  = smtAssert me p >> (ans <$> command me CheckSat)
  where
-   ans Sat = True 
-   ans _   = False 
+   ans Sat = True
+   ans _   = False
 
 smtAssert :: Context -> Expr -> IO ()
 smtAssert me p    = interact' me (Assert Nothing p)
@@ -335,7 +335,7 @@ smtBracket me a   = do smtPush me
 respSat Unsat   = True
 respSat Sat     = False
 respSat Unknown = False
-respSat r       = die $ err dummySpan $ "crash: SMTLIB2 respSat = " ++ show r
+respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ show r)
 
 interact' me cmd  = void $ command me cmd
 
