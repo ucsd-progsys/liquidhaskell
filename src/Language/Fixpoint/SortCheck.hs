@@ -321,7 +321,8 @@ elab f (PAnd ps)
 elab f (POr ps)      
   = do ps' <- mapM (elab f) ps 
        return (POr (fst <$> ps'), boolSort)
-elab f (PAtom Eq e1 (EApp g e2))
+-- NV TODO: generalize this into application of many args
+elab f (PAtom Eq e1 (EApp g@(EVar _) e2))
   =  do (e1', t1) <- elab f e1
         (g', tg)  <- elab f g
         (e2', t2) <- elab f e2
@@ -332,7 +333,7 @@ elab f (PAtom Eq e1 (EApp g e2))
                                te2' = apply θ sx 
                            return (PAtom Eq e1' (EApp (ECst g' tg') (ECst e2' te2')), boolSort)
           _         -> errorstar "impossoble:elab PAtom"
-elab f (PAtom Eq (EApp g e2) e1)
+elab f (PAtom Eq (EApp g@(EVar _) e2) e1)
   =  do (e1', t1) <- elab f e1
         (g', tg)  <- elab f g
         (e2', t2) <- elab f e2
