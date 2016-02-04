@@ -1,0 +1,21 @@
+
+// This definition works fine ...
+// constant offset : (func(2, [@(0); Str; (BitVec Size32) ]))
+
+// But this definition does not, because the 'offset o1 fld' is embedded as int
+// not bv...
+
+constant offset : (func(2, [@(0); Str; @(1)]))
+
+constant fld : (Str)
+
+bind 0 o1 : {VV : Thing | [] }
+bind 1 x  : {VV : (BitVec  Size32) | [ VV = offset o1 fld ]}
+
+constraint: 
+  env [0 ; 1]
+  lhs {VV : (BitVec Size32) | [ VV = x ] }
+  rhs {VV : (BitVec Size32) | [ VV = x ] }
+  id 1 tag [1]
+
+
