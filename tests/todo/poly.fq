@@ -3,7 +3,7 @@
 // constant offset : (func(2, [int ; (BitVec Size32) ]))
 
 // But this crashes as 'offset 0' is embedded as int not bv...
-constant offset : (func(2, [int; @(1)]))
+constant offset : (func(1, [int; @(0)]))
 
 bind 0 x  : {VV : (BitVec  Size32) | [ VV = offset 0 ]}
 
