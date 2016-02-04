@@ -18,7 +18,7 @@ module Language.Fixpoint.SortCheck  (
   , checkSortFull
   , pruneUnsortedReft
 
-  -- * Sort inference 
+  -- * Sort inference
   , sortExpr
 
   -- * Unify
@@ -40,7 +40,7 @@ module Language.Fixpoint.SortCheck  (
 
 
 import           Control.Monad
-import           Control.Monad.Except      (MonadError(..)) 
+import           Control.Monad.Except      (MonadError(..))
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe)
@@ -64,7 +64,7 @@ import           Text.Printf
 -------------------------------------------------------------------------
 isFirstOrder :: Sort -> Bool
 -------------------------------------------------------------------------
-isFirstOrder (FAbs _ t)    = isFirstOrder t 
+isFirstOrder (FAbs _ t)    = isFirstOrder t
 isFirstOrder (FFunc s1 s2) = noFun s1 && isFirstOrder s2
 isFirstOrder _             = True
 
@@ -90,24 +90,24 @@ isMono             = null . foldSort fv []
 -- | Sort Inference       -----------------------------------------------
 -------------------------------------------------------------------------
 
-sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort 
+sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
 sortExpr l γ e
-  = case runCM0 $ checkExpr f e of 
+  = case runCM0 $ checkExpr f e of
       Left msg -> die $ err l ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
-      Right s  -> s 
+      Right s  -> s
   where
     f = (`lookupSEnvWithDistance` γ)
 
 
 
-elaborate :: SEnv Sort -> Expr -> Expr 
-elaborate γ e
-  = case runCM0 $ elab f e of 
-      Left msg -> die $ err dummySpan ("elaborate failed for " ++ showFix e ++ "\n with error\n" ++ msg)
-      Right s  -> fst s 
+elaborate :: SEnv Sort -> Expr -> Expr
+elaborate γ e =
+  case runCM0 $ elab f e of
+    Left msg -> die $ err dummySpan ("elaborate failed for " ++ showFix e ++ "\n with error\n" ++ msg)
+    Right s  -> fst s
   where
-    f = (`lookupSEnvWithDistance` γ')
-    γ' =  unionSEnv γ theoryEnv 
+    f  = (`lookupSEnvWithDistance` γ')
+    γ' =  unionSEnv γ theoryEnv
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -251,113 +251,167 @@ checkExpr _ (PKVar {})     = return boolSort
 checkExpr _ PGrad          = return boolSort
 
 checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
-checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e 
+checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
 addEnv f bs x
-  = case L.lookup x bs of 
-      Just s  -> Found s 
-      Nothing -> f x 
+  = case L.lookup x bs of
+      Just s  -> Found s
+      Nothing -> f x
 
+--------------------------------------------------------------------------------
+-- | Elaborate expressions with types to make polymorphic instantiation explicit.
+--------------------------------------------------------------------------------
 
--- | Elaborate expressions with their types 
+--------------------------------------------------------------------------------
+elabWith :: Env -> Expr -> Sort -> CheckM Expr
+--------------------------------------------------------------------------------
+elabWith = undefined
 
-elab f e@(EBin o e1 e2)
-  = do (e1', s1) <- elab f e1
-       (e2', s2) <- elab f e2
-       s <- checkExpr f e
-       return $ (EBin o (ECst e1' s1) (ECst e2' s2), s)
-elab f (EApp e1@(EApp _ _) e2)
-  = do (e1', s1) <- elab f e1 
-       (e2', s2) <- elab f e2
-       s <- elabApp s1 s2  
-       return $ (EApp e1' (ECst e2' s2), s)
-elab f (EApp e1 e2)
-  = do (e1', s1) <- elab f e1 
-       (e2', s2) <- elab f e2
-       s <- elabApp s1 s2  
-       return $ (EApp (ECst e1' s1) (ECst e2' s2), s)
-elab _ e@(ESym _)       
-  = return (e, strSort)
-elab _ e@(ECon (I _))   
-  = return (e, FInt)
-elab _ e@(ECon (R _))   
-  = return (e, FReal)
-elab _ e@(ECon (L _ s)) 
-  = return (e, s)
-elab _ e@(PKVar _ _)     
-  = return (e, boolSort)
-elab _ e@PGrad   
-  = return (e, boolSort)
-elab f e@(EVar x)     
-  = (e,) <$> checkSym f x
-elab f (ENeg e)       
-  = do (e', s) <- elab f e 
-       return (ENeg e', s)
-elab f (EIte p e1 e2) 
-  = do (p', _)  <- elab f p 
-       (e1', _) <- elab f e1
-       (e2', _) <- elab f e2
-       s <- checkIte f p e1 e2
-       return (EIte p' e1' e2', s)
-elab f (ECst e t)    
-   = do (e', _) <- elab f e
-        return (ECst e' t, t)
-elab f (PNot p)       
-  = do (e', _) <- elab f p 
-       return (PNot e', boolSort)
-elab f (PImp p1 p2)    
-  = do (p1', _) <- elab f p1
-       (p2', _) <- elab f p2
-       return (PImp p1' p2', boolSort)
-elab f (PIff p1 p2)    
-  = do (p1', _) <- elab f p1
-       (p2', _) <- elab f p2
-       return (PIff p1' p2', boolSort)
-elab f (PAnd ps)      
-  = do ps' <- mapM (elab f) ps 
-       return (PAnd (fst <$> ps'), boolSort)
-elab f (POr ps)      
-  = do ps' <- mapM (elab f) ps 
-       return (POr (fst <$> ps'), boolSort)
+elabEApp f e1 e2 = do
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
+  s         <- elabApp s1 s2
+  return (e1', s1, e2, s2, s)
+
+elab :: Env -> Expr -> CheckM (Expr, Sort)
+--------------------------------------------------------------------------------
+elab f e@(EBin o e1 e2) = do
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
+  s         <- checkExpr f e
+  return (EBin o (ECst e1' s1) (ECst e2' s2), s)
+
+elab f (EApp e1@(EApp _ _) e2) = do
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  return (EApp e1' (ECst e2' s2), s)
+
+elab f (EApp e1 e2) = do
+  (e1', s1, e2', s2, s) <- elabEApp f e1 e2
+  return (EApp (ECst e1' s1) (ECst e2' s2), s)
+
+elab _ e@(ESym _) =
+  return (e, strSort)
+elab _ e@(ECon (I _)) =
+  return (e, FInt)
+elab _ e@(ECon (R _)) =
+  return (e, FReal)
+elab _ e@(ECon (L _ s)) =
+  return (e, s)
+elab _ e@(PKVar _ _) =
+  return (e, boolSort)
+elab _ e@PGrad =
+  return (e, boolSort)
+elab f e@(EVar x) =
+  (e,) <$> checkSym f x
+elab f (ENeg e) = do
+  (e', s) <- elab f e
+  return (ENeg e', s)
+elab f (EIte p e1 e2) = do
+  (p', _)  <- elab f p
+  (e1', _) <- elab f e1
+  (e2', _) <- elab f e2
+  s <- checkIte f p e1 e2
+  return (EIte p' e1' e2', s)
+elab f (ECst e t) = do
+  (e', _) <- elab f e
+  return (ECst e' t, t)
+elab f (PNot p) = do
+  (e', _) <- elab f p
+  return (PNot e', boolSort)
+elab f (PImp p1 p2) = do
+  (p1', _) <- elab f p1
+  (p2', _) <- elab f p2
+  return (PImp p1' p2', boolSort)
+elab f (PIff p1 p2) = do
+  (p1', _) <- elab f p1
+  (p2', _) <- elab f p2
+  return (PIff p1' p2', boolSort)
+elab f (PAnd ps) = do
+  ps' <- mapM (elab f) ps
+  return (PAnd (fst <$> ps'), boolSort)
+elab f (POr ps) = do
+  ps' <- mapM (elab f) ps
+  return (POr (fst <$> ps'), boolSort)
+
+{-
+
+elab f (PAtom Eq e1 e2) = do
+  t1        <- checkExpr e1
+  t2        <- checkExpr e2
+  (t1',t2') <- unite t1 t2
+  e1'       <- elabWith f e1 t1'
+  e2'       <- elabWith f e2 t2'
+  return (PAtom Eq e1' e2', boolSort)
+
+elabAs f t e@(EApp {}) =
+  elabAppAs f t g es   where (g, es) = splitEApp e
+
+elabAs _ t e@(EVar _) =
+  return $ ECst e t
+
+elabAs f _ e =
+  fst <$> elab f e
+
+elabAppAs f t g es = do
+  gT  <- checkExpr f g
+  eTs <- checkExpr f <$> es
+  case bkFFunc gT of
+    Nothing       -> impossible "..."
+    Just (_, gTs) -> do
+       su    <- unifys gTs (eTs ++ [t])
+       g'    <- elabAs f (apply su gT) g
+       es'   <- zipWithM (elabAs f) (apply su <$> eTs) es
+       return $ eApps g' es'
+
+unite t1 t2 = do
+  su <- unifys [t1] [t2]
+  return (apply su t1, apply su t2)
+
+-}
+
 -- NV TODO: generalize this into application of many args
-elab f (PAtom Eq e1 (EApp g@(EVar _) e2))
-  =  do (e1', t1) <- elab f e1
-        (g', tg)  <- elab f g
-        (e2', t2) <- elab f e2
-        sg <- generalize tg 
-        case sg of 
-          FFunc sx s -> do θ <- unifys [sx, s] [t2, t1]
-                           let tg' = apply θ sg
-                               te2' = apply θ sx 
-                           return (PAtom Eq e1' (EApp (ECst g' tg') (ECst e2' te2')), boolSort)
-          _         -> errorstar "impossoble:elab PAtom"
+elab f (PAtom Eq e1 (EApp g@(EVar _) e2)) = do
+  (e1', t1) <- elab f e1
+  (g', tg)  <- elab f g
+  (e2', t2) <- elab f e2
+  sg <- generalize tg
+  case sg of
+      FFunc sx s -> do θ <- unifys [sx, s] [t2, t1]
+                       let tg'  = apply θ sg
+                           te2' = apply θ sx
+                       return (PAtom Eq e1' (EApp (ECst g' tg') (ECst e2' te2')), boolSort)
+      _      -> errorstar "impossible:elab PAtom"
+
 elab f (PAtom Eq (EApp g@(EVar _) e2) e1)
   =  do (e1', t1) <- elab f e1
         (g', tg)  <- elab f g
         (e2', t2) <- elab f e2
-        sg <- generalize tg 
-        case sg of 
+        sg <- generalize tg
+        case sg of
           FFunc sx s -> do θ <- unifys [sx, s] [t2, t1]
                            let tg' = apply θ sg
-                               te2' = apply θ sx 
+                               te2' = apply θ sx
                            return (PAtom Eq (EApp (ECst g' tg') (ECst e2' te2')) e1', boolSort)
-          _         -> errorstar "impossoble:elab PAtom"
-elab f (PAtom r e1 e2) 
-  = do (e1', _) <- elab f e1 
+          _         -> errorstar "impossible:elab PAtom"
+
+
+elab f (PAtom r e1 e2)
+  = do (e1', _) <- elab f e1
        (e2', _) <- elab f e2
        return (PAtom r e1' e2', boolSort)
-elab f (PExist bs e)  
-  = do (e', s) <- elab (addEnv f bs) e 
+elab f (PExist bs e)
+  = do (e', s) <- elab (addEnv f bs) e
        return (PExist bs e', s)
-elab f (PAll bs e)  
-  = do (e', s) <- elab (addEnv f bs) e 
+elab f (PAll bs e)
+  = do (e', s) <- elab (addEnv f bs) e
        return (PAll bs e', s)
-elab _ (ETApp _ _)    
+elab _ (ETApp _ _)
   = error "SortCheck.elab: TODO: implement ETApp"
-elab _ (ETAbs _ _)    
+elab _ (ETAbs _ _)
   = error "SortCheck.elab: TODO: implement ETAbs"
+
 
 
 
@@ -385,16 +439,16 @@ checkCst f t e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
 
-elabApp :: Sort -> Sort -> CheckM Sort 
-elabApp s1 s2 = 
-  do s1' <- generalize s1 
-     case s1' of 
+elabApp :: Sort -> Sort -> CheckM Sort
+elabApp s1 s2 =
+  do s1' <- generalize s1
+     case s1' of
         FFunc sx s -> do θ <- unifys [sx] [s2]
-                         return $ apply θ s 
-        _ -> errorstar "Foo" 
+                         return $ apply θ s
+        _ -> errorstar "Foo"
 
 
-checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort 
+checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
   = snd <$> checkApp' f to g es
 
@@ -461,9 +515,9 @@ checkPred                  :: Env -> Expr -> CheckM ()
 checkPred f e = checkExpr f e >>= checkBoolSort e
 
 checkBoolSort :: Expr -> Sort -> CheckM ()
-checkBoolSort e s 
+checkBoolSort e s
  | s == boolSort = return ()
- | otherwise     = throwError $ errBoolSort e s 
+ | otherwise     = throwError $ errBoolSort e s
 
 -- | Checking Relations
 checkRel :: (Symbol -> SESearch Sort) -> Brel -> Expr -> Expr -> CheckM ()
@@ -552,13 +606,13 @@ unify1 θ t1 t2
 -- unify1 _ FNum _          = Nothing
 
 
-subst (j,tj) t@(FVar i)   
+subst (j,tj) t@(FVar i)
   | i == j    = tj
-  | otherwise = t 
+  | otherwise = t
 subst su (FApp t1 t2)  = FApp (subst su t1) (subst su t2)
 subst _  (FTC l)       = FTC l
 subst su (FFunc t1 t2) = FFunc (subst su t1) (subst su t2)
-subst (j,tj) (FAbs i t) 
+subst (j,tj) (FAbs i t)
   | i == j    = FAbs i t
   | otherwise = FAbs i $ subst (j,tj) t
 subst _  s             = s
@@ -566,7 +620,7 @@ subst _  s             = s
 generalize (FAbs i t)
   = do v      <- refresh 0
        let sub = (i, FVar v)
-       subst sub <$> generalize t 
+       subst sub <$> generalize t
 generalize t
   = return t
 
@@ -605,8 +659,8 @@ sortMap f t             = f t
 ------------------------------------------------------------------------
 
 sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
-sortFunction t 
-  = case functionSort t of 
+sortFunction t
+  = case functionSort t of
      Nothing          -> throwError $ errNonFunction t
      Just (vs, ts, t) -> return (length vs, ts, t)
 
