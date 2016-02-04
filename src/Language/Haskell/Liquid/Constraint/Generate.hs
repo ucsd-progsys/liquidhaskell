@@ -99,7 +99,7 @@ import Language.Haskell.Liquid.Constraint.Axioms
 import Language.Haskell.Liquid.Constraint.Types
 import Language.Haskell.Liquid.Constraint.Constraint
 
-import Debug.Trace
+-- import Debug.Trace (trace)
 
 -----------------------------------------------------------------------
 ------------- Constraint Generation: Toplevel -------------------------
@@ -133,11 +133,13 @@ consAct info
        let annot' = if sflag then subsS smap <$> annot else annot
        modify $ \st -> st { fEnv = fixEnv γ, fixCs = fcs , fixWfs = fws , annotMap = annot'}
   where
-    mkSigs γ = case (grtys γ,  assms γ, renv γ) of
-                (REnv g1, REnv g2, REnv g3) -> (M.toList g3) ++ (M.toList g2) ++ (M.toList g1)
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
-    fixEnv   = feEnv . fenv
+    fixEnv           = feEnv . fenv
+    mkSigs γ         = toListREnv (grtys γ) ++
+                       toListREnv (assms γ) ++
+                       toListREnv (renv γ)
+
 
 addCombine τ γ
   = do t <- trueTy combineType
@@ -176,7 +178,7 @@ initEnv info
        lts      <- lits <$> get
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) (tcb ++ lts) (bs!!3) hs (invs1 ++ invs2)
-       foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       globalize <$> foldM (++=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
   where
     sp           = spec info
     ialias       = mkRTyConIAl $ ialiases sp
@@ -260,15 +262,15 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 
 measEnv sp xts cbs lts asms hs autosizes
   = CGE { cgLoc = Sp.empty
-        , renv  = fromListREnv $ second val <$> meas sp
+        , renv  = fromListREnv (second val <$> meas sp) []
         , syenv = F.fromListSEnv $ freeSyms sp
         , fenv  = initFEnv $ lts ++ (second (rTypeSort tce . val) <$> meas sp)
         , denv  = dicts sp
         , recs  = S.empty
         , invs  = mkRTyConInv    $ (invariants sp ++ autosizes)
         , ial   = mkRTyConIAl    $ ialiases   sp
-        , grtys = fromListREnv xts
-        , assms = fromListREnv asms
+        , grtys = fromListREnv xts  []
+        , assms = fromListREnv asms []
         , emb   = tce
         , tgEnv = Tg.makeTagEnv cbs
         , tgKey = Nothing
@@ -328,8 +330,7 @@ initCGI cfg info = CGInfo {
   where
     tce        = tcEmbeds spc
     spc        = spec info
-    tyi        = tyconEnv spc -- EFFECTS HEREHEREHERE makeTyConInfo (tconsP spc)
-
+    tyi        = tyconEnv spc
     mkSort = mapSnd (rTypeSortedReft tce . val)
 
 coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
@@ -1062,9 +1063,6 @@ isClassConCo co
 --
 --   D:C :: (a -> b) -> C
 
-singletonReft (Just x) _ = uTop $ F.symbolReft x
-singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
-
 -- | @consElimE@ is used to *synthesize* types by **existential elimination**
 --   instead of *checking* via a fresh template. That is, assuming
 --      γ |- e1 ~> t1
@@ -1264,8 +1262,9 @@ argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
 --------------------------------------------------------------------------------
 varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
-varRefType γ x = varRefType' γ x <$> (γ ??= x)
-
+varRefType γ x = do
+  xt <- varRefType' γ x <$> (γ ??= x)
+  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1277,18 +1276,25 @@ varRefType' γ x t'
     xr = singletonReft (M.lookup x $ aenv γ) x
     x' = F.symbol x
 
+singletonReft (Just x) _ = uTop $ F.symbolReft x
+singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
+
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
 --   the `otherwise` case? The fq file holds no answers, both are sat.
-strengthenS :: (F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenS :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
 strengthenS t _                  = t
-topMeet r r' = F.top r `F.meet` r'
 
+topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
+topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
+  -- where
+    -- msg = printf "topMeet r = [%s] r' = [%s]" (showpp r) (showpp r')
 
+  -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
 --------------------------------------------------------------------------------
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------

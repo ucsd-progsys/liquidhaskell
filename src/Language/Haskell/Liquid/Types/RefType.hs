@@ -926,7 +926,7 @@ tyConFTyCon tce c    = fromMaybe (symbolFTycon $ dummyLoc $ tyConName c) (M.look
 
 typeSortForAll tce τ
   = genSort $ typeSort tce tbody
-  where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1] 
+  where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
         sas                 = (typeUniqueSymbol . TyVarTy) <$> as
@@ -1113,4 +1113,5 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprint (REnv m)  = pprint m
+  pprint re = text "RENV" $+$ 
+              pprint (reLocal re)
