@@ -47,6 +47,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Qualifiers
   , Qualifier (..)
+  , qualifier
 
   -- * Cut KVars
   , Kuts (..)
@@ -58,7 +59,8 @@ import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
-import           Data.List                 (sort)
+import           Data.List                 (sort, nub, delete)
+import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config
@@ -288,6 +290,26 @@ instance Fixpoint Qualifier where
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
+
+qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
+qualifier lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
+  where
+    xs  = delete v $ nub $ syms p
+    xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+
+envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
+envSort l lEnv tEnv x i
+  | Just t <- lookupSEnv x tEnv = Just (x, t)
+  | Just _ <- lookupSEnv x lEnv = Nothing
+  | otherwise                   = Just (x, ai)
+  where
+    ai  = {- trace msg $ -} fObj $ Loc l l $ tempSymbol "LHTV" i
+    -- msg = "unknown symbol in qualifier: " ++ show x
+
+
+
+
+
 
 --------------------------------------------------------------------------------
 -- | Constraint Cut Sets -------------------------------------------------------
