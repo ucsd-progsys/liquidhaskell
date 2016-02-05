@@ -104,7 +104,7 @@ elaborate :: SEnv Sort -> Expr -> Expr
 elaborate γ e =
   case runCM0 $ elab f e of
     Left msg -> die $ err dummySpan ("elaborate failed for " ++ showFix e ++ "\n with error\n" ++ msg)
-    Right s  -> fst s
+    Right s  -> traceFix ("elaborate: e = " ++ show e) $ fst s
   where
     f  = (`lookupSEnvWithDistance` γ')
     γ' =  unionSEnv γ theoryEnv
@@ -265,16 +265,6 @@ addEnv f bs x
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
--- elabAs :: Env -> Expr -> Sort -> CheckM Expr
---------------------------------------------------------------------------------
--- elabAs = undefined
-
-elabEApp f e1 e2 = do
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
-  s         <- elabApp s1 s2
-  return (e1', s1, e2', s2, s)
-
 elab :: Env -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
 elab f e@(EBin o e1 e2) = do
@@ -335,42 +325,15 @@ elab f (POr ps) = do
   ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-{-
-
 elab f (PAtom Eq e1 e2) = do
-  t1        <- checkExpr e1
-  t2        <- checkExpr e2
-  (t1',t2') <- unite t1 t2
-  e1'       <- elabWith f e1 t1'
-  e2'       <- elabWith f e2 t2'
+  t1        <- checkExpr f e1
+  t2        <- checkExpr f e2
+  (t1',t2') <- unite f  t1 t2
+  e1'       <- elabAs f t1' e1
+  e2'       <- elabAs f t2' e2
   return (PAtom Eq e1' e2', boolSort)
 
-elabAs f t e@(EApp {}) =
-  elabAppAs f t g es   where (g, es) = splitEApp e
-
-elabAs _ t e@(EVar _) =
-  return $ ECst e t
-
-elabAs f _ e =
-  fst <$> elab f e
-
-elabAppAs f t g es = do
-  gT  <- checkExpr f g
-  eTs <- checkExpr f <$> es
-  case bkFFunc gT of
-    Nothing       -> impossible "..."
-    Just (_, gTs) -> do
-       su    <- unifys gTs (eTs ++ [t])
-       g'    <- elabAs f (apply su gT) g
-       es'   <- zipWithM (elabAs f) (apply su <$> eTs) es
-       return $ eApps g' es'
-
-unite t1 t2 = do
-  su <- unifys [t1] [t2]
-  return (apply su t1, apply su t2)
-
--}
-
+{-
 -- NV TODO: generalize this into application of many args
 elab f (PAtom Eq e1 (EApp g@(EVar _) e2)) = do
   (e1', t1) <- elab f e1
@@ -395,7 +358,7 @@ elab f (PAtom Eq (EApp g@(EVar _) e2) e1)
                                te2' = apply θ sx
                            return (PAtom Eq (EApp (ECst g' tg') (ECst e2' te2')) e1', boolSort)
           _         -> errorstar "impossible:elab PAtom"
-
+-}
 
 elab f (PAtom r e1 e2)
   = do (e1', _) <- elab f e1
@@ -412,8 +375,41 @@ elab _ (ETApp _ _)
 elab _ (ETAbs _ _)
   = error "SortCheck.elab: TODO: implement ETAbs"
 
+elabAs :: Env -> Sort -> Expr -> CheckM Expr
+elabAs f t e@(EApp {}) = elabAppAs f t g es where (g, es) = splitEApp e
+-- elabAs _ t e@(EVar _)  = return $ ECst e t
+elabAs f t e           = (`ECst` t) . fst <$> elab f e
 
+elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
+elabAppAs f t g es = do
+  gT  <- generalize =<< checkExpr f g
+  eTs <- mapM (checkExpr f) es
+  case bkFFunc gT of
+    Nothing       -> errorstar "impossible: elabAppAs"
+    Just (_, gTs) -> do
+       su    <- unifys gTs (eTs ++ [t])
+       g'    <- elabAs f (apply su gT) g
+       es'   <- zipWithM (elabAs f) (apply su <$> eTs) es
+       let es'' = traceFix ("elabAppAs: es = " ++ show es) es'
+       return $ eApps g' es''
 
+elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
+elabEApp f e1 e2 = do
+  (e1', s1) <- elab f e1
+  (e2', s2) <- elab f e2
+  s         <- elabAppSort s1 s2
+  return (e1', s1, e2', s2, s)
+
+unite :: Env -> Sort -> Sort -> CheckM (Sort, Sort)
+unite f t1@(FObj l) t2@FInt = do
+  checkNumeric f l
+  return (t1, t2)
+unite f t1@FInt t2@(FObj l) = do
+  checkNumeric f l
+  return (t1, t2)
+unite _ t1 t2 = do
+  su <- unifys [t1] [t2]
+  return (apply su t1, apply su t2)
 
 -- | Helper for checking symbol occurrences
 
@@ -439,8 +435,8 @@ checkCst f t e
        ((`apply` t) <$> unifys [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
 
-elabApp :: Sort -> Sort -> CheckM Sort
-elabApp s1 s2 =
+elabAppSort :: Sort -> Sort -> CheckM Sort
+elabAppSort s1 s2 =
   do s1' <- generalize s1
      case s1' of
         FFunc sx s -> do θ <- unifys [sx] [s2]
@@ -617,12 +613,13 @@ subst (j,tj) (FAbs i t)
   | otherwise = FAbs i $ subst (j,tj) t
 subst _  s             = s
 
-generalize (FAbs i t)
-  = do v      <- refresh 0
-       let sub = (i, FVar v)
-       subst sub <$> generalize t
-generalize t
-  = return t
+generalize :: Sort -> CheckM Sort
+generalize (FAbs i t) = do
+  v      <- refresh 0
+  let sub = (i, FVar v)
+  subst sub <$> generalize t
+generalize t =
+  return t
 
 unifyVar :: TVSubst -> Int -> Sort -> CheckM TVSubst
 unifyVar θ i t@(FVar j)

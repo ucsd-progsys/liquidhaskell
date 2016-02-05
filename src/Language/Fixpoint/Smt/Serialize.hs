@@ -63,9 +63,9 @@ instance SMTLIB2 (Symbol, Sort) where
   smt2 env (sym, t) = format "({} {})"  (smt2 env sym, smt2 env $ defunc t)
 
 
-defunc (FAbs _ t) = defunc t 
+defunc (FAbs _ t) = defunc t
 defunc (FFunc _ _) = intSort
-defunc t | isSMTSort t = t 
+defunc t | isSMTSort t = t
 defunc _               = intSort
 
 instance SMTLIB2 SymConst where
@@ -95,7 +95,7 @@ instance SMTLIB2 Brel where
   smt2 _ Le    = "<="
   smt2 _ _     = errorstar "SMTLIB2 Brel"
 
--- NV TODO: change the way EApp is printed 
+-- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
   smt2 env (ESym z)         = smt2 env (symbol z)
   smt2 env (ECon c)         = smt2 env c
@@ -129,29 +129,29 @@ smt2Bop env o e1 e2
    = format "(* {} {})" (smt2 env e1, smt2 env e2)
   | o == Div, s1 == FReal, s2 == FReal
    = format "(/ {} {})" (smt2 env e1, smt2 env e2)
-  | o == Times 
+  | o == Times
   = format "({} {} {})" (symbolSafeText mulFuncName , smt2 env e1, smt2 env e2)
-  | o == Div   
+  | o == Div
   = format "({} {} {})" (symbolSafeText divFuncName , smt2 env e1, smt2 env e2)
-  | otherwise  
+  | otherwise
   = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
   where
-    s1 = sortExpr e1 
-    s2 = sortExpr e2 
+    s1 = exprSort e1
+    s2 = exprSort e2
 
 smt2App :: SMTEnv -> Expr  -> T.Text
 smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App (eliminate f) ds)
   where
-    (f, es) = splitEApp e 
+    (f, es) = splitEApp e
     ds      = smt2 env <$> es
 
-eliminate (ECst e _) = e 
-eliminate e          = e 
+eliminate (ECst e _) = e
+eliminate e          = e
 
 smt2App' :: SMTEnv -> Expr -> [Expr] -> T.Text
 smt2App' env f [] = smt2 env f
-smt2App' env f es = makeApplication env f es 
--- smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es 
+smt2App' env f es = makeApplication env f es
+-- smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es
 
 
 
@@ -163,12 +163,12 @@ mkNe  env e1 e2             = format "(not (= {} {}))" (smt2 env e1, smt2 env e2
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
   smt2 env (Declare x ts t)
-     | isSMTSymbol x  
+     | isSMTSymbol x
      = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
      | null ts && isSMTSort t
      = format "(declare-fun {} () {})"    (smt2 env x, smt2 env t)
      | otherwise
-     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env intSort)    
+     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env intSort)
 
   smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
   smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env $ elaborate env p)
@@ -212,93 +212,93 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 -- NIKI: This is new code, check and formalize!
 
 
--- make Application is called on uninterpreted functions 
--- 
--- makeApplication e [e1, ..., en] =  apply^n_s (e, toInt e1, ..., toInt en) 
+-- make Application is called on uninterpreted functions
+--
+-- makeApplication e [e1, ..., en] =  apply^n_s (e, toInt e1, ..., toInt en)
 -- where
 -- applyn :: (Int, Int, ..., Int) -> s
 -- e      :: (Int, ..., Int) -> s
--- toInt e = e, if e :: s, s is smt uninterpeted  
+-- toInt e = e, if e :: s, s is smt uninterpeted
 -- toInt e = s_to_Int (e), otherwise
 
 -- s_to_Int :: s -> Int
 
-makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text 
-makeApplication env e es 
-  = format "({} {})" (smt2 env f, smt2many ds) 
-  where 
+makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text
+makeApplication env e es
+  = format "({} {})" (smt2 env f, smt2many ds)
+  where
     f  = makeFunSymbol env e $ length es
     ds = smt2 env e:(toInt env <$> es)
 
 
-makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol 
-makeFunSymbol _ e i 
-  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
+makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol
+makeFunSymbol _ e i
+  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
   = setApplyName i
-  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
-  = mapApplyName i 
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
+  = mapApplyName i
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
   = bitVecApplyName i
-  | FTC c                     <- s, c == boolFTyCon 
+  | FTC c                     <- s, c == boolFTyCon
   = boolApplyName i
   | s == FReal
-  = realApplyName i 
+  = realApplyName i
   | otherwise
-  = intApplyName i 
+  = intApplyName i
   where
-    s = dropArgs i $ sortExpr e
+    s = dropArgs i $ exprSort e
 
-    dropArgs 0 t           = t 
-    dropArgs i (FAbs _ t)  = dropArgs i t 
-    dropArgs i (FFunc _ t) = dropArgs (i-1) t 
+    dropArgs 0 t           = t
+    dropArgs i (FAbs _ t)  = dropArgs i t
+    dropArgs i (FFunc _ t) = dropArgs (i-1) t
     dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
 
-toInt ::  SMTEnv -> Expr -> T.Text 
+toInt ::  SMTEnv -> Expr -> T.Text
 toInt env e
-  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
-  = castWith env setToIntName e 
-  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
-  = castWith env mapToIntName e 
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
-  = castWith env bitVecToIntName e 
-  | FTC c                     <- s, c == boolFTyCon 
+  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
+  = castWith env setToIntName e
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
+  = castWith env mapToIntName e
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
+  = castWith env bitVecToIntName e
+  | FTC c                     <- s, c == boolFTyCon
   = castWith env boolToIntName e
-  | FTC c                     <- s, c == realFTyCon 
+  | FTC c                     <- s, c == realFTyCon
   = castWith env realToIntName e
   | otherwise
-  = smt2 env e 
+  = smt2 env e
   where
-    s = sortExpr e
+    s = exprSort e
 
-isSMTSort :: Sort -> Bool 
+isSMTSort :: Sort -> Bool
 isSMTSort s
-  | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set" 
+  | (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
   = True
-  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"   
+  | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
   = True
-  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s 
+  | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
   = True
-  | FTC c                     <- s, c == boolFTyCon 
+  | FTC c                     <- s, c == boolFTyCon
   = True
   | s == FReal
   = True
   | otherwise
-  = False      
+  = False
 
-     
-castWith :: SMTEnv -> Symbol -> Expr -> T.Text 
+
+castWith :: SMTEnv -> Symbol -> Expr -> T.Text
 castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
 
-initSMTEnv = fromListSEnv $ 
+initSMTEnv = fromListSEnv $
   [ (setToIntName,    FFunc (setSort intSort)   intSort)
   , (bitVecToIntName, FFunc bitVecSort intSort)
   , (mapToIntName,    FFunc (mapSort intSort intSort) intSort)
   , (boolToIntName,   FFunc boolSort   intSort)
   , (realToIntName,   FFunc realSort   intSort)
-  ] 
+  ]
   ++ concatMap makeApplies [1..7]
 
-makeApplies i = 
+makeApplies i =
   [ (intApplyName i,    go i intSort)
   , (setApplyName i,    go i (setSort intSort))
   , (bitVecApplyName i, go i bitVecSort)
@@ -311,5 +311,6 @@ makeApplies i =
     go i s = FFunc intSort $ go (i-1) s
 
 
-sortExpr (ECst _ s) = s 
-sortExpr e          = errorstar $ ("\nsortExpr on unexpected expressions" ++ show e)
+exprSort :: Expr -> Sort
+exprSort (ECst _ s) = s
+exprSort e          = errorstar ("\nexprSort on unexpected expressions" ++ show e)
