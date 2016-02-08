@@ -593,6 +593,9 @@ unify1 f θ FInt (FObj l) = do
   checkNumeric f l
   return θ
 
+unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
+  unifyMany f θ [t1, t2] [t1', t2']
+
 unify1 _ θ t1 t2
   | t1 == t2
   = return θ
