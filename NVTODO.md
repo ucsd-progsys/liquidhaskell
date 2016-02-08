@@ -1,7 +1,17 @@
 Equational Reasoning 
 --------------------
 
-HERE HERE: started mapFusion: the argument function is not interpreted correctly,  i.e., as runFun
+HERE HERE BACK TO LOGIC!!!! No need for defunc this time!
+
+tests 
+  - AppendArrow
+  - MapAppend
+  - MapFusion
+
+
+
+
+
 
 
 Other: 
