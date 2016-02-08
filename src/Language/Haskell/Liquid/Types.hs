@@ -355,7 +355,7 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap)
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es 
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = def

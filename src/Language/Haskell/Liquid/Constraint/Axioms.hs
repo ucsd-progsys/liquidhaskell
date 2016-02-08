@@ -220,7 +220,6 @@ updateLMap _ x vv
     ys = zipWith (\i _ -> symbol (("x" ++ show i) :: String)) [1..] nargs
     x' = simpleSymbolVar vv
 
-
 insertLogicEnv x ys e
   = modify $ \be -> be {ae_lmap = (ae_lmap be) {logic_map = M.insert x (LMap x ys e) $ logic_map $ ae_lmap be}}
 
