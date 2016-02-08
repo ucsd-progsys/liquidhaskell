@@ -359,7 +359,7 @@ elab _ (ETAbs _ _) =
 
 elabAs :: Env -> Sort -> Expr -> CheckM Expr
 elabAs f t e@(EApp {}) = elabAppAs f t g es where (g, es) = splitEApp e
-elabAs f t e           = (`ECst` t) . fst <$> elab f e
+elabAs f _ e           = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
 elabAppAs f t g es = do
@@ -369,9 +369,11 @@ elabAppAs f t g es = do
     Nothing       -> errorstar "impossible: elabAppAs"
     Just (_, gTs) -> do
        su    <- unifys f gTs (eTs ++ [t])
-       g'    <- elabAs f (apply su gT) g
-       es'   <- zipWithM (elabAs f) (apply su <$> eTs) es
-       return $ eApps g' es'
+       let tg = apply su gT 
+       g'    <- elabAs f tg g
+       let ts = apply su <$> eTs
+       es'   <- zipWithM (elabAs f) ts es
+       return $ eApps (ECst g' tg) (zipWith ECst es' ts)
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
