@@ -4,13 +4,14 @@ Equational Reasoning
 HERE HERE BACK TO LOGIC!!!! No need for defunc this time!
 
 tests 
-  - AppendArrow
-  - MapAppend
+  - [OK] AppendArrow 
+  - [OK] MapAppend
   - MapFusion
+  - Monadic Laws for Lists 
 
 
 
-
+TODO: what if multiple arguments appear many times?
 
 
 
