@@ -24,7 +24,7 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Unify
   , unifyFast
-  -- , unify
+  , unify
 
   -- * Apply Substitution
   , apply
