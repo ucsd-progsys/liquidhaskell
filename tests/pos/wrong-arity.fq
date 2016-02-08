@@ -7,7 +7,7 @@ bind 1 foo : {v: func(0, [int; int]) | true }
 
 bind 2 foo : {v: func(0, [int; int]) | true }
 
-bind 3 z   : {v : int | [(v = foo([42]))]}
+bind 3 z   : {v : int | [ v = foo 42 ]}
 
 constraint:
   env [3]

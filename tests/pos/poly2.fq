@@ -3,9 +3,9 @@
 // constant offset : (func(0, [int ; int ; (BitVec Size32) ]))
 
 // But this crashes as 'offset 0' is embedded as int not bv...
-constant offset : (func(1, [int; int; @(0)]))
+constant offset : (func(2, [@(0); int; int; @(0); @(1)]))
 
-bind 0 x  : {VV : (BitVec  Size32) | [ VV = offset 0 0 ]}
+bind 0 x  : {VV : (BitVec  Size32) | [ VV = offset 0 0 0 0 ]}
 
 constraint:
   env [0]

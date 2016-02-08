@@ -6,6 +6,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Language.Fixpoint.Types.Errors (
   -- * Concrete Location Type
     SrcSpan (..)
@@ -57,6 +59,8 @@ import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
 
+instance Serialize TextDetails
+instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
 
