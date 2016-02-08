@@ -6,7 +6,7 @@ HERE HERE BACK TO LOGIC!!!! No need for defunc this time!
 tests 
   - [OK] AppendArrow 
   - [OK] MapAppend
-  - MapFusion
+  - [OK] MapFusion
   - Monadic Laws for Lists 
 
 
