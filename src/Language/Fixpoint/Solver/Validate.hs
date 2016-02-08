@@ -39,8 +39,7 @@ validate = errorstar "TODO: validate input"
 ---------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
-sanitize   = fM dropHigherOrderBinders
-         >=> fM dropFuncSortedShadowedBinders
+sanitize   = fM dropFuncSortedShadowedBinders
          >=> fM dropWfcFunctions
          >=>    checkRhsCs
          >=>    banQualifFreeVars
@@ -161,14 +160,6 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
     f x t              = not (M.member x defs) || isFirstOrder t
     defs               = M.fromList $ F.toListSEnv $ F.lits fi
-
----------------------------------------------------------------------------
--- | Drop Higher-Order Binders and Constants from Environment
----------------------------------------------------------------------------
-dropHigherOrderBinders :: F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
-dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
-
 
 ---------------------------------------------------------------------------
 -- | Drop functions from WfC environments
