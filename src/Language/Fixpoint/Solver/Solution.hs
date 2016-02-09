@@ -168,13 +168,13 @@ instKQ :: F.SEnv F.Sort
        -> F.Qualifier
        -> [EQual]
 instKQ env v t q
-  = do (su0, v0) <- candidates [(t, [v])] qt
-       xs        <- match tyss [v0] (So.apply su0 <$> qts)
+  = do (su0, v0) <- candidates senv [(t, [v])] qt
+       xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
        return     $ eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
-
+       senv       = (`F.lookupSEnvWithDistance` env)
 
 instCands :: F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands env = filter isOk tyss
@@ -183,19 +183,19 @@ instCands env = filter isOk tyss
     isOk      = isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
-match :: [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
-match tyss xs (t : ts)
-  = do (su, x) <- candidates tyss t
-       match tyss (x : xs) (So.apply su <$> ts)
-match _   xs []
+match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
+match env tyss xs (t : ts)
+  = do (su, x) <- candidates env tyss t
+       match env tyss (x : xs) (So.apply su <$> ts)
+match _   _   xs []
   = return xs
 
------------------------------------------------------------------------
-candidates :: [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
------------------------------------------------------------------------
-candidates tyss tx
+--------------------------------------------------------------------------------
+candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
+--------------------------------------------------------------------------------
+candidates env tyss tx
   = [(su, y) | (t, ys) <- tyss
-             , su      <- maybeToList $ So.unifyFast mono tx t
+             , su      <- maybeToList $ So.unifyFast mono env tx t
              , y       <- ys                                   ]
   where
     mono = So.isMono tx

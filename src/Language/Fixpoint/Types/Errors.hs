@@ -7,6 +7,8 @@
 {-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Language.Fixpoint.Types.Errors (
   -- * Concrete Location Type
     SrcSpan (..)
@@ -60,6 +62,8 @@ import           Data.Function (on)
 -- import           Debug.Trace
 
 instance Serialize Error1
+instance Serialize TextDetails
+instance Serialize Doc
 instance Serialize Error
 instance Serialize (FixResult Error)
 
@@ -74,7 +78,7 @@ newtype Error = Error [Error1]
 
 data Error1 = Error1
   { errLoc :: SrcSpan
-  , errMsg :: String
+  , errMsg :: Doc
   } deriving (Eq, Show, Data, Typeable, Generic)
 
 instance Ord Error1 where
