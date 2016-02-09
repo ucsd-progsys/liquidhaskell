@@ -15,7 +15,6 @@
 -- the number of comparisons in a heapsort slightly, and improves locality
 -- (again, slightly) by flattening out the heap.
 
-{-@ LIQUID "--real" @-}
 module Data.Vector.Algorithms.Heap
        ( -- * Sorting
          sort
