@@ -1,7 +1,5 @@
 module Interpreter where 
 {-@ LIQUID "--totality" @-}
-{-@ LIQUID "--real" @-}
-
 data BinOp a = Plus | Times
 
 data Exp a  = EConst Int | EBinOp (BinOp a) (Exp a) (Exp a)

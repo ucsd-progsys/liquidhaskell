@@ -3,9 +3,6 @@
 
 module Div where
 
-{-@ LIQUID "--real" @-}
-
-
 {-@ type Valid = {v:Bool | ( (Prop v) <=> true ) } @-}
 
 {-@ mulAssoc :: (Eq a, Fractional a) => a -> a -> a -> Valid @-}
