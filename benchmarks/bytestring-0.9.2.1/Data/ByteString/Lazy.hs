@@ -42,7 +42,6 @@
 -- Lazy variant by Duncan Coutts and Don Stewart.
 --
 
-{-@ LIQUID "--real" @-}
 module Data.ByteString.Lazy (
 
         -- * The @ByteString@ type
