@@ -1,4 +1,3 @@
-{-@ LIQUID "--real"     @-}
 {-@ LIQUID "--total" @-}
 
 
