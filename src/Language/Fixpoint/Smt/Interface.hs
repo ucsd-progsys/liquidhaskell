@@ -100,7 +100,8 @@ runCommands cmds
 -- TODO take makeContext's Bool from caller instead of always using False?
 makeZ3Context :: FilePath -> [(Symbol, Sort)] -> IO Context
 makeZ3Context f xts
-  = do me <- makeContext False Z3 f
+  = do me <- makeContextWithSEnv False Z3 f $ fromListSEnv xts
+       smtDecls me (toListSEnv initSMTEnv)
        smtDecls me xts
        return me
 

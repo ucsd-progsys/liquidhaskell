@@ -370,17 +370,15 @@ elabAs f _ e           = fst <$> elab f e
 
 elabAppAs :: Env -> Sort -> Expr -> [Expr] -> CheckM Expr
 elabAppAs f t g es = do
-  gT  <- generalize =<< checkExpr f g
-  eTs <- mapM (checkExpr f) es
-  case bkFFunc gT of
-    Nothing       -> errorstar "impossible: elabAppAs"
-    Just (_, gTs) -> do
-       su    <- unifys f gTs (eTs ++ [t])
-       let tg = apply su gT 
-       g'    <- elabAs f tg g
-       let ts = apply su <$> eTs
-       es'   <- zipWithM (elabAs f) ts es
-       return $ eApps (ECst g' tg) (zipWith ECst es' ts)
+  gT    <- generalize =<< checkExpr f g
+  eTs   <- mapM (checkExpr f) es
+  gTios <- sortFunction (length es) gT
+  su    <- unifys f (snd gTios:fst gTios) (t:eTs)
+  let tg = apply su gT 
+  g'    <- elabAs f tg g
+  let ts = apply su <$> eTs
+  es'   <- zipWithM (elabAs f) ts es
+  return $ eApps (ECst g' tg) (zipWith ECst es' ts)
 
 elabEApp  :: Env -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f e1 e2 = do
@@ -440,8 +438,7 @@ checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g' e
   = do gt           <- checkExpr f g
        gt'          <- generalize gt
-       (_, its, ot) <- sortFunction gt'
-       unless (length its == length es) $ throwError (errArgArity g its es (EApp g' e))
+       (its, ot)    <- sortFunction (length es) gt'
        ets          <- mapM (checkExpr f) es
        θ            <- unifys f its ets
        let t         = apply θ ot
@@ -600,6 +597,9 @@ unify1 f θ FInt (FObj l) = do
   checkNumeric f l
   return θ
 
+unify1 f θ (FFunc t1 t2) (FFunc t1' t2') = do 
+  unifyMany f θ [t1, t2] [t1', t2']
+
 unify1 _ θ t1 t2
   | t1 == t2
   = return θ
@@ -660,11 +660,14 @@ sortMap f t             = f t
 -- | Deconstruct a function-sort ---------------------------------------
 ------------------------------------------------------------------------
 
-sortFunction :: Sort -> CheckM (Int, [Sort], Sort)
-sortFunction t
+sortFunction :: Int -> Sort -> CheckM ([Sort], Sort)
+sortFunction i t
   = case functionSort t of
-     Nothing          -> throwError $ errNonFunction t
-     Just (vs, ts, t) -> return (length vs, ts, t)
+     Nothing          -> throwError $ errNonFunction i t
+     Just (_, ts, t') -> if length ts < i 
+                          then throwError $ errNonFunction i t
+                          else let (its, ots) = splitAt i ts 
+                               in return (its, foldl FFunc t' ots)
 
 ------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions ---------------------------
@@ -696,8 +699,6 @@ errOp e t t'
                          (showpp t) (showpp e)
   | otherwise        = printf "Operands have different types %s and %s in %s"
                          (showpp t) (showpp t') (showpp e)
-errArgArity g its es e = printf "Measure %s expects %d args but gets %d in %s"
-                           (showpp g) (length its) (length es) (showpp e)
 errIte e1 e2 t1 t2   = printf "Mismatched branches in Ite: then %s : %s, else %s : %s"
                          (showpp e1) (showpp t1) (showpp e2) (showpp t2)
 errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s"
@@ -705,7 +706,7 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
 errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
                         (showpp x)
                         (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
-errNonFunction t     = printf "Sort %s is not a function" (showpp t)
+errNonFunction i t   = printf "Sort %s is not a function with at least %s arguments" (showpp t) (showpp i)
 errNonNumeric  l     = printf "FObj sort %s is not numeric" (showpp l)
 errNonNumerics l l'  = printf "FObj sort %s and %s are different and not numeric" (showpp l) (showpp l')
 errNonFractional  l  = printf "FObj sort %s is not fractional" (showpp l)
