@@ -175,7 +175,7 @@ solveCs cfg tgt cgi info dc
                         { o_result  = res               }
     where
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
-                       , FC.real        = real        cfg
+                       , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
                     -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg

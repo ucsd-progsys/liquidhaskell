@@ -136,9 +136,9 @@ consAct info
     expandProofsMode = autoproofs $ config $ spec info
     τProof           = proofType $ spec info
     fixEnv           = feEnv . fenv
-    mkSigs γ         = toListREnv (grtys γ) ++
+    mkSigs γ         = toListREnv (renv  γ) ++
                        toListREnv (assms γ) ++
-                       toListREnv (renv γ)
+                       toListREnv (grtys γ)
 
 
 addCombine τ γ

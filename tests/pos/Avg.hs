@@ -1,8 +1,5 @@
 module Avg where
 
-
-{-@ LIQUID "--real" @-}
-
 {-@ measure sumD :: [Double] -> Double
     sumD([]) = 0.0
     sumD(x:xs) = x + (sumD xs)

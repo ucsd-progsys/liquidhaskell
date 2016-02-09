@@ -127,13 +127,13 @@ txEApp (s,m) e = go f
     go f        = eApps (tx s m f) (tx s m <$> es)
 
 txEApp' (s, (Left (LMap _ xs e))) f es
-  | cmpSymbol s f
+  | cmpSymbol s f && length xs == length es   
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es
 
 txEApp' (s, (Right (TI xs e))) f es
-  | cmpSymbol s f
+  | cmpSymbol s f && length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = mkEApp (dummyLoc f) es

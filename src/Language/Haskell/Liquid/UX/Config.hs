@@ -28,7 +28,7 @@ data Config = Config {
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , newcheck       :: Bool       -- ^ new liquid-fixpoint sort check
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
-  , real           :: Bool       -- ^ supports real number arithmetic
+  , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , binders        :: [String]   -- ^ set of binders to check
