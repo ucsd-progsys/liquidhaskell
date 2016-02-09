@@ -4,6 +4,8 @@
 
 ## 0.3.0.0
 
+- Make interpreted mul and div the default, when `solver = z3`
+
 ## 0.2.2.0
 
 - Added support for theory of Arrays `Map_t`, `Map_select`, `Map_store`
