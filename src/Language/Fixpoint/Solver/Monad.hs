@@ -89,12 +89,14 @@ runSolverM cfg fi _ act = do
     return $ fst res
 
   where
-    acquire = makeContextWithSEnv (linear cfg) (solver cfg) file env 
+    acquire = makeContextWithSEnv lar (solver cfg) file env 
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
     env     = F.fromListSEnv ((F.toListSEnv $ F.lits fi) ++ binds)
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
+    -- only linear arithmentic when: linear flag is on or solver /= Z3
+    lar     = linear cfg || Z3 /= solver cfg
  
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv

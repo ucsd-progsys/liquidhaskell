@@ -145,7 +145,7 @@ config = Config {
   , genSorts    = def   &= help "Generalize qualifier sorts"
   , ueqAllSorts = def   &= help "Use UEq on all sorts"
   , newcheck    = False &= help "(alpha) New liquid-fixpoint sort checking "
-  , linear      = False &= help "USe uninterpreted integer multiplication and division"
+  , linear      = False &= help "Use uninterpreted integer multiplication and division"
   , eliminate   = False &= help "(alpha) Eliminate non-cut KVars"
   , elimStats   = False &= help "(alpha) Print eliminate stats"
   , save        = False &= help "Save Query as .fq and .bfq files"
