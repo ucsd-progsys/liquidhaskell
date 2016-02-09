@@ -79,13 +79,14 @@ newtype Error = Error [Error1]
 data Error1 = Error1
   { errLoc :: SrcSpan
   , errMsg :: Doc
-  } deriving (Eq, Show, Data, Typeable, Generic)
+  } deriving (Eq, Show, Typeable, Generic)
 
 instance Ord Error1 where
   compare = compare `on` errLoc
 
 instance PPrint Error1 where
-  pprint (Error1 l msg) = pprint l <> text (": Error:" ++ msg)
+  pprint (Error1 l msg) = (pprint l <> ": Error")
+                          $+$ nest 2 msg
 
 instance PPrint Error where
   pprint (Error es) = vcat $ pprint <$> es
@@ -96,10 +97,6 @@ instance Fixpoint Error1 where
 instance Exception Error
 instance Exception (FixResult Error)
 
----------------------------------------------------------------------
--- catMessage :: Error -> String -> Error
----------------------------------------------------------------------
--- catMessage e msg = e {errMsg = msg ++ errMsg e}
 
 ---------------------------------------------------------------------
 catError :: Error -> Error -> Error
@@ -114,7 +111,7 @@ catErrors = foldr1 catError
 ---------------------------------------------------------------------
 err :: SrcSpan -> Doc -> Error
 ---------------------------------------------------------------------
-err sp msg = Error [Error1 sp (render msg)]
+err sp d = Error [Error1 sp d]
 
 ---------------------------------------------------------------------
 die :: Error -> a
