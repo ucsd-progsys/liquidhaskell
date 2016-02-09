@@ -30,7 +30,7 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
-import           Language.Fixpoint.Types.Config  (Config, solver, real)
+import           Language.Fixpoint.Types.Config  (Config, solver, linear)
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
@@ -87,9 +87,9 @@ runSolverM cfg fi _ act = do
     res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
     return $ fst res
-      
+
   where
-    acquire = makeContextWithSEnv (not $ real cfg) (solver cfg) file env 
+    acquire = makeContextWithSEnv (linear cfg) (solver cfg) file env 
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
