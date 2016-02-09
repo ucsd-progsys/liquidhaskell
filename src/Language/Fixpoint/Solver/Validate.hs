@@ -1,6 +1,7 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
 --   1. Each binder must be associated with a UNIQUE sort
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate FInfo
@@ -11,7 +12,6 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
-
        )
        where
 
@@ -27,8 +27,8 @@ import qualified Data.HashSet             as S
 import qualified Data.List as L
 import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
-import           Text.Printf
-
+-- import           Text.Printf
+import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
@@ -52,15 +52,16 @@ banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
-    bads = [q | q <- F.quals fi, not $ isOk q]
-    lits = fst <$> (F.toListSEnv $ F.lits fi)
-    isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
+    bads   = [ (q, xs) | q <- F.quals fi, let xs = isOk q, not (null xs) ]
+    lits   = fst <$> F.toListSEnv (F.lits fi)
+    isOk q = S.toList $ F.syms (F.q_body q) `isSubset` (lits ++ F.syms (fst <$> F.q_params q))
 
-badQuals :: Misc.ListNE F.Qualifier -> E.Error
-badQuals = E.catErrors . map E.errFreeVarInQual
+
+badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
+badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
 
 -- True if first is a subset of second
-isSubset a b = S.null $ a' `S.difference` b'
+isSubset a b = a' `S.difference` b'
   where
     a' = S.fromList a
     b' = S.fromList b
@@ -80,8 +81,8 @@ badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1
 
 badRhs1 :: (Integer, F.SimpC a) -> E.Error
-badRhs1 (i, c) = E.err E.dummySpan $ printf "Malformed RHS for %d : %s \n"
-                   i (showpp $ F.crhs c)
+badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+> pprint i
+                                          , nest 4 (pprint (F.crhs c)) ]
 
 -- | Conservative check that KVars appear at "top-level" in pred
 -- isOkRhs :: F.Pred -> Bool
@@ -134,7 +135,8 @@ multiSorted = (1 <) . length . snd
 dupBindErrors :: [(F.Symbol, [(F.Sort, [F.BindId] )])] -> E.Error
 dupBindErrors = foldr1 E.catError . map dbe
   where
-   dbe (x, y) = E.err E.dummySpan $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
+   dbe (x, y) = E.err E.dummySpan $ vcat [ "Multiple sorts for" <+> pprint x
+                                         , nest 4 (pprint y) ]
 
 ---------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]

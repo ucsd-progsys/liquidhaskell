@@ -25,7 +25,7 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..)
+  , Expr (..), Pred
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
@@ -215,6 +215,8 @@ data Expr = ESym !SymConst
           | PExist ![(Symbol, Sort)] !Expr
           | PGrad 
           deriving (Eq, Show, Data, Typeable, Generic)
+
+type Pred = Expr
 
 pattern PTrue  = PAnd []
 pattern PTop   = PAnd []

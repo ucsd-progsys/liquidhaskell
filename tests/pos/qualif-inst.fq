@@ -1,0 +1,17 @@
+// adapted from LH test eqelems.hs
+
+qualif Cmp(v : @(0), fix##126#X : @(0)): (v >= fix##126#X)
+
+constant elems : (func(1, [(Goo.T  @(0)); (Set_Set  @(0))]))
+
+bind 48 lq_anf__d14V : {lq_tmp_x_197 : (Set_Set  a_a14x) | [(lq_tmp_x_197 = elems([s#a149]))]}
+
+constraint:
+  env []
+  lhs {VV#F4 : (Set_Set  a_a14x) | []}
+  rhs {VV#F4 : (Set_Set  a_a14x) | [$k__226[VV#225:=VV#F4]]}
+  id 4 tag [2]
+
+wf:
+  env [48]
+  reft {VV#225 : (Set_Set  a_a14x) | [$k__226]}

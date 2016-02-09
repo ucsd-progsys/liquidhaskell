@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -84,21 +85,29 @@ isMono             = null . foldSort fv []
 -------------------------------------------------------------------------
 
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
-sortExpr l γ e
-  = case runCM0 $ checkExpr f e of
-      Left msg -> die $ err l ("sortExpr failed for " ++ showFix e ++ "\n with error\n" ++ msg)
-      Right s  -> s
+sortExpr l γ e = case runCM0 $ checkExpr f e of
+    Left msg -> die $ err l (d msg)
+    Right s  -> s
   where
-    f = (`lookupSEnvWithDistance` γ)
+    f   = (`lookupSEnvWithDistance` γ)
+    d m = vcat [ "sortExpr failed on expression:"
+               , nest 4 (pprint e)
+               , "with error:"
+               , nest 4 (text m)]
+
 
 elaborate :: SEnv Sort -> Expr -> Expr
-elaborate γ e =
-  case runCM0 $ elab f e of
-    Left msg -> die $ err dummySpan ("elaborate failed for " ++ showFix e ++ "\n with error\n" ++ msg ++ "\n in env:\n" ++ show γ)
-    Right s  -> fst s
+elaborate γ e
+  = case runCM0 $ elab f e of
+      Left msg -> die $ err dummySpan (d msg)
+      Right s  -> fst s
   where
-    f  = (`lookupSEnvWithDistance` γ')
-    γ' =  unionSEnv γ theoryEnv
+    f   = (`lookupSEnvWithDistance` γ')
+    γ'  = unionSEnv γ theoryEnv
+    d m = vcat [ "elaborate failed on:"
+               , nest 4 (pprint e)
+               , "with error"
+               , nest 4 (text m)    ]
 
 -------------------------------------------------------------------------
 -- | Checking Refinements -----------------------------------------------
@@ -165,23 +174,23 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
 checkSortedReftFull :: Checkable a => SEnv SortedReft -> a -> Maybe Doc
 checkSortedReftFull γ t
   = case runCM0 $ check γ' t of
-      Left err -> Just (text err)
-      Right _  -> Nothing
+      Left e  -> Just (text e)
+      Right _ -> Nothing
     where
       γ' = sr_sort <$> γ
 
 checkSortFull :: Checkable a => SEnv SortedReft -> Sort -> a -> Maybe Doc
 checkSortFull γ s t
   = case runCM0 $ checkSort γ' s t of
-      Left err -> Just (text err)
-      Right _  -> Nothing
+      Left e  -> Just (text e)
+      Right _ -> Nothing
     where
       γ' = sr_sort <$> γ
 
 checkSorted :: Checkable a => SEnv Sort -> a -> Maybe Doc
 checkSorted γ t
   = case runCM0 $ check γ t of
-      Left err -> Just (text err)
+      Left e   -> Just (text e)
       Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
@@ -254,8 +263,6 @@ addEnv f bs x
 
 --------------------------------------------------------------------------------
 -- | Elaborate expressions with types to make polymorphic instantiation explicit.
---------------------------------------------------------------------------------
-
 --------------------------------------------------------------------------------
 elab :: Env -> Expr -> CheckM (Expr, Sort)
 --------------------------------------------------------------------------------
@@ -414,7 +421,6 @@ checkCst f t e
   = do t' <- checkExpr f e
        ((`apply` t) <$> unifys f [t] [t']) `catchError` (\_ -> throwError $ errCast e t' t)
 
-
 elabAppSort :: Env -> Sort -> Sort -> CheckM Sort
 elabAppSort f s1 s2 =
   do s1' <- generalize s1
@@ -565,6 +571,7 @@ unifyMany f θ ts ts'
   | length ts == length ts' = foldM (uncurry . unify1 f) θ $ zip ts ts'
   | otherwise               = throwError $ errUnifyMany ts ts'
 
+
 unify1 :: Env -> TVSubst -> Sort -> Sort -> CheckM TVSubst
 unify1 f θ (FVar i) t
   = unifyVar f θ i t
@@ -609,6 +616,7 @@ subst (j,tj) (FAbs i t)
   | i == j    = FAbs i t
   | otherwise = FAbs i $ subst (j,tj) t
 subst _  s             = s
+
 
 generalize :: Sort -> CheckM Sort
 generalize (FAbs i t) = do
