@@ -201,7 +201,7 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
-checkPred' _wmsg f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
+checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
                    Left _err   -> {- trace (_wmsg _err p) -} Nothing
