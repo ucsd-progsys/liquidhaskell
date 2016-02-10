@@ -433,6 +433,13 @@ checkApp :: Env -> Maybe Sort -> Expr -> Expr -> CheckM Sort
 checkApp f to g es
   = snd <$> checkApp' f to g es
 
+checkExprAs f t (EApp g e)
+  = checkApp f (Just t) g e
+checkExprAs f t e 
+  = do t' <- checkExpr f e 
+       θ  <- unifys f [t'] [t]
+       return $ apply θ t
+
 -- | Helper for checking uninterpreted function applications
 checkApp' :: Env -> Maybe Sort -> Expr -> Expr -> CheckM (TVSubst, Sort)
 checkApp' f to g' e
@@ -445,6 +452,8 @@ checkApp' f to g' e
        case to of
          Nothing    -> return (θ, t)
          Just t'    -> do θ' <- unifyMany f θ [t] [t']
+                          let ts = apply θ' <$> ets 
+                          _ <- zipWithM (checkExprAs f) ts es 
                           return (θ', apply θ' t)
   where
     (g, es) = splitEApp $ EApp g' e
@@ -502,10 +511,11 @@ checkBoolSort e s
 
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
-checkRel f Eq (EVar x) (EApp g es) = checkRelEqVar f x g es
-checkRel f Eq (EApp g es) (EVar x) = checkRelEqVar f x g es
 checkRel f r  e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
+                                        su <- unifys f [t1] [t2]
+                                        checkExprAs f (apply su t1) e1 
+                                        checkExprAs f (apply su t2) e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
@@ -529,14 +539,6 @@ checkRelTy f _ Ne t1 t2            = void $ unifys f [t1] [t2]
 checkRelTy _ _ Ueq _ _             = return ()
 checkRelTy _ _ Une _ _             = return ()
 checkRelTy _ e _  t1 t2            = unless (t1 == t2)                 (throwError $ errRel e t1 t2)
-
-
--- | Special case for polymorphic singleton variable equality e.g. (x = Set_emp)
-
-checkRelEqVar f x g es             = do tx <- checkSym f x
-                                        _  <- checkApp f (Just tx) g es
-                                        return ()
-
 
 -------------------------------------------------------------------------
 -- | Sort Unification
