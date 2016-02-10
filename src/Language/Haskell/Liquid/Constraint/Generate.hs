@@ -1287,6 +1287,7 @@ strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
+strengthenS (RAllT v t)      r'  = RAllT v $ strengthenS t r' 
 strengthenS t _                  = t
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r

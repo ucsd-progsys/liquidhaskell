@@ -188,9 +188,7 @@ addCGEnv tx γ (_, x, t') = do
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
-  is    <- if isBase t
-             then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
-             else return []
+  is    <- (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' pflag γ

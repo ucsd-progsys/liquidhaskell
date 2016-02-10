@@ -113,8 +113,10 @@ bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t = bsplitW' γ t . pruneRefs <$> get
 
 bsplitW' γ t pflag
-  | F.isNonTrivial r' = F.wfC (feBinds $ fenv γ) r' ci
-  | otherwise         = []
+--   | F.isNonTrivial r' 
+  = F.wfC (feBinds $ fenv γ) r' ci
+--   | otherwise         
+--   = []
   where
     r'                = rTypeSortedReft' pflag γ t
     ci                = Ci (getLocation γ) Nothing
@@ -388,12 +390,7 @@ checkStratum γ t1 t2
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
 bsplitC' γ t1 t2 pflag
-  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
-  = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
-  | F.isNonTrivial r2'
   = F.subC γ' r1'  r2' Nothing tag ci
-  | otherwise
-  = []
   where
     γ'  = feBinds $ fenv γ
     r1' = rTypeSortedReft' pflag γ t1
