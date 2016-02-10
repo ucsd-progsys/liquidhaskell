@@ -7,6 +7,7 @@ tests
   - [OK] AppendArrow 
   - [OK] MapAppend
   - [OK] MapFusion
+  - [OK] ConcatMap
   - Monadic Laws for Lists 
 
 

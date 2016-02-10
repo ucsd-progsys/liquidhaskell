@@ -55,10 +55,13 @@ $(axiomatize
                    -> {v:Proof | (concatt (map f xs) == concatMap f xs) }  @-}
 
 prop_concatMap :: Eq a => (a -> L (L a)) -> L a -> Proof  
-prop_concatMap f N 
-   = auto 1 (concatt (map f N) == concatMap f N)
-{-   
+prop_concatMap f xs
+   = cases 2 (concatt (map f xs) == concatMap f xs)
+
+-- prop_concatMap f N
+--    = auto 1 (concatt (map f N) == concatMap f N)
 --   = refl e1 `by` pr1 `by` pr2 `by` pr3 
+{-
   where
     e1  = concatt (map f N)
     pr1 = axiom_map_N f
@@ -69,8 +72,8 @@ prop_concatMap f N
     e4  = concatMap f N
 -}
 
-prop_concatMap f (C x xs) 
-   = auto 2 (concatt (map f (C x xs)) == concatMap f (C x xs))
+-- prop_concatMap f (C x xs) 
+--   = auto 2 (concatt (map f (C x xs)) == concatMap f (C x xs))
 {-
   = refl e1 `by` pr1 `by` pr2 `by` pr3 `by` pr4 
   where 
