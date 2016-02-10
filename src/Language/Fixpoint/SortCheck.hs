@@ -55,7 +55,7 @@ import           Language.Fixpoint.Smt.Theories (theoryEnv)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
--- import Debug.Trace
+import Debug.Trace
 
 -------------------------------------------------------------------------
 -- | Predicates on Sorts ------------------------------------------------
@@ -201,10 +201,10 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
 
-checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
+checkPred' _wmsg f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 $ checkPred f p of
-                   Left _   -> {- trace (_wmsg err p) -} Nothing
+                   Left _err   -> {- trace (_wmsg _err p) -} Nothing
                    Right _  -> Just p
 
 class Checkable a where

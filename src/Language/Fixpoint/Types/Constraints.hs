@@ -231,15 +231,18 @@ instance (NFData a) => NFData (Result a)
 -- | "Smart Constructors" for Constraints ---------------------------------
 ---------------------------------------------------------------------------
 
-wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x
-  | Reft (v, PKVar k su) <- sr_reft sr
-              = if isEmptySubst su
-                   then [WfC be (v, sr_sort sr, k) x]
-                   else errorstar msg
-  | otherwise = []
+wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
+wfC be sr x = if all isEmptySubst sus
+                then [WfC be (v, sr_sort sr, k) x | k <- ks]
+                else errorstar msg
   where
-    msg       = "wfKvar: malformed wfC " ++ show sr
+    msg             = "wfKvar: malformed wfC " ++ show sr
+    Reft (v, ras)   = sr_reft sr 
+    (ks, sus)       = unzip $ go ras 
+
+    go (PKVar k su) = [(k, su)]
+    go (PAnd es)    = [(k, su) | PKVar k su <- es]
+    go _            = [] 
 
 mkSubC = SubC
 

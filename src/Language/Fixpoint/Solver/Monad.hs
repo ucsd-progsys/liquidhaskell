@@ -183,8 +183,7 @@ declare fi  = withContext $ \me -> do
 declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi = [es | (_, es) <- tess ]
   where
-    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi]
                              
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
