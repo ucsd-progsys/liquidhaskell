@@ -27,7 +27,7 @@ import qualified Data.HashMap.Strict                as M
 -- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
-import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+-- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 -- import           Text.Printf                        (printf)
 import           Control.Monad                      (when, void, filterM, forM)
@@ -177,7 +177,7 @@ solveNative' !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
-  whenLoud $ putStrLn $ showFix (quals fi1)
+  -- whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
@@ -189,7 +189,7 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
   (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
-  writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
+  -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
@@ -202,11 +202,15 @@ solveNative' !cfg !fi0 = do
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
-  | eliminate cfg = do let (s0, fi') = eliminateAll fi
-                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-                       donePhase Loud "Eliminate"
-                       return (s0, fi')
-  | otherwise     = return (M.empty, fi)
+  | eliminate cfg = do
+      let (s0, fi') = eliminateAll fi
+      -- writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+      donePhase Loud "Eliminate"
+      writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
+      donePhase Loud "DonePrint"
+      return (s0, fi')
+  | otherwise     =
+      return (M.empty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)

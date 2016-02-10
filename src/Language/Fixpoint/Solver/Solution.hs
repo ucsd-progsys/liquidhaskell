@@ -209,9 +209,9 @@ okInst env v t eq = isNothing tc
     p             = eqPred eq
     tc            = So.checkSorted env sr
 
----------------------------------------------------------------------
--- | Apply Solution -------------------------------------------------
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Apply Solution ------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 class Solvable a where
   apply :: Solution -> a -> F.Expr
@@ -227,16 +227,10 @@ instance Solvable F.KVar where
     where
       err   = "apply: Unknown KVar " ++ show k
 
-{- The below just kicks the can down the road.
-instance Solvable F.KVar where
-  apply s k = fromMaybe def kp
-    where
-      kp    = apply s <$> M.lookup k s
-      def   = F.PKVar k mempty
--}
-
 instance Solvable (F.KVar, F.Subst) where
-  apply s (k, su) = F.subst su (apply s k)
+  apply s (k, su) = F.subst su (apply s $ tracepp msg k)
+    where
+      msg         = "apply-kvar: "
 
 instance Solvable F.Expr where
   apply s = V.trans (V.defaultVisitor {V.txExpr = tx}) () ()
