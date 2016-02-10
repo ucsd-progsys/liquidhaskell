@@ -55,7 +55,7 @@ import           Language.Fixpoint.Smt.Theories (theoryEnv)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
-import Debug.Trace
+-- import Debug.Trace
 
 -------------------------------------------------------------------------
 -- | Predicates on Sorts ------------------------------------------------
