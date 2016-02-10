@@ -563,6 +563,7 @@ data RType c tv r
   | RAllT {
       rt_tvbind :: !tv
     , rt_ty     :: !(RType c tv r)
+--     , rt_reft   :: !r
     }
 
   | RAllP {
