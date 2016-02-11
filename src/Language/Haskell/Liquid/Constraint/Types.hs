@@ -194,6 +194,7 @@ data CGInfo = CGInfo {
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+  , allowHO    :: !Bool  
   }
 
 instance PPrint CGInfo where

@@ -326,6 +326,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
+  , allowHO    = higherorder cfg   
   }
   where
     tce        = tcEmbeds spc
@@ -921,6 +922,8 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 --------------------------------------------------------------------------------
 
 -- NV this is a hack to type polymorphic axiomatized functions
+-- no need to check this code with flag, the axioms environment withh 
+-- be empty if there is no axiomatization
 
 consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
@@ -1309,10 +1312,7 @@ strengthenS (RApp c ts rs r) r'  = RApp c ts rs $ topMeet r r'
 strengthenS (RVar a r) r'        = RVar a       $ topMeet r r'
 strengthenS (RFun b t1 t2 r) r'  = RFun b t1 t2 $ topMeet r r'
 strengthenS (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ topMeet r r'
--- strengthenS (RAllT v t)      r'  = RAllT v $ strengthenS t r' 
 strengthenS t _                  = t
-
-
 
 topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
 topMeet r r' = {- F.tracepp msg $ -} F.top r `F.meet` r'
