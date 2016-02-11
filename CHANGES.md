@@ -5,6 +5,7 @@
 ## 0.3.0.0
 
 - Make interpreted mul and div the default, when `solver = z3`
+- Use `higherorder` flag to allow higher order binders into the environment 
 
 ## 0.2.2.0
 
