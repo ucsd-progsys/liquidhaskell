@@ -511,11 +511,14 @@ checkBoolSort e s
 
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
-checkRel f r  e1 e2                = do t1 <- checkExpr f e1
+checkRel f Eq e1 e2                = do t1 <- checkExpr f e1
                                         t2 <- checkExpr f e2
                                         su <- unifys f [t1] [t2]
                                         checkExprAs f (apply su t1) e1 
                                         checkExprAs f (apply su t2) e2
+                                        checkRelTy f (PAtom Eq e1 e2) Eq t1 t2
+checkRel f r  e1 e2                = do t1 <- checkExpr f e1
+                                        t2 <- checkExpr f e2
                                         checkRelTy f (PAtom r e1 e2) r t1 t2
 
 checkRelTy :: (Fixpoint a, PPrint a) => Env -> a -> Brel -> Sort -> Sort -> CheckM ()
