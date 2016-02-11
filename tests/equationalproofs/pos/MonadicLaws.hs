@@ -23,10 +23,6 @@ $(axiomatize
     |])
 
 
-{-@ foo :: {v: _ | v == return } @-} 
-foo :: a -> L a 
-foo = return 
-
 {-@ axiomatize append @-}
 $(axiomatize
   [d| append :: L a -> L a -> L a
@@ -50,7 +46,8 @@ $(axiomatize
 prop_left_identity :: Eq a => a -> (a -> L a) -> Proof
 {-@ prop_left_identity :: x:a -> f:(a -> L a)
                        -> {v:Proof | bind (return x) f == f x} @-}
-prop_left_identity x f = undefined -- auto 2 (bind (return x) f == f x)
+prop_left_identity x f = auto 2 (bind (return x) f == f x)
+{- 
   where
     e1  = bind (return x) f
     pr1 = axiom_return x
@@ -61,18 +58,12 @@ prop_left_identity x f = undefined -- auto 2 (bind (return x) f == f x)
     e4  = append (f x) N
     pr4 = prop_app_nil (f x)
     e5  = f x
+-}
 
 -- | Right Identity m >>= return ≡  m
-{-@ prop_right_identity :: Eq a => L a -> {v:Proof | bind N return == N } @-}
+{-@ prop_right_identity :: Eq a => xs:L a -> {v:Proof | bind xs return == xs } @-}
 prop_right_identity :: Eq a => L a -> Proof
-prop_right_identity N =  refl (bind N return) `by` pr1 -- auto 1 (bind N return == N) --  `by` pr1
-  where
-    e1  = bind N return
-    pr1 = axiom_bind_N return
-    e2  = N
-
-prop_right_identity (C x xs) = undefined
-
+prop_right_identity xs =  cases 2 (bind xs return == xs) 
 
 {-@ prop_app_nil :: ys:L a -> {v:Proof | append ys N == ys} @-}
 prop_app_nil :: (Eq a) => L a -> Proof

@@ -357,8 +357,18 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
 eAppWithMap lmap f es def
   | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es 
   = subst (mkSubst $ zip xs es) e
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), isApp e  
+  = subst (mkSubst $ zip xs es) $ dropApp e (length xs - length es)
   | otherwise
   = def
+
+dropApp e i | i <= 0 = e 
+dropApp (EApp e _) i = dropApp e (i-1)
+dropApp _ _          = errorstar "impossible"
+ 
+isApp (EApp (EVar _) (EVar _)) = True 
+isApp (EApp e (EVar _))        = isApp e 
+isApp _                        = False
 
 data TyConP = TyConP { freeTyVarsTy :: ![RTyVar]
                      , freePredTy   :: ![PVar RSort]
