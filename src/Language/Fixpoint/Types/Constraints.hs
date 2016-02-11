@@ -63,7 +63,7 @@ import           Data.List                 (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.Config hiding (allowHO)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
@@ -333,7 +333,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn
+fi cs ws binds ls ks qs bi fn aHO 
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -342,6 +342,7 @@ fi cs ws binds ls ks qs bi fn
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
+       , allowHO  = aHO 
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -362,12 +363,13 @@ data GInfo c a =
      , quals    :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
+     , allowHO  :: !Bool 
      }
   deriving (Eq, Show, Functor, Generic)
 
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False 
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -376,6 +378,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
+                     , allowHO  = allowHO i1 || allowHO i2 
                      }
 
 instance PTable (SInfo a) where

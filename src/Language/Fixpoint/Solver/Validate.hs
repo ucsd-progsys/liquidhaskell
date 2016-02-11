@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
--- import           Language.Fixpoint.SortCheck        (isFirstOrder)
+import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
@@ -25,7 +25,7 @@ import qualified Language.Fixpoint.Types.Errors as E
 import qualified Data.HashMap.Strict      as M
 import qualified Data.HashSet             as S
 import qualified Data.List as L
--- import           Data.Maybe          (isNothing)
+import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
 -- import           Text.Printf
 import           Text.PrettyPrint.HughesPJ
@@ -40,6 +40,7 @@ validate = errorstar "TODO: validate input"
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
+         >=> fM dropWfcFunctions   
          >=>    checkRhsCs
          >=>    banQualifFreeVars
 
@@ -159,21 +160,22 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x _              = not (M.member x defs) -- || isFirstOrder t
+    f x t              = not (M.member x defs) || F.allowHO fi || isFirstOrder t
     defs               = M.fromList $ F.toListSEnv $ F.lits fi
 
-{- 
+
 ---------------------------------------------------------------------------
 -- | Drop functions from WfC environments
 ---------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
+dropWfcFunctions fi | F.allowHO fi = fi 
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
     nonFunction   = isNothing . F.functionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
--} 
+
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
