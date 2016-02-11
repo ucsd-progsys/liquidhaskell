@@ -94,6 +94,7 @@ newtype LogicM a = LM {runM :: LState -> Either a Error}
 
 data LState = LState { symbolMap :: LogicMap
                      , mkError   :: String -> Error
+                     , ltce      :: TCEmb TyCon
                      }
 
 
@@ -124,8 +125,8 @@ throw str = LM $ \s -> Right $ (mkError s) str
 getState :: LogicM LState
 getState = LM $ Left
 
-runToLogic lmap ferror (LM m)
-  = m $ LState {symbolMap = lmap, mkError = ferror}
+runToLogic tce lmap ferror  (LM m)
+  = m $ LState {symbolMap = lmap, mkError = ferror, ltce = tce }
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr ->  LogicM [Def (RRType r) DataCon]
 coreToDef x _ e = go [] $ inline_preds $ simplify e
@@ -216,6 +217,10 @@ coreToLg (C.Var x)           = (symbolMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)       = toLogicApp e
 coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
   = checkBoolAlts alts >>= coreToIte e
+coreToLg (C.Lam x e)
+  = do p   <- coreToLg e
+       tce <- ltce <$> getState 
+       return $ PAll ([(symbol x, typeSort tce $ varType x)]) p
 -- coreToLg p@(C.App _ _) = toPredApp p
 coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 

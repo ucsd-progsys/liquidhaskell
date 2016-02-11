@@ -281,8 +281,9 @@ unANFExpr e = (foldl (flip Let) e . ae_binds) <$> get
 
 makeGoalPredicate e =
   do lm   <- ae_lmap    <$> get
-     case runToLogic lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
-       Left p  -> return p
+     tce  <- ae_emb     <$> get
+     case runToLogic tce lm (ErrOther (showSpan "makeGoalPredicate") . text) (coreToPred e) of
+       Left p    -> return p
        Right err -> panicError err
 
 makeRefinement :: Maybe SpecType -> [Var] -> F.Expr
