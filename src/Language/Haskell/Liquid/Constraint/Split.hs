@@ -369,8 +369,9 @@ rsplitsCWithVariance _ γ t1s t2s variants
 bsplitC γ t1 t2 = do
   checkStratum γ t1 t2
   pflag  <- pruneRefs <$> get
+  isHO   <- allowHO   <$> get
   let t1' = addLhsInv γ t1
-  return  $ bsplitC' γ t1' t2 pflag
+  return  $ bsplitC' γ t1' t2 pflag isHO
 
 addLhsInv :: CGEnv -> SpecType -> SpecType
 addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
@@ -401,8 +402,6 @@ bsplitC' γ t1 t2 pflag isHO
  = F.subC γ' r1'  r2' Nothing tag ci      
  | otherwise   
  = []
-
-  = F.subC γ' r1'  r2' Nothing tag ci
   where
     γ'  = feBinds $ fenv γ
     r1' = rTypeSortedReft' pflag γ t1
