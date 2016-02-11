@@ -183,7 +183,8 @@ declare fi  = withContext $ \me -> do
 declLiterals :: F.GInfo c a -> [[F.Expr]]
 declLiterals fi = [es | (_, es) <- tess ]
   where
-    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi]
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x)]
+    isThy       = isJust . Thy.smt2Symbol
                              
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
