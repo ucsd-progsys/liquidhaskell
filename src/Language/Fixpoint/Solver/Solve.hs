@@ -7,11 +7,8 @@
 
 module Language.Fixpoint.Solver.Solve (solve) where
 
--- import           Control.Concurrent (threadDelay)
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
-import qualified Data.HashMap.Strict  as M
--- import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.PrettyPrint
@@ -19,14 +16,14 @@ import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
+
 -- DEBUG
 import           Text.Printf
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Control.DeepSeq
 
-
-import Data.List  (sort)
-import Data.Maybe (catMaybes)
+import           Data.List  (sort)
+import           Data.Maybe (catMaybes)
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
@@ -128,10 +125,10 @@ predKs _              = []
 result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result wkl s = do
-  lift $ writeLoud $ "Computing Result"
-  let sol  = M.map (F.pAnd . fmap S.eqPred) s
+  lift $ writeLoud "Computing Result"
+  let sol  = S.sMap $ (F.pAnd . fmap S.eqPred) <$> s
   stat    <- result_ wkl s
-  stat' <- gradualSolve stat
+  stat'   <- gradualSolve stat
   return   $ F.Result (F.sinfo <$> stat') sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
@@ -155,7 +152,6 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 rhsPred :: S.Solution -> F.SimpC a -> F.Expr
 rhsPred s c = S.apply s $ F.crhs c
-
 
 
 gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))
@@ -185,8 +181,6 @@ makeGradualExpression γ γ' p
     gs = F.pAnd (bindToLogic <$> (γ ++ γ'))
     bindToLogic (x, F.RR _ (F.Reft (v, e))) = e `F.subst1` (v, F.EVar x)
 
-
-
 makeEnvironment  c
   = do lp <- getBinds
        return [ F.lookupBindEnv i lp | i <- bs ]
@@ -195,16 +189,16 @@ makeEnvironment  c
 
 splitLastGradual = go [] . reverse
   where
-    go acc (xe@(x, (F.RR s (F.Reft(v, e)))):xss)
+    go acc (xe@(x, (F.RR s (F.Reft (v, e)))) : xss)
       | Just es <- removePGrads e
-      = (reverse $ ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
+      = (reverse ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
       | otherwise
       = go (xe:acc) xss
     go acc []
       = ([], reverse acc, False)
 
 removePGrads (F.PAnd es)
-  | any (==F.PGrad) es
+  | F.PGrad `elem` es
   = Just $ filter (/= F.PGrad) es
   | otherwise
   = Nothing
@@ -212,6 +206,7 @@ removePGrads F.PGrad
   = Just []
 removePGrads _
   = Nothing
+  
 {-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()

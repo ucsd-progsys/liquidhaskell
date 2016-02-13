@@ -5,22 +5,29 @@
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
-          Solution, Cand, EQual (..)
+          Solution    -- RJ: DO NOT expose!
+        , sMap
+        , Cand
+        , EQual (..)
 
           -- * Types with Template/KVars
         , Solvable (..)
 
           -- * Initial Solution
+        , empty
         , init
 
-          -- * Update Solutio n
+          -- * Access Solution
+        , lookup
+        , insert
         , update
-
-          -- * Lookup Solution
-        , sLookup
 
           -- * RJ: What does this do ?
         , mkJVar
+
+          -- * Debug
+        , solutionGraph
+
         )
 where
 
@@ -39,6 +46,7 @@ import qualified Language.Fixpoint.SortCheck    as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
 import           Language.Fixpoint.Types       (Expr (..))
+import           Language.Fixpoint.Types.Graphs
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
@@ -48,21 +56,32 @@ import           Prelude                        hiding (init, lookup)
 -- | Types ----------------------------------------------------------
 ---------------------------------------------------------------------
 
-newtype Solution = Solution { soln :: Sol KBind }
-type Sol a       = M.HashMap F.KVar a
-type KBind       = [EQual]
-type Cand a      = [(F.Expr, a)]
+type Solution = Sol KBind
+newtype Sol a = Sol { sMap :: M.HashMap F.KVar a }
+type KBind    = [EQual]
+type Cand a   = [(F.Expr, a)]
 
+instance Monoid (Sol a) where
+  mempty        = Sol mempty
+  mappend s1 s2 = Sol $ mappend (sMap s1) (sMap s2)
+
+instance Functor Sol where
+  fmap f = Sol . fmap f . sMap
+
+instance PPrint a => PPrint (Sol a) where
+  pprint = pprint . sMap
 
 ---------------------------------------------------------------------
--- | Lookup Solution at KVar ----------------------------------------
+-- | Read / Write Solution at KVar ----------------------------------
 ---------------------------------------------------------------------
-sLookup :: Solution -> F.KVar -> KBind
+lookup :: Solution -> F.KVar -> KBind
 ---------------------------------------------------------------------
-sLookup s k = M.lookupDefault [] k (soln s)
+lookup s k = M.lookupDefault [] k (sMap s)
 
-sInsert :: F.KVar -> [EQual] -> Solution -> Solution
-sInsert k qs (Solution s) = Solution (M.insert k qs s)
+---------------------------------------------------------------------
+insert :: F.KVar -> a -> Sol a -> Sol a
+---------------------------------------------------------------------
+insert k qs (Sol s) = Sol (M.insert k qs s)
 
 
 ---------------------------------------------------------------------
@@ -120,9 +139,9 @@ groupKs ks kqs = M.toList $ groupBase m0 kqs
     m0         = M.fromList $ (,[]) <$> ks
 
 update1 :: Solution -> (F.KVar, KBind) -> (Bool, Solution)
-update1 s (k, qs) = (change, sInsert k qs s)
+update1 s (k, qs) = (change, insert k qs s)
   where
-    oldQs         = sLookup s k
+    oldQs         = lookup s k
     change        = length oldQs /= length qs
 
 --------------------------------------------------------------------
@@ -130,12 +149,16 @@ update1 s (k, qs) = (change, sInsert k qs s)
 --------------------------------------------------------------------
 init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
-init fi  = Solution $ M.fromList keqs
+init fi  = Sol $ M.fromList keqs
   where
     keqs = map (refine fi qs) ws `using` parList rdeepseq
     qs   = F.quals fi
     ws   = M.elems $ F.ws fi
 
+--------------------------------------------------------------------
+empty :: Solution
+--------------------------------------------------------------------
+empty  = Sol M.empty
 
 --------------------------------------------------------------------
 refine :: F.SInfo a
@@ -263,8 +286,8 @@ instance Solvable a => Solvable [a] where
 applyKVar :: Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar s k su = F.subst su $ F.pAnd $ eqPred <$> eqs
   where
-    eqs          = sLookup s k -- safeLookup err k s
-    -- err          = "applyKVar: Unknown KVar " ++ show k
+    eqs          = safeLookup err k (sMap s)
+    err          = "applyKVar: Unknown KVar " ++ show k
 
 applyExpr :: Solution -> F.Expr -> F.Expr
 applyExpr s e = tracepp "applyExpr" $ go 0 e
@@ -301,3 +324,10 @@ apply1 s = go
 
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars
+
+------------------------------------------------------------------------------------
+solutionGraph :: Solution -> KVGraph
+solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
+  where
+     eqKvars    = sortNub . concatMap (V.kvars . eqPred)
+     kEqs       = M.toList (sMap s)

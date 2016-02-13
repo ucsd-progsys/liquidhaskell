@@ -7,7 +7,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
 import           Language.Fixpoint.Partition       (depNonCuts, deps)
 import           Language.Fixpoint.Misc            (fst3, errorstar)
-import           Language.Fixpoint.Solver.Solution (Solution, mkJVar)
+import           Language.Fixpoint.Solver.Solution (Solution, mkJVar, insert, empty)
 
 import qualified Data.HashMap.Strict as M
 import           Data.List           (foldl')
@@ -15,14 +15,17 @@ import           Control.Arrow       (first, second)
 import           Control.DeepSeq     (($!!))
 
 
+
+
+
 --------------------------------------------------------------------------------
 eliminateAll :: SInfo a -> (Solution, SInfo a)
-eliminateAll !si = {-# SCC "eliminateAll" #-} foldl' eliminate (M.empty, si) nonCuts
+eliminateAll !si = {-# SCC "eliminateAll" #-} foldl' eliminate (empty, si) nonCuts
   where
     nonCuts = depNonCuts $ deps si
 --------------------------------------------------------------------------------
 eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
-eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi')
+eliminate (!s, !fi) k = (insert k (mkJVar orPred) s, fi')
   where
     fi'    = fi { cm = nokCs , ws = M.delete k $ ws fi }
     kCs    = M.filter (   elem k . kvars . crhs) (cm fi) -- with    k in RHS (SLOW!)

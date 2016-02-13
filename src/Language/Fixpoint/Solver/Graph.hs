@@ -1,5 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module Language.Fixpoint.Solver.Graph (
        -- * Remove Constraints that don't affect Targets

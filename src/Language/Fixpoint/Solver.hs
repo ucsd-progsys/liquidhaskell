@@ -211,7 +211,7 @@ elim cfg fi
       -- donePhase Loud "DonePrint"
       return (s0, fi')
   | otherwise     =
-      return (M.empty, fi)
+      return (mempty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
