@@ -1,8 +1,7 @@
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE BangPatterns         #-}
 
-module Language.Fixpoint.Solver.Eliminate
-       (eliminateAll) where
+module Language.Fixpoint.Solver.Eliminate (eliminateAll) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
@@ -16,58 +15,60 @@ import           Control.Arrow       (first, second)
 import           Control.DeepSeq     (($!!))
 
 
---------------------------------------------------------------
+--------------------------------------------------------------------------------
 eliminateAll :: SInfo a -> (Solution, SInfo a)
-eliminateAll !fi = {-# SCC "eliminateAll" #-} foldl' eliminate (M.empty, fi) nonCuts
+eliminateAll !si = {-# SCC "eliminateAll" #-} foldl' eliminate (M.empty, si) nonCuts
   where
-    nonCuts = depNonCuts $ deps fi
---------------------------------------------------------------
-
+    nonCuts = depNonCuts $ deps si
+--------------------------------------------------------------------------------
 eliminate :: (Solution, SInfo a) -> KVar -> (Solution, SInfo a)
-eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi { cm = remainingCs , ws = M.delete k $ ws fi })
+eliminate (!s, !fi) k = (M.insert k (mkJVar orPred) s, fi')
   where
-    relevantCs  = M.filter (   elem k . kvars . crhs) (cm fi)
-    remainingCs = M.filter (notElem k . kvars . crhs) (cm fi)
-    kvWfC = ws fi M.! k
-    be = bs fi
-    kDom = domain be kvWfC
-    orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom be <$> M.elems relevantCs
+    fi'    = fi { cm = nokCs , ws = M.delete k $ ws fi }
+    kCs    = M.filter (   elem k . kvars . crhs) (cm fi) -- with    k in RHS (SLOW!)
+    nokCs  = M.filter (notElem k . kvars . crhs) (cm fi) -- without k in RHS (SLOW!)
+    kW     = (ws fi) M.! k
+    kDom   = domain (bs fi) kW
+    orPred = {-# SCC "orPred" #-} POr $!! extractPred kDom (bs fi)  <$> M.elems kCs
 
 extractPred :: [Symbol] -> BindEnv -> SimpC a -> Expr
 extractPred kDom be sc = renameQuantified (subcId sc) kSol
   where
-    env = clhs be sc
-    binds = second sr_sort <$> env
-    nonFuncBinds = filter (nonFunction be . fst) binds
-    lhsPreds = bindPred <$> env
-    suPreds = substPreds kDom $ crhs sc
-    kSol = PExist nonFuncBinds $ PAnd (lhsPreds ++ suPreds)
+    kSol               = PExist xts $ PAnd (lhsPreds ++ suPreds)
+    xts                = filter (nonFunction be . fst) yts
+    yts                = second sr_sort <$> env
+    env                = clhs be sc
+    lhsPreds           = bindPred <$> env
+    suPreds            = substPreds kDom $ crhs sc
 
 -- x:{v:int|v=10} -> (x=10)
 bindPred :: (Symbol, SortedReft) -> Expr
-bindPred (sym, sr) = subst1 (reftPred rft) sub
+bindPred (x, sr) = p `subst1`(v, eVar x)
   where
-    rft = sr_reft sr
-    sub = (reftBind rft, eVar sym)
+    v            = reftBind r
+    r            = sr_reft sr
+    p            = reftPred r
 
 -- k0[v:=e1][x:=e2] -> [v = e1, x = e2]
 substPreds :: [Symbol] -> Expr -> [Expr]
-substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar sym) e | (sym, e) <- M.toList subs , sym `elem` dom]
+substPreds dom (PKVar _ (Su subs)) = [PAtom Eq (eVar x) e | (x, e) <- M.toList subs , x `elem` dom]
 substPreds _ _ = errorstar "Eliminate.substPreds called on bad input"
 
+-- SLOW!
 nonFunction :: BindEnv -> Symbol -> Bool
 nonFunction be sym = sym `notElem` funcs
   where
-    funcs = [sym | (_, sym, sr) <- bindEnvToList be, isFunctionSortedReft sr]
+    funcs = [x | (_, x, sr) <- bindEnvToList be
+               , isFunctionSortedReft sr]
 
 domain :: BindEnv -> WfC a -> [Symbol]
-domain be wfc = (fst3 $ wrft wfc) : map fst (envCs be $ wenv wfc)
+domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
 renameQuantified :: Integer -> Expr -> Expr
 renameQuantified i (PExist bs p) = PExist bs' p'
   where
     su  = substFromQBinds i bs
-    bs' = (first $ subst su) <$> bs
+    bs' = first (subst su) <$> bs
     p'  = subst su p
 renameQuantified _ _ = errorstar "Eliminate.renameQuantified called on bad input"
 

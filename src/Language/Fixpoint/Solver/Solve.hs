@@ -128,9 +128,10 @@ predKs _              = []
 result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result wkl s = do
+  lift $ writeLoud $ "Computing Result"
   let sol  = M.map (F.pAnd . fmap S.eqPred) s
   stat    <- result_ wkl s
-  stat' <- gradualSolve stat 
+  stat' <- gradualSolve stat
   return   $ F.Result (F.sinfo <$> stat') sol
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
@@ -158,26 +159,26 @@ rhsPred s c = S.apply s $ F.crhs c
 
 
 gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))
-gradualSolve (F.Unsafe cs) 
+gradualSolve (F.Unsafe cs)
   = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
-  where 
-    makeResult [] = F.Safe 
-    makeResult cs = F.Unsafe cs 
-gradualSolve r 
+  where
+    makeResult [] = F.Safe
+    makeResult cs = F.Unsafe cs
+gradualSolve r
   = return r
 
 gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
-gradualSolveOne c = 
-  do γ0 <- makeEnvironment c 
-     let (γ, γ', hasGradual) = splitLastGradual γ0 
-     if hasGradual 
-      then do let vc = makeGradualExpression γ γ' (F.crhs c) 
-              s <- checkSat vc 
+gradualSolveOne c =
+  do γ0 <- makeEnvironment c
+     let (γ, γ', hasGradual) = splitLastGradual γ0
+     if hasGradual
+      then do let vc = makeGradualExpression γ γ' (F.crhs c)
+              s <- checkSat vc
               return {- traceShow ("DEBUG" ++ show  (γ, γ', F.crhs c) ++ "\nVC = \n" ++ show (vc, s) ) -}
-                 $ if s then Nothing else Just c 
-      else return $ Just c 
+                 $ if s then Nothing else Just c
+      else return $ Just c
 
-makeGradualExpression γ γ' p 
+makeGradualExpression γ γ' p
   = F.PAnd [F.PAll bs (F.PImp gs p), gs]
   where
     bs = [ (x, s) | (x, F.RR s _) <- γ']
@@ -186,31 +187,31 @@ makeGradualExpression γ γ' p
 
 
 
-makeEnvironment  c 
+makeEnvironment  c
   = do lp <- getBinds
        return [ F.lookupBindEnv i lp | i <- bs ]
-  where 
-    bs = sort $ F.elemsIBindEnv $ F.senv c 
+  where
+    bs = sort $ F.elemsIBindEnv $ F.senv c
 
 splitLastGradual = go [] . reverse
   where
-    go acc (xe@(x, (F.RR s (F.Reft(v, e)))):xss) 
-      | Just es <- removePGrads e 
+    go acc (xe@(x, (F.RR s (F.Reft(v, e)))):xss)
+      | Just es <- removePGrads e
       = (reverse $ ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
       | otherwise
-      = go (xe:acc) xss 
-    go acc [] 
+      = go (xe:acc) xss
+    go acc []
       = ([], reverse acc, False)
 
 removePGrads (F.PAnd es)
   | any (==F.PGrad) es
   = Just $ filter (/= F.PGrad) es
   | otherwise
-  = Nothing 
-removePGrads F.PGrad     
-  = Just [] 
-removePGrads _ 
-  = Nothing 
+  = Nothing
+removePGrads F.PGrad
+  = Just []
+removePGrads _
+  = Nothing
 {-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()

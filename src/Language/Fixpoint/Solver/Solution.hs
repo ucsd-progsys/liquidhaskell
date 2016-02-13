@@ -17,13 +17,14 @@ module Language.Fixpoint.Solver.Solution
         , update
 
           -- * Lookup Solution
-        , lookup
+        , sLookup
 
           -- * RJ: What does this do ?
         , mkJVar
         )
 where
 
+-- import           Debug.Trace (trace)
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
@@ -37,6 +38,7 @@ import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck    as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
+import           Language.Fixpoint.Types       (Expr (..))
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
@@ -46,18 +48,21 @@ import           Prelude                        hiding (init, lookup)
 -- | Types ----------------------------------------------------------
 ---------------------------------------------------------------------
 
-type Solution = Sol KBind
-type Sol a    = M.HashMap F.KVar a
-type KBind    = [EQual]
-type Cand a   = [(F.Expr, a)]
+newtype Solution = Solution { soln :: Sol KBind }
+type Sol a       = M.HashMap F.KVar a
+type KBind       = [EQual]
+type Cand a      = [(F.Expr, a)]
 
 
 ---------------------------------------------------------------------
 -- | Lookup Solution at KVar ----------------------------------------
 ---------------------------------------------------------------------
-lookup :: Solution -> F.KVar -> KBind
+sLookup :: Solution -> F.KVar -> KBind
 ---------------------------------------------------------------------
-lookup s k = M.lookupDefault [] k s
+sLookup s k = M.lookupDefault [] k (soln s)
+
+sInsert :: F.KVar -> [EQual] -> Solution -> Solution
+sInsert k qs (Solution s) = Solution (M.insert k qs s)
 
 
 ---------------------------------------------------------------------
@@ -115,9 +120,9 @@ groupKs ks kqs = M.toList $ groupBase m0 kqs
     m0         = M.fromList $ (,[]) <$> ks
 
 update1 :: Solution -> (F.KVar, KBind) -> (Bool, Solution)
-update1 s (k, qs) = (change, M.insert k qs s)
+update1 s (k, qs) = (change, sInsert k qs s)
   where
-    oldQs         = lookup s k
+    oldQs         = sLookup s k
     change        = length oldQs /= length qs
 
 --------------------------------------------------------------------
@@ -125,7 +130,7 @@ update1 s (k, qs) = (change, M.insert k qs s)
 --------------------------------------------------------------------
 init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
-init fi  = M.fromList keqs
+init fi  = Solution $ M.fromList keqs
   where
     keqs = map (refine fi qs) ws `using` parList rdeepseq
     qs   = F.quals fi
@@ -216,27 +221,29 @@ okInst env v t eq = isNothing tc
 class Solvable a where
   apply :: Solution -> a -> F.Expr
 
-instance Solvable EQual where
-  apply s = apply s . eqPred
+-- instance Solvable EQual where
+--   apply s = apply s . eqPred
   --TODO: this used to be just eqPred, but Eliminate allows KVars to
   -- have other KVars in their solutions. Does this extra 'apply s'
   -- make a significant difference?
 
-instance Solvable F.KVar where
-  apply s k = apply s $ safeLookup err k s
-    where
-      err   = "apply: Unknown KVar " ++ show k
+-- instance Solvable F.KVar where
+  -- apply s k = apply s $ safeLookup err k s
+    -- where
+      -- err   = "apply: Unknown KVar " ++ show k
 
 instance Solvable (F.KVar, F.Subst) where
-  apply s (k, su) = F.subst su (apply s $ tracepp msg k)
-    where
-      msg         = "apply-kvar: "
+  apply s (k, su) = applyKVar s k su
+   --F.subst su (apply s $ {- tracepp msg -} k)
+    -- where
+      -- msg         = "apply-kvar: "
 
 instance Solvable F.Expr where
-  apply s = V.trans (V.defaultVisitor {V.txExpr = tx}) () ()
-    where
-      tx _ (F.PKVar k su) = apply s (k, su)
-      tx _ p              = p
+  apply = applyExpr
+  -- apply s = V.trans (V.defaultVisitor {V.txExpr = tx}) () ()
+    -- where
+      -- tx _ (F.PKVar k su) = apply s (k, su)
+      -- tx _ p              = p
 
 instance Solvable F.Reft where
   apply s = apply s . F.reftPred
@@ -252,3 +259,45 @@ instance Solvable (F.Symbol, F.SortedReft) where
 
 instance Solvable a => Solvable [a] where
   apply s = F.pAnd . fmap (apply s)
+
+applyKVar :: Solution -> F.KVar -> F.Subst -> F.Expr
+applyKVar s k su = F.subst su $ F.pAnd $ eqPred <$> eqs
+  where
+    eqs          = sLookup s k -- safeLookup err k s
+    -- err          = "applyKVar: Unknown KVar " ++ show k
+
+applyExpr :: Solution -> F.Expr -> F.Expr
+applyExpr s e = tracepp "applyExpr" $ go 0 e
+  where
+    go i e
+     | noKvars e = e
+     | otherwise = go (i+1) (apply1 s $ {- trace (msg i e) -} e)
+    -- msg i e = "Depth: " ++ show i ++ "Size: " ++ show (V.size e)
+
+apply1   :: Solution -> F.Expr -> F.Expr
+apply1 s = go
+  where
+    go e                = go' e
+    go' (PKVar k su)    = applyKVar s k su
+    go' e@(ESym _)      = e
+    go' e@(ECon _)      = e
+    go' e@(EVar _)      = e
+    go' e@PGrad         = e
+    go' (EApp f e)      = EApp    (go f)  (go e)
+    go' (ENeg e)        = ENeg    (go e)
+    go' (EBin o e1 e2)  = EBin o  (go e1) (go e2)
+    go' (EIte p e1 e2)  = EIte    (go  p) (go e1) (go e2)
+    go' (ECst e t)      = ECst    (go e) t
+    go' (PAnd  ps)      = PAnd    (go <$> ps)
+    go' (POr  ps)       = POr     (go <$> ps)
+    go' (PNot p)        = PNot    (go p)
+    go' (PImp p1 p2)    = PImp    (go p1) (go p2)
+    go' (PIff p1 p2)    = PIff    (go p1) (go p2)
+    go' (PAtom r e1 e2) = PAtom r (go e1) (go e2)
+    go' (PAll xts p)    = PAll xts (go p)
+    go' (PExist xts p)  = PExist xts (go p)
+    go' (ETApp e s)     = ETApp (go e) s
+    go' (ETAbs e s)     = ETAbs (go e) s
+
+noKvars :: F.Expr -> Bool
+noKvars = null . V.kvars

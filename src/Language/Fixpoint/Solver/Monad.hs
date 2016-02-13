@@ -89,7 +89,7 @@ runSolverM cfg fi _ act = do
     return $ fst res
 
   where
-    acquire = makeContextWithSEnv lar (solver cfg) file env 
+    acquire = makeContextWithSEnv lar (solver cfg) file env
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
@@ -97,7 +97,7 @@ runSolverM cfg fi _ act = do
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     lar     = linear cfg || Z3 /= solver cfg
- 
+
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
 ---------------------------------------------------------------------------
@@ -157,13 +157,13 @@ filterValid_ p qs me = catMaybes <$> do
 
 
 smtEnablrmbqi
-  = withContext $ \me ->  
+  = withContext $ \me ->
             smtWrite me "(set-option :smt.mbqi true)"
 
 
-checkSat :: F.Expr -> SolveM  Bool 
-checkSat p 
-  = withContext $ \me ->  
+checkSat :: F.Expr -> SolveM  Bool
+checkSat p
+  = withContext $ \me ->
             smtBracket me $
              smtCheckSat me p
 
@@ -171,8 +171,8 @@ checkSat p
 declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
 declareInitEnv :: SolveM ()
-declareInitEnv = withContext $ \me -> do 
-                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me 
+declareInitEnv = withContext $ \me ->  
+                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
 
 declare fi  = withContext $ \me -> do
   xts      <- either E.die return $ declSymbols fi
@@ -185,7 +185,7 @@ declLiterals fi = [es | (_, es) <- tess ]
   where
     notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
-                             
+
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where

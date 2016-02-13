@@ -17,7 +17,7 @@ module Language.Fixpoint.Solver.Validate
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
-import           Language.Fixpoint.SortCheck        (isFirstOrder)
+-- import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
@@ -153,19 +153,20 @@ binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x t              = not (M.member x defs) || isFirstOrder t
-    defs               = M.fromList $ F.toListSEnv $ F.lits fi
+    f x _  = not (isLit x) -- OLD: || isFirstOrder x
+    isLit  = (`M.member` defs)
+    defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Drop functions from WfC environments
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropWfcFunctions fi = fi { F.ws = ws' }

@@ -22,6 +22,9 @@ module Language.Fixpoint.Partition (
   , GDeps (..)
   , deps
   -- , isReducible
+
+  -- * Debug
+  , elimSolGraph
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
@@ -32,10 +35,11 @@ import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types.Visitor      as V
-import qualified Language.Fixpoint.Types        as F
-import qualified Data.HashMap.Strict            as M
-import qualified Data.Graph                     as G
-import qualified Data.Tree                      as T
+import qualified Language.Fixpoint.Solver.Solution    as So
+import qualified Language.Fixpoint.Types              as F
+import qualified Data.HashMap.Strict                  as M
+import qualified Data.Graph                           as G
+import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Maybe                     (mapMaybe, fromMaybe)
 import           Data.Hashable
@@ -45,8 +49,6 @@ import qualified Data.HashSet              as S
 
 import Data.Graph.Inductive
 
--- import Data.Graph.Inductive.Dot
--- import Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -445,11 +447,6 @@ subcEdges' :: (F.KVar -> Node) -> F.BindEnv -> F.SimpC a -> [(Node, Node)]
 subcEdges' kvI be c = [(kvI k1, kvI k2) | k1 <- V.envKVars be c
                                         , k2 <- V.kvars $ F.crhs c]
 
--- kvInt :: F.KVar -> Node
--- kvInt (F.KV k) = read $ drop 4 kStr
-  -- where
-    -- kStr = F.symbolString k
-
 --------------------------------------------------------------------------------
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
@@ -497,3 +494,17 @@ nlKVars fi = S.unions $ nlKVarsC bs <$> cs
 
 nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
 nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
+
+--------------------------------------------------------------------------------
+-- | Build and print the graph of post eliminate solution, which has an edge
+--   from k -> k' if k' appears directly inside the "solution" for k
+--------------------------------------------------------------------------------
+elimSolGraph :: Config -> So.Solution -> IO ()
+elimSolGraph cfg s =  dumpGraph f (elimSolKVG s)
+  where
+    f              = queryFile Dot cfg
+
+elimSolKVG :: So.Solution -> KVGraph
+elimSolKVG so = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- M.toList so ]
+  where
+     eqKvars  = sortNub . concatMap (V.kvars . So.eqPred)

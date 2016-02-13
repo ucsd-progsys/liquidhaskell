@@ -21,6 +21,7 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , kvars
+  , size
   , envKVars
   , envKVarsN
   , rhsKVars
@@ -139,8 +140,8 @@ visitExpr v = vE
     step c (PExist xts p)  = PExist xts <$> vE c p
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
-    step _ PGrad           = return PGrad 
+    step _ p@(PKVar _ _)   = return p
+    step _ PGrad           = return PGrad
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -161,6 +162,18 @@ mapKVarSubsts f        = trans kvVis () []
     kvVis              = defaultVisitor { txExpr = txK }
     txK _ (PKVar k su) = PKVar k $ f k su
     txK _ p            = p
+
+newtype MInt = MInt Integer
+
+instance Monoid MInt where
+  mempty                    = MInt 0
+  mappend (MInt m) (MInt n) = MInt (m + n)
+
+size :: Visitable t => t -> Integer
+size t    = n
+  where
+    MInt n = fold szV () mempty t
+    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
 
 kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
