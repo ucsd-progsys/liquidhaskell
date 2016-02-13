@@ -1091,11 +1091,11 @@ mkTyConInfo c usertyvar userprvariance f
 
 -- MOVE TO TYPES
 instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
-  ppRType = ppr_rtype ppEnv
+  ppRType = pprRType ppEnv
 
 -- MOVE TO TYPES
 instance (Reftable r, PPrint r) => RefTypable RTyCon RTyVar r where
-  ppRType = ppr_rtype ppEnv
+  ppRType = pprRType ppEnv
 
 instance Show RTyVar where
   show = showpp

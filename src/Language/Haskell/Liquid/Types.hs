@@ -355,7 +355,7 @@ toLogicMap ls = mempty {logic_map = M.fromList $ map toLMap ls}
     toLMap (x, xs, e) = (x, LMap {lvar = x, largs = xs, lexpr = e})
 
 eAppWithMap lmap f es def
-  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es 
+  | Just (LMap _ xs e) <- M.lookup (val f) (logic_map lmap), length xs == length es
   = subst (mkSubst $ zip xs es) e
   | otherwise
   = def
@@ -635,6 +635,7 @@ data Ref τ t = RProp
 
 instance (NFData τ, NFData t) => NFData (Ref τ t)
 
+rPropP :: [(Symbol, t)] -> RType c tv r -> Ref t (RType c tv r)
 rPropP τ r = RProp τ (RHole r)
 
 -- | @RTProp@ is a convenient alias for @Ref@ that will save a bunch of typing.
@@ -1237,7 +1238,7 @@ rTypeValueVar t = vv where Reft (vv,_) =  rTypeReft t
 rTypeReft :: (Reftable r) => RType c tv r -> Reft
 rTypeReft = fromMaybe trueReft . fmap toReft . stripRTypeBase
 
-  
+
 -- stripRTypeBase ::  RType a -> Maybe a
 stripRTypeBase (RApp _ _ _ x)
   = Just x
