@@ -1,14 +1,11 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric      #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Solutions and Results
           Solution    -- RJ: DO NOT expose!
         , sMap
         , Cand
-        , EQual (..)
 
           -- * Types with Template/KVars
         , Solvable (..)
@@ -22,9 +19,11 @@ module Language.Fixpoint.Solver.Solution
         , insert
         , update
 
+          -- * Final result
+        , result
+
           -- * RJ: What does this do ?
         , mkJVar
-
           -- * Debug
         , solutionGraph
 
@@ -32,9 +31,9 @@ module Language.Fixpoint.Solver.Solution
 where
 
 -- import           Debug.Trace (trace)
-import           Data.Generics             (Data)
-import           Data.Typeable             (Typeable)
-import           GHC.Generics              (Generic)
+-- import           Data.Generics             (Data)
+-- import           Data.Typeable             (Typeable)
+-- import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -58,7 +57,7 @@ import           Prelude                        hiding (init, lookup)
 
 type Solution = Sol KBind
 newtype Sol a = Sol { sMap :: M.HashMap F.KVar a }
-type KBind    = [EQual]
+type KBind    = [F.EQual]
 type Cand a   = [(F.Expr, a)]
 
 instance Monoid (Sol a) where
@@ -72,53 +71,37 @@ instance PPrint a => PPrint (Sol a) where
   pprint = pprint . sMap
 
 ---------------------------------------------------------------------
+result :: Solution -> M.HashMap F.KVar F.Expr
+---------------------------------------------------------------------
+result s = sMap $ (F.pAnd . fmap F.eqPred) <$> s
+
+---------------------------------------------------------------------
 -- | Read / Write Solution at KVar ----------------------------------
 ---------------------------------------------------------------------
 lookup :: Solution -> F.KVar -> KBind
 ---------------------------------------------------------------------
 lookup s k = M.lookupDefault [] k (sMap s)
 
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 insert :: F.KVar -> a -> Sol a -> Sol a
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 insert k qs (Sol s) = Sol (M.insert k qs s)
 
 
----------------------------------------------------------------------
--- | Expanded or Instantiated Qualifier -----------------------------
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Expanded or Instantiated Qualifier ----------------------------------------
+--------------------------------------------------------------------------------
+
+mkJVar :: F.Expr -> KBind
+mkJVar p = [F.EQL dummyQual p []]
 
 dummyQual :: F.Qualifier
 dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
 
-mkJVar :: F.Expr -> KBind
-mkJVar p = [EQL dummyQual p []]
-
-data EQual = EQL { eqQual :: !F.Qualifier
-                 , eqPred :: !F.Expr
-                 , eqArgs :: ![F.Expr]
-                 }
-             deriving (Eq, Show, Data, Typeable, Generic)
-
-instance PPrint EQual where
-  pprint = pprint . eqPred
-
-instance NFData EQual
-
-{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
-
-eQual :: F.Qualifier -> [F.Symbol] -> EQual
-eQual q xs = EQL q p es
-  where
-    p      = F.subst su $  F.q_body q
-    su     = F.mkSubst  $  safeZip "eQual" qxs es
-    es     = F.eVar    <$> xs
-    qxs    = fst       <$> F.q_params q
-
-------------------------------------------------------------------------
--- | Update Solution ---------------------------------------------------
-------------------------------------------------------------------------
-update :: Solution -> [F.KVar] -> [(F.KVar, EQual)] -> (Bool, Solution)
+--------------------------------------------------------------------------------
+-- | Update Solution -----------------------------------------------------------
+--------------------------------------------------------------------------------
+update :: Solution -> [F.KVar] -> [(F.KVar, F.EQual)] -> (Bool, Solution)
 -------------------------------------------------------------------------
 update s ks kqs = {- tracepp msg -} (or bs, s')
   where
@@ -133,7 +116,7 @@ folds f b = L.foldl' step ([], b)
        where
          (c, x')      = f acc x
 
-groupKs :: [F.KVar] -> [(F.KVar, EQual)] -> [(F.KVar, [EQual])]
+groupKs :: [F.KVar] -> [(F.KVar, F.EQual)] -> [(F.KVar, KBind)]
 groupKs ks kqs = M.toList $ groupBase m0 kqs
   where
     m0         = M.fromList $ (,[]) <$> ks
@@ -184,21 +167,21 @@ instK :: F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
-      -> [EQual]
+      -> KBind
 --------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
-    unique = L.nubBy ((. eqPred) . (==) . eqPred)
+    unique = L.nubBy ((. F.eqPred) . (==) . F.eqPred)
 
 instKQ :: F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
-       -> [EQual]
+       -> KBind
 instKQ env v t q
   = do (su0, v0) <- candidates senv [(t, [v])] qt
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
-       return     $ eQual q (reverse xs)
+       return     $ F.eQual q (reverse xs)
     where
        qt : qts   = snd <$> F.q_params q
        tyss       = instCands env
@@ -229,12 +212,12 @@ candidates env tyss tx
     mono = So.isMono tx
 
 -----------------------------------------------------------------------
-okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> EQual -> Bool
+okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> F.EQual -> Bool
 -----------------------------------------------------------------------
 okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
-    p             = eqPred eq
+    p             = F.eqPred eq
     tc            = So.checkSorted env sr
 
 --------------------------------------------------------------------------------
@@ -284,7 +267,7 @@ instance Solvable a => Solvable [a] where
   apply s = F.pAnd . fmap (apply s)
 
 applyKVar :: Solution -> F.KVar -> F.Subst -> F.Expr
-applyKVar s k su = F.subst su $ F.pAnd $ eqPred <$> eqs
+applyKVar s k su = F.subst su $ F.pAnd $ F.eqPred <$> eqs
   where
     eqs          = safeLookup err k (sMap s)
     err          = "applyKVar: Unknown KVar " ++ show k
@@ -296,6 +279,9 @@ applyExpr s e = tracepp "applyExpr" $ go 0 e
      | noKvars e = e
      | otherwise = go (i+1) (apply1 s $ {- trace (msg i e) -} e)
     -- msg i e = "Depth: " ++ show i ++ "Size: " ++ show (V.size e)
+
+noKvars :: F.Expr -> Bool
+noKvars = null . V.kvars
 
 apply1   :: Solution -> F.Expr -> F.Expr
 apply1 s = go
@@ -322,12 +308,9 @@ apply1 s = go
     go' (ETApp e s)     = ETApp (go e) s
     go' (ETAbs e s)     = ETAbs (go e) s
 
-noKvars :: F.Expr -> Bool
-noKvars = null . V.kvars
-
 ------------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
 solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
-     eqKvars    = sortNub . concatMap (V.kvars . eqPred)
+     eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
      kEqs       = M.toList (sMap s)

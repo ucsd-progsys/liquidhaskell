@@ -41,13 +41,15 @@ module Language.Fixpoint.Types.Constraints (
   , sinfo
   , shiftVV
 
-  -- * Solutions
-  , FixSolution
-  , Result (..)
-
   -- * Qualifiers
   , Qualifier (..)
   , qualifier
+  , EQual (..)
+  , eQual
+
+  -- * Solutions
+  , FixSolution
+  , Result (..)
 
   -- * Cut KVars
   , Kuts (..)
@@ -441,3 +443,29 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
     (bindId, be') = insertBindEnv x sr $ bs fi
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
     cm'           = M.insert i subc' $ cm fi
+
+
+
+--------------------------------------------------------------------------------
+-- | Solutions (Instantiated Qualfiers )----------------------------------------
+--------------------------------------------------------------------------------
+
+data EQual = EQL { eqQual :: !Qualifier
+                 , eqPred :: !Expr
+                 , eqArgs :: ![Expr]
+                 }
+             deriving (Eq, Show, Data, Typeable, Generic)
+
+instance PPrint EQual where
+  pprint = pprint . eqPred
+
+instance NFData EQual
+
+{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
+eQual :: Qualifier -> [Symbol] -> EQual
+eQual q xs = EQL q p es
+  where
+    p      = subst su $  q_body q
+    su     = mkSubst  $  safeZip "eQual" qxs es
+    es     = eVar    <$> xs
+    qxs    = fst     <$> q_params q

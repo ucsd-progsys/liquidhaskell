@@ -107,12 +107,12 @@ lhsPred s c be = F.pAnd pBinds
     pBinds     = S.apply s <$> xts
     xts        = F.envCs be $  F.senv c
 
-rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, S.EQual))
+rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
   where
     kqs        = [ cnd k su q | (k, su) <- ks, q <- S.lookup s k]
     ks         = predKs . F.crhs $ c
-    cnd k su q = (F.subst su (S.eqPred q), (k, q))
+    cnd k su q = (F.subst su (F.eqPred q), (k, q))
 
 predKs :: F.Expr -> [(F.KVar, F.Subst)]
 predKs (F.PAnd ps)    = concatMap predKs ps
@@ -126,10 +126,9 @@ result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result wkl s = do
   lift $ writeLoud "Computing Result"
-  let sol  = S.sMap $ (F.pAnd . fmap S.eqPred) <$> s
   stat    <- result_ wkl s
   stat'   <- gradualSolve stat
-  return   $ F.Result (F.sinfo <$> stat') sol
+  return   $ F.Result (F.sinfo <$> stat') (S.result s)
 
 result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s   = res <$> filterM (isUnsat s) cs
@@ -206,7 +205,7 @@ removePGrads F.PGrad
   = Just []
 removePGrads _
   = Nothing
-  
+
 {-
 ---------------------------------------------------------------------------
 donePhase' :: String -> SolveM ()
