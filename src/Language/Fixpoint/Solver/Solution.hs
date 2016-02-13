@@ -99,7 +99,7 @@ lookup s k = M.lookupDefault [] k (sMap s)
 --------------------------------------------------------------------------------
 insert :: F.KVar -> a -> Sol a -> Sol a
 --------------------------------------------------------------------------------
-insert k qs (Sol s) = Sol (M.insert k qs s)
+insert k qs s = s { sMap = M.insert k qs (sMap s) }
 
 
 --------------------------------------------------------------------------------
@@ -146,7 +146,7 @@ update1 s (k, qs) = (change, insert k qs s)
 --------------------------------------------------------------------
 init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
-init fi  = Sol $ M.fromList keqs
+init fi  = Sol (M.fromList keqs) M.empty
   where
     keqs = map (refine fi qs) ws `using` parList rdeepseq
     qs   = F.quals fi
@@ -155,7 +155,7 @@ init fi  = Sol $ M.fromList keqs
 --------------------------------------------------------------------
 empty :: Solution
 --------------------------------------------------------------------
-empty  = Sol M.empty
+empty  = Sol M.empty M.empty
 
 --------------------------------------------------------------------
 refine :: F.SInfo a
@@ -239,7 +239,7 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 
 class Solvable a where
-  apply :: Solution -> a -> F.Expr
+  apply :: F.BindEnv -> F.IBindEnv -> Solution -> a -> F.Expr
 
 -- instance Solvable EQual where
 --   apply s = apply s . eqPred
@@ -253,7 +253,7 @@ class Solvable a where
       -- err   = "apply: Unknown KVar " ++ show k
 
 instance Solvable (F.KVar, F.Subst) where
-  apply s (k, su) = applyKVar s k su
+  apply _ _ s (k, su) = applyKVar s k su
    --F.subst su (apply s $ {- tracepp msg -} k)
     -- where
       -- msg         = "apply-kvar: "
@@ -266,19 +266,19 @@ instance Solvable F.Expr where
       -- tx _ p              = p
 
 instance Solvable F.Reft where
-  apply s = apply s . F.reftPred
+  apply be g s = apply be g s . F.reftPred
 
 instance Solvable F.SortedReft where
-  apply s = apply s . F.sr_reft
+  apply be g s = apply be g s . F.sr_reft
 
 instance Solvable (F.Symbol, F.SortedReft) where
-  apply s (x, sr)   = p `F.subst1` (v, F.eVar x)
+  apply be g s (x, sr) = p `F.subst1` (v, F.eVar x)
     where
-      p             = apply s r
-      F.Reft (v, r) = F.sr_reft sr
+      p                = apply be g s r
+      F.Reft (v, r)   = F.sr_reft sr
 
 instance Solvable a => Solvable [a] where
-  apply s = F.pAnd . fmap (apply s)
+  apply be g s = F.pAnd . fmap (apply be g s)
 
 applyKVar :: Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar s k su = F.subst su $ F.pAnd $ F.eqPred <$> eqs
@@ -286,8 +286,8 @@ applyKVar s k su = F.subst su $ F.pAnd $ F.eqPred <$> eqs
     eqs          = safeLookup err k (sMap s)
     err          = "applyKVar: Unknown KVar " ++ show k
 
-applyExpr :: Solution -> F.Expr -> F.Expr
-applyExpr s e = tracepp "applyExpr" $ go 0 e
+applyExpr :: F.BindEnv -> F.IBindEnv -> Solution -> F.Expr -> F.Expr
+applyExpr _ _ s e = tracepp "applyExpr" $ go 0 e
   where
     go i e
      | noKvars e = e

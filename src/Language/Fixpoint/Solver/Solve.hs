@@ -94,17 +94,19 @@ refineC :: Int -> S.Solution -> F.SimpC a -> SolveM (Bool, S.Solution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
-  | otherwise = do lhs   <- lhsPred  s c <$> getBinds
-                   kqs   <- filterValid lhs rhs
-                   return $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
+  | otherwise = do be     <- getBinds
+                   let lhs = lhsPred be s c
+                   kqs    <- filterValid lhs rhs
+                   return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
-lhsPred :: S.Solution -> F.SimpC a -> F.BindEnv -> F.Expr
-lhsPred s c be = F.pAnd pBinds
+lhsPred :: F.BindEnv -> S.Solution -> F.SimpC a -> F.Expr
+lhsPred be s c = F.pAnd pBinds
   where
-    pBinds     = S.apply s <$> xts
+    g          = F.senv c
+    pBinds     = S.apply be g s <$> xts
     xts        = F.envCs be $  F.senv c
 
 rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, F.EQual))
@@ -142,15 +144,16 @@ result_  w s   = res <$> filterM (isUnsat s) cs
 isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
-  lp    <- lhsPred s c <$> getBinds
-  let rp = rhsPred s c
+  be    <- getBinds
+  let lp = lhsPred be s c
+  let rp = rhsPred be s c
   not   <$> isValid lp rp
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
 
-rhsPred :: S.Solution -> F.SimpC a -> F.Expr
-rhsPred s c = S.apply s $ F.crhs c
+rhsPred :: F.BindEnv -> S.Solution -> F.SimpC a -> F.Expr
+rhsPred be s c = S.apply be (F.senv c) s $ F.crhs c
 
 
 gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))

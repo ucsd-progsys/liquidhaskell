@@ -171,7 +171,7 @@ checkSat p
 declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
 declareInitEnv :: SolveM ()
-declareInitEnv = withContext $ \me ->  
+declareInitEnv = withContext $ \me ->
                    forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
 
 declare fi  = withContext $ \me -> do
