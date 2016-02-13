@@ -51,21 +51,35 @@ import           Prelude                        hiding (init, lookup)
 -- DEBUG
 -- import Text.Printf (printf)
 
----------------------------------------------------------------------
--- | Types ----------------------------------------------------------
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Types ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-type Solution = Sol KBind
-newtype Sol a = Sol { sMap :: M.HashMap F.KVar a }
-type KBind    = [F.EQual]
+type Solution = Sol QBind
+
+data Sol a = Sol { sMap :: M.HashMap F.KVar a
+                 , sHyp :: M.HashMap F.KVar Hyp
+                 }
+
+data Cube = Cube
+  { cuBinds :: [F.BindId]
+  , cuSubst :: F.Subst
+  }
+
+type Hyp  = ListNE Cube
+
+type QBind    = [F.EQual]
+
 type Cand a   = [(F.Expr, a)]
 
 instance Monoid (Sol a) where
-  mempty        = Sol mempty
-  mappend s1 s2 = Sol $ mappend (sMap s1) (sMap s2)
+  mempty        = Sol mempty mempty
+  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
+                      , sHyp = mappend (sHyp s1) (sHyp s2)
+                      }
 
 instance Functor Sol where
-  fmap f = Sol . fmap f . sMap
+  fmap f (Sol s h) = Sol (f <$> s) h
 
 instance PPrint a => PPrint (Sol a) where
   pprint = pprint . sMap
@@ -78,7 +92,7 @@ result s = sMap $ (F.pAnd . fmap F.eqPred) <$> s
 ---------------------------------------------------------------------
 -- | Read / Write Solution at KVar ----------------------------------
 ---------------------------------------------------------------------
-lookup :: Solution -> F.KVar -> KBind
+lookup :: Solution -> F.KVar -> QBind
 ---------------------------------------------------------------------
 lookup s k = M.lookupDefault [] k (sMap s)
 
@@ -92,7 +106,7 @@ insert k qs (Sol s) = Sol (M.insert k qs s)
 -- | Expanded or Instantiated Qualifier ----------------------------------------
 --------------------------------------------------------------------------------
 
-mkJVar :: F.Expr -> KBind
+mkJVar :: F.Expr -> QBind
 mkJVar p = [F.EQL dummyQual p []]
 
 dummyQual :: F.Qualifier
@@ -116,12 +130,12 @@ folds f b = L.foldl' step ([], b)
        where
          (c, x')      = f acc x
 
-groupKs :: [F.KVar] -> [(F.KVar, F.EQual)] -> [(F.KVar, KBind)]
+groupKs :: [F.KVar] -> [(F.KVar, F.EQual)] -> [(F.KVar, QBind)]
 groupKs ks kqs = M.toList $ groupBase m0 kqs
   where
     m0         = M.fromList $ (,[]) <$> ks
 
-update1 :: Solution -> (F.KVar, KBind) -> (Bool, Solution)
+update1 :: Solution -> (F.KVar, QBind) -> (Bool, Solution)
 update1 s (k, qs) = (change, insert k qs s)
   where
     oldQs         = lookup s k
@@ -147,7 +161,7 @@ empty  = Sol M.empty
 refine :: F.SInfo a
        -> [F.Qualifier]
        -> F.WfC a
-       -> (F.KVar, KBind)
+       -> (F.KVar, QBind)
 --------------------------------------------------------------------
 refine fi qs w = refineK env qs $ F.wrft w
   where
@@ -155,7 +169,7 @@ refine fi qs w = refineK env qs $ F.wrft w
     wenv       = F.sr_sort <$> F.fromListSEnv (F.envCs (F.bs fi) (F.wenv w))
     genv       = F.lits fi
 
-refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, KBind)
+refineK :: F.SEnv F.Sort -> [F.Qualifier] -> (F.Symbol, F.Sort, F.KVar) -> (F.KVar, QBind)
 refineK env qs (v, t, k) = {- tracepp msg -} (k, eqs')
    where
     eqs                  = instK env v t qs
@@ -167,7 +181,7 @@ instK :: F.SEnv F.Sort
       -> F.Symbol
       -> F.Sort
       -> [F.Qualifier]
-      -> KBind
+      -> QBind
 --------------------------------------------------------------------
 instK env v t = unique . concatMap (instKQ env v t)
   where
@@ -177,7 +191,7 @@ instKQ :: F.SEnv F.Sort
        -> F.Symbol
        -> F.Sort
        -> F.Qualifier
-       -> KBind
+       -> QBind
 instKQ env v t q
   = do (su0, v0) <- candidates senv [(t, [v])] qt
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)

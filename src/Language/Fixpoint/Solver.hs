@@ -91,9 +91,6 @@ solve cfg fi
   where
     sW        = configSW cfg
 
--- saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
--- saveBin cfg fi = when (binary cfg) $ saveQuery cfg fi
-
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
   | multicore cfg = solveParWith
