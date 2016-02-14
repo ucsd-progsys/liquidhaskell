@@ -28,8 +28,12 @@ module Language.Fixpoint.Solver.Solution
 
           -- * RJ: What does this do ?
         , mkJVar
+
           -- * Debug
         , solutionGraph
+          -- HIDEME
+        , noKvars
+        , apply1
 
         )
 where
@@ -291,8 +295,8 @@ qBindPred :: F.Subst -> QBind -> F.Expr
 qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
 applyExpr :: F.BindEnv -> F.IBindEnv -> Solution -> F.Expr -> F.Expr
-applyExpr be g s e = error "TODO:HEREHEREHEREHERE"
--- applyExpr _ _ s e = error "TODO:HEREHEREHEREHERE" -- tracepp "applyExpr" $ go 0 e
+applyExpr = error "TODO:HEREHEREHEREHERE"
+-- applyExpr be g s e = error "TODO:HEREHEREHEREHERE" -- tracepp "applyExpr" $ go 0 e
   -- where
     -- go i e
      -- | noKvars e = e
