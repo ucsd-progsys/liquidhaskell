@@ -7,6 +7,10 @@ module Language.Fixpoint.Solver.Solution
         , sMap
         , Cand
 
+          -- * Eliminate
+        , Hyp
+        , Cube (..)
+
           -- * Types with Template/KVars
         , Solvable (..)
 
@@ -30,10 +34,6 @@ module Language.Fixpoint.Solver.Solution
         )
 where
 
--- import           Debug.Trace (trace)
--- import           Data.Generics             (Data)
--- import           Data.Typeable             (Typeable)
--- import           GHC.Generics              (Generic)
 import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -50,6 +50,7 @@ import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
+-- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Types ---------------------------------------------------------------------
@@ -84,16 +85,16 @@ instance Functor Sol where
 instance PPrint a => PPrint (Sol a) where
   pprint = pprint . sMap
 
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 result :: Solution -> M.HashMap F.KVar F.Expr
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 result s = sMap $ (F.pAnd . fmap F.eqPred) <$> s
 
----------------------------------------------------------------------
--- | Read / Write Solution at KVar ----------------------------------
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Read / Write Solution at KVar ---------------------------------------------
+--------------------------------------------------------------------------------
 lookup :: Solution -> F.KVar -> QBind
----------------------------------------------------------------------
+--------------------------------------------------------------------------------
 lookup s k = M.lookupDefault [] k (sMap s)
 
 --------------------------------------------------------------------------------
@@ -253,7 +254,7 @@ class Solvable a where
       -- err   = "apply: Unknown KVar " ++ show k
 
 instance Solvable (F.KVar, F.Subst) where
-  apply _ _ s (k, su) = applyKVar s k su
+  apply _ _ s (k, su) = applyKvQual s k su
    --F.subst su (apply s $ {- tracepp msg -} k)
     -- where
       -- msg         = "apply-kvar: "
@@ -280,18 +281,22 @@ instance Solvable (F.Symbol, F.SortedReft) where
 instance Solvable a => Solvable [a] where
   apply be g s = F.pAnd . fmap (apply be g s)
 
-applyKVar :: Solution -> F.KVar -> F.Subst -> F.Expr
-applyKVar s k su = F.subst su $ F.pAnd $ F.eqPred <$> eqs
+applyKvQual :: Solution -> F.KVar -> F.Subst -> F.Expr
+applyKvQual s k su = qBindPred su eqs
   where
-    eqs          = safeLookup err k (sMap s)
-    err          = "applyKVar: Unknown KVar " ++ show k
+    eqs            = safeLookup err k (sMap s)
+    err            = "applyKvQual: Unknown KVar " ++ show k
+
+qBindPred :: F.Subst -> QBind -> F.Expr
+qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
 applyExpr :: F.BindEnv -> F.IBindEnv -> Solution -> F.Expr -> F.Expr
-applyExpr _ _ s e = tracepp "applyExpr" $ go 0 e
-  where
-    go i e
-     | noKvars e = e
-     | otherwise = go (i+1) (apply1 s $ {- trace (msg i e) -} e)
+applyExpr be g s e = error "TODO:HEREHEREHEREHERE"
+-- applyExpr _ _ s e = error "TODO:HEREHEREHEREHERE" -- tracepp "applyExpr" $ go 0 e
+  -- where
+    -- go i e
+     -- | noKvars e = e
+     -- | otherwise = go (i+1) (apply1 s $ {- trace (msg i e) -} e)
     -- msg i e = "Depth: " ++ show i ++ "Size: " ++ show (V.size e)
 
 noKvars :: F.Expr -> Bool
@@ -301,7 +306,7 @@ apply1   :: Solution -> F.Expr -> F.Expr
 apply1 s = go
   where
     go e                = go' e
-    go' (PKVar k su)    = applyKVar s k su
+    go' (PKVar k su)    = applyKvQual s k su
     go' e@(ESym _)      = e
     go' e@(ECon _)      = e
     go' e@(EVar _)      = e
@@ -322,7 +327,39 @@ apply1 s = go
     go' (ETApp e s)     = ETApp (go e) s
     go' (ETAbs e s)     = ETAbs (go e) s
 
-------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+{-
+
+solve g s bs = pAnd (solve1 g s <$> bs)
+
+solve1 g s (F.PKVar k su) = solveK g s k su
+solve1 g _ p              = p
+
+solveK g s k su
+  | Just eqs <- M.lookup k (sMap s)
+  = qBindPred su eqs
+  | Just cs  <- M.lookup k (hMap s)
+  = hBindPred g s su cs
+  | otherwise
+  = panic $ "Unknown kvar: " ++ show k
+
+hBindPred g s su = F.pOr . fmap (cubePred g s su)
+
+cubePred g s su (Cube bs su') = exists xts' (pAnd [p', equate su su'])
+  where
+    xts' = symSort <$> bs'
+    p'   = solve (g + bs) bs'
+    bs'  = bs - g
+
+ -}
+
+
+
+
+
+
+--------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
 solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
