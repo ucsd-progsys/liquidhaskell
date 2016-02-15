@@ -295,7 +295,7 @@ qBindPred :: F.Subst -> QBind -> F.Expr
 qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
 applyExpr :: F.BindEnv -> F.IBindEnv -> Solution -> F.Expr -> F.Expr
-applyExpr = error "TODO:HEREHEREHEREHERE"
+applyExpr = error "TODO:HEREHEREHEREHEREHERE"
 -- applyExpr be g s e = error "TODO:HEREHEREHEREHERE" -- tracepp "applyExpr" $ go 0 e
   -- where
     -- go i e
@@ -309,7 +309,7 @@ noKvars = null . V.kvars
 apply1   :: Solution -> F.Expr -> F.Expr
 apply1 s = go
   where
-    go e                = go' e
+    go                  = go'
     go' (PKVar k su)    = applyKvQual s k su
     go' e@(ESym _)      = e
     go' e@(ECon _)      = e
@@ -332,6 +332,7 @@ apply1 s = go
     go' (ETAbs e s)     = ETAbs (go e) s
 
 --------------------------------------------------------------------------------
+
 
 {-
 
@@ -357,10 +358,6 @@ cubePred g s su (Cube bs su') = exists xts' (pAnd [p', equate su su'])
     bs'  = bs - g
 
  -}
-
-
-
-
 
 
 --------------------------------------------------------------------------------
