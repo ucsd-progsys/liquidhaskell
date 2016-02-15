@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -47,13 +45,23 @@ module Language.Fixpoint.Types.Constraints (
   , EQual (..)
   , eQual
 
-  -- * Solutions
+  -- * Results
   , FixSolution
   , Result (..)
+
+  -- * Solutions
+  , Hyp
+  , Cube (..)
+  , QBind
+  , Cand
+  , Sol, sMap, Solution
+  , solFromList, solInsert, solLookup, solResult
 
   -- * Cut KVars
   , Kuts (..)
   , ksMember
+
+
 
   ) where
 
@@ -469,3 +477,61 @@ eQual q xs = EQL q p es
     su     = mkSubst  $  safeZip "eQual" qxs es
     es     = eVar    <$> xs
     qxs    = fst     <$> q_params q
+
+
+--------------------------------------------------------------------------------
+-- | Types ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+type Solution = Sol QBind
+
+data Sol a = Sol { sMap :: M.HashMap KVar a
+                 , sHyp :: M.HashMap KVar Hyp
+                 }
+
+data Cube = Cube
+  { cuBinds :: IBindEnv
+  , cuSubst :: Subst
+  }
+
+type Hyp  = ListNE Cube
+
+type QBind    = [EQual]
+
+type Cand a   = [(Expr, a)]
+
+instance Monoid (Sol a) where
+  mempty        = Sol mempty mempty
+  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
+                      , sHyp = mappend (sHyp s1) (sHyp s2)
+                      }
+
+instance Functor Sol where
+  fmap f (Sol s h) = Sol (f <$> s) h
+
+instance PPrint a => PPrint (Sol a) where
+  pprint = pprint . sMap
+
+--------------------------------------------------------------------------------
+solResult :: Solution -> M.HashMap KVar Expr
+--------------------------------------------------------------------------------
+solResult s = sMap $ (pAnd . fmap eqPred) <$> s
+
+
+--------------------------------------------------------------------------------
+-- | Create a Solution ---------------------------------------------------------
+--------------------------------------------------------------------------------
+solFromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Sol a
+solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
+
+--------------------------------------------------------------------------------
+-- | Read / Write Solution at KVar ---------------------------------------------
+--------------------------------------------------------------------------------
+solLookup :: Solution -> KVar -> QBind
+--------------------------------------------------------------------------------
+solLookup s k = M.lookupDefault [] k (sMap s)
+
+--------------------------------------------------------------------------------
+solInsert :: KVar -> a -> Sol a -> Sol a
+--------------------------------------------------------------------------------
+solInsert k qs s = s { sMap = M.insert k qs (sMap s) }

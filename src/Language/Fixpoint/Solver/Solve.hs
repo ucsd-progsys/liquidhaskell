@@ -26,7 +26,7 @@ import           Data.List  (sort)
 import           Data.Maybe (catMaybes)
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a) => Config -> S.Solution -> F.SInfo a -> IO (F.Result a)
+solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.Result a)
 --------------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
@@ -47,7 +47,7 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
 
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => F.SInfo a -> S.Solution -> W.Worklist a
+       => F.SInfo a -> F.Solution -> W.Worklist a
        -> SolveM (F.Result a, Stats)
 --------------------------------------------------------------------------------
 solve_ fi s0 wkl = do
@@ -72,7 +72,7 @@ tidyPred :: F.Expr -> F.Expr
 tidyPred = F.substf (F.eVar . F.tidySymbol)
 
 --------------------------------------------------------------------------------
-refine :: S.Solution -> W.Worklist a -> SolveM S.Solution
+refine :: F.Solution -> W.Worklist a -> SolveM F.Solution
 --------------------------------------------------------------------------------
 refine s w
   | Just (c, w', newScc, rnk) <- W.pop w = do
@@ -90,7 +90,7 @@ refineMsg i c b rnk = printf "\niter=%d id=%d change=%s rank=%d\n"
 ---------------------------------------------------------------------------
 -- | Single Step Refinement -----------------------------------------------
 ---------------------------------------------------------------------------
-refineC :: Int -> S.Solution -> F.SimpC a -> SolveM (Bool, S.Solution)
+refineC :: Int -> F.Solution -> F.SimpC a -> SolveM (Bool, F.Solution)
 ---------------------------------------------------------------------------
 refineC _i s c
   | null rhs  = return (False, s)
@@ -102,17 +102,17 @@ refineC _i s c
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
 
-lhsPred :: F.BindEnv -> S.Solution -> F.SimpC a -> F.Expr
+lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 lhsPred be s c = F.pAnd pBinds
   where
     g          = F.senv c
     pBinds     = S.apply be g s <$> xts
     xts        = F.envCs be $  F.senv c
 
-rhsCands :: S.Solution -> F.SimpC a -> ([F.KVar], S.Cand (F.KVar, F.EQual))
+rhsCands :: F.Solution -> F.SimpC a -> ([F.KVar], F.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
   where
-    kqs        = [ cnd k su q | (k, su) <- ks, q <- S.lookup s k]
+    kqs        = [ cnd k su q | (k, su) <- ks, q <- F.solLookup s k]
     ks         = predKs . F.crhs $ c
     cnd k su q = (F.subst su (F.eqPred q), (k, q))
 
@@ -124,15 +124,15 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => W.Worklist a -> S.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => W.Worklist a -> F.Solution -> SolveM (F.Result a)
 ---------------------------------------------------------------------------
 result wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
   stat'   <- gradualSolve stat
-  return   $ F.Result (F.sinfo <$> stat') (S.result s)
+  return   $ F.Result (F.sinfo <$> stat') (F.solResult s)
 
-result_ :: W.Worklist a -> S.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: W.Worklist a -> F.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s   = res <$> filterM (isUnsat s) cs
   where
     cs         = W.unsatCandidates w
@@ -141,7 +141,7 @@ result_  w s   = res <$> filterM (isUnsat s) cs
     -- isUnsat' c = lift progressTick >> isUnsat s c
 
 ---------------------------------------------------------------------------
-isUnsat :: S.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: F.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
   be    <- getBinds
@@ -152,7 +152,7 @@ isUnsat s c = do
 isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
 
-rhsPred :: F.BindEnv -> S.Solution -> F.SimpC a -> F.Expr
+rhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 rhsPred be s c = S.apply be (F.senv c) s $ F.crhs c
 
 

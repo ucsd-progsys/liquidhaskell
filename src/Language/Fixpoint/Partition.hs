@@ -457,7 +457,7 @@ nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
 -- | Build and print the graph of post eliminate solution, which has an edge
 --   from k -> k' if k' appears directly inside the "solution" for k
 --------------------------------------------------------------------------------
-elimSolGraph :: Config -> So.Solution -> IO ()
+elimSolGraph :: Config -> F.Solution -> IO ()
 elimSolGraph cfg s = writeGraph f (So.solutionGraph s)
   where
     f              = queryFile Dot cfg

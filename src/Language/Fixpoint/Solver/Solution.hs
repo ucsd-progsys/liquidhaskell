@@ -2,29 +2,13 @@
 {-# LANGUAGE TupleSections      #-}
 
 module Language.Fixpoint.Solver.Solution
-        ( -- * Solutions and Results
-          Solution    -- RJ: DO NOT expose!
-        , sMap
-        , Cand
-
-          -- * Eliminate
-        , Hyp
-        , Cube (..)
-
+        (
           -- * Types with Template/KVars
-        , Solvable (..)
+          Solvable (..)
 
-          -- * Initial Solution
-        , empty
+          -- * Create and Update Solution
         , init
-
-          -- * Access Solution
-        , lookup
-        , insert
         , update
-
-          -- * Final result
-        , result
 
           -- * RJ: What does this do ?
         , mkJVar
@@ -43,68 +27,18 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
-import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck    as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types        as F
-import           Language.Fixpoint.Types       (Expr (..))
+import           Language.Fixpoint.Types       (solInsert, solLookup, Solution, QBind, Expr (..))
 import           Language.Fixpoint.Types.Graphs
 import           Prelude                        hiding (init, lookup)
 
 -- DEBUG
 -- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
-
---------------------------------------------------------------------------------
--- | Types ---------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-type Solution = Sol QBind
-
-data Sol a = Sol { sMap :: M.HashMap F.KVar a
-                 , sHyp :: M.HashMap F.KVar Hyp
-                 }
-
-data Cube = Cube
-  { cuBinds :: [F.BindId]
-  , cuSubst :: F.Subst
-  }
-
-type Hyp  = ListNE Cube
-
-type QBind    = [F.EQual]
-
-type Cand a   = [(F.Expr, a)]
-
-instance Monoid (Sol a) where
-  mempty        = Sol mempty mempty
-  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
-                      , sHyp = mappend (sHyp s1) (sHyp s2)
-                      }
-
-instance Functor Sol where
-  fmap f (Sol s h) = Sol (f <$> s) h
-
-instance PPrint a => PPrint (Sol a) where
-  pprint = pprint . sMap
-
---------------------------------------------------------------------------------
-result :: Solution -> M.HashMap F.KVar F.Expr
---------------------------------------------------------------------------------
-result s = sMap $ (F.pAnd . fmap F.eqPred) <$> s
-
---------------------------------------------------------------------------------
--- | Read / Write Solution at KVar ---------------------------------------------
---------------------------------------------------------------------------------
-lookup :: Solution -> F.KVar -> QBind
---------------------------------------------------------------------------------
-lookup s k = M.lookupDefault [] k (sMap s)
-
---------------------------------------------------------------------------------
-insert :: F.KVar -> a -> Sol a -> Sol a
---------------------------------------------------------------------------------
-insert k qs s = s { sMap = M.insert k qs (sMap s) }
 
 
 --------------------------------------------------------------------------------
@@ -141,9 +75,9 @@ groupKs ks kqs = M.toList $ groupBase m0 kqs
     m0         = M.fromList $ (,[]) <$> ks
 
 update1 :: Solution -> (F.KVar, QBind) -> (Bool, Solution)
-update1 s (k, qs) = (change, insert k qs s)
+update1 s (k, qs) = (change, solInsert k qs s)
   where
-    oldQs         = lookup s k
+    oldQs         = solLookup s k
     change        = length oldQs /= length qs
 
 --------------------------------------------------------------------
@@ -151,16 +85,12 @@ update1 s (k, qs) = (change, insert k qs s)
 --------------------------------------------------------------------
 init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
-init fi  = Sol (M.fromList keqs) M.empty
+init fi  = F.solFromList keqs [] -- (fromList keqs) M.empty
   where
     keqs = map (refine fi qs) ws `using` parList rdeepseq
     qs   = F.quals fi
     ws   = M.elems $ F.ws fi
 
---------------------------------------------------------------------
-empty :: Solution
---------------------------------------------------------------------
-empty  = Sol M.empty M.empty
 
 --------------------------------------------------------------------
 refine :: F.SInfo a
@@ -288,7 +218,7 @@ instance Solvable a => Solvable [a] where
 applyKvQual :: Solution -> F.KVar -> F.Subst -> F.Expr
 applyKvQual s k su = qBindPred su eqs
   where
-    eqs            = safeLookup err k (sMap s)
+    eqs            = safeLookup err k (F.sMap s)
     err            = "applyKvQual: Unknown KVar " ++ show k
 
 qBindPred :: F.Subst -> QBind -> F.Expr
@@ -365,4 +295,4 @@ solutionGraph :: Solution -> KVGraph
 solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
-     kEqs       = M.toList (sMap s)
+     kEqs       = M.toList (F.sMap s)

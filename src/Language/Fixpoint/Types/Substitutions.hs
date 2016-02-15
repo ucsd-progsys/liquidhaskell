@@ -9,7 +9,7 @@ module Language.Fixpoint.Types.Substitutions (
   , substfExcept
   , subst1Except
   , targetSubstSyms
-
+  , filterSubst
   ) where
 
 import           Data.Maybe
@@ -26,6 +26,9 @@ import           Text.Printf               (printf)
 instance Monoid Subst where
   mempty  = emptySubst
   mappend = catSubst
+
+filterSubst :: (Symbol -> Expr -> Bool) -> Subst -> Subst
+filterSubst f (Su m) = Su (M.filterWithKey f m)
 
 emptySubst :: Subst
 emptySubst = Su M.empty
@@ -135,7 +138,7 @@ instance Subable Expr where
 disjoint :: Subst -> [(Symbol, Sort)] -> Bool
 disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
   where
-    suSyms = S.fromList $ (syms $ M.elems su) ++ (syms $ M.keys su)
+    suSyms = S.fromList $ syms (M.elems su) ++ syms (M.keys su)
     bsSyms = S.fromList $ syms $ fst <$> bs
 
 instance Monoid Expr where
@@ -147,6 +150,7 @@ instance Monoid Reft where
   mempty  = trueReft
   mappend = meetReft
 
+meetReft :: Reft -> Reft -> Reft
 meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == v'          = Reft (v , ra  `mappend` ra')
   | v == dummySymbol = Reft (v', ra' `mappend` (ra `subst1`  (v , EVar v')))
@@ -220,7 +224,7 @@ instance Fixpoint Reft where
 instance Fixpoint SortedReft where
   toFix (RR so (Reft (v, ra)))
     = braces
-    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> (toFix $ conjuncts ra)
+    $ toFix v <+> text ":" <+> toFix so <+> text "|" <+> toFix (conjuncts ra)
 
 instance Show Reft where
   show = showFix
@@ -237,7 +241,7 @@ pprReftPred (Reft (_, p))
 ppRas = cat . punctuate comma . map toFix . flattenRefas
 
 --------------------------------------------------------------------------------
--- | TODO: Rewrite using visitor -----------------------------------------------------
+-- | TODO: Rewrite using visitor -----------------------------------------------
 --------------------------------------------------------------------------------
 
 exprSymbols :: Expr -> [Symbol]

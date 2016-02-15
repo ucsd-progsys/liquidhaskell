@@ -35,12 +35,13 @@ import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import qualified Language.Fixpoint.Solver.Eliminate as E
 -- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
-import           Language.Fixpoint.Solver.Solution  (Solution)
+-- import           Language.Fixpoint.Solver.Solution  (Solution)
+
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
@@ -200,7 +201,7 @@ solveNative' !cfg !fi0 = do
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
   | eliminate cfg = do
-      let (s0, fi') = eliminateAll fi
+      let (s0, fi') = E.eliminate fi
       -- writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
       -- elimSolGraph cfg s0
       donePhase Loud "Eliminate"
