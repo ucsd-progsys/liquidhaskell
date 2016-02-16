@@ -55,7 +55,7 @@ Now, suppose we have refinements:
 
 \begin{code}
 {-@ type Pos  = {v:Int | 0 < v} @-}
-{-@ type Neg  = {v:Int | 0 < v} @-}
+{-@ type Neg  = {v:Int | 0 > v} @-}
 \end{code}
 
 **Here's the problem:** how can *specify* the behavior of `maximum`
