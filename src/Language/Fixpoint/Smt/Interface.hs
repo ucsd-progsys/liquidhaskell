@@ -251,7 +251,8 @@ makeProcess s
                   , cOut    = hOut
                   , cLog    = Nothing
                   , verbose = loud
-                  , smtenv  = initSMTEnv }
+                  , smtenv  = initSMTEnv
+                  }
 
 --------------------------------------------------------------------------
 cleanupContext :: Context -> IO ExitCode

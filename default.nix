@@ -5,6 +5,7 @@
 , ghc-prim, hashable, intern, located-base, mtl, parallel, parsec, pretty
 , process, stdenv, syb, tasty, tasty-hunit, tasty-rerun, text
 , text-format, transformers, unordered-containers, z3
+, dotgen, fgl, fgl-visualize
 }:
 mkDerivation {
   pname = "liquid-fixpoint";
@@ -18,6 +19,7 @@ mkDerivation {
     filemanip filepath ghc-prim hashable intern located-base mtl parallel parsec
     pretty process syb text text-format transformers
     unordered-containers
+    dotgen fgl fgl-visualize
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [

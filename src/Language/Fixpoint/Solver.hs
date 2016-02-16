@@ -6,7 +6,7 @@
 
 module Language.Fixpoint.Solver (
     -- * Invoke Solver on an FInfo
-    solve
+    solve, Solver
 
     -- * Invoke Solver on a .fq file
   , solveFQ
