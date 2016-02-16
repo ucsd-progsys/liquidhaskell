@@ -30,6 +30,7 @@ import           Control.DeepSeq
 import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import           Language.Fixpoint.Misc    (groupList)
+import qualified Language.Fixpoint.Types.Config  as C 
 import           Language.Fixpoint.Types.Config  (Config, solver, linear, SMTSolver(Z3))
 import qualified Language.Fixpoint.Types   as F
 import qualified Language.Fixpoint.Types.Errors  as E
@@ -82,7 +83,7 @@ instance PTable Stats where
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
 ---------------------------------------------------------------------------
-runSolverM cfg fi _ act = do
+runSolverM cfg fi' _ act = do
   bracket acquire release $ \ctx -> do
     res <- runStateT (declareInitEnv >> declare fi >> act) (SS ctx be $ stats0 fi)
     smtWrite ctx "(exit)"
@@ -97,6 +98,7 @@ runSolverM cfg fi _ act = do
     binds   = [(x, F.sr_sort t) | (_, x, t) <- F.bindEnvToList $ F.bs fi]
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     lar     = linear cfg || Z3 /= solver cfg
+    fi      = fi' {F.allowHO = C.allowHO cfg}
  
 ---------------------------------------------------------------------------
 getBinds :: SolveM F.BindEnv
@@ -180,10 +182,17 @@ declare fi  = withContext $ \me -> do
   forM_ xts $ uncurry $ smtDecl     me
   forM_ ess $           smtDistinct me
 
-declLiterals :: F.GInfo c a -> [[F.Expr]]
-declLiterals fi = [es | (_, es) <- tess ]
+declLiterals :: F.GInfo c a -> [[F.Expr]]   
+declLiterals fi | F.allowHO fi 
+  = [es | (_, es) <- tess ]
   where
-    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)
+    tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, not (isThy x)]
+    isThy       = isJust . Thy.smt2Symbol
+
+declLiterals fi 
+  = [es | (_, es) <- tess ] 
+   where
+    notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)   
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
                              
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
