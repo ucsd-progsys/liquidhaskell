@@ -41,6 +41,7 @@ module Language.Fixpoint.Types.Errors (
 
   -- * Some popular errors
   , errFreeVarInQual
+  , errFreeVarInConstraint
   ) where
 
 import           Control.Exception
@@ -177,3 +178,7 @@ errFreeVarInQual q x = err sp $ vcat [ "Qualifier with free vars"
                                      , pprint x ]
   where
     sp               = srcSpan q
+
+errFreeVarInConstraint :: Integer -> Error
+errFreeVarInConstraint i = err dummySpan $ vcat [ "Constraint with free vars"
+                                                , pprint i ]
