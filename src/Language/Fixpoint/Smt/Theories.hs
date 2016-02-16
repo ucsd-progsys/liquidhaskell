@@ -16,7 +16,7 @@ module Language.Fixpoint.Smt.Theories
      , preamble
 
        -- * Bit Vector Operations
-     , isBv, sizeBv 
+     , isBv, sizeBv
 
      , isTheorySymbol
      , theoryEnv
