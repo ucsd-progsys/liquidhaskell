@@ -3,14 +3,15 @@
 
 module Language.Fixpoint.Solver.Eliminate (eliminate) where
 
+import qualified Data.HashSet        as S
+import qualified Data.HashMap.Strict as M
+
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Visitor   (kvars)
 import           Language.Fixpoint.Partition       (depCuts, depNonCuts, deps)
 import           Language.Fixpoint.Misc            (safeLookup, group, fst3, errorstar)
--- import           Language.Fixpoint.Solver.Solution ( mkJVar )
 
-import qualified Data.HashSet        as S
-import qualified Data.HashMap.Strict as M
+-- import           Language.Fixpoint.Solver.Solution ( mkJVar )
 -- import           Data.List           (foldl')
 -- import           Control.Arrow       (first, second)
 -- import           Control.DeepSeq     (($!!))
@@ -83,7 +84,7 @@ getSubC :: SInfo a -> Integer -> SimpC a
 getSubC si i = safeLookup msg i (cm si)
   where
     msg = "getSubC: " ++ show i
-    
+
 --------------------------------------------------------------------------------
 {-
 eliminateAll :: SInfo a -> (Solution, SInfo a)

@@ -54,7 +54,8 @@ module Language.Fixpoint.Types.Constraints (
   , Cube (..)
   , QBind
   , Cand
-  , Sol, sMap, Solution
+  , Sol (..)
+  , Solution
   , solFromList, solInsert, solLookup, solResult
 
   -- * Cut KVars

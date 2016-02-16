@@ -2,23 +2,15 @@
 {-# LANGUAGE TupleSections      #-}
 
 module Language.Fixpoint.Solver.Solution
-        (
-          -- * Types with Template/KVars
-          Solvable (..)
+        ( -- * Create and Update Solution
+          init, update
 
-          -- * Create and Update Solution
-        , init
-        , update
-
-          -- * RJ: What does this do ?
-        , mkJVar
+          -- * Lookup Solution
+        , lhsPred
+        , noKvars
 
           -- * Debug
         , solutionGraph
-          -- HIDEME
-        , noKvars
-        , apply1
-
         )
 where
 
@@ -29,10 +21,10 @@ import           Data.Maybe                     (maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
-import qualified Language.Fixpoint.SortCheck    as So
+import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types        as F
-import           Language.Fixpoint.Types       (solInsert, solLookup, Solution, QBind, Expr (..))
+import qualified Language.Fixpoint.Types              as F
+import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Graphs
 import           Prelude                        hiding (init, lookup)
 
@@ -40,16 +32,15 @@ import           Prelude                        hiding (init, lookup)
 -- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
-
 --------------------------------------------------------------------------------
 -- | Expanded or Instantiated Qualifier ----------------------------------------
 --------------------------------------------------------------------------------
 
-mkJVar :: F.Expr -> QBind
-mkJVar p = [F.EQL dummyQual p []]
+-- mkJVar :: F.Expr -> QBind
+-- mkJVar p = [F.EQL dummyQual p []]
 
-dummyQual :: F.Qualifier
-dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
+-- dummyQual :: F.Qualifier
+-- dummyQual = F.Q F.nonSymbol [] F.PFalse (F.dummyPos "")
 
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
@@ -170,125 +161,61 @@ okInst env v t eq = isNothing tc
     tc            = So.checkSorted env sr
 
 --------------------------------------------------------------------------------
--- | Apply Solution ------------------------------------------------------------
+-- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-
-class Solvable a where
-  apply :: F.BindEnv -> F.IBindEnv -> Solution -> a -> F.Expr
-
--- instance Solvable EQual where
---   apply s = apply s . eqPred
-  --TODO: this used to be just eqPred, but Eliminate allows KVars to
-  -- have other KVars in their solutions. Does this extra 'apply s'
-  -- make a significant difference?
-
--- instance Solvable F.KVar where
-  -- apply s k = apply s $ safeLookup err k s
-    -- where
-      -- err   = "apply: Unknown KVar " ++ show k
-
-instance Solvable (F.KVar, F.Subst) where
-  apply _ _ s (k, su) = applyKvQual s k su
-   --F.subst su (apply s $ {- tracepp msg -} k)
-    -- where
-      -- msg         = "apply-kvar: "
-
-instance Solvable F.Expr where
-  apply = applyExpr
-  -- apply s = V.trans (V.defaultVisitor {V.txExpr = tx}) () ()
-    -- where
-      -- tx _ (F.PKVar k su) = apply s (k, su)
-      -- tx _ p              = p
-
-instance Solvable F.Reft where
-  apply be g s = apply be g s . F.reftPred
-
-instance Solvable F.SortedReft where
-  apply be g s = apply be g s . F.sr_reft
-
-instance Solvable (F.Symbol, F.SortedReft) where
-  apply be g s (x, sr) = p `F.subst1` (v, F.eVar x)
-    where
-      p                = apply be g s r
-      F.Reft (v, r)   = F.sr_reft sr
-
-instance Solvable a => Solvable [a] where
-  apply be g s = F.pAnd . fmap (apply be g s)
-
-applyKvQual :: Solution -> F.KVar -> F.Subst -> F.Expr
-applyKvQual s k su = qBindPred su eqs
+lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
+--------------------------------------------------------------------------------
+lhsPred be s c = apply g s bs
   where
-    eqs            = safeLookup err k (F.sMap s)
-    err            = "applyKvQual: Unknown KVar " ++ show k
+    g          = (be, bs)
+    bs         = F.senv c
+
+type CombinedEnv = (F.BindEnv, F.IBindEnv)
+
+apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
+apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
+
+apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
+apply1 g s = applyExpr g s . bindExpr g
+
+applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
+applyExpr g s (F.PKVar k su) = applyKVar g s k su
+applyExpr _ _ p              = p
+
+bindExpr :: CombinedEnv -> F.BindId -> F.Expr
+bindExpr = error "TODO:bindExpr"
+
+applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
+applyKVar g s k su
+  | Just eqs <- M.lookup k (F.sMap s)
+  = qBindPred su eqs
+  | Just cs  <- M.lookup k (F.sHyp s)
+  = hypPred g s su cs
+  | otherwise
+  = errorstar $ "Unknown kvar: " ++ show k
+
+hypPred :: CombinedEnv -> Solution -> F.Subst -> F.Hyp  -> F.Expr
+hypPred g s su = F.pOr . fmap (cubePred g s su)
+
+cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
+cubePred = errorstar "TODO:cubePred"
+-- cubePred g s su (F.Cube bs su') = exists xts' (pAnd [p', equate su su'])
+  -- where
+    -- xts' = symSort <$> bs'
+    -- p'   = apply (g + bs) bs'
+    -- bs'  = bs - g
+
+-- applyBind :: CombinedEnv -> Solution -> (F.Symbol, F.SortedReft) -> F.Pred
+-- applyBind g s (x, sr) = p `F.subst1` (v, F.eVar x)
+  -- where
+    -- p                = apply be g s r
+    -- F.Reft (v, r)    = F.sr_reft sr
 
 qBindPred :: F.Subst -> QBind -> F.Expr
 qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
 
-applyExpr :: F.BindEnv -> F.IBindEnv -> Solution -> F.Expr -> F.Expr
-applyExpr = error "TODO:HEREHEREHEREHEREHERE"
--- applyExpr be g s e = error "TODO:HEREHEREHEREHERE" -- tracepp "applyExpr" $ go 0 e
-  -- where
-    -- go i e
-     -- | noKvars e = e
-     -- | otherwise = go (i+1) (apply1 s $ {- trace (msg i e) -} e)
-    -- msg i e = "Depth: " ++ show i ++ "Size: " ++ show (V.size e)
-
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars
-
-apply1   :: Solution -> F.Expr -> F.Expr
-apply1 s = go
-  where
-    go                  = go'
-    go' (PKVar k su)    = applyKvQual s k su
-    go' e@(ESym _)      = e
-    go' e@(ECon _)      = e
-    go' e@(EVar _)      = e
-    go' e@PGrad         = e
-    go' (EApp f e)      = EApp    (go f)  (go e)
-    go' (ENeg e)        = ENeg    (go e)
-    go' (EBin o e1 e2)  = EBin o  (go e1) (go e2)
-    go' (EIte p e1 e2)  = EIte    (go  p) (go e1) (go e2)
-    go' (ECst e t)      = ECst    (go e) t
-    go' (PAnd  ps)      = PAnd    (go <$> ps)
-    go' (POr  ps)       = POr     (go <$> ps)
-    go' (PNot p)        = PNot    (go p)
-    go' (PImp p1 p2)    = PImp    (go p1) (go p2)
-    go' (PIff p1 p2)    = PIff    (go p1) (go p2)
-    go' (PAtom r e1 e2) = PAtom r (go e1) (go e2)
-    go' (PAll xts p)    = PAll xts (go p)
-    go' (PExist xts p)  = PExist xts (go p)
-    go' (ETApp e s)     = ETApp (go e) s
-    go' (ETAbs e s)     = ETAbs (go e) s
-
---------------------------------------------------------------------------------
-
-
-{-
-
-solve g s bs = pAnd (solve1 g s <$> bs)
-
-solve1 g s (F.PKVar k su) = solveK g s k su
-solve1 g _ p              = p
-
-solveK g s k su
-  | Just eqs <- M.lookup k (sMap s)
-  = qBindPred su eqs
-  | Just cs  <- M.lookup k (hMap s)
-  = hBindPred g s su cs
-  | otherwise
-  = panic $ "Unknown kvar: " ++ show k
-
-hBindPred g s su = F.pOr . fmap (cubePred g s su)
-
-cubePred g s su (Cube bs su') = exists xts' (pAnd [p', equate su su'])
-  where
-    xts' = symSort <$> bs'
-    p'   = solve (g + bs) bs'
-    bs'  = bs - g
-
- -}
-
 
 --------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph

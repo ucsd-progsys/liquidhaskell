@@ -16,6 +16,7 @@ import           Language.Fixpoint.Types.Config hiding (stats)
 import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
+import           Language.Fixpoint.Solver.Graph (isTarget)
 
 -- DEBUG
 import           Text.Printf
@@ -95,19 +96,12 @@ refineC :: Int -> F.Solution -> F.SimpC a -> SolveM (Bool, F.Solution)
 refineC _i s c
   | null rhs  = return (False, s)
   | otherwise = do be     <- getBinds
-                   let lhs = lhsPred be s c
+                   let lhs = S.lhsPred be s c
                    kqs    <- filterValid lhs rhs
                    return  $ S.update s ks {- tracepp (msg ks rhs kqs) -} kqs
   where
     (ks, rhs) = rhsCands s c
     -- msg ks xs ys = printf "refineC: iter = %d, ks = %s, rhs = %d, rhs' = %d \n" _i (showpp ks) (length xs) (length ys)
-
-lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.pAnd pBinds
-  where
-    g          = F.senv c
-    pBinds     = S.apply be g s <$> xts
-    xts        = F.envCs be $  F.senv c
 
 rhsCands :: F.Solution -> F.SimpC a -> ([F.KVar], F.Cand (F.KVar, F.EQual))
 rhsCands s c   = (fst <$> ks, kqs)
@@ -145,18 +139,38 @@ isUnsat :: F.Solution -> F.SimpC a -> SolveM Bool
 ---------------------------------------------------------------------------
 isUnsat s c = do
   be    <- getBinds
-  let lp = lhsPred be s c
-  let rp = rhsPred be s c
+  let lp = S.lhsPred be s c
+  let rp = rhsPred        c
   not   <$> isValid lp rp
+
+--------------------------------------------------------------------------------
+-- | Predicate corresponding to RHS of constraint in current solution
+--------------------------------------------------------------------------------
+rhsPred :: F.SimpC a -> F.Expr
+--------------------------------------------------------------------------------
+rhsPred c
+  | isTarget c = F.crhs c
+  | otherwise  = errorstar $ "rhsPred on non-target: " ++ show (F.sid c)
 
 isValid :: F.Expr -> F.Expr -> SolveM Bool
 isValid p q = (not . null) <$> filterValid p [(q, ())]
 
-rhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
-rhsPred be s c = S.apply be (F.senv c) s $ F.crhs c
 
 
-gradualSolve :: (Fixpoint a) => F.FixResult (F.SimpC a) -> SolveM (F.FixResult (F.SimpC a))
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+-- | RJ: @nikivazou please add some description here of what this does.
+--------------------------------------------------------------------------------
+gradualSolve :: (Fixpoint a)
+             => F.FixResult (F.SimpC a)
+            -> SolveM (F.FixResult (F.SimpC a))
 gradualSolve (F.Unsafe cs)
   = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
   where
@@ -191,7 +205,7 @@ makeEnvironment  c
 
 splitLastGradual = go [] . reverse
   where
-    go acc (xe@(x, (F.RR s (F.Reft (v, e)))) : xss)
+    go acc (xe@(x, F.RR s (F.Reft (v, e))) : xss)
       | Just es <- removePGrads e
       = (reverse ((x, F.RR s (F.Reft (v, F.pAnd es))):xss), reverse acc, True)
       | otherwise
