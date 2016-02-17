@@ -98,7 +98,7 @@ getGhcInfo'' cfg0 target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+      impSpecs           <- getSpecs (not $ linear cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
       liftIO $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do

@@ -34,7 +34,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow)
+import Language.Fixpoint.Misc (mlookup, sortNub, snd3, traceShow, fst3)
 import Language.Fixpoint.Types (Symbol, symbol, symbolString)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
@@ -225,17 +225,11 @@ axiomType s τ = fromRTypeRep $ t{ty_res = res, ty_binds = xs}
 
 -- | Type for uninterpreted function that approximated Haskell function into logic
 ufType :: (F.Reftable r) => Type -> RRType r
-ufType τ = fromRTypeRep $ t{ty_res = res, ty_args = [], ty_binds = [], ty_refts = []}
+ufType τ = fromRTypeRep $ t{ty_args = args, ty_binds = xs, ty_refts = rs}
   where
-    t    = toRTypeRep $ ofType τ
-    args = dropWhile isClassType $ ty_args t
-    res  = mkType args $ ty_res t
+    t          = toRTypeRep $ ofType τ
+    (args, xs, rs) = unzip3 $ dropWhile (isClassType . fst3) $ zip3 (ty_args t) (ty_binds t) (ty_refts t)
 
-    mkType []     tr = tr
-    mkType (t:ts) tr = arrowType (defunc t) $ mkType ts tr
-
-    defunc (RFun _ tx t _) = arrowType (defunc tx) (defunc t)
-    defunc t               = t
 
 simplesymbol :: CoreBndr -> Symbol
 simplesymbol = symbol . getName

@@ -47,7 +47,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, elimStats,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -96,9 +96,9 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Incremental Checking: only check changed binders"
 
- , real
+ , linear
     = def
-          &= help "Supports real number arithmetic"
+          &= help "Use uninterpreted integer multiplication and division"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -331,7 +331,7 @@ defConfig = Config { files          = def
                    , idirs          = def
                    , newcheck       = True
                    , fullcheck      = def
-                   , real           = def
+                   , linear         = def
                    , diffcheck      = def
                    , saveQuery      = def
                    , binders        = def
