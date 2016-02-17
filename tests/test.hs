@@ -203,6 +203,32 @@ demosIgnored = [ "Composition.hs"
 
 group n xs = testGroup n <$> sequence xs
 
+gitTimestamp :: IO String
+gitTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ci\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitEpochTimestamp :: IO String
+gitEpochTimestamp = do
+   res <- readProcess "git" ["show", "--format=\"%ct\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitHash :: IO String
+gitHash = do
+   res <- readProcess "git" ["show", "--format=\"%h\"", "--quiet"] []
+   return $ filter notNoise res
+
+gitRef :: IO String
+gitRef = do
+   res <- readProcess "git" ["show", "--format=\"%d\"", "--quiet"] []
+   return $ filter notNoise res
+
+notNoise :: Char -> Bool
+notNoise a = a /= '\"' && a /= '\n' && a /= '\r'
+
+headerDelim :: String
+headerDelim = take 80 $ repeat '-'
+
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
@@ -296,10 +322,21 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
     host <- takeWhile (/='.') . takeWhile (not . isSpace) <$> readProcess "hostname" [] []
     -- don't use the `time` package, major api differences between ghc 708 and 710
     time <- head . lines <$> readProcess "date" ["+%Y-%m-%dT%H-%M-%S"] []
+    -- build header
+    ref <- gitRef
+    timestamp <- gitTimestamp
+    epochTime <- gitEpochTimestamp
+    hash <- gitHash
+    let hdr = unlines [ref ++ " : " ++ hash,
+                       "Timestamp: " ++ timestamp,
+                       "Epoch Timestamp: " ++ epochTime,
+                       headerDelim,
+                       "test, time(s), result"]
+
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines
-                   $ "test, time(s), result"
+                   $ hdr
                    : map (\(n, t, r) -> printf "%s, %0.4f, %s" n t (show r)) summary
     system $ "cp -r tests/logs/cur " ++ dir
     (==0) <$> computeFailures smap
