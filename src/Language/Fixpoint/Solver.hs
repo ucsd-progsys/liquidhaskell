@@ -202,7 +202,7 @@ elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
   | eliminate cfg = do
       let (s0, fi') = E.eliminate fi
-      -- writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+      writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
       -- elimSolGraph cfg s0
       donePhase Loud "Eliminate"
       writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')

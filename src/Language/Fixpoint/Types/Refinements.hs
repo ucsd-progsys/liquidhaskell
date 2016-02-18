@@ -61,7 +61,8 @@ module Language.Fixpoint.Types.Refinements (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, conjuncts
+  , flattenRefas
+  , conjuncts
   , mapPredReft
   , pprintReft
   , reftConjuncts
@@ -132,7 +133,7 @@ isKvar (PKVar _ _) = True
 isKvar _           = False
 
 refaConjuncts :: Expr -> [Expr]
-refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
+refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 
 --------------------------------------------------------------------------------

@@ -166,10 +166,11 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
-lhsPred be s c = apply g s bs
+lhsPred be s c = F.tracepp msg $ apply g s bs
   where
     g          = (be, bs)
     bs         = F.senv c
+    msg        = "LhsPred for id = " ++ show (sid c)
 
 type CombinedEnv = (F.BindEnv, F.IBindEnv)
 
@@ -177,13 +178,15 @@ apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
 apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
 
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
-apply1 g s = applyExpr g s . bindExpr g
+apply1 g s i = F.tracepp msg $ F.pAnd $ applyExpr g s <$> bindExprs g i
+   where
+    msg      = "apply1 bind = " ++ show i
 
-bindExpr :: CombinedEnv -> F.BindId -> F.Expr
-bindExpr (be,_) i = p `F.subst1` (v, F.eVar x)
+bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
+bindExprs (be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
   where
-    (x, sr)       = F.lookupBindEnv i be
-    F.Reft (v, p) = F.sr_reft sr
+    (x, sr)        = F.lookupBindEnv i be
+    rs             = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
 applyExpr g s (F.PKVar k su) = applyKVar g s k su

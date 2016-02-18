@@ -7,18 +7,13 @@ import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 
 import           Language.Fixpoint.Types
-import           Language.Fixpoint.Types.Visitor   (kvars)
+import           Language.Fixpoint.Types.Visitor   (kvars, isConcC)
 import           Language.Fixpoint.Partition       (depCuts, depNonCuts, deps)
 import           Language.Fixpoint.Misc            (safeLookup, group, fst3, errorstar)
 
--- import           Language.Fixpoint.Solver.Solution ( mkJVar )
--- import           Data.List           (foldl')
--- import           Control.Arrow       (first, second)
--- import           Control.DeepSeq     (($!!))
-
 --------------------------------------------------------------------------------
-
 eliminate :: SInfo a -> (Solution, SInfo a)
+--------------------------------------------------------------------------------
 eliminate si  = ( sHyp, si' )
   where
     sHyp      = solFromList [] kHyps
@@ -49,7 +44,7 @@ cutSInfo :: KIndex -> S.HashSet KVar -> SInfo a -> SInfo a
 cutSInfo kI cKs si = si { ws = ws', cm = cm' }
   where
     ws'   = M.filterWithKey (\k _ -> S.member k cKs) (ws si)
-    cm'   = M.filterWithKey (\i _ -> S.member i cs ) (cm si)
+    cm'   = M.filterWithKey (\i c -> S.member i cs || isConcC c) (cm si)
     cs    = S.fromList      (concatMap kCs cKs)
     kCs k = M.lookupDefault [] k kI
 

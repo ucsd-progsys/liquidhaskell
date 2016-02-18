@@ -122,7 +122,7 @@ instance SMTLIB2 Expr where
     where
       env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
   smt2  _  PGrad            = "true"
-  smt2 _   _                = errorstar "smtlib2 Pred"
+  smt2 _   e                = errorstar $ "smtlib2 Pred: " ++ show e
 
 smt2Bop env o e1 e2
   | o == Times, s1 == FReal, s2 == FReal
