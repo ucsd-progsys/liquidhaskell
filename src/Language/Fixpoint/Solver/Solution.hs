@@ -178,9 +178,9 @@ apply :: CombinedEnv -> Solution -> F.IBindEnv -> F.Expr
 apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
 
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
-apply1 g s i = F.tracepp msg $ F.pAnd $ applyExpr g s <$> bindExprs g i
-   where
-    msg      = "apply1 bind = " ++ show i
+apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
+   -- where
+   --  msg   = "apply1 bind = " ++ show i
 
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
