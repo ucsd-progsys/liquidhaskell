@@ -65,6 +65,7 @@ Library
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Partition,
+                   Language.Fixpoint.Minimize,
                    Language.Fixpoint.Solver,
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.SortCheck,
