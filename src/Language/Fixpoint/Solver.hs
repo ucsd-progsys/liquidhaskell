@@ -85,8 +85,8 @@ solve cfg q
 
 solve' :: (NFData a, Fixpoint a) => Solver a
 solve' cfg q = do
-  saveQuery cfg q
-  configSW  cfg solveNative cfg q
+  when (save cfg) $ saveQuery   cfg q
+  configSW  cfg     solveNative cfg q
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg

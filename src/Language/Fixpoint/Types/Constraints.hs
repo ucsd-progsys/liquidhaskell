@@ -25,7 +25,7 @@ module Language.Fixpoint.Types.Constraints (
   , toFixpoint
   , writeFInfo
   , saveQuery
-  
+
    -- * Constructing Queries
   , fi
 
@@ -75,7 +75,7 @@ import           GHC.Generics              (Generic)
 import           Data.List                 (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
-import           Control.Monad             (when, void)
+import           Control.Monad             (void)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
@@ -306,7 +306,7 @@ instance PPrint Qualifier where
   pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
 
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -546,11 +546,10 @@ solInsert k qs s = s { sMap = M.insert k qs (sMap s) }
 ---------------------------------------------------------------------------
 type Solver a = Config -> FInfo a -> IO (Result a)
 
-
 --------------------------------------------------------------------------------
 saveQuery :: Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
-saveQuery cfg fi = when (save cfg) $ do
+saveQuery cfg fi = {- when (save cfg) $ -} do
   let fi'  = void fi
   saveBinaryQuery cfg fi'
   saveTextQuery cfg   fi'

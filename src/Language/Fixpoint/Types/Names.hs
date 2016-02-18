@@ -195,14 +195,19 @@ mappendSym s1 s2 = textSymbol $ mappend s1' s2'
       s1'        = symbolText s1
       s2'        = symbolText s2
 
+
+
 instance PPrint Symbol where
   pprint = text . symbolString
 
 instance Fixpoint T.Text where
   toFix = text . T.unpack
 
+-- RJ: Use `symbolSafeText` if you want it to machine-readable,
+--     but `symbolText`     if you want it to be human-readable.
+
 instance Fixpoint Symbol where
-  toFix = toFix . symbolText
+  toFix = toFix . symbolSafeText
 
 ---------------------------------------------------------------------------
 -- | Located Symbols -----------------------------------------------------
@@ -454,12 +459,12 @@ realToIntName   = "real_to_int"
 
 
 setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName :: Int -> Symbol
-setApplyName    = intSymbol "set_apply_"   
-bitVecApplyName = intSymbol "bitvec_apply"  
-mapApplyName    = intSymbol "map_apply_"    
-boolApplyName   = intSymbol "bool_apply_"   
-realApplyName   = intSymbol "real_apply_"   
-intApplyName    = intSymbol "int_apply_" 
+setApplyName    = intSymbol "set_apply_"
+bitVecApplyName = intSymbol "bitvec_apply"
+mapApplyName    = intSymbol "map_apply_"
+boolApplyName   = intSymbol "bool_apply_"
+realApplyName   = intSymbol "real_apply_"
+intApplyName    = intSymbol "int_apply_"
 
 
 preludeName, dummyName, boolConName, funConName :: Symbol

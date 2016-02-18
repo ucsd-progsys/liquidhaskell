@@ -28,6 +28,7 @@ minQuery cfg solve fi = do
   failCs      <- concatMapM (getMinFailingCons cfg' solve) failFis
   let minFi    = fi { cm = M.fromList failCs, fileName = minFileName fi }
   saveQuery cfg' minFi
+  putStrLn $ "Minimized Constraints: " ++ show (fst <$> failCs)
   return mempty
 
 minFileName :: FInfo a -> FilePath
