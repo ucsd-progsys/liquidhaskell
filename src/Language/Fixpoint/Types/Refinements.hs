@@ -200,6 +200,7 @@ data Expr = ESym !SymConst
           | EBin !Bop !Expr !Expr
           | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
+          | ELam !(Symbol, Sort)   !Expr
           | ETApp !Expr !Sort 
           | ETAbs !Expr !Symbol
 
@@ -314,6 +315,7 @@ instance Fixpoint Expr where
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix PGrad            = text "??"
+  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e 
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -477,6 +479,7 @@ instance PPrint Expr where
                                    pprintPrec (za+1) e2
     where za = 4
   pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
+  pprintPrec _ (ELam (x,t) e)  = text "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprint e
   pprintPrec _ (PExist xts p)  = text "exists" <+> toFix xts <+> text "." <+> pprint p
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
