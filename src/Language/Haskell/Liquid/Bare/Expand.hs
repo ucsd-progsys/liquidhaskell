@@ -70,6 +70,8 @@ expandExpr (PIff p q)
   = PIff <$> expandExpr p <*> expandExpr q
 expandExpr (PAll xs p)
   = PAll xs <$> expandExpr p
+expandExpr (ELam xt e)
+  = ELam xt <$> expandExpr e
 
 expandExpr (ETApp e s)
   = (`ETApp` s) <$> expandExpr e 

@@ -59,6 +59,7 @@ instance Resolvable Expr where
   resolve l (PImp p q)      = PImp    <$> resolve l p  <*> resolve l q
   resolve l (PIff p q)      = PIff    <$> resolve l p  <*> resolve l q
   resolve l (PAtom r e1 e2) = PAtom r <$> resolve l e1 <*> resolve l e2
+  resolve l (ELam (x,t) e)  = ELam    <$> ((,) <$> resolve l x <*> resolve l t) <*> resolve l e
   resolve l (PAll vs p)     = PAll    <$> mapM (secondM (resolve l)) vs <*> resolve l p
   resolve l (ETApp e s)     = ETApp   <$> resolve l e <*> resolve l s 
   resolve l (ETAbs e s)     = ETAbs   <$> resolve l e <*> resolve l s 

@@ -220,7 +220,7 @@ coreToLg (C.Case e b _ alts) | eqType (varType b) boolTy
 coreToLg (C.Lam x e)
   = do p   <- coreToLg e
        tce <- ltce <$> getState 
-       return $ PAll ([(symbol x, typeSort tce $ varType x)]) p
+       return $ ELam (symbol x, typeSort tce $ varType x) p
 -- coreToLg p@(C.App _ _) = toPredApp p
 coreToLg e                   = throw ("Cannot transform to Logic:\t" ++ showPpr e)
 
@@ -243,37 +243,39 @@ coreToIte e (efalse, etrue)
 toPredApp :: C.CoreExpr -> LogicM Expr
 toPredApp p
   = do let (f, es) = splitArgs p
-       f'         <- tosymbol f
+       let f'      = tomaybesymbol f
        go f' es
   where
-    go f [e1, e2]
-      | Just rel <- M.lookup (val f) brels
+    go (Just f) [e1, e2]
+      | Just rel <- M.lookup f brels
       = PAtom rel <$> (coreToLg e1) <*> (coreToLg e2)
-    go f [e]
-      | val f == symbol ("not" :: String)
+    go (Just f) [e]
+      | f == symbol ("not" :: String)
       = PNot <$>  coreToPd e
-    go f [e1, e2]
-      | val f == symbol ("||" :: String)
+    go (Just f) [e1, e2]
+      | f == symbol ("||" :: String)
       = POr <$> mapM coreToPd [e1, e2]
-      | val f == symbol ("&&" :: String)
+      | f == symbol ("&&" :: String)
       = PAnd <$> mapM coreToPd [e1, e2]
-      | val f == symbol ("==>" :: String)
+      | f == symbol ("==>" :: String)
       = PImp <$> coreToPd e1 <*> coreToPd e2
-    go f es
-      | val f == symbol ("or" :: String)
+    go (Just f) es
+      | f == symbol ("or" :: String)
       = POr <$> mapM coreToPd es
-      | val f == symbol ("and" :: String)
+      | f == symbol ("and" :: String)
       = PAnd <$> mapM coreToPd es
-      | otherwise
-      = toLogicApp p
+    go _ _ = toLogicApp p
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e
   =  do let (f, es) = splitArgs e
-        args       <- mapM coreToLg es
-        lmap       <- symbolMap <$> getState
-        def         <- (`mkEApp` args) <$> tosymbol f
-        (\x -> makeApp def lmap x args) <$> tosymbol' f
+        case f of 
+          C.Var _ -> do args       <- mapM coreToLg es
+                        lmap       <- symbolMap <$> getState
+                        def         <- (`mkEApp` args) <$> tosymbol f
+                        (\x -> makeApp def lmap x args) <$> tosymbol' f
+          _ -> do (fe:args) <- mapM coreToLg (f:es) 
+                  return $ foldl EApp fe args  
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
@@ -329,9 +331,14 @@ splitArgs e = (f, reverse es)
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
-tosymbol (C.Var c) | isDataConId  c = return $ dummyLoc $ symbol c
-tosymbol (C.Var x) = return $ dummyLoc $ simpleSymbolVar x
-tosymbol  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
+tomaybesymbol (C.Var c) | isDataConId  c = Just $ symbol c
+tomaybesymbol (C.Var x) = Just $ simpleSymbolVar x
+tomaybesymbol _         = Nothing 
+
+tosymbol e         
+ = case tomaybesymbol e of 
+    Just x -> return $ dummyLoc x 
+    _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
 
 tosymbol' (C.Var x) = return $ dummyLoc $ simpleSymbolVar' x
 tosymbol'  e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
