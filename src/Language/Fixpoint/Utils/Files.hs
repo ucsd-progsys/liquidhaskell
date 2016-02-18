@@ -17,6 +17,7 @@ module Language.Fixpoint.Utils.Files (
   , extModuleName
   , withExt
   , isExtFile
+  , isBinary
 
   -- * Hardwired paths
   , getFixpointPath
@@ -193,3 +194,6 @@ findFirst f (x:xs) = do r <- f x
 -- findFileInDirs file dirs
 --   = liftM (fromMaybe err) (findFirst (find always (fileName ==? file)) dirs)
 --     where err = errorstar $ "findFileInDirs: cannot find " ++ file ++ " in " ++ show dirs
+
+isBinary :: FilePath -> Bool
+isBinary = isExtFile BinFq

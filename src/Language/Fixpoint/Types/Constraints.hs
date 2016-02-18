@@ -19,11 +19,13 @@ module Language.Fixpoint.Types.Constraints (
    -- * Top-level Queries
     FInfo, SInfo, GInfo (..)
   , convertFormat
+  , Solver
 
    -- * Serializing
   , toFixpoint
   , writeFInfo
-
+  , saveQuery
+  
    -- * Constructing Queries
   , fi
 
@@ -73,6 +75,7 @@ import           GHC.Generics              (Generic)
 import           Data.List                 (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
+import           Control.Monad             (when, void)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
@@ -82,6 +85,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
+import qualified Language.Fixpoint.Utils.Files as Files
 
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
@@ -536,3 +540,29 @@ solLookup s k = M.lookupDefault [] k (sMap s)
 solInsert :: KVar -> a -> Sol a -> Sol a
 --------------------------------------------------------------------------------
 solInsert k qs s = s { sMap = M.insert k qs (sMap s) }
+
+---------------------------------------------------------------------------
+-- | Top level Solvers ----------------------------------------------------
+---------------------------------------------------------------------------
+type Solver a = Config -> FInfo a -> IO (Result a)
+
+
+--------------------------------------------------------------------------------
+saveQuery :: Config -> FInfo a -> IO ()
+--------------------------------------------------------------------------------
+saveQuery cfg fi = when (save cfg) $ do
+  let fi'  = void fi
+  saveBinaryQuery cfg fi'
+  saveTextQuery cfg   fi'
+
+saveBinaryQuery cfg fi = do
+  let bfq  = queryFile Files.BinFq cfg
+  putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
+  ensurePath bfq
+  B.encodeFile bfq fi
+
+saveTextQuery cfg fi = do
+  let fq   = queryFile Files.Fq cfg
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
+  ensurePath fq
+  writeFile fq $ render (toFixpoint cfg fi)
