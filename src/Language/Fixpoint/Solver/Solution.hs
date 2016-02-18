@@ -161,6 +161,7 @@ okInst env v t eq = isNothing tc
     p             = F.eqPred eq
     tc            = So.checkSorted env sr
 
+
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
