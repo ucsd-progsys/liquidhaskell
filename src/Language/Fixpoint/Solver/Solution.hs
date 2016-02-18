@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE PatternGuards      #-}
 
 module Language.Fixpoint.Solver.Solution
         ( -- * Create and Update Solution
@@ -15,6 +16,7 @@ module Language.Fixpoint.Solver.Solution
 where
 
 import           Control.Parallel.Strategies
+import           Control.Arrow (second)
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
@@ -24,7 +26,7 @@ import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types              as F
-import           Language.Fixpoint.Types.Constraints
+import           Language.Fixpoint.Types.Constraints hiding (ws, bs)
 import           Language.Fixpoint.Types.Graphs
 import           Prelude                        hiding (init, lookup)
 
@@ -76,12 +78,11 @@ update1 s (k, qs) = (change, solInsert k qs s)
 --------------------------------------------------------------------
 init :: F.SInfo a -> Solution
 --------------------------------------------------------------------
-init fi  = F.solFromList keqs [] -- (fromList keqs) M.empty
+init si  = F.solFromList keqs [] -- (fromList keqs) M.empty
   where
-    keqs = map (refine fi qs) ws `using` parList rdeepseq
-    qs   = F.quals fi
-    ws   = M.elems $ F.ws fi
-
+    keqs = map (refine si qs) ws `using` parList rdeepseq
+    qs   = F.quals si
+    ws   = M.elems $ F.ws si
 
 --------------------------------------------------------------------
 refine :: F.SInfo a
@@ -178,12 +179,15 @@ apply g s bs = F.pAnd (apply1 g s <$> F.elemsIBindEnv bs)
 apply1 :: CombinedEnv -> Solution -> F.BindId -> F.Expr
 apply1 g s = applyExpr g s . bindExpr g
 
+bindExpr :: CombinedEnv -> F.BindId -> F.Expr
+bindExpr (be,_) i = p `F.subst1` (v, F.eVar x)
+  where
+    (x, sr)       = F.lookupBindEnv i be
+    F.Reft (v, p) = F.sr_reft sr
+
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
 applyExpr g s (F.PKVar k su) = applyKVar g s k su
 applyExpr _ _ p              = p
-
-bindExpr :: CombinedEnv -> F.BindId -> F.Expr
-bindExpr = error "TODO:bindExpr"
 
 applyKVar :: CombinedEnv -> Solution -> F.KVar -> F.Subst -> F.Expr
 applyKVar g s k su
@@ -198,27 +202,40 @@ hypPred :: CombinedEnv -> Solution -> F.Subst -> F.Hyp  -> F.Expr
 hypPred g s su = F.pOr . fmap (cubePred g s su)
 
 cubePred :: CombinedEnv -> Solution -> F.Subst -> F.Cube -> F.Expr
-cubePred = errorstar "TODO:cubePred"
--- cubePred g s su (F.Cube bs su') = exists xts' (pAnd [p', equate su su'])
-  -- where
-    -- xts' = symSort <$> bs'
-    -- p'   = apply (g + bs) bs'
-    -- bs'  = bs - g
+cubePred g s su c = F.PExist xts' $ F.pAnd [p', equate su su']
+  where
+    xts'          = symSorts g bs'
+    p'            = apply (addCEnv g bs) s bs'
+    bs'           = delCEnv bs g
+    F.Cube bs su' = c
 
--- applyBind :: CombinedEnv -> Solution -> (F.Symbol, F.SortedReft) -> F.Pred
--- applyBind g s (x, sr) = p `F.subst1` (v, F.eVar x)
-  -- where
-    -- p                = apply be g s r
-    -- F.Reft (v, r)    = F.sr_reft sr
+addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
+addCEnv (be, bs) bs' = (be, F.unionIBindEnv bs bs')
 
-qBindPred :: F.Subst -> QBind -> F.Expr
-qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
+delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
+delCEnv bs (_, bs')  = F.diffIBindEnv bs bs'
+
+symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
+symSorts (be, _) bs = second F.sr_sort <$> F.envCs be bs
+
+equate :: F.Subst -> F.Subst -> F.Expr
+equate su su' = F.pAnd [F.PAtom F.Eq e e' | (_, (e, e')) <- joinSubst su su' ]
+
+joinSubst :: F.Subst -> F.Subst -> [(F.Symbol, (F.Expr, F.Expr))]
+joinSubst (F.Su m1) (F.Su m2) = M.toList $ M.intersectionWith (,) m1 m2
 
 noKvars :: F.Expr -> Bool
 noKvars = null . V.kvars
 
 --------------------------------------------------------------------------------
+qBindPred :: F.Subst -> QBind -> F.Expr
+--------------------------------------------------------------------------------
+qBindPred su eqs = F.subst su $ F.pAnd $ F.eqPred <$> eqs
+
+
+--------------------------------------------------------------------------------
 solutionGraph :: Solution -> KVGraph
+--------------------------------------------------------------------------------
 solutionGraph s = [ (KVar k, KVar k, KVar <$> eqKvars eqs) | (k, eqs) <- kEqs ]
   where
      eqKvars    = sortNub . concatMap (V.kvars . F.eqPred)
