@@ -47,7 +47,7 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats, higherorder,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
@@ -95,6 +95,10 @@ config = cmdArgsMode $ Config {
  , diffcheck
     = def
           &= help "Incremental Checking: only check changed binders"
+
+ , higherorder
+    = def
+          &= help "Allow higher order binders into the logic"
 
  , linear
     = def
@@ -332,6 +336,7 @@ defConfig = Config { files          = def
                    , newcheck       = True
                    , fullcheck      = def
                    , linear         = def
+                   , higherorder    = def
                    , diffcheck      = def
                    , saveQuery      = def
                    , binders        = def

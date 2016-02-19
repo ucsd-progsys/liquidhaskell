@@ -1,13 +1,22 @@
 Equational Reasoning 
 --------------------
 
+
+- look at isabelle's lambda lifting 
+- http://www.concrete-semantics.org/concrete-semantics.pdf
+- http://www.mimuw.edu.pl/~lukaszcz/combs.pdf
+
 HERE HERE BACK TO LOGIC!!!! No need for defunc this time!
 
 tests 
   - [OK] AppendArrow 
   - [OK] MapAppend
   - [OK] MapFusion
-  - Monadic Laws for Lists 
+  - [OK] ConcatMap
+  - [OK] Monadic Laws for Lists 
+  - Associativity of Monadic Laws 
+      - allow functions
+      - proove it by hand
 
 
 

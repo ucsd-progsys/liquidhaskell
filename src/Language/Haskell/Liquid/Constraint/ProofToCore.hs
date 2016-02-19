@@ -115,7 +115,7 @@ instance Show Type where
 -- | ANF
 anf :: ([CoreBind], [CoreExpr], [Int]) -> CoreExpr -> ([CoreBind], [CoreExpr], [Int])
 anf (bs, es, i:uniq) (App f e) = ((NonRec v (App f e')):(bs++bs'), H.Var v:es, uniq')
-  where v = varANF i (exprType $ App f e)
+  where v = varANFPr i (exprType $ App f e)
         (bs', [e'], uniq') = anf ([], [], uniq) e
 
 anf (bs, es, uniq) e = (bs, e:es, uniq)
@@ -176,6 +176,7 @@ substTyV (a, at) (t1, t2) = (go t1, go t2)
 
 varCombine i = stringVar ("proof_anf_cmb"  ++ show i)
 varANF     i = stringVar ("proof_anf_bind" ++ show i)
+varANFPr   i = stringVar ("proof_anf_bind_pr" ++ show i)
 
 bkArrow = go [] []
   where

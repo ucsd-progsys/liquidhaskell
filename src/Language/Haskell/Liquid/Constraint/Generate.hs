@@ -326,6 +326,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
+  , allowHO    = higherorder cfg   
   }
   where
     tce        = tcEmbeds spc
@@ -920,6 +921,30 @@ cconsLazyLet _ _ _
 consE :: CGEnv -> Expr Var -> CG SpecType
 --------------------------------------------------------------------------------
 
+-- NV this is a hack to type polymorphic axiomatized functions
+-- no need to check this code with flag, the axioms environment withh 
+-- be empty if there is no axiomatization
+
+consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       addW        $ WfC γ t
+       t'         <- refreshVV t
+       tt <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       return $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
+
+{-
+consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β 
+  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
+       t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
+       addW        $ WfC γ t
+       t'         <- refreshVV t
+       tt  <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
+       return $ RAllT (rTyVar β) 
+                  $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
+-}
+-- NV END HACK 
+
 consE γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
@@ -976,6 +1001,14 @@ consE γ e'@(App e a)
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       {- 
+       tt <- addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
+       let rr = case (argExpr γ e, argExpr γ a) of 
+                 (Just e', Just a') -> uTop $ F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) (F.EApp e' a'))
+                 _                  -> mempty
+       return $ tt `strengthen` rr 
+       -}
+
 
 consE γ (Lam α e) | isTyVar α
   = liftM (RAllT (rTyVar α)) (consE γ e)
@@ -1244,7 +1277,7 @@ argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
-argExpr _ e           = panic Nothing $ "argExpr: " ++ showPpr e
+argExpr _ _           = Nothing
 
 
 --------------------------------------------------------------------------------

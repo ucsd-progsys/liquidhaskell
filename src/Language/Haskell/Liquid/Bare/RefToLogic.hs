@@ -95,7 +95,8 @@ instance Transformable Expr where
   tx s m (PImp p1 p2)    = PImp (tx s m p1) (tx s m p2)
   tx s m (PIff p1 p2)    = PIff (tx s m p1) (tx s m p2)
   tx s m (PAtom r e1 e2) = PAtom r (tx s m e1) (tx s m e2)
-  tx s m (PAll xss p)    = PAll xss $ txQuant xss s m p
+  tx s m (ELam (x,t) e)  = ELam (x,t) $ txQuant [(x,t)] s m e
+  tx s m (PAll xss p)    = PAll xss   $ txQuant xss s m p
   tx _ _ (PExist _ _)    = panic Nothing "tx: PExist is for fixpoint internals only"
  --  tx s m (PExist xss p)  = PExist xss $ txQuant xss s m p
   tx _ _ p@(PKVar _ _)   = p

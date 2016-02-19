@@ -6,6 +6,7 @@
 
 - Fixed a bug in the specification for `Data.Traversable.sequence`
 - Make interpreted mul and div the default, when `solver = z3`
+- Use `--higherorder` to allow higher order binders into the fixpoint environment 
 
 ## 0.5.0.0
 

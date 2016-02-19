@@ -148,8 +148,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p t@(RFun _ _ _ _)
-  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
+ppr_rtype bb p t@(RFun _ _ _ r)
+  = ppTy r $ maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
