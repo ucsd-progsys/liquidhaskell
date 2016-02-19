@@ -58,6 +58,7 @@ data Command      = Push
                   | Assert    (Maybe Int) Expr
                   | Distinct  [Expr] -- {v:[Expr] | 2 <= len v}
                   | GetValue  [Symbol]
+                  | CMany [Command]
                   deriving (Eq, Show)
 
 -- | Responses received from SMT engine
@@ -114,7 +115,10 @@ freshSym = do
 
 -- | Types that can be serialized
 class SMTLIB2 a where
-  smt2 :: a -> SMT2 T.Text
+  defunc :: a -> SMT2 a
+  defunc = return 
+
+  smt2 :: a -> T.Text 
 
   runSmt2 :: SMTEnv -> a -> T.Text 
-  runSmt2 env a = evalState (smt2 a) (SMTSt 0 env)
+  runSmt2 env a = smt2 $ evalState (defunc a) (SMTSt 0 env)

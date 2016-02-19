@@ -187,7 +187,7 @@ data Constant = I !Integer
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Bop  = Plus | Minus | Times | Div | Mod
+data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv 
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -284,11 +284,13 @@ instance Fixpoint Brel where
   toFix Le  = text "<="
 
 instance Fixpoint Bop where
-  toFix Plus  = text "+"
-  toFix Minus = text "-"
-  toFix Times = text "*"
-  toFix Div   = text "/"
-  toFix Mod   = text "mod"
+  toFix Plus   = text "+"
+  toFix Minus  = text "-"
+  toFix RTimes = text "*."
+  toFix Times  = text "*"
+  toFix Div    = text "/"
+  toFix RDiv   = text "/."
+  toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
@@ -422,11 +424,13 @@ parensIf False = id
 -- sets the contextual precedence for recursive printer invocations to
 -- (prec p + 1).
 
-opPrec Mod   = 5
-opPrec Plus  = 6
-opPrec Minus = 6
-opPrec Times = 7
-opPrec Div   = 7
+opPrec Mod    = 5
+opPrec Plus   = 6
+opPrec Minus  = 6
+opPrec Times  = 7
+opPrec RTimes = 7
+opPrec Div    = 7
+opPrec RDiv   = 7
 
 instance PPrint Expr where
   pprintPrec _ (ESym c)        = pprint c
