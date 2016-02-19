@@ -191,7 +191,7 @@ smt2App e = fromMaybe (format "({} {})" (smt2 f, smt2many (smt2 <$> es))) (Thy.s
 
 defuncApp :: Expr -> SMT2 Expr 
 defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of 
-                Just _ -> return  e 
+                Just _ -> eApps f <$> mapM defunc es  
                 _      -> defuncApp' f es
   where
     (f, es) = splitEApp e
