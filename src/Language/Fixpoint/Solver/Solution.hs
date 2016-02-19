@@ -167,11 +167,11 @@ okInst env v t eq = isNothing tc
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> F.Solution -> F.SimpC a -> F.Expr
 --------------------------------------------------------------------------------
-lhsPred be s c = F.tracepp msg $ apply g s bs
+lhsPred be s c = {- F.tracepp msg $ -} apply g s bs
   where
     g          = (be, bs)
     bs         = F.senv c
-    msg        = "LhsPred for id = " ++ show (sid c)
+    -- msg        = "LhsPred for id = " ++ show (sid c)
 
 type CombinedEnv = (F.BindEnv, F.IBindEnv)
 
