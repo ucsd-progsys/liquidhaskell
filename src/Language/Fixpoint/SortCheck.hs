@@ -21,7 +21,7 @@ module Language.Fixpoint.SortCheck  (
   , pruneUnsortedReft
 
   -- * Sort inference
-  , sortExpr
+  , sortExpr, checkSortExpr
 
   -- * Unify
   , unifyFast
@@ -94,6 +94,15 @@ sortExpr l γ e = case runCM0 $ checkExpr f e of
                , nest 4 (pprint e)
                , "with error:"
                , nest 4 (text m)]
+
+checkSortExpr :: SEnv Sort -> Expr -> Maybe Sort
+checkSortExpr γ e = case runCM0 $ checkExpr f e of
+    Left _   -> Nothing
+    Right s  -> Just s
+  where
+    f x  = case lookupSEnv x γ of
+            Just z  -> Found z
+            Nothing -> Alts []
 
 
 elaborate :: SEnv Sort -> Expr -> Expr
@@ -251,8 +260,9 @@ checkExpr f (PAtom r e e') = checkRel f r e e' >> return boolSort
 checkExpr _ (PKVar {})     = return boolSort
 checkExpr _ PGrad          = return boolSort
 
-checkExpr _ (PAll _ _)     = error "SortCheck.checkExpr: TODO: implement PAll"
+checkExpr f (PAll  bs e )  = checkExpr (addEnv f bs) e
 checkExpr f (PExist bs e)  = checkExpr (addEnv f bs) e
+checkExpr f (ELam (x,t) e) = FFunc t <$> checkExpr (addEnv f [(x,t)]) e
 checkExpr _ (ETApp _ _)    = error "SortCheck.checkExpr: TODO: implement ETApp"
 checkExpr _ (ETAbs _ _)    = error "SortCheck.checkExpr: TODO: implement ETAbs"
 
@@ -358,6 +368,10 @@ elab f (PExist bs e) = do
 elab f (PAll bs e) = do
   (e', s) <- elab (addEnv f bs) e
   return (PAll bs e', s)
+
+elab f (ELam (x,t) e) = do
+  (e', s) <- elab (addEnv f [(x,t)]) e
+  return (ELam (x,t) (ECst e' s), FFunc t s)
 
 elab _ (ETApp _ _) =
   error "SortCheck.elab: TODO: implement ETApp"

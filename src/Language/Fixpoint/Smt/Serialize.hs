@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE PatternGuards        #-}
+{-# LANGUAGE FlexibleContexts     #-}
 
 -- | This module contains the code for serializing Haskell values
 --   into SMTLIB2 format, that is, the instances for the @SMTLIB2@
@@ -16,10 +17,14 @@ import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
-import           Data.Maybe (fromMaybe)
-import           Language.Fixpoint.Misc (errorstar)
+import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
 
 import           Language.Fixpoint.SortCheck (elaborate)
+
+import           Control.Monad.State
+ 
+import           Data.Maybe (fromMaybe)
+
 
 {-
     (* (L t1 t2 t3) is now encoded as
@@ -44,149 +49,247 @@ import           Language.Fixpoint.SortCheck (elaborate)
 
 -}
 instance SMTLIB2 Sort where
-  smt2 _ s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
-  smt2 _ FInt                    = "Int"
-  smt2 _ FReal                   = "Real"
-  smt2 _ t
+  smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
+  smt2 FInt                    = "Int"
+  smt2 FReal                   = "Real"
+  smt2 t
     | t == boolSort            = "Bool"
-  smt2 _ t
+  smt2 t
     | Just d <- Thy.smt2Sort t = d
-  smt2 _ _                       = "Int"
+  smt2 _                       = "Int"
 
+  defunc (FAbs _ t)      = defunc t
+  defunc (FFunc _ _)     = return $ intSort
+  defunc t | isSMTSort t = return t
+  defunc _               = return intSort
 
 instance SMTLIB2 Symbol where
-  smt2 _ s
+  smt2 s
     | Just t <- Thy.smt2Symbol s = t
-  smt2 _ s                         = symbolSafeText  s
+  smt2 s                         = symbolSafeText  s
 
 instance SMTLIB2 (Symbol, Sort) where
-  smt2 env (sym, t) = format "({} {})"  (smt2 env sym, smt2 env $ defunc t)
+  smt2 (sym, t) = format "({} {})" (smt2 sym, smt2 t)
 
+  defunc (sym, t) = do bx <- defunc sym 
+                       bt <- defunc t 
+                       return $ (bx, bt)
 
-defunc (FAbs _ t) = defunc t
-defunc (FFunc _ _) = intSort
-defunc t | isSMTSort t = t
-defunc _               = intSort
 
 instance SMTLIB2 SymConst where
-  smt2 env = smt2 env . symbol
+  smt2   = smt2   . symbol
+
 
 instance SMTLIB2 Constant where
-  smt2 _ (I n)   = format "{}" (Only n)
-  smt2 _ (R d)   = format "{}" (Only d)
-  smt2 _ (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
+  smt2 (I n)   = format "{}" (Only n)
+  smt2 (R d)   = format "{}" (Only d)
+  smt2 (L t _) = format "{}" (Only t) -- errorstar $ "Horrors, how to translate: " ++ show c
 
 instance SMTLIB2 LocSymbol where
-  smt2 env = smt2 env . val
+  smt2 = smt2 . val
 
 instance SMTLIB2 Bop where
-  smt2 _ Plus  = "+"
-  smt2 _ Minus = "-"
-  smt2 _ Times = "*"
-  smt2 _ Div   = "/"
-  smt2 _ Mod   = "mod"
+  smt2 Plus   = "+"
+  smt2 Minus  = "-"
+  smt2 Times  = symbolSafeText mulFuncName
+  smt2 Div    = symbolSafeText divFuncName
+  smt2 RTimes = "*"
+  smt2 RDiv   = "/"
+  smt2 Mod    = "mod"
 
 instance SMTLIB2 Brel where
-  smt2 _ Eq    = "="
-  smt2 _ Ueq   = "="
-  smt2 _ Gt    = ">"
-  smt2 _ Ge    = ">="
-  smt2 _ Lt    = "<"
-  smt2 _ Le    = "<="
-  smt2 _ _     = errorstar "SMTLIB2 Brel"
+  smt2 Eq    = "="
+  smt2 Ueq   = "="
+  smt2 Gt    = ">"
+  smt2 Ge    = ">="
+  smt2 Lt    = "<"
+  smt2 Le    = "<="
+  smt2 _     = errorstar "SMTLIB2 Brel"
 
 -- NV TODO: change the way EApp is printed
 instance SMTLIB2 Expr where
-  smt2 env (ESym z)         = smt2 env (symbol z)
-  smt2 env (ECon c)         = smt2 env c
-  smt2 env (EVar x)         = smt2 env x
-  smt2 env e@(EApp _ _)     = smt2App env e
-  smt2 env (ENeg e)         = format "(- {})"         (Only $ smt2 env e)
-  smt2 env (EBin o e1 e2)   = smt2Bop env o e1 e2
-  smt2 env (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 env e1, smt2 env e2, smt2 env e3)
-  smt2 env (ECst e _)       = smt2 env e
-  smt2 _   (PTrue)          = "true"
-  smt2 _   (PFalse)         = "false"
-  smt2 _   (PAnd [])        = "true"
-  smt2 env (PAnd ps)        = format "(and {})"    (Only $ smt2s env ps)
-  smt2 _   (POr [])         = "false"
-  smt2 env (POr ps)         = format "(or  {})"    (Only $ smt2s env ps)
-  smt2 env (PNot p)         = format "(not {})"    (Only $ smt2  env p)
-  smt2 env (PImp p q)       = format "(=> {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PIff p q)       = format "(=  {} {})"  (smt2 env p, smt2 env q)
-  smt2 env (PExist bs p)    = format "(exists ({}) {})"  (smt2s env bs, smt2 env' p)
-    where
-      env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
-  smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (PAll bs p)     = format "(forall ({}) {})"  (smt2s env bs, smt2 env' p)
-    where
-      env' = foldl (\env (x, t) -> insertSEnv x t env) env bs
-  smt2  _  PGrad            = "true"
-  smt2 _   _                = errorstar "smtlib2 Pred"
+  smt2 (ESym z)         = smt2 (symbol z)
+  smt2 (ECon c)         = smt2 c
+  smt2 (EVar x)         = smt2 x
+  smt2 e@(EApp _ _)     = smt2App e
+  smt2 (ENeg e)         = format "(- {})" (Only $ smt2 e)
+  smt2 (EBin o e1 e2)   = format "({} {} {})" (smt2 o, smt2 e1, smt2 e2)
+  smt2 (EIte e1 e2 e3)  = format "(ite {} {} {})" (smt2 e1, smt2 e2, smt2 e3)
+  smt2 (ECst e _)       = smt2 e
+  smt2 (PTrue)          = "true"
+  smt2 (PFalse)         = "false"
+  smt2 (PAnd [])        = "true"
+  smt2 (PAnd ps)        = format "(and {})"   (Only $ smt2s ps)
+  smt2 (POr [])         = "false"
+  smt2 (POr ps)         = format "(or  {})"   (Only $ smt2s ps)
+  smt2 (PNot p)         = format "(not {})"   (Only $ smt2  p)
+  smt2 (PImp p q)       = format "(=> {} {})" (smt2 p, smt2 q)
+  smt2 (PIff p q)       = format "(= {} {})"  (smt2 p, smt2 q)
+  smt2 (PExist bs p)    = format "(exists ({}) {})"  (smt2s bs, smt2 p)
+  smt2 (PAll   bs p)    = format "(forall ({}) {})"  (smt2s bs, smt2 p)
 
-smt2Bop env o e1 e2
+  smt2 (PAtom r e1 e2)  = mkRel r e1 e2
+  smt2 PGrad            = "true"
+  smt2  e               = errorstar ("smtlib2 Pred  " ++ show e)
+
+
+-- new version 
+  defunc e@(ESym _)       = return e 
+  defunc e@(ECon _)       = return e 
+  defunc e@(EVar _)       = return e 
+  defunc e@(EApp _ _)     = defuncApp e
+  defunc (ENeg e)         = ENeg <$> defunc e 
+  defunc (EBin o e1 e2)   = defuncBop o e1 e2
+  defunc (EIte e1 e2 e3)  = do e1'   <- defunc e1 
+                               e2'   <- defunc e2 
+                               e3'   <- defunc e3 
+                               return $ EIte e1' e2' e3'
+  defunc (ECst e t)       = (`ECst` t) <$> defunc e
+  defunc (PTrue)          = return PTrue
+  defunc (PFalse)         = return PFalse
+  defunc (PAnd [])        = return PTrue
+  defunc (PAnd ps)        = PAnd <$> mapM defunc ps
+  defunc (POr [])         = return PFalse
+  defunc (POr ps)         = POr <$> mapM defunc ps
+  defunc (PNot p)         = PNot <$> defunc  p
+  defunc (PImp p q)       = PImp <$> defunc p <*> defunc q 
+  defunc (PIff p q)       = PIff <$> defunc p <*> defunc q 
+  defunc (PExist bs p)    = do bs' <- mapM defunc bs 
+                               p'  <- withExtendedEnv bs $ defunc p 
+                               return $ PExist bs' p'
+  defunc (PAll   bs p)    = do bs' <- mapM defunc bs 
+                               p'  <- withExtendedEnv bs $ defunc p 
+                               return $ PAll bs' p' 
+  defunc (PAtom r e1 e2)  = PAtom r <$> defunc e1 <*> defunc e2 
+  defunc PGrad            = return PGrad
+  defunc  e               = errorstar ("smtlib2 Pred  " ++ show e)
+
+
+defuncBop o e1 e2
   | o == Times, s1 == FReal, s2 == FReal
-   = format "(* {} {})" (smt2 env e1, smt2 env e2)
+  = do e1' <- defunc e1 
+       e2' <- defunc e2
+       return $ EBin RTimes e1' e2'
   | o == Div, s1 == FReal, s2 == FReal
-   = format "(/ {} {})" (smt2 env e1, smt2 env e2)
-  | o == Times
-  = format "({} {} {})" (symbolSafeText mulFuncName , smt2 env e1, smt2 env e2)
-  | o == Div
-  = format "({} {} {})" (symbolSafeText divFuncName , smt2 env e1, smt2 env e2)
+  = do e1' <- defunc e1
+       e2' <- defunc e2
+       return $ EBin RDiv e1' e2' 
   | otherwise
-  = format "({} {} {})" (smt2 env o, smt2 env e1, smt2 env e2)
+  = do e1' <- defunc e1 
+       e2' <- defunc e2 
+       return $ EBin o e1' e2' 
   where
     s1 = exprSort e1
     s2 = exprSort e2
 
-smt2App :: SMTEnv -> Expr  -> T.Text
-smt2App env e = fromMaybe (smt2App' env f es) (Thy.smt2App (eliminate f) ds)
+
+smt2App :: Expr -> T.Text
+smt2App e = fromMaybe (format "({} {})" (smt2 f, smt2many (smt2 <$> es))) (Thy.smt2App (eliminate f) $ (smt2 <$> es))
   where
     (f, es) = splitEApp e
-    ds      = smt2 env <$> es
+
+
+defuncApp :: Expr -> SMT2 Expr 
+defuncApp e = case Thy.smt2App (eliminate f) $ (smt2 <$> es) of 
+                Just _ -> eApps f <$> mapM defunc es  
+                _      -> defuncApp' f es
+  where
+    (f, es) = splitEApp e
 
 eliminate (ECst e _) = e
 eliminate e          = e
 
-smt2App' :: SMTEnv -> Expr -> [Expr] -> T.Text
-smt2App' env f [] = smt2 env f
-smt2App' env f es = makeApplication env f es
+defuncApp' :: Expr -> [Expr] -> SMT2 Expr 
+defuncApp' f [] = defunc f
+defuncApp' f es = makeApplication f es
 -- smt2App' env f es = format "({} {})" (smt2 env f, smt2many (smt2 env <$> es)) -- makeApplication env f es
 
 
 
-mkRel env Ne  e1 e2         = mkNe env e1 e2
-mkRel env Une e1 e2         = mkNe env e1 e2
-mkRel env r   e1 e2         = format "({} {} {})"      (smt2 env r , smt2 env e1, smt2 env e2)
-mkNe  env e1 e2             = format "(not (= {} {}))" (smt2 env e1, smt2 env e2)
+mkRel Ne  e1 e2         = mkNe e1 e2
+mkRel Une e1 e2         = mkNe e1 e2
+mkRel r   e1 e2         = format "({} {} {})" (smt2 r, smt2 e1, smt2 e2)
+mkNe  e1 e2             = format "(not (= {} {}))" (smt2 e1, smt2 e2)
 
 instance SMTLIB2 Command where
   -- NIKI TODO: formalize this transformation
-  smt2 env (Declare x ts t)
+  smt2 (Declare x ts t)    = format "(declare-fun {} ({}) {})"     (smt2 x, smt2s ts, smt2 t)
+  smt2 (Define t)          = format "(declare-sort {})"            (Only $ smt2 t)
+  smt2 (Assert Nothing p)  = format "(assert {})"                  (Only $ smt2 p)
+  smt2 (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 p, i)
+  smt2 (Distinct az)       = format "(assert (distinct {}))"       (Only $ smt2s az)
+  smt2 (Push)              = "(push 1)"
+  smt2 (Pop)               = "(pop 1)"
+  smt2 (CheckSat)          = "(check-sat)"
+  smt2 (GetValue xs)       = T.unwords $ ["(get-value ("] ++ fmap smt2 xs ++ ["))"]
+  smt2 (CMany cmds)        = smt2many (smt2 <$> cmds)
+
+
+  defunc (Declare x ts t)
      | isSMTSymbol x
-     = format "(declare-fun {} ({}) {})"  (smt2 env x, smt2s env ts, smt2 env t)
+     = do dx  <- defunc x 
+          dts <- mapM defunc ts
+          dt  <- defunc t   
+          return $ Declare dx dts dt 
      | null ts && isSMTSort t
-     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env t)
+     = do dx <- defunc x 
+          dt <- defunc t
+          return $ Declare dx [] dt 
      | otherwise
-     = format "(declare-fun {} () {})"    (smt2 env x, smt2 env intSort)
+     = do dx <- defunc x 
+          return $ Declare dx [] intSort
 
-  smt2 env (Define t)          = format "(declare-sort {})"         (Only $ smt2 env t)
-  smt2 env (Assert Nothing p)  = format "(assert {})"               (Only $ smt2 env $ elaborate env p)
-  smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env $ elaborate env p, i)
-  smt2 env (Distinct az)       = format "(assert (distinct {}))"    (Only $ smt2s env az)
-  smt2 _   (Push)              = "(push 1)"
-  smt2 _   (Pop)               = "(pop 1)"
-  smt2 _   (CheckSat)          = "(check-sat)"
-  smt2 env (GetValue xs)       = T.unwords $ ["(get-value ("] ++ fmap (smt2 env) xs ++ ["))"]
+  defunc (Define t)  = return $ Define t 
+  defunc (Assert Nothing p)  
+    = do env <- smt2env <$> get 
+         (p', fs) <- grapLambdas $ elaborate env p
+         dfs <- mapM defineFun fs 
+         p'' <- defunc p'
+         return $ CMany (concat dfs ++ [Assert Nothing p''])
 
-smt2s     :: SMTLIB2 a => SMTEnv -> [a] -> T.Text
-smt2s env = smt2many . fmap (smt2 env)
+  defunc (Assert (Just i) p) 
+    = do env <- smt2env <$> get 
+         (p', fs) <- grapLambdas $ elaborate env p
+         dfs <- mapM defineFun fs 
+         p'' <- defunc p' 
+         return $ CMany (concat dfs ++ [Assert (Just i) p''])
+--   smt2 env (Assert (Just i) p) = format "(assert (! {} :named p-{}))"  (smt2 env $ elaborate env p, i)
+  defunc (Distinct az)       = Distinct <$> mapM defunc az 
+  defunc (Push)              = return Push 
+  defunc (Pop)               = return Pop 
+  defunc (CheckSat)          = return CheckSat
+  defunc (GetValue xs)       = return $ GetValue xs 
+  defunc (CMany cmds)        = CMany <$> mapM defunc cmds 
+
+smt2s    :: SMTLIB2 a => [a] -> T.Text
+smt2s as = smt2many (smt2 <$> as)
 
 smt2many :: [T.Text] -> T.Text
 smt2many = T.intercalate " "
 
 
-isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
+defineFun :: (Symbol, Expr) -> SMT2 [Command]
+defineFun (f, ELam (x, t) (ECst e tr))
+  = do decl   <- defunc $ Declare f (t:(snd <$> xts)) tr 
+       assert <- withExtendedEnv [(f, FFunc t tr)] $ 
+                   defunc $ Assert Nothing (PAll ((x,t):xts) 
+                                  (PAtom Eq (mkApp (EApp (EVar f) (EVar x)) (fst <$> xts)) bd))
+       return $ [decl, assert]
+  where
+    go acc (ELam (x, t) e) = go ((x,t):acc) e 
+    go acc (ECst e _)      = go acc e 
+    go acc e               = (acc, e)
+    
+    (xts, bd) = go [] e 
+
+    mkApp e' []     = e' 
+    mkApp e' (x:xs) = mkApp (EApp e' (EVar x)) xs
+
+defineFun  _ 
+  = errorstar "die"
+
+
+isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv 
 
 {-
 (declare-fun x () Int)
@@ -209,6 +312,53 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 ----------------  Defunctionalizaion ------------------------------------------------
 -------------------------------------------------------------------------------------
 
+grapLambdas e = go [] e 
+  where
+    go acc e@(ELam _ _) = do f <- freshSym 
+                             return (EVar f, (f, e):acc)
+    go acc e@(ESym _)   = return (e, acc)
+    go acc e@(ECon _)   = return (e, acc)
+    go acc e@(EVar _)   = return (e, acc)
+    go acc (EApp e1 e2) = do (e1', fs1) <- go [] e1 
+                             (e2', fs2) <- go [] e2
+                             return (EApp e1' e2', fs1 ++ fs2 ++ acc) 
+    go acc (ENeg e)     = do (e', fs) <- go acc e 
+                             return (ENeg e', fs)
+    go acc (PNot e)     = do (e', fs) <- go acc e 
+                             return (PNot e', fs)
+    go acc (EBin b e1 e2) = do (e1', fs1) <- go [] e1 
+                               (e2', fs2) <- go [] e2
+                               return (EBin b e1' e2', fs1 ++ fs2 ++ acc) 
+    go acc (PAtom b e1 e2) = do (e1', fs1) <- go [] e1 
+                                (e2', fs2) <- go [] e2
+                                return (PAtom b e1' e2', fs1 ++ fs2 ++ acc) 
+    go acc (EIte e e1 e2) = do (e' , fs)  <- go [] e
+                               (e1', fs1) <- go [] e1 
+                               (e2', fs2) <- go [] e2
+                               return (EIte e' e1' e2', fs ++ fs1 ++ fs2 ++ acc) 
+    go acc (ECst e s)     = do (e', fs) <- go acc e
+                               return (ECst e' s, fs)
+    go acc (ETAbs e s)    = do (e', fs) <- go acc e 
+                               return (ETAbs e' s, fs)
+    go acc (ETApp e s)    = do (e', fs) <- go acc e 
+                               return (ETApp e' s, fs)
+    go acc (PAnd es)      = do es' <- mapM (go []) es
+                               return (PAnd (fst <$> es'), concat (acc:(snd <$> es')))
+    go acc (POr es)       = do es' <- mapM (go []) es
+                               return (POr (fst <$> es'),  concat (acc:(snd <$> es')))
+    go acc (PImp e1 e2)   = do (e1', fs1) <- go [] e1 
+                               (e2', fs2) <- go [] e2
+                               return (PImp e1' e2', fs1 ++ fs2 ++ acc) 
+    go acc (PIff e1 e2)   = do (e1', fs1) <- go [] e1 
+                               (e2', fs2) <- go [] e2
+                               return (PIff e1' e2', fs1 ++ fs2 ++ acc) 
+    go acc (PAll bs e)    = do (e', fs) <- go acc e 
+                               return (PAll bs e', fs) 
+    go acc (PExist bs e)  = do (e', fs) <- go acc e 
+                               return (PExist bs e', fs) 
+    go acc e@PGrad        = return (e, acc)
+    go acc e@(PKVar _ _)  = return (e, acc)
+
 -- NIKI: This is new code, check and formalize!
 
 
@@ -223,17 +373,19 @@ isSMTSymbol x = Thy.isTheorySymbol x || memberSEnv x initSMTEnv
 
 -- s_to_Int :: s -> Int
 
-makeApplication :: SMTEnv -> Expr -> [Expr] -> T.Text
-makeApplication env e es
-  = format "({} {})" (smt2 env f, smt2many ds)
+makeApplication :: Expr -> [Expr] -> SMT2 Expr 
+makeApplication e es
+  = do df  <- defunc f 
+       de  <- defunc e 
+       des <- mapM toInt es 
+       return $ eApps (EVar df) (de:des)
   where
-    f  = makeFunSymbol env e $ length es
-    ds = smt2 env e:(toInt env <$> es)
+    f  = makeFunSymbol e $ length es
 
 
-makeFunSymbol :: SMTEnv -> Expr -> Int -> Symbol
-makeFunSymbol _ e i
-  |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
+makeFunSymbol :: Expr -> Int -> Symbol
+makeFunSymbol e i
+  | (FApp (FTC c) _)          <- s, fTyconSymbol c == "Set_Set"
   = setApplyName i
   | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
   = mapApplyName i
@@ -253,20 +405,20 @@ makeFunSymbol _ e i
     dropArgs i (FFunc _ t) = dropArgs (i-1) t
     dropArgs _ _           = die $ err dummySpan "dropArgs: the impossible happened"
 
-toInt ::  SMTEnv -> Expr -> T.Text
-toInt env e
+toInt :: Expr -> SMT2 Expr 
+toInt e
   |  (FApp (FTC c) _)         <- s, fTyconSymbol c == "Set_Set"
-  = castWith env setToIntName e
+  = castWith setToIntName e
   | (FApp (FApp (FTC c) _) _) <- s, fTyconSymbol c == "Map_t"
-  = castWith env mapToIntName e
+  = castWith mapToIntName e
   | (FApp (FTC bv) (FTC s))   <- s, Thy.isBv bv, Just _ <- Thy.sizeBv s
-  = castWith env bitVecToIntName e
+  = castWith bitVecToIntName e
   | FTC c                     <- s, c == boolFTyCon
-  = castWith env boolToIntName e
+  = castWith boolToIntName e
   | FTC c                     <- s, c == realFTyCon
-  = castWith env realToIntName e
+  = castWith realToIntName e
   | otherwise
-  = smt2 env e
+  = defunc e
   where
     s = exprSort e
 
@@ -286,8 +438,11 @@ isSMTSort s
   = False
 
 
-castWith :: SMTEnv -> Symbol -> Expr -> T.Text
-castWith env s e = format "({} {})" (smt2 env s, smt2 env e)
+castWith :: Symbol -> Expr -> SMT2 Expr 
+castWith s e = 
+  do bs <- defunc s 
+     be <- defunc e
+     return $ EApp (EVar bs) be
 
 initSMTEnv = fromListSEnv $
   [ (setToIntName,    FFunc (setSort intSort)   intSort)
