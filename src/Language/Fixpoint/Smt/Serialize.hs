@@ -17,7 +17,7 @@ import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import qualified Data.Text                      as T
 import           Data.Text.Format               hiding (format)
-import           Language.Fixpoint.Misc (errorstar, traceShow)
+import           Language.Fixpoint.Misc (errorstar) -- , traceShow)
 
 import           Language.Fixpoint.SortCheck (elaborate)
 
