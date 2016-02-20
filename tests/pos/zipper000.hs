@@ -22,7 +22,7 @@ data Stack a = Stack { focus :: a
   listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
   @-}
 
-{-@ type UStack a = {v:Stack a |(Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v))))}@-}
+{-@ type UStack a = {v:Stack a | (Set_emp (Set_cap (listElts (getUp v)) (listElts (getDown v)))) }@-}
 
 {-@ measure getFocus :: forall a. (Stack a) -> a
     getFocus (Stack focus up down) = focus
