@@ -1,11 +1,13 @@
-{-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE PatternGuards    #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 --------------------------------------------------------------------------------
 -- | Solve a system of horn-clause constraints ---------------------------------
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Solver.Solve (solve) where
+module Language.Fixpoint.Solver.Solve (solve, gradualSolve ) where
 
 import           Control.Monad (filterM)
 import           Control.Monad.State.Strict (lift)
@@ -17,6 +19,7 @@ import qualified Language.Fixpoint.Solver.Solution as S
 import qualified Language.Fixpoint.Solver.Worklist as W
 import           Language.Fixpoint.Solver.Monad
 import           Language.Fixpoint.Solver.Graph (isTarget)
+import           Text.PrettyPrint.HughesPJ
 
 -- DEBUG
 import           Text.Printf
@@ -25,9 +28,10 @@ import           Control.DeepSeq
 
 import           Data.List  (sort)
 import           Data.Maybe (catMaybes)
+-- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.Result a)
+solve :: (NFData a, F.Fixpoint a) => Config -> F.Solution -> F.SInfo a -> IO (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 solve cfg s0 fi = do
     -- donePhase Loud "Worklist Initialize"
@@ -38,7 +42,7 @@ solve cfg s0 fi = do
   where
     wkl  = W.init fi
     n    = fromIntegral $ W.wRanks wkl
-    act  = solve_ fi s0 wkl
+    act  = solve_ cfg fi s0 wkl
 
 printStats :: F.SInfo a ->  W.Worklist a -> Stats -> IO ()
 printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
@@ -48,14 +52,14 @@ printStats fi w s = putStrLn "\n" >> ppTs [ ptable fi, ptable s, ptable w ]
 
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a)
-       => F.SInfo a -> F.Solution -> W.Worklist a
-       -> SolveM (F.Result a, Stats)
+       => Config -> F.SInfo a -> F.Solution -> W.Worklist a
+       -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
-solve_ fi s0 wkl = do
+solve_ cfg fi s0 wkl = do
   let s0'  = mappend s0 $ {-# SCC "sol-init" #-} S.init fi
   s       <- {-# SCC "sol-refine" #-} refine s0' wkl
   st      <- stats
-  res     <- {-# SCC "sol-result" #-} result wkl s
+  res     <- {-# SCC "sol-result" #-} result cfg wkl s
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
@@ -118,21 +122,24 @@ predKs _              = []
 ---------------------------------------------------------------------------
 -- | Convert Solution into Result -----------------------------------------
 ---------------------------------------------------------------------------
-result :: (F.Fixpoint a) => W.Worklist a -> F.Solution -> SolveM (F.Result a)
+result :: (F.Fixpoint a) => Config -> W.Worklist a -> F.Solution -> SolveM (F.Result (Integer, a))
 ---------------------------------------------------------------------------
-result wkl s = do
+result _ wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ wkl s
-  stat'   <- gradualSolve stat
-  return   $ F.Result (F.sinfo <$> stat') (F.solResult s)
+  -- stat'   <- gradualSolve cfg stat
+  lift $ print (F.sid <$> stat)
+  return   $ F.Result (ci <$> stat) (F.solResult s)
+  where
+    ci c = (F.subcId c, F.sinfo c)
+
 
 result_ :: W.Worklist a -> F.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_  w s   = res <$> filterM (isUnsat s) cs
+result_  w s = res <$> filterM (isUnsat s) cs
   where
-    cs         = W.unsatCandidates w
-    res []     = F.Safe
-    res cs'    = F.Unsafe cs'
-    -- isUnsat' c = lift progressTick >> isUnsat s c
+    cs       = W.unsatCandidates w
+    res []   = F.Safe
+    res cs'  = F.Unsafe cs'
 
 ---------------------------------------------------------------------------
 isUnsat :: F.Solution -> F.SimpC a -> SolveM Bool
@@ -141,7 +148,17 @@ isUnsat s c = do
   be    <- getBinds
   let lp = S.lhsPred be s c
   let rp = rhsPred        c
-  not   <$> isValid lp rp
+  res   <- not <$> isValid lp rp
+  lift   $ whenLoud $ showUnsat res (F.subcId c) lp rp
+  return res
+
+showUnsat :: Bool -> Integer -> F.Pred -> F.Pred -> IO ()
+showUnsat u i lP rP = {- when u $ -} do
+  putStrLn $ printf   "UNSAT id %s %s" (show i) (show u)
+  putStrLn $ showpp $ "LHS:" <+> pprint lP
+  putStrLn $ showpp $ "RHS:" <+> pprint rP
+
+
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to RHS of constraint in current solution
@@ -157,27 +174,19 @@ isValid p q = (not . null) <$> filterValid p [(q, ())]
 
 
 
-
-
-
-
-
-
-
-
 --------------------------------------------------------------------------------
 -- | RJ: @nikivazou please add some description here of what this does.
 --------------------------------------------------------------------------------
 gradualSolve :: (Fixpoint a)
-             => F.FixResult (F.SimpC a)
-            -> SolveM (F.FixResult (F.SimpC a))
-gradualSolve (F.Unsafe cs)
-  = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
+             => Config
+             -> F.FixResult (F.SimpC a)
+             -> SolveM (F.FixResult (F.SimpC a))
+gradualSolve cfg (F.Unsafe cs)
+  | gradual cfg   = go cs
   where
-    makeResult [] = F.Safe
-    makeResult cs = F.Unsafe cs
-gradualSolve r
-  = return r
+    go cs         = smtEnablrmbqi >> (makeResult . catMaybes <$> mapM gradualSolveOne cs)
+    makeResult    = applyNonNull F.Safe F.Unsafe
+gradualSolve _  r = return r
 
 gradualSolveOne :: (F.Fixpoint a) => F.SimpC a -> SolveM (Maybe (F.SimpC a))
 gradualSolveOne c =

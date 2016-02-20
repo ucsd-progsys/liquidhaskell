@@ -85,7 +85,7 @@ mcInfo c = do
                  , mcMaxPartSize = maxPartSize c
                  }
 
-partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
+partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result (Integer, a))
 partition cfg fi
   = do dumpPartitions cfg fis
        writeGraph      f   g

@@ -19,7 +19,8 @@ concatMapM :: (Monad m) => (a -> m [b]) -> [a] -> m [b]
 concatMapM f = fmap concat . mapM f
 
 ---------------------------------------------------------------------------
-minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a -> IO (Result a)
+minQuery :: (NFData a, Fixpoint a) => Config -> Solver a -> FInfo a
+         -> IO (Result (Integer, a))
 ---------------------------------------------------------------------------
 minQuery cfg solve fi = do
   let cfg'     = cfg { minimize = False }

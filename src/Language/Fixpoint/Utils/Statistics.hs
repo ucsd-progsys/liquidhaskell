@@ -17,7 +17,7 @@ import qualified Data.HashMap.Strict            as M
 import           Data.List (sort,group)
 import           Text.PrettyPrint.HughesPJ
 
-statistics :: Config -> F.FInfo a -> IO (F.Result a)
+statistics :: Config -> F.FInfo a -> IO (F.Result (Integer, a))
 statistics _ fi = do
   let (_, fis) = partition' Nothing fi
   putStrLn $ render $ pprint $ partitionStats fis

@@ -29,7 +29,7 @@ import           System.Exit                        (ExitCode (..))
 -- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 -- import           Text.Printf                        (printf)
-import           Control.Monad                      (when, void )
+import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
@@ -70,7 +70,7 @@ solveFQ cfg = do
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc . void
+    statStr = render . resultDoc . fmap fst
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------

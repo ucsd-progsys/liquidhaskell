@@ -61,6 +61,7 @@ data Config
     , save        :: Bool                -- ^ save FInfo as .bfq and .fq file
     , minimize    :: Bool                -- ^ use delta debug to min fq file
     -- , nontriv     :: Bool             -- ^ simplify using non-trivial sorts
+    , gradual     :: Bool                -- ^ solve "gradual" constraints
     } deriving (Eq,Data,Typeable,Show)
 
 
@@ -83,6 +84,7 @@ instance Default Config where
                , parts       = def
                , save        = def
                , minimize    = def
+               , gradual     = False
                }
 
 instance Command Config where
@@ -156,6 +158,7 @@ config = Config {
   , minPartSize = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
   , maxPartSize = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
   , minimize    = False &= help "Use delta debug to minimize fq file"
+  , gradual     = False &= help "Solve gradual-refinement typing constraints"
   }
   &= verbosity
   &= program "fixpoint"
