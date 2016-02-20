@@ -1,8 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -21,10 +19,12 @@ module Language.Fixpoint.Types.Constraints (
    -- * Top-level Queries
     FInfo, SInfo, GInfo (..)
   , convertFormat
+  , Solver
 
    -- * Serializing
   , toFixpoint
   , writeFInfo
+  , saveQuery
 
    -- * Constructing Queries
   , fi
@@ -41,17 +41,30 @@ module Language.Fixpoint.Types.Constraints (
   , sinfo
   , shiftVV
 
-  -- * Solutions
-  , FixSolution
-  , Result (..)
-
   -- * Qualifiers
   , Qualifier (..)
   , qualifier
+  , EQual (..)
+  , eQual
+
+  -- * Results
+  , FixSolution
+  , Result (..)
+
+  -- * Solutions
+  , Hyp
+  , Cube (..)
+  , QBind
+  , Cand
+  , Sol (..)
+  , Solution
+  , solFromList, solInsert, solLookup, solResult
 
   -- * Cut KVars
   , Kuts (..)
   , ksMember
+
+
 
   ) where
 
@@ -62,6 +75,7 @@ import           GHC.Generics              (Generic)
 import           Data.List                 (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
+import           Control.Monad             (void)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Config hiding (allowHO)
 import           Language.Fixpoint.Types.Names
@@ -71,6 +85,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
+import qualified Language.Fixpoint.Utils.Files as Files
 
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
@@ -294,7 +309,7 @@ instance PPrint Qualifier where
   pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
 
 
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> toFix p <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -447,3 +462,112 @@ blowOutVV fi i subc = fi { bs = be', cm = cm' }
     (bindId, be') = insertBindEnv x sr $ bs fi
     subc'         = subc { _senv = insertsIBindEnv [bindId] $ senv subc }
     cm'           = M.insert i subc' $ cm fi
+
+
+
+--------------------------------------------------------------------------------
+-- | Solutions (Instantiated Qualfiers )----------------------------------------
+--------------------------------------------------------------------------------
+
+data EQual = EQL { eqQual :: !Qualifier
+                 , eqPred :: !Expr
+                 , eqArgs :: ![Expr]
+                 }
+             deriving (Eq, Show, Data, Typeable, Generic)
+
+instance PPrint EQual where
+  pprint = pprint . eqPred
+
+instance NFData EQual
+
+{- EQL :: q:_ -> p:_ -> ListX F.Expr {q_params q} -> _ @-}
+eQual :: Qualifier -> [Symbol] -> EQual
+eQual q xs = EQL q p es
+  where
+    p      = subst su $  q_body q
+    su     = mkSubst  $  safeZip "eQual" qxs es
+    es     = eVar    <$> xs
+    qxs    = fst     <$> q_params q
+
+
+--------------------------------------------------------------------------------
+-- | Types ---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+type Solution = Sol QBind
+
+data Sol a = Sol { sMap :: M.HashMap KVar a
+                 , sHyp :: M.HashMap KVar Hyp
+                 }
+
+data Cube = Cube
+  { cuBinds :: IBindEnv
+  , cuSubst :: Subst
+  }
+
+type Hyp  = ListNE Cube
+
+type QBind    = [EQual]
+
+type Cand a   = [(Expr, a)]
+
+instance Monoid (Sol a) where
+  mempty        = Sol mempty mempty
+  mappend s1 s2 = Sol { sMap = mappend (sMap s1) (sMap s2)
+                      , sHyp = mappend (sHyp s1) (sHyp s2)
+                      }
+
+instance Functor Sol where
+  fmap f (Sol s h) = Sol (f <$> s) h
+
+instance PPrint a => PPrint (Sol a) where
+  pprint = pprint . sMap
+
+--------------------------------------------------------------------------------
+solResult :: Solution -> M.HashMap KVar Expr
+--------------------------------------------------------------------------------
+solResult s = sMap $ (pAnd . fmap eqPred) <$> s
+
+
+--------------------------------------------------------------------------------
+-- | Create a Solution ---------------------------------------------------------
+--------------------------------------------------------------------------------
+solFromList :: [(KVar, a)] -> [(KVar, Hyp)] -> Sol a
+solFromList kXs kYs = Sol (M.fromList kXs) (M.fromList kYs)
+
+--------------------------------------------------------------------------------
+-- | Read / Write Solution at KVar ---------------------------------------------
+--------------------------------------------------------------------------------
+solLookup :: Solution -> KVar -> QBind
+--------------------------------------------------------------------------------
+solLookup s k = M.lookupDefault [] k (sMap s)
+
+--------------------------------------------------------------------------------
+solInsert :: KVar -> a -> Sol a -> Sol a
+--------------------------------------------------------------------------------
+solInsert k qs s = s { sMap = M.insert k qs (sMap s) }
+
+---------------------------------------------------------------------------
+-- | Top level Solvers ----------------------------------------------------
+---------------------------------------------------------------------------
+type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
+
+--------------------------------------------------------------------------------
+saveQuery :: Config -> FInfo a -> IO ()
+--------------------------------------------------------------------------------
+saveQuery cfg fi = {- when (save cfg) $ -} do
+  let fi'  = void fi
+  saveBinaryQuery cfg fi'
+  saveTextQuery cfg   fi'
+
+saveBinaryQuery cfg fi = do
+  let bfq  = queryFile Files.BinFq cfg
+  putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
+  ensurePath bfq
+  B.encodeFile bfq fi
+
+saveTextQuery cfg fi = do
+  let fq   = queryFile Files.Fq cfg
+  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
+  ensurePath fq
+  writeFile fq $ render (toFixpoint cfg fi)

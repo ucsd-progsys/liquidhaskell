@@ -33,13 +33,14 @@ import           Language.Fixpoint.Misc    (groupList)
 import qualified Language.Fixpoint.Types.Config  as C 
 import           Language.Fixpoint.Types.Config  (Config, solver, linear, SMTSolver(Z3))
 import qualified Language.Fixpoint.Types   as F
+import           Language.Fixpoint.Types   (pprint)
 import qualified Language.Fixpoint.Types.Errors  as E
 import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Smt.Serialize (initSMTEnv)
-import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 import           Language.Fixpoint.Solver.Validate
-import           Language.Fixpoint.Solver.Solution
+-- import           Language.Fixpoint.Solver.Solution
 import           Data.Maybe           (isJust, catMaybes)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
@@ -72,13 +73,13 @@ stats0 fi = Stats nCs 0 0 0 0
   where
     nCs   = M.size $ F.cm fi
 
-instance PTable Stats where
-  ptable s = DocTable [ (text "# Constraints"         , pprint (numCstr s))
-                      , (text "# Refine Iterations"   , pprint (numIter s))
-                      , (text "# SMT Push & Pops"     , pprint (numBrkt s))
-                      , (text "# SMT Queries (Valid)" , pprint (numVald s))
-                      , (text "# SMT Queries (Total)" , pprint (numChck s))
-                      ]
+instance F.PTable Stats where
+  ptable s = F.DocTable [ (text "# Constraints"         , pprint (numCstr s))
+                        , (text "# Refine Iterations"   , pprint (numIter s))
+                        , (text "# SMT Push & Pops"     , pprint (numBrkt s))
+                        , (text "# SMT Queries (Valid)" , pprint (numVald s))
+                        , (text "# SMT Queries (Total)" , pprint (numChck s))
+                        ]
 
 ---------------------------------------------------------------------------
 runSolverM :: Config -> F.GInfo c b -> Int -> SolveM a -> IO a
@@ -90,7 +91,7 @@ runSolverM cfg fi' _ act = do
     return $ fst res
 
   where
-    acquire = makeContextWithSEnv lar (solver cfg) file env 
+    acquire = makeContextWithSEnv lar (solver cfg) file env
     release = cleanupContext
     be      = F.bs     fi
     file    = F.fileName fi -- (inFile cfg)
@@ -134,7 +135,7 @@ modifyStats f = modify $ \s -> s { ssStats = f (ssStats s) }
 ---------------------------------------------------------------------------
 -- | SMT Interface --------------------------------------------------------
 ---------------------------------------------------------------------------
-filterValid :: F.Expr -> Cand a -> SolveM [a]
+filterValid :: F.Expr -> F.Cand a -> SolveM [a]
 ---------------------------------------------------------------------------
 filterValid p qs = do
   qs' <- withContext $ \me ->
@@ -146,9 +147,7 @@ filterValid p qs = do
   incVald (length qs')
   return qs'
 
-
-
-filterValid_ :: F.Expr -> Cand a -> Context -> IO [a]
+filterValid_ :: F.Expr -> F.Cand a -> Context -> IO [a]
 filterValid_ p qs me = catMaybes <$> do
   smtAssert me p
   forM qs $ \(q, x) ->
@@ -159,13 +158,13 @@ filterValid_ p qs me = catMaybes <$> do
 
 
 smtEnablrmbqi
-  = withContext $ \me ->  
+  = withContext $ \me ->
             smtWrite me "(set-option :smt.mbqi true)"
 
 
-checkSat :: F.Expr -> SolveM  Bool 
-checkSat p 
-  = withContext $ \me ->  
+checkSat :: F.Expr -> SolveM  Bool
+checkSat p
+  = withContext $ \me ->
             smtBracket me $
              smtCheckSat me p
 
@@ -173,8 +172,8 @@ checkSat p
 declare :: F.GInfo c a -> SolveM ()
 ---------------------------------------------------------------------------
 declareInitEnv :: SolveM ()
-declareInitEnv = withContext $ \me -> do 
-                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me 
+declareInitEnv = withContext $ \me ->
+                   forM_ (F.toListSEnv initSMTEnv) $ uncurry $ smtDecl me
 
 declare fi  = withContext $ \me -> do
   xts      <- either E.die return $ declSymbols fi
@@ -194,7 +193,7 @@ declLiterals fi
    where
     notFun      = not . F.isFunctionSortedReft . (`F.RR` F.trueReft)   
     tess        = groupList [(t, F.expr x) | (x, t) <- F.toListSEnv $ F.lits fi, notFun t]
-                             
+
 declSymbols :: F.GInfo c a -> Either E.Error [(F.Symbol, F.Sort)]
 declSymbols = fmap dropThy . symbolSorts
   where

@@ -180,20 +180,19 @@ binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x t              = not (M.member x defs) || F.allowHO fi || isFirstOrder t
-    defs               = M.fromList $ F.toListSEnv $ F.lits fi
-
+    f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
+    defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
 ---------------------------------------------------------------------------
 -- | Drop functions from WfC environments
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropWfcFunctions fi | F.allowHO fi = fi 

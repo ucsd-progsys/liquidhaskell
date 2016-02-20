@@ -48,6 +48,7 @@ import           Data.Maybe (fromMaybe)
       | _                                 -> None
 
 -}
+
 instance SMTLIB2 Sort where
   smt2 s@(FFunc _ _)           = errorstar $ "smt2 FFunc: " ++ show s
   smt2 FInt                    = "Int"
@@ -163,7 +164,6 @@ instance SMTLIB2 Expr where
   defunc (PAtom r e1 e2)  = PAtom r <$> defunc e1 <*> defunc e2 
   defunc PGrad            = return PGrad
   defunc  e               = errorstar ("smtlib2 Pred  " ++ show e)
-
 
 defuncBop o e1 e2
   | o == Times, s1 == FReal, s2 == FReal

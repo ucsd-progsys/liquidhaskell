@@ -32,8 +32,7 @@ module Language.Fixpoint.Types.Environments (
   , BindEnv, beBinds
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
-  , unionIBindEnv
-
+  , unionIBindEnv, diffIBindEnv
   ) where
 
 -- import qualified Data.Binary as B
@@ -144,6 +143,10 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+
+diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
+
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m

@@ -23,24 +23,24 @@ import           Control.Concurrent
 import           Data.Binary
 -- import           Data.Maybe                         (fromMaybe)
 -- import           Data.List                          hiding (partition)
-import qualified Data.HashMap.Strict                as M
 -- import qualified Data.HashSet                       as S
 import           System.Exit                        (ExitCode (..))
 
-import           System.Console.CmdArgs.Verbosity   hiding (Loud)
+-- import           System.Console.CmdArgs.Verbosity   hiding (Loud)
 import           Text.PrettyPrint.HughesPJ          (render)
 -- import           Text.Printf                        (printf)
-import           Control.Monad                      (when, void, filterM, forM)
+import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
 
 import           Language.Fixpoint.Solver.Graph     -- (slice)
 import           Language.Fixpoint.Solver.Validate  (sanitize)
-import           Language.Fixpoint.Solver.Eliminate (eliminateAll)
+import qualified Language.Fixpoint.Solver.Eliminate as E
 -- import           Language.Fixpoint.Solver.Deps      -- (deps, GDeps (..))
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Solver.UniqifyKVars (wfcUniqify)
 import qualified Language.Fixpoint.Solver.Solve     as Sol
-import           Language.Fixpoint.Solver.Solution  (Solution)
+-- import           Language.Fixpoint.Solver.Solution  (Solution)
+
 import           Language.Fixpoint.Types.Config           (queryFile, multicore, Config (..))
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Utils.Files            hiding (Result)
@@ -50,13 +50,9 @@ import           Language.Fixpoint.Utils.Statistics (statistics)
 import           Language.Fixpoint.Partition        -- (mcInfo, partition, partition')
 import           Language.Fixpoint.Parse            (rr', mkQual)
 import           Language.Fixpoint.Types
+import           Language.Fixpoint.Minimize (minQuery)
 import           Control.DeepSeq
 
----------------------------------------------------------------------------
--- | Top level Solvers ----------------------------------------------------
----------------------------------------------------------------------------
-
-type Solver a = Config -> FInfo a -> IO (Result a)
 
 ---------------------------------------------------------------------------
 -- | Solve an .fq file ----------------------------------------------------
@@ -74,25 +70,23 @@ solveFQ cfg = do
   where
     file    = inFile       cfg
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc . void
+    statStr = render . resultDoc . fmap fst
 
 ---------------------------------------------------------------------------
 -- | Solve FInfo system of horn-clause constraints ------------------------
 ---------------------------------------------------------------------------
 solve :: (NFData a, Fixpoint a) => Solver a
 ---------------------------------------------------------------------------
-solve cfg fi
-  | parts cfg = partition  cfg               $!! fi
-  | stats cfg = statistics cfg               $!! fi
-  | minimize cfg = minimizeFQ cfg            $!! fi
-  | otherwise = do saveQuery cfg             $!! fi
-                   res <- sW solveNative cfg $!! fi
-                   return                    $!! res
-  where
-    sW        = configSW cfg
+solve cfg q
+  | parts cfg    = partition  cfg        $!! q
+  | stats cfg    = statistics cfg        $!! q
+  | minimize cfg = minQuery   cfg solve' $!! q
+  | otherwise    = solve'     cfg        $!! q
 
--- saveBin :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO ()
--- saveBin cfg fi = when (binary cfg) $ saveQuery cfg fi
+solve' :: (NFData a, Fixpoint a) => Solver a
+solve' cfg q = do
+  when (save cfg) $ saveQuery   cfg q
+  configSW  cfg     solveNative cfg q
 
 configSW :: (NFData a, Fixpoint a) => Config -> Solver a -> Solver a
 configSW cfg
@@ -104,7 +98,7 @@ readFInfo :: FilePath -> IO (FInfo ())
 ---------------------------------------------------------------------------
 readFInfo f        = fixFileName <$> act
   where
-    fixFileName fi = fi {fileName = f}
+    fixFileName q  = q {fileName = f}
     act
       | isBinary f = readBinFq f
       | otherwise  = readFq f
@@ -112,8 +106,8 @@ readFInfo f        = fixFileName <$> act
 readFq :: FilePath -> IO (FInfo ())
 readFq file = do
   str   <- readFile file
-  let fi = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
-  return fi
+  let q = {-# SCC "parsefq" #-} rr' file str :: FInfo ()
+  return q
 
 readBinFq :: FilePath -> IO (FInfo ())
 readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
@@ -177,7 +171,7 @@ solveNative' !cfg !fi0 = do
   -- let qs   = quals fi0
   -- whenLoud $ print qs
   let fi1  = fi0 { quals = remakeQual <$> quals fi0 }
-  whenLoud $ putStrLn $ showFix (quals fi1)
+  -- whenLoud $ putStrLn $ showFix (quals fi1)
   let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
@@ -189,7 +183,7 @@ solveNative' !cfg !fi0 = do
   let si3  = {-# SCC "renameAll" #-} renameAll $!! si2
   -- rnf si2 `seq` donePhase Loud "Uniqify"
   (s0, si4) <- {-# SCC "elim" #-} elim cfg $!! si3
-  writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
+  -- writeLoud $ "About to solve: \n" ++ render (toFixpoint cfg si4)
   res <- {-# SCC "Sol.solve" #-} Sol.solve cfg s0 $!! si4
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
@@ -202,11 +196,16 @@ solveNative' !cfg !fi0 = do
 
 elim :: (Fixpoint a) => Config -> SInfo a -> IO (Solution, SInfo a)
 elim cfg fi
-  | eliminate cfg = do let (s0, fi') = eliminateAll fi
-                       writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
-                       donePhase Loud "Eliminate"
-                       return (s0, fi')
-  | otherwise     = return (M.empty, fi)
+  | eliminate cfg = do
+      let (s0, fi') = E.eliminate fi
+      writeLoud $ "fq file after eliminate: \n" ++ render (toFixpoint cfg fi')
+      -- elimSolGraph cfg s0
+      donePhase Loud "Eliminate"
+      writeLoud $ "Solution after eliminate: \n" ++ showpp s0 -- toFixpoint cfg fi')
+      -- donePhase Loud "DonePrint"
+      return (s0, fi')
+  | otherwise     =
+      return (mempty, fi)
 
 remakeQual :: Qualifier -> Qualifier
 remakeQual q = {- traceShow msg $ -} mkQual (q_name q) (q_params q) (q_body q) (q_pos q)
@@ -221,7 +220,6 @@ resultExit :: FixResult a -> ExitCode
 resultExit Safe        = ExitSuccess
 resultExit (Unsafe _)  = ExitFailure 1
 resultExit _           = ExitFailure 2
-
 
 ---------------------------------------------------------------------------
 -- | Parse External Qualifiers --------------------------------------------
@@ -244,101 +242,9 @@ saveSolution cfg res = when (save cfg) $ do
   ensurePath f
   writeFile f $ "\nSolution:\n"  ++ showpp (resSolution res)
 
---------------------------------------------------------------------------------
-saveQuery :: Config -> FInfo a -> IO ()
---------------------------------------------------------------------------------
-saveQuery cfg fi = when (save cfg) $ do
-  let fi'  = void fi
-  saveBinaryQuery cfg fi'
-  saveTextQuery cfg   fi'
-
-saveBinaryQuery cfg fi = do
-  let bfq  = queryFile BinFq cfg
-  putStrLn $ "Saving Binary Query: " ++ bfq ++ "\n"
-  ensurePath bfq
-  encodeFile bfq fi
-
-saveTextQuery cfg fi = do
-  let fq   = queryFile Fq cfg
-  putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
-  ensurePath fq
-  writeFile fq $ render (toFixpoint cfg fi)
-
-
-isBinary :: FilePath -> Bool
-isBinary = isExtFile BinFq
-
 ---------------------------------------------------------------------------
 -- | Initialize Progress Bar
 ---------------------------------------------------------------------------
 withProgressFI :: FInfo a -> IO b -> IO b
 ---------------------------------------------------------------------------
 withProgressFI = withProgress . fromIntegral . gSccs . cGraph
-
-
----------------------------------------------------------------------------
--- | Delta Debugging minimization
----------------------------------------------------------------------------
-isUnsafe :: Result a -> Bool
-isUnsafe (Result Safe _)  = False
-isUnsafe _                = True
-
-type ConsList a = [(Integer, SubC a)]
-
--- polymorphic delta debugging implementation
-deltaDebug :: (Config -> FInfo a -> [c] -> IO Bool) -> Config -> FInfo a -> [c] -> [c] -> IO [c]
-deltaDebug testSet cfg finfo set r = do
-  let (s1, s2) = splitAt (length set `div` 2) set
-  if length set == 1
-    then return set
-    else do
-      test1 <- testSet cfg finfo (s1 ++ r)
-      if test1
-        then deltaDebug testSet cfg finfo s1 r
-        else do
-          test2 <- testSet cfg finfo (s2 ++ r)
-          if test2
-            then deltaDebug testSet cfg finfo s2 r
-            else do
-              d1 <- deltaDebug testSet cfg finfo s1 (s2 ++ r)
-              d2 <- deltaDebug testSet cfg finfo s2 (s1 ++ r)
-              return (d1 ++ d2)
-
-testConstraints :: (NFData a, Fixpoint a) => Config -> FInfo a -> ConsList a -> IO Bool
-testConstraints cfg fi cons  = do
-  let fi' = fi { cm = M.fromList cons }
-  res <- solve cfg fi'
-  return $ isUnsafe res
-
--- run delta debugging on a failing partition
--- to find minimal set of failing constraints
-getMinFailingCons :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (ConsList a)
-getMinFailingCons cfg fi = do
-  let cons = M.toList $ cm fi
-  deltaDebug testConstraints cfg fi cons []
-
-minimizeFQ :: (NFData a, Fixpoint a) => Config -> FInfo a -> IO (Result a)
-minimizeFQ cfg fi = do
-  let cfg' = cfg { minimize = False }
-  let (_, parts) = partition' Nothing fi
-
-  -- filter out partitions that aren't failing
-  failingParts <- flip filterM parts $ \part -> do
-    res <- solve cfg' part
-    return $ isUnsafe res
-
-  -- only run delta debugging on failing partitions
-  -- then append results together
-  partres <- forM failingParts (getMinFailingCons cfg')
-  let partres' = concat partres
-
-  -- create new minimized finfo file
-  let minfi = fi {
-    cm = M.fromList partres',
-    fileName = extFileName Min $ fileName fi
-  }
-
-  -- write minimized finfo file
-  writeFile (fileName minfi) $ render $ toFixpoint cfg' minfi
-
-  return Result { resStatus = Safe, resSolution = M.empty }

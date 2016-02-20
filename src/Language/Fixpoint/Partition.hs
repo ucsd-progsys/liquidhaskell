@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -22,20 +21,25 @@ module Language.Fixpoint.Partition (
   , GDeps (..)
   , deps
   -- , isReducible
+
+  -- * Debug
+  , elimSolGraph
   ) where
 
 import           GHC.Conc                  (getNumProcessors)
 import           Control.Monad             (when, forM_)
-import           GHC.Generics              (Generic)
+-- import           GHC.Generics              (Generic)
 import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint
 import qualified Language.Fixpoint.Types.Visitor      as V
-import qualified Language.Fixpoint.Types        as F
-import qualified Data.HashMap.Strict            as M
-import qualified Data.Graph                     as G
-import qualified Data.Tree                      as T
+import qualified Language.Fixpoint.Solver.Solution    as So
+import qualified Language.Fixpoint.Types              as F
+import           Language.Fixpoint.Types.Graphs
+import qualified Data.HashMap.Strict                  as M
+import qualified Data.Graph                           as G
+import qualified Data.Tree                            as T
 import           Data.Function (on)
 import           Data.Maybe                     (mapMaybe, fromMaybe)
 import           Data.Hashable
@@ -45,8 +49,6 @@ import qualified Data.HashSet              as S
 
 import Data.Graph.Inductive
 
--- import Data.Graph.Inductive.Dot
--- import Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -83,10 +85,10 @@ mcInfo c = do
                  , mcMaxPartSize = maxPartSize c
                  }
 
-partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result a)
+partition :: (F.Fixpoint a) => Config -> F.FInfo a -> IO (F.Result (Integer, a))
 partition cfg fi
   = do dumpPartitions cfg fis
-       dumpGraph      f   g
+       writeGraph      f   g
        return mempty
     where
       f        = queryFile Dot cfg
@@ -216,27 +218,6 @@ mkPartition' fi icM iwM j
 groupFun :: (Show k, Eq k, Hashable k) => M.HashMap k Int -> k -> Int
 groupFun m k = safeLookup ("groupFun: " ++ show k) k m
 
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-data CVertex = KVar  F.KVar  -- ^ real kvar vertex
-             | DKVar F.KVar  -- ^ dummy to ensure each kvar has a successor
-             | Cstr  Integer -- ^ constraint-id which creates a dependency
-               deriving (Eq, Ord, Show, Generic)
-
-instance PPrint CVertex where
-  pprint (KVar k)  = doubleQuotes $ pprint $ F.kv k
-  pprint (Cstr i)  = text "id_" <> pprint i
-  pprint (DKVar k) = pprint k   <> text "*"
-
-
-instance Hashable CVertex
-
-type CEdge    = (CVertex, CVertex)
-type KVGraph  = [(CVertex, CVertex, [CVertex])]
-type Comps a  = [[a]]
-type KVComps  = Comps CVertex
 
 -------------------------------------------------------------------------------
 decompose :: KVGraph -> KVComps
@@ -381,27 +362,6 @@ addCut f (Just (v, vs')) = mconcat $ dCut v : (sccDep f <$> sccs)
     sccs                 = G.stronglyConnCompR vs'
 
 --------------------------------------------------------------------------------
-dumpGraph :: FilePath -> KVGraph -> IO ()
---------------------------------------------------------------------------------
-dumpGraph f = writeFile f . render . ppGraph
-
-ppGraph :: KVGraph -> Doc
-ppGraph g = ppEdges [ (v, v') | (v,_,vs) <- g, v' <- vs]
-
-ppEdges :: [CEdge] -> Doc
-ppEdges             = vcat . wrap ["digraph Deps {"] ["}"]
-                           . map ppE
-                           . filter (not . isJunkEdge)
-  where
-    ppE (v, v')     = pprint v <+> "->" <+> pprint v'
-
-isJunkEdge :: CEdge -> Bool
-isJunkEdge (DKVar _, _)     = True
-isJunkEdge (_, DKVar _)     = True
-isJunkEdge (Cstr _, Cstr _) = True
-isJunkEdge _                = False
-
---------------------------------------------------------------------------------
 isReducible :: F.SInfo a -> Bool
 --------------------------------------------------------------------------------
 isReducible fi = all (isReducibleWithStart g) vs
@@ -445,16 +405,11 @@ subcEdges' :: (F.KVar -> Node) -> F.BindEnv -> F.SimpC a -> [(Node, Node)]
 subcEdges' kvI be c = [(kvI k1, kvI k2) | k1 <- V.envKVars be c
                                         , k2 <- V.kvars $ F.crhs c]
 
--- kvInt :: F.KVar -> Node
--- kvInt (F.KV k) = read $ drop 4 kStr
-  -- where
-    -- kStr = F.symbolString k
-
 --------------------------------------------------------------------------------
 graphStatistics :: Config -> F.SInfo a -> IO ()
 --------------------------------------------------------------------------------
 graphStatistics cfg si = when (elimStats cfg) $ do
-  dumpGraph f  (kvGraph si)
+  writeGraph f  (kvGraph si)
   appendFile f . ppc . ptable $ graphStats si
   where
     f     = queryFile Dot cfg
@@ -497,3 +452,12 @@ nlKVars fi = S.unions $ nlKVarsC bs <$> cs
 
 nlKVarsC :: (F.TaggedC c a) => F.BindEnv -> c a -> S.HashSet F.KVar
 nlKVarsC bs c = S.fromList [ k |  (k, n) <- V.envKVarsN bs c, n >= 2]
+
+--------------------------------------------------------------------------------
+-- | Build and print the graph of post eliminate solution, which has an edge
+--   from k -> k' if k' appears directly inside the "solution" for k
+--------------------------------------------------------------------------------
+elimSolGraph :: Config -> F.Solution -> IO ()
+elimSolGraph cfg s = writeGraph f (So.solutionGraph s)
+  where
+    f              = queryFile Dot cfg
