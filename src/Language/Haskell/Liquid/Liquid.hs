@@ -189,8 +189,8 @@ solveCs cfg tgt cgi info dc
                        }
        ferr s  = fmap (cinfoUserError s)
 
-cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
-cinfoUserError s =  e2u s . cinfoError
+cinfoUserError   :: F.FixSolution -> (a, Cinfo) -> UserError
+cinfoUserError s =  e2u s . cinfoError . snd
 
 e2u :: F.FixSolution -> Error -> UserError
 e2u s = fmap pprint . tidyError s

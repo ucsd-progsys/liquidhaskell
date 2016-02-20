@@ -101,12 +101,12 @@ refTopQuals lEnv l tce t0 γ t
       mkP   = mkPQual lEnv l tce t0 γ
       msg t = panic Nothing $ "Qualifier.refTopQuals: no typebase" ++ showpp t
 
-mkPQual lEnv l tce t0 γ t e = mkQual lEnv l γ' v so pa
+mkPQual lEnv l tce _ γ t e = mkQual lEnv l γ' v so pa
   where
-    v                  = "vv"
-    so                 = rTypeSort tce t
-    γ'                 = insertSEnv v so γ
-    pa                 = PAtom Eq (EVar v) e
+    v                      = "vv"
+    so                     = rTypeSort tce t
+    γ'                     = insertSEnv v so γ
+    pa                     = PAtom Eq (EVar v) e
 
 mkQual lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
   where
