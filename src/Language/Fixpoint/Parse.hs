@@ -216,6 +216,7 @@ expr0P
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reserved "_|_" >> return EBot)
+ <|> lamP
  <|> try (parens  exprP)
  <|> try (parens  exprCastP)
  <|> (charsExpr <$> symCharsP)
@@ -252,11 +253,12 @@ expr1P
 exprP :: Parser Expr
 exprP = buildExpressionParser bops expr1P
 
-funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP
+funAppP            =  (try litP) <|> (try exprFunSpacesP) <|> (try exprFunSemisP) <|> exprFunCommasP <|> simpleAppP
   where
     exprFunSpacesP = mkEApp <$> funSymbolP <*> sepBy1 expr0P blanks
     exprFunCommasP = mkEApp <$> funSymbolP <*> parens        (sepBy exprP comma)
     exprFunSemisP  = mkEApp <$> funSymbolP <*> parenBrackets (sepBy exprP semi)
+    simpleAppP     = EApp <$> (parens exprP) <*> (parens exprP)
     funSymbolP     = locParserP symbolP
 
 
@@ -287,6 +289,17 @@ exprCastP
        (try dcolon) <|> colon
        so <- sortP
        return $ ECst e so
+
+
+lamP
+  = do reserved "\\"
+       x <- symbolP
+       colon
+       t <- sortP
+       reserved "->"
+       e  <- exprP
+       return $ ELam (x, t) e
+
 
 dcolon = string "::" <* spaces
 
@@ -562,7 +575,7 @@ intP :: Parser Int
 intP = fromInteger <$> integer
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts kts qs mempty mempty False 
   where
     cm     = M.fromList       [(cid c, c)       | Cst c       <- defs]
     ws     = M.fromList       [(thd3 $ wrft w, w) | Wfc w     <- defs]

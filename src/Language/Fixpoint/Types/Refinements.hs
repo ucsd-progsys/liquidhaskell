@@ -188,7 +188,7 @@ data Constant = I !Integer
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Bop  = Plus | Minus | Times | Div | Mod
+data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv 
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -201,7 +201,8 @@ data Expr = ESym !SymConst
           | EBin !Bop !Expr !Expr
           | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
-          | ETApp !Expr !Sort
+          | ELam !(Symbol, Sort)   !Expr
+          | ETApp !Expr !Sort 
           | ETAbs !Expr !Symbol
 
 --- Used to be predicates
@@ -284,11 +285,13 @@ instance Fixpoint Brel where
   toFix Le  = text "<="
 
 instance Fixpoint Bop where
-  toFix Plus  = text "+"
-  toFix Minus = text "-"
-  toFix Times = text "*"
-  toFix Div   = text "/"
-  toFix Mod   = text "mod"
+  toFix Plus   = text "+"
+  toFix Minus  = text "-"
+  toFix RTimes = text "*."
+  toFix Times  = text "*"
+  toFix Div    = text "/"
+  toFix RDiv   = text "/."
+  toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
@@ -317,6 +320,7 @@ instance Fixpoint Expr where
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
   toFix PGrad            = text "??"
+  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e 
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -423,11 +427,13 @@ parensIf False = id
 -- sets the contextual precedence for recursive printer invocations to
 -- (prec p + 1).
 
-opPrec Mod   = 5
-opPrec Plus  = 6
-opPrec Minus = 6
-opPrec Times = 7
-opPrec Div   = 7
+opPrec Mod    = 5
+opPrec Plus   = 6
+opPrec Minus  = 6
+opPrec Times  = 7
+opPrec RTimes = 7
+opPrec Div    = 7
+opPrec RDiv   = 7
 
 instance PPrint Expr where
   pprintPrec _ (ESym c)        = pprint c
@@ -481,6 +487,7 @@ instance PPrint Expr where
     where za = 4
   pprintPrec _ (PAll xts p)    = pprintQuant "forall" xts p
   pprintPrec _ (PExist xts p)  = pprintQuant "exists" xts p
+  pprintPrec _ (ELam (x,t) e)  = text "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprint e
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s

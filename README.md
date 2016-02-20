@@ -109,6 +109,8 @@ See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 Options
 -------
 
+`--higherorder` allows higher order binders into the environment 
+
 `--extsolver` runs the **deprecated** external solver.
 
 `--parts` Partitions an `FInfo` into a `[FInfo]` and emits a bunch of files. So:

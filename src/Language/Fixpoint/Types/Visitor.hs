@@ -137,6 +137,7 @@ visitExpr v = vE
     step c (PIff p1 p2)    = PIff       <$> vE c p1 <*> vE c p2
     step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
     step c (PAll xts p)    = PAll   xts <$> vE c p
+    step c (ELam (x,t) e)  = ELam (x,t) <$> vE c e
     step c (PExist xts p)  = PExist xts <$> vE c p
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e

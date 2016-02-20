@@ -77,7 +77,7 @@ import           Data.Maybe                (catMaybes)
 import           Control.DeepSeq
 import           Control.Monad             (void)
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Config
+import           Language.Fixpoint.Types.Config hiding (allowHO)
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
@@ -246,15 +246,18 @@ instance (NFData a) => NFData (Result a)
 -- | "Smart Constructors" for Constraints ---------------------------------
 ---------------------------------------------------------------------------
 
-wfC :: IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x
-  | Reft (v, PKVar k su) <- sr_reft sr
-              = if isEmptySubst su
-                   then [WfC be (v, sr_sort sr, k) x]
-                   else errorstar msg
-  | otherwise = []
+wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
+wfC be sr x = if all isEmptySubst sus
+                then [WfC be (v, sr_sort sr, k) x | k <- ks]
+                else errorstar msg
   where
-    msg       = "wfKvar: malformed wfC " ++ show sr
+    msg             = "wfKvar: malformed wfC " ++ show sr
+    Reft (v, ras)   = sr_reft sr 
+    (ks, sus)       = unzip $ go ras 
+
+    go (PKVar k su) = [(k, su)]
+    go (PAnd es)    = [(k, su) | PKVar k su <- es]
+    go _            = [] 
 
 mkSubC = SubC
 
@@ -345,7 +348,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn
+fi cs ws binds ls ks qs bi fn aHO 
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -354,6 +357,7 @@ fi cs ws binds ls ks qs bi fn
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
+       , allowHO  = aHO 
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -374,12 +378,13 @@ data GInfo c a =
      , quals    :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
+     , allowHO  :: !Bool 
      }
   deriving (Eq, Show, Functor, Generic)
 
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False 
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -388,6 +393,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
+                     , allowHO  = allowHO i1 || allowHO i2 
                      }
 
 instance PTable (SInfo a) where

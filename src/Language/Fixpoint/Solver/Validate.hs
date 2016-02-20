@@ -16,8 +16,8 @@ module Language.Fixpoint.Solver.Validate
        where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
--- import           Language.Fixpoint.SortCheck        (isFirstOrder)
+import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC, mapKVars)
+import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM, errorstar)
 import qualified Language.Fixpoint.Types  as F
@@ -40,9 +40,35 @@ validate = errorstar "TODO: validate input"
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
-         >=> fM dropWfcFunctions
+         >=> fM dropWfcFunctions   
          >=>    checkRhsCs
          >=>    banQualifFreeVars
+         >=>    banConstraintFreeVars
+
+---------------------------------------------------------------------------
+-- | check that no constraint has free variables (ignores kvars)
+---------------------------------------------------------------------------
+banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
+  where
+    fi = mapKVars (const $ Just F.PTrue) fi0
+    bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
+
+cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
+cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
+  where
+    be = F.bs fi
+    lits = fst <$> (F.toListSEnv $ F.lits fi)
+    ids = F.elemsIBindEnv $ F.senv c
+    cDom = [fst $ F.lookupBindEnv i be | i <- ids]
+    cRng = concat [S.toList . freeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
+
+--TODO deduplicate (also in Solver/UniqifyBinds)
+freeVars :: F.Reft -> S.HashSet F.Symbol
+freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft
+
+badCs :: Misc.ListNE (F.SimpC a) -> E.Error
+badCs = E.catErrors . map (E.errFreeVarInConstraint . F.subcId)
 
 
 ---------------------------------------------------------------------------
@@ -52,16 +78,17 @@ banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
-    bads   = [ (q, xs) | q <- F.quals fi, let xs = isOk q, not (null xs) ]
+    bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
     lits   = fst <$> F.toListSEnv (F.lits fi)
-    isOk q = S.toList $ F.syms (F.q_body q) `isSubset` (lits ++ F.syms (fst <$> F.q_params q))
+    free q = S.toList $ F.syms (F.q_body q) `nubDiff` (lits ++ F.syms (fst <$> F.q_params q))
 
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
 badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
 
--- True if first is a subset of second
-isSubset a b = a' `S.difference` b'
+-- Null if first is a subset of second
+nubDiff :: [F.Symbol] -> [F.Symbol] -> S.HashSet F.Symbol
+nubDiff a b = a' `S.difference` b'
   where
     a' = S.fromList a
     b' = S.fromList b
@@ -160,20 +187,21 @@ dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x _  = not (isLit x) -- OLD: || isFirstOrder x
-    isLit  = (`M.member` defs)
+    f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
     defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------
 -- | Drop functions from WfC environments
 --------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
+dropWfcFunctions fi | F.allowHO fi = fi 
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
     nonFunction   = isNothing . F.functionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
+
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo
