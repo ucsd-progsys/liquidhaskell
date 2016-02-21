@@ -25,10 +25,12 @@ data Stack a = Stack { focus :: a
     getDown (Stack focus up down) = down
   @-}
 
+data Foo a b = J | P a b
+
 --------------------------------------------------------------------------------------
 {-@ focusUp :: UStack a -> UStack a @-}
 focusUp :: Stack a -> Stack a
 focusUp (Stack t [] rs) = Stack xiggety xs []
   where
-    xiggety : xs = t : rs
+    P xiggety xs = P t rs
 --------------------------------------------------------------------------------------
