@@ -36,8 +36,6 @@ height (Node l _) = 1 + height l
 
 {-@ using (Tree a) as  {v:Tree a | 0 <= height v} @-}
 
-
-
 -- | Vector stores the height
 
 data Vec a = Vec { vShift  :: Int    -- ^ height
