@@ -53,7 +53,7 @@ import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats, hi
 import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result)
+import Language.Fixpoint.Types             hiding (Error, Result, saveQuery)
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc

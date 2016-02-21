@@ -187,7 +187,7 @@ solveCs cfg tgt cgi info dc
                        , FC.elimStats   = elimStats   cfg
                        -- , FC.stats   = True
                        }
-       ferr s  = fmap (cinfoUserError s)
+       ferr s  = fmap (cinfoUserError s . snd)
 
 cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
 cinfoUserError s =  e2u s . cinfoError
