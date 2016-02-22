@@ -8,6 +8,7 @@ https://github.com/clojure/clojure/blob/d5708425995e8c83157ad49007ec2f8f43d8eac8
 module PVec (arrayFor) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssume)
+import qualified Data.Vector as V
 
 import Data.Bits
 
@@ -16,7 +17,7 @@ import Data.Bits
 --   The height is _never_ computed and so can be eliminated at run-time.
 
 data Tree a = Leaf a
-            | Node Int [Tree a]
+            | Node Int (V.Vector (Tree a))
 
 
 -- | Specify "height" of a tree
@@ -30,13 +31,13 @@ height (Node h ls) = 1 + h
 
 {-@ data Tree a = Leaf a
                 | Node { ht   :: Nat
-                       , kids :: ListN (TreeH a ht) 32
+                       , kids :: VectorN (TreeH a ht) 32
                        }
   @-}
 
 -- | ListN is a list of a given size N
 
-{-@ type ListN a N     = {v:[a] | len v = N }            @-}
+{-@ type VectorN a N     = {v:V.Vector a | vlen v = N }  @-}
 
 -- | TreeH is a tree of given height H
 
@@ -95,7 +96,7 @@ mask x y = liquidAssume (0 <= r && r <= y) r
 
 {-@ getNode :: t:NodeT a -> {v:Nat | v <= 31} -> {v:Tree a | height v = height t - 1}  @-}
 getNode :: Tree a -> Int -> Tree a
-getNode (Node h ts) n = ts !! n
+getNode (Node _ ts) n = ts V.! n
 getNode _           _ = impossible "provably safe"
 
 {-@ getValue :: LeafT a -> a @-}
