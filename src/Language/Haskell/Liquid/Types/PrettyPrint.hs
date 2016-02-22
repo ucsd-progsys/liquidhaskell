@@ -46,9 +46,9 @@ pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
 pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . L.sort
 
 --------------------------------------------------------------------------------
-pprintLongList :: PPrint a => [a] -> Doc
+pprintLongList :: PPrint a => Tidy -> [a] -> Doc
 --------------------------------------------------------------------------------
-pprintLongList = brackets . vcat . map pprint
+pprintLongList k = brackets . vcat . map (pprintTidy k)
 
 
 --------------------------------------------------------------------------------
@@ -62,57 +62,66 @@ pprintSymbol x = char '‘' <> pprint x <> char '’'
 --------------------------------------------------------------------------------
 instance PPrint ErrMsg where
   pprint = text . show
+  pprintTidy _ = pprint
 
 instance PPrint SourceError where
   pprint = text . show
+  pprintTidy _ = pprint
 
 instance PPrint Var where
   pprint = pprDoc
+  pprintTidy _ = pprint
 
 instance PPrint Name where
   pprint = pprDoc
+  pprintTidy _ = pprint
 
 instance PPrint TyCon where
   pprint = pprDoc
+  pprintTidy _ = pprint
 
 instance PPrint Type where
   pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
+  pprintTidy _ = pprint
 
 instance PPrint Class where
   pprint = pprDoc
+  pprintTidy _ = pprint
 
 instance Show Predicate where
   show = showpp
 
 instance (PPrint t) => PPrint (Annot t) where
-  pprint (AnnUse t) = text "AnnUse" <+> pprint t
-  pprint (AnnDef t) = text "AnnDef" <+> pprint t
-  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
-  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+  pprint = pprintTidy Full
+  pprintTidy k (AnnUse t) = text "AnnUse" <+> pprintTidy k t
+  pprintTidy k (AnnDef t) = text "AnnDef" <+> pprintTidy k t
+  pprintTidy k (AnnRDf t) = text "AnnRDf" <+> pprintTidy k t
+  pprintTidy _ (AnnLoc l) = text "AnnLoc" <+> pprDoc l
 
 instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
+  pprintTidy k (AI m) = vcat $ pprAnnInfoBinds k <$> M.toList m
+  pprint = pprintTidy Full
 
 instance PPrint a => Show (AnnInfo a) where
   show = showpp
 
-pprAnnInfoBinds (l, xvs)
-  = vcat $ map (pprAnnInfoBind . (l,)) xvs
+pprAnnInfoBinds k (l, xvs)
+  = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
 
-pprAnnInfoBind (RealSrcSpan k, xv)
-  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
+pprAnnInfoBind k (RealSrcSpan sp, xv)
+  = xd $$ pprDoc l $$ pprDoc c $$ pprintTidy k n $$ vd $$ text "\n\n\n"
     where
-      l        = srcSpanStartLine k
-      c        = srcSpanStartCol k
-      (xd, vd) = pprXOT xv
+      l        = srcSpanStartLine sp
+      c        = srcSpanStartCol sp
+      (xd, vd) = pprXOT k xv
       n        = length $ lines $ render vd
 
-pprAnnInfoBind (_, _)
+pprAnnInfoBind _ (_, _)
   = empty
 
-pprXOT (x, v) = (xd, pprint v)
+pprXOT k (x, v) = (xd, pprintTidy k v)
   where
-    xd = maybe (text "unknown") pprint x
+    xd = maybe (text "unknown") (pprintTidy k) x
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -331,9 +340,10 @@ ppRefSym s  = pprint s
 dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (MkUReft r p _)
-    | isTauto r  = pprint p
-    | isTauto p  = pprint r
-    | otherwise  = pprint p <> text " & " <> pprint r
+  pprint = pprintTidy Full
+  pprintTidy k (MkUReft r p _)
+    | isTauto r  = pprintTidy k p
+    | isTauto p  = pprintTidy k r
+    | otherwise  = pprintTidy k p <> text " & " <> pprintTidy k r
 
 --------------------------------------------------------------------------------

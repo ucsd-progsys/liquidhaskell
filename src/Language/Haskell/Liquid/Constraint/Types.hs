@@ -114,6 +114,7 @@ instance Monoid LConstraint where
 
 instance PPrint CGEnv where
   pprint = pprint . renv
+  pprintTidy k = pprintTidy k . renv
 
 instance Show CGEnv where
   show = showpp
@@ -146,17 +147,19 @@ instance PPrint SubC where
   --           $+$ (text " |- " <+> (pprint (lhs c) $+$
   --                                 text "<:"      $+$
   --                                 pprint (rhs c)))
-  pprint c@(SubC {}) = pprint (senv c)
-                       $+$ ("||-" <+> vcat [ pprint (lhs c)
-                                           , "<:"
-                                           , pprint (rhs c) ] )
-  pprint c@(SubR {}) = pprint (senv c)
-                       $+$ ("||-" <+> vcat [ pprint (ref c)
-                                           , parens (pprint (oblig c))])
+  pprint = pprintTidy F.Full
+  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
+                             $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
+                                                 , "<:"
+                                                 , pprintTidy k (rhs c) ] )
+  pprintTidy k c@(SubR {}) = pprint (senv c)
+                             $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
+                                                 , parens (pprintTidy k (oblig c))])
 
 
 instance PPrint WfC where
-  pprint (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprint r
+  pprint = pprintTidy F.Full
+  pprintTidy k (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprintTidy k r
 
 instance SubStratum SubC where
   subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
@@ -194,13 +197,14 @@ data CGInfo = CGInfo {
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
-  , allowHO    :: !Bool  
+  , allowHO    :: !Bool
   }
 
 instance PPrint CGInfo where
-  pprint cgi =  {-# SCC "ppr_CGI" #-} pprCGInfo cgi
+  pprint     = pprintTidy F.Full
+  pprintTidy = pprCGInfo
 
-pprCGInfo _cgi
+pprCGInfo _ _cgi
   =  text "*********** Constraint Information ***********"
   -- -$$ (text "*********** Haskell SubConstraints ***********")
   -- -$$ (pprintLongList $ hsCs  cgi)

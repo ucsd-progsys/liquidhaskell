@@ -66,6 +66,7 @@ import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages
 import           GHC.Stack
 
 instance PPrint ParseError where
+  pprintTidy _ = pprint
   pprint e = vcat $ tail $ map text ls
     where
       ls = lines $ showErrorMessages "or" "unknown parse error"
@@ -147,7 +148,8 @@ instance Show Oblig where
 instance NFData Oblig
 
 instance PPrint Oblig where
-  pprint = ppOblig
+  pprint       = ppOblig
+  pprintTidy _ = pprint
 
 ppOblig :: Oblig -> Doc
 ppOblig OCons = text "Constraint Check"
@@ -346,6 +348,7 @@ instance PPrint SrcSpan where
                         sdoc (Out.mkUserStyle
                               Out.alwaysQualify
                               Out.AllTheWay)
+  pprintTidy _ = pprint
 
 instance PPrint UserError where
   pprint       = pprintTidy Full

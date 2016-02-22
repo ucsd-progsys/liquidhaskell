@@ -76,22 +76,24 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
     rt'      = subst su rt
 
 instance PPrint TyConP where
-  pprint (TyConP vs ps ls _ _ _)
-    = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-      (parens $ hsep (punctuate comma (map pprint ps))) <+>
-      (parens $ hsep (punctuate comma (map pprint ls)))
+  pprint = pprintTidy Full
+  pprintTidy k (TyConP vs ps ls _ _ _)
+    = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
+      (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
+      (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint (DataConP _ vs ps ls cs yts t _)
-     = (parens $ hsep (punctuate comma (map pprint vs))) <+>
-       (parens $ hsep (punctuate comma (map pprint ps))) <+>
-       (parens $ hsep (punctuate comma (map pprint ls))) <+>
-       (parens $ hsep (punctuate comma (map pprint cs))) <+>
-       (parens $ hsep (punctuate comma (map pprint yts))) <+>
-       pprint t
+  pprint = pprintTidy Full
+  pprintTidy k (DataConP _ vs ps ls cs yts t _)
+     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))  <+>
+       (parens $ hsep (punctuate comma (pprintTidy k <$> yts))) <+>
+       pprintTidy k t
 
 instance Show DataConP where
   show = showpp
