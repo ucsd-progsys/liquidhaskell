@@ -505,10 +505,9 @@ reqFile ext s
   = Nothing
 
 instance PPrint GhcSpec where
-  pprint            = pprintTidy Full
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
-    , pprint $ tgtVars spec
+    , pprintTidy k $ tgtVars spec
     , "******* Type Signatures *********************"
     , pprintLongList k (tySigs spec)
     , "******* Assumed Type Signatures *************"
@@ -519,7 +518,6 @@ instance PPrint GhcSpec where
     , pprintLongList k (meas spec)                   ]
 
 instance PPrint GhcInfo where
-  pprint = pprintTidy Full
   pprintTidy _ info = vcat
     [ "*************** Imports *********************"
     , intersperse comma $ text <$> imports info
@@ -542,7 +540,6 @@ instance Show GhcInfo where
   show = showpp
 
 instance PPrint TargetVars where
-  pprint                 = pprintTidy Lossy
   pprintTidy _ AllVars   = text "All Variables"
   pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
 

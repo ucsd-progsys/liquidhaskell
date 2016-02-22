@@ -141,7 +141,7 @@ dumpCs cgi = do
   putStrLn $ render $ pprintMany (hsWfs cgi)
 
 pprintMany :: (PPrint a) => [a] -> Doc
-pprintMany xs = vcat [ pprint x $+$ text " " | x <- xs ]
+pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
@@ -193,7 +193,7 @@ cinfoUserError   :: F.FixSolution -> (a, Cinfo) -> UserError
 cinfoUserError s =  e2u s . cinfoError . snd
 
 e2u :: F.FixSolution -> Error -> UserError
-e2u s = fmap pprint . tidyError s
+e2u s = fmap F.pprint . tidyError s
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where

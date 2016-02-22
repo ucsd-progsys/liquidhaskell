@@ -225,7 +225,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
       | x == y    = (x, mXY x tx y ty) : merge xs ys
       | x <  y    = xt : merge xs (yt : ys)
       | otherwise = yt : merge (xt : xs) ys
-    mXY x tx y ty = meetVarTypes (pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
+    mXY x tx y ty = meetVarTypes (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
 refreshHoles' (x,t)
@@ -326,7 +326,7 @@ initCGI cfg info = CGInfo {
   , recCount   = 0
   , bindSpans  = M.empty
   , autoSize   = autosize spc
-  , allowHO    = higherorder cfg   
+  , allowHO    = higherorder cfg
   }
   where
     tce        = tcEmbeds spc
@@ -445,7 +445,7 @@ makeDecrIndexTy x t
        ts         = ty_args trep
        checkHint' = \autosz -> checkHint x ts (isDecreasing autosz cenv)
        dindex     = \autosz -> L.findIndex    (isDecreasing autosz cenv) ts
-       msg        = ErrTermin (getSrcSpan x) [pprint x] (text "No decreasing parameter")
+       msg        = ErrTermin (getSrcSpan x) [F.pprint x] (text "No decreasing parameter")
        cenv       = makeNumEnv ts
        trep       = toRTypeRep $ unOCons t
 
@@ -467,9 +467,9 @@ checkIndex (x, vs, t, index)
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg1  = ErrTermin loc [xd] ("No decreasing" <+>  pprint index <> "-th argument on" <+> xd <+> "with" <+> (pprint vs))
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
        msg2  = ErrTermin loc [xd] "No decreasing parameter"
-       xd    = pprint x
+       xd    = F.pprint x
 
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
@@ -508,7 +508,7 @@ checkHint x _ _ (Just ns) | L.sort ns /= ns
   = addWarning (ErrTermin loc [dx] (text "The hints should be increasing")) >> return Nothing
   where
     loc = getSrcSpan x
-    dx  = pprint x
+    dx  = F.pprint x
 
 checkHint x ts f (Just ns)
   = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
@@ -518,11 +518,11 @@ checkValidHint x ts f n
   | f (ts L.!! n)           = return $ Just n
   | otherwise               = addWarning err >> return Nothing
   where
-    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> pprint (n+1) <+> "for" <+> xd
+    err = ErrTermin loc [xd] (vcat [ "Invalid Hint" <+> F.pprint (n+1) <+> "for" <+> xd
                                    , "in"
-                                   , pprint ts ])
+                                   , F.pprint ts ])
     loc = getSrcSpan x
-    xd  = pprint x
+    xd  = F.pprint x
 
 --------------------------------------------------------------------------------
 consCBLet :: CGEnv -> CoreBind -> CG CGEnv
@@ -593,7 +593,7 @@ consCBSizedTys γ xes
        return γ'
   where
        (xs, es)       = unzip xes
-       dxs            = pprint <$> xs
+       dxs            = F.pprint <$> xs
        collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
@@ -922,7 +922,7 @@ consE :: CGEnv -> Expr Var -> CG SpecType
 --------------------------------------------------------------------------------
 
 -- NV this is a hack to type polymorphic axiomatized functions
--- no need to check this code with flag, the axioms environment withh 
+-- no need to check this code with flag, the axioms environment withh
 -- be empty if there is no axiomatization
 
 consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
@@ -934,16 +934,16 @@ consE γ e'@(App e@(Var x) (Type τ)) | (M.member x $ aenv γ)
        return $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
 
 {-
-consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β 
+consE γ (Lam β (e'@(App e@(Var x) (Type τ)))) | (M.member x $ aenv γ) && isTyVar β
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) <$> consE γ e
        t          <- if isGeneric α te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt  <- instantiatePreds γ e' $ subsTyVar_meet' (α, t') te
-       return $ RAllT (rTyVar β) 
+       return $ RAllT (rTyVar β)
                   $ strengthenS tt (singletonReft (M.lookup x $ aenv γ) x)
 -}
--- NV END HACK 
+-- NV END HACK
 
 consE γ (Var x)
   = do t <- varRefType γ x
@@ -1001,12 +1001,12 @@ consE γ e'@(App e a)
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') te''
        pushConsBind      $ cconsE γ' a tx
        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-       {- 
+       {-
        tt <- addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-       let rr = case (argExpr γ e, argExpr γ a) of 
+       let rr = case (argExpr γ e, argExpr γ a) of
                  (Just e', Just a') -> uTop $ F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) (F.EApp e' a'))
                  _                  -> mempty
-       return $ tt `strengthen` rr 
+       return $ tt `strengthen` rr
        -}
 
 
