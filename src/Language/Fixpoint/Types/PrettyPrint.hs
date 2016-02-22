@@ -70,7 +70,7 @@ class PPrint a where
   pprint :: a -> Doc
   -- pprint = pprintPrec 0
 
-   pprintTidy :: Tidy -> a -> Doc
+  pprintTidy :: Tidy -> a -> Doc
   -- pprintTidy _ = pprint
 
   -- | Pretty-print something with a specific precedence.
