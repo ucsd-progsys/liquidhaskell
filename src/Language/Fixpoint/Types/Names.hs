@@ -195,10 +195,8 @@ mappendSym s1 s2 = textSymbol $ mappend s1' s2'
       s1'        = symbolText s1
       s2'        = symbolText s2
 
-
-
 instance PPrint Symbol where
-  pprint = text . symbolString
+  pprintTidy _ = text . symbolString
 
 instance Fixpoint T.Text where
   toFix = text . T.unpack

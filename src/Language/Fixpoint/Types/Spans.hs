@@ -19,7 +19,7 @@ module Language.Fixpoint.Types.Spans (
   , locAt
   , dummyLoc
   , dummyPos
-  , atLoc 
+  , atLoc
 
   -- * Destructing spans
   , sourcePosElts
@@ -65,7 +65,7 @@ instance Serialize SourcePos where
   get = toSourcePos <$> get
 
 instance PPrint SourcePos where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance Hashable SourcePos where
   hashWithSalt i   = hashWithSalt i . sourcePosElts
@@ -95,7 +95,7 @@ data Located a = Loc { loc  :: !SourcePos -- ^ Start Position
                      , val  :: a
                      } deriving (Data, Typeable, Generic)
 
-instance Loc (Located a) where 
+instance Loc (Located a) where
   srcSpan (Loc l l' _) = SS l l'
 
 
@@ -118,7 +118,7 @@ instance Show a => Show (Located a) where
   show (Loc l l' x) = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
 
 instance PPrint a => PPrint (Located a) where
-  pprint (Loc _ _ x) = pprint x
+  pprintTidy k (Loc _ _ x) = pprintTidy k x
 
 instance Eq a => Eq (Located a) where
   (Loc _ _ x) == (Loc _ _ y) = x == y
@@ -146,7 +146,7 @@ data SrcSpan = SS { sp_start :: !SourcePos
 instance Serialize SrcSpan
 
 instance PPrint SrcSpan where
-  pprint = ppSrcSpan
+  pprintTidy _ = ppSrcSpan
 
 -- ppSrcSpan_short z = parens
 --                   $ text (printf "file %s: (%d, %d) - (%d, %d)" (takeFileName f) l c l' c')
@@ -169,7 +169,7 @@ dummySpan = SS l l
   where l = initialPos ""
 
 atLoc :: Located a -> b -> Located b
-atLoc (Loc l l' _) x = Loc l l' x
+atLoc (Loc l l' _) = Loc l l'
 
 locAt :: String -> a -> Located a
 locAt s  = Loc l l

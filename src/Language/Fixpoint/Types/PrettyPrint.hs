@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts   #-}
 {-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Language.Fixpoint.Types.PrettyPrint where
 
@@ -66,18 +67,18 @@ instance Fixpoint Double where
 
 data Tidy = Lossy | Full deriving (Eq, Ord)
 
+-- | Implement either `pprintTidy` or `pprintPrec`
 class PPrint a where
-  pprint :: a -> Doc
-  -- pprint = pprintPrec 0
 
   pprintTidy :: Tidy -> a -> Doc
-  -- pprintTidy _ = pprint
+  pprintTidy = pprintPrec 0
 
-  -- | Pretty-print something with a specific precedence.
-  pprintPrec :: Int -> a -> Doc
-  pprintPrec _ = pprint
+  pprintPrec :: Int -> Tidy -> a -> Doc
+  pprintPrec _ = pprintTidy
 
-
+-- | Top-level pretty printer
+pprint :: (PPrint a) => a -> Doc
+pprint = pprintPrec 0 Full
 
 showpp :: (PPrint a) => a -> String
 showpp = render . pprint
@@ -86,30 +87,29 @@ tracepp :: (PPrint a) => String -> a -> a
 tracepp s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showpp x) x
 
 instance PPrint Doc where
-  pprint = id
+  pprintTidy _ = id
 
 instance PPrint a => PPrint (Maybe a) where
-  pprint = maybe (text "Nothing") ((text "Just" <+>) . pprint)
+  pprintTidy k = maybe (text "Nothing") ((text "Just" <+>) . pprintTidy k)
 
 instance PPrint a => PPrint [a] where
-  pprint = brackets . intersperse comma . map pprint
+  pprintTidy k = brackets . intersperse comma . map (pprintTidy k)
 
 instance PPrint a => PPrint (S.HashSet a) where
-  pprint = pprint . S.toList
+  pprintTidy k = pprintTidy k . S.toList
 
 instance (PPrint a, PPrint b) => PPrint (M.HashMap a b) where
-  pprint       = pprintKVs . M.toList
-  pprintTidy k = pprintKVsTidy k . M.toList  
+  pprintTidy k = pprintKVs k . M.toList
 
-pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
-pprintKVs = pprintKVsTidy Full 
+-- pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
+-- pprintKVs = pprintKVsTidy Full
 
 -- vcat . punctuate (text "\n") . map pp1
 --   where
 --     pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
 
-pprintKVsTidy   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
-pprintKVsTidy t = vcat . punctuate (text "\n") . map pp1
+pprintKVs   :: (PPrint k, PPrint v) => Tidy -> [(k, v)] -> Doc
+pprintKVs t = vcat . punctuate (text "\n") . map pp1
   where
     pp1 (x,y) = pprintTidy t x <+> text ":=" <+> pprintTidy t y
 
@@ -118,32 +118,34 @@ pprintKVsTidy t = vcat . punctuate (text "\n") . map pp1
 
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
-  pprint (x, y, z)  = parens $ pprint x <> text "," <> pprint y <> text "," <> pprint z
+  pprintTidy k (x, y, z)  = parens $ pprintTidy k x <> "," <+>
+                                     pprintTidy k y <> "," <+>
+                                     pprintTidy k z
 
 
 instance (PPrint a, PPrint b) => PPrint (a,b) where
-  pprint (x, y)  = pprint x <+> text ":" <+> pprint y
+  pprintTidy k (x, y)  = pprintTidy k x <+> ":" <+> pprintTidy k y
 
 instance PPrint Bool where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint Float where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint () where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint String where
-  pprint = text
+  pprintTidy _ = text
 
 instance PPrint Int where
-  pprint = tshow
+  pprintTidy _ = tshow
 
 instance PPrint Integer where
-  pprint = integer
+  pprintTidy _ = integer
 
 instance PPrint T.Text where
-  pprint = text . T.unpack
+  pprintTidy _ = text . T.unpack
 
 newtype DocTable = DocTable [(Doc, Doc)]
 
@@ -155,13 +157,13 @@ class PTable a where
   ptable :: a -> DocTable
 
 instance PPrint DocTable where
-  pprint (DocTable kvs) = boxDoc $ B.hsep 1 B.left [ks', cs', vs']
+  pprintTidy _ (DocTable kvs) = boxDoc $ B.hsep 1 B.left [ks', cs', vs']
     where
-      (ks, vs)          = unzip kvs
-      n                 = length kvs
-      ks'               = B.vcat B.left  $ docBox <$> ks
-      vs'               = B.vcat B.right $ docBox <$> vs
-      cs'               = B.vcat B.left  $ replicate n $ B.text ":"
+      (ks, vs)                = unzip kvs
+      n                       = length kvs
+      ks'                     = B.vcat B.left  $ docBox <$> ks
+      vs'                     = B.vcat B.right $ docBox <$> vs
+      cs'                     = B.vcat B.left  $ replicate n $ B.text ":"
 
 boxHSep :: Doc -> Doc -> Doc
 boxHSep d1 d2 = boxDoc $ B.hcat B.top [docBox d1, docBox d2]
