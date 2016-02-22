@@ -126,8 +126,8 @@ type OkRT c tv r = ( TyConable c
                    , Reftable r
                    , Reftable (RTProp c tv ())
                    , Reftable (RTProp c tv r)
-                   , RefTypable c tv ()
-                   , RefTypable c tv r
+                   -- , RefTypable c tv ()
+                   -- , RefTypable c tv r
                    )
 
 --------------------------------------------------------------------------------

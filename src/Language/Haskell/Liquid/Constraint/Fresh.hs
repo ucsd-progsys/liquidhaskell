@@ -53,13 +53,13 @@ instance Freshable m Integer => Freshable m Strata where
   refresh [] = fresh
   refresh s  = return s
 
-instance (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => Freshable m (RRType r) where
+instance (Freshable m Integer, Freshable m r, Reftable r {-, RefTypable RTyCon RTyVar r -}) => Freshable m (RRType r) where
   fresh   = panic Nothing "fresh RefType"
   refresh = refreshRefType
   true    = trueRefType
 
 -----------------------------------------------------------------------------------------------
-trueRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
+trueRefType :: (Freshable m Integer, Freshable m r, Reftable r {-, RefTypable RTyCon RTyVar r -}) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 trueRefType (RAllT α t)
   = RAllT α <$> true t
@@ -100,7 +100,7 @@ trueRef (RProp s t) = RProp s <$> trueRefType t
 
 
 -----------------------------------------------------------------------------------------------
-refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r, RefTypable RTyCon RTyVar r) => RRType r -> m (RRType r)
+refreshRefType :: (Freshable m Integer, Freshable m r, Reftable r {-, RefTypable RTyCon RTyVar r -}) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 refreshRefType (RAllT α t)
   = RAllT α <$> refresh t

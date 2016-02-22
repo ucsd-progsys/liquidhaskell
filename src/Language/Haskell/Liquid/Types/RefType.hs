@@ -155,8 +155,8 @@ uTop r          = MkUReft r mempty mempty
 
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
-         , RefTypable c tv ()
-         , RefTypable c tv r
+         -- , RefTypable c tv ()
+         -- , RefTypable c tv r
          , OkRT c tv r
          , FreeVar c tv
          )
@@ -168,8 +168,8 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
          , OkRT c tv r
-         , RefTypable c tv r
-         , RefTypable c tv ()
+         -- , RefTypable c tv r
+         -- , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ()))
          => Monoid (RTProp c tv r) where
@@ -189,8 +189,8 @@ instance ( SubsTy tv (RType c tv ()) c
 
 
 instance ( OkRT c tv r
-         , RefTypable c tv r
-         , RefTypable c tv ()
+         -- , RefTypable c tv r
+         -- , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c) => Reftable (RTProp c tv r) where
@@ -267,7 +267,7 @@ instance FreeVar LocSymbol Symbol where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance (RefTypable c tv ()) => Eq (RType c tv ()) where
+instance {- (RefTypable c tv ()) => -} Eq (RType c tv ()) where
   (==) = eqRSort M.empty
 
 eqRSort m (RAllP _ t) (RAllP _ t')
@@ -380,19 +380,19 @@ nlzP _ t
  = panic Nothing $ "RefType.nlzP: cannot handle " ++ show t
 
 strengthenRefTypeGen, strengthenRefType ::
-         ( RefTypable c tv ()
-         , RefTypable c tv r
-         , OkRT c tv r
+         (  OkRT c tv r
+           -- , RefTypable c tv ()
+           -- , RefTypable c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          ) => RType c tv r -> RType c tv r -> RType c tv r
 
 strengthenRefType_ ::
-         ( RefTypable c tv ()
-         , RefTypable c tv r
+         ( OkRT c tv r
+         -- , RefTypable c tv ()
+         -- , RefTypable c tv r
          -- , PPrint (RType c tv r)
-         , OkRT c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -577,7 +577,7 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 
-generalize :: (RefTypable c tv r) => RType c tv r -> RType c tv r
+generalize :: {- (RefTypable c tv r) => -} RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
 
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -1104,7 +1104,7 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance (OkRT c tv r) => PPrint (RType c tv r) where
-  pprint     = pprintTidy Full -- ppRType TopPrec
+  pprint     = pprintTidy Lossy -- Full -- ppRType TopPrec
   pprintTidy = rtypeDoc
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
