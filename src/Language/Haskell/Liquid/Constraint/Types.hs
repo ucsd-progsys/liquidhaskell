@@ -113,7 +113,6 @@ instance Monoid LConstraint where
 
 
 instance PPrint CGEnv where
-  pprint = pprint . renv
   pprintTidy k = pprintTidy k . renv
 
 instance Show CGEnv where
@@ -147,18 +146,16 @@ instance PPrint SubC where
   --           $+$ (text " |- " <+> (pprint (lhs c) $+$
   --                                 text "<:"      $+$
   --                                 pprint (rhs c)))
-  pprint = pprintTidy F.Full
   pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
                              $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
                                                  , "<:"
                                                  , pprintTidy k (rhs c) ] )
-  pprintTidy k c@(SubR {}) = pprint (senv c)
+  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
                              $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
                                                  , parens (pprintTidy k (oblig c))])
 
 
 instance PPrint WfC where
-  pprint = pprintTidy F.Full
   pprintTidy k (WfC _ r) = {- pprint w <> text -} "<...> |-" <+> pprintTidy k r
 
 instance SubStratum SubC where
@@ -201,7 +198,6 @@ data CGInfo = CGInfo {
   }
 
 instance PPrint CGInfo where
-  pprint     = pprintTidy F.Full
   pprintTidy = pprCGInfo
 
 pprCGInfo _ _cgi
