@@ -411,23 +411,23 @@ ppFull Full  d = d
 ppFull Lossy _ = empty
 
 ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
-ppReqInContext k tA tE c
+ppReqInContext _ tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV :" <+> pprintTidy k tA]
+                , text "VV :" <+> pprintTidy Lossy tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV :" <+> pprintTidy k tE]
+                , text "VV :" <+> pprintTidy Lossy tE]
       , nests 2 [ text "In Context"
-                , pprintTidy k c                 ]]
+                , pprintTidy Lossy c                 ]]
 
 
 ppPropInContext :: (PPrint p, PPrint c) => Tidy -> p -> c -> Doc
-ppPropInContext k p c
+ppPropInContext _ p c
   = sepVcat blankLine
       [ nests 2 [ text "Property"
-                , pprintTidy k p]
+                , pprintTidy Lossy p]
       , nests 2 [ text "Not provable in context"
-                , pprintTidy k c                 ]]
+                , pprintTidy Lossy c                 ]]
 
 {-
 pprintCtx :: (PTable c) => c -> Doc
