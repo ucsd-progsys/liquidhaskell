@@ -22,7 +22,7 @@ import Data.Monoid
 import qualified Data.List           as L
 import qualified Data.HashMap.Strict as M
 
-import Language.Fixpoint.Types (Symbol, TCEmb, meet)
+import Language.Fixpoint.Types (pprint, Symbol, TCEmb, meet)
 
 import Language.Haskell.Liquid.GHC.Misc (sourcePos2SrcSpan, symbolTyVar)
 import Language.Haskell.Liquid.Types.PredType (dataConPSpecType)

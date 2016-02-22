@@ -110,15 +110,15 @@ rsplitW γ (RProp ss t0)
        splitW $ WfC γ' t0
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
-bsplitW γ t = 
-  do pflag <- pruneRefs <$> get 
-     isHO  <- allowHO   <$> get  
+bsplitW γ t =
+  do pflag <- pruneRefs <$> get
+     isHO  <- allowHO   <$> get
      return $ bsplitW' γ t pflag isHO
 
 bsplitW' γ t pflag isHO
-  | isHO || F.isNonTrivial r' 
+  | isHO || F.isNonTrivial r'
   = F.wfC (feBinds $ fenv γ) r' ci
-  | otherwise         
+  | otherwise
   = []
   where
     r'                = rTypeSortedReft' pflag γ t
@@ -393,14 +393,14 @@ checkStratum γ t1 t2
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
-bsplitC' γ t1 t2 pflag isHO 
- | isHO 
+bsplitC' γ t1 t2 pflag isHO
+ | isHO
  = F.subC γ' r1'  r2' Nothing tag ci
- | F.isFunctionSortedReft r1' && F.isNonTrivial r2'    
- = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci   
- | F.isNonTrivial r2'    
- = F.subC γ' r1'  r2' Nothing tag ci      
- | otherwise   
+ | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
+ = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+ | F.isNonTrivial r2'
+ = F.subC γ' r1'  r2' Nothing tag ci
+ | otherwise
  = []
   where
     γ'  = feBinds $ fenv γ
@@ -489,4 +489,4 @@ envToSub = go []
 -- | Constraint Generation Panic -----------------------------------------------
 --------------------------------------------------------------------------------
 panicUnbound :: (PPrint x) => CGEnv -> x -> a
-panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (pprint x) :: Error)
+panicUnbound γ x = Ex.throw $ (ErrUnbound (getLocation γ) (F.pprint x) :: Error)
