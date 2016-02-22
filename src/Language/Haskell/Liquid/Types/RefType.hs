@@ -1103,8 +1103,9 @@ instance Show RTyVar where
 instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
-instance (RefTypable c tv r) => PPrint (RType c tv r) where
-  pprint = ppRType TopPrec
+instance (OkRT c tv r) => PPrint (RType c tv r) where
+  pprint     = pprintTidy Full -- ppRType TopPrec
+  pprintTidy = rtypeDoc
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
   show = showpp
@@ -1113,5 +1114,5 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprint re = text "RENV" $+$ 
+  pprint re = text "RENV" $+$
               pprint (reLocal re)

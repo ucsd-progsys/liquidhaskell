@@ -9,6 +9,7 @@
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
     OkRT
+
     -- * Printers
   , rtypeDoc
   , ppr_rtype
@@ -185,7 +186,11 @@ ppr_rtype bb p (RRTy e r o t)
 ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
-ppTyConB bb
+ppTyConB bb z = tracepp msg $ ppTyConB' bb z
+  where
+    msg = "ppTyConB bb = " ++ show bb
+
+ppTyConB' bb
   | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
   | otherwise  = ppTycon
 

@@ -349,7 +349,7 @@ instance PPrint SrcSpan where
 
 instance PPrint UserError where
   pprint       = pprintTidy Full
-  pprintTidy k = ppError k empty . fmap pprint
+  pprintTidy k = ppError k empty . fmap (pprintTidy k)
 
 instance Show UserError where
   show = showpp
@@ -410,24 +410,24 @@ ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
 ppFull Lossy _ = empty
 
-ppReqInContext :: (PPrint t, PPrint c) => t -> t -> c -> Doc
-ppReqInContext tA tE c
+ppReqInContext :: (PPrint t, PPrint c) => Tidy -> t -> t -> c -> Doc
+ppReqInContext k tA tE c
   = sepVcat blankLine
       [ nests 2 [ text "Inferred type"
-                , text "VV :" <+> pprint tA]
+                , text "VV :" <+> pprintTidy k tA]
       , nests 2 [ text "not a subtype of Required type"
-                , text "VV :" <+> pprint tE]
+                , text "VV :" <+> pprintTidy k tE]
       , nests 2 [ text "In Context"
-                , pprint c                 ]]
+                , pprintTidy k c                 ]]
 
 
-ppPropInContext :: (PPrint p, PPrint c) => p -> c -> Doc
-ppPropInContext p c
+ppPropInContext :: (PPrint p, PPrint c) => Tidy -> p -> c -> Doc
+ppPropInContext k p c
   = sepVcat blankLine
       [ nests 2 [ text "Property"
-                , pprint p]
+                , pprintTidy k p]
       , nests 2 [ text "Not provable in context"
-                , pprint c                 ]]
+                , pprintTidy k c                 ]]
 
 {-
 pprintCtx :: (PTable c) => c -> Doc
@@ -508,17 +508,17 @@ ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 ppError' td dSp dCtx (ErrAssType _ o _ c p)
   = dSp <+> pprint o
         $+$ dCtx
-        $+$ (ppFull td $ ppPropInContext p c)
+        $+$ (ppFull td $ ppPropInContext td p c)
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext td tA tE c)
 
 ppError' td  dSp dCtx (ErrFCrash _ _ c tA tE)
   = dSp <+> text "Fixpoint Crash on Constraint"
         $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext tA tE c)
+        $+$ (ppFull td $ ppReqInContext td tA tE c)
 
 ppError' _ dSp dCtx (ErrParse _ _ e)
   = dSp <+> text "Cannot parse specification:"
