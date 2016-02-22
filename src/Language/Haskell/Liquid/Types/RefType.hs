@@ -11,6 +11,7 @@
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE ImplicitParams            #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -66,6 +67,7 @@ module Language.Haskell.Liquid.Types.RefType (
 
   ) where
 
+import           GHC.Stack
 import Prelude hiding (error)
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
@@ -1080,8 +1082,11 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance (OkRT c tv r) => PPrint (RType c tv r) where
-  -- RJ: THIS IS THE CRUCIAL LINE pprint     = pprintTidy Lossy -- Full -- ppRType TopPrec
-  pprintTidy = rtypeDoc
+  -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
+  pprintTidy _ = rtypeDoc Lossy
+
+-- ppHack :: (?callStack :: CallStack) => a -> b
+-- ppHack _ = errorstar "OOPS"
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
   show = showpp

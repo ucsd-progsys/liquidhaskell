@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Types.PrettyPrint
 
     -- * Printers
   , rtypeDoc
-  , ppr_rtype
 
   -- * Printing Lists (TODO: move to fixpoint)
   , pprManyOrdered
@@ -142,6 +141,10 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
     ppE Lossy = ppEnvShort ppEnv
     ppE Full  = ppEnv
 
+instance PPrint Tidy where
+  pprintTidy _ Full  = "Full"
+  pprintTidy _ Lossy = "Lossy"
+
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
@@ -190,11 +193,7 @@ ppr_rtype bb p (RRTy e r o t)
 ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
-ppTyConB bb z = tracepp msg $ ppTyConB' bb z
-  where
-    msg = "ppTyConB bb = " ++ show bb
-
-ppTyConB' bb
+ppTyConB bb
   | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
 

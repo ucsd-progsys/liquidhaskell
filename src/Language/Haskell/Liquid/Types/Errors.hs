@@ -308,7 +308,7 @@ data TError t =
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
 
-  deriving (Typeable, Generic, Functor)
+  deriving (Typeable, Generic , Functor )
 
 instance NFData ParseError where
   rnf t = seq t ()
@@ -348,7 +348,7 @@ instance PPrint SrcSpan where
                               Out.AllTheWay)
 
 instance PPrint UserError where
-  pprintTidy k = ppError k empty . fmap (pprintTidy k)
+  pprintTidy k = ppError k empty . fmap (pprintTidy Lossy)
 
 instance Show UserError where
   show = showpp
