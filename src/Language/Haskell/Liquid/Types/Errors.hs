@@ -52,7 +52,7 @@ import           Data.Maybe
 import           Text.PrettyPrint.HughesPJ
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (showpp, Tidy (..), PPrint (..), Symbol, Expr, Reft)
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr, Reft)
 import           Language.Fixpoint.Misc (dcolon)
 import           Language.Haskell.Liquid.Misc (intToString)
 import           Text.Parsec.Error            (ParseError)
@@ -66,12 +66,11 @@ import           Text.Parsec.Error (ParseError, errorMessages, showErrorMessages
 import           GHC.Stack
 
 instance PPrint ParseError where
-  pprintTidy _ = pprint
-  pprint e = vcat $ tail $ map text ls
+  pprintTidy _ e = vcat $ tail $ text <$> ls
     where
-      ls = lines $ showErrorMessages "or" "unknown parse error"
-                                     "expecting" "unexpected" "end of input"
-                                     (errorMessages e)
+      ls         = lines $ showErrorMessages "or" "unknown parse error"
+                               "expecting" "unexpected" "end of input"
+                               (errorMessages e)
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -148,8 +147,7 @@ instance Show Oblig where
 instance NFData Oblig
 
 instance PPrint Oblig where
-  pprint       = ppOblig
-  pprintTidy _ = pprint
+  pprintTidy _ = ppOblig
 
 ppOblig :: Oblig -> Doc
 ppOblig OCons = text "Constraint Check"
@@ -341,17 +339,15 @@ instance Ex.Error (TError a) where
 type UserError  = TError Doc
 
 instance PPrint SrcSpan where
-  pprint = text . showSDoc . Out.ppr
+  pprintTidy _ = text . showSDoc . Out.ppr
      where
         showSDoc sdoc = Out.renderWithStyle
                         unsafeGlobalDynFlags
                         sdoc (Out.mkUserStyle
                               Out.alwaysQualify
                               Out.AllTheWay)
-  pprintTidy _ = pprint
 
 instance PPrint UserError where
-  pprint       = pprintTidy Full
   pprintTidy k = ppError k empty . fmap (pprintTidy k)
 
 instance Show UserError where
@@ -431,22 +427,6 @@ ppPropInContext _ p c
                 , pprintTidy Lossy p]
       , nests 2 [ text "Not provable in context"
                 , pprintTidy Lossy c                 ]]
-
-{-
-pprintCtx :: (PTable c) => c -> Doc
-pprintCtx = pprint . ptable
-
-instance (PPrint a, PPrint b) => PTable (M.HashMap a b) where
-  ptable t = DocTable [ (pprint k, pprint v) | (k, v) <- M.toList t]
-
-
-pprintKVs :: (PPrint k, PPrint v) => [(k, v)] -> Doc
-pprintKVs = vcat . punctuate (text "\n") . map pp1
-  where
-    pp1 (x,y) = pprint x <+> text ":=" <+> pprint y
--}
-
-
 
 instance ToJSON RealSrcSpan where
   toJSON sp = object [ "filename"  .= f  -- (unpackFS $ srcSpanFile sp)

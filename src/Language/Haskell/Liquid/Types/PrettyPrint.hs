@@ -61,38 +61,32 @@ pprintSymbol x = char '‘' <> pprint x <> char '’'
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
 instance PPrint ErrMsg where
-  pprint = text . show
-  pprintTidy _ = pprint
+  pprintTidy _ = text . show
 
 instance PPrint SourceError where
-  pprint = text . show
-  pprintTidy _ = pprint
+  pprintTidy _ = text . show
 
 instance PPrint Var where
-  pprint = pprDoc
-  pprintTidy _ = pprint
+  pprintTidy _ = pprDoc
 
 instance PPrint Name where
-  pprint = pprDoc
-  pprintTidy _ = pprint
+  pprintTidy _ = pprDoc
 
 instance PPrint TyCon where
-  pprint = pprDoc
-  pprintTidy _ = pprint
+  pprintTidy Lossy = shortModules . pprDoc
+  pprintTidy Full  =                pprDoc
 
 instance PPrint Type where
-  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
-  pprintTidy _ = pprint
+  pprintTidy _ = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
 
 instance PPrint Class where
-  pprint = pprDoc
-  pprintTidy _ = pprint
+  pprintTidy Lossy = shortModules . pprDoc
+  pprintTidy Full  =                pprDoc
 
 instance Show Predicate where
   show = showpp
 
 instance (PPrint t) => PPrint (Annot t) where
-  pprint = pprintTidy Full
   pprintTidy k (AnnUse t) = text "AnnUse" <+> pprintTidy k t
   pprintTidy k (AnnDef t) = text "AnnDef" <+> pprintTidy k t
   pprintTidy k (AnnRDf t) = text "AnnRDf" <+> pprintTidy k t
@@ -100,7 +94,6 @@ instance (PPrint t) => PPrint (Annot t) where
 
 instance PPrint a => PPrint (AnnInfo a) where
   pprintTidy k (AI m) = vcat $ pprAnnInfoBinds k <$> M.toList m
-  pprint = pprintTidy Full
 
 instance PPrint a => Show (AnnInfo a) where
   show = showpp
@@ -204,8 +197,11 @@ ppTyConB bb z = tracepp msg $ ppTyConB' bb z
     msg = "ppTyConB bb = " ++ show bb
 
 ppTyConB' bb
-  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
+  | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
+
+shortModules :: Doc -> Doc
+shortModules = text . symbolString . dropModuleNames . symbol . render
 
 ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
@@ -340,7 +336,6 @@ ppRefSym s  = pprint s
 dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint = pprintTidy Full
   pprintTidy k (MkUReft r p _)
     | isTauto r  = pprintTidy k p
     | isTauto p  = pprintTidy k r

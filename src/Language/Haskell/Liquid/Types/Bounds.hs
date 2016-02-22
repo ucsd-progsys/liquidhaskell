@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Haskell.Liquid.Types.Bounds (
 
@@ -48,28 +49,27 @@ type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
 
 
 instance Hashable (Bound t e) where
-        hashWithSalt i = hashWithSalt i . bname
+  hashWithSalt i = hashWithSalt i . bname
 
 instance Eq (Bound t e) where
-  b1 == b2 = (bname b1) == (bname b2)
+  b1 == b2 = bname b1 == bname b2
 
 instance (PPrint e, PPrint t) => (Show (Bound t e)) where
-        show = showpp
+  show = showpp
 
 
 instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
-        pprint (Bound s vs ps xs e) =   text "bound" <+> pprint s <+>
-                                        text "forall" <+> pprint vs <+> text "." <+>
-                                        pprint (fst <$> ps) <+> text "=" <+>
-                                        pprint_bsyms (fst <$> xs) <+> pprint e
-
-pprint_bsyms [] = text ""
-pprint_bsyms xs = text "\\" <+> pprint xs <+> text "->"
+  pprintTidy k (Bound s vs ps xs e) = "bound" <+> pprintTidy k s <+>
+                                      "forall" <+> pprintTidy k vs <+> "." <+>
+                                      pprintTidy k (fst <$> ps) <+> "=" <+>
+                                      ppBsyms k (fst <$> xs) <+> pprintTidy k e
+    where
+      ppBsyms _ [] = ""
+      ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
 
 instance Bifunctor Bound where
-        first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
-        second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
-
+  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
+  second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 makeBound :: (PPrint r, UReftable r)
           => RRBound RSort -> [RRType r] -> [Symbol] -> (RRType r) -> (RRType r)
@@ -120,7 +120,7 @@ partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 
 isPApp penv (EApp (EVar p) _)  = isJust $ lookup p penv
-isPApp penv (EApp e _)         = isPApp penv e 
+isPApp penv (EApp e _)         = isPApp penv e
 isPApp _    _                  = False
 
 toUsedPVars penv q@(EApp _ e) = (x, [toUsedPVar penv q])
@@ -141,7 +141,7 @@ toUsedPVar penv ee@(EApp _ _)
      EVar e = unProp $ last es
      es'    = init es
      Just q = lookup p penv
-     (EVar p, es) = splitEApp ee 
+     (EVar p, es) = splitEApp ee
 
 toUsedPVar _ _ = impossible Nothing "This cannot happen"
 

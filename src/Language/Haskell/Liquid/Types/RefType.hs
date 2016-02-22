@@ -1104,7 +1104,7 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance (OkRT c tv r) => PPrint (RType c tv r) where
-  pprint     = pprintTidy Lossy -- Full -- ppRType TopPrec
+  -- RJ: THIS IS THE CRUCIAL LINE pprint     = pprintTidy Lossy -- Full -- ppRType TopPrec
   pprintTidy = rtypeDoc
 
 instance PPrint (RType c tv r) => Show (RType c tv r) where
@@ -1114,5 +1114,4 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
 instance PPrint REnv where
-  pprint re = text "RENV" $+$
-              pprint (reLocal re)
+  pprintTidy k re = "RENV" $+$ pprintTidy k (reLocal re)

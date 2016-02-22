@@ -76,7 +76,6 @@ dataConPSpecType dc (DataConP _ vs ps ls cs yts rt _) = mkArrow vs ps ls ts' rt'
     rt'      = subst su rt
 
 instance PPrint TyConP where
-  pprint = pprintTidy Full
   pprintTidy k (TyConP vs ps ls _ _ _)
     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
@@ -86,7 +85,6 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprint = pprintTidy Full
   pprintTidy k (DataConP _ vs ps ls cs yts t _)
      = (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))  <+>
        (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))  <+>

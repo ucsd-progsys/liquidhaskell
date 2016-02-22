@@ -771,7 +771,8 @@ instance Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
 
 instance PPrint RTyCon where
-  pprint = text . showPpr . rtc_tc
+  pprintTidy _ = text . showPpr . rtc_tc
+
 
 instance Show RTyCon where
   show = showpp
@@ -1286,14 +1287,14 @@ instance Show Stratum where
   show (SVar s) = show s
 
 instance PPrint Stratum where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint Strata where
-  pprint [] = empty
-  pprint ss = hsep (pprint <$> nub ss)
+  pprintTidy _ [] = empty
+  pprintTidy k ss = hsep (pprintTidy k <$> nub ss)
 
 instance PPrint (PVar a) where
-  pprint = ppr_pvar
+  pprintTidy _ = ppr_pvar
 
 ppr_pvar :: PVar a -> Doc
 ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
@@ -1302,8 +1303,8 @@ ppr_pvar (PV s _ _ xts) = pprint s <+> hsep (pprint <$> dargs xts)
 
 
 instance PPrint Predicate where
-  pprint (Pr [])       = text "True"
-  pprint (Pr pvs)      = hsep $ punctuate (text "&") (map pprint pvs)
+  pprintTidy _ (Pr [])  = text "True"
+  pprintTidy k (Pr pvs) = hsep $ punctuate (text "&") (pprintTidy k <$> pvs)
 
 
 -- | The type used during constraint generation, used
@@ -1419,23 +1420,25 @@ data CMeasure ty = CM
   } deriving (Data, Typeable, Generic, Functor)
 
 instance PPrint Body where
-  pprint (E e)   = pprint e
-  pprint (P p)   = pprint p
-  pprint (R v p) = braces (pprint v <+> text "|" <+> pprint p)
+  pprintTidy k (E e)   = pprintTidy k e
+  pprintTidy k (P p)   = pprintTidy k p
+  pprintTidy k (R v p) = braces (pprintTidy k v <+> "|" <+> pprintTidy k p)
 
 instance PPrint a => PPrint (Def t a) where
-  pprint (Def m p c _ bs body) = pprint m <+> pprint (fst <$> p) <+> cbsd <> text " = " <> pprint body
-    where cbsd = parens (pprint c <> hsep (pprint `fmap` (fst <$> bs)))
+  pprintTidy k (Def m p c _ bs body)
+           = pprintTidy k m <+> pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> pprintTidy k body
+    where
+      cbsd = parens (pprintTidy k c <> hsep (pprintTidy k `fmap` (fst <$> bs)))
 
 instance (PPrint t, PPrint a) => PPrint (Measure t a) where
-  pprint (M n s eqs) =  pprint n <> text " :: " <> pprint s
-                     $$ vcat (pprint `fmap` eqs)
+  pprintTidy k (M n s eqs) =  pprintTidy k n <+> "::" <+> pprintTidy k s
+                              $$ vcat (pprintTidy k `fmap` eqs)
 
 instance PPrint (Measure t a) => Show (Measure t a) where
   show = showpp
 
 instance PPrint t => PPrint (CMeasure t) where
-  pprint (CM n s) =  pprint n <> text " :: " <> pprint s
+  pprintTidy k (CM n s) =  pprintTidy k n <+> "::" <+> pprintTidy k s
 
 instance PPrint (CMeasure t) => Show (CMeasure t) where
   show = showpp
@@ -1558,10 +1561,10 @@ updKVProf k kvs (KVP m) = KVP $ M.insert k (kn + n) m
 instance NFData KVKind
 
 instance PPrint KVKind where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint KVProf where
-  pprint (KVP m) = pprint $ M.toList m
+  pprintTidy _ (KVP m) = pprint $ M.toList m
 
 instance NFData KVProf
 
@@ -1584,7 +1587,7 @@ instance Symbolic DataCon where
 
 
 instance PPrint DataCon where
-  pprint = text . showPpr
+  pprintTidy _ = text . showPpr
 
 instance Show DataCon where
   show = showpp
@@ -1611,7 +1614,7 @@ instance Bifunctor MSpec   where
   second                    = fmap
 
 instance (PPrint t, PPrint a) => PPrint (MSpec t a) where
-  pprint =  vcat . fmap pprint . fmap snd . M.toList . measMap
+  pprintTidy k =  vcat . fmap (pprintTidy k) . fmap snd . M.toList . measMap
 
 instance (Show ty, Show ctor, PPrint ctor, PPrint ty) => Show (MSpec ty ctor) where
   show (MSpec ct m cm im)
@@ -1639,21 +1642,21 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
 --------------------------------------------------------------------------------
 
 instance PPrint RTyVar where
-  pprint (RTV α)
-   | ppTyVar ppEnv = ppr_tyvar α
-   | otherwise     = ppr_tyvar_short α
-
-ppr_tyvar       = text . tvId
-ppr_tyvar_short = text . showPpr
+  pprintTidy _ (RTV α)
+   | ppTyVar ppEnv  = ppr_tyvar α
+   | otherwise      = ppr_tyvar_short α
+   where
+    ppr_tyvar       = text . tvId
+    ppr_tyvar_short = text . showPpr
 
 instance (PPrint r, Reftable r, PPrint t, PPrint (RType c tv r)) => PPrint (Ref t (RType c tv r)) where
-  pprint (RProp ss (RHole s)) = ppRefArgs (fst <$> ss) <+> pprint s
-  pprint (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint (fromMaybe mempty (stripRTypeBase s))
+  pprintTidy k (RProp ss (RHole s)) = ppRefArgs k (fst <$> ss) <+> pprintTidy k s
+  pprintTidy k (RProp ss s)         = ppRefArgs k (fst <$> ss) <+> pprintTidy k (fromMaybe mempty (stripRTypeBase s))
 
 
-ppRefArgs :: [Symbol] -> Doc
-ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [vv Nothing]) <+> text "->"
+ppRefArgs :: Tidy -> [Symbol] -> Doc
+ppRefArgs _ [] = empty
+ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [vv Nothing]) <+> "->"
 
-ppRefSym "" = text "_"
-ppRefSym s  = pprint s
+ppRefSym _ "" = text "_"
+ppRefSym k s  = pprintTidy k s
