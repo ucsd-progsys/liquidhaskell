@@ -22,7 +22,7 @@ import           Text.PrettyPrint.HughesPJ
 import           CoreSyn
 import           Var
 import           HscTypes                         (SourceError)
-import           System.Console.CmdArgs.Verbosity (whenLoud)
+import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           System.Console.CmdArgs.Default
 import           GHC (HscEnv)
 
@@ -107,7 +107,7 @@ handle = return . Left . result
 liquidOne :: FilePath -> GhcInfo -> IO (Output Doc)
 ------------------------------------------------------------------------------
 liquidOne tgt info = do
-  donePhase Loud "Extracted Core using GHC"
+  whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = config $ spec info
   whenLoud  $ do putStrLn "**** Config **************************************************"
                  print cfg
@@ -126,7 +126,7 @@ liquidOne tgt info = do
   cgi `deepseq` donePhase Loud "generateConstraints"
   whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
-  donePhase Loud "solve"
+  whenNormal $ donePhase Loud "solve"
   let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
   DC.saveResult tgt out'
   exitWithResult cfg tgt out'
