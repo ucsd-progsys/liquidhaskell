@@ -121,10 +121,10 @@ strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
 pdVar v        = Pr [uPVar v]
 
 findPVar :: [PVar (RType c tv ())] -> UsedPVar -> PVar (RType c tv ())
-findPVar ps p
-  = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
-  where PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
-        msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
+findPVar ps p = PV name ty v (zipWith (\(_, _, e) (t, s, _) -> (t, s, e)) (pargs p) args)
+  where
+    PV name ty v args = fromMaybe (msg p) $ L.find ((== pname p) . pname) ps
+    msg p = panic Nothing $ "RefType.findPVar" ++ showpp p ++ "not found"
 
 -- | Various functions for converting vanilla `Reft` to `Spec`
 
@@ -267,7 +267,7 @@ instance FreeVar LocSymbol Symbol where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance {- (RefTypable c tv ()) => -} Eq (RType c tv ()) where
+instance  {- (RefTypable c tv ()) -} (Eq c, Eq tv, Hashable tv) => Eq (RType c tv ()) where
   (==) = eqRSort M.empty
 
 eqRSort m (RAllP _ t) (RAllP _ t')
@@ -577,7 +577,7 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 
-generalize :: {- (RefTypable c tv r) => -} RType c tv r -> RType c tv r
+generalize :: ({- RefTypable c tv r -} Eq tv) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
 
 freeTyVars (RAllP _ t)     = freeTyVars t

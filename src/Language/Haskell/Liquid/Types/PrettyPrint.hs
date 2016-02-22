@@ -30,6 +30,7 @@ import           GHC                              (Name, Class)
 import           Var              (Var)
 import           TyCon            (TyCon)
 import           Data.Maybe
+import           Data.Hashable (Hashable)
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
 import           Text.PrettyPrint.HughesPJ
@@ -126,6 +127,9 @@ type OkRT c tv r = ( TyConable c
                    , Reftable r
                    , Reftable (RTProp c tv ())
                    , Reftable (RTProp c tv r)
+                   , Eq c
+                   , Eq tv
+                   , Hashable tv
                    -- , RefTypable c tv ()
                    -- , RefTypable c tv r
                    )
