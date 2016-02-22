@@ -68,14 +68,15 @@ data Tidy = Lossy | Full deriving (Eq, Ord)
 
 class PPrint a where
   pprint :: a -> Doc
-  pprint = pprintPrec 0
+  -- pprint = pprintPrec 0
+
+   pprintTidy :: Tidy -> a -> Doc
+  -- pprintTidy _ = pprint
 
   -- | Pretty-print something with a specific precedence.
   pprintPrec :: Int -> a -> Doc
   pprintPrec _ = pprint
 
-  pprintTidy :: Tidy -> a -> Doc
-  pprintTidy _ = pprint
 
 
 showpp :: (PPrint a) => a -> String
