@@ -190,11 +190,13 @@ instance Fixpoint a => Show (SimpC a) where
   show = showFix
 
 instance Fixpoint a => PPrint (SubC a) where
-  pprint = toFix
+  pprintTidy _ = toFix
+
 instance Fixpoint a => PPrint (SimpC a) where
-  pprint = toFix
+  pprintTidy _ = toFix
+
 instance Fixpoint a => PPrint (WfC a) where
-  pprint = toFix
+  pprintTidy _ = toFix
 
 instance Fixpoint a => Fixpoint (SubC a) where
   toFix c     = hang (text "\n\nconstraint:") 2 bd
@@ -252,12 +254,12 @@ wfC be sr x = if all isEmptySubst sus
                 else errorstar msg
   where
     msg             = "wfKvar: malformed wfC " ++ show sr
-    Reft (v, ras)   = sr_reft sr 
-    (ks, sus)       = unzip $ go ras 
+    Reft (v, ras)   = sr_reft sr
+    (ks, sus)       = unzip $ go ras
 
     go (PKVar k su) = [(k, su)]
     go (PAnd es)    = [(k, su) | PKVar k su <- es]
-    go _            = [] 
+    go _            = []
 
 mkSubC = SubC
 
@@ -306,8 +308,10 @@ instance Fixpoint Qualifier where
   toFix = pprQual
 
 instance PPrint Qualifier where
-  pprint q = "qualif" <+> pprint (q_name q) <+> "defined at" <+> pprint (q_pos q)
-
+  pprintTidy k q = hcat [ "qualif"
+                        , pprintTidy k (q_name q)
+                        , "defined at"
+                        , pprintTidy k (q_pos q) ]
 
 pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
@@ -348,7 +352,7 @@ instance Monoid Kuts where
 ------------------------------------------------------------------------
 -- | Constructing Queries
 ------------------------------------------------------------------------
-fi cs ws binds ls ks qs bi fn aHO 
+fi cs ws binds ls ks qs bi fn aHO
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -357,7 +361,7 @@ fi cs ws binds ls ks qs bi fn aHO
        , quals    = qs
        , bindInfo = bi
        , fileName = fn
-       , allowHO  = aHO 
+       , allowHO  = aHO
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -378,13 +382,13 @@ data GInfo c a =
      , quals    :: ![Qualifier]
      , bindInfo :: M.HashMap BindId a
      , fileName :: FilePath
-     , allowHO  :: !Bool 
+     , allowHO  :: !Bool
      }
   deriving (Eq, Show, Functor, Generic)
 
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False 
+  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty False
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
@@ -393,7 +397,7 @@ instance Monoid (GInfo c a) where
                      , quals    = mappend (quals i1)    (quals i2)
                      , bindInfo = mappend (bindInfo i1) (bindInfo i2)
                      , fileName = fileName i1
-                     , allowHO  = allowHO i1 || allowHO i2 
+                     , allowHO  = allowHO i1 || allowHO i2
                      }
 
 instance PTable (SInfo a) where
@@ -476,7 +480,7 @@ data EQual = EQL { eqQual :: !Qualifier
              deriving (Eq, Show, Data, Typeable, Generic)
 
 instance PPrint EQual where
-  pprint = pprint . eqPred
+  pprintTidy k = pprintTidy k . eqPred
 
 instance NFData EQual
 
@@ -521,7 +525,7 @@ instance Functor Sol where
   fmap f (Sol s h) = Sol (f <$> s) h
 
 instance PPrint a => PPrint (Sol a) where
-  pprint = pprint . sMap
+  pprintTidy k = pprintTidy k . sMap
 
 --------------------------------------------------------------------------------
 solResult :: Solution -> M.HashMap KVar Expr
