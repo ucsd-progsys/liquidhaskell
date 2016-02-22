@@ -40,8 +40,9 @@ $(axiomatize
                     -> {v:Proof | map f (append xs ys) == append (map f xs) (map f ys) }
   @-}
 prop_map_append :: Eq a => (a -> a) -> L a -> L a -> Proof
-prop_map_append f xs ys = 
-  cases 2 (map f (xs `append` ys) == map f xs `append` map f ys) 
+-- prop_map_append f N ys = auto 2 (map f (N `append` ys) == map f N `append` map f ys) 
+-- prop_map_append f N ys = auto 2 (map f (N `append` ys) == map f N `append` map f ys) 
+prop_map_append f xs ys = cases 2 (map f (xs `append` ys) == map f xs `append` map f ys) 
 
 {- Generated axioms: 
 1. axiom_append_N (map f ys)

@@ -19,8 +19,8 @@ meetVarTypes v hs lq = meetError err hsT lqT
     (hsSp, hsT)      = hs
     (lqSp, lqT)      = lq
     err              = ErrMismatch lqSp v hsD lqD hsSp
-    hsD              = pprint (toRSort hsT)
-    lqD              = pprint (toRSort lqT)
+    hsD              = F.pprint (toRSort hsT)
+    lqD              = F.pprint (toRSort lqT)
 
 meetError :: Error -> SpecType -> SpecType -> SpecType
 meetError e t t'

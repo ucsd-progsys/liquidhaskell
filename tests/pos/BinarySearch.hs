@@ -4,8 +4,6 @@
 
 module BinarySearch (binarySearch) where
 
-{-@ LIQUID "--real" @-}
-
 import Data.Vector as Vector
 
 binarySearch :: Ord a => a -> Vector a -> Maybe Int

@@ -242,9 +242,9 @@ makeSpecDictionaryOne embs vars (RI x t xts)
                 [(_, x)] -> Just x
                 _        -> Nothing
 
-makeBounds name defVars cbs specs
+makeBounds tce name defVars cbs specs
   = do bnames  <- mkThing makeHBounds
-       hbounds <- makeHaskellBounds cbs bnames
+       hbounds <- makeHaskellBounds tce cbs bnames
        bnds    <- M.fromList <$> mapM go (concatMap (M.toList . Ms.bounds . snd ) specs)
        modify   $ \env -> env{ bounds = hbounds `mappend` bnds }
   where

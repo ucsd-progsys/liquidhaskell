@@ -124,11 +124,24 @@ liquidOne tgt info = do
   let info' = maybe info (\z -> info {spec = DC.newSpec z}) dc
   let cgi   = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
   cgi `deepseq` donePhase Loud "generateConstraints"
+  whenLoud  $ dumpCs cgi
   out      <- solveCs cfg tgt cgi info' dc
   donePhase Loud "solve"
   let out'  = mconcat [maybe mempty DC.oldOutput dc, out]
   DC.saveResult tgt out'
   exitWithResult cfg tgt out'
+
+dumpCs :: CGInfo -> IO ()
+dumpCs cgi = do
+  putStrLn "***************************** SubCs *******************************"
+  putStrLn $ render $ pprintMany (hsCs cgi)
+  putStrLn "***************************** FixCs *******************************"
+  putStrLn $ render $ pprintMany (fixCs cgi)
+  putStrLn "***************************** WfCs ********************************"
+  putStrLn $ render $ pprintMany (hsWfs cgi)
+
+pprintMany :: (PPrint a) => [a] -> Doc
+pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 checkedNames ::  Maybe DC.DiffCheck -> Maybe [String]
 checkedNames dc          = concatMap names . DC.newBinds <$> dc
@@ -147,6 +160,7 @@ prune cfg cbinds tgt info
     sp            = spec info
 
 
+
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe DC.DiffCheck -> IO (Output Doc)
 solveCs cfg tgt cgi info dc
   = do finfo        <- cgInfoFInfo info cgi tgt
@@ -161,7 +175,7 @@ solveCs cfg tgt cgi info dc
                         { o_result  = res               }
     where
        fx        = def { FC.solver      = fromJust (smtsolver cfg)
-                       , FC.real        = real        cfg
+                       , FC.linear      = linear      cfg
                        , FC.newcheck    = newcheck    cfg
                     -- , FC.extSolver   = extSolver   cfg
                        , FC.eliminate   = eliminate   cfg
@@ -170,15 +184,16 @@ solveCs cfg tgt cgi info dc
                        , FC.cores       = cores       cfg
                        , FC.minPartSize = minPartSize cfg
                        , FC.maxPartSize = maxPartSize cfg
+                       , FC.elimStats   = elimStats   cfg
                        -- , FC.stats   = True
                        }
        ferr s  = fmap (cinfoUserError s)
 
-cinfoUserError   :: F.FixSolution -> Cinfo -> UserError
-cinfoUserError s =  e2u s . cinfoError
+cinfoUserError   :: F.FixSolution -> (a, Cinfo) -> UserError
+cinfoUserError s =  e2u s . cinfoError . snd
 
 e2u :: F.FixSolution -> Error -> UserError
-e2u s = fmap pprint . tidyError s
+e2u s = fmap F.pprint . tidyError s
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where

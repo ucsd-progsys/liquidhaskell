@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -98,7 +99,7 @@ getGhcInfo'' cfg0 target
       liftIO              $ whenLoud $ putStrLn ("paths = " ++ show paths)
       let name'           = ModName Target (getModName name)
       impNames           <- allDepNames <$> depanal [] False
-      impSpecs           <- getSpecs (real cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
+      impSpecs           <- getSpecs (not $ linear cfg) (totality cfg) target paths impNames [Spec, Hs, LHs]
       liftIO $ donePhase Loud "Parsed All Specifications"
       compileCFiles      =<< liftIO (foldM (\c (f,_,s) -> withPragmas c f (Ms.pragmas s)) cfg impSpecs)
       impSpecs'          <- forM impSpecs $ \(f, n, s) -> do
@@ -504,30 +505,33 @@ reqFile ext s
   = Nothing
 
 instance PPrint GhcSpec where
-  pprint spec =  (text "******* Target Variables ********************")
-              $$ (pprint $ tgtVars spec)
-              $$ (text "******* Type Signatures *********************")
-              $$ (pprintLongList $ tySigs spec)
-              $$ (text "******* Assumed Type Signatures *************")
-              $$ (pprintLongList $ asmSigs spec)
-              $$ (text "******* DataCon Specifications (Measure) ****")
-              $$ (pprintLongList $ ctors spec)
-              $$ (text "******* Measure Specifications **************")
-              $$ (pprintLongList $ meas spec)
+  pprintTidy k spec = vcat
+    [ "******* Target Variables ********************"
+    , pprintTidy k $ tgtVars spec
+    , "******* Type Signatures *********************"
+    , pprintLongList k (tySigs spec)
+    , "******* Assumed Type Signatures *************"
+    , pprintLongList k (asmSigs spec)
+    , "******* DataCon Specifications (Measure) ****"
+    , pprintLongList k (ctors spec)
+    , "******* Measure Specifications **************"
+    , pprintLongList k (meas spec)                   ]
 
 instance PPrint GhcInfo where
-  pprint info =   (text "*************** Imports *********************")
-              $+$ (intersperse comma $ text <$> imports info)
-              $+$ (text "*************** Includes ********************")
-              $+$ (intersperse comma $ text <$> includes info)
-              $+$ (text "*************** Imported Variables **********")
-              $+$ (pprDoc $ impVars info)
-              $+$ (text "*************** Defined Variables ***********")
-              $+$ (pprDoc $ defVars info)
-              $+$ (text "*************** Specification ***************")
-              $+$ (pprint $ spec info)
-              $+$ (text "*************** Core Bindings ***************")
-              $+$ (pprintCBs $ cbs info)
+  pprintTidy _ info = vcat
+    [ "*************** Imports *********************"
+    , intersperse comma $ text <$> imports info
+    , "*************** Includes ********************"
+    , intersperse comma $ text <$> includes info
+    , "*************** Imported Variables **********"
+    , pprDoc $ impVars info
+    , "*************** Defined Variables ***********"
+    , pprDoc $ defVars info
+    , "*************** Specification ***************"
+    , pprint $ spec info
+    , "*************** Core Bindings ***************"
+    , pprintCBs $ cbs info                          ]
+
 
 pprintCBs :: [CoreBind] -> Doc
 pprintCBs = pprDoc . tidyCBs
@@ -536,8 +540,8 @@ instance Show GhcInfo where
   show = showpp
 
 instance PPrint TargetVars where
-  pprint AllVars   = text "All Variables"
-  pprint (Only vs) = text "Only Variables: " <+> pprint vs
+  pprintTidy _ AllVars   = text "All Variables"
+  pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
 
 ------------------------------------------------------------------------
 -- | Dealing With Errors -------------------------------------------------

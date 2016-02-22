@@ -205,15 +205,12 @@ panicError = Ex.throw
 --   as it depends on @PPrint SpecTypes@, which lives in this module.
 
 instance PPrint (CtxError Doc) where
-  pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ctErr ce
 
 instance PPrint (CtxError SpecType) where
-  pprint          = pprintTidy Full
   pprintTidy k ce = ppError k (ctCtx ce) $ ppSpecTypeErr <$> ctErr ce
 
 instance PPrint Error where
-  pprint       = pprintTidy Full
   pprintTidy k = ppError k empty . fmap ppSpecTypeErr
 
 ppSpecTypeErr :: SpecType -> Doc

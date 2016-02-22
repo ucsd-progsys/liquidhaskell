@@ -9,9 +9,9 @@
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
     OkRT
+
     -- * Printers
   , rtypeDoc
-  , ppr_rtype
 
   -- * Printing Lists (TODO: move to fixpoint)
   , pprManyOrdered
@@ -29,6 +29,7 @@ import           GHC                              (Name, Class)
 import           Var              (Var)
 import           TyCon            (TyCon)
 import           Data.Maybe
+import           Data.Hashable (Hashable)
 import qualified Data.List    as L -- (sort)
 import qualified Data.HashMap.Strict as M
 import           Text.PrettyPrint.HughesPJ
@@ -44,9 +45,9 @@ pprManyOrdered :: (PPrint a, Ord a) => Tidy -> String -> [a] -> [Doc]
 pprManyOrdered k msg = map ((text msg <+>) . pprintTidy k) . L.sort
 
 --------------------------------------------------------------------------------
-pprintLongList :: PPrint a => [a] -> Doc
+pprintLongList :: PPrint a => Tidy -> [a] -> Doc
 --------------------------------------------------------------------------------
-pprintLongList = brackets . vcat . map pprint
+pprintLongList k = brackets . vcat . map (pprintTidy k)
 
 
 --------------------------------------------------------------------------------
@@ -59,58 +60,60 @@ pprintSymbol x = char '‘' <> pprint x <> char '’'
 -- | A whole bunch of PPrint instances follow ----------------------------------
 --------------------------------------------------------------------------------
 instance PPrint ErrMsg where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint SourceError where
-  pprint = text . show
+  pprintTidy _ = text . show
 
 instance PPrint Var where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance PPrint Name where
-  pprint = pprDoc
+  pprintTidy _ = pprDoc
 
 instance PPrint TyCon where
-  pprint = pprDoc
+  pprintTidy Lossy = shortModules . pprDoc
+  pprintTidy Full  =                pprDoc
 
 instance PPrint Type where
-  pprint = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
+  pprintTidy _ = pprDoc -- . tidyType emptyTidyEnv -- WHY WOULD YOU DO THIS???
 
 instance PPrint Class where
-  pprint = pprDoc
+  pprintTidy Lossy = shortModules . pprDoc
+  pprintTidy Full  =                pprDoc
 
 instance Show Predicate where
   show = showpp
 
 instance (PPrint t) => PPrint (Annot t) where
-  pprint (AnnUse t) = text "AnnUse" <+> pprint t
-  pprint (AnnDef t) = text "AnnDef" <+> pprint t
-  pprint (AnnRDf t) = text "AnnRDf" <+> pprint t
-  pprint (AnnLoc l) = text "AnnLoc" <+> pprDoc l
+  pprintTidy k (AnnUse t) = text "AnnUse" <+> pprintTidy k t
+  pprintTidy k (AnnDef t) = text "AnnDef" <+> pprintTidy k t
+  pprintTidy k (AnnRDf t) = text "AnnRDf" <+> pprintTidy k t
+  pprintTidy _ (AnnLoc l) = text "AnnLoc" <+> pprDoc l
 
 instance PPrint a => PPrint (AnnInfo a) where
-  pprint (AI m) = vcat $ map pprAnnInfoBinds $ M.toList m
+  pprintTidy k (AI m) = vcat $ pprAnnInfoBinds k <$> M.toList m
 
 instance PPrint a => Show (AnnInfo a) where
   show = showpp
 
-pprAnnInfoBinds (l, xvs)
-  = vcat $ map (pprAnnInfoBind . (l,)) xvs
+pprAnnInfoBinds k (l, xvs)
+  = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
 
-pprAnnInfoBind (RealSrcSpan k, xv)
-  = xd $$ pprDoc l $$ pprDoc c $$ pprint n $$ vd $$ text "\n\n\n"
+pprAnnInfoBind k (RealSrcSpan sp, xv)
+  = xd $$ pprDoc l $$ pprDoc c $$ pprintTidy k n $$ vd $$ text "\n\n\n"
     where
-      l        = srcSpanStartLine k
-      c        = srcSpanStartCol k
-      (xd, vd) = pprXOT xv
+      l        = srcSpanStartLine sp
+      c        = srcSpanStartCol sp
+      (xd, vd) = pprXOT k xv
       n        = length $ lines $ render vd
 
-pprAnnInfoBind (_, _)
+pprAnnInfoBind _ (_, _)
   = empty
 
-pprXOT (x, v) = (xd, pprint v)
+pprXOT k (x, v) = (xd, pprintTidy k v)
   where
-    xd = maybe (text "unknown") pprint x
+    xd = maybe (text "unknown") (pprintTidy k) x
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
@@ -125,8 +128,9 @@ type OkRT c tv r = ( TyConable c
                    , Reftable r
                    , Reftable (RTProp c tv ())
                    , Reftable (RTProp c tv r)
-                   , RefTypable c tv ()
-                   , RefTypable c tv r
+                   , Eq c
+                   , Eq tv
+                   , Hashable tv
                    )
 
 --------------------------------------------------------------------------------
@@ -136,6 +140,10 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
   where
     ppE Lossy = ppEnvShort ppEnv
     ppE Full  = ppEnv
+
+instance PPrint Tidy where
+  pprintTidy _ Full  = "Full"
+  pprintTidy _ Lossy = "Lossy"
 
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
@@ -148,8 +156,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = ppTy r $ pprint a
-ppr_rtype bb p t@(RFun _ _ _ _)
-  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
+ppr_rtype bb p t@(RFun _ _ _ r)
+  = ppTy r $ maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
@@ -186,8 +194,11 @@ ppr_rtype _ _ (RHole r)
   = ppTy r $ text "_"
 
 ppTyConB bb
-  | ppShort bb = text . symbolString . dropModuleNames . symbol . render . ppTycon
+  | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
+
+shortModules :: Doc -> Doc
+shortModules = text . symbolString . dropModuleNames . symbol . render
 
 ppr_rsubtype bb p e
   = pprint_env <+> text "|-" <+> ppr_rtype bb p tl <+> "<:" <+> ppr_rtype bb p tr
@@ -221,14 +232,14 @@ maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
   | otherwise                  = parens pretty
 
--- ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+-- ppExists :: Bool -> Prec -> RType p c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
--- ppAllExpr :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+-- ppAllExpr ::  Bool -> Prec -> RType p c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
@@ -240,7 +251,7 @@ ppReftPs _ _ rs
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
--- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
+-- ppr_dbind :: Bool -> Prec -> Symbol -> RType p c tv r -> Doc
 ppr_dbind bb p x t
   | isNonSymbol x || (x == dummySymbol)
   = ppr_rtype bb p t
@@ -256,8 +267,6 @@ ppr_rty_fun' bb (RFun b t t' _)
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
-
--- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p FunPrec $ sep [
                       ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep)
@@ -322,9 +331,9 @@ ppRefSym s  = pprint s
 dot                = char '.'
 
 instance (PPrint r, Reftable r) => PPrint (UReft r) where
-  pprint (MkUReft r p _)
-    | isTauto r  = pprint p
-    | isTauto p  = pprint r
-    | otherwise  = pprint p <> text " & " <> pprint r
+  pprintTidy k (MkUReft r p _)
+    | isTauto r  = pprintTidy k p
+    | isTauto p  = pprintTidy k r
+    | otherwise  = pprintTidy k p <> text " & " <> pprintTidy k r
 
 --------------------------------------------------------------------------------

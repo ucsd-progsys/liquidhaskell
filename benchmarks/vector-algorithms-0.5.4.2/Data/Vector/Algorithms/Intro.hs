@@ -29,7 +29,6 @@
 --     sort to maintain O(n lg n) worst case behavior. (This is what makes the
 --     algorithm introsort).
 
-{-@ LIQUID "--real" @-}
 module Data.Vector.Algorithms.Intro
        ( -- * Sorting
          sort

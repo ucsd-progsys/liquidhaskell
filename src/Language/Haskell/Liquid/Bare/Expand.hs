@@ -70,6 +70,8 @@ expandExpr (PIff p q)
   = PIff <$> expandExpr p <*> expandExpr q
 expandExpr (PAll xs p)
   = PAll xs <$> expandExpr p
+expandExpr (ELam xt e)
+  = ELam xt <$> expandExpr e
 
 expandExpr (ETApp e s)
   = (`ETApp` s) <$> expandExpr e 
@@ -81,6 +83,9 @@ expandExpr (PAtom b e1 e2)
 
 expandExpr (PKVar k s)
   = return $ PKVar k s 
+
+expandExpr PGrad
+  = return PGrad
 
 expandExpr (PExist s e)
   = PExist s <$> expandExpr e 

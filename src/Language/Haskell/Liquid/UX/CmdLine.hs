@@ -47,13 +47,13 @@ import Data.Monoid
 import System.FilePath                     (dropFileName, isAbsolute,
                                             takeDirectory, (</>))
 
-import Language.Fixpoint.Types.Config      hiding (Config, real, --extSolver,
+import Language.Fixpoint.Types.Config      hiding (Config, linear, elimStats, higherorder,
                                               getOpts, cores, minPartSize,
                                               maxPartSize, newcheck, eliminate)
 import Language.Fixpoint.Utils.Files
 import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
-import Language.Fixpoint.Types             hiding (Error, Result)
+import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
@@ -96,9 +96,13 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Incremental Checking: only check changed binders"
 
- , real
+ , higherorder
     = def
-          &= help "Supports real number arithmetic"
+          &= help "Allow higher order binders into the logic"
+
+ , linear
+    = def
+          &= help "Use uninterpreted integer multiplication and division"
 
  , saveQuery
     = def &= help "Save fixpoint query to file (slow)"
@@ -208,6 +212,10 @@ config = cmdArgsMode $ Config {
     = False &= help "Scrape qualifiers from used, imported specifications"
             &= name "scrape-used-imports"
             &= explicit
+
+ , elimStats
+    = False &= name "elimStats"
+            &= help "Print eliminate stats"
 
  } &= verbosity
    &= program "liquid"
@@ -327,7 +335,8 @@ defConfig = Config { files          = def
                    , idirs          = def
                    , newcheck       = True
                    , fullcheck      = def
-                   , real           = def
+                   , linear         = def
+                   , higherorder    = def
                    , diffcheck      = def
                    , saveQuery      = def
                    , binders        = def
@@ -356,6 +365,7 @@ defConfig = Config { files          = def
                    , port           = defaultPort
                    , scrapeImports  = False
                    , scrapeUsedImports  = False
+                   , elimStats      = False
                    }
 
 
@@ -371,14 +381,14 @@ exitWithResult cfg target out
        donePhase Loud "annotate"
        writeCheckVars $ o_vars  out
        cr <- resultWithContext r
-       writeResult cfg (colorResult r) cr
-       writeFile   (extFileName Result target) (showFix cr)
+       writeResult cfg (F.colorResult r) cr
+       writeFile   (extFileName Result target) (F.showFix cr)
        return $ out { o_result = r }
     where
        r         = o_result out `addErrors` o_errors out
 
 
-resultWithContext :: ErrorResult -> IO (FixResult CError)
+resultWithContext :: ErrorResult -> IO (F.FixResult CError)
 resultWithContext = mapM errorWithContext
 
 
@@ -388,20 +398,20 @@ writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns
 
 type CError = CtxError Doc -- SpecType
 
-writeResult :: Config -> Moods -> FixResult CError -> IO ()
+writeResult :: Config -> Moods -> F.FixResult CError -> IO ()
 writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
   where
-    tidy                   = if shortErrors cfg then Lossy else Full
+    tidy                   = if shortErrors cfg then F.Lossy else F.Full
     writeDoc c (i, d)      = writeBlock c i $ lines $ render d
     writeBlock _ _ []      = return ()
     writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
     writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
 
 
-resDocs :: Tidy -> FixResult CError -> [Doc]
-resDocs _ Safe             = [text "RESULT: SAFE"]
-resDocs k (Crash xs s)     = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
-resDocs k (Unsafe xs)      = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
+resDocs :: F.Tidy -> F.FixResult CError -> [Doc]
+resDocs _ F.Safe           = [text "RESULT: SAFE"]
+resDocs k (F.Crash xs s)   = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
+resDocs k (F.Unsafe xs)    = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
 
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
@@ -414,10 +424,10 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 
-addErrors r []             = r
-addErrors Safe errs        = Unsafe errs
-addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
-addErrors r  _             = r
+addErrors r []               = r
+addErrors F.Safe errs        = F.Unsafe errs
+addErrors (F.Unsafe xs) errs = F.Unsafe (xs ++ errs)
+addErrors r  _               = r
 
-instance Fixpoint (FixResult CError) where
-  toFix = vcat . resDocs Full
+instance F.Fixpoint (F.FixResult CError) where
+  toFix = vcat . resDocs F.Full
