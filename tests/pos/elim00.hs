@@ -12,3 +12,13 @@ foo :: Foo -> Foo
 foo (Foo xig yog) = Foo wink cow
   where
     PP wink cow   = PP xig yog
+
+{- 
+foo :: Foo -> Foo
+foo (Foo xig yog) = case thing of 
+                      PP wink cow -> Foo wink cow
+  where
+    thing = PP xig yog
+-}
+
+
