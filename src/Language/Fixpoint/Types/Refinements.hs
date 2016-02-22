@@ -435,7 +435,7 @@ opPrec RDiv   = 7
 instance PPrint Expr where
   pprintPrec _ k (ESym c)        = pprintTidy k c
   pprintPrec _ k (ECon c)        = pprintTidy k c
-  pprintPrec _ k (EVar s)        = pprint s
+  pprintPrec _ k (EVar s)        = pprintTidy k s
   -- pprintPrec _ (EBot)          = text "_|_"
   pprintPrec z k (ENeg e)        = parensIf (z > zn) $
                                    "-" <> pprintPrec (zn + 1) k e
