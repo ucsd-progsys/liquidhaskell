@@ -132,8 +132,6 @@ type OkRT c tv r = ( TyConable c
                    , Eq c
                    , Eq tv
                    , Hashable tv
-                   -- , RefTypable c tv ()
-                   -- , RefTypable c tv r
                    )
 
 --------------------------------------------------------------------------------
@@ -235,14 +233,14 @@ maybeParen ctxt_prec inner_prec pretty
   | ctxt_prec < inner_prec = pretty
   | otherwise                  = parens pretty
 
--- ppExists :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+-- ppExists :: Bool -> Prec -> RType p c tv r -> Doc
 ppExists bb p t
   = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
 
--- ppAllExpr :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
+-- ppAllExpr ::  Bool -> Prec -> RType p c tv r -> Doc
 ppAllExpr bb p t
   = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
@@ -254,7 +252,7 @@ ppReftPs _ _ rs
   | not (ppPs ppEnv) = empty
   | otherwise        = angleBrackets $ hsep $ punctuate comma $ ppr_ref <$> rs
 
--- ppr_dbind :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> Symbol -> RType p c tv r -> Doc
+-- ppr_dbind :: Bool -> Prec -> Symbol -> RType p c tv r -> Doc
 ppr_dbind bb p x t
   | isNonSymbol x || (x == dummySymbol)
   = ppr_rtype bb p t
@@ -270,8 +268,6 @@ ppr_rty_fun' bb (RFun b t t' _)
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
-
--- ppr_forall :: (RefTypable p c tv (), RefTypable p c tv r) => Bool -> Prec -> RType p c tv r -> Doc
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p FunPrec $ sep [
                       ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep)

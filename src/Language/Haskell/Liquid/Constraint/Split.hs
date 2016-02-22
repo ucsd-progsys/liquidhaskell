@@ -408,7 +408,7 @@ bsplitC' γ t1 t2 pflag isHO
     r2' = rTypeSortedReft' pflag γ t2
     ci  = Ci src err
     tag = getTag γ
-    err = Just $ ErrSubType src (text "subtype") g t1 t2
+    err = Just $ ErrSubType src "subtype" g t1 t2
     src = getLocation γ
     g   = reLocal $ renv γ
 

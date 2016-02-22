@@ -155,8 +155,6 @@ uTop r          = MkUReft r mempty mempty
 
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
-         -- , RefTypable c tv ()
-         -- , RefTypable c tv r
          , OkRT c tv r
          , FreeVar c tv
          )
@@ -168,8 +166,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
          , OkRT c tv r
-         -- , RefTypable c tv r
-         -- , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ()))
          => Monoid (RTProp c tv r) where
@@ -189,8 +185,6 @@ instance ( SubsTy tv (RType c tv ()) c
 
 
 instance ( OkRT c tv r
-         -- , RefTypable c tv r
-         -- , RefTypable c tv ()
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c) => Reftable (RTProp c tv r) where
@@ -239,11 +233,6 @@ instance (PPrint r, Reftable r) => Reftable (RType RTyCon RTyVar r) where
   ofReft      = panic Nothing "ofReft on RType"
 
 
-
--------------------------------------------------------------------------------
--- | RefTypable Instances -----------------------------------------------------
--------------------------------------------------------------------------------
-
 -- MOVE TO TYPES
 instance Fixpoint String where
   toFix = text
@@ -267,7 +256,7 @@ instance FreeVar LocSymbol Symbol where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance  {- (RefTypable c tv ()) -} (Eq c, Eq tv, Hashable tv) => Eq (RType c tv ()) where
+instance (Eq c, Eq tv, Hashable tv) => Eq (RType c tv ()) where
   (==) = eqRSort M.empty
 
 eqRSort m (RAllP _ t) (RAllP _ t')
@@ -381,8 +370,6 @@ nlzP _ t
 
 strengthenRefTypeGen, strengthenRefType ::
          (  OkRT c tv r
-           -- , RefTypable c tv ()
-           -- , RefTypable c tv r
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -390,9 +377,6 @@ strengthenRefTypeGen, strengthenRefType ::
 
 strengthenRefType_ ::
          ( OkRT c tv r
-         -- , RefTypable c tv ()
-         -- , RefTypable c tv r
-         -- , PPrint (RType c tv r)
          , FreeVar c tv
          , SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
@@ -577,7 +561,7 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just EVar} }
 
 
-generalize :: ({- RefTypable c tv r -} Eq tv) => RType c tv r -> RType c tv r
+generalize :: (Eq tv) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
 
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -1088,14 +1072,6 @@ mkTyConInfo c usertyvar userprvariance f
 --------------------------------------------------------------------------------
 -- | Printing Refinement Types -------------------------------------------------
 --------------------------------------------------------------------------------
-
--- MOVE TO TYPES
-instance (SubsTy Symbol (RType c Symbol ()) c, TyConable c, Reftable r, PPrint r, PPrint c, FreeVar c Symbol, SubsTy Symbol (RType c Symbol ()) (RType c Symbol ())) => RefTypable c Symbol r where
-  ppRType = ppr_rtype ppEnv
-
--- MOVE TO TYPES
-instance (Reftable r, PPrint r) => RefTypable RTyCon RTyVar r where
-  ppRType = ppr_rtype ppEnv
 
 instance Show RTyVar where
   show = showpp

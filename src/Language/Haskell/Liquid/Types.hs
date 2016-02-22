@@ -58,7 +58,6 @@ module Language.Haskell.Liquid.Types (
 
   -- * Classes describing operations on `RTypes`
   , TyConable (..)
-  , RefTypable (..)
   , SubsTy (..)
 
   -- * Predicate Variables
@@ -721,16 +720,6 @@ class (Eq c) => TyConable c where
   isNumCls  = const False
   isFracCls = const False
 
-class ( TyConable c
-      , Eq c, Eq tv
-      , Hashable tv
-      , Reftable r
-      , PPrint r
-      ) => RefTypable c tv r
-  where
-    ppRType  :: Prec -> RType c tv r -> Doc
-
-
 -------------------------------------------------------------------------------
 -- | TyConable Instances -------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -1015,7 +1004,7 @@ instance Subable r => Subable (UReft r) where
   substf f (MkUReft r z l) = MkUReft (substf f r) (substf f z) (substf f l)
   substa f (MkUReft r z l) = MkUReft (substa f r) (substa f z) (substa f l)
 
-instance (Reftable r, TyConable c {- , RefTypable c tv r -} ) => Subable (RTProp c tv r) where
+instance (Reftable r, TyConable c) => Subable (RTProp c tv r) where
   syms (RProp  ss r)     = (fst <$> ss) ++ syms r
 
   subst su (RProp ss (RHole r)) = RProp ss (RHole (subst su r))
@@ -1028,7 +1017,7 @@ instance (Reftable r, TyConable c {- , RefTypable c tv r -} ) => Subable (RTProp
   substa f (RProp  ss t) = RProp ss (substa f <$> t)
 
 
-instance (Subable r, Reftable r, TyConable c {- , RefTypable c tv r -}) => Subable (RType c tv r) where
+instance (Subable r, Reftable r, TyConable c) => Subable (RType c tv r) where
   syms        = foldReft (\_ r acc -> syms r ++ acc) []
   substa f    = mapReft (substa f)
   substf f    = emapReft (substf . substfExcept f) []
