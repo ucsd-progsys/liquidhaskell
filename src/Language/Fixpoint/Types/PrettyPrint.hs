@@ -9,6 +9,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
+import qualified Data.List           as L
 import           Language.Fixpoint.Misc
 import           Data.Hashable
 import qualified Data.Text as T
@@ -26,8 +27,8 @@ class Fixpoint a where
 showFix :: (Fixpoint a) => a -> String
 showFix =  render . toFix
 
-instance (Eq a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
-  toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> S.toList xs)
+instance (Ord a, Hashable a, Fixpoint a) => Fixpoint (S.HashSet a) where
+  toFix xs = brackets $ sep $ punctuate (text ";") (toFix <$> L.sort (S.toList xs))
   simplify = S.fromList . map simplify . S.toList
 
 instance Fixpoint () where
