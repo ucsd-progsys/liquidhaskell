@@ -25,7 +25,7 @@ module Language.Fixpoint.Types.Refinements (
   , Constant (..)
   , Bop (..)
   , Brel (..)
-  , Expr (..)
+  , Expr (..), Pred
   , pattern PTrue, pattern PTop, pattern PFalse, pattern EBot
   , KVar (..)
   , Subst (..)
@@ -61,13 +61,14 @@ module Language.Fixpoint.Types.Refinements (
   , isSingletonReft
   , isEVar
   , isFalse
-  , flattenRefas, conjuncts
+  , flattenRefas
+  , conjuncts
   , mapPredReft
   , pprintReft
   , reftConjuncts
   , intKvar
   , vv_
-  , mkEApp, eApps, splitEApp 
+  , mkEApp, eApps, splitEApp
   ) where
 
 import qualified Data.Binary as B
@@ -132,7 +133,7 @@ isKvar (PKVar _ _) = True
 isKvar _           = False
 
 refaConjuncts :: Expr -> [Expr]
-refaConjuncts p              = [p' | p' <- conjuncts p, not $ isTautoPred p']
+refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
 
 --------------------------------------------------------------------------------
@@ -187,7 +188,7 @@ data Constant = I !Integer
 data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-data Bop  = Plus | Minus | Times | Div | Mod
+data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv 
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
               -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
@@ -200,6 +201,7 @@ data Expr = ESym !SymConst
           | EBin !Bop !Expr !Expr
           | EIte !Expr !Expr !Expr
           | ECst !Expr !Sort
+          | ELam !(Symbol, Sort)   !Expr
           | ETApp !Expr !Sort 
           | ETAbs !Expr !Symbol
 
@@ -213,23 +215,26 @@ data Expr = ESym !SymConst
           | PKVar  !KVar !Subst
           | PAll   ![(Symbol, Sort)] !Expr
           | PExist ![(Symbol, Sort)] !Expr
+          | PGrad
           deriving (Eq, Show, Data, Typeable, Generic)
+
+type Pred = Expr
 
 pattern PTrue  = PAnd []
 pattern PTop   = PAnd []
 pattern PFalse = POr []
 pattern EBot   = POr []
 
-mkEApp :: LocSymbol -> [Expr] -> Expr 
+mkEApp :: LocSymbol -> [Expr] -> Expr
 mkEApp f = eApps (EVar $ val f)
 
-eApps :: Expr -> [Expr] -> Expr 
-eApps f es  = foldl EApp f es 
+eApps :: Expr -> [Expr] -> Expr
+eApps f es  = foldl EApp f es
 
 splitEApp :: Expr -> (Expr, [Expr])
-splitEApp = go [] 
+splitEApp = go []
   where
-    go acc (EApp f e) = go (e:acc) f 
+    go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
 
 
@@ -280,36 +285,42 @@ instance Fixpoint Brel where
   toFix Le  = text "<="
 
 instance Fixpoint Bop where
-  toFix Plus  = text "+"
-  toFix Minus = text "-"
-  toFix Times = text "*"
-  toFix Div   = text "/"
-  toFix Mod   = text "mod"
+  toFix Plus   = text "+"
+  toFix Minus  = text "-"
+  toFix RTimes = text "*."
+  toFix Times  = text "*"
+  toFix Div    = text "/"
+  toFix RDiv   = text "/."
+  toFix Mod    = text "mod"
 
 instance Fixpoint Expr where
   toFix (ESym c)       = toFix $ encodeSymConst c
   toFix (ECon c)       = toFix c
   toFix (EVar s)       = toFix s
-  toFix (EApp f es)    = toFix f <> parens (toFix es)
+  toFix e@(EApp _ _)   = parens $ hcat $ punctuate " " $ toFix <$> (f:es) where (f, es) = splitEApp e
   toFix (ENeg e)       = parens $ text "-"  <+> parens (toFix e)
   toFix (EBin o e1 e2) = parens $ toFix e1  <+> toFix o <+> toFix e2
   toFix (EIte p e1 e2) = parens $ text "if" <+> toFix p <+> text "then" <+> toFix e1 <+> text "else" <+> toFix e2
   toFix (ECst e so)    = parens $ toFix e   <+> text " : " <+> toFix so
-  toFix (EBot)         = text "_|_"
-  toFix PTop             = text "???"
-  toFix PTrue            = text "true"
-  toFix PFalse           = text "false"
-  toFix (PNot p)         = parens $ text "~" <+> parens (toFix p)
-  toFix (PImp p1 p2)     = parens $ toFix p1 <+> text "=>" <+> toFix p2
-  toFix (PIff p1 p2)     = parens $ toFix p1 <+> text "<=>" <+> toFix p2
-  toFix (PAnd ps)        = text "&&" <+> toFix ps
-  toFix (POr  ps)        = text "||" <+> toFix ps
+  -- toFix (EBot)         = text "_|_"
+  -- toFix PTop           = text "???"
+  toFix PTrue          = text "true"
+  toFix PFalse         = text "false"
+  toFix (PNot p)       = parens $ text "~" <+> parens (toFix p)
+  toFix (PImp p1 p2)   = parens $ toFix p1 <+> text "=>" <+> toFix p2
+  toFix (PIff p1 p2)   = parens $ toFix p1 <+> text "<=>" <+> toFix p2
+  toFix (PAnd ps)      = text "&&" <+> toFix ps
+  toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
   toFix (PKVar k su)     = toFix k <> toFix su
-  toFix (PAll xts p)     = text "forall" <+> toFix xts <+> text "." <+> toFix p
-  toFix (PExist xts p)   = text "exists" <+> toFix xts <+> text "." <+> toFix p
+  toFix (PAll xts p)     = "forall" <+> (toFix xts
+                                        $+$ ("." <+> toFix p))
+  toFix (PExist xts p)   = "exists" <+> (toFix xts
+                                        $+$ ("." <+> toFix p))
   toFix (ETApp e s)      = text "tapp" <+> toFix e <+> toFix s
   toFix (ETAbs e s)      = text "tabs" <+> toFix e <+> toFix s
+  toFix PGrad            = text "??"
+  toFix (ELam (x,s) e)   = text "lam" <+> toFix x <+> ":" <+> toFix s <+> "." <+> toFix e 
 
   simplify (PAnd [])     = PTrue
   simplify (POr  [])     = PFalse
@@ -416,22 +427,24 @@ parensIf False = id
 -- sets the contextual precedence for recursive printer invocations to
 -- (prec p + 1).
 
-opPrec Mod   = 5
-opPrec Plus  = 6
-opPrec Minus = 6
-opPrec Times = 7
-opPrec Div   = 7
+opPrec Mod    = 5
+opPrec Plus   = 6
+opPrec Minus  = 6
+opPrec Times  = 7
+opPrec RTimes = 7
+opPrec Div    = 7
+opPrec RDiv   = 7
 
 instance PPrint Expr where
   pprintPrec _ (ESym c)        = pprint c
   pprintPrec _ (ECon c)        = pprint c
   pprintPrec _ (EVar s)        = pprint s
-  pprintPrec _ (EBot)          = text "_|_"
+  -- pprintPrec _ (EBot)          = text "_|_"
   pprintPrec z (ENeg e)        = parensIf (z > zn) $
                                    text "-" <> pprintPrec (zn+1) e
     where zn = 2
   pprintPrec z (EApp f es)     = parensIf (z > za) $
-                                   pprint f <> (pprintPrec (za+1) es)
+                                   pprint f <+> (pprintPrec (za+1) es)
     where za = 8
   pprintPrec z (EBin o e1 e2)  = parensIf (z > zo) $
                                    pprintPrec (zo+1) e1 <+>
@@ -445,7 +458,7 @@ instance PPrint Expr where
     where zi = 1
   pprintPrec _ (ECst e so)     = parens $ pprint e <+> text ":" <+> pprint so
 
-  pprintPrec _ PTop            = text "???"
+  -- pprintPrec _ PTop            = text "???"
   pprintPrec _ PTrue           = trueD
   pprintPrec _ PFalse          = falseD
   pprintPrec z (PNot p)        = parensIf (z > zn) $
@@ -462,29 +475,39 @@ instance PPrint Expr where
                                    (pprintPrec (zi+1) p2)
     where zi = 2
   pprintPrec z (PAnd ps)       = parensIf (z > za) $
-                                   pprintBin (za+1) trueD  andD ps
+                                   pprintBin (za + 1) trueD andD ps
     where za = 3
   pprintPrec z (POr  ps)       = parensIf (z > zo) $
-                                   pprintBin (zo+1) falseD orD  ps
+                                   pprintBin (zo + 1) falseD orD  ps
     where zo = 3
   pprintPrec z (PAtom r e1 e2) = parensIf (z > za) $
                                    pprintPrec (za+1) e1 <+>
                                    pprint r             <+>
                                    pprintPrec (za+1) e2
     where za = 4
-  pprintPrec _ (PAll xts p)    = text "forall" <+> toFix xts <+> text "." <+> pprint p
-  pprintPrec _ (PExist xts p)  = text "exists" <+> toFix xts <+> text "." <+> pprint p
+  pprintPrec _ (PAll xts p)    = pprintQuant "forall" xts p
+  pprintPrec _ (PExist xts p)  = pprintQuant "exists" xts p
+  pprintPrec _ (ELam (x,t) e)  = text "lam" <+> toFix x <+> ":" <+> toFix t <+> text "." <+> pprint e
   pprintPrec _ p@(PKVar {})    = toFix p
   pprintPrec _ (ETApp e s)     = text "ETApp" <+> toFix e <+> toFix s
   pprintPrec _ (ETAbs e s)     = text "ETAbs" <+> toFix e <+> toFix s
+  pprintPrec _ PGrad           = text "?"
 
-trueD  = text "true"
-falseD = text "false"
-andD   = text " &&"
-orD    = text " ||"
+pprintQuant d xts p = (d <+> toFix xts)
+                      $+$
+                      ("  ." <+> pprint p)
+
+trueD  = "true"
+falseD = "false"
+andD   = "&&"
+orD    = "||"
 
 pprintBin _ b _ [] = b
-pprintBin z _ o xs = intersperse o $ pprintPrec z <$> xs
+pprintBin z _ o xs = vIntersperse o $ pprintPrec z <$> xs
+
+vIntersperse _ []     = empty
+vIntersperse _ [d]    = d
+vIntersperse s (d:ds) = vcat (d : ((s <+>) <$> ds))
 
 pprintReft :: Reft -> Doc
 pprintReft (Reft (_,ra)) = pprintBin z trueD andD flat
@@ -555,7 +578,7 @@ pAnd, pOr     :: ListNE Expr -> Expr
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
 pIte p1 p2 p3 = pAnd [p1 `PImp` p2, (PNot p1) `PImp` p3]
-mkProp        = EApp (EVar propConName) 
+mkProp        = EApp (EVar propConName)
 
 
 --------------------------------------------------------------------------------

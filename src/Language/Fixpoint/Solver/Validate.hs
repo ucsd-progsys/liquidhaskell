@@ -1,6 +1,7 @@
 -- | Validate and Transform Constraints to Ensure various Invariants -------------------------
 --   1. Each binder must be associated with a UNIQUE sort
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Fixpoint.Solver.Validate
        ( -- * Validate FInfo
@@ -11,12 +12,11 @@ module Language.Fixpoint.Solver.Validate
 
          -- * Sorts for each Symbol
        , symbolSorts
-
        )
        where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC)
+import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC, mapKVars)
 import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM, errorstar)
@@ -27,8 +27,8 @@ import qualified Data.HashSet             as S
 import qualified Data.List as L
 import           Data.Maybe          (isNothing)
 import           Control.Monad       ((>=>))
-import           Text.Printf
-
+-- import           Text.Printf
+import           Text.PrettyPrint.HughesPJ
 type ValidateM a = Either E.Error a
 
 ---------------------------------------------------------------------------
@@ -39,11 +39,36 @@ validate = errorstar "TODO: validate input"
 ---------------------------------------------------------------------------
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
-sanitize   = fM dropHigherOrderBinders
-         >=> fM dropFuncSortedShadowedBinders
-         >=> fM dropWfcFunctions
+sanitize   = fM dropFuncSortedShadowedBinders
+         >=> fM dropWfcFunctions   
          >=>    checkRhsCs
          >=>    banQualifFreeVars
+         >=>    banConstraintFreeVars
+
+---------------------------------------------------------------------------
+-- | check that no constraint has free variables (ignores kvars)
+---------------------------------------------------------------------------
+banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
+banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
+  where
+    fi = mapKVars (const $ Just F.PTrue) fi0
+    bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
+
+cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
+cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
+  where
+    be = F.bs fi
+    lits = fst <$> (F.toListSEnv $ F.lits fi)
+    ids = F.elemsIBindEnv $ F.senv c
+    cDom = [fst $ F.lookupBindEnv i be | i <- ids]
+    cRng = concat [S.toList . freeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
+
+--TODO deduplicate (also in Solver/UniqifyBinds)
+freeVars :: F.Reft -> S.HashSet F.Symbol
+freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft
+
+badCs :: Misc.ListNE (F.SimpC a) -> E.Error
+badCs = E.catErrors . map (E.errFreeVarInConstraint . F.subcId)
 
 
 ---------------------------------------------------------------------------
@@ -53,15 +78,17 @@ banQualifFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
-    bads = [q | q <- F.quals fi, not $ isOk q]
-    lits = fst <$> (F.toListSEnv $ F.lits fi)
-    isOk q = F.syms (F.q_body q) `isSubset` (lits ++ (F.syms $ fst <$> (F.q_params q)))
+    bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
+    lits   = fst <$> F.toListSEnv (F.lits fi)
+    free q = S.toList $ F.syms (F.q_body q) `nubDiff` (lits ++ F.syms (fst <$> F.q_params q))
 
-badQuals :: Misc.ListNE F.Qualifier -> E.Error
-badQuals = E.catErrors . map E.errFreeVarInQual
 
--- True if first is a subset of second
-isSubset a b = S.null $ a' `S.difference` b'
+badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
+badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
+
+-- Null if first is a subset of second
+nubDiff :: [F.Symbol] -> [F.Symbol] -> S.HashSet F.Symbol
+nubDiff a b = a' `S.difference` b'
   where
     a' = S.fromList a
     b' = S.fromList b
@@ -81,8 +108,8 @@ badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1
 
 badRhs1 :: (Integer, F.SimpC a) -> E.Error
-badRhs1 (i, c) = E.err E.dummySpan $ printf "Malformed RHS for %d : %s \n"
-                   i (showpp $ F.crhs c)
+badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+> pprint i
+                                          , nest 4 (pprint (F.crhs c)) ]
 
 -- | Conservative check that KVars appear at "top-level" in pred
 -- isOkRhs :: F.Pred -> Bool
@@ -135,7 +162,8 @@ multiSorted = (1 <) . length . snd
 dupBindErrors :: [(F.Symbol, [(F.Sort, [F.BindId] )])] -> E.Error
 dupBindErrors = foldr1 E.catError . map dbe
   where
-   dbe (x, y) = E.err E.dummySpan $ printf "Multiple sorts for %s : %s \n" (showpp x) (showpp y)
+   dbe (x, y) = E.err E.dummySpan $ vcat [ "Multiple sorts for" <+> pprint x
+                                         , nest 4 (pprint y) ]
 
 ---------------------------------------------------------------------------
 symBinds  :: F.BindEnv -> [SymBinds]
@@ -152,34 +180,28 @@ binders :: F.BindEnv -> [(F.Symbol, (F.Sort, F.BindId))]
 binders be = [(x, (F.sr_sort t, i)) | (i, x, t) <- F.bindEnvToList be]
 
 
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- | Drop func-sorted `bind` that are shadowed by `constant` (if same type, else error)
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropFuncSortedShadowedBinders :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
 dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
   where
-    f x t              = not (M.member x defs) || isFirstOrder t
-    defs               = M.fromList $ F.toListSEnv $ F.lits fi
-
----------------------------------------------------------------------------
--- | Drop Higher-Order Binders and Constants from Environment
----------------------------------------------------------------------------
-dropHigherOrderBinders :: F.SInfo a -> F.SInfo a
----------------------------------------------------------------------------
-dropHigherOrderBinders = dropBinders (const isFirstOrder) isFirstOrder
-
+    f x t  = not (M.member x defs) || F.allowHO fi || isFirstOrder t
+    defs   = M.fromList $ F.toListSEnv $ F.lits fi
 
 ---------------------------------------------------------------------------
 -- | Drop functions from WfC environments
----------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
+dropWfcFunctions fi | F.allowHO fi = fi 
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
     nonFunction   = isNothing . F.functionSort
     (_, discards) = filterBindEnv (const nonFunction) $  F.bs fi
     ws'           = deleteWfCBinds discards          <$> F.ws fi
+
 
 ---------------------------------------------------------------------------
 -- | Generic API for Deleting Binders from FInfo

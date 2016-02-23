@@ -19,8 +19,9 @@ module Language.Fixpoint.Types.Environments (
     SEnv, SESearch(..)
   , emptySEnv, toListSEnv, fromListSEnv
   , mapSEnvWithKey, mapSEnv
-  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv
+  , insertSEnv, deleteSEnv, memberSEnv, lookupSEnv, unionSEnv
   , intersectWithSEnv
+  , differenceSEnv
   , filterSEnv
   , lookupSEnvWithDistance
   , envCs
@@ -31,8 +32,7 @@ module Language.Fixpoint.Types.Environments (
   , BindEnv, beBinds
   , insertBindEnv, emptyBindEnv, lookupBindEnv, mapBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList
-  , unionIBindEnv
-
+  , unionIBindEnv, diffIBindEnv
   ) where
 
 -- import qualified Data.Binary as B
@@ -83,7 +83,9 @@ lookupSEnv x (SE env)   = M.lookup x env
 emptySEnv               = SE M.empty
 memberSEnv x (SE env)   = M.member x env
 intersectWithSEnv f (SE m1) (SE m2) = SE (M.intersectionWith f m1 m2)
+differenceSEnv      (SE m1) (SE m2) = SE (M.difference m1 m2)
 filterSEnv f (SE m)     = SE (M.filter f m)
+unionSEnv (SE m1) m2    = SE (M.union m1 m2)
 
 lookupSEnvWithDistance x (SE env)
   = case M.lookup x env of
@@ -141,6 +143,10 @@ lookupBindEnv k (BE _ m) = fromMaybe err (M.lookup k m)
 
 unionIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
 unionIBindEnv (FB m1) (FB m2) = FB $ m1 `S.union` m2
+
+diffIBindEnv :: IBindEnv -> IBindEnv -> IBindEnv
+diffIBindEnv (FB m1) (FB m2) = FB $ m1 `S.difference` m2
+
 
 adjustBindEnv :: ((Symbol, SortedReft) -> (Symbol, SortedReft)) -> BindId -> BindEnv -> BindEnv
 adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m

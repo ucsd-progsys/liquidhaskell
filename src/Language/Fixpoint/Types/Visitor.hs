@@ -21,7 +21,9 @@ module Language.Fixpoint.Types.Visitor (
 
   -- * Clients
   , kvars
+  , size
   , envKVars
+  , envKVarsN
   , rhsKVars
   , mapKVars, mapKVars', mapKVarSubsts
 
@@ -38,8 +40,8 @@ import           Control.Monad.Trans.State (State, modify, runState)
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
-import           Language.Fixpoint.Misc (sortNub)
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types hiding (mapSort)
+import           Language.Fixpoint.Misc (count, sortNub)
 
 data Visitor acc ctx = Visitor {
  -- | Context @ctx@ is built in a "top-down" fashion; not "across" siblings
@@ -135,10 +137,12 @@ visitExpr v = vE
     step c (PIff p1 p2)    = PIff       <$> vE c p1 <*> vE c p2
     step c (PAtom r e1 e2) = PAtom r    <$> vE c e1 <*> vE c e2
     step c (PAll xts p)    = PAll   xts <$> vE c p
+    step c (ELam (x,t) e)  = ELam (x,t) <$> vE c e
     step c (PExist xts p)  = PExist xts <$> vE c p
     step c (ETApp e s)     = (`ETApp` s) <$> vE c e
     step c (ETAbs e s)     = (`ETAbs` s) <$> vE c e
-    step _ p@(PKVar _ _)   = return p -- PAtom r  <$> vE c e1 <*> vE c e2
+    step _ p@(PKVar _ _)   = return p
+    step _ PGrad           = return PGrad
 
 mapKVars :: Visitable t => (KVar -> Maybe Expr) -> t -> t
 mapKVars f = mapKVars' f'
@@ -160,6 +164,18 @@ mapKVarSubsts f        = trans kvVis () []
     txK _ (PKVar k su) = PKVar k $ f k su
     txK _ p            = p
 
+newtype MInt = MInt Integer
+
+instance Monoid MInt where
+  mempty                    = MInt 0
+  mappend (MInt m) (MInt n) = MInt (m + n)
+
+size :: Visitable t => t -> Integer
+size t    = n
+  where
+    MInt n = fold szV () mempty t
+    szV    = (defaultVisitor :: Visitor MInt t) { accExpr = \ _ _ -> MInt 1 }
+
 kvars :: Visitable t => t -> [KVar]
 kvars                = fold kvVis () []
   where
@@ -173,11 +189,11 @@ envKVars be c = squish [ kvs sr |  (_, sr) <- clhs be c]
     squish    = S.toList  . S.fromList . concat
     kvs       = kvars . sr_reft
 
--- lhsKVars :: BindEnv -> SubC a -> [KVar]
--- lhsKVars binds c = envKVs ++ lhsKVs
-  -- where
-    -- envKVs       = envKVars binds         c
-    -- lhsKVs       = kvars          $ lhsCs c
+envKVarsN :: (TaggedC c a) => BindEnv -> c a -> [(KVar, Int)]
+envKVarsN be c = tally [ kvs sr |  (_, sr) <- clhs be c]
+  where
+    tally      = count . concat
+    kvs        = kvars . sr_reft
 
 rhsKVars :: (TaggedC c a) => c a -> [KVar]
 rhsKVars = kvars . crhs -- rhsCs
@@ -204,7 +220,7 @@ foldSort f = step
     step b t           = go (f b t) t
     go b (FFunc t1 t2) = L.foldl' step b [t1, t2]
     go b (FApp t1 t2)  = L.foldl' step b [t1, t2]
-    go b (FAbs _ t)    = go b t 
+    go b (FAbs _ t)    = go b t
     go b _             = b
 
 mapSort :: (Sort -> Sort) -> Sort -> Sort

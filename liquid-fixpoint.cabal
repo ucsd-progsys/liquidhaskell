@@ -37,7 +37,7 @@ Source-Repository head
 Executable fixpoint
   default-language: Haskell98
   Main-is:       Fixpoint.hs
-  ghc-options:   -threaded -Werror -W -fno-warn-missing-methods 
+  ghc-options:   -threaded -Werror -W -fno-warn-missing-methods
   hs-source-dirs: bin
   Build-Depends: base >= 4.7 && < 5
                , liquid-fixpoint
@@ -57,6 +57,7 @@ Library
                    Language.Fixpoint.Types.Substitutions,
                    Language.Fixpoint.Types.Environments,
                    Language.Fixpoint.Types.Constraints,
+                   Language.Fixpoint.Types.Graphs,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,
@@ -64,6 +65,7 @@ Library
                    Language.Fixpoint.Smt.Serialize,
                    Language.Fixpoint.Smt.Interface,
                    Language.Fixpoint.Partition,
+                   Language.Fixpoint.Minimize,
                    Language.Fixpoint.Solver,
                    Language.Fixpoint.Parse,
                    Language.Fixpoint.SortCheck,

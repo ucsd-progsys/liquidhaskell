@@ -2,6 +2,7 @@ Liquid Fixpoint [![Build Status](https://travis-ci.org/ucsd-progsys/liquid-fixpo
 ===============
 
 
+
 This package implements a Horn-Clause/Logical Implication constraint solver used
 for various Liquid Types. The solver uses SMTLIB2 to implement an algorithm similar to:
 
@@ -107,6 +108,8 @@ See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 
 Options
 -------
+
+`--higherorder` allows higher order binders into the environment 
 
 `--extsolver` runs the **deprecated** external solver.
 
