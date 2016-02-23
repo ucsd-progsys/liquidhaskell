@@ -40,7 +40,7 @@ validate = errorstar "TODO: validate input"
 sanitize :: F.SInfo a -> ValidateM (F.SInfo a)
 ---------------------------------------------------------------------------
 sanitize   = fM dropFuncSortedShadowedBinders
-         >=> fM dropWfcFunctions   
+         >=> fM dropWfcFunctions
          >=>    checkRhsCs
          >=>    banQualifFreeVars
          >=>    banConstraintFreeVars
@@ -59,7 +59,7 @@ cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
   where
     be = F.bs fi
     lits = fst <$> (F.toListSEnv $ F.lits fi)
-    ids = F.elemsIBindEnv $ F.senv c
+    ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . freeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
 
@@ -195,7 +195,7 @@ dropFuncSortedShadowedBinders fi = dropBinders f (const True) fi
 --------------------------------------------------------------------------------
 dropWfcFunctions :: F.SInfo a -> F.SInfo a
 ---------------------------------------------------------------------------
-dropWfcFunctions fi | F.allowHO fi = fi 
+dropWfcFunctions fi | F.allowHO fi = fi
 dropWfcFunctions fi = fi { F.ws = ws' }
   where
     nonFunction   = isNothing . F.functionSort

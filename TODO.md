@@ -75,3 +75,39 @@ wf:
        42]
   reft {VV##443 : int | [$k_##444]}
   // META wf : ()
+
+
+----
+
+ghc -ddump-ds -dno-suppress-uniques tests/pos/elim00.hs
+
+foo :: Foo -> Foo
+foo =
+  \ ds_dmz  ->
+    case ds_dmz of { Foo xig_alO yog_alP ->
+    let {
+      ds_dmE :: (Int, Int)
+      ds_dmE =
+        let {
+          ds_dmD = (xig_alO, yog_alP) } in
+        let {
+          cow_amq =
+            case ds_dmD of { (_, cow_amq) ->
+            cow_amq
+            } } in
+        let {
+          wink_amp :: Int
+          [LclId, Str=DmdType]
+          wink_amp =
+            case ds_dmD of _ [Occ=Dead] { (wink_amp, _ [Occ=Dead]) ->
+            wink_amp
+            } } in
+        (wink_amp, cow_amq) } in
+    Elim.Foo
+      (case ds_dmE of _ [Occ=Dead] { (wink_amp, _ [Occ=Dead]) ->
+       wink_amp
+       })
+      (case ds_dmE of _ [Occ=Dead] { (_ [Occ=Dead], cow_amq) ->
+       cow_amq
+       })
+    }
