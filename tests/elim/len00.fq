@@ -1,0 +1,23 @@
+
+// This qualifier saves the day; solve constraints WITHOUT IT
+//qualif ListZ(v : [@(0)]): (len v >= 0)
+
+constant len : (func(2, [(@(0)  @(1)); int]))
+
+bind 0 y : {v : [(Tuple int a)] | [len v >= 0]}
+
+constraint:
+  env [0]
+  lhs {v : [(Tuple int a)] | [v = y] }
+  rhs {v : [(Tuple int a)] | [$k0]   }
+  id 1 tag []
+
+constraint:
+  env []
+  lhs {v : [(Tuple int a)] | [$k0]             }
+  rhs {v : [(Tuple int a)] | [len v >= 0] }
+  id 2 tag []
+
+wf:
+  env [ ]
+  reft {v : [(Tuple int a)] | [$k0] }
