@@ -25,6 +25,7 @@ import DriverPipeline (compileFile)
 import Text.PrettyPrint.HughesPJ
 import HscTypes hiding (Target)
 import CoreSyn
+import qualified Outputable as O
 
 import Class
 import Var
@@ -534,7 +535,13 @@ instance PPrint GhcInfo where
 
 
 pprintCBs :: [CoreBind] -> Doc
-pprintCBs = pprDoc . tidyCBs
+-- pprintCBs = pprDoc . tidyCBs
+pprintCBs = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
+
+-- pprintCBs = showSDocDebug . tidyCBs
+-- showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle Out.alwaysQualify Out.AllTheWay)
+-- showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
+
 
 instance Show GhcInfo where
   show = showpp
