@@ -17,6 +17,7 @@ where
 
 import           Control.Parallel.Strategies
 import           Control.Arrow (second)
+import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
@@ -189,8 +190,8 @@ apply1 g s i = {- F.tracepp msg $ -} F.pAnd $ applyExpr g s <$> bindExprs g i
 bindExprs :: CombinedEnv -> F.BindId -> [F.Expr]
 bindExprs (_,be,_) i = [p `F.subst1` (v, F.eVar x) | F.Reft (v, p) <- rs ]
   where
-    (x, sr)        = F.lookupBindEnv i be
-    rs             = F.reftConjuncts $ F.sr_reft sr
+    (x, sr)          = F.lookupBindEnv i be
+    rs               = F.reftConjuncts $ F.sr_reft sr
 
 applyExpr :: CombinedEnv -> Solution -> F.Expr -> F.Expr
 applyExpr g s (F.PKVar k su) = applyKVar g s k su
@@ -223,10 +224,13 @@ cubePred g s su c = F.PExist xts
 
 -- TODO: SUPER SLOW! Decorate all substitutions with Sorts in a SINGLE pass.
 substSorts :: CombinedEnv -> F.Subst -> [(F.Symbol, F.Sort)]
-substSorts g (F.Su m) = [(x, sortOf e) | (x, e) <- M.toList m ]
+substSorts g (F.Su m) = [(x, sortOf e) | (x, e) <- xes, not (S.member x frees) ]
   where
+    xes      = M.toList m
     env      = combinedSEnv g
     sortOf e = fromMaybe (badExpr g e) (So.checkSortExpr env e)
+    frees    = S.fromList (concatMap (F.syms . snd) xes)
+
 
 badExpr :: CombinedEnv -> F.Expr -> a
 badExpr = errorstar "substSorts has a badExpr"
