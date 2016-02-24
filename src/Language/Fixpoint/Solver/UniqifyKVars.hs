@@ -23,6 +23,7 @@ bind 2 lq_karg$x$k_42
 constraint:
   env [0; 1]
   rhs $k_42[lq_karg$x$k_42:=x][lq_karg$v$k_42:=v]
+
 wf:
   env [2]
   reft {lq_karg$v$k_42 : int | [$k_42]}
@@ -57,8 +58,8 @@ remakeSubstIfWfcExists fi k su
 remakeSubst :: SInfo a -> KVar -> Subst -> Subst
 remakeSubst fi k su = foldl' (updateSubst k) su kDom
   where
-    w    = (ws fi) M.! k
-    kDom = (fst3 $ wrft w) : (fst <$> envCs (bs fi) (wenv w))
+    w    = ws fi M.! k
+    kDom = fst3 (wrft w) : (fst <$> envCs (bs fi) (wenv w))
 
 updateSubst :: KVar -> Subst -> Symbol -> Subst
 updateSubst k (Su su) sym
@@ -94,8 +95,8 @@ accumBinds k (fi, ids) i = (fi {bs = be'}, i' : ids)
   where
     --TODO: could we ignore the old SortedReft? what would it mean if it were non-trivial in a wf environment?
     (oldSym, sr) = lookupBindEnv i (bs fi)
-    newSym = kArgSymbol oldSym (kv k)
-    (i', be') = insertBindEnv newSym sr (bs fi)
+    newSym       = tracepp "kArgSymbol" $  kArgSymbol oldSym (kv k)
+    (i', be')    = insertBindEnv newSym sr (bs fi)
 --------------------------------------------------------------
 
 isValidInRefinements :: Sort -> Bool

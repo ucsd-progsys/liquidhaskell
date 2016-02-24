@@ -20,7 +20,7 @@ import           Control.Arrow (second)
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
-import           Data.Maybe                     (maybeToList, isNothing)
+import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
 import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
@@ -226,15 +226,16 @@ cubePred g s su c = F.PExist xts
 substSorts :: CombinedEnv -> F.Subst -> [(F.Symbol, F.Sort)]
 substSorts g (F.Su m) = [(x, t) | (x, e) <- xes
                                 , not (S.member x frees)
-                                , t      <- sortOf e ]
+                                , let t   = sortOf e ]
   where
     xes    = M.toList m
     env    = combinedSEnv g
-    sortOf = maybeToList . So.checkSortExpr env
     frees  = S.fromList (concatMap (F.syms . snd) xes)
+    -- sortOf = maybeToList . So.checkSortExpr env
+    sortOf e = fromMaybe (badExpr g e) $ So.checkSortExpr env e
 
--- badExpr :: CombinedEnv -> F.Expr -> a
--- badExpr _ e = errorstar $ "substSorts has a badExpr: " ++ show e
+badExpr :: CombinedEnv -> F.Expr -> a
+badExpr _ e = errorstar $ "substSorts has a badExpr: " ++ show e
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
 combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
