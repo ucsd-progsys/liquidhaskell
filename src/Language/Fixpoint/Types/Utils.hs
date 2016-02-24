@@ -2,8 +2,11 @@
 --   TODO: move the "clients" in Visitors into this module.
 
 module Language.Fixpoint.Types.Utils (
-  -- * Extract the domain of a kvar
-  kvarDomain
+  -- * Domain of a kvar
+    kvarDomain
+
+  -- * Free variables in a refinement
+  , reftFreeVars
   ) where
 
 -- import           Language.Fixpoint.Types.PrettyPrint
@@ -19,6 +22,7 @@ import           Language.Fixpoint.Types.Constraints
 
 import           Language.Fixpoint.Misc (fst3)
 import qualified Data.HashMap.Strict as M
+import qualified Data.HashSet as S
 
 
 --------------------------------------------------------------------------------
@@ -33,3 +37,10 @@ domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
 
 getWfC :: SInfo a -> KVar -> WfC a
 getWfC si k = ws si M.! k
+
+--------------------------------------------------------------------------------
+-- | Free variables of a refinement
+--------------------------------------------------------------------------------
+--TODO deduplicate (also in Solver/UniqifyBinds)
+reftFreeVars :: Reft -> S.HashSet Symbol
+reftFreeVars r@(Reft (v, _)) = S.delete v $ S.fromList $ syms r

@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Validate
        where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor     (isConcC, isKvarC, mapKVars)
+import qualified Language.Fixpoint.Types.Visitor as V --   (isConcC, isKvarC, mapKVars)
 import           Language.Fixpoint.SortCheck        (isFirstOrder)
 import qualified Language.Fixpoint.Misc   as Misc
 import           Language.Fixpoint.Misc        (fM, errorstar)
@@ -54,16 +54,17 @@ sanitize   = fM dropFuncSortedShadowedBinders
 -- | remove substitutions `K[x := e]` where `x` is not in the domain of K
 --------------------------------------------------------------------------------
 dropBogusSubstitutions :: F.SInfo a -> F.SInfo a
-dropBogusSubstitutions si0 = V.mapKVarSubsts (dropBogusSubst si0) si0
+dropBogusSubstitutions si0 = V.mapKVarSubsts (F.filterSubst . keepSubst) si0
   where
-    kvDoms = M.mapWithKey (F.ws si) 
-    drop :: F.KVar -> F.Subst -> F.Subst
-    drop = F.filterSubst . f
-    f k x _  = x `member` dom k
-    M.lookupDefault ... (F.ws si0)
+    kvM                    = kvarDomainM si0
+    kvXs k                 = M.lookupDefault S.empty k kvM
+    keepSubst k x _        = x `S.member` kvXs k
 
-kvarDomain :: F.SInfo a -> F.KVar -> S.HashSet F.Symbol
-kvarDomain = undefined
+kvarDomainM :: F.SInfo a -> M.HashMap F.KVar (S.HashSet F.Symbol)
+kvarDomainM si = M.fromList [ (k, dom k) | k <- ks ]
+  where
+    ks         = M.keys (F.ws si)
+    dom        = S.fromList . F.kvarDomain si
 
 --------------------------------------------------------------------------------
 -- | check that no constraint has free variables (ignores kvars)
@@ -71,7 +72,7 @@ kvarDomain = undefined
 banConstraintFreeVars :: F.SInfo a -> ValidateM (F.SInfo a)
 banConstraintFreeVars fi0 = Misc.applyNonNull (Right fi0) (Left . badCs) bads
   where
-    fi = mapKVars (const $ Just F.PTrue) fi0
+    fi = V.mapKVars (const $ Just F.PTrue) fi0
     bads = [c | c <- M.elems $ F.cm fi, not $ cNoFreeVars fi c]
 
 cNoFreeVars :: F.SInfo a -> F.SimpC a -> Bool
@@ -81,11 +82,7 @@ cNoFreeVars fi c = S.null $ cRng `nubDiff` (lits ++ cDom ++ F.prims)
     lits = fst <$> F.toListSEnv (F.lits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
-    cRng = concat [S.toList . freeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
-
---TODO deduplicate (also in Solver/UniqifyBinds)
-freeVars :: F.Reft -> S.HashSet F.Symbol
-freeVars rft@(F.Reft (v, _)) = S.delete v $ S.fromList $ F.syms rft
+    cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
 
 badCs :: Misc.ListNE (F.SimpC a) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . F.subcId)
@@ -122,7 +119,7 @@ banMixedRhs fi = Misc.applyNonNull (Right fi) (Left . badRhs) bads
   where
     ics        = M.toList $ F.cm fi
     bads       = [(i, c) | (i, c) <- ics, not $ isOk c]
-    isOk c     = isKvarC c || isConcC c
+    isOk c     = V.isKvarC c || V.isConcC c
 
 badRhs :: Misc.ListNE (Integer, F.SimpC a) -> E.Error
 badRhs = E.catErrors . map badRhs1

@@ -27,20 +27,4 @@ import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Graphs
-
-import           Language.Fixpoint.Misc (fst3)
-import qualified Data.HashMap.Strict as M
-
-
---------------------------------------------------------------------------------
--- | Compute the domain of a kvar
---------------------------------------------------------------------------------
-
-kvarDomain :: SInfo a -> KVar -> [Symbol]
-kvarDomain si k = domain (bs si) (getWfC si k)
-  where
-    domain :: BindEnv -> WfC a -> [Symbol]
-    domain be wfc = fst3 (wrft wfc) : map fst (envCs be $ wenv wfc)
-
-    getWfC :: SInfo a -> KVar -> WfC a
-    getWfC si k = ws si M.! k
+import           Language.Fixpoint.Types.Utils
